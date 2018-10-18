@@ -1,12 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <set>
+
 #include <unistd.h>
-#include <stdbool.h>
 #include <asm/unistd.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/user.h>
+
+using std::set;
 
 // Comparator procedure for sorting an array of size_ts
 int compare_size_t(const void* a, const void* b) {
@@ -37,7 +40,7 @@ int main(int argc, char** argv) {
     // Set up to run the subcommand specified in argv.
     // Copy the given arguments to a new argv array, leaving space for the NULL terminator
     int new_argc = argc - 1;
-    char** new_argv = malloc(sizeof(char*) * (new_argc + 1));
+    char** new_argv = new char*[new_argc + 1];
     for(int i=0; i<new_argc; i++) {
       new_argv[i] = argv[i+1];
     }
@@ -66,8 +69,7 @@ int main(int argc, char** argv) {
 
     bool running = true;
     int last_signal = 0;
-    size_t *skipped_syscalls = NULL;
-    size_t num_skipped_syscalls = 0;
+    set<size_t> skipped_syscalls;
 
     while(running) {
       // Continue the process, delivering the last signal we received (if any)
@@ -129,21 +131,8 @@ int main(int argc, char** argv) {
             printf("\t\t\topenat(...)\n");
 
           } else {
-            // Look through the list of unknown syscalls to see if there's a match
-            bool match = false;
-            for(int i=0; i<num_skipped_syscalls; i++) {
-              if(skipped_syscalls[i] == syscall_num) {
-                match = true;
-                break;
-              }
-            }
-
-            // This is a new unhandled syscall. Add it to the list
-            if(!match) {
-              num_skipped_syscalls++;
-              skipped_syscalls = realloc(skipped_syscalls, num_skipped_syscalls * sizeof(size_t));
-              skipped_syscalls[num_skipped_syscalls-1] = syscall_num;
-            }
+            // Add the syscall number to the set of skipped syscalls
+            skipped_syscalls.insert(syscall_num);
           }
 
           // Also trace:
@@ -167,13 +156,10 @@ int main(int argc, char** argv) {
       }
     }
 
-    // Sort the list of skipped syscalls
-    qsort(skipped_syscalls, num_skipped_syscalls, sizeof(size_t), compare_size_t);
-
     // Print the list of skipped syscalls
-    printf("There were %lu unique unhandled syscalls.\n", num_skipped_syscalls);
-    for(int i=0; i<num_skipped_syscalls; i++) {
-      printf("  %lu\n", skipped_syscalls[i]);
+    printf("There were %lu unique unhandled syscalls.\n", skipped_syscalls.size());
+    for(size_t syscall_num : skipped_syscalls) {
+      printf("  %lu\n", syscall_num);
     }
   }
 }

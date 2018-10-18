@@ -4,6 +4,6 @@ all: trace
 clean:
 	rm -f trace
 
-trace: trace.c
-	clang -o trace trace.c
+trace: trace.cc
+	clang++ --std=c++17 -o trace trace.cc
 
