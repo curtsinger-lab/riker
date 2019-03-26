@@ -33,71 +33,99 @@ def rvparse(rv: str) -> Optional[int] :
         return None
     else:
         return int(rv)
-    
+
+def parse_syscall(line: str) -> Optional[Event] :
+    r = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
+    m = re.match(r, line)
+        
+    if m:
+        pid    = int(m.group('pid'))
+        name   = m.group('name')        
+        args   = argparse(m.group('args'))
+        retval = rvparse(m.group('retval'))
+        return Event(pid, name, args, retval)
+    else:
+        return None
+
+def parse_syscall_prefix(line: str) -> Optional[Event] :
+    r = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)<unfinished'
+    m = re.match(r, line)
+    if m:
+        pid = int(m.group('pid'))
+        name = m.group('name')
+        args = argparse(m.group('args'))
+        return Event(pid, name, args, None)
+    else:
+        return None
+
+def parse_syscall_suffix(line: str) -> Optional[Event] :
+    r = '(?P<pid>[0-9]+)\s+<\.\.\.\s+(?P<name>[a-z0-9_]+)\s+resumed>\s+(?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
+    m = re.match(r, line)
+    if m:
+        pid    = int(m.group('pid'))
+        name  = m.group('name')
+        retval = rvparse(m.group('retval'))
+        return Event(pid, name, [], retval)
+    else:
+        return None
+
+def parse_signal(line: str) -> Optional[Event] :
+    r = '(?P<pid>[0-9]+)\s+---\s+(?P<name>[A-Z]+)\s+{(?P<args>.+)}\s+---'
+    m = re.match(r, line)
+    if m:
+        pid = int(m.group('pid'))
+        name = m.group('name')
+        args = argparse(m.group('args'))
+        return Event(pid, name, args, None)
+    else:
+        return None
+
+def parse_exit(line: str) -> bool :
+    r = '(?P<pid>[0-9]+)\s+[+]{3}\s+exited with [0-9]+\s+[+]{3}'
+    m = re.match(r, line)
+    if m:
+        return True
+    else:
+        return False
+                    
 # top-level parsing function
 def parse(lines: List[str]) -> List[Event] :
     a: List[Event] = []
     starts: Dict[int,Event] = {}
-    # case 1: most lines match this regex
-    r = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
-    # case 2: other lines start and are finished at later points
-    # case 2 start:
-    rstart = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)<unfinished'
-    # case 2 end:
-    rend = '(?P<pid>[0-9]+)\s+<\.\.\.\s+(?P<name>[a-z0-9_]+)\s+resumed>\s+(?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
-    # case 3: signal
-    rsig = '(?P<pid>[0-9]+)\s+---\s+(?P<name>[A-Z]+)\s+{(?P<args>.+)}\s+---'
-    # case 4: exit
-    rexit = '(?P<pid>[0-9]+)\s+[+]{3}\s+exited with [0-9]+\s+[+]{3}'
+
     for i in range(0, len(lines)):
         line = lines[i]
-        m = re.match(r, line)
-        
-        # check case 1 
-        if m:
-            pid    = int(m.group('pid'))
-            name   = m.group('name')        
-            args   = argparse(m.group('args'))
-            retval = rvparse(m.group('retval'))
-            a.append(Event(pid, name, args, retval))
+
+        # check case 1: most lines are ordinary syscalls
+        evt = parse_syscall(line)
+        if evt:
+            a.append(evt)
+            
         # check case 2
         else:
             # check case 2 start
-            m = re.match(rstart, line)
-            if m:
-                pid = int(m.group('pid'))
-                name = m.group('name')
-                args = argparse(m.group('args'))
-                retval = None
-                starts[pid] = Event(pid, name, args, retval)
+            evt = parse_syscall_prefix(line)
+            if evt:
+                starts[evt.pid] = evt
             # check case 2 end
             else:
-                m = re.match(rend, line)
-                if m:
-                    pid    = int(m.group('pid'))
-                    name  = m.group('name')
-                    retval = rvparse(m.group('retval'))
-                    e = starts[pid]
-                    del starts[pid]
-                    a.append(Event(pid, name, e.args, retval))
+                evt = parse_syscall_suffix(line)
+                if evt:
+                    prev = starts[evt.pid]
+                    del starts[evt.pid]
+                    a.append(Event(evt.pid, evt.name, prev.args, evt.retval))
                 # check case 3: signals
                 else:
-                    m = re.match(rsig, line)
-                    if m:
-                        pid = int(m.group('pid'))
-                        name = m.group('name')
-                        args = argparse(m.group('args'))
-                        a.append(Event(pid, name, args, None))
+                    evt = parse_signal(line)
+                    if evt:
+                        a.append(evt)
                     # check case 4: exit
-                    else:
-                        m = re.match(rexit, line)
-                        if m:
-                            continue
-                        # no match; fail
-                        else:                        
-                            print("Unable to parse: ", line)
-                            sys.exit(1)
-        
+                    elif parse_exit(line):
+                        continue
+                    # no match; fail
+                    else:                        
+                        print("Unable to parse: ", line)
+                        sys.exit(1)
             
     return a
 
