@@ -4,14 +4,14 @@ import sys
 from typing import List, Optional
 
 class Event:
-    def __init__(self, pid: int, fname: str, args: List[str], retval: Optional[int]) -> None :
+    def __init__(self, pid: int, name: str, args: List[str], retval: Optional[int]) -> None :
         self.pid: int              = pid
-        self.fname: str            = fname
+        self.name: str             = name
         self.args: List[str]       = args
         self.retval: Optional[int] = retval
 
     def __str__(self) -> str :
-        return "pid: {}, function: {}, args: {}, retval: {}".format(self.pid, self.fname, self.args, self.retval)
+        return "pid: {}, function: {}, args: {}, retval: {}".format(self.pid, self.name, self.args, self.retval)
 
 # complain
 def usage():
@@ -35,14 +35,14 @@ def rvparse(rv: str) -> Optional[int] :
 def parse(lines: List[str]) -> List[Event] :
     a: List[Event] = []
     # case 1: most lines match this regex
-    r = '(?P<pid>[0-9]+)\s+(?P<fname>[a-z0-9_]+)\((?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
+    r = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
     # case 2: other lines start and are finished at later points
     # case 2 start:
-    rstart = '(?P<pid>[0-9]+)\s+(?P<fname>[a-z0-9_]+)\((?P<args>.*)unfinished'
+    rstart = '(?P<pid>[0-9]+)\s+(?P<name>[a-z0-9_]+)\((?P<args>.*)unfinished'
     # case 2 end:
-    rend = '(?P<pid>[0-9]+)\s+<\.\.\.\s+(?P<fname>[a-z0-9_]+)\s+resumed>\s+(?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
+    rend = '(?P<pid>[0-9]+)\s+<\.\.\.\s+(?P<name>[a-z0-9_]+)\s+resumed>\s+(?P<args>.*)\)\s+=\s+(?P<retval>-?[0-9?]+)'
     # case 3: signal
-    rsig = '(?P<pid>[0-9]+)\s+---\s+(?P<fname>[A-Z]+)\s+{(?P<args>.+)}\s+---'
+    rsig = '(?P<pid>[0-9]+)\s+---\s+(?P<name>[A-Z]+)\s+{(?P<args>.+)}\s+---'
     # case 4: exit
     rexit = '(?P<pid>[0-9]+)\s+[+]{3}\s+exited with [0-9]+\s+[+]{3}'
     for i in range(0, len(lines)):
@@ -50,14 +50,14 @@ def parse(lines: List[str]) -> List[Event] :
         m = re.match(r, line)
 
         pid: int = -999
-        fname: str = "DEBUG"
+        name: str = "DEBUG"
         args: List[str] = []
         retval: Optional[int] = -999
         
         # check case 1 
         if m:
             pid    = int(m.group('pid'))
-            fname  = m.group('fname')        
+            name  = m.group('name')        
             args   = argparse(m.group('args'))
             retval = rvparse(m.group('retval'))
         # check case 2
@@ -66,7 +66,7 @@ def parse(lines: List[str]) -> List[Event] :
             m = re.match(rstart, line)
             if m:
                 pid = int(m.group('pid'))
-                fname = m.group('fname')
+                name = m.group('name')
                 args = argparse(m.group('args'))
                 retval = None
             # check case 2 end
@@ -74,7 +74,7 @@ def parse(lines: List[str]) -> List[Event] :
                 m = re.match(rend, line)
                 if m:
                     pid    = int(m.group('pid'))
-                    fname  = m.group('fname')
+                    name  = m.group('name')
                     args   = []
                     retval = rvparse(m.group('retval'))
                 # check case 3
@@ -82,7 +82,7 @@ def parse(lines: List[str]) -> List[Event] :
                     m = re.match(rsig, line)
                     if m:
                         pid = int(m.group('pid'))
-                        fname = m.group('fname')
+                        name = m.group('name')
                         args = argparse(m.group('args'))
                         retval = None
                     # check case 4
@@ -94,7 +94,7 @@ def parse(lines: List[str]) -> List[Event] :
                         else:                        
                             print("Unable to parse: ", line)
                             sys.exit(1)
-        a.append(Event(pid, fname, args, retval))
+        a.append(Event(pid, name, args, retval))
             
     return a
 
