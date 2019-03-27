@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re
 import sys
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple, Any
 
 class Event:
     def __init__(self, pid: int, name: str, args: List[str], retval: Optional[int]) -> None :
@@ -18,14 +18,63 @@ def usage():
     print("Usage: python3 parse_strace.py <trace.txt>")
     sys.exit(1)
 
-# parse argument lists
-def argparse(args: str) -> List[str] :
-    xs: List[str] = args.split(',')
-    # remove leading whitespace
-    xs = [x.lstrip() for x in xs]
-    # remove empty strings
-    xs = list(filter(None, xs))
-    return xs
+def argparse(s: str) -> List[Any] :
+    def p(s: str) -> Tuple[List[Any],int] :
+        # always strip leading whitespace
+        s2 = s.lstrip()
+        diff = len(s) - len(s2)
+        s = s2
+
+        #print("DEBUG: HAVE INPUT: {}".format(s))
+        
+        # base case 1: we're done
+        if len(s) == 0:
+            #print("DEBUG: end of input.")
+            #input()
+            return [], diff
+        # recursive case 1: looks like a sublist
+        elif s[0] == '[':
+            #print("DEBUG: SUBLIST")
+            #input()
+            # parse sublist
+            args1, pos1 = p(s[1:])
+            #print("DEBUG: GOT BACK SUBLIST: {}, pos = {}".format(args1, pos1 + 1 + diff))
+            #input()
+            # parse the rest
+            args2, pos2 = p(s[pos1 + 1:])
+            #print("DEBUG: GOT BACK REST: {}, pos = {}".format(args2, pos1 + pos2 + 1 + diff))
+            #input()
+            # return + update position
+            return [args1] + args2, pos1 + pos2 + 1 + diff
+        else:
+            #print("DEBUG: NORMAL CASE: INPUT IS: '{}'".format(s))
+            # get next token
+            parts = s.split(',')
+            token, rest = parts[0], ",".join(parts[1:])
+            #print("DEBUG: GOT TOKEN: {} AND REST: {}".format(token, rest))
+
+            # account for commas in splits
+            diff = diff + len(parts) - 1
+
+            # base case 2: looks like the end of a list
+            # stop here
+            if token[-1] == ']':
+                #print("DEBUG: END OF SUBLIST")
+                #input()
+                t = token[0:-1]
+                args = [] if t == '' else [t]
+                # pos = token + 1 if we need to include the comma
+                pos = len(token) if len(parts) == 1 else len(token) + 1
+                return args, pos
+
+            #print("DEBUG: NORMAL ARG: '{}'".format(token))
+            #input()
+            # otherwise, the usual recursive case 2: parse the rest
+            args, pos = p(rest)
+            # return + update position
+            return [token] + args, pos + len(token) + diff
+    args, pos = p(s)
+    return args
 
 # parse return values
 def rvparse(rv: str) -> Optional[int] :
