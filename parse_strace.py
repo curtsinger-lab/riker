@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import re
 import sys
 from typing import List, Dict, Optional
@@ -129,15 +129,16 @@ def parse(lines: List[str]) -> List[Event] :
             
     return a
 
-if __name__ == '__main__':    
-    if len(sys.argv) != 2:
-        usage()
-
+def parse_file(filename: str) -> List[Event]:
     with open(sys.argv[1], 'r') as f:
           trace: List[str] = f.readlines()
     trace = [line.strip() for line in trace]
 
-    events: List[Event] = parse(trace)
+    return parse(trace)
 
-    for event in events:
+if __name__ == '__main__':    
+    if len(sys.argv) != 2:
+        usage()
+    
+    for event in parse_file(sys.argv[1]):
         print(event)
