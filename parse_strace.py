@@ -117,13 +117,6 @@ def argparse(s: str) -> List[Any] :
                 # parse end of list
                 args,pos = parse_list_end(token)
                 return args, pos + diff
-                
-                # consume comma if list ends in comma
-                #if len(s) > len(token) and s[len(token)] == ',':
-                #    dbg("DEBUG: there is a comma; consume it.")
-                #    pos = pos + 1
-                #pos = pos + diff
-                #return args, pos
 
             dbg("DEBUG: NORMAL ARG: '{}'".format(token))
             
@@ -203,7 +196,8 @@ def parse_exit(line: str) -> bool :
 # top-level parsing function
 def parse(lines: List[str]) -> List[Event] :
     a: List[Event] = []
-    starts: Dict[int,Event] = {}
+    # PID -> (Event, index in a)
+    starts: Dict[int,Tuple[Event,int]] = {}
 
     for i in range(0, len(lines)):
         line = lines[i]
@@ -218,14 +212,23 @@ def parse(lines: List[str]) -> List[Event] :
             # check case 2 start
             evt = parse_syscall_prefix(line)
             if evt:
-                starts[evt.pid] = evt
+                # track event by PID
+                starts[evt.pid] = (evt, len(a))
+                # put in the list now so as to preserve
+                # the event order
+                a.append(evt)
             # check case 2 end
             else:
                 evt = parse_syscall_suffix(line)
                 if evt:
-                    prev = starts[evt.pid]
+                    prev, idx = starts[evt.pid]
+                    # remove from starts
                     del starts[evt.pid]
-                    a.append(Event(evt.pid, evt.name, prev.args, evt.retval))
+                    # update event
+                    e = Event(evt.pid, evt.name, prev.args, evt.retval)
+                    # replace
+                    a[idx] = e
+                    
                 # check case 3: signals
                 else:
                     evt = parse_signal(line)
