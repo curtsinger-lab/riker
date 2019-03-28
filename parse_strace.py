@@ -52,15 +52,15 @@ def argparse(s: str) -> List[Any] :
             return [args1] + args2, pos1 + pos2 + 1 + diff
         # recursive case 2: a quoted string
         elif s[0] == '"':
-            dbg("DEBUG: QUOTED STRING")
+            dbg("DEBUG: QUOTED STRING: '{}'".format(s))
             
             # find the entire string
-            r = '^"(?P<arg>.*?)"'
+            r = '^"(?P<arg>.*?)"($|[,\]])'
             m = re.match(r, s)
             if m:
                 token = m.group('arg')
                 # consume comma if quoted string ends in comma
-                toks = 3 if s[len(token) + 2] == ',' else 2
+                toks = 3 if (len(s) > len(token) + 2 and s[len(token) + 2] == ',') else 2
                 rest = s[toks + len(token):]
                 pos1 = diff + toks + len(token)
                 dbg("DEBUG: GOT QUOTED TOKEN '{}'".format(token))
