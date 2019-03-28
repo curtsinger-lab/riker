@@ -41,8 +41,12 @@ def argparse(s: str) -> List[Any] :
 
     def parse_list_end(s: str) -> Tuple[List[Any], int] :
         dbg("DEBUG: END OF SUBLIST")
-                
+
+        # grab the entire string up to the last character
         t = s[0:-1]
+
+        # if an argument is the empty string, return the empty list
+        # otherwise, return a list containing just the arg
         args = [] if t == '' else [t]
         return args, len(s)
     
@@ -102,16 +106,24 @@ def argparse(s: str) -> List[Any] :
             # get next token
             token, rest = tokenize(s)
 
+            dbg("DEBUG: TOKEN IS '{}'".format(token))
+            
             # account for comma in split
             diff = diff + 1
 
             # base case 2: looks like the end of a list
             # stop here
             if token[-1] == ']':
-                args,pos = parse_list_end(s)
+                # parse end of list
+                args,pos = parse_list_end(token)
+                return args, pos + diff
+                
                 # consume comma if list ends in comma
-                pos = (pos if len(rest) > 0 else pos + 1) + diff
-                return args, pos
+                #if len(s) > len(token) and s[len(token)] == ',':
+                #    dbg("DEBUG: there is a comma; consume it.")
+                #    pos = pos + 1
+                #pos = pos + diff
+                #return args, pos
 
             dbg("DEBUG: NORMAL ARG: '{}'".format(token))
             
