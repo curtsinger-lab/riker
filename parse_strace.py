@@ -13,6 +13,13 @@ class Event:
     def __str__(self) -> str :
         return "pid: {}, event: {}, args: {}, retval: {}".format(self.pid, self.name, self.args, self.retval)
 
+# handy debugger function
+def dbg(message: str):
+    ENABLE_DBG = False
+    if ENABLE_DBG:
+        print(message)
+        input()
+    
 # complain
 def usage():
     print("Usage: python3 parse_strace.py <trace.txt>")
@@ -25,51 +32,69 @@ def argparse(s: str) -> List[Any] :
         diff = len(s) - len(s2)
         s = s2
 
-        #print("DEBUG: HAVE INPUT: {}".format(s))
+        dbg("DEBUG: HAVE INPUT: {}".format(s))
         
         # base case 1: we're done
         if len(s) == 0:
-            #print("DEBUG: end of input.")
-            #input()
+            dbg("DEBUG: end of input.")
             return [], diff
         # recursive case 1: looks like a sublist
         elif s[0] == '[':
-            #print("DEBUG: SUBLIST")
-            #input()
+            dbg("DEBUG: SUBLIST")
             # parse sublist
             args1, pos1 = p(s[1:])
-            #print("DEBUG: GOT BACK SUBLIST: {}, pos = {}".format(args1, pos1 + 1 + diff))
-            #input()
+            dbg("DEBUG: GOT BACK SUBLIST: {}, pos = {}".format(args1, pos1 + 1 + diff))        
             # parse the rest
+            dbg("DEBUG: parse rest starting with: {}".format(s[pos1 + 1:] + "..."))
             args2, pos2 = p(s[pos1 + 1:])
-            #print("DEBUG: GOT BACK REST: {}, pos = {}".format(args2, pos1 + pos2 + 1 + diff))
-            #input()
+            dbg("DEBUG: GOT BACK REST: {}, pos = {}".format(args2, pos1 + pos2 + 1 + diff))
             # return + update position
             return [args1] + args2, pos1 + pos2 + 1 + diff
+        # recursive case 2: a quoted string
+        elif s[0] == '"':
+            dbg("DEBUG: QUOTED STRING")
+            
+            # find the entire string
+            r = '^"(?P<arg>.*?)"'
+            m = re.match(r, s)
+            if m:
+                token = m.group('arg')
+                # consume comma if quoted string ends in comma
+                toks = 3 if s[len(token) + 2] == ',' else 2
+                rest = s[toks + len(token):]
+                pos1 = diff + toks + len(token)
+                dbg("DEBUG: GOT QUOTED TOKEN '{}'".format(token))
+                
+                args, pos2 = p(rest)
+                return [token if len(token) > 0 else None] + args, pos1 + pos2
+            else:
+                dbg("Found unmatched quote.")
+                exit(1)
         else:
-            #print("DEBUG: NORMAL CASE: INPUT IS: '{}'".format(s))
+            dbg("DEBUG: NORMAL CASE: INPUT IS: '{}'".format(s))
+            
             # get next token
-            parts = s.split(',')
-            token, rest = parts[0], ",".join(parts[1:])
-            #print("DEBUG: GOT TOKEN: {} AND REST: {}".format(token, rest))
+            parts = s.split(',', 1)
+            token, rest = parts[0], parts[1] if len(parts) > 1 else ''
+            dbg("DEBUG: GOT TOKEN: {} AND REST: {}".format(token, rest))
 
             # account for commas in splits
-            diff = diff + len(parts) - 1
+            diff = diff + 1
 
             # base case 2: looks like the end of a list
             # stop here
             if token[-1] == ']':
-                #print("DEBUG: END OF SUBLIST")
-                #input()
+                dbg("DEBUG: END OF SUBLIST, # parts: {}".format(len(parts)))
+                
                 t = token[0:-1]
                 args = [] if t == '' else [t]
-                # pos = token + 1 if we need to include the comma
-                pos = len(token) if len(parts) == 1 else len(token) + 1
+                # pos = len(token) + 1 + diff if we need to include the comma
+                pos = (len(token) if len(parts) == 1 else len(token) + 1) + diff
                 return args, pos
 
-            #print("DEBUG: NORMAL ARG: '{}'".format(token))
-            #input()
-            # otherwise, the usual recursive case 2: parse the rest
+            dbg("DEBUG: NORMAL ARG: '{}'".format(token))
+            
+            # otherwise, the usual recursive case 3: parse the rest
             args, pos = p(rest)
             # return + update position
             return [token] + args, pos + len(token) + diff
@@ -88,10 +113,15 @@ def parse_syscall(line: str) -> Optional[Event] :
     m = re.match(r, line)
         
     if m:
-        pid    = int(m.group('pid'))
-        name   = m.group('name')        
-        args   = argparse(m.group('args'))
-        retval = rvparse(m.group('retval'))
+        try:
+            pid    = int(m.group('pid'))
+            name   = m.group('name')        
+            args   = argparse(m.group('args'))
+            retval = rvparse(m.group('retval'))
+        except:
+            print("****************** DIED ***********************")
+            print(line)
+            exit(1)
         return Event(pid, name, args, retval)
     else:
         return None
