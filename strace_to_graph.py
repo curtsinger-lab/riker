@@ -180,19 +180,5 @@ if __name__ == '__main__':
         except Exception as ex:
             print('Error while processing {}'.format(e))
             raise(ex)
-        
-        #elif e.name in ['unlink', 'chmod'] and e.retval == 0:
-        #    
-        #    processes[e.pid].add_output(e.args[0], e.name)
-        #
-        #elif e.name == 'openat' and e.retval != -1:
-        #    args = ', '.join(e.args)
-        #    reading = 'O_RDONLY' in args or 'O_RDWR' in args
-        #    writing = 'O_WRONLY' in args or 'O_RDWR' in args
-        #    
-        #    if reading:
-        #        processes[e.pid].add_input(e.args[1], e.name)
-        #    if writing:
-        #        processes[e.pid].add_output(e.args[1], e.name)
     
     c.to_graph().render('graph.gv')
