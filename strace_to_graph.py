@@ -21,12 +21,26 @@ class ProcessNotFoundError(Exception):
     def __str__(self) -> str:
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
+class File:
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+        self.users: Set[Command] = set()
+        self.producers: Set[Command] = set()
+
+    def is_local(self) -> bool:
+        if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
+            return True
+        if os.path.dirname(self.filename) == "":
+            return True
+        else:
+            return False
+
 class Context:
     def __init__(self, starting_dir: str) -> None:
         self.starting_dir = starting_dir
         self.commands: List[Command] = []
         self.processes: Dict[int, Process] = {}
-        self.files: Set[str] = set()
+        self.files: Set[Files] = set()
     
     def handle_event(self, e: parser.Event) -> None:
         # Handle the entry point by creating a process and command
@@ -45,21 +59,28 @@ class Context:
         
         # Generate nodes for files
         for f in self.files:
-            g.node(f, os.path.basename(f), shape='rectangle')
-        
+            if f.is_local():        
+                g.node(f.filename, os.path.basename(f.filename), shape='rectangle')
         # Generate nodes for all base commands
         for c in self.commands:
             c.to_graph(g)
-        
         return g
+
+    def find_file(self, filename: str) -> File:
+        for f in self.files:
+            if f.filename == filename:
+                return f
+        f = File(filename)
+        self.files.add(f)
+        return f
 
 class Command:
     def __init__(self, context: Context, args) -> None:
         self.context = context
         self.args = args
         self.children: List[Command] = []
-        self.inputs: Set[str] = set()
-        self.outputs: Set[str] = set()
+        self.inputs: Set[File] = set()     
+        self.outputs: Set[File] = set()
     
     def make_child(self, e: parser.Event):
         cmd = Command(self.context, e.args)
@@ -67,12 +88,14 @@ class Command:
         return cmd
     
     def add_input(self, filename: str):
-        self.context.files.add(filename)
-        self.inputs.add(filename)
-    
+        f = self.context.find_file(filename)
+        f.users.add(self)
+        self.inputs.add(f)
+
     def add_output(self, filename: str):
-        self.context.files.add(filename)
-        self.outputs.add(filename)
+        f = self.context.find_file(filename)
+        f.producers.add(self)
+        self.outputs.add(f)
     
     def to_graph(self, g: graphviz.Digraph) -> str:
         id = ' '.join(self.args[1])
@@ -83,11 +106,15 @@ class Command:
             g.edge(id, child_id)
         
         for i in self.inputs:
-            g.edge(i, id)
-        
-        for o in self.outputs:
-            g.edge(id, o)
-            
+            if i.is_local():
+                g.edge(i.filename, id)
+
+        for o in self.outputs: 
+            if o.is_local():
+                g.edge(id, o.filename)
+            else:
+                for u in o.users:
+                    g.edge(id, ' '.join(u.args[1])) 
         return id
 
 class Process:
@@ -143,10 +170,17 @@ class Process:
         
         elif e.name == 'read' and e.retval >= 0:
             fdnum = int(e.args[0])
+            if self.fd[fdnum] == "/tmp/cc1cAso4.o":
+                print(e)
+                #print("READING")
             self.command.add_input(self.fd[fdnum])
         
         elif e.name == 'write' and e.retval >= 0:
             fdnum = int(e.args[0])
+            if self.fd[fdnum] == "/tmp/cc1cAso4.o":
+                #print("WRITING")
+                print(e)
+            
             self.command.add_output(self.fd[fdnum])
             
         else:
@@ -156,10 +190,11 @@ class Process:
 
 def usage():
     print('Usage: {} <path to trace> <working directory>'.format(sys.argv[0]))
+    print('    or {} <path to trace> <working directory> --show-sysfiles'.format(sys.argv[0]))
     sys.exit(1)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
         usage()
     
     # Parse the event trace
