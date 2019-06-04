@@ -7,6 +7,8 @@ import sys
 from typing import List, Dict, Set, Optional
 import parse_strace as parser
 
+TEMP_ID = 0
+
 class DuplicateProcessError(Exception):
     def __init__(self, e: parser.Event) -> None:
         self.e = e
@@ -110,11 +112,19 @@ class Command:
                 g.edge(i.filename, id)
 
         for o in self.outputs: 
+            global TEMP_ID
             if o.is_local():
                 g.edge(id, o.filename)
             else:
+                # For intermediate files, create a node in the graph but do not show a name
+                node_id = 'temp_'+str(TEMP_ID)
+                TEMP_ID += 1
+                n = g.node(node_id, label='\\<anon\\>', shape='rectangle')
+                g.edge(id, node_id)
+                
+                # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
                 for u in o.users:
-                    g.edge(id, ' '.join(u.args[1])) 
+                    g.edge(node_id, ' '.join(u.args[1]))
         return id
 
 class Process:
