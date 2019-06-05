@@ -59,6 +59,7 @@ class Context:
     def to_graph(self) -> graphviz.Digraph:
         g = graphviz.Digraph(engine='dot')
         g.attr('graph', [('rankdir', 'LR')])
+        g.attr('node', [('fontname', 'Courier')])
         
         # Generate nodes for files
         for f in self.files:
@@ -102,30 +103,30 @@ class Command:
     
     def to_graph(self, g: graphviz.Digraph) -> str:
         id = ' '.join(self.args[1])
-        g.node(id, os.path.basename(self.args[0]), shape='oval')
+        g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
         
         for c in self.children:
             child_id = c.to_graph(g)
-            g.edge(id, child_id, style="dashed", arrowhead="empty")
+            g.edge(id, child_id, style="dashed")
         
         for i in self.inputs:
             if i.is_local():
-                g.edge(i.filename, id)
+                g.edge(i.filename, id, arrowhead='empty')
 
         for o in self.outputs: 
             global TEMP_ID
             if o.is_local():
-                g.edge(id, o.filename)
+                g.edge(id, o.filename, arrowhead='empty')
             else:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
                 n = g.node(node_id, label='\\<temp\\>', shape='rectangle')
-                g.edge(id, node_id)
+                g.edge(id, node_id, arrowhead='empty')
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
                 for u in o.users:
-                    g.edge(node_id, ' '.join(u.args[1]))
+                    g.edge(node_id, ' '.join(u.args[1]), arrowhead='empty')
         return id
 
 class Process:
