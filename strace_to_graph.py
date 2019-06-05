@@ -57,7 +57,8 @@ class Context:
             self.processes[e.pid].handle_event(e)
     
     def to_graph(self) -> graphviz.Digraph:
-        g = graphviz.Digraph()
+        g = graphviz.Digraph(engine='dot')
+        g.attr('graph', [('rankdir', 'LR')])
         
         # Generate nodes for files
         for f in self.files:
@@ -105,7 +106,7 @@ class Command:
         
         for c in self.children:
             child_id = c.to_graph(g)
-            g.edge(id, child_id)
+            g.edge(id, child_id, style="dashed", arrowhead="empty")
         
         for i in self.inputs:
             if i.is_local():
@@ -119,7 +120,7 @@ class Command:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
-                n = g.node(node_id, label='\\<anon\\>', shape='rectangle')
+                n = g.node(node_id, label='\\<temp\\>', shape='rectangle')
                 g.edge(id, node_id)
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
@@ -180,17 +181,10 @@ class Process:
         
         elif e.name == 'read' and e.retval >= 0:
             fdnum = int(e.args[0])
-            if self.fd[fdnum] == "/tmp/cc1cAso4.o":
-                print(e)
-                #print("READING")
             self.command.add_input(self.fd[fdnum])
         
         elif e.name == 'write' and e.retval >= 0:
             fdnum = int(e.args[0])
-            if self.fd[fdnum] == "/tmp/cc1cAso4.o":
-                #print("WRITING")
-                print(e)
-            
             self.command.add_output(self.fd[fdnum])
             
         else:
