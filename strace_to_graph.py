@@ -24,10 +24,17 @@ class ProcessNotFoundError(Exception):
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
 class File:
+    num_files = 0
+
     def __init__(self, filename: str) -> None:
         self.filename = filename
         self.users: Set[Command] = set()
         self.producers: Set[Command] = set()
+        self.id = self.num_files
+        self.num_files+= 1
+        self.version = 0
+        self.trunc = False
+        self.in_use = False
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -36,6 +43,17 @@ class File:
             return True
         else:
             return False
+
+    #TODO rework
+    def is_intermediate(self) -> bool:
+        if len(self.users)!=0 and len(self.producers)!=0:
+            return True
+        else:
+            return False
+
+
+    def print_file(self) -> None:
+        print(self.filename + ": " + str(self.version))
 
 class Context:
     def __init__(self, starting_dir: str) -> None:
@@ -57,26 +75,37 @@ class Context:
             self.processes[e.pid].handle_event(e)
     
     def to_graph(self) -> graphviz.Digraph:
+        #for f in self.files: 
+        #    f.print_file()
         g = graphviz.Digraph(engine='dot')
         g.attr('graph', [('rankdir', 'LR')])
         g.attr('node', [('fontname', 'Courier')])
         
         # Generate nodes for files
-        for f in self.files:
-            if f.is_local():        
-                g.node(f.filename, os.path.basename(f.filename), shape='rectangle')
+        #for f in self.files:
+         #   if f.is_local():        
+          #      g.node(f.filename, os.path.basename(f.filename), shape='rectangle')
         # Generate nodes for all base commands
         for c in self.commands:
             c.to_graph(g)
         return g
 
+    # return latest version or create and put in files
     def find_file(self, filename: str) -> File:
+        ret = None
         for f in self.files:
+            #print(f.filename + ": " + str(f.version))
             if f.filename == filename:
-                return f
-        f = File(filename)
-        self.files.add(f)
-        return f
+                if ret is None:
+                    ret = f
+                elif f.version > ret.version:
+                    ret = f
+        if ret is None:
+            f = File(filename)
+            self.files.add(f)
+            return f
+        else:
+            return ret
 
 class Command:
     def __init__(self, context: Context, args) -> None:
@@ -93,8 +122,11 @@ class Command:
     
     def add_input(self, filename: str):
         f = self.context.find_file(filename)
-        f.users.add(self)
-        self.inputs.add(f)
+        if not f.trunc:
+            f.users.add(self)
+            self.inputs.add(f)
+        #f.users.add(self)
+        #print("adding input: " + filename + "version " + str(f.version) +": is trunced? " + str(f.trunc))
 
     def add_output(self, filename: str):
         f = self.context.find_file(filename)
@@ -111,22 +143,24 @@ class Command:
         
         for i in self.inputs:
             if i.is_local():
+                g.node(i.filename, os.path.basename(i.filename), shape='rectangle')
                 g.edge(i.filename, id, arrowhead='empty')
 
         for o in self.outputs: 
             global TEMP_ID
-            if o.is_local():
+            if not o.is_intermediate():
+                g.node(o.filename, os.path.basename(o.filename), shape='rectangle')
                 g.edge(id, o.filename, arrowhead='empty')
             else:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
-                n = g.node(node_id, label='\\<temp\\>', shape='rectangle')
+                n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
                 g.edge(id, node_id, arrowhead='empty')
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
                 for u in o.users:
-                    g.edge(node_id, ' '.join(u.args[1]), arrowhead='empty')
+                        g.edge(node_id, ' '.join(u.args[1]), arrowhead='empty')
         return id
 
 class Process:
@@ -170,12 +204,28 @@ class Process:
             # unlink is a bit complicated. If you rm a file without statting or
             # reading first, we'll say it's just an output
             filename = self.normpath(e.args[0])
+            f = self.context.find_file(filename)
+            version = f.version
+            f = File(filename)
+            f.trunc = True
+            f.version = version +1
+            self.context.files.add(f)
+
             #self.command.add_output(self.normpath(filename))
         
         elif e.name == 'openat' and e.retval > 0:
             filename = self.normpath(e.args[1])
             self.fd[e.retval] = filename
-        
+            f = self.context.find_file(filename)
+            f.trunc = False
+            #if f.closed:
+            if "O_TRUNC" in e.args[2] or "O_EXCL" in e.args[2]:
+                version = f.version
+                f = File(filename)
+                f.trunc = True
+                f.version = version+1
+                self.context.files.add(f)
+
         elif e.name == 'dup' and e.retval > 0:
             fdnum = int(e.args[0])
             self.fd[e.retval] = self.fd[fdnum]
@@ -188,6 +238,7 @@ class Process:
             fdnum = int(e.args[0])
             self.command.add_output(self.fd[fdnum])
             
+
         else:
             pass
             
