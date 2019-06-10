@@ -23,6 +23,12 @@ class ProcessNotFoundError(Exception):
     def __str__(self) -> str:
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
+class Interaction_Record:
+    def __init(self, f: File, read: int, write: int) -> None:
+        self.f = f
+        self.read = read
+        self.write = write
+
 class File:
     num_files = 0
 
@@ -34,7 +40,10 @@ class File:
         self.num_files+= 1
         self.version = 0
         self.trunc = False
-        self.in_use = False
+        #self.in_use = False
+        #self.ic = 0
+        self.interactions: List[Commands] = []
+        self.has_race = False
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -50,6 +59,12 @@ class File:
             return True
         else:
             return False
+
+    def collapse(self) -> None:
+        #TODO for all in interactions, set has_race flag
+        self.has_race = True
+        for i in self.interactions:
+            i.has_race = True
 
 
     def print_file(self) -> None:
@@ -114,7 +129,10 @@ class Command:
         self.children: List[Command] = []
         self.inputs: Set[File] = set()     
         self.outputs: Set[File] = set()
-    
+        self.wr_interactions = {}
+        self.rd_interactions = {}
+        self.has_race = False
+
     def make_child(self, e: parser.Event):
         cmd = Command(self.context, e.args)
         self.children.append(cmd)
