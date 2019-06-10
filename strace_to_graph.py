@@ -23,11 +23,6 @@ class ProcessNotFoundError(Exception):
     def __str__(self) -> str:
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
-class Interaction_Record:
-    def __init(self, f: File, read: int, write: int) -> None:
-        self.f = f
-        self.read = read
-        self.write = write
 
 class File:
     num_files = 0
@@ -129,8 +124,8 @@ class Command:
         self.children: List[Command] = []
         self.inputs: Set[File] = set()     
         self.outputs: Set[File] = set()
-        self.wr_interactions = {}
-        self.rd_interactions = {}
+        self.wr_interactions: Set[File] = set()
+        self.rd_interactions: Set[File] = set()
         self.has_race = False
 
     def make_child(self, e: parser.Event):
@@ -139,18 +134,59 @@ class Command:
         return cmd
     
     def add_input(self, filename: str):
+
         f = self.context.find_file(filename)
+        f.interactions.append(self)
         if not f.trunc:
             f.users.add(self)
             self.inputs.add(f)
+            print("adding input: " + filename + " " + str(f.version));
+        # if we've read from the file previously, check for a race
+        for rds in self.rd_interactions: 
+            if filename == rds.filename:
+                
+                if rds.version == f.version:
+                    #we're all good
+                    return
+                else: 
+                    #we've found a race
+                    rds.collapse();
+                    self.has_race = True
+                    return
+        # otherwise, note that we've now read from this file version
+        self.rd_interactions.add(f)
+
         #f.users.add(self)
         #print("adding input: " + filename + "version " + str(f.version) +": is trunced? " + str(f.trunc))
 
     def add_output(self, filename: str):
-        f = self.context.find_file(filename)
-        f.producers.add(self)
-        self.outputs.add(f)
-    
+        f = self.context.find_file(filename) 
+        print("adding output, whose original was: " + filename + " " + str(f.version));
+        # if we've written to the file before, check for a race 
+        for wrs in self.wr_interactions:
+            print("in loop")
+            if filename == wrs.filename:
+                f.producers.add(self)
+                self.outputs.add(f)
+                if f.version == wrs.version:
+                    #we're continuing to write the same version
+                    return
+                else:
+                    #the version has changed, someone has written in the meantime
+                    wrs.collapse()
+                    # TODO collapse all itermittent versions not just the one last written to
+                    wrs.has_race = True
+                    self.has_race = True
+                    return
+        # if we haven't written to this file before, create a new version
+        print("creating new version: " + filename + " " + str(f.version +1))
+        fnew = File(filename)
+        fnew.version = f.version + 1 
+        fnew.producers.add(self)
+        self.outputs.add(fnew)
+        self.wr_interactions.add(fnew)
+        self.context.files.add(fnew)
+
     def to_graph(self, g: graphviz.Digraph) -> str:
         id = ' '.join(self.args[1])
         g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
@@ -160,16 +196,21 @@ class Command:
             g.edge(id, child_id, style="dashed")
         
         for i in self.inputs:
+
+            print("input: " + os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
             if i.is_local():
                 g.node(i.filename, os.path.basename(i.filename), shape='rectangle')
                 g.edge(i.filename, id, arrowhead='empty')
 
         for o in self.outputs: 
+
+            print("output: " +os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
             global TEMP_ID
             if not o.is_intermediate():
                 g.node(o.filename, os.path.basename(o.filename), shape='rectangle')
                 g.edge(id, o.filename, arrowhead='empty')
             else:
+                print("found intermediate")
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
