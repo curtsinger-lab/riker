@@ -23,11 +23,12 @@ class ProcessNotFoundError(Exception):
     def __str__(self) -> str:
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
+class Command: pass
 
 class File:
     num_files = 0
 
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, writer: Command) -> None:
         self.filename = filename
         self.users: Set[Command] = set()
         self.producers: Set[Command] = set()
@@ -39,6 +40,7 @@ class File:
         #self.ic = 0
         self.interactions: List[Commands] = []
         self.has_race = False
+        self.writer = writer
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -61,9 +63,14 @@ class File:
         for i in self.interactions:
             i.has_race = True
 
-
     def print_file(self) -> None:
         print(self.filename + ": " + str(self.version))
+
+    def can_depend(self, cmd: Command) -> bool:
+        if self.writer == cmd or self.writer == None and self.trunc:
+                return False
+        else:
+            return True
 
 class Context:
     def __init__(self, starting_dir: str) -> None:
@@ -111,7 +118,7 @@ class Context:
                 elif f.version > ret.version:
                     ret = f
         if ret is None:
-            f = File(filename)
+            f = File(filename, None)
             self.files.add(f)
             return f
         else:
@@ -137,14 +144,13 @@ class Command:
 
         f = self.context.find_file(filename)
         f.interactions.append(self)
-        if not f.trunc:
+        if f.can_depend(self):
             f.users.add(self)
             self.inputs.add(f)
             print("adding input: " + filename + " " + str(f.version));
         # if we've read from the file previously, check for a race
         for rds in self.rd_interactions: 
             if filename == rds.filename:
-                
                 if rds.version == f.version:
                     #we're all good
                     return
@@ -161,7 +167,7 @@ class Command:
 
     def add_output(self, filename: str):
         f = self.context.find_file(filename) 
-        print("adding output, whose original was: " + filename + " " + str(f.version));
+        print("adding out, whose original was: " + filename + " " + str(f.version));
         # if we've written to the file before, check for a race 
         for wrs in self.wr_interactions:
             print("in loop")
@@ -180,9 +186,10 @@ class Command:
                     return
         # if we haven't written to this file before, create a new version
         print("creating new version: " + filename + " " + str(f.version +1))
-        fnew = File(filename)
+        fnew = File(filename, self)
         fnew.version = f.version + 1 
         fnew.producers.add(self)
+        fnew.trunc = f.trunc
         self.outputs.add(fnew)
         self.wr_interactions.add(fnew)
         self.context.files.add(fnew)
@@ -197,14 +204,14 @@ class Command:
         
         for i in self.inputs:
 
-            print("input: " + os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
+            print("newinput: " + os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
             if i.is_local():
                 g.node(i.filename, os.path.basename(i.filename), shape='rectangle')
                 g.edge(i.filename, id, arrowhead='empty')
 
         for o in self.outputs: 
 
-            print("output: " +os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
+            print("newoutput: " +os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
             global TEMP_ID
             if not o.is_intermediate():
                 g.node(o.filename, os.path.basename(o.filename), shape='rectangle')
@@ -265,7 +272,7 @@ class Process:
             filename = self.normpath(e.args[0])
             f = self.context.find_file(filename)
             version = f.version
-            f = File(filename)
+            f = File(filename, None)
             f.trunc = True
             f.version = version +1
             self.context.files.add(f)
@@ -280,7 +287,7 @@ class Process:
             #if f.closed:
             if "O_TRUNC" in e.args[2] or "O_EXCL" in e.args[2]:
                 version = f.version
-                f = File(filename)
+                f = File(filename, None)
                 f.trunc = True
                 f.version = version+1
                 self.context.files.add(f)
