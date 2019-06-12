@@ -52,7 +52,7 @@ class File:
 
     #TODO rework
     def is_intermediate(self) -> bool:
-        if len(self.users)!=0 and len(self.producers)!=0:
+        if len(self.users)!=0 and len(self.producers)!=0 and "tmp" in os.path.dirname(self.filename):
             return True
         else:
             return False
@@ -204,20 +204,18 @@ class Command:
         
         for i in self.inputs:
 
-            print("newinput: " + os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
-            if i.is_local():
-                g.node(i.filename, os.path.basename(i.filename), shape='rectangle')
-                g.edge(i.filename, id, arrowhead='empty')
+            if i.is_local() and not i.is_intermediate():
+                g.node(i.filename + str(i.version), os.path.basename(i.filename), shape='rectangle')
+                g.edge(i.filename + str(i.version), id, arrowhead='empty')
 
         for o in self.outputs: 
 
-            print("newoutput: " +os.path.basename(self.args[0]) + ": " +i.filename +": " + str(i.version))
             global TEMP_ID
             if not o.is_intermediate():
-                g.node(o.filename, os.path.basename(o.filename), shape='rectangle')
-                g.edge(id, o.filename, arrowhead='empty')
+                g.node(o.filename + str(o.version), os.path.basename(o.filename), shape='rectangle')
+                g.edge(id, o.filename + str(o.version), arrowhead='empty')
             else:
-                print("found intermediate")
+                print("found intermediate: " + o.filename)
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
@@ -301,6 +299,7 @@ class Process:
             self.command.add_input(self.fd[fdnum])
         
         elif e.name == 'write' and e.retval >= 0:
+            print("FOUNDWRITE")
             fdnum = int(e.args[0])
             self.command.add_output(self.fd[fdnum])
             
