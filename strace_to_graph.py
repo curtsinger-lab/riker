@@ -61,10 +61,13 @@ class File:
         #TODO for all in interactions, set has_race flag
         self.has_race = True
         for i in self.interactions:
+            print("interacted with: " + i.args[0])
             i.has_race = True
 
     def print_file(self) -> None:
         print(self.filename + ": " + str(self.version))
+        for i in self.interactions:
+            print("\t" + i.args[0])
 
     def can_depend(self, cmd: Command) -> bool:
         if self.writer == cmd or self.writer == None and self.trunc:
@@ -141,13 +144,12 @@ class Command:
         return cmd
     
     def add_input(self, filename: str):
-
+        print(self.args[0] + " is reading " + filename);
         f = self.context.find_file(filename)
         f.interactions.append(self)
         if f.can_depend(self):
             f.users.add(self)
             self.inputs.add(f)
-            print("adding input: " + filename + " " + str(f.version));
         # if we've read from the file previously, check for a race
         for rds in self.rd_interactions: 
             if filename == rds.filename:
@@ -167,10 +169,8 @@ class Command:
 
     def add_output(self, filename: str):
         f = self.context.find_file(filename) 
-        print("adding out, whose original was: " + filename + " " + str(f.version));
         # if we've written to the file before, check for a race 
         for wrs in self.wr_interactions:
-            print("in loop")
             if filename == wrs.filename:
                 f.producers.add(self)
                 self.outputs.add(f)
@@ -185,7 +185,6 @@ class Command:
                     self.has_race = True
                     return
         # if we haven't written to this file before, create a new version
-        print("creating new version: " + filename + " " + str(f.version +1))
         fnew = File(filename, self)
         fnew.version = f.version + 1 
         fnew.producers.add(self)
@@ -195,8 +194,15 @@ class Command:
         self.context.files.add(fnew)
 
     def to_graph(self, g: graphviz.Digraph) -> str:
+        #print("FILES")
+        #for f in self.context.files:
+        #    f.print_file()
+
         id = ' '.join(self.args[1])
-        g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
+        if self.has_race:
+            g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='red', fontcolor='white')
+        else:
+            g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
         
         for c in self.children:
             child_id = c.to_graph(g)
@@ -215,7 +221,6 @@ class Command:
                 g.node(o.filename + str(o.version), os.path.basename(o.filename), shape='rectangle')
                 g.edge(id, o.filename + str(o.version), arrowhead='empty')
             else:
-                print("found intermediate: " + o.filename)
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
@@ -299,7 +304,6 @@ class Process:
             self.command.add_input(self.fd[fdnum])
         
         elif e.name == 'write' and e.retval >= 0:
-            print("FOUNDWRITE")
             fdnum = int(e.args[0])
             self.command.add_output(self.fd[fdnum])
             
