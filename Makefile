@@ -1,7 +1,7 @@
 CC  = gcc
 CXX = g++
 COMMON_CFLAGS = -g -Wall
-CXXFLAGS = $(COMMON_CFLAGS) --std=c++11
+CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 
 dodo: objs/trace.o objs/middle.o
 	$(CXX) $^ -o $@
