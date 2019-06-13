@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+#TODO mmap handling 
+#TODO instead of flag, list of conflicts 
+
 import copy
 import graphviz
 import os
@@ -41,6 +44,7 @@ class File:
         self.interactions: List[Commands] = []
         self.has_race = False
         self.writer = writer
+        self.conflicts: Set[Commands]
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -59,10 +63,11 @@ class File:
 
     def collapse(self) -> None:
         #TODO for all in interactions, set has_race flag
+        print("collapsing: " + self.filename)
         self.has_race = True
         for i in self.interactions:
-            print("interacted with: " + i.args[0])
             i.has_race = True
+            self.conflicts.add(i)
 
     def print_file(self) -> None:
         print(self.filename + ": " + str(self.version))
@@ -144,7 +149,6 @@ class Command:
         return cmd
     
     def add_input(self, filename: str):
-        print(self.args[0] + " is reading " + filename);
         f = self.context.find_file(filename)
         f.interactions.append(self)
         if f.can_depend(self):
@@ -152,7 +156,7 @@ class Command:
             self.inputs.add(f)
         # if we've read from the file previously, check for a race
         for rds in self.rd_interactions: 
-            if filename == rds.filename:
+            if filename == rds.filename and f.writer != self:
                 if rds.version == f.version:
                     #we're all good
                     return
@@ -179,12 +183,17 @@ class Command:
                     return
                 else:
                     #the version has changed, someone has written in the meantime
+                    #collapse all intermediate versions
                     wrs.collapse()
+                    for w in self.context.files:
+                        if w.filename == filename and w.version > wrs.version:
+                            w.collapse()
                     # TODO collapse all itermittent versions not just the one last written to
                     wrs.has_race = True
                     self.has_race = True
                     return
         # if we haven't written to this file before, create a new version
+        f.interactions.append(self)
         fnew = File(filename, self)
         fnew.version = f.version + 1 
         fnew.producers.add(self)
