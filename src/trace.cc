@@ -234,7 +234,7 @@ pid_t wait_for_syscall(enum stop_type* type) {
                 // We don't bother handling errors here, because any failure
                 // just means that the child is somehow broken, and we shouldn't
                 // continue processing it anyway.
-                ptrace(PTRACE_CONT, child, NULL, 0);
+                ptrace(PTRACE_CONT, child, NULL, WSTOPSIG(wstatus));
                 break;
             }
         } else if (WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) {
