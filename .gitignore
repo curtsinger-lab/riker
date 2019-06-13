@@ -5,4 +5,5 @@ dev
 __pycache__
 graph.gv
 graph.gv.pdf
-
+objs/
+dodo

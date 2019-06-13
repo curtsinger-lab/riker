@@ -7,7 +7,7 @@
 #define SYSCALL_ARG5 r8
 #define SYSCALL_ARG6 r9
 
-const uint16_t syscalls[] = {
+static const uint16_t syscalls[] = {
     /* 0 */ __NR_read,
     /* 1 */ __NR_write,
     /* 2 */ __NR_open,
@@ -43,6 +43,7 @@ const uint16_t syscalls[] = {
     /* 263 */ __NR_unlinkat,
     /* 264 */ __NR_renameat,
     /* 266 */ __NR_symlinkat,
+    /* 267 */ __NR_readlinkat,
     /* 275 */ __NR_splice,
     /* 276 */ __NR_tee,
     /* 278 */ __NR_vmsplice,
@@ -130,7 +131,6 @@ const uint16_t syscalls[] = {
 // utimes
 // futimesat
 // newfstatat
-// readlinkat
 // faccessat
 // sync_file_range
 // utimensat

@@ -20,7 +20,8 @@
 #include <linux/limits.h>
 
 #include "util.h"
-#include "syscalls.cc"
+#include "middle.h"
+#include "syscalls.h"
 
 // Launch a program via `sh -c`, fully set up with ptrace and seccomp
 // to be traced by the current process. launch_traced will return the
@@ -284,45 +285,6 @@ char* read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-enum dependency_type {
-   DEP_READ,
-   DEP_MODIFY,
-   DEP_CREATE,
-   DEP_REMOVE
-};
-
-struct file_reference {
-    // fd may be AT_FDCWD and path may be NULL, but not both. If both are present, then
-    // path is relative with respect to the directory in fd.
-    int fd;
-    char* path;
-};
-
-void add_dependency(pid_t process, struct file_reference file, enum dependency_type type) {
-    fprintf(stderr, "[%d]     Dep: ", process);
-    switch (type) {
-    case DEP_READ:
-        fprintf(stderr, "read");
-        break;
-    case DEP_MODIFY:
-        fprintf(stderr, "modify");
-        break;
-    case DEP_CREATE:
-        fprintf(stderr, "create");
-        break;
-    case DEP_REMOVE:
-        fprintf(stderr, "remove");
-        break;
-    }
-    if (file.path == NULL) {
-        fprintf(stderr, " FD %d\n", file.fd);
-    } else if (file.fd == AT_FDCWD) {
-        fprintf(stderr, " %s\n", file.path);
-    } else {
-        fprintf(stderr, " {%d/}%s\n", file.fd, file.path);
-    }
-}
-
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <shell command>\n", argv[0]);
@@ -342,7 +304,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             ptrace(PTRACE_CONT, child, NULL, 0);
-            fprintf(stderr, "[%d] Fork %d\n", child, new_child);
+            trace_add_fork(child, new_child);
             break;
         }
         case STOP_EXEC: {
@@ -375,22 +337,20 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            fprintf(stderr, "[%d] Inside exec: %s\n", child, exe_path);
-            free(exe_path);
+            trace_add_exec(child, exe_path);
 
             int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, NULL);
             for (int i = 0; i < child_argc; i++) {
                 uintptr_t arg_ptr = ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), NULL);
                 char* arg = read_tracee_string(child, arg_ptr);
-                fprintf(stderr, "[%d]     Arg: %s\n", child, arg);
-                free(arg);
+                trace_add_exec_argument(child, arg, i);
             }
 
             ptrace(PTRACE_CONT, child, NULL, 0);
             break;
         }
         case STOP_EXIT: {
-            fprintf(stderr, "[%d] Exit\n", child);
+            trace_add_exit(child);
             break;
         }
         case STOP_SYSCALL: {
@@ -407,10 +367,12 @@ int main(int argc, char* argv[]) {
             struct file_reference main_file = {
                 .fd = AT_FDCWD,
                 .path = NULL,
+                .follow_links = true,
             };
             struct file_reference extra_file = {
                 .fd = AT_FDCWD,
                 .path = NULL,
+                .follow_links = true,
             };
             switch (registers.SYSCALL_NUMBER) {
             // Many operations dealing with files take a single path as their first argument
@@ -445,6 +407,7 @@ int main(int argc, char* argv[]) {
             case /* 259 */ __NR_mknodat:
             case /* 263 */ __NR_unlinkat:
             case /* 260 */ __NR_fchownat:
+            case /* 267 */ __NR_readlinkat:
             case /* 268 */ __NR_fchmodat:
             case /* 322 */ __NR_execveat:
                 main_file.fd = registers.SYSCALL_ARG1;
@@ -520,34 +483,40 @@ int main(int argc, char* argv[]) {
             // We need to know the return values of a few syscalls, specifically those that
             // allocate new fds. Therefore, use PTRACE_SYSCALL to step past just the syscall
             // and reinspect the process.
-            int new_fds[2];
             switch (registers.SYSCALL_NUMBER) {
             case /* 2 */ __NR_open:
+            case /* 22 */ __NR_pipe:
             case /* 32 */ __NR_dup:
             case /* 85 */ __NR_creat:
-            case /* 257 */ __NR_openat: {
+            case /* 257 */ __NR_openat:
+            case /* 293 */ __NR_pipe2:
                 // We've already hit the syscall-enter, so wait for the syscall-exit.
                 ptrace(PTRACE_SYSCALL, child, NULL, 0);
                 waitpid(child, NULL, 0); // FIXME: handle errors
                 // PEEKUSER should hopefully be more efficient than GETREGS here because
                 // we only care about a single register
-                new_fds[0] = ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), NULL);
+                registers.SYSCALL_RETURN = ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), NULL);
+                if ((long long)registers.SYSCALL_RETURN < 0) { // The call errored, so skip it
+                    ptrace(PTRACE_CONT, child, NULL, 0);
+                    continue;
+                }
                 break;
             }
+
+            // The pipe and pipe2 syscalls return their new file descriptors through a user array,
+            // so read that data.
+            int pipe_fds[2];
+            switch (registers.SYSCALL_NUMBER) {
             case /* 22 */ __NR_pipe:
             case /* 293 */ __NR_pipe2:
-                ptrace(PTRACE_SYSCALL, child, NULL, 0);
-                waitpid(child, NULL, 0); // FIXME: handle errors
-                new_fds[0] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1, 0);
-                new_fds[1] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1 + sizeof(int), 0);
+                pipe_fds[0] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1, 0);
+                pipe_fds[1] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1 + sizeof(int), 0);
                 break;
             }
 
             // Relaunch the child. After this point, we can no longer access the child's memory,
             // but we are allowed to do slightly more expensive things.
             ptrace(PTRACE_CONT, child, NULL, 0);
-
-            fprintf(stderr, "[%d] Syscall %llu\n", child, registers.SYSCALL_NUMBER);
 
             // Handle fake-relative syscalls by ignoring the fd when the path is absolute
             if (main_file.path != NULL && main_file.path[0] == '/') {
@@ -557,8 +526,34 @@ int main(int argc, char* argv[]) {
                 extra_file.fd = AT_FDCWD;
             }
 
-            // TODO: For all syscalls that can implicitly dereference symlinks, we need to
-            // repeatedly readlink and record read dependencies on every symlink along the path.
+            // Any syscall that references a path can implicitly dereference symlinks while
+            // traversing the path. This is true even of the l-prefixed syscalls designed to not
+            // dereference symlinks, since that change only applies to the final symlink;
+            // directories along the way are still dereferenced.
+            //
+            // Instead of expensively implementing user-space path resolution and depending on
+            // every symlink individually, we just assume that symlinks won't change over the
+            // course of the build and only keep track of the distinction for the final file.
+            switch (registers.SYSCALL_NUMBER) {
+            case /* 83 */ __NR_mkdir:
+            case /* 84 */ __NR_rmdir:
+            case /* 87 */ __NR_unlink:
+            case /* 88 */ __NR_symlink:
+            case /* 89 */ __NR_readlink:
+            case /* 94 */ __NR_lchown:
+            case /* 133 */ __NR_mknod:
+            case /* 189 */ __NR_lsetxattr:
+            case /* 192 */ __NR_lgetxattr:
+            case /* 195 */ __NR_llistxattr:
+            case /* 198 */ __NR_lremovexattr:
+            case /* 258 */ __NR_mkdirat:
+            case /* 259 */ __NR_mknodat:
+            case /* 263 */ __NR_unlinkat:
+            case /* 266 */ __NR_symlinkat:
+            case /* 267 */ __NR_readlinkat:
+                main_file.follow_links = false;
+                break;
+            }
 
             // This is the giant switch statement where we handle what every syscall means. Note
             // that we don't handle execve and execveat, since the actual processing there is done
@@ -568,56 +563,86 @@ int main(int argc, char* argv[]) {
             switch (registers.SYSCALL_NUMBER) {
             ////// Fiddling with file descriptors //////
             case /* 3 */ __NR_close:
-                fprintf(stderr, "[%d]     Close %d\n", child, (int)registers.SYSCALL_ARG1);
+                trace_add_close(child, registers.SYSCALL_ARG1);
                 break;
             case /* 2 */ __NR_open:
-            case /* 257 */ __NR_openat:
-                // TODO: record the permissions
-                if (main_file.fd == AT_FDCWD) {
-                    fprintf(stderr, "[%d]     Open %d -> %s\n", child, new_fds[0], main_file.path);
-                } else {
-                    fprintf(stderr, "[%d]     Open %d -> {%d/}%s\n", child, new_fds[0], main_file.fd, main_file.path);
+            case /* 85 */ __NR_creat:
+            case /* 257 */ __NR_openat: {
+                int flags;
+                switch (registers.SYSCALL_NUMBER) {
+                case __NR_open:
+                    flags = registers.SYSCALL_ARG2;
+                    break;
+                case __NR_creat:
+                    flags = O_CREAT | O_WRONLY | O_TRUNC;
+                    break;
+                case __NR_openat:
+                    flags = registers.SYSCALL_ARG3;
+                    break;
                 }
+
+                // TODO: record this access mode
+                int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
+                if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
+                    main_file.follow_links = false;
+                }
+                bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
+                trace_add_open(child, registers.SYSCALL_RETURN, main_file, access_mode, rewrite);
                 break;
+            }
             case /* 22 */ __NR_pipe:
             case /* 293 */ __NR_pipe2:
-                // TODO: record the permissions
-                fprintf(stderr, "[%d]     Pipe %d, %d\n", child, new_fds[0], new_fds[1]);
+                trace_add_pipe(child, pipe_fds);
                 break;
             case /* 32 */ __NR_dup:
-                fprintf(stderr, "[%d]     Dup %d <- %d\n", child, (int)registers.SYSCALL_ARG1, (int)new_fds[0]);
+                trace_add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN);
                 break;
             case /* 33 */ __NR_dup2:
             case /* 292 */ __NR_dup3:
-                fprintf(stderr, "[%d]     Dup %d <- %d\n", child, (int)registers.SYSCALL_ARG1, (int)registers.SYSCALL_ARG2);
+                trace_add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2);
+                break;
+            ////// Changing process state //////
+            case /* 80 */ __NR_chdir:
+            case /* 81 */ __NR_fchdir:
+                trace_add_change_cwd(child, main_file);
+                break;
+            case /* 161 */ __NR_chroot:
+                trace_add_change_root(child, main_file);
                 break;
             ////// Complex operations /////
             case /* 9 */ __NR_mmap:
-                // TODO: look up the permissions that the file was opened with
+                // TODO: filter anonymous mappings in seccomp
                 if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) == 0) {
-                    fprintf(stderr, "[%d]     Mmap %d\n", child, main_file.fd);
+                    trace_add_mmap(child, main_file.fd);
                 }
                 break;
             case /* 40 */ __NR_sendfile:
             case /* 275 */ __NR_splice:
             case /* 276 */ __NR_tee:
             case /* 326 */ __NR_copy_file_range:
-                add_dependency(child, main_file, DEP_READ);
-                add_dependency(child, extra_file, DEP_MODIFY);
+                trace_add_dependency(child, main_file, DEP_READ);
+                trace_add_dependency(child, extra_file, DEP_MODIFY);
                 break;
             case /* 76 */ __NR_truncate:
             case /* 77 */ __NR_ftruncate:
                 if (registers.SYSCALL_ARG2 == 0) {
-                    add_dependency(child, main_file, DEP_REMOVE);
-                    add_dependency(child, main_file, DEP_CREATE);
+                    trace_add_dependency(child, main_file, DEP_REMOVE);
+                    trace_add_dependency(child, main_file, DEP_CREATE);
                 } else {
-                    add_dependency(child, main_file, DEP_MODIFY);
+                    trace_add_dependency(child, main_file, DEP_MODIFY);
                 }
+                break;
+            case /* 82 */ __NR_rename:
+            case /* 264 */ __NR_renameat:
+                trace_add_dependency(child, main_file, DEP_READ);
+                trace_add_dependency(child, main_file, DEP_REMOVE);
+                trace_add_dependency(child, extra_file, DEP_CREATE);
                 break;
             ////// Simple reads and writes //////
             case /* 0 */ __NR_read:
             case /* 17 */ __NR_pread64:
             case /* 19 */ __NR_readv:
+            case /* 59 */ __NR_execve:
             case /* 78 */ __NR_getdents:
             case /* 89 */ __NR_readlink:
             case /* 217 */ __NR_getdents64:
@@ -629,7 +654,9 @@ int main(int argc, char* argv[]) {
             case /* 194 */ __NR_listxattr:
             case /* 195 */ __NR_llistxattr:
             case /* 196 */ __NR_flistxattr:
-                add_dependency(child, main_file, DEP_READ);
+            case /* 267 */ __NR_readlinkat:
+            case /* 322 */ __NR_execveat:
+                trace_add_dependency(child, main_file, DEP_READ);
                 break;
             case /* 1 */ __NR_write:
             case /* 18 */ __NR_pwrite64:
@@ -650,21 +677,23 @@ int main(int argc, char* argv[]) {
             case /* 199 */ __NR_fremovexattr:
             case /* 260 */ __NR_fchownat:
             case /* 268 */ __NR_fchmodat:
-                add_dependency(child, main_file, DEP_MODIFY);
+                trace_add_dependency(child, main_file, DEP_MODIFY);
                 break;
             case /* 83 */ __NR_mkdir:
-            case /* 85 */ __NR_creat:
             case /* 88 */ __NR_symlink:
             case /* 133 */ __NR_mknod:
             case /* 258 */ __NR_mkdirat:
             case /* 259 */ __NR_mknodat:
             case /* 266 */ __NR_symlinkat:
-                add_dependency(child, main_file, DEP_CREATE);
+                trace_add_dependency(child, main_file, DEP_CREATE);
                 break;
             case /* 84 */ __NR_rmdir:
             case /* 87 */ __NR_unlink:
             case /* 263 */ __NR_unlinkat:
-                add_dependency(child, main_file, DEP_REMOVE);
+                trace_add_dependency(child, main_file, DEP_REMOVE);
+                break;
+            default:
+                fprintf(stderr, "[%d] UNHANDLED SYSCALL: %d\n", child, (int)registers.SYSCALL_NUMBER);
                 break;
             }
 
