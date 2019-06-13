@@ -14,18 +14,22 @@ struct file_reference {
     bool follow_links;
 };
 
+struct trace_state;
+
 // Note that all strings (char*) passed to the following functions are transferring ownership,
 // so the callee is responsible for freeing them. This is not true of the paths inside the
 // file references: those will be freed shortly after the trace_add_* function is called.
-void trace_add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type);
-void trace_add_change_cwd(pid_t thread_id, struct file_reference file);
-void trace_add_change_root(pid_t thread_id, struct file_reference file);
-void trace_add_open(pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite);
-void trace_add_pipe(pid_t thread_id, int fds[2]);
-void trace_add_dup(pid_t thread_id, int duped_fd, int new_fd);
-void trace_add_mmap(pid_t thread_id, int fd);
-void trace_add_close(pid_t thread_id, int fd);
-void trace_add_fork(pid_t parent_thread_id, pid_t child_process_id);
-void trace_add_exec(pid_t process_id, char* exe_path);
-void trace_add_exec_argument(pid_t process_id, char* argument, int index);
-void trace_add_exit(pid_t thread_id);
+struct trace_state* trace_init();
+void trace_add_dependency(struct trace_state* state, pid_t thread_id, struct file_reference file, enum dependency_type type);
+void trace_add_change_cwd(struct trace_state* state, pid_t thread_id, struct file_reference file);
+void trace_add_change_root(struct trace_state* state, pid_t thread_id, struct file_reference file);
+void trace_add_open(struct trace_state* state, pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite);
+void trace_add_pipe(struct trace_state* state, pid_t thread_id, int fds[2]);
+void trace_add_dup(struct trace_state* state, pid_t thread_id, int duped_fd, int new_fd);
+void trace_add_mmap(struct trace_state* state, pid_t thread_id, int fd);
+void trace_add_close(struct trace_state* state, pid_t thread_id, int fd);
+void trace_add_fork(struct trace_state* state, pid_t parent_thread_id, pid_t child_process_id);
+void trace_add_exec(struct trace_state* state, pid_t process_id, char* exe_path);
+void trace_add_exec_argument(struct trace_state* state, pid_t process_id, char* argument, int index);
+void trace_add_exit(struct trace_state* state, pid_t thread_id);
+void trace_complete(struct trace_state* state);
