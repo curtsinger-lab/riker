@@ -44,7 +44,7 @@ class File:
         self.interactions: List[Commands] = []
         self.has_race = False
         self.writer = writer
-        self.conflicts: Set[Commands]
+        self.conflicts: Set[Commands] = set()
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -233,7 +233,8 @@ class Command:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
-                n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
+                #n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
+                n = g.node(node_id, label=o.filename, shape='rectangle') 
                 g.edge(id, node_id, arrowhead='empty')
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
