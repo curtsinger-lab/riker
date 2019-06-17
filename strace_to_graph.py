@@ -23,10 +23,12 @@ class ProcessNotFoundError(Exception):
     def __str__(self) -> str:
         return 'Process {} was not found.\n  {}'.format(self.e.pid, e)
 
+class Command: pass
+
 class File:
     num_files = 0
 
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, writer: Command) -> None:
         self.filename = filename
         self.users: Set[Command] = set()
         self.producers: Set[Command] = set()
@@ -34,7 +36,10 @@ class File:
         self.num_files+= 1
         self.version = 0
         self.trunc = False
-        self.in_use = False
+        self.interactions: List[Commands] = []
+        self.has_race = False
+        self.writer = writer
+        self.conflicts: Set[Commands] = set()
 
     def is_local(self) -> bool:
         if len(sys.argv) == 4 and sys.argv[3] == "--show-sysfiles":
@@ -44,16 +49,28 @@ class File:
         else:
             return False
 
-    #TODO rework
     def is_intermediate(self) -> bool:
-        if len(self.users)!=0 and len(self.producers)!=0:
+        if len(self.users)!=0 and len(self.producers)!=0 and "tmp" in os.path.dirname(self.filename):
             return True
         else:
             return False
 
+    def collapse(self) -> None:
+        self.has_race = True
+        for i in self.interactions:
+            i.has_race = True
+            self.conflicts.add(i)
 
     def print_file(self) -> None:
         print(self.filename + ": " + str(self.version))
+        for i in self.interactions:
+            print("\t" + i.args[0])
+
+    def can_depend(self, cmd: Command) -> bool:
+        if self.writer == cmd or self.writer == None and self.trunc:
+                return False
+        else:
+            return True
 
 class Context:
     def __init__(self, starting_dir: str) -> None:
@@ -94,14 +111,13 @@ class Context:
     def find_file(self, filename: str) -> File:
         ret = None
         for f in self.files:
-            #print(f.filename + ": " + str(f.version))
             if f.filename == filename:
                 if ret is None:
                     ret = f
                 elif f.version > ret.version:
                     ret = f
         if ret is None:
-            f = File(filename)
+            f = File(filename, None)
             self.files.add(f)
             return f
         else:
@@ -114,7 +130,10 @@ class Command:
         self.children: List[Command] = []
         self.inputs: Set[File] = set()     
         self.outputs: Set[File] = set()
-    
+        self.wr_interactions: Set[File] = set()
+        self.rd_interactions: Set[File] = set()
+        self.has_race = False
+
     def make_child(self, e: parser.Event):
         cmd = Command(self.context, e.args)
         self.children.append(cmd)
@@ -122,40 +141,89 @@ class Command:
     
     def add_input(self, filename: str):
         f = self.context.find_file(filename)
-        if not f.trunc:
+        f.interactions.append(self)
+        if f.can_depend(self):
             f.users.add(self)
             self.inputs.add(f)
-        #f.users.add(self)
-        #print("adding input: " + filename + "version " + str(f.version) +": is trunced? " + str(f.trunc))
+        # if we've read from the file previously, check for a race
+        for rds in self.rd_interactions: 
+            if filename == rds.filename and f.writer != self:
+                if rds.version == f.version:
+                    #we're all good
+                    return
+                else: 
+                    #we've found a race
+                    rds.collapse();
+                    self.has_race = True
+                    return
+        # otherwise, note that we've now read from this file version
+        self.rd_interactions.add(f)
+
 
     def add_output(self, filename: str):
-        f = self.context.find_file(filename)
-        f.producers.add(self)
-        self.outputs.add(f)
-    
+        f = self.context.find_file(filename) 
+        # if we've written to the file before, check for a race 
+        for wrs in self.wr_interactions:
+            if filename == wrs.filename:
+                f.producers.add(self)
+                self.outputs.add(f)
+                if f.version == wrs.version:
+                    #we're continuing to write the same version
+                    return
+                else:
+                    #the version has changed, someone has written in the meantime
+                    #collapse all intermediate versions
+                    wrs.collapse()
+                    for w in self.context.files:
+                        if w.filename == filename and w.version > wrs.version:
+                            w.collapse()
+                    # TODO collapse all itermittent versions not just the one last written to
+                    wrs.has_race = True
+                    self.has_race = True
+                    return
+        # if we haven't written to this file before, create a new version
+        f.interactions.append(self)
+        fnew = File(filename, self)
+        fnew.version = f.version + 1 
+        fnew.producers.add(self)
+        fnew.trunc = f.trunc
+        self.outputs.add(fnew)
+        self.wr_interactions.add(fnew)
+        self.context.files.add(fnew)
+
     def to_graph(self, g: graphviz.Digraph) -> str:
+        #print("FILES")
+        #for f in self.context.files:
+        #    f.print_file()
+
         id = ' '.join(self.args[1])
-        g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
+        if self.has_race:
+            g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='red', fontcolor='white')
+        else:
+            g.node(id, os.path.basename(self.args[0]), shape='oval', style='filled', fillcolor='gray35', fontcolor='white')
         
         for c in self.children:
             child_id = c.to_graph(g)
             g.edge(id, child_id, style="dashed")
         
         for i in self.inputs:
-            if i.is_local():
-                g.node(i.filename, os.path.basename(i.filename), shape='rectangle')
-                g.edge(i.filename, id, arrowhead='empty')
+
+            if i.is_local() and not i.is_intermediate():
+                g.node(i.filename + str(i.version), os.path.basename(i.filename), shape='rectangle')
+                g.edge(i.filename + str(i.version), id, arrowhead='empty')
 
         for o in self.outputs: 
+
             global TEMP_ID
             if not o.is_intermediate():
-                g.node(o.filename, os.path.basename(o.filename), shape='rectangle')
-                g.edge(id, o.filename, arrowhead='empty')
+                g.node(o.filename + str(o.version), os.path.basename(o.filename), shape='rectangle')
+                g.edge(id, o.filename + str(o.version), arrowhead='empty')
             else:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
                 n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
+                #n = g.node(node_id, label=o.filename, shape='rectangle') 
                 g.edge(id, node_id, arrowhead='empty')
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
@@ -200,19 +268,18 @@ class Process:
             filename = self.normpath(e.args[0])
             #self.command.add_input(filename)
         
-        elif e.name in ['unlink', 'chmod'] and e.retval == 0:
-            # unlink is a bit complicated. If you rm a file without statting or
-            # reading first, we'll say it's just an output
+        elif e.name == 'unlink' and e.retval == 0:
             filename = self.normpath(e.args[0])
             f = self.context.find_file(filename)
             version = f.version
-            f = File(filename)
+            f = File(filename, None)
             f.trunc = True
             f.version = version +1
             self.context.files.add(f)
 
-            #self.command.add_output(self.normpath(filename))
-        
+        #elif e.name == 'chmod' and e.retval == 0:
+            #TODO
+
         elif e.name == 'openat' and e.retval > 0:
             filename = self.normpath(e.args[1])
             self.fd[e.retval] = filename
@@ -221,7 +288,7 @@ class Process:
             #if f.closed:
             if "O_TRUNC" in e.args[2] or "O_EXCL" in e.args[2]:
                 version = f.version
-                f = File(filename)
+                f = File(filename, None)
                 f.trunc = True
                 f.version = version+1
                 self.context.files.add(f)
