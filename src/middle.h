@@ -1,3 +1,8 @@
+#include <set>
+#include <list>
+#include <string>
+#include <map>
+
 enum dependency_type {
    DEP_READ,
    DEP_MODIFY,
@@ -14,7 +19,61 @@ struct file_reference {
     bool follow_links;
 };
 
+struct File;
+
+struct Command {
+	std::string args;
+	std::list<struct Command> children;
+	std::set<struct File> inputs;
+	std::set<struct File> outputs;
+	std::set<struct File> wr_interactions;
+	std::set<struct File> rd_interactions;
+	bool has_race;
+	
+	struct Command make_child(std::string args);
+	void add_input(std::string filename);
+	void add_output(std::string filename);
+	std::string to_graph(void);
+};
+
+struct File {
+	std::string filename;
+	std::set<struct Command> users;
+	std::set<struct Command> producers;
+	std::list<struct Command> interactions;
+	std::list<struct Command> conflicts;
+	struct Command writer;
+	int id;
+	int version;
+	bool dependable;
+
+	bool is_local(void);
+	bool is_intermediate(void);
+	void collapse(void);
+	void print_file(void);
+	void can_depend(void);
+	// TODO closed by list? 
+};
+
+//TODO theres a decent chance this will turn out to be unecessary
+struct Process {
+	std::string cwd;
+	std::string root;
+	std::map<int, std::string> fds;
+	struct Command command;
+	// file descriptors? probably subsumed by middle end
+
+	std::string normpath(std::string path);	
+};
+
+
 struct trace_state {
+	
+	std::set<struct File> files;
+	std::list<struct Command> commands;
+	std::map<int, struct Process> processes;
+	std::string starting_dir;	
+
     // Note that all strings (char*) passed to the following functions are transferring ownership,
     // so the callee is responsible for freeing them. This is not true of the paths inside the
     // file references: those will be freed shortly after the trace_add_* function is called.
