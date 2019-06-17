@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-#TODO mmap handling 
-#TODO instead of flag, list of conflicts 
-
 import copy
 import graphviz
 import os
@@ -39,8 +36,6 @@ class File:
         self.num_files+= 1
         self.version = 0
         self.trunc = False
-        #self.in_use = False
-        #self.ic = 0
         self.interactions: List[Commands] = []
         self.has_race = False
         self.writer = writer
@@ -54,7 +49,6 @@ class File:
         else:
             return False
 
-    #TODO rework
     def is_intermediate(self) -> bool:
         if len(self.users)!=0 and len(self.producers)!=0 and "tmp" in os.path.dirname(self.filename):
             return True
@@ -62,8 +56,6 @@ class File:
             return False
 
     def collapse(self) -> None:
-        #TODO for all in interactions, set has_race flag
-        print("collapsing: " + self.filename)
         self.has_race = True
         for i in self.interactions:
             i.has_race = True
@@ -119,7 +111,6 @@ class Context:
     def find_file(self, filename: str) -> File:
         ret = None
         for f in self.files:
-            #print(f.filename + ": " + str(f.version))
             if f.filename == filename:
                 if ret is None:
                     ret = f
@@ -168,8 +159,6 @@ class Command:
         # otherwise, note that we've now read from this file version
         self.rd_interactions.add(f)
 
-        #f.users.add(self)
-        #print("adding input: " + filename + "version " + str(f.version) +": is trunced? " + str(f.trunc))
 
     def add_output(self, filename: str):
         f = self.context.find_file(filename) 
@@ -233,8 +222,8 @@ class Command:
                 # For intermediate files, create a node in the graph but do not show a name
                 node_id = 'temp_'+str(TEMP_ID)
                 TEMP_ID += 1
-                #n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
-                n = g.node(node_id, label=o.filename, shape='rectangle') 
+                n = g.node(node_id, label='\\<temp\\>', shape='rectangle') 
+                #n = g.node(node_id, label=o.filename, shape='rectangle') 
                 g.edge(id, node_id, arrowhead='empty')
                 
                 # Create edges from the intermediate file to its dependents, since those commands will not create edges from non-local files by default
@@ -279,9 +268,7 @@ class Process:
             filename = self.normpath(e.args[0])
             #self.command.add_input(filename)
         
-        elif e.name in ['unlink', 'chmod'] and e.retval == 0:
-            # unlink is a bit complicated. If you rm a file without statting or
-            # reading first, we'll say it's just an output
+        elif e.name == 'unlink' and e.retval == 0:
             filename = self.normpath(e.args[0])
             f = self.context.find_file(filename)
             version = f.version
@@ -290,8 +277,9 @@ class Process:
             f.version = version +1
             self.context.files.add(f)
 
-            #self.command.add_output(self.normpath(filename))
-        
+        #elif e.name == 'chmod' and e.retval == 0:
+            #TODO
+
         elif e.name == 'openat' and e.retval > 0:
             filename = self.normpath(e.args[1])
             self.fd[e.retval] = filename
