@@ -7,7 +7,6 @@
 
 #include "middle.h"
 
-
 void Command::add_input(std::string filename) {
 	return;
 }
@@ -19,9 +18,9 @@ void Command::add_output(std::string filename) {
 
 void trace_state::add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type) {
     fprintf(stderr, "[%d] Dep: ", thread_id);
-	//std::string path = this->processes.find(thread_id)->second.fds.find(file.fd)->second;
-	switch (type) {
-	    //TODO handle file side of things 
+    //std::string path = this->processes.find(thread_id)->second.fds.find(file.fd)->second;
+    switch (type) {
+    //TODO handle file side of things
     case DEP_READ:
         fprintf(stderr, "read");
         //this->processes.find(thread_id)->second.command.add_input(path);
@@ -72,15 +71,15 @@ void trace_state::add_change_root(pid_t thread_id, struct file_reference file) {
 }
 
 
-// get filenames from their open 
+// get filenames from their open
 void trace_state::add_open(pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite) {
-   	//TODO rethink versioning with open 
-	fprintf(stderr, "[%d] Open %d -> ", thread_id, fd);
-	// take into account root and cwd
-	//struct Process cur_proc = this->processes.find(thread_id)->second;
-	//std::string path = cur_proc.root + cur_proc.cwd + file.path;
+    //TODO rethink versioning with open
+    fprintf(stderr, "[%d] Open %d -> ", thread_id, fd);
+    // take into account root and cwd
+    //struct Process cur_proc = this->processes.find(thread_id)->second;
+    //std::string path = cur_proc.root + cur_proc.cwd + file.path;
     //cur_proc.fds.insert(std::pair<int, std::string>(fd,path));
-	if (file.fd == AT_FDCWD) {
+    if (file.fd == AT_FDCWD) {
         fprintf(stderr, "%s\n", file.path);
     } else {
         fprintf(stderr, "{%d/}%s\n", file.fd, file.path);
