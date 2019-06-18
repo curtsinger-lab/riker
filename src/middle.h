@@ -47,6 +47,7 @@ struct File {
     int version;
     bool dependable;
 
+    File(std::string path);
     bool is_local(void);
     bool is_intermediate(void);
     void collapse(void);
@@ -63,13 +64,14 @@ struct Process {
     Command command;
     // file descriptors? probably subsumed by middle end
 
+    Process(std::string cwd, Command command);
     std::string normpath(std::string path);
 };
 
 struct trace_state {
     std::set<File> files;
     std::list<Command> commands;
-    std::map<pid_t, Process> processes;
+    std::map<pid_t, Process*> processes;
     std::string starting_dir;
 
     // Note that all strings (char*) passed to the following functions are transferring ownership,

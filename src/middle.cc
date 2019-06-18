@@ -7,14 +7,43 @@
 
 #include "middle.h"
 
+
+
+
+/* ------------------------------ Command Methods -----------------------------------------*/
 void Command::add_input(std::string filename) {
-	return;
+    return;
 }
 
 void Command::add_output(std::string filename) {
-	return;
+    return;
 }
 
+std::string Command::to_graph(void) {
+    return NULL;
+}
+
+/* ------------------------------- File Methods -------------------------------------------*/
+File::File(std::string filename) : filename(filename) {} 
+
+bool File::is_local(void) {
+    return false;
+}
+
+bool File::is_intermediate(void) {
+    return false;
+}
+
+void File::collapse(void) {
+    return;
+}
+
+void File::print_file(void) {
+    fprintf(stderr, "File: %s, Version: %d", this->filename.c_str(), this->version);
+}
+
+/* ----------------------------- Process Methods ------------------------------------------*/
+Process::Process(std::string cwd, Command command) : cwd(cwd), command(command) {}
 
 void trace_state::add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type) {
     fprintf(stderr, "[%d] Dep: ", thread_id);
@@ -110,6 +139,8 @@ void trace_state::add_close(pid_t thread_id, int fd) {
 // create process node
 void trace_state::add_fork(pid_t parent_thread_id, pid_t child_process_id) {
     fprintf(stderr, "[%d] Fork %d\n", parent_thread_id, child_process_id);
+    Process* parent_proc = this->processes.find(parent_thread_id)->second;
+    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(parent_proc->cwd, parent_proc->command)));
 }
 
 // fill in process node
