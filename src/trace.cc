@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
+#include <experimental/filesystem>
 
 #include <memory>
 
@@ -294,8 +295,15 @@ int main(int argc, char* argv[]) {
     }
 
     auto state = std::make_unique<trace_state>();
+    //TODO setup // figure out filesystem
+    state->starting_dir = "test";	
 
-    launch_traced(argv[1]);
+    pid_t pid = launch_traced(argv[1]);
+    Command* cmd = new Command(argv[1]);
+    Process* proc = new Process(state->starting_dir, cmd);
+    //proc->pid = pid;
+    state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
+
     while (true) {
         enum stop_type stop_ty;
         pid_t child = wait_for_syscall(&stop_ty);

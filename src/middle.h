@@ -23,13 +23,14 @@ struct File;
 
 struct Command {
     std::string args;
-    std::list<Command> children;
-    std::set<File> inputs;
-    std::set<File> outputs;
-    std::set<File> wr_interactions;
-    std::set<File> rd_interactions;
+    std::list<Command*> children;
+    std::set<File*> inputs;
+    std::set<File*> outputs;
+    std::set<File*> wr_interactions;
+    std::set<File*> rd_interactions;
     bool has_race;
 
+    Command(std::string args);
     Command make_child(std::string args);
     void add_input(std::string filename);
     void add_output(std::string filename);
@@ -38,11 +39,11 @@ struct Command {
 
 struct File {
     std::string filename;
-    std::set<Command> users;
-    std::set<Command> producers;
-    std::list<Command> interactions;
-    std::list<Command> conflicts;
-    Command writer;
+    std::set<Command*> users;
+    std::set<Command*> producers;
+    std::list<Command*> interactions;
+    std::list<Command*> conflicts;
+    Command* writer;
     int id;
     int version;
     bool dependable;
@@ -61,16 +62,16 @@ struct Process {
     std::string cwd;
     std::string root;
     std::map<int, std::string> fds;
-    Command command;
+    Command* command;
     // file descriptors? probably subsumed by middle end
 
-    Process(std::string cwd, Command command);
+    Process(std::string cwd, Command* command);
     std::string normpath(std::string path);
 };
 
 struct trace_state {
-    std::set<File> files;
-    std::list<Command> commands;
+    std::set<File*> files;
+    std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
     std::string starting_dir;
 
