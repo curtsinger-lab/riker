@@ -1,9 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <iostream>
 
 #include <sys/types.h>
 #include <fcntl.h>
+
+#include <filesystem>
 
 #include "middle.h"
 
@@ -11,6 +14,8 @@
 
 
 /* ------------------------------ Command Methods -----------------------------------------*/
+Command::Command(std::string args) : args(args) {}
+
 void Command::add_input(std::string filename) {
     return;
 }
@@ -43,20 +48,22 @@ void File::print_file(void) {
 }
 
 /* ----------------------------- Process Methods ------------------------------------------*/
-Process::Process(std::string cwd, Command command) : cwd(cwd), command(command) {}
+Process::Process(std::string cwd, Command* command) : cwd(cwd), command(command) {}
 
 void trace_state::add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type) {
     fprintf(stderr, "[%d] Dep: ", thread_id);
-    //std::string path = this->processes.find(thread_id)->second.fds.find(file.fd)->second;
+    Process* proc = this->processes.find(thread_id)->second;
+    std::string path = proc->fds.find(file.fd)->second;
+    fprintf(stderr, "file: %s ", path.c_str());
     switch (type) {
     //TODO handle file side of things
     case DEP_READ:
         fprintf(stderr, "read");
-        //this->processes.find(thread_id)->second.command.add_input(path);
+        proc->command->add_input(path);
 	break;
     case DEP_MODIFY:
         fprintf(stderr, "modify");
-        //this->processes.find(thread_id)->second.command.add_output(path);
+        proc->command->add_output(path);
         break;
     case DEP_CREATE:
         fprintf(stderr, "create");
@@ -81,7 +88,7 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference file, en
 
 void trace_state::add_change_cwd(pid_t thread_id, struct file_reference file) {
     fprintf(stderr, "[%d] Change working directory to ", thread_id);
-    //this->processes.find(thread_id)->second.cwd = file.path;
+    this->processes.find(thread_id)->second->cwd = file.path;
     if (file.fd == AT_FDCWD) {
         fprintf(stderr, "%s\n", file.path);
     } else {
@@ -91,7 +98,7 @@ void trace_state::add_change_cwd(pid_t thread_id, struct file_reference file) {
 
 void trace_state::add_change_root(pid_t thread_id, struct file_reference file) {
     fprintf(stderr, "[%d] Change root to ", thread_id);
-    //this->processes.find(thread_id)->second.root = file.path;
+    this->processes.find(thread_id)->second->root = file.path;
     if (file.fd == AT_FDCWD) {
         fprintf(stderr, "%s\n", file.path);
     } else {
@@ -105,9 +112,11 @@ void trace_state::add_open(pid_t thread_id, int fd, struct file_reference file, 
     //TODO rethink versioning with open
     fprintf(stderr, "[%d] Open %d -> ", thread_id, fd);
     // take into account root and cwd
-    //struct Process cur_proc = this->processes.find(thread_id)->second;
-    //std::string path = cur_proc.root + cur_proc.cwd + file.path;
-    //cur_proc.fds.insert(std::pair<int, std::string>(fd,path));
+    Process* cur_proc = this->processes.find(thread_id)->second;
+    //fprintf(stderr, "CWD %s -> ", cur_proc->cwd.c_str());
+    //TODO root handling
+    //std::string path = cur_proc->root + cur_proc->cwd + file.path;
+    cur_proc->fds.insert(std::pair<int, std::string>(fd,file.path));
     if (file.fd == AT_FDCWD) {
         fprintf(stderr, "%s\n", file.path);
     } else {
@@ -146,6 +155,22 @@ void trace_state::add_fork(pid_t parent_thread_id, pid_t child_process_id) {
 // fill in process node
 void trace_state::add_exec(pid_t process_id, char* exe_path) {
     fprintf(stderr, "[%d] Inside exec: %s\n", process_id, exe_path);
+    Process* cur_proc = this->processes.find(process_id)->second;
+    Command* cmd = new Command(exe_path);
+    //TODO special handling for first exec
+    printf("cur_proc: ");
+    std::cout << cur_proc << '\n';    
+    if (cur_proc == NULL) {
+        printf("NEW PROC\n");
+	cur_proc = new Process(this->starting_dir, cmd);
+	this->commands.push_front(cmd);
+	this->processes.insert(std::pair<pid_t, Process*>(process_id, cur_proc));
+	// add it to commands
+	// add it to process
+    }
+	
+    cur_proc->command->children.push_front(cmd);
+    cur_proc->command = cmd;     
     free(exe_path);
 }
 
