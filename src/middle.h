@@ -35,7 +35,7 @@ struct Command {
     bool has_race;
 
     Command(trace_state* state, std::string args);
-    Command make_child(std::string args);
+    Command* make_child(std::string args);
     void add_input(File* f);
     void add_output(File* f);
     std::string to_graph(void);
