@@ -303,6 +303,7 @@ int main(int argc, char* argv[]) {
     Process* proc = new Process(state->starting_dir, cmd);
     //proc->pid = pid;
     state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
+    state->commands.push_front(cmd);
 
     while (true) {
         enum stop_type stop_ty;
