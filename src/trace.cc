@@ -299,7 +299,7 @@ int main(int argc, char* argv[]) {
     state->starting_dir = "test";	
 
     pid_t pid = launch_traced(argv[1]);
-    Command* cmd = new Command(argv[1]);
+    Command* cmd = new Command(&*state, argv[1]);
     Process* proc = new Process(state->starting_dir, cmd);
     //proc->pid = pid;
     state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
@@ -719,4 +719,7 @@ int main(int argc, char* argv[]) {
         }
         }
     }
+    
+    //TODO fix
+    state->to_graph();
 }
