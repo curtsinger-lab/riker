@@ -1,37 +1,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <iostream>
 #include <sys/types.h>
 #include <fcntl.h>
 
-//#include <filesystem>
+#include <iostream>
 
 #include "middle.h"
 
-//TODO fix truncation and loops and whatnot
-//hide sysfiles flag 
-
+//TODO fix collapse & race handling
 
 /* ------------------------------ Command Methods -----------------------------------------*/
 Command::Command(trace_state* state, std::string cmd) : state(state), cmd(cmd) {}
-/*
-   Command* Command::make_child(std::string args) {
-   Command* cmd = new Command(this->state, args);
-   this->children.insert(cmd);
-   return cmd;
-   }
- */
-//TODO find file earlier and pass 
+
 void Command::add_input(File* f) {
-    // TODO search through set to make sure we havent already listed it since objects
     // search through all files, do versioning 
     f->interactions.push_front(this);
-    //if (f->can_depend()) {
     f->users.insert(this);
     this->inputs.insert(f);
-    //}
-    //if we've read from the file previously, check for a race
+    // if we've read from the file previously, check for a race
     for (auto rds = this->rd_interactions.begin(); rds != this->rd_interactions.end(); ++rds) {
         if ((f->filename.compare((*rds)->filename) == 0) && (f->writer != this)) {
             if (f->version == (*rds)->version) {
@@ -42,8 +29,8 @@ void Command::add_input(File* f) {
             }
         }
     }
+    // mark that we've now interacted with this version of the file
     this->rd_interactions.insert(f);
-    //this->inputs.insert(new File(filename));
 }
 
 void Command::add_output(File* f) {
@@ -57,6 +44,7 @@ void Command::add_output(File* f) {
             else {
                 (*wrs)->collapse();
                 // TODO collapse all intermediates
+                //for (auto it = this->state->files()
                 //(*wrs)->has_race = true;
                 this->has_race = true;
                 return;
@@ -64,46 +52,46 @@ void Command::add_output(File* f) {
         }
     }
     // if we haven't written to this file before, create a new version
-    f->interactions.push_front(this);
-    File* fnew = new File(f->filename, this);
-    fnew->version = f->version + 1;
+    f->interactions.push_front(this); 
+    File* fnew = f->make_version();
+    fnew->writer = this;
     fnew->producers.insert(this);
-    fnew->dependable = true;
     this->outputs.insert(fnew);
     this->wr_interactions.insert(fnew);
-    //TODO add to the context's files -> need to add a context field
     this->state->files.insert(fnew);     
 }
 
 std::string Command::to_graph(void) {
-    std::cout << "ADDING COMMAND: " << this->cmd << "\n";
+    // create unique id per iteration of command, consisting of command and it's arguments
     std::string id = this->cmd;
     for (auto it = this->args.begin(); it != this->args.end(); ++it) {
         id += (*it);
     }
+    // add command node
     this->state->g.add_node(id, this->cmd, "");
-    //Graph g = this->state->g;
-    // handle races
+    
+    // recurse for all child commands
     for (auto c = this->children.begin(); c != this->children.end(); ++c) {
         std::string child_id = (*c)->to_graph();
         this->state->g.add_edge(id, child_id, "style=dashed");
     }
-
+    
+    // draw input edges
     for (auto i = this->inputs.begin(); i != this->inputs.end(); ++i) {
         if ((*i)->is_local()) {
-
-            printf("adding input: %s\n", (*i)->filename.c_str());
+            // only draw input edges for non intermediates (intermediates handled in output loop)
             if (!((*i)->is_intermediate())) {
                 std::string node_id = (*i)->filename + std::to_string((*i)->version);
                 this->state->g.add_node(node_id, (*i)->filename, "shape=rectangle");
                 this->state->g.add_edge(node_id, id, "arrowhead=empty");
-                std::cout << "adding input, file address is: " << (*i) << "\n";
             } 
         }
     }
-
+    
+    // draw output edges
     for (auto o = this->outputs.begin(); o != this->outputs.end(); ++o) { 
         std::string node_id = (*o)->filename + std::to_string((*o)->version);
+        // draw temp nodes for intermediates and edges to all their users
         if ((*o)->is_intermediate()) {
             this->state->g.add_node(node_id, "\\<temp\\>", "shape=rectangle");
             this->state->g.add_edge(id, node_id, "arrowhead=empty");
@@ -123,6 +111,7 @@ std::string Command::to_graph(void) {
     return id;   
 }
 
+// helpful for debugging
 void Command::print(void) {
     std::cout << cmd << "\n";
     std::cout << "Inputs:\n";
@@ -137,21 +126,14 @@ void Command::print(void) {
 }
 
 /* ------------------------------- File Methods -------------------------------------------*/
-// this may just be duplicate of is intermediate, may not be necessary 
-//TODO prune
-/*
-   bool File::is_local(void) {
-   return false;
-   }
- */
-
-File::File(std::string path, Command* writer) : filename(path), writer(writer) {
+File::File(std::string path, Command* writer, trace_state* state) : filename(path), writer(writer), state(state) {
     this->dependable = true;
 }
 
 //TODO add logic here
 bool File::is_local(void) {
-    //TODO sysfile flag;
+    if (this->state->show_sys) 
+        return true;
     if (this->filename.find("usr")!=std::string::npos || this->filename.find("lib")!=std::string::npos || this->filename.find("dev")!=std::string::npos) {
         return false;
     } else {
@@ -160,8 +142,6 @@ bool File::is_local(void) {
 }
 
 bool File::is_intermediate(void) {
-    //TODO sysfile flag
-    // 
     if ((this->users.size()!=0)&&(this->producers.size()!=0)&&(this->filename.find("tmp")!=std::string::npos)) {
         return true;
     } else {
@@ -169,6 +149,7 @@ bool File::is_intermediate(void) {
     }
 }
 
+//TODO fix
 void File::collapse(void) {
     //this->has_race = true;
     for (auto it = this->interactions.begin(); it != this->interactions.end(); ++it) {
@@ -177,7 +158,8 @@ void File::collapse(void) {
     }
 }
 
-//TODO rework
+// file can only be depended on if it wasn't truncated/created, and if the current command isn't
+// the only writer
 bool File::can_depend(Command* cmd) {
     if(this->writer == cmd) {
         return false;
@@ -187,11 +169,12 @@ bool File::can_depend(Command* cmd) {
 }
 
 File* File::make_version(void) {
-    File* f = new File(this->filename, this->writer);
+    File* f = new File(this->filename, this->writer, this->state);
     f->version = this->version + 1;
     return f;
 }
 
+// debugging aid
 void File::print_file(void) {
     fprintf(stdout, "File: %s, Version: %d", this->filename.c_str(), this->version);
 }
@@ -199,10 +182,13 @@ void File::print_file(void) {
 /* ----------------------------- Process Methods ------------------------------------------*/
 Process::Process(std::string cwd, Command* command) : cwd(cwd), command(command) {}
 
+// debugging aid 
 void Process::print(void) {
     this->command->print();
 }
+
 /* -------------------------- Trace_State Methods ----------------------------------------*/
+// return latest version of the file, or create file and add to record if not found
 File* trace_state::find_file(std::string path) {
     File* ret = NULL;
     for (auto f = this->files.begin(); f != this->files.end(); ++f) {
@@ -213,17 +199,14 @@ File* trace_state::find_file(std::string path) {
                 ret = *f;
         }
     }
-
     if (ret == NULL) {
-        ret = new File(path, NULL);
+        ret = new File(path, NULL, this);
         this->files.insert(ret);
     }
-
     return ret;
 }
 
 void trace_state::to_graph(void) {
-    std::cout << "STARTING GRAPH\n";
     this->g.start_graph();
     for (auto c = this->commands.begin(); c != this->commands.end(); ++c) {
         (*c)->to_graph();
@@ -238,8 +221,7 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference file, en
     Process* proc = this->processes.find(thread_id)->second;
     std::string path;
     if (proc->fds.find(file.fd) == proc->fds.end()) {
-        path = "file not found, index: " + std::to_string(file.fd);
-        //std::cout << proc->fds.find(file.fd)->second << "\n";
+        path = "file not found, fd: " + std::to_string(file.fd);
     } else {
         path = proc->fds.find(file.fd)->second;
     }
@@ -247,11 +229,8 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference file, en
 
     fprintf(stdout, "file: %s-%d ", path.c_str(), f->version);
     switch (type) {
-        //TODO handle file side of things
         case DEP_READ:
             fprintf(stdout, "read");
-            if (f->dependable)
-                fprintf(stdout, ", dependable");
             if (f->can_depend(proc->command)) {
                 proc->command->add_input(f);
                 fprintf(stdout, ", depend");
@@ -269,7 +248,7 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference file, en
             break;
         case DEP_REMOVE:
             fprintf(stdout, "remove");
-            // delete edge
+            // TODO deletion edges   
             break;
     }
     if (!file.follow_links) {
@@ -307,13 +286,9 @@ void trace_state::add_change_root(pid_t thread_id, struct file_reference file) {
 
 // get filenames from their open
 void trace_state::add_open(pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite) {
-    //TODO rethink versioning with open
     fprintf(stdout, "[%d] Open %d -> ", thread_id, fd);
-    // take into account root and cwd
+    // TODO take into account root and cwd
     Process* cur_proc = this->processes.find(thread_id)->second;
-    //fprintf(stdout, "CWD %s -> ", cur_proc->cwd.c_str());
-    //TODO root handling
-    //std::string path = cur_proc->root + cur_proc->cwd + file.path;
     File* f = this->find_file(file.path);
     if (is_rewrite) {
         fprintf(stdout, "REWRITE ");
@@ -329,25 +304,23 @@ void trace_state::add_open(pid_t thread_id, int fd, struct file_reference file, 
     }
 }
 
-
-// TODO handle these two
+// TODO handle pipes
 void trace_state::add_pipe(pid_t thread_id, int fds[2]) {
     fprintf(stdout, "[%d] Pipe %d, %d\n", thread_id, fds[0], fds[1]);
 }
 
-//TODO
 void trace_state::add_dup(pid_t thread_id, int duped_fd, int new_fd) {
     fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     Process* proc = this->processes.find(thread_id)->second;
     proc->fds.insert(std::pair<int, std::string>(new_fd, proc->fds.find(duped_fd)->second));
 }
 
+// TODO deal with race conditions
 void trace_state::add_mmap(pid_t thread_id, int fd) {
     // TODO: look up the permissions that the file was opened with
     fprintf(stdout, "[%d] Mmap %d\n", thread_id, fd);
 }
 
-// TODO:REMOVE FROM FDs list!! 
 void trace_state::add_close(pid_t thread_id, int fd) {
     fprintf(stdout, "[%d] Close %d\n", thread_id, fd);
     this->processes.find(thread_id)->second->fds.erase(fd);
@@ -365,22 +338,7 @@ void trace_state::add_exec(pid_t process_id, char* exe_path) {
     fprintf(stdout, "[%d] Inside exec: %s\n", process_id, exe_path);
     Process* cur_proc = this->processes.find(process_id)->second;
     Command* cmd = new Command(this, exe_path);
-    //cur_proc->command->children.push_front(cmd);
-    //this->commands.push_front(cmd);
     std::cout << "Pushed " << cmd->cmd << " to commands list!\n";
-    //TODO special handling for first exec
-    /*
-       printf("cur_proc: ");
-       std::cout << cur_proc << '\n';    
-       if (cur_proc == NULL) {
-       printf("NEW PROC\n");
-       cur_proc = new Process(this->starting_dir, cmd);
-       this->commands.push_front(cmd);
-       this->processes.insert(std::pair<pid_t, Process*>(process_id, cur_proc));
-    // add it to commands
-    // add it to process
-    }
-     */	
     cur_proc->command->children.push_front(cmd);
     cur_proc->command = cmd;     
     free(exe_path);
@@ -398,17 +356,4 @@ void trace_state::add_exec_argument(pid_t process_id, char* argument, int index)
 void trace_state::add_exit(pid_t thread_id) {
     fprintf(stdout, "[%d] Exit\n", thread_id);
 }
-
-/*
-   void trace_state::to_graph(void) {
-   for (auto it = this->processes.cbegin(); it != this->processes.cend(); ++it) {
-   std::cout << it->first << ": ";
-   it->second->print();
-//"\n";
-}
-return;
-}
- */
-
-
 

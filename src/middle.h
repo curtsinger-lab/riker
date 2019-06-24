@@ -36,7 +36,6 @@ struct Command {
     bool has_race;
 
     Command(trace_state* state, std::string args);
-    Command* make_child(std::string args);
     void add_input(File* f);
     void add_output(File* f);
     std::string to_graph(void);
@@ -49,33 +48,29 @@ struct File {
     std::set<Command*> producers;
     std::list<Command*> interactions;
     std::list<Command*> conflicts;
-    Command* writer;
+    Command* writer; 
+    trace_state* state;
     int id;
     int version;
     bool dependable;
 
-    File(std::string path, Command* writer);
-    //bool is_local(void);
-    bool is_intermediate(void);
+    File(std::string path, Command* writer, trace_state* state);
     bool is_local(void);
+    bool is_intermediate(void);
     void collapse(void);
     bool can_depend(Command* cmd);
     File* make_version(void);
     void print_file(void);
-    // TODO closed by list?
 };
 
-//TODO theres a decent chance this will turn out to be unecessary
 struct Process {
     std::string cwd;
     std::string root;
     std::map<int, std::string> fds;
     Command* command;
-    // file descriptors? probably subsumed by middle end
 
     Process(std::string cwd, Command* command);
     void print(void);
-    std::string normpath(std::string path);
 };
 
 struct trace_state {
@@ -84,11 +79,13 @@ struct trace_state {
     std::map<pid_t, Process*> processes;
     std::string starting_dir;
     Graph g;    
+    bool show_sys;
 
     // Note that all strings (char*) passed to the following functions are transferring ownership,
     // so the callee is responsible for freeing them. This is not true of the paths inside the
     // file references: those will be freed shortly after the trace_add_* function is called.
     File* find_file(std::string path);
+    void to_graph(void);
     void add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type);
     void add_change_cwd(pid_t thread_id, struct file_reference file);
     void add_change_root(pid_t thread_id, struct file_reference file);
@@ -101,5 +98,4 @@ struct trace_state {
     void add_exec(pid_t process_id, char* exe_path);
     void add_exec_argument(pid_t process_id, char* argument, int index);
     void add_exit(pid_t thread_id);
-    void to_graph(void);
 };
