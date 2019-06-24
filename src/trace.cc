@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
+#include <experimental/filesystem>
 
 #include <memory>
 
@@ -288,14 +289,31 @@ char* read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
+    if (argc != 2 && argc !=3) {
         fprintf(stderr, "Usage: %s <shell command>\n", argv[0]);
+        fprintf(stderr, "   or: %s <shell command> --show-sysfiles", argv[0]);
         return 1;
     }
-
+    
     auto state = std::make_unique<trace_state>();
+    //TODO setup // figure out filesystem
+    char buf[FILENAME_MAX];
+    getcwd(buf, FILENAME_MAX);
+    state->starting_dir = std::string(buf);
+    if (argc == 3) {
+        if (strncmp(argv[2], "--show-sysfiles", 15) == 0)
+            state->show_sys = true;
+    } else {
+        state->show_sys = false;
+    }
 
-    launch_traced(argv[1]);
+    pid_t pid = launch_traced(argv[1]);
+    Command* cmd = new Command(&*state, argv[1]);
+    Process* proc = new Process(state->starting_dir, cmd);
+    //proc->pid = pid;
+    state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
+    state->commands.push_front(cmd);
+
     while (true) {
         enum stop_type stop_ty;
         pid_t child = wait_for_syscall(&stop_ty);
@@ -711,4 +729,7 @@ int main(int argc, char* argv[]) {
         }
         }
     }
+    
+    //TODO fix
+    state->to_graph();
 }
