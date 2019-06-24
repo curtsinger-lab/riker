@@ -26,12 +26,13 @@ struct trace_state;
 
 struct Command {
     trace_state* state;
-    std::string args;
+    std::string cmd;
     std::list<Command*> children;
     std::set<File*> inputs;
     std::set<File*> outputs;
     std::set<File*> wr_interactions;
     std::set<File*> rd_interactions;
+    std::list<std::string> args;
     bool has_race;
 
     Command(trace_state* state, std::string args);
@@ -56,8 +57,10 @@ struct File {
     File(std::string path, Command* writer);
     //bool is_local(void);
     bool is_intermediate(void);
+    bool is_local(void);
     void collapse(void);
-    bool can_depend(void);
+    bool can_depend(Command* cmd);
+    File* make_version(void);
     void print_file(void);
     // TODO closed by list?
 };
