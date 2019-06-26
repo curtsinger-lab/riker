@@ -309,7 +309,7 @@ int main(int argc, char* argv[]) {
 
     pid_t pid = launch_traced(argv[1]);
     Command* cmd = new Command(&*state, argv[1]);
-    Process* proc = new Process(state->starting_dir, cmd);
+    Process* proc = new Process(pid, state->starting_dir, cmd);
     //proc->pid = pid;
     state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
     state->commands.push_front(cmd);
@@ -320,6 +320,7 @@ int main(int argc, char* argv[]) {
         if (child == 0) {
             break;
         }
+        proc = state->processes.find(child)->second;
 
         switch (stop_ty) {
         case STOP_FORK: {
@@ -330,7 +331,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
             ptrace(PTRACE_CONT, child, NULL, 0);
-            state->add_fork(child, new_child);
+            state->add_fork(proc, new_child);
             break;
         }
         case STOP_EXEC: {
@@ -363,20 +364,20 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            state->add_exec(child, exe_path);
+            state->add_exec(proc, exe_path);
 
             int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, NULL);
             for (int i = 0; i < child_argc; i++) {
                 uintptr_t arg_ptr = ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), NULL);
                 char* arg = read_tracee_string(child, arg_ptr);
-                state->add_exec_argument(child, arg, i);
+                state->add_exec_argument(proc, arg, i);
             }
 
             ptrace(PTRACE_CONT, child, NULL, 0);
             break;
         }
         case STOP_EXIT: {
-            state->add_exit(child);
+            state->add_exit(proc);
             break;
         }
         case STOP_SYSCALL: {
@@ -589,7 +590,7 @@ int main(int argc, char* argv[]) {
             switch (registers.SYSCALL_NUMBER) {
             ////// Fiddling with file descriptors //////
             case /* 3 */ __NR_close:
-                state->add_close(child, registers.SYSCALL_ARG1);
+                state->add_close(proc, registers.SYSCALL_ARG1);
                 break;
             case /* 2 */ __NR_open:
             case /* 85 */ __NR_creat:
@@ -613,56 +614,56 @@ int main(int argc, char* argv[]) {
                     main_file.follow_links = false;
                 }
                 bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
-                state->add_open(child, registers.SYSCALL_RETURN, main_file, access_mode, rewrite);
+                state->add_open(proc, registers.SYSCALL_RETURN, main_file, access_mode, rewrite);
                 break;
             }
             case /* 22 */ __NR_pipe:
             case /* 293 */ __NR_pipe2:
-                state->add_pipe(child, pipe_fds);
+                state->add_pipe(proc, pipe_fds);
                 break;
             case /* 32 */ __NR_dup:
-                state->add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN);
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN);
                 break;
             case /* 33 */ __NR_dup2:
             case /* 292 */ __NR_dup3:
-                state->add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2);
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2);
                 break;
             ////// Changing process state //////
             case /* 80 */ __NR_chdir:
             case /* 81 */ __NR_fchdir:
-                state->add_change_cwd(child, main_file);
+                state->add_change_cwd(proc, main_file);
                 break;
             case /* 161 */ __NR_chroot:
-                state->add_change_root(child, main_file);
+                state->add_change_root(proc, main_file);
                 break;
             ////// Complex operations /////
             case /* 9 */ __NR_mmap:
                 // TODO: filter anonymous mappings in seccomp
                 if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) == 0) {
-                    state->add_mmap(child, main_file.fd);
+                    state->add_mmap(proc, main_file.fd);
                 }
                 break;
             case /* 40 */ __NR_sendfile:
             case /* 275 */ __NR_splice:
             case /* 276 */ __NR_tee:
             case /* 326 */ __NR_copy_file_range:
-                state->add_dependency(child, main_file, DEP_READ);
-                state->add_dependency(child, extra_file, DEP_MODIFY);
+                state->add_dependency(proc, main_file, DEP_READ);
+                state->add_dependency(proc, extra_file, DEP_MODIFY);
                 break;
             case /* 76 */ __NR_truncate:
             case /* 77 */ __NR_ftruncate:
                 if (registers.SYSCALL_ARG2 == 0) {
-                    state->add_dependency(child, main_file, DEP_REMOVE);
-                    state->add_dependency(child, main_file, DEP_CREATE);
+                    state->add_dependency(proc, main_file, DEP_REMOVE);
+                    state->add_dependency(proc, main_file, DEP_CREATE);
                 } else {
-                    state->add_dependency(child, main_file, DEP_MODIFY);
+                    state->add_dependency(proc, main_file, DEP_MODIFY);
                 }
                 break;
             case /* 82 */ __NR_rename:
             case /* 264 */ __NR_renameat:
-                state->add_dependency(child, main_file, DEP_READ);
-                state->add_dependency(child, main_file, DEP_REMOVE);
-                state->add_dependency(child, extra_file, DEP_CREATE);
+                state->add_dependency(proc, main_file, DEP_READ);
+                state->add_dependency(proc, main_file, DEP_REMOVE);
+                state->add_dependency(proc, extra_file, DEP_CREATE);
                 break;
             ////// Simple reads and writes //////
             case /* 0 */ __NR_read:
@@ -682,7 +683,7 @@ int main(int argc, char* argv[]) {
             case /* 196 */ __NR_flistxattr:
             case /* 267 */ __NR_readlinkat:
             case /* 322 */ __NR_execveat:
-                state->add_dependency(child, main_file, DEP_READ);
+                state->add_dependency(proc, main_file, DEP_READ);
                 break;
             case /* 1 */ __NR_write:
             case /* 18 */ __NR_pwrite64:
@@ -703,7 +704,7 @@ int main(int argc, char* argv[]) {
             case /* 199 */ __NR_fremovexattr:
             case /* 260 */ __NR_fchownat:
             case /* 268 */ __NR_fchmodat:
-                state->add_dependency(child, main_file, DEP_MODIFY);
+                state->add_dependency(proc, main_file, DEP_MODIFY);
                 break;
             case /* 83 */ __NR_mkdir:
             case /* 88 */ __NR_symlink:
@@ -711,12 +712,12 @@ int main(int argc, char* argv[]) {
             case /* 258 */ __NR_mkdirat:
             case /* 259 */ __NR_mknodat:
             case /* 266 */ __NR_symlinkat:
-                state->add_dependency(child, main_file, DEP_CREATE);
+                state->add_dependency(proc, main_file, DEP_CREATE);
                 break;
             case /* 84 */ __NR_rmdir:
             case /* 87 */ __NR_unlink:
             case /* 263 */ __NR_unlinkat:
-                state->add_dependency(child, main_file, DEP_REMOVE);
+                state->add_dependency(proc, main_file, DEP_REMOVE);
                 break;
             default:
                 fprintf(stderr, "[%d] UNHANDLED SYSCALL: %d\n", child, (int)registers.SYSCALL_NUMBER);
