@@ -22,6 +22,7 @@ struct file_reference {
 };
 
 struct File;
+struct Process;
 struct trace_state;
 
 struct Command {
@@ -32,6 +33,7 @@ struct Command {
     std::set<File*> outputs;
     std::set<File*> wr_interactions;
     std::set<File*> rd_interactions;
+    std::set<File*> deleted_files;
     std::list<std::string> args;
     bool has_race;
 
@@ -45,7 +47,8 @@ struct Command {
 struct File {
     std::string filename;
     std::set<Command*> users;
-    std::set<Command*> producers;
+    std::set<Command*> producers; 
+    std::set<Process*> mmaps;
     std::list<Command*> interactions;
     std::list<Command*> conflicts;
     Command* writer; 
@@ -64,12 +67,14 @@ struct File {
 };
 
 struct Process {
+    pid_t thread_id;
     std::string cwd;
     std::string root;
     std::map<int, std::string> fds;
+    std::set<File*> mmaps;
     Command* command;
 
-    Process(std::string cwd, Command* command);
+    Process(pid_t thread_id, std::string cwd, Command* command);
     void print(void);
 };
 
@@ -86,16 +91,16 @@ struct trace_state {
     // file references: those will be freed shortly after the trace_add_* function is called.
     File* find_file(std::string path);
     void to_graph(void);
-    void add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type);
-    void add_change_cwd(pid_t thread_id, struct file_reference file);
-    void add_change_root(pid_t thread_id, struct file_reference file);
-    void add_open(pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite);
-    void add_pipe(pid_t thread_id, int fds[2]);
-    void add_dup(pid_t thread_id, int duped_fd, int new_fd);
-    void add_mmap(pid_t thread_id, int fd);
-    void add_close(pid_t thread_id, int fd);
-    void add_fork(pid_t parent_thread_id, pid_t child_process_id);
-    void add_exec(pid_t process_id, char* exe_path);
-    void add_exec_argument(pid_t process_id, char* argument, int index);
-    void add_exit(pid_t thread_id);
+    void add_dependency(Process* proc, struct file_reference file, enum dependency_type type);
+    void add_change_cwd(Process* proc, struct file_reference file);
+    void add_change_root(Process* proc, struct file_reference file);
+    void add_open(Process* proc, int fd, struct file_reference file, int access_mode, bool is_rewrite);
+    void add_pipe(Process* proc, int fds[2]);
+    void add_dup(Process* proc, int duped_fd, int new_fd);
+    void add_mmap(Process* proc, int fd);
+    void add_close(Process* proc, int fd);
+    void add_fork(Process* proc, pid_t child_process_id);
+    void add_exec(Process* proc, char* exe_path);
+    void add_exec_argument(Process* proc, char* argument, int index);
+    void add_exit(Process* proc);
 };
