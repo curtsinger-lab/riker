@@ -1,5 +1,6 @@
 #include "graph.h"
 
+#include <vector>
 #include <set>
 #include <list>
 #include <map>
@@ -42,6 +43,8 @@ struct Command {
     void add_output(File* f);
     std::string to_graph(void);
     void print(void);
+    void rerun_children(std::set<Command*>* to_rerun);
+    void print_changes(std::vector<std::string> changes, std::set<Command*>* to_rerun);
 };
 
 struct File {
@@ -103,4 +106,5 @@ struct trace_state {
     void add_exec(Process* proc, char* exe_path);
     void add_exec_argument(Process* proc, char* argument, int index);
     void add_exit(Process* proc);
+    void print_changes(std::vector<std::string> changes);
 };
