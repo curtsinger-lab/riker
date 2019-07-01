@@ -11,7 +11,6 @@
 #include "db.capnp.h"
 #include "middle.h"
 
-
 //TODO fix collapse & race handling
 
 /* ------------------------------ Command Methods -----------------------------------------*/
@@ -23,12 +22,12 @@ void Command::add_input(File* f) {
     f->users.insert(this);
     this->inputs.insert(f);
     // if we've read from the file previously, check for a race
-    for (auto rds = this->rd_interactions.begin(); rds != this->rd_interactions.end(); ++rds) {
-        if (f->filename == (*rds)->filename && f->writer != this) {
-            if (f->version == (*rds)->version) {
+    for (auto rd : this->rd_interactions) {
+        if (f->filename == rd->filename && f->writer != this) {
+            if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
-                (*rds)->collapse();
+                rd->collapse();
                 this->has_race = true;
             }
         }
@@ -39,17 +38,17 @@ void Command::add_input(File* f) {
 
 void Command::add_output(File* f) {
     // if we've written to the file before, check for a race
-    for (auto wrs = this->wr_interactions.begin(); wrs != this->wr_interactions.end(); ++wrs) {
-        if (f->filename == (*wrs)->filename) {
+    for (auto wr : this->wr_interactions) {
+        if (f->filename == wr->filename) {
             f->producers.insert(this);
             this->outputs.insert(f);
-            if (f->version == (*wrs)->version) {
+            if (f->version == wr->version) {
                 return;
             } else {
-                (*wrs)->collapse();
+                wr->collapse();
                 // TODO collapse all intermediates
                 //for (auto it = this->state->files()
-                //(*wrs)->has_race = true;
+                //wr->has_race = true;
                 this->has_race = true;
                 return;
             }
@@ -67,8 +66,8 @@ void Command::add_output(File* f) {
 
 uint64_t Command::descendants(void) {
     uint64_t ret = 0;
-    for (auto c = this->children.begin(); c != this->children.end(); ++c) {
-        ret += 1 + (*c)->descendants();
+    for (auto c : this->children) {
+        ret += 1 + c->descendants();
     }
     return ret;
 }
@@ -79,13 +78,14 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
     command_list[start_index].setOutOfDate(false);
     auto argv = command_list[start_index].initArgv(command->args.size());
     uint64_t argv_index = 0;
-    for (auto arg = command->args.begin(); arg != command->args.end(); ++arg, ++argv_index) {
-        argv.set(argv_index, ::capnp::Data::Reader((const ::kj::byte*) (*arg).data(), (*arg).size()));
+    for (auto arg : command->args) {
+        argv.set(argv_index, ::capnp::Data::Reader((const ::kj::byte*) arg.data(), arg.size()));
+        argv_index++;
     }
 
     uint64_t index = start_index + 1;
-    for (auto c = command->children.begin(); c != command->children.end(); ++c) {
-        index = serialize_commands(*c, command_list, index, command_ids);
+    for (auto c : command->children) {
+        index = serialize_commands(c, command_list, index, command_ids);
     }
 
     command_list[start_index].setDescendants(index - start_index - 1);
@@ -100,9 +100,9 @@ File::File(std::string path, Command* writer, trace_state* state) : filename(pat
 //TODO fix
 void File::collapse(void) {
     //this->has_race = true;
-    for (auto it = this->interactions.begin(); it != this->interactions.end(); ++it) {
-        //(*it)->has_race = true;
-        this->conflicts.push_front(*it);
+    for (auto interaction : this->interactions) {
+        //interaction->has_race = true;
+        this->conflicts.push_front(interaction);
     }
 }
 
@@ -129,12 +129,10 @@ Process::Process(std::string cwd, Command* command) : cwd(cwd), command(command)
 // return latest version of the file, or create file and add to record if not found
 File* trace_state::find_file(std::string path) {
     File* ret = NULL;
-    for (auto f = this->files.begin(); f != this->files.end(); ++f) {
-        if ((*f)->filename == path) {
-            if (ret == NULL) {
-                ret = *f;
-            } else if ((*f)->version > ret->version) {
-                ret = *f;
+    for (auto f : this->files) {
+        if (f->filename == path) {
+            if (ret == NULL || f->version > ret->version) {
+                ret = f;
             }
         }
     }
