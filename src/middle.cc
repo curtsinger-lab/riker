@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 #include <iostream>
 #include <experimental/filesystem>
@@ -113,6 +114,13 @@ std::string Command::to_graph(void) {
     // draw removal edges
     for (auto c = this->deleted_files.begin(); c != this->deleted_files.end(); ++c) {        
         std::string node_id = (*c)->filename + std::to_string((*c)->version);
+        std::string label;
+        if ((*c)->is_intermediate()) {
+            label = "\\<temp\\>";
+        } else {
+            label = (*c)->filename;
+        }
+        this->state->g.add_node(node_id, label, "shape=rectangle");
         this->state->g.add_edge(id, node_id, "color=red");
     }    
 
@@ -173,8 +181,8 @@ bool File::is_local(void) {
     }
 }
 
-bool File::is_intermediate(void) {
-    if ((this->users.size()!=0)&&(this->producers.size()!=0)&&(this->filename.find("tmp")!=std::string::npos)) {
+bool File::is_intermediate(void) { 
+    if ((this->users.size()!=0)&&(this->producers.size()!=0)) {
         return true;
     } else {
         return false;
@@ -247,11 +255,11 @@ void trace_state::to_graph(void) {
 }
 
 void trace_state::add_dependency(Process* proc, struct file_reference file, enum dependency_type type) {
-    if (file.fd == -100)   
-        return;
-    //fprintf(stdout, "[%d] Dep: %d -> ",proc->thread_id, file.fd);
+    
     std::string path;
-    if (proc->fds.find(file.fd) == proc->fds.end()) {
+    if (file.fd == -100) {   
+        path = std::string(file.path);
+    } else if (proc->fds.find(file.fd) == proc->fds.end()) {
         path = "file not found, fd: " + std::to_string(file.fd);
     } else {
         path = proc->fds.find(file.fd)->second;
@@ -345,12 +353,25 @@ void trace_state::add_dup(Process* proc, int duped_fd, int new_fd) {
 }
 
 // TODO deal with race conditions
-void trace_state::add_mmap(Process* proc, int fd) {
+void trace_state::add_mmap(Process* proc, int fd, int flag) {
     // TODO: look up the permissions that the file was opened with
     //fprintf(stdout, "[%d] Mmap %d\n", proc->thread_id, fd);
     File* f = this->find_file(proc->fds.find(fd)->second);
+    if (f->filename.find("/lib/")!=std::string::npos) {
+        return;
+    }
     f->mmaps.insert(proc);
     proc->mmaps.insert(f);
+    std::cout << "MMAP ";
+    if (flag & PROT_READ) {
+        std::cout << "read ";
+        proc->command->add_input(f);
+    }
+    if (flag & PROT_WRITE) {
+        std::cout << "write";
+        proc->command->add_output(f);
+    } 
+    std::cout << "\n";
 }
 
 void trace_state::add_close(Process* proc, int fd) {
