@@ -3,6 +3,7 @@ dev
 #*
 *~
 __pycache__
+out.dot
 graph.gv
 graph.gv.pdf
 objs/
