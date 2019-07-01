@@ -57,3 +57,12 @@ To rerun a build:
   - If a file that was recorded as an output in the graph was not written, then it should also be marked as **unchanged**,
     but we may wish to emit a warning (though this can happen if the underlying command does incremental computation).
 - Go back to complete a new piece of work.
+
+Low level details:
+- We store commands layed out linearly in a preorder traversal order with each command containing a number
+  saying how many (recursive) descendants this command has execed. This is enough information to efficiently navigate
+  the tree.
+- Upon loading the on-disk graph, we immediately preprocess its tree of commands to allow for constant time Least Common
+  Ancestor queries.
+- We can precompute the number of input edges to each subtree. To do so, iterate through all dependency edges, and mark
+  1 input to the subtree of the output and -1 outputs to the least common ancestor of the input's creator and output.

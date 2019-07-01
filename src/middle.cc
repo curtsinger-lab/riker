@@ -4,9 +4,13 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+#include <capnp/message.h>
+#include <capnp/serialize.h>
 #include <iostream>
 
+#include "db.capnp.h"
 #include "middle.h"
+
 
 //TODO fix collapse & race handling
 
@@ -61,90 +65,36 @@ void Command::add_output(File* f) {
     this->state->files.insert(fnew);
 }
 
-std::string Command::to_graph(void) {
-    // create unique id per iteration of command, consisting of command and it's arguments
-    std::string id = this->cmd;
-    for (auto it = this->args.begin(); it != this->args.end(); ++it) {
-        id += (*it);
-    }
-    // add command node
-    this->state->g.add_node(id, this->cmd, "");
-
-    // recurse for all child commands
+uint64_t Command::descendants(void) {
+    uint64_t ret = 0;
     for (auto c = this->children.begin(); c != this->children.end(); ++c) {
-        std::string child_id = (*c)->to_graph();
-        this->state->g.add_edge(id, child_id, "style=dashed");
+        ret += 1 + (*c)->descendants();
     }
-
-    // draw input edges
-    for (auto i = this->inputs.begin(); i != this->inputs.end(); ++i) {
-        if (this->state->show_sys || (*i)->is_local()) {
-            // only draw input edges for non intermediates (intermediates handled in output loop)
-            if (!((*i)->is_intermediate())) {
-                std::string node_id = (*i)->filename + std::to_string((*i)->version);
-                this->state->g.add_node(node_id, (*i)->filename, "shape=rectangle");
-                this->state->g.add_edge(node_id, id, "arrowhead=empty");
-            }
-        }
-    }
-
-    // draw output edges
-    for (auto o = this->outputs.begin(); o != this->outputs.end(); ++o) {
-        std::string node_id = (*o)->filename + std::to_string((*o)->version);
-        // draw temp nodes for intermediates and edges to all their users
-        if ((*o)->is_intermediate()) {
-            this->state->g.add_node(node_id, "\\<temp\\>", "shape=rectangle");
-            this->state->g.add_edge(id, node_id, "arrowhead=empty");
-            for (auto u = (*o)->users.begin(); u != (*o)->users.end(); ++u) {
-                std::string out_id = (*u)->cmd;
-                for (auto it = (*u)->args.begin(); it != (*u)->args.end(); ++it) {
-                    out_id += (*it);
-                }
-                this->state->g.add_edge(node_id, out_id, "arrowhead=empty");
-            }
-        } else {
-            this->state->g.add_node(node_id, (*o)->filename, "shape=rectangle");
-            this->state->g.add_edge(id, node_id, "arrowhead=empty");
-        }
-    }
-
-    return id;
+    return ret;
 }
 
-// helpful for debugging
-void Command::print(void) {
-    std::cout << cmd << "\n";
-    std::cout << "Inputs:\n";
-    for (auto it = this->inputs.begin(); it != this->inputs.end(); ++it) {
-        std::cout << '\t' << (*it)->filename << '\n';
-    }
-    std::cout << "Outputs:\n";
-    for (auto it = this->outputs.begin(); it != this->outputs.end(); ++it) {
-        std::cout << '\t' << (*it)->filename << '\n';
+static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>::Builder& command_list, uint64_t start_index, std::map<Command*, uint64_t>& command_ids) {
+    command_ids.insert(std::pair<Command*,uint64_t>(command, start_index));
+    command_list[start_index].setExecutable(::capnp::Data::Reader((const ::kj::byte*) command->cmd.data(), command->cmd.size()));
+    command_list[start_index].setOutOfDate(false);
+    auto argv = command_list[start_index].initArgv(command->args.size());
+    uint64_t argv_index = 0;
+    for (auto arg = command->args.begin(); arg != command->args.end(); ++arg, ++argv_index) {
+        argv.set(argv_index, ::capnp::Data::Reader((const ::kj::byte*) (*arg).data(), (*arg).size()));
     }
 
+    uint64_t index = start_index + 1;
+    for (auto c = command->children.begin(); c != command->children.end(); ++c) {
+        index = serialize_commands(*c, command_list, index, command_ids);
+    }
+
+    command_list[start_index].setDescendants(index - start_index - 1);
+    return index;
 }
 
 /* ------------------------------- File Methods -------------------------------------------*/
 File::File(std::string path, Command* writer, trace_state* state) : filename(path), writer(writer), state(state) {
     this->dependable = true;
-}
-
-//TODO add logic here
-bool File::is_local(void) {
-    if (this->filename.find("usr") != std::string::npos || this->filename.find("lib") != std::string::npos || this->filename.find("dev") != std::string::npos) {
-        return false;
-    } else {
-        return true;
-    }
-}
-
-bool File::is_intermediate(void) {
-    if (this->users.size() != 0 && this->producers.size() != 0 && this->filename.find("tmp") != std::string::npos) {
-        return true;
-    } else {
-        return false;
-    }
 }
 
 //TODO fix
@@ -172,18 +122,8 @@ File* File::make_version(void) {
     return f;
 }
 
-// debugging aid
-void File::print_file(void) {
-    fprintf(stdout, "File: %s, Version: %d", this->filename.c_str(), this->version);
-}
-
 /* ----------------------------- Process Methods ------------------------------------------*/
 Process::Process(std::string cwd, Command* command) : cwd(cwd), command(command) {}
-
-// debugging aid
-void Process::print(void) {
-    this->command->print();
-}
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
 // return latest version of the file, or create file and add to record if not found
@@ -205,12 +145,77 @@ File* trace_state::find_file(std::string path) {
     return ret;
 }
 
-void trace_state::to_graph(void) {
-    this->g.start_graph();
-    for (auto c = this->commands.begin(); c != this->commands.end(); ++c) {
-        (*c)->to_graph();
+void trace_state::serialize_graph(void) {
+    ::capnp::MallocMessageBuilder message;
+
+    db::Graph::Builder graph = message.initRoot<db::Graph>();
+
+    // Serialize commands
+    std::map<Command*, uint64_t> command_ids;
+    uint64_t command_count = 0;
+    for (auto c : this->commands) {
+        command_count += 1 + c->descendants();
     }
-    this->g.close_graph();
+    auto commands = graph.initCommands(command_count);
+    uint64_t command_index = 0;
+    for (auto c : this->commands) {
+        command_index = serialize_commands(c, commands, command_index, command_ids);
+    }
+
+    // Serialize files
+    std::map<File*, uint64_t> file_ids;
+    uint64_t file_count = 0;
+    uint64_t input_count = 0;
+    uint64_t output_count = 0;
+    for (auto file : this->files) {
+        // We only care about files that are either written or read, so filter those out.
+        if (!file->users.empty() || !file->producers.empty()) {
+            file_ids.insert(std::pair<File*, uint64_t>(file, file_count));
+            input_count += file->users.size();
+            output_count += file->producers.size();
+            file_count += 1;
+        }
+    }
+    auto files = graph.initFiles(file_count);
+    for (auto file_entry : file_ids) {
+        auto file = file_entry.first;
+        auto file_id = file_entry.second;
+        files[file_id].setPath(::capnp::Data::Reader((const ::kj::byte*) file->filename.data(), file->filename.size()));
+
+        // TODO: type and checksum/state
+
+    }
+
+    // Serialize dependencies
+    auto inputs = graph.initInputs(input_count);
+    auto outputs = graph.initOutputs(output_count);
+    uint64_t input_index = 0;
+    uint64_t output_index = 0;
+    for (auto file_entry : file_ids) {
+        auto file = file_entry.first;
+        auto file_id = file_entry.second;
+        for (auto user : file->users) {
+            uint64_t user_id = command_ids[user];
+            inputs[input_index].setFileID(file_id);
+            inputs[input_index].setCommandID(user_id);
+            input_index++;
+        }
+        for (auto producer : file->producers) {
+            uint64_t producer_id = command_ids[producer];
+            outputs[output_index].setFileID(file_id);
+            outputs[output_index].setCommandID(producer_id);
+            output_index++;
+        }
+    }
+
+
+    // TODO: Is kj::OutputStream suitable?
+    int db_file = open("db.dodo", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    if (db_file < 0) {
+        perror("Failed to open database");
+        exit(2);
+    }
+    writeMessageToFd(db_file, message);
 }
 
 void trace_state::add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type) {

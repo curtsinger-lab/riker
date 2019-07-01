@@ -300,12 +300,6 @@ int main(int argc, char* argv[]) {
     char buf[FILENAME_MAX];
     getcwd(buf, FILENAME_MAX);
     state->starting_dir = std::string(buf);
-    if (argc == 3) {
-        if (strncmp(argv[2], "--show-sysfiles", 15) == 0)
-            state->show_sys = true;
-    } else {
-        state->show_sys = false;
-    }
 
     pid_t pid = launch_traced(argv[1]);
     Command* cmd = new Command(&*state, argv[1]);
@@ -731,5 +725,5 @@ int main(int argc, char* argv[]) {
     }
     
     //TODO fix
-    state->to_graph();
+    state->serialize_graph();
 }
