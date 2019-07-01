@@ -3,8 +3,12 @@ dev
 #*
 *~
 __pycache__
+db.dodo
 out.dot
 graph.gv
 graph.gv.pdf
 objs/
 dodo
+dodo-visualize
+*.capnp.cc
+*.capnp.h
