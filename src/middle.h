@@ -3,6 +3,8 @@
 #include <map>
 #include <string>
 
+#include <kj/array.h>
+
 enum dependency_type {
    DEP_READ,
    DEP_MODIFY,
