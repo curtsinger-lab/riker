@@ -4,7 +4,7 @@
 
 struct Graph {
     std::ofstream graph;
-    
+
     Graph(void);
     void start_graph(void);
     void add_node(std::string id, std::string label, std::string attr);

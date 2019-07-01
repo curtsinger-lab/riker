@@ -48,7 +48,7 @@ struct File {
     std::set<Command*> producers;
     std::list<Command*> interactions;
     std::list<Command*> conflicts;
-    Command* writer; 
+    Command* writer;
     trace_state* state;
     int id;
     int version;
@@ -78,7 +78,7 @@ struct trace_state {
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
     std::string starting_dir;
-    Graph g;    
+    Graph g;
     bool show_sys;
 
     // Note that all strings (char*) passed to the following functions are transferring ownership,
