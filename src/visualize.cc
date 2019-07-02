@@ -57,7 +57,11 @@ int main(int argc, char* argv[]) {
     for (auto file : db_graph.getFiles()) {
         auto path = std::string((const char*) file.getPath().begin(), file.getPath().size());
         // TODO: a better heuristic
-        if (!show_sys && (path.find("usr") != std::string::npos || path.find("lib") != std::string::npos || path.find("dev") != std::string::npos)) {
+        if (!show_sys && (path.find("/usr/") != std::string::npos ||
+                          path.find("/lib/") != std::string::npos ||
+                          path.find("/dev/") != std::string::npos ||
+                          path.find("/etc/") != std::string::npos ||
+                          path.find("/proc/") != std::string::npos)) {
             display_file.push_back(false);
         } else {
             display_file.push_back(true);
