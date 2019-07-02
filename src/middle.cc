@@ -239,15 +239,23 @@ void trace_state::serialize_graph(void) {
     // Serialize removal edges
     uint64_t removal_count = 0;
     for (auto c : command_ids) {
-        removal_count += c.first->deleted_files.size();
+        for (auto f : c.first->deleted_files) {
+            auto file_id = file_ids.find(f);
+            if (file_id != file_ids.end()) {
+                removal_count++;
+            }
+        }
     }
     auto removals = graph.initRemovals(removal_count);
     uint64_t removal_index = 0;
     for (auto c : command_ids) {
         for (auto f : c.first->deleted_files) {
-            removals[removal_index].setFileID(file_ids[f]);
-            removals[removal_index].setCommandID(c.second);
-            removal_index++;
+            auto file_id = file_ids.find(f);
+            if (file_id != file_ids.end()) {
+                removals[removal_index].setFileID(file_ids[f]);
+                removals[removal_index].setCommandID(c.second);
+                removal_index++;
+            }
         }
     }
 
