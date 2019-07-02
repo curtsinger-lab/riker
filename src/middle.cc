@@ -316,7 +316,10 @@ void trace_state::add_pipe(pid_t thread_id, int fds[2]) {
 void trace_state::add_dup(pid_t thread_id, int duped_fd, int new_fd) {
     fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     Process* proc = this->processes.find(thread_id)->second;
-    proc->fds.insert(std::pair<int, std::string>(new_fd, proc->fds.find(duped_fd)->second));
+    auto duped_file = proc->fds.find(duped_fd);
+    if (duped_file != proc->fds.end()) {
+        proc->fds.insert(std::pair<int, std::string>(new_fd, duped_file->second));
+    }
 }
 
 // TODO deal with race conditions
