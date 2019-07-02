@@ -353,6 +353,7 @@ int main(int argc, char* argv[]) {
 
                 size_t bytes_written = readlink(proc_path_buffer, exe_path, exe_path_capacity);
                 if (bytes_written < exe_path_capacity) {
+                    exe_path[bytes_written] = '\0';
                     break;
                 } else {
                     exe_path_capacity *= 2;
