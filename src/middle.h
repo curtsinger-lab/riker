@@ -68,11 +68,16 @@ struct File {
     File* make_version(void);
 };
 
+struct FileDescriptor {
+    Blob path;
+    int access_mode;
+};
+
 struct Process {
     pid_t thread_id;
     Blob cwd;
     Blob root;
-    std::map<int, Blob> fds;
+    std::map<int, FileDescriptor> fds;
     std::set<File*> mmaps;
     Command* command;
 
@@ -93,7 +98,7 @@ struct trace_state {
     void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite);
     void add_pipe(Process* proc, int fds[2]);
     void add_dup(Process* proc, int duped_fd, int new_fd);
-    void add_mmap(Process* proc, int fd, int flags);
+    void add_mmap(Process* proc, int fd);
     void add_close(Process* proc, int fd);
     void add_fork(Process* parent_proc, pid_t child_process_id);
     void add_exec(Process* proc, Blob&& exe_path);
