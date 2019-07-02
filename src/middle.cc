@@ -107,7 +107,10 @@ void Command::rerun_children(std::set<Command*>* to_rerun) {
 // TODO propagate
 void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun) {
     for (unsigned int ch = 0; ch < changes.size(); ch++) {
+        //fprintf(stderr, "%.*s\n", (int)changes[ch].size(), changes[ch].asChars().begin());
+        //std::cerr << changes[ch] << "\n";
         for (auto i : this->inputs) {
+            //fprintf(stderr, "%.*s\n", (int)i->filename.size(), i->filename.asChars().begin());
             //std::cout << i->filename << " vs " << changes[ch] << "\n";
             if (changes[ch].asPtr() == i->filename) {
                 this->rerun_children(to_rerun);
@@ -397,16 +400,16 @@ void trace_state::add_mmap(Process* proc, int fd) {
     //}
     f->mmaps.insert(proc);
     proc->mmaps.insert(f);
-    std::cout << "MMAP ";
+    //std::cout << "MMAP ";
     if (desc.access_mode != O_WRONLY) {
-        std::cout << "read ";
+        //std::cout << "read ";
         proc->command->add_input(f);
     }
     if (desc.access_mode != O_RDONLY) {
-        std::cout << "write";
+        //std::cout << "write";
         proc->command->add_output(f);
     }
-    std::cout << "\n";
+    //std::cout << "\n";
 }
 
 void trace_state::add_close(Process* proc, int fd) {
@@ -447,13 +450,14 @@ void trace_state::add_exit(Process* proc) {
 void trace_state::print_changes(std::vector<Blob>& changes) {
     if (changes.size() == 0) {
         return;
-    }
+    } 
+    std::cerr << "CHANGES\n";
     std::set<Command*> to_rerun;
     for (auto c : this->commands) {
         c->print_changes(changes, &to_rerun);
     }
     for (auto r : to_rerun) {
-        //r->print();
+        fprintf(stderr,"%.*s\n", (int)r->cmd.size(), r->cmd.asChars().begin());
     }
 }
 
