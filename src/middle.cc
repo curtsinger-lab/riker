@@ -457,7 +457,13 @@ void trace_state::print_changes(std::vector<Blob>& changes) {
         c->print_changes(changes, &to_rerun);
     }
     for (auto r : to_rerun) {
-        fprintf(stderr,"%.*s\n", (int)r->cmd.size(), r->cmd.asChars().begin());
+        flockfile(stderr);
+        fprintf(stderr,"%.*s", (int)r->cmd.size(), r->cmd.asChars().begin());
+        for (auto arg = ++r->args.begin(); arg != r->args.end(); ++arg) {
+            fprintf(stderr," %.*s", (int)(*arg).size(), (*arg).asChars().begin());
+        }
+        fprintf(stderr, "\n");
+        funlockfile(stderr);
     }
 }
 
