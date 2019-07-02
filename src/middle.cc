@@ -357,11 +357,13 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     File* f = this->find_file(file.path.asPtr());
-    if (is_rewrite) {
+    if (is_rewrite && f->writer != proc->command) {
         //fprintf(stdout, "REWRITE ");
         f = f->make_version();
         f->dependable = false;
         this->files.insert(f);
+        proc->command->add_output(f);
+        f->writer = proc->command;
     }
     proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode)));
     if (file.fd == AT_FDCWD) {
