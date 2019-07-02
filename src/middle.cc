@@ -236,20 +236,20 @@ void trace_state::serialize_graph(void) {
         }
     }
 
-/*
-    // draw removal edges
-    for (auto c = this->deleted_files.begin(); c != this->deleted_files.end(); ++c) {        
-        std::string node_id = (*c)->filename + std::to_string((*c)->version);
-        std::string label;
-        if ((*c)->is_intermediate()) {
-            label = "\\<temp\\>";
-        } else {
-            label = (*c)->filename;
+    // Serialize removal edges
+    uint64_t removal_count = 0;
+    for (auto c : command_ids) {
+        removal_count += c.first->deleted_files.size();
+    }
+    auto removals = graph.initRemovals(removal_count);
+    uint64_t removal_index = 0;
+    for (auto c : command_ids) {
+        for (auto f : c.first->deleted_files) {
+            removals[removal_index].setFileID(file_ids[f]);
+            removals[removal_index].setCommandID(c.second);
+            removal_index++;
         }
-        this->state->g.add_node(node_id, label, "shape=rectangle");
-        this->state->g.add_edge(id, node_id, "color=red");
-    }    
-*/
+    }
 
     // TODO: Is kj::OutputStream suitable?
     int db_file = open("db.dodo", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
