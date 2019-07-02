@@ -273,7 +273,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             path_buf = kj::heapArray((const kj::byte*) path_str.data(), path_str.size());
             path = path_buf.asPtr();
         } else {
-            path = proc->fds.find(file.fd)->second.asPtr();
+            path = proc->fds.find(file.fd)->second.path.asPtr();
         }
     }
     File* f = this->find_file(path);
@@ -346,7 +346,10 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
         f->dependable = false;
         this->files.insert(f);
     }
-    proc->fds.insert(std::pair<int, Blob>(fd, kj::heapArray(file.path.asPtr())));
+    FileDescriptor desc;
+    desc.path = kj::heapArray(file.path.asPtr());
+    desc.access_mode = access_mode;
+    proc->fds.insert(std::pair<int, FileDescriptor>(fd, std::move(desc)));
     if (file.fd == AT_FDCWD) {
         //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
@@ -363,15 +366,18 @@ void trace_state::add_dup(Process* proc, int duped_fd, int new_fd) {
     //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
-        proc->fds.insert(std::pair<int, Blob>(new_fd, kj::heapArray(duped_file->second.asPtr())));
+        FileDescriptor new_file;
+        new_file.path = kj::heapArray(duped_file->second.path.asPtr());
+        new_file.access_mode = duped_file->second.access_mode;
+        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, std::move(new_file)));
     }
 }
 
 // TODO deal with race conditions
-void trace_state::add_mmap(Process* proc, int fd, int flag) {
-    // TODO: look up the permissions that the file was opened with
+void trace_state::add_mmap(Process* proc, int fd) {
     //fprintf(stdout, "[%d] Mmap %d\n", proc->thread_id, fd);
-    File* f = this->find_file(proc->fds.find(fd)->second);
+    FileDescriptor& desc = proc->fds.find(fd)->second;
+    File* f = this->find_file(desc.path);
     // TODO: why is this useful?
     //if (f->filename.find("/lib/")!=std::string::npos) {
     //    return;
@@ -379,14 +385,14 @@ void trace_state::add_mmap(Process* proc, int fd, int flag) {
     f->mmaps.insert(proc);
     proc->mmaps.insert(f);
     std::cout << "MMAP ";
-    if (flag & PROT_READ) {
+    if (desc.access_mode != O_WRONLY) {
         std::cout << "read ";
         proc->command->add_input(f);
     }
-    if (flag & PROT_WRITE) {
+    if (desc.access_mode != O_RDONLY) {
         std::cout << "write";
         proc->command->add_output(f);
-    } 
+    }
     std::cout << "\n";
 }
 

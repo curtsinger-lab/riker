@@ -622,7 +622,7 @@ int main(int argc, char* argv[]) {
             case /* 9 */ __NR_mmap:
                 // TODO: filter anonymous mappings in seccomp
                 if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) == 0) {
-                    state->add_mmap(proc, main_file.fd, registers.SYSCALL_ARG3);
+                    state->add_mmap(proc, main_file.fd);
                 }
                 break;
             case /* 40 */ __NR_sendfile:
