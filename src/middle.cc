@@ -417,7 +417,11 @@ void trace_state::add_close(Process* proc, int fd) {
 // create process node
 void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
     //fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id, child_process_id);
-    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(child_process_id, kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command)));
+    Process* child_proc = new Process(child_process_id, kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command);
+    for (auto fd_entry = parent_proc->fds.begin(); fd_entry != parent_proc->fds.end(); ++fd_entry) {
+        child_proc->fds.insert(std::pair<int, FileDescriptor>((*fd_entry).first, FileDescriptor(kj::heapArray((*fd_entry).second.path.asPtr()), (*fd_entry).second.access_mode)));
+    }
+    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, child_proc));
 }
 
 void trace_state::add_exec(Process* proc, Blob&& exe_path) {
