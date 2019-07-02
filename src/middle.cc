@@ -14,7 +14,7 @@
 //TODO fix collapse & race handling
 
 /* ------------------------------ Command Methods -----------------------------------------*/
-Command::Command(trace_state* state, std::string cmd) : state(state), cmd(cmd) {}
+Command::Command(trace_state* state, Blob&& cmd) : state(state), cmd(std::move(cmd)) {}
 
 void Command::add_input(File* f) {
     // search through all files, do versioning
@@ -23,7 +23,7 @@ void Command::add_input(File* f) {
     this->inputs.insert(f);
     // if we've read from the file previously, check for a race
     for (auto rd : this->rd_interactions) {
-        if (f->filename == rd->filename && f->writer != this) {
+        if (f->filename.asPtr() == rd->filename.asPtr() && f->writer != this) {
             if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
@@ -39,7 +39,7 @@ void Command::add_input(File* f) {
 void Command::add_output(File* f) {
     // if we've written to the file before, check for a race
     for (auto wr : this->wr_interactions) {
-        if (f->filename == wr->filename) {
+        if (f->filename.asPtr() == wr->filename.asPtr()) {
             f->producers.insert(this);
             this->outputs.insert(f);
             if (f->version == wr->version) {
@@ -74,12 +74,12 @@ uint64_t Command::descendants(void) {
 
 static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>::Builder& command_list, uint64_t start_index, std::map<Command*, uint64_t>& command_ids) {
     command_ids.insert(std::pair<Command*,uint64_t>(command, start_index));
-    command_list[start_index].setExecutable(::capnp::Data::Reader((const ::kj::byte*) command->cmd.data(), command->cmd.size()));
+    command_list[start_index].setExecutable(command->cmd);
     command_list[start_index].setOutOfDate(false);
     auto argv = command_list[start_index].initArgv(command->args.size());
     uint64_t argv_index = 0;
-    for (auto arg : command->args) {
-        argv.set(argv_index, ::capnp::Data::Reader((const ::kj::byte*) arg.data(), arg.size()));
+    for (auto arg = command->args.begin(); arg != command->args.end(); ++arg) {
+        argv.set(argv_index, (*arg).asPtr());
         argv_index++;
     }
 
@@ -93,7 +93,7 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
 }
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(std::string path, Command* writer, trace_state* state) : filename(path), writer(writer), state(state) {
+File::File(Blob&& path, Command* writer, trace_state* state) : filename(std::move(path)), writer(writer), state(state) {
     this->dependable = true;
 }
 
@@ -117,28 +117,28 @@ bool File::can_depend(Command* cmd) {
 }
 
 File* File::make_version(void) {
-    File* f = new File(this->filename, this->writer, this->state);
+    File* f = new File(kj::heapArray(this->filename.asPtr()), this->writer, this->state);
     f->version = this->version + 1;
     return f;
 }
 
 /* ----------------------------- Process Methods ------------------------------------------*/
-Process::Process(std::string cwd, Command* command) : cwd(cwd), command(command) {}
+Process::Process(Blob&& cwd, Command* command) : cwd(std::move(cwd)), command(command) {}
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
 // return latest version of the file, or create file and add to record if not found
-File* trace_state::find_file(std::string path) {
+File* trace_state::find_file(BlobPtr path) {
     File* ret = NULL;
     for (auto f : this->files) {
-        if (f->filename == path) {
+        if (f->filename.asPtr() == path) {
             if (ret == NULL || f->version > ret->version) {
                 ret = f;
             }
         }
     }
     if (ret == NULL) {
-        ret = new File(path, NULL, this);
-        this->files.insert(ret);
+        ret = new File(heapArray(path), NULL, this);
+        this->files.insert(std::move(ret));
     }
     return ret;
 }
@@ -178,7 +178,7 @@ void trace_state::serialize_graph(void) {
     for (auto file_entry : file_ids) {
         auto file = file_entry.first;
         auto file_id = file_entry.second;
-        files[file_id].setPath(::capnp::Data::Reader((const ::kj::byte*) file->filename.data(), file->filename.size()));
+        files[file_id].setPath(file->filename.asPtr());
 
         // TODO: type and checksum/state
 
@@ -216,22 +216,26 @@ void trace_state::serialize_graph(void) {
     writeMessageToFd(db_file, message);
 }
 
-void trace_state::add_dependency(pid_t thread_id, struct file_reference file, enum dependency_type type) {
-    std::string path;
+void trace_state::add_dependency(pid_t thread_id, struct file_reference& file, enum dependency_type type) {
+    BlobPtr path;
+    Blob path_buf;
     Process* proc = this->processes.find(thread_id)->second;
     if (file.fd == AT_FDCWD) {
-        path = std::string(file.path);
+        path = file.path.asPtr();
     } else {
         fprintf(stdout, "[%d] Dep: %d -> ",thread_id, file.fd);
         if (proc->fds.find(file.fd) == proc->fds.end()) {
-            path = "file not found, fd: " + std::to_string(file.fd);
+            // TODO: Use a proper placeholder and stop fiddling with string manipulation
+            std::string path_str = "file not found, fd: " + std::to_string(file.fd);
+            path_buf = kj::heapArray((const kj::byte*) path_str.data(), path_str.size());
+            path = path_buf.asPtr();
         } else {
-            path = proc->fds.find(file.fd)->second;
+            path = proc->fds.find(file.fd)->second.asPtr();
         }
     }
     File* f = this->find_file(path);
 
-    fprintf(stdout, "file: %s-%d ", path.c_str(), f->version);
+    fprintf(stdout, "file: %.*s-%d ", (int)path.size(), path.asChars().begin(), f->version);
     switch (type) {
         case DEP_READ:
             fprintf(stdout, "read");
@@ -261,50 +265,50 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference file, en
     if (file.path == NULL) {
         fprintf(stdout, " FD %d\n", file.fd);
     } else if (file.fd == AT_FDCWD) {
-        fprintf(stdout, " %s\n", file.path);
+        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, " {%d/}%s\n", file.fd, file.path);
+        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
-void trace_state::add_change_cwd(pid_t thread_id, struct file_reference file) {
+void trace_state::add_change_cwd(pid_t thread_id, struct file_reference& file) {
     fprintf(stdout, "[%d] Change working directory to ", thread_id);
-    this->processes.find(thread_id)->second->cwd = file.path;
+    this->processes.find(thread_id)->second->cwd = kj::heapArray(file.path.asPtr());
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, "%s\n", file.path);
+        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, "{%d/}%s\n", file.fd, file.path);
+        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
-void trace_state::add_change_root(pid_t thread_id, struct file_reference file) {
+void trace_state::add_change_root(pid_t thread_id, struct file_reference& file) {
     fprintf(stdout, "[%d] Change root to ", thread_id);
-    this->processes.find(thread_id)->second->root = file.path;
+    this->processes.find(thread_id)->second->root = kj::heapArray(file.path.asPtr());
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, "%s\n", file.path);
+        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, "{%d/}%s\n", file.fd, file.path);
+        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
 
 // get filenames from their open
-void trace_state::add_open(pid_t thread_id, int fd, struct file_reference file, int access_mode, bool is_rewrite) {
+void trace_state::add_open(pid_t thread_id, int fd, struct file_reference& file, int access_mode, bool is_rewrite) {
     fprintf(stdout, "[%d] Open %d -> ", thread_id, fd);
     // TODO take into account root and cwd
     Process* cur_proc = this->processes.find(thread_id)->second;
-    File* f = this->find_file(file.path);
+    File* f = this->find_file(file.path.asPtr());
     if (is_rewrite) {
         fprintf(stdout, "REWRITE ");
         f = f->make_version();
         f->dependable = false;
         this->files.insert(f);
     }
-    cur_proc->fds.insert(std::pair<int, std::string>(fd,file.path));
+    cur_proc->fds.insert(std::pair<int, Blob>(fd, kj::heapArray(file.path.asPtr())));
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, "%s\n", file.path);
+        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, "{%d/}%s\n", file.fd, file.path);
+        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
@@ -318,7 +322,7 @@ void trace_state::add_dup(pid_t thread_id, int duped_fd, int new_fd) {
     Process* proc = this->processes.find(thread_id)->second;
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
-        proc->fds.insert(std::pair<int, std::string>(new_fd, duped_file->second));
+        proc->fds.insert(std::pair<int, Blob>(new_fd, kj::heapArray(duped_file->second.asPtr())));
     }
 }
 
@@ -337,26 +341,23 @@ void trace_state::add_close(pid_t thread_id, int fd) {
 void trace_state::add_fork(pid_t parent_thread_id, pid_t child_process_id) {
     fprintf(stdout, "[%d] Fork %d\n", parent_thread_id, child_process_id);
     Process* parent_proc = this->processes.find(parent_thread_id)->second;
-    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(parent_proc->cwd, parent_proc->command)));
+    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command)));
 }
 
 // fill in process node
-void trace_state::add_exec(pid_t process_id, char* exe_path) {
-    fprintf(stdout, "[%d] Inside exec: %s\n", process_id, exe_path);
+void trace_state::add_exec(pid_t process_id, Blob&& exe_path) {
+    fprintf(stdout, "[%d] Inside exec: %.*s\n", process_id, (int) exe_path.size(), exe_path.asChars().begin());
     Process* cur_proc = this->processes.find(process_id)->second;
-    Command* cmd = new Command(this, exe_path);
-    std::cout << "Pushed " << cmd->cmd << " to commands list!\n";
+    Command* cmd = new Command(this, std::move(exe_path));
+    fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
     cur_proc->command->children.push_front(cmd);
     cur_proc->command = cmd;
-    free(exe_path);
 }
 
-void trace_state::add_exec_argument(pid_t process_id, char* argument, int index) {
+void trace_state::add_exec_argument(pid_t process_id, Blob&& argument, int index) {
     Process* cur_proc = this->processes.find(process_id)->second;
-    std::string arg = std::string(argument);
-    cur_proc->command->args.push_back(arg);
-    fprintf(stdout, "[%d]     Arg %d: %s\n", process_id, index, argument);
-    free(argument);
+    fprintf(stdout, "[%d]     Arg %d: %.*s\n", process_id, index, (int)argument.size(), argument.asChars().begin());
+    cur_proc->command->args.push_back(std::move(argument));
 }
 
 // TODO close relevant mmaps

@@ -8,6 +8,9 @@
 
 #include <memory>
 
+#include <kj/array.h>
+#include <kj/vector.h>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
@@ -247,44 +250,28 @@ pid_t wait_for_syscall(enum stop_type* type) {
     }
 }
 
-char* read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
-    size_t capacity = 16;
-    size_t count = 0;
-    char* output = (char*) malloc(capacity);
-    if (output == NULL) {
-        exit(ENOMEM);
-    }
+Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+    kj::Vector<kj::byte> output;
 
     // Loop to fetch words at a time until we find a null byte
     while (true) {
         // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
         // since PEEKDATA could validly return -1.
         errno = 0;
-        long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + count, NULL);
+        long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), NULL);
         if (errno != 0) {
             perror("Failed to read tracee string");
             exit(2);
         }
 
-        // Make space for the data
-        if (count + sizeof(long) > capacity) {
-            capacity *= 2;
-            output = (char*) realloc(output, capacity);
-            if (output == NULL) {
-                exit(ENOMEM);
-            }
-        }
-
         // Copy in the data
-        memcpy(output + count, &data, sizeof(long));
-
-        // Check for a null byte
-        for (size_t i = count; i < count + sizeof(long); i++) {
-            if (output[i] == '\0') {
-                return output;
+        for (size_t i = 0; i < sizeof(long); i++) {
+            if (((kj::byte*) &data)[i] == '\0') {
+                return output.releaseAsArray();
+            } else {
+                output.add(((kj::byte*) &data)[i]);
             }
         }
-        count += sizeof(long);
     }
 }
 
@@ -299,11 +286,12 @@ int main(int argc, char* argv[]) {
     //TODO setup // figure out filesystem
     char buf[FILENAME_MAX];
     getcwd(buf, FILENAME_MAX);
-    state->starting_dir = std::string(buf);
+    state->starting_dir = kj::heapArray((kj::byte*) buf, ARRAY_COUNT(buf));
 
     pid_t pid = launch_traced(argv[1]);
-    Command* cmd = new Command(&*state, argv[1]);
-    Process* proc = new Process(state->starting_dir, cmd);
+    fprintf(stderr, "Launched %d\n", pid);
+    Command* cmd = new Command(&*state, kj::heapArray((kj::byte*) argv[1], strlen(argv[1])));
+    Process* proc = new Process(kj::heapArray(state->starting_dir.asPtr()), cmd);
     //proc->pid = pid;
     state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
     state->commands.push_front(cmd);
@@ -344,30 +332,24 @@ int main(int argc, char* argv[]) {
 
             // In practice, many paths are longer than PATH_MAX, so make sure to handle
             // an arbitrary length response from readlink
-            size_t exe_path_capacity = PATH_MAX;
-            char* exe_path = (char*) malloc(exe_path_capacity);
+            kj::Vector<kj::byte> exe_path(PATH_MAX);
             while (true) {
-                if (exe_path == NULL) {
-                    exit(ENOMEM);
-                }
-
-                size_t bytes_written = readlink(proc_path_buffer, exe_path, exe_path_capacity);
-                if (bytes_written < exe_path_capacity) {
-                    exe_path[bytes_written] = '\0';
+                exe_path.resize(exe_path.capacity());
+                size_t bytes_written = readlink(proc_path_buffer, (char*) exe_path.begin(), exe_path.size());
+                if (bytes_written < exe_path.size()) {
+                    exe_path.truncate(bytes_written);
                     break;
                 } else {
-                    exe_path_capacity *= 2;
-                    exe_path = (char*) realloc(exe_path, exe_path_capacity);
+                    exe_path.reserve(exe_path.capacity() + 1);
                 }
             }
 
-            state->add_exec(child, exe_path);
+            state->add_exec(child, exe_path.releaseAsArray());
 
             int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, NULL);
             for (int i = 0; i < child_argc; i++) {
                 uintptr_t arg_ptr = ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), NULL);
-                char* arg = read_tracee_string(child, arg_ptr);
-                state->add_exec_argument(child, arg, i);
+                state->add_exec_argument(child, read_tracee_string(child, arg_ptr), i);
             }
 
             ptrace(PTRACE_CONT, child, NULL, 0);
@@ -721,8 +703,6 @@ int main(int argc, char* argv[]) {
                 break;
             }
 
-            free(main_file.path);
-            free(extra_file.path);
             break;
         }
         }
