@@ -3,10 +3,13 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 #include <iostream>
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
 
 #include "db.capnp.h"
 #include "middle.h"
@@ -92,6 +95,33 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
     return index;
 }
 
+void Command::rerun_children(std::set<Command*>* to_rerun) {
+    (*to_rerun).insert(this);
+    for (auto o = this->outputs.begin(); o != this->outputs.end(); ++o) {
+        for (auto user = (*o)->users.begin(); user != (*o)->users.end(); ++user) {
+            (*user)->rerun_children(to_rerun);
+        }
+    }
+}
+
+// TODO propagate
+void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun) {
+    for (unsigned int ch = 0; ch < changes.size(); ch++) {
+        for (auto i : this->inputs) {
+            //std::cout << i->filename << " vs " << changes[ch] << "\n";
+            if (changes[ch].asPtr() == i->filename) {
+                this->rerun_children(to_rerun);
+                //for (auto o : this->outputs) {
+                 //   changes.push_back(o->filename);
+                //}
+            }
+        }
+    }
+    for (auto c : this->children) {
+        c->print_changes(changes, to_rerun);
+    }
+}
+
 /* ------------------------------- File Methods -------------------------------------------*/
 File::File(Blob&& path, Command* writer, trace_state* state) : filename(std::move(path)), writer(writer), state(state) {
     this->dependable = true;
@@ -123,7 +153,7 @@ File* File::make_version(void) {
 }
 
 /* ----------------------------- Process Methods ------------------------------------------*/
-Process::Process(Blob&& cwd, Command* command) : cwd(std::move(cwd)), command(command) {}
+Process::Process(pid_t thread_id, Blob&& cwd, Command* command) : thread_id(thread_id), cwd(std::move(cwd)), command(command) {}
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
 // return latest version of the file, or create file and add to record if not found
@@ -206,6 +236,20 @@ void trace_state::serialize_graph(void) {
         }
     }
 
+/*
+    // draw removal edges
+    for (auto c = this->deleted_files.begin(); c != this->deleted_files.end(); ++c) {        
+        std::string node_id = (*c)->filename + std::to_string((*c)->version);
+        std::string label;
+        if ((*c)->is_intermediate()) {
+            label = "\\<temp\\>";
+        } else {
+            label = (*c)->filename;
+        }
+        this->state->g.add_node(node_id, label, "shape=rectangle");
+        this->state->g.add_edge(id, node_id, "color=red");
+    }    
+*/
 
     // TODO: Is kj::OutputStream suitable?
     int db_file = open("db.dodo", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
@@ -216,14 +260,13 @@ void trace_state::serialize_graph(void) {
     writeMessageToFd(db_file, message);
 }
 
-void trace_state::add_dependency(pid_t thread_id, struct file_reference& file, enum dependency_type type) {
+void trace_state::add_dependency(Process* proc, struct file_reference& file, enum dependency_type type) {
     BlobPtr path;
     Blob path_buf;
-    Process* proc = this->processes.find(thread_id)->second;
     if (file.fd == AT_FDCWD) {
         path = file.path.asPtr();
     } else {
-        fprintf(stdout, "[%d] Dep: %d -> ",thread_id, file.fd);
+        //fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
         if (proc->fds.find(file.fd) == proc->fds.end()) {
             // TODO: Use a proper placeholder and stop fiddling with string manipulation
             std::string path_str = "file not found, fd: " + std::to_string(file.fd);
@@ -238,88 +281,86 @@ void trace_state::add_dependency(pid_t thread_id, struct file_reference& file, e
     fprintf(stdout, "file: %.*s-%d ", (int)path.size(), path.asChars().begin(), f->version);
     switch (type) {
         case DEP_READ:
-            fprintf(stdout, "read");
+           // fprintf(stdout, "read");
             if (f->can_depend(proc->command)) {
                 proc->command->add_input(f);
-                fprintf(stdout, ", depend");
+                //fprintf(stdout, ", depend");
             }
             break;
         case DEP_MODIFY:
-            fprintf(stdout, "modify");
+            //fprintf(stdout, "modify");
             proc->command->add_output(f);
             f->dependable = true;
             f->writer = proc->command;
             break;
         case DEP_CREATE:
-            fprintf(stdout, "create");
+            //fprintf(stdout, "create");
             // create edge
             break;
         case DEP_REMOVE:
-            fprintf(stdout, "remove");
-            // TODO deletion edges
+            //fprintf(stdout, "remove");
+            proc->command->deleted_files.insert(f);    
             break;
     }
     if (!file.follow_links) {
-        fprintf(stdout, " (nofollow)");
+        //fprintf(stdout, " (nofollow)");
     }
     if (file.path == NULL) {
-        fprintf(stdout, " FD %d\n", file.fd);
+        //fprintf(stdout, " FD %d\n", file.fd);
     } else if (file.fd == AT_FDCWD) {
-        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
-void trace_state::add_change_cwd(pid_t thread_id, struct file_reference& file) {
-    fprintf(stdout, "[%d] Change working directory to ", thread_id);
-    this->processes.find(thread_id)->second->cwd = kj::heapArray(file.path.asPtr());
+void trace_state::add_change_cwd(Process* proc, struct file_reference& file) {
+    //fprintf(stdout, "[%d] Change working directory to ", proc->thread_id);
+    proc->cwd = kj::heapArray(file.path.asPtr());
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
-void trace_state::add_change_root(pid_t thread_id, struct file_reference& file) {
-    fprintf(stdout, "[%d] Change root to ", thread_id);
-    this->processes.find(thread_id)->second->root = kj::heapArray(file.path.asPtr());
+void trace_state::add_change_root(Process* proc, struct file_reference& file) {
+    //fprintf(stdout, "[%d] Change root to ", proc->thread_id);
+    proc->root = kj::heapArray(file.path.asPtr());
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
 
 // get filenames from their open
-void trace_state::add_open(pid_t thread_id, int fd, struct file_reference& file, int access_mode, bool is_rewrite) {
-    fprintf(stdout, "[%d] Open %d -> ", thread_id, fd);
+void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite) {
+    //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
-    Process* cur_proc = this->processes.find(thread_id)->second;
     File* f = this->find_file(file.path.asPtr());
     if (is_rewrite) {
-        fprintf(stdout, "REWRITE ");
+        //fprintf(stdout, "REWRITE ");
         f = f->make_version();
         f->dependable = false;
         this->files.insert(f);
     }
-    cur_proc->fds.insert(std::pair<int, Blob>(fd, kj::heapArray(file.path.asPtr())));
+    proc->fds.insert(std::pair<int, Blob>(fd, kj::heapArray(file.path.asPtr())));
     if (file.fd == AT_FDCWD) {
-        fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
-        fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
+        //fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(), file.path.asChars().begin());
     }
 }
 
 // TODO handle pipes
-void trace_state::add_pipe(pid_t thread_id, int fds[2]) {
-    fprintf(stdout, "[%d] Pipe %d, %d\n", thread_id, fds[0], fds[1]);
+void trace_state::add_pipe(Process* proc, int fds[2]) {
+    //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
 }
 
-void trace_state::add_dup(pid_t thread_id, int duped_fd, int new_fd) {
-    fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
-    Process* proc = this->processes.find(thread_id)->second;
+void trace_state::add_dup(Process* proc, int duped_fd, int new_fd) {
+    //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
         proc->fds.insert(std::pair<int, Blob>(new_fd, kj::heapArray(duped_file->second.asPtr())));
@@ -327,41 +368,72 @@ void trace_state::add_dup(pid_t thread_id, int duped_fd, int new_fd) {
 }
 
 // TODO deal with race conditions
-void trace_state::add_mmap(pid_t thread_id, int fd) {
+void trace_state::add_mmap(Process* proc, int fd, int flag) {
     // TODO: look up the permissions that the file was opened with
-    fprintf(stdout, "[%d] Mmap %d\n", thread_id, fd);
+    //fprintf(stdout, "[%d] Mmap %d\n", proc->thread_id, fd);
+    File* f = this->find_file(proc->fds.find(fd)->second);
+    // TODO: why is this useful?
+    //if (f->filename.find("/lib/")!=std::string::npos) {
+    //    return;
+    //}
+    f->mmaps.insert(proc);
+    proc->mmaps.insert(f);
+    std::cout << "MMAP ";
+    if (flag & PROT_READ) {
+        std::cout << "read ";
+        proc->command->add_input(f);
+    }
+    if (flag & PROT_WRITE) {
+        std::cout << "write";
+        proc->command->add_output(f);
+    } 
+    std::cout << "\n";
 }
 
-void trace_state::add_close(pid_t thread_id, int fd) {
-    fprintf(stdout, "[%d] Close %d\n", thread_id, fd);
-    this->processes.find(thread_id)->second->fds.erase(fd);
+void trace_state::add_close(Process* proc, int fd) {
+    //fprintf(stdout, "[%d] Close %d\n", proc->thread_id, fd);
+    proc->fds.erase(fd);
 }
 
 // create process node
-void trace_state::add_fork(pid_t parent_thread_id, pid_t child_process_id) {
-    fprintf(stdout, "[%d] Fork %d\n", parent_thread_id, child_process_id);
-    Process* parent_proc = this->processes.find(parent_thread_id)->second;
-    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command)));
+void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
+    //fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id, child_process_id);
+    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, new Process(child_process_id, kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command)));
 }
 
-// fill in process node
-void trace_state::add_exec(pid_t process_id, Blob&& exe_path) {
-    fprintf(stdout, "[%d] Inside exec: %.*s\n", process_id, (int) exe_path.size(), exe_path.asChars().begin());
-    Process* cur_proc = this->processes.find(process_id)->second;
+void trace_state::add_exec(Process* proc, Blob&& exe_path) {
+    //fprintf(stdout, "[%d] Inside exec: %.*s\n", proc->thread_id, (int) exe_path.size(), exe_path.asChars().begin());
     Command* cmd = new Command(this, std::move(exe_path));
-    fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
-    cur_proc->command->children.push_front(cmd);
-    cur_proc->command = cmd;
+    //fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
+    proc->command->children.push_front(cmd);
+    proc->command = cmd;
 }
 
-void trace_state::add_exec_argument(pid_t process_id, Blob&& argument, int index) {
-    Process* cur_proc = this->processes.find(process_id)->second;
-    fprintf(stdout, "[%d]     Arg %d: %.*s\n", process_id, index, (int)argument.size(), argument.asChars().begin());
-    cur_proc->command->args.push_back(std::move(argument));
+void trace_state::add_exec_argument(Process* proc, Blob&& argument, int index) {
+    //fprintf(stdout, "[%d]     Arg %d: %.*s\n", process_id, index, (int)argument.size(), argument.asChars().begin());
+    proc->command->args.push_back(std::move(argument));
 }
 
-// TODO close relevant mmaps
-void trace_state::add_exit(pid_t thread_id) {
-    fprintf(stdout, "[%d] Exit\n", thread_id);
+void trace_state::add_exit(Process* proc) {
+    //fprintf(stdout, "[%d] Exit\n", proc->thread_id);
+    for (auto f = proc->mmaps.begin(); f != proc->mmaps.end(); ++f) {
+        (*f)->mmaps.erase(proc);
+    }
 }
+
+void trace_state::print_changes(std::vector<Blob>& changes) {
+    if (changes.size() == 0) {
+        return;
+    }
+    std::set<Command*> to_rerun;
+    for (auto c : this->commands) {
+        c->print_changes(changes, &to_rerun);
+    }
+    for (auto r : to_rerun) {
+        //r->print();
+    }
+}
+
+
+
 
