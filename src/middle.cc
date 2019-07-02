@@ -296,6 +296,11 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
         case DEP_CREATE:
             //fprintf(stdout, "create");
             // create edge
+            f = f->make_version();
+            f->dependable = false;
+            this->files.insert(f);
+            proc->command->add_output(f);
+            f->writer = proc->command;
             break;
         case DEP_REMOVE:
             //fprintf(stdout, "remove");
