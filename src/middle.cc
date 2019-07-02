@@ -131,6 +131,7 @@ FileDescriptor::FileDescriptor(Blob&& path, int access_mode, bool cloexec) : pat
 
 /* ------------------------------- File Methods -------------------------------------------*/
 File::File(Blob&& path, Command* writer, trace_state* state) : filename(std::move(path)), writer(writer), state(state) {
+    this->is_latest_version = true;
     this->dependable = true;
 }
 
@@ -156,6 +157,7 @@ bool File::can_depend(Command* cmd) {
 File* File::make_version(void) {
     File* f = new File(kj::heapArray(this->filename.asPtr()), this->writer, this->state);
     f->version = this->version + 1;
+    this->is_latest_version = false;
     return f;
 }
 
@@ -204,7 +206,8 @@ void trace_state::serialize_graph(void) {
     uint64_t output_count = 0;
     for (auto file : this->files) {
         // We only care about files that are either written or read, so filter those out.
-        if (!file->users.empty() || !file->producers.empty()) {
+        // Additionally, if a file was overwritten before it was ever read, ignore it.
+        if (!file->users.empty() || (!file->producers.empty() && file->is_latest_version)) {
             file_ids.insert(std::pair<File*, uint64_t>(file, file_count));
             input_count += file->users.size();
             output_count += file->producers.size();

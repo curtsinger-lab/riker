@@ -60,6 +60,7 @@ struct File {
     trace_state* state;
     int id;
     int version;
+    bool is_latest_version;
     bool dependable;
 
     File(Blob&& path, Command* writer, trace_state* state);
