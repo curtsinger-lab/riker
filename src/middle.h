@@ -1,3 +1,4 @@
+#include <vector>
 #include <set>
 #include <list>
 #include <map>
@@ -25,6 +26,7 @@ struct file_reference {
 };
 
 struct File;
+struct Process;
 struct trace_state;
 
 struct Command {
@@ -35,6 +37,7 @@ struct Command {
     std::set<File*> outputs;
     std::set<File*> wr_interactions;
     std::set<File*> rd_interactions;
+    std::set<File*> deleted_files;
     std::list<Blob> args;
     bool has_race;
 
@@ -42,12 +45,15 @@ struct Command {
     void add_input(File* f);
     void add_output(File* f);
     size_t descendants(void);
+    void rerun_children(std::set<Command*>* to_rerun);
+    void print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun);
 };
 
 struct File {
     Blob filename;
     std::set<Command*> users;
-    std::set<Command*> producers;
+    std::set<Command*> producers; 
+    std::set<Process*> mmaps;
     std::list<Command*> interactions;
     std::list<Command*> conflicts;
     Command* writer;
@@ -63,12 +69,14 @@ struct File {
 };
 
 struct Process {
+    pid_t thread_id;
     Blob cwd;
     Blob root;
     std::map<int, Blob> fds;
+    std::set<File*> mmaps;
     Command* command;
 
-    Process(Blob&& cwd, Command* command);
+    Process(pid_t thread_id, Blob&& cwd, Command* command);
 };
 
 struct trace_state {
@@ -79,16 +87,17 @@ struct trace_state {
 
     File* find_file(BlobPtr path);
     void serialize_graph(void);
-    void add_dependency(pid_t thread_id, struct file_reference& file, enum dependency_type type);
-    void add_change_cwd(pid_t thread_id, struct file_reference& file);
-    void add_change_root(pid_t thread_id, struct file_reference& file);
-    void add_open(pid_t thread_id, int fd, struct file_reference& file, int access_mode, bool is_rewrite);
-    void add_pipe(pid_t thread_id, int fds[2]);
-    void add_dup(pid_t thread_id, int duped_fd, int new_fd);
-    void add_mmap(pid_t thread_id, int fd);
-    void add_close(pid_t thread_id, int fd);
-    void add_fork(pid_t parent_thread_id, pid_t child_process_id);
-    void add_exec(pid_t process_id, Blob&& exe_path);
-    void add_exec_argument(pid_t process_id, Blob&& argument, int index);
-    void add_exit(pid_t thread_id);
+    void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
+    void add_change_cwd(Process* proc, struct file_reference& file);
+    void add_change_root(Process* proc, struct file_reference& file);
+    void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite);
+    void add_pipe(Process* proc, int fds[2]);
+    void add_dup(Process* proc, int duped_fd, int new_fd);
+    void add_mmap(Process* proc, int fd, int flags);
+    void add_close(Process* proc, int fd);
+    void add_fork(Process* parent_proc, pid_t child_process_id);
+    void add_exec(Process* proc, Blob&& exe_path);
+    void add_exec_argument(Process* proc, Blob&& argument, int index);
+    void add_exit(Process* proc);
+    void print_changes(std::vector<Blob>& changes);
 };
