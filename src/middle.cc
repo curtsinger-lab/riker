@@ -125,6 +125,10 @@ void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_r
     }
 }
 
+/* -------------------------- FileDescriptor Methods --------------------------------------*/
+FileDescriptor::FileDescriptor(Blob&& path, int access_mode) : path(std::move(path)), access_mode(access_mode) {}
+
+
 /* ------------------------------- File Methods -------------------------------------------*/
 File::File(Blob&& path, Command* writer, trace_state* state) : filename(std::move(path)), writer(writer), state(state) {
     this->dependable = true;
@@ -362,10 +366,7 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
         f->dependable = false;
         this->files.insert(f);
     }
-    FileDescriptor desc;
-    desc.path = kj::heapArray(file.path.asPtr());
-    desc.access_mode = access_mode;
-    proc->fds.insert(std::pair<int, FileDescriptor>(fd, std::move(desc)));
+    proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode)));
     if (file.fd == AT_FDCWD) {
         //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
@@ -382,10 +383,7 @@ void trace_state::add_dup(Process* proc, int duped_fd, int new_fd) {
     //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
-        FileDescriptor new_file;
-        new_file.path = kj::heapArray(duped_file->second.path.asPtr());
-        new_file.access_mode = duped_file->second.access_mode;
-        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, std::move(new_file)));
+        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, FileDescriptor(kj::heapArray(duped_file->second.path.asPtr()), duped_file->second.access_mode)));
     }
 }
 
