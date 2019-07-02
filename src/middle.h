@@ -71,6 +71,8 @@ struct File {
 struct FileDescriptor {
     Blob path;
     int access_mode;
+
+    FileDescriptor(Blob&& path, int access_mode);
 };
 
 struct Process {
