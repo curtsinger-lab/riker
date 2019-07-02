@@ -278,7 +278,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
     }
     File* f = this->find_file(path);
 
-    fprintf(stdout, "file: %.*s-%d ", (int)path.size(), path.asChars().begin(), f->version);
+    //fprintf(stdout, "file: %.*s-%d ", (int)path.size(), path.asChars().begin(), f->version);
     switch (type) {
         case DEP_READ:
            // fprintf(stdout, "read");
