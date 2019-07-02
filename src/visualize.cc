@@ -86,5 +86,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Draw the removals
+    for (auto dep : db_graph.getRemovals()) {
+        if (display_file[dep.getFileID()]) {
+            graph.add_edge("c" + std::to_string(dep.getCommandID()), "f" + std::to_string(dep.getFileID()), "color=red");
+        }
+    }
+
     graph.close_graph();
 }
