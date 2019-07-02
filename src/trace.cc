@@ -317,12 +317,15 @@ int main(int argc, char* argv[]) {
 
         switch (stop_ty) {
         case STOP_FORK: {
-            pid_t new_child;
-            if (ptrace(PTRACE_GETEVENTMSG, child, NULL, &new_child) != 0) {
+            // GETEVENTMSG returns a unsigned long *always*, even though the value is
+            // always a pid_t.
+            unsigned long ul_new_child;
+            if (ptrace(PTRACE_GETEVENTMSG, child, NULL, &ul_new_child) != 0) {
                 perror("Unable to fetch new child from fork");
                 ptrace(PTRACE_CONT, child, NULL, 0);
                 continue;
             }
+            pid_t new_child = (pid_t) ul_new_child;
             ptrace(PTRACE_CONT, child, NULL, 0);
             state->add_fork(child, new_child);
             break;
