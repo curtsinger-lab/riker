@@ -440,6 +440,16 @@ void trace_state::add_exec(Process* proc, Blob&& exe_path) {
             fd_entry = proc->fds.erase(fd_entry);
         }
     }
+
+    // Assume that we can at any time write to stdout or stderr
+    // TODO: Instead of checking whether we know about stdout and stderr,
+    // tread the initial stdout and stderr properly as pipes
+    if (proc->fds.find(fileno(stdout)) != proc->fds.end()) {
+        this->add_mmap(proc, fileno(stdout));
+    }
+    if (proc->fds.find(fileno(stderr)) != proc->fds.end()) {
+        this->add_mmap(proc, fileno(stderr));
+    }
 }
 
 void trace_state::add_exec_argument(Process* proc, Blob&& argument, int index) {
