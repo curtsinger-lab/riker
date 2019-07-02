@@ -9,6 +9,7 @@ We assume that
 - All inter-process communication happens through or at least is triggered by either the filesystem or a pipe.
   - We ignore many other forms of communication, as described in our [syscall list](../src/syscalls.h).
 - If a process conditionally writes to a file, either
-  - the inputs that determine whether the conditional write happens are either written or read by a parent process, or
-  - the conditional write is to a file that is only read by a descendant process if at all.
+  - any command that reads from the conditionally written file must have ancestors that read or write all inputs that
+    determine whether the conditional write occurs.
+  - the conditionally written file is passed as standard output or standard error.
 - Processes do not operate on nonexistent file descriptors.
