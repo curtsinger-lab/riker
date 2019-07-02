@@ -126,7 +126,7 @@ void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_r
 }
 
 /* -------------------------- FileDescriptor Methods --------------------------------------*/
-FileDescriptor::FileDescriptor(Blob&& path, int access_mode) : path(std::move(path)), access_mode(access_mode) {}
+FileDescriptor::FileDescriptor(Blob&& path, int access_mode, bool cloexec) : path(std::move(path)), access_mode(access_mode), cloexec(cloexec) {}
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
@@ -356,7 +356,7 @@ void trace_state::add_change_root(Process* proc, struct file_reference& file) {
 
 
 // get filenames from their open
-void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite) {
+void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec) {
     //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     File* f = this->find_file(file.path.asPtr());
@@ -368,7 +368,7 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
         proc->command->add_output(f);
         f->writer = proc->command;
     }
-    proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode)));
+    proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode, cloexec)));
     if (file.fd == AT_FDCWD) {
         //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
@@ -381,11 +381,11 @@ void trace_state::add_pipe(Process* proc, int fds[2]) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
 }
 
-void trace_state::add_dup(Process* proc, int duped_fd, int new_fd) {
+void trace_state::add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec) {
     //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
-        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, FileDescriptor(kj::heapArray(duped_file->second.path.asPtr()), duped_file->second.access_mode)));
+        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, FileDescriptor(kj::heapArray(duped_file->second.path.asPtr()), duped_file->second.access_mode, cloexec)));
     }
 }
 
@@ -422,7 +422,7 @@ void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
     //fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id, child_process_id);
     Process* child_proc = new Process(child_process_id, kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command);
     for (auto fd_entry = parent_proc->fds.begin(); fd_entry != parent_proc->fds.end(); ++fd_entry) {
-        child_proc->fds.insert(std::pair<int, FileDescriptor>((*fd_entry).first, FileDescriptor(kj::heapArray((*fd_entry).second.path.asPtr()), (*fd_entry).second.access_mode)));
+        child_proc->fds.insert(std::pair<int, FileDescriptor>((*fd_entry).first, FileDescriptor(kj::heapArray((*fd_entry).second.path.asPtr()), (*fd_entry).second.access_mode, (*fd_entry).second.cloexec)));
     }
     this->processes.insert(std::pair<pid_t, Process*>(child_process_id, child_proc));
 }
@@ -433,6 +433,13 @@ void trace_state::add_exec(Process* proc, Blob&& exe_path) {
     //fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
     proc->command->children.push_front(cmd);
     proc->command = cmd;
+
+    // Close all cloexec file descriptors
+    for (auto fd_entry = proc->fds.begin(); fd_entry != proc->fds.end(); ++fd_entry) {
+        if (fd_entry->second.cloexec) {
+            fd_entry = proc->fds.erase(fd_entry);
+        }
+    }
 }
 
 void trace_state::add_exec_argument(Process* proc, Blob&& argument, int index) {
