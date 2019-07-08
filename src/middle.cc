@@ -8,8 +8,6 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 #include <iostream>
-#include <experimental/filesystem>
-namespace fs = std::experimental::filesystem;
 
 #include "db.capnp.h"
 #include "middle.h"
@@ -24,7 +22,11 @@ void Command::add_input(File* f) {
     f->interactions.push_front(this);
     f->users.insert(this);
     this->inputs.insert(f);
+
     // if we've read from the file previously, check for a race
+    if (f->is_pipe) {
+        return;
+    }
     for (auto rd : this->rd_interactions) {
         if (f->filename.asPtr() == rd->filename.asPtr() && f->writer != this) {
             if (f->version == rd->version) {
@@ -39,23 +41,26 @@ void Command::add_input(File* f) {
     this->rd_interactions.insert(f);
 }
 
-void Command::add_output(File* f) {
+void Command::add_output(File* f, size_t file_location) {
     // if we've written to the file before, check for a race
-    for (auto wr : this->wr_interactions) {
-        if (f->filename.asPtr() == wr->filename.asPtr()) {
-            this->outputs.insert(f);
-            if (f->version == wr->version) {
-                return;
-            } else {
-                wr->collapse();
-                // TODO collapse all intermediates
-                //for (auto it = this->state->files()
-                //wr->has_race = true;
-                this->has_race = true;
-                return;
+    if (!f->is_pipe) {
+        for (auto wr : this->wr_interactions) {
+            if (f->filename.asPtr() == wr->filename.asPtr()) {
+                this->outputs.insert(f);
+                if (f->version == wr->version) {
+                    return;
+                } else {
+                    wr->collapse();
+                    // TODO collapse all intermediates
+                    //for (auto it = this->state->files()
+                    //wr->has_race = true;
+                    this->has_race = true;
+                    return;
+                }
             }
         }
     }
+
     // if we haven't written to this file before, create a new version
     f->interactions.push_front(this);
     File* fnew = f->make_version();
@@ -63,6 +68,7 @@ void Command::add_output(File* f) {
     this->outputs.insert(fnew);
     this->wr_interactions.insert(fnew);
     this->state->files.insert(fnew);
+    this->state->latest_versions[file_location] = fnew;
 }
 
 uint64_t Command::descendants(void) {
@@ -74,7 +80,7 @@ uint64_t Command::descendants(void) {
 }
 
 static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>::Builder& command_list, uint64_t start_index, std::map<Command*, uint64_t>& command_ids) {
-    command_ids.insert(std::pair<Command*,uint64_t>(command, start_index));
+    command_ids[command] = start_index;
     command_list[start_index].setExecutable(command->cmd);
     command_list[start_index].setOutOfDate(false);
     auto argv = command_list[start_index].initArgv(command->args.size());
@@ -124,11 +130,12 @@ void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_r
 }
 
 /* -------------------------- FileDescriptor Methods --------------------------------------*/
-FileDescriptor::FileDescriptor(Blob&& path, int access_mode, bool cloexec) : path(std::move(path)), access_mode(access_mode), cloexec(cloexec) {}
+FileDescriptor::FileDescriptor() {}
+FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloexec) : location_index(location_index), access_mode(access_mode), cloexec(cloexec) {}
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(Blob&& path, Command* creator, trace_state* state) : filename(std::move(path)), creator(creator), writer(NULL), state(state) {}
+File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), creator(creator), writer(NULL), state(state) {}
 
 //TODO fix
 void File::collapse(void) {
@@ -146,7 +153,7 @@ bool File::can_depend(Command* cmd) {
 }
 
 File* File::make_version(void) {
-    File* f = new File(kj::heapArray(this->filename.asPtr()), this->creator, this->state);
+    File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state);
     f->version = this->version + 1;
     return f;
 }
@@ -156,20 +163,17 @@ Process::Process(pid_t thread_id, Blob&& cwd, Command* command) : thread_id(thre
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
 // return latest version of the file, or create file and add to record if not found
-File* trace_state::find_file(BlobPtr path) {
-    File* ret = NULL;
-    for (auto f : this->files) {
-        if (f->filename.asPtr() == path) {
-            if (ret == NULL || f->version > ret->version) {
-                ret = f;
-            }
+size_t trace_state::find_file(BlobPtr path) {
+    for (size_t index = 0; index < this->latest_versions.size(); index++) {
+        if (!this->latest_versions[index]->is_pipe && this->latest_versions[index]->filename.asPtr() == path) {
+            return index;
         }
     }
-    if (ret == NULL) {
-        ret = new File(heapArray(path), NULL, this);
-        this->files.insert(std::move(ret));
-    }
-    return ret;
+    File* new_node = new File(false, kj::heapArray(path), NULL, this);
+    this->files.insert(new_node);
+    size_t location = this->latest_versions.size();
+    this->latest_versions.push_back(new_node);
+    return location;
 }
 
 void trace_state::serialize_graph(void) {
@@ -198,7 +202,7 @@ void trace_state::serialize_graph(void) {
     for (auto file : this->files) {
         // We only care about files that are either written or read so filter those out.
         if (!file->users.empty() || file->writer != NULL) {
-            file_ids.insert(std::pair<File*, uint64_t>(file, file_count));
+            file_ids[file] = file_count;
             input_count += file->users.size();
             output_count += (file->writer != NULL);
             create_count += (file->creator != NULL);
@@ -209,9 +213,14 @@ void trace_state::serialize_graph(void) {
     for (auto file_entry : file_ids) {
         auto file = file_entry.first;
         auto file_id = file_entry.second;
-        files[file_id].setPath(file->filename.asPtr());
+        if (file->is_pipe) {
+            files[file_id].setType(db::FileType::PIPE);
+        } else {
+            files[file_id].setType(db::FileType::REGULAR);
+            files[file_id].setPath(file->filename.asPtr());
+        }
 
-        // TODO: type and checksum/state
+        // TODO: checksum/state
 
     }
 
@@ -278,22 +287,21 @@ void trace_state::serialize_graph(void) {
 }
 
 void trace_state::add_dependency(Process* proc, struct file_reference& file, enum dependency_type type) {
-    BlobPtr path;
-    Blob path_buf;
+    size_t file_location;
     if (file.fd == AT_FDCWD) {
-        path = file.path.asPtr();
+        file_location = this->find_file(file.path.asPtr());
     } else {
         //fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
         if (proc->fds.find(file.fd) == proc->fds.end()) {
             // TODO: Use a proper placeholder and stop fiddling with string manipulation
             std::string path_str = "file not found, fd: " + std::to_string(file.fd);
-            path_buf = kj::heapArray((const kj::byte*) path_str.data(), path_str.size());
-            path = path_buf.asPtr();
+            Blob path_buf = kj::heapArray((const kj::byte*) path_str.data(), path_str.size());
+            file_location = this->find_file(path_buf.asPtr());
         } else {
-            path = proc->fds.find(file.fd)->second.path.asPtr();
+            file_location = proc->fds.find(file.fd)->second.location_index;
         }
     }
-    File* f = this->find_file(path);
+    File* f = this->latest_versions[file_location];
 
     //fprintf(stdout, "file: %.*s-%d ", (int)path.size(), path.asChars().begin(), f->version);
     switch (type) {
@@ -306,13 +314,14 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             break;
         case DEP_MODIFY:
             //fprintf(stdout, "modify");
-            proc->command->add_output(f);
+            proc->command->add_output(f, file_location);
             break;
         case DEP_CREATE:
             //fprintf(stdout, "create");
             // create edge
             f = f->make_version();
             this->files.insert(f);
+            this->latest_versions[file_location] = f;
             f->creator = proc->command;
             f->writer = NULL;
             break;
@@ -358,15 +367,17 @@ void trace_state::add_change_root(Process* proc, struct file_reference& file) {
 void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec) {
     //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
-    File* f = this->find_file(file.path.asPtr());
+    size_t file_location = this->find_file(file.path.asPtr());
+    File* f = this->latest_versions[file_location];
     if (is_rewrite && (f->creator != proc->command || f->writer != NULL)) {
         //fprintf(stdout, "REWRITE ");
         f = f->make_version();
         this->files.insert(f);
+        this->latest_versions[file_location] = f;
         f->creator = proc->command;
         f->writer = NULL;
     }
-    proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode, cloexec)));
+    proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
     if (file.fd == AT_FDCWD) {
         //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
     } else {
@@ -377,13 +388,19 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
 // TODO handle pipes
 void trace_state::add_pipe(Process* proc, int fds[2]) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
+    File* p = new File(true, Blob(), proc->command, this);
+    this->files.insert(p);
+    size_t location = this->latest_versions.size();
+    this->latest_versions.push_back(p);
+    proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, false /* FIXME cloexec */);
+    proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, false /* FIXME cloexec */);
 }
 
 void trace_state::add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec) {
     //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
     if (duped_file != proc->fds.end()) {
-        proc->fds.insert(std::pair<int, FileDescriptor>(new_fd, FileDescriptor(kj::heapArray(duped_file->second.path.asPtr()), duped_file->second.access_mode, cloexec)));
+        proc->fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.access_mode, cloexec);
     }
 }
 
@@ -391,7 +408,7 @@ void trace_state::add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec)
 void trace_state::add_mmap(Process* proc, int fd) {
     //fprintf(stdout, "[%d] Mmap %d\n", proc->thread_id, fd);
     FileDescriptor& desc = proc->fds.find(fd)->second;
-    File* f = this->find_file(desc.path);
+    File* f = this->latest_versions[desc.location_index];
     // TODO: why is this useful?
     //if (f->filename.find("/lib/")!=std::string::npos) {
     //    return;
@@ -405,7 +422,7 @@ void trace_state::add_mmap(Process* proc, int fd) {
     }
     if (desc.access_mode != O_RDONLY) {
         //std::cout << "write";
-        proc->command->add_output(f);
+        proc->command->add_output(f, desc.location_index);
     }
     //std::cout << "\n";
 }
@@ -419,10 +436,8 @@ void trace_state::add_close(Process* proc, int fd) {
 void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
     //fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id, child_process_id);
     Process* child_proc = new Process(child_process_id, kj::heapArray(parent_proc->cwd.asPtr()), parent_proc->command);
-    for (auto fd_entry = parent_proc->fds.begin(); fd_entry != parent_proc->fds.end(); ++fd_entry) {
-        child_proc->fds.insert(std::pair<int, FileDescriptor>((*fd_entry).first, FileDescriptor(kj::heapArray((*fd_entry).second.path.asPtr()), (*fd_entry).second.access_mode, (*fd_entry).second.cloexec)));
-    }
-    this->processes.insert(std::pair<pid_t, Process*>(child_process_id, child_proc));
+    child_proc->fds = parent_proc->fds;
+    this->processes[child_process_id] = child_proc;
 }
 
 void trace_state::add_exec(Process* proc, Blob&& exe_path) {
