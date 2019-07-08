@@ -205,13 +205,14 @@ int main(int argc, char* argv[]) {
             }
 
             // add command's direct children to worklist
+        }
+
             unsigned int current_id = cur_command->id + 1;
             unsigned int end_id = current_id + cur_command->num_descendants; 
             while (current_id < end_id) { 
                 worklist.push(commands[current_id]);
                 current_id += commands[current_id]->num_descendants + 1;
             }
-        }
     }
 
     Graph graph;
