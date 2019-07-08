@@ -43,7 +43,7 @@ struct Command {
 
     Command(trace_state* state, Blob&& args);
     void add_input(File* f);
-    void add_output(File* f);
+    void add_output(File* f, size_t file_location);
     size_t descendants(void);
     void rerun_children(std::set<Command*>* to_rerun);
     void print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun);
@@ -68,11 +68,11 @@ struct File {
 };
 
 struct FileDescriptor {
-    Blob path;
+    size_t location_index;
     int access_mode;
     bool cloexec;
 
-    FileDescriptor(Blob&& path, int access_mode, bool cloexec);
+    FileDescriptor(size_t location_index, int access_mode, bool cloexec);
 };
 
 struct Process {
@@ -88,11 +88,12 @@ struct Process {
 
 struct trace_state {
     std::set<File*> files;
+    std::vector<File*> latest_versions;
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
     Blob starting_dir;
 
-    File* find_file(BlobPtr path);
+    size_t find_file(BlobPtr path);
     void serialize_graph(void);
     void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
     void add_change_cwd(Process* proc, struct file_reference& file);
