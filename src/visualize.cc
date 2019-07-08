@@ -72,8 +72,12 @@ int main(int argc, char* argv[]) {
     size_t file_id = 0;
     for (auto file : db_graph.getFiles()) {
         if (display_file[file_id]) {
-            auto path = std::string((const char*) file.getPath().begin(), file.getPath().size());
-            graph.add_node("f" + std::to_string(file_id), path, "shape=rectangle");
+            if (file.getType() == db::FileType::PIPE) {
+                graph.add_node("f" + std::to_string(file_id), "[pipe]", "shape=diamond");
+            } else {
+                auto path = std::string((const char*) file.getPath().begin(), file.getPath().size());
+                graph.add_node("f" + std::to_string(file_id), path, "shape=rectangle");
+            }
         }
         file_id++;
     }

@@ -50,7 +50,8 @@ struct Command {
 };
 
 struct File {
-    Blob filename;
+    bool is_pipe;
+    Blob filename; // Only relevant if not a pipe
     std::set<Command*> users;
     std::set<Process*> mmaps;
     std::list<Command*> interactions;
@@ -61,7 +62,7 @@ struct File {
     int id;
     int version;
 
-    File(Blob&& path, Command* creator, trace_state* state);
+    File(bool is_pipe, Blob&& path, Command* creator, trace_state* state);
     void collapse(void);
     bool can_depend(Command* cmd);
     File* make_version(void);
@@ -72,6 +73,7 @@ struct FileDescriptor {
     int access_mode;
     bool cloexec;
 
+    FileDescriptor();
     FileDescriptor(size_t location_index, int access_mode, bool cloexec);
 };
 
