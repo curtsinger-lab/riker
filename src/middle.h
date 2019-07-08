@@ -52,17 +52,16 @@ struct Command {
 struct File {
     Blob filename;
     std::set<Command*> users;
-    std::set<Command*> producers; 
     std::set<Process*> mmaps;
     std::list<Command*> interactions;
     std::list<Command*> conflicts;
+    Command* creator;
     Command* writer;
     trace_state* state;
     int id;
     int version;
-    bool dependable;
 
-    File(Blob&& path, Command* writer, trace_state* state);
+    File(Blob&& path, Command* creator, trace_state* state);
     void collapse(void);
     bool can_depend(Command* cmd);
     File* make_version(void);

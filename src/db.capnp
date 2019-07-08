@@ -1,4 +1,4 @@
-@0xd1dab2dabb6c86a8;
+@0xe2b1b5c8302b8d9d;
 
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("db");
@@ -60,5 +60,6 @@ struct Graph {
 
   inputs @2 :List(Dependency); # TODO: order?
   outputs @3 :List(Dependency); # TODO: order?
-  removals @4 :List(Dependency); # TODO: order?
+  creates @4 :List(Dependency); # TODO: order?
+  removals @5 :List(Dependency); # TODO: order?
 }

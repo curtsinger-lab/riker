@@ -43,7 +43,6 @@ void Command::add_output(File* f) {
     // if we've written to the file before, check for a race
     for (auto wr : this->wr_interactions) {
         if (f->filename.asPtr() == wr->filename.asPtr()) {
-            f->producers.insert(this);
             this->outputs.insert(f);
             if (f->version == wr->version) {
                 return;
@@ -61,7 +60,6 @@ void Command::add_output(File* f) {
     f->interactions.push_front(this);
     File* fnew = f->make_version();
     fnew->writer = this;
-    fnew->producers.insert(this);
     this->outputs.insert(fnew);
     this->wr_interactions.insert(fnew);
     this->state->files.insert(fnew);
@@ -130,9 +128,7 @@ FileDescriptor::FileDescriptor(Blob&& path, int access_mode, bool cloexec) : pat
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(Blob&& path, Command* writer, trace_state* state) : filename(std::move(path)), writer(writer), state(state) {
-    this->dependable = true;
-}
+File::File(Blob&& path, Command* creator, trace_state* state) : filename(std::move(path)), creator(creator), writer(NULL), state(state) {}
 
 //TODO fix
 void File::collapse(void) {
@@ -146,15 +142,11 @@ void File::collapse(void) {
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
 // the only writer
 bool File::can_depend(Command* cmd) {
-    if (this->writer == cmd) {
-        return false;
-    } else {
-        return this->dependable;
-    }
+    return this->writer != cmd && (this->writer != NULL || this->creator != cmd);
 }
 
 File* File::make_version(void) {
-    File* f = new File(kj::heapArray(this->filename.asPtr()), this->writer, this->state);
+    File* f = new File(kj::heapArray(this->filename.asPtr()), this->creator, this->state);
     f->version = this->version + 1;
     return f;
 }
@@ -202,12 +194,14 @@ void trace_state::serialize_graph(void) {
     uint64_t file_count = 0;
     uint64_t input_count = 0;
     uint64_t output_count = 0;
+    uint64_t create_count = 0;
     for (auto file : this->files) {
-        // We only care about files that are either written or read, so filter those out.
-        if (!file->users.empty() || !file->producers.empty()) {
+        // We only care about files that are either written or read so filter those out.
+        if (!file->users.empty() || file->writer != NULL) {
             file_ids.insert(std::pair<File*, uint64_t>(file, file_count));
             input_count += file->users.size();
-            output_count += file->producers.size();
+            output_count += (file->writer != NULL);
+            create_count += (file->creator != NULL);
             file_count += 1;
         }
     }
@@ -224,8 +218,10 @@ void trace_state::serialize_graph(void) {
     // Serialize dependencies
     auto inputs = graph.initInputs(input_count);
     auto outputs = graph.initOutputs(output_count);
+    auto creates = graph.initCreates(create_count);
     uint64_t input_index = 0;
     uint64_t output_index = 0;
+    uint64_t create_index = 0;
     for (auto file_entry : file_ids) {
         auto file = file_entry.first;
         auto file_id = file_entry.second;
@@ -235,11 +231,17 @@ void trace_state::serialize_graph(void) {
             inputs[input_index].setCommandID(user_id);
             input_index++;
         }
-        for (auto producer : file->producers) {
-            uint64_t producer_id = command_ids[producer];
+        if (file->writer != NULL) {
+            uint64_t writer_id = command_ids[file->writer];
             outputs[output_index].setFileID(file_id);
-            outputs[output_index].setCommandID(producer_id);
+            outputs[output_index].setCommandID(writer_id);
             output_index++;
+        }
+        if (file->creator != NULL) {
+            uint64_t creator_id = command_ids[file->creator];
+            creates[create_index].setFileID(file_id);
+            creates[create_index].setCommandID(creator_id);
+            create_index++;
         }
     }
 
@@ -305,21 +307,18 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
         case DEP_MODIFY:
             //fprintf(stdout, "modify");
             proc->command->add_output(f);
-            f->dependable = true;
-            f->writer = proc->command;
             break;
         case DEP_CREATE:
             //fprintf(stdout, "create");
             // create edge
             f = f->make_version();
-            f->dependable = false;
             this->files.insert(f);
-            proc->command->add_output(f);
-            f->writer = proc->command;
+            f->creator = proc->command;
+            f->writer = NULL;
             break;
         case DEP_REMOVE:
             //fprintf(stdout, "remove");
-            proc->command->deleted_files.insert(f);    
+            proc->command->deleted_files.insert(f);
             break;
     }
     if (!file.follow_links) {
@@ -360,13 +359,12 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     File* f = this->find_file(file.path.asPtr());
-    if (is_rewrite && f->writer != proc->command) {
+    if (is_rewrite && (f->creator != proc->command || f->writer != NULL)) {
         //fprintf(stdout, "REWRITE ");
         f = f->make_version();
-        f->dependable = false;
         this->files.insert(f);
-        proc->command->add_output(f);
-        f->writer = proc->command;
+        f->creator = proc->command;
+        f->writer = NULL;
     }
     proc->fds.insert(std::pair<int, FileDescriptor>(fd, FileDescriptor(kj::heapArray(file.path.asPtr()), access_mode, cloexec)));
     if (file.fd == AT_FDCWD) {

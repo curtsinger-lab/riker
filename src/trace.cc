@@ -649,6 +649,7 @@ int main(int argc, char* argv[]) {
                 state->add_dependency(proc, main_file, DEP_READ);
                 state->add_dependency(proc, main_file, DEP_REMOVE);
                 state->add_dependency(proc, extra_file, DEP_CREATE);
+                state->add_dependency(proc, extra_file, DEP_MODIFY);
                 break;
             ////// Simple reads and writes //////
             case /* 0 */ __NR_read:
