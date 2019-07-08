@@ -439,6 +439,11 @@ void trace_state::add_exec(Process* proc, Blob&& exe_path) {
         }
     }
 
+    // Close all mmaps, since the address space is replaced
+    for (auto f = proc->mmaps.begin(); f != proc->mmaps.end(); ++f) {
+        (*f)->mmaps.erase(proc);
+    }
+
     // Assume that we can at any time write to stdout or stderr
     // TODO: Instead of checking whether we know about stdout and stderr,
     // tread the initial stdout and stderr properly as pipes
