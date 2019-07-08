@@ -60,6 +60,7 @@ struct File {
     trace_state* state;
     int id;
     int version;
+    bool is_latest_version;
     bool dependable;
 
     File(Blob&& path, Command* writer, trace_state* state);
@@ -71,8 +72,9 @@ struct File {
 struct FileDescriptor {
     Blob path;
     int access_mode;
+    bool cloexec;
 
-    FileDescriptor(Blob&& path, int access_mode);
+    FileDescriptor(Blob&& path, int access_mode, bool cloexec);
 };
 
 struct Process {
@@ -97,9 +99,9 @@ struct trace_state {
     void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
     void add_change_cwd(Process* proc, struct file_reference& file);
     void add_change_root(Process* proc, struct file_reference& file);
-    void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite);
+    void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec);
     void add_pipe(Process* proc, int fds[2]);
-    void add_dup(Process* proc, int duped_fd, int new_fd);
+    void add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec);
     void add_mmap(Process* proc, int fd);
     void add_close(Process* proc, int fd);
     void add_fork(Process* parent_proc, pid_t child_process_id);
