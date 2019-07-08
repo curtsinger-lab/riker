@@ -43,14 +43,15 @@ struct Command {
 
     Command(trace_state* state, Blob&& args);
     void add_input(File* f);
-    void add_output(File* f);
+    void add_output(File* f, size_t file_location);
     size_t descendants(void);
     void rerun_children(std::set<Command*>* to_rerun);
     void print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun);
 };
 
 struct File {
-    Blob filename;
+    bool is_pipe;
+    Blob filename; // Only relevant if not a pipe
     std::set<Command*> users;
     std::set<Process*> mmaps;
     std::list<Command*> interactions;
@@ -61,18 +62,19 @@ struct File {
     int id;
     int version;
 
-    File(Blob&& path, Command* creator, trace_state* state);
+    File(bool is_pipe, Blob&& path, Command* creator, trace_state* state);
     void collapse(void);
     bool can_depend(Command* cmd);
     File* make_version(void);
 };
 
 struct FileDescriptor {
-    Blob path;
+    size_t location_index;
     int access_mode;
     bool cloexec;
 
-    FileDescriptor(Blob&& path, int access_mode, bool cloexec);
+    FileDescriptor();
+    FileDescriptor(size_t location_index, int access_mode, bool cloexec);
 };
 
 struct Process {
@@ -88,11 +90,12 @@ struct Process {
 
 struct trace_state {
     std::set<File*> files;
+    std::vector<File*> latest_versions;
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
     Blob starting_dir;
 
-    File* find_file(BlobPtr path);
+    size_t find_file(BlobPtr path);
     void serialize_graph(void);
     void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
     void add_change_cwd(Process* proc, struct file_reference& file);
