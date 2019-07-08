@@ -596,7 +596,8 @@ int main(int argc, char* argv[]) {
                     main_file.follow_links = false;
                 }
                 bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
-                state->add_open(proc, registers.SYSCALL_RETURN, main_file, access_mode, rewrite);
+                bool cloexec = (flags & O_CLOEXEC) != 0;
+                state->add_open(proc, registers.SYSCALL_RETURN, main_file, access_mode, rewrite, cloexec);
                 break;
             }
             case /* 22 */ __NR_pipe:
@@ -604,11 +605,13 @@ int main(int argc, char* argv[]) {
                 state->add_pipe(proc, pipe_fds);
                 break;
             case /* 32 */ __NR_dup:
-                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN);
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
                 break;
             case /* 33 */ __NR_dup2:
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
+                break;
             case /* 292 */ __NR_dup3:
-                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2);
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
                 break;
             ////// Changing process state //////
             case /* 80 */ __NR_chdir:
