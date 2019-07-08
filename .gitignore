@@ -9,7 +9,6 @@ graph.gv
 graph.gv.pdf
 objs/
 dodo
-dodo-visualize
 dodo-dryrun
 *.capnp.cc
 *.capnp.h
