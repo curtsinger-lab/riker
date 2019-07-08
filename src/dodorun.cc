@@ -45,6 +45,8 @@ struct db_command {
     //std::list<std::string> args;
     std::set<db_file*> inputs;
     std::set<db_file*> outputs;
+    std::set<db_file*> creations;
+    std::set<db_file*> deletions;
     bool rerun;
 
     db_command(unsigned int id, unsigned int num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {
@@ -89,6 +91,18 @@ static void draw_graph_edges(Graph* graph, db_command* commands[], db_file* file
         for (auto o : root->outputs) {
             if (o->is_local()) {
                 graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "");
+            }
+        }
+
+        for (auto d : root->deletions) {
+            if (d->is_local()) {
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(d->id), "color=red");
+            }
+        }
+
+        for (auto c : root->creations) {
+            if (c->is_local()) {
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(c->id), "color=blue");
             }
         }
 
@@ -143,7 +157,7 @@ int main(int argc, char* argv[]) {
     } 
 
     // Add the dependencies
-    for (auto dep : db_graph.getInputs()) {  
+    for (auto dep : db_graph.getInputs()) {
         commands[dep.getCommandID()]->inputs.insert(files[dep.getFileID()]);
     }
     for (auto dep : db_graph.getOutputs()) {
@@ -154,16 +168,13 @@ int main(int argc, char* argv[]) {
         }
         commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
     }
-
-    //TODO what does the run do with removals? 
-    /*
-    // Draw the removals
+    //TODO what does the run do with removals?
     for (auto dep : db_graph.getRemovals()) {
-    if (display_file[dep.getFileID()]) {
-    graph.add_edge("c" + std::to_string(dep.getCommandID()), "f" + std::to_string(dep.getFileID()), "color=red");
+        commands[dep.getCommandID()]->deletions.insert(files[dep.getFileID()]);
     }
+    for (auto dep : db_graph.getCreates()) {
+        commands[dep.getCommandID()]->creations.insert(files[dep.getFileID()]);
     }
-     */
 
 
     // initialize worklist to commands root 

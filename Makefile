@@ -4,16 +4,13 @@ COMMON_CFLAGS = -g -Wall
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj
 
-all: dodo dodo-visualize dodo-dryrun
+all: dodo dodo-dryrun
 
 .PHONY: all
 
 .SUFFIXES:
 
 dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o
-	$(CXX) $^ -o $@ $(LDFLAGS)
-
-dodo-visualize: objs/db.capnp.o objs/graph.o objs/visualize.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 dodo-dryrun: objs/db.capnp.o objs/graph.o objs/dodorun.o
