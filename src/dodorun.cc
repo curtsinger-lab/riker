@@ -19,10 +19,22 @@
 
 
 struct db_file {
+    unsigned int id;
     std::string path;
     int status;
 
-    db_file(std::string path, int status) : path(path), status(status) {}
+    db_file(unsigned int id, std::string path, int status) : id(id), path(path), status(status) {}
+    bool is_local(void) {
+        if (path.find("/usr/") != std::string::npos ||
+                path.find("/lib/") != std::string::npos ||
+                path.find("/etc/") != std::string::npos ||
+                path.find("/dev/") != std::string::npos ||
+                path.find("/proc/") != std::string::npos) {
+            return false;
+        } else {
+            return true;
+        }
+    } 
 };
 
 //TODO setup arguments
@@ -33,9 +45,59 @@ struct db_command {
     //std::list<std::string> args;
     std::set<db_file*> inputs;
     std::set<db_file*> outputs;
+    bool rerun;
 
-    db_command(unsigned int id, unsigned int num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
+    db_command(unsigned int id, unsigned int num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {
+        this->rerun = false;
+    }
 };
+
+static void draw_graph(Graph* graph, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
+    size_t id = start_id;
+    while (id < end_id) {
+        auto root = commands[id];
+        std::string attr = "";
+        if (root->rerun) {
+            attr = "style=filled fillcolor=gold";
+        }
+        graph->add_node("c" + std::to_string(id), root->executable, attr);
+        if (start_id > 0) {
+            graph->add_edge("c" + std::to_string(start_id - 1), "c" + std::to_string(id), "style=dashed");
+        }
+
+        for (auto i : root->inputs) {
+            if (i->is_local()) {         
+                attr = "shape=rectangle";
+                if (i->status == CHANGED) {
+                    attr +=  " style=filled fillcolor=gold";
+                }
+                graph->add_node("f" + std::to_string(i->id), i->path, attr);
+                graph->add_edge("f" + std::to_string(i->id), "c" + std::to_string(root->id), "");
+            }
+        }
+
+        for (auto o : root->outputs) {
+            if (o->is_local()) {
+                attr = "shape=rectangle";
+                if (o->status == CHANGED) {
+                    attr += " style=filled fillcolor=gold";
+                }
+                graph->add_node("f" + std::to_string(o->id), o->path, attr);
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "");
+            }
+        }
+
+
+        size_t children_start = id + 1;
+        size_t children_end = children_start + root->num_descendants;
+        draw_graph(graph, commands, files, children_start, children_end);
+
+        id = children_end;
+    }
+}
+
+
+
 
 int main(int argc, char* argv[]) {
 
@@ -63,7 +125,7 @@ int main(int argc, char* argv[]) {
                 flag = CHANGED;
             }
         }
-        files[file_id] = new db_file(path, flag);
+        files[file_id] = new db_file(file_id, path, flag);
         file_id++;
     }
 
@@ -127,6 +189,7 @@ int main(int argc, char* argv[]) {
             if (rerun) {
                 // if the command is ready to run and one of it's dependencies has changed, 
                 //" rerun" it (print for now)
+                cur_command->rerun = true;
                 std::cout << cur_command->executable << "\n";
                 // mark its outputs as changed
                 for (auto out : cur_command->outputs) {
@@ -140,7 +203,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
-            
+
             // add command's direct children to worklist
             unsigned int current_id = cur_command->id + 1;
             unsigned int end_id = current_id + cur_command->num_descendants; 
@@ -149,5 +212,10 @@ int main(int argc, char* argv[]) {
                 current_id += commands[current_id]->num_descendants + 1;
             }
         }
-    } 
+    }
+
+    Graph graph;
+    graph.start_graph();
+    draw_graph(&graph, commands, files, 0, db_graph.getCommands().size()); 
+    graph.close_graph();
 }
