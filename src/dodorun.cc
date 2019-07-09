@@ -21,10 +21,11 @@
 
 struct db_file {
     unsigned int id;
+    bool is_pipe;
     std::string path;
     int status;
 
-    db_file(unsigned int id, std::string path, int status) : id(id), path(path), status(status) {}
+    db_file(unsigned int id, bool is_pipe, std::string path, int status) : id(id), is_pipe(is_pipe), path(path), status(status) {}
     bool is_local(void) {
         if (path.find("/usr/") != std::string::npos ||
                 path.find("/lib/") != std::string::npos ||
@@ -66,11 +67,19 @@ static void draw_graph_nodes(Graph* graph, db_command* commands[], db_file* file
 
     for (size_t file_id = 0; file_id < file_count; file_id++) {
         if (files[file_id]->is_local()) {
-            std::string attr = "shape=rectangle";
+            std::string attr;
+            std::string label;
+            if (files[file_id]->is_pipe) {
+                attr = "shape=diamond";
+                label = "[pipe]";
+            } else {
+                attr = "shape=rectangle";
+                label = files[file_id]->path;
+            }
             if (files[file_id]->status == CHANGED) {
                 attr += " style=filled fillcolor=gold";
             }
-            graph->add_node("f" + std::to_string(files[file_id]->id), files[file_id]->path, attr);
+            graph->add_node("f" + std::to_string(files[file_id]->id), label, attr);
         }
     }
 }
@@ -148,7 +157,7 @@ int main(int argc, char* argv[]) {
         if (!match_fingerprint(file)) {
             flag = CHANGED;
         }
-        files[file_id] = new db_file(file_id, path, flag);
+        files[file_id] = new db_file(file_id, file.getType() == db::FileType::PIPE, path, flag);
         file_id++;
     }
 
