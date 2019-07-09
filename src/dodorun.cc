@@ -153,11 +153,14 @@ int main(int argc, char* argv[]) {
                 flag = CHANGED;
             }
         }
+        bool is_pipe = (file.getType() == db::FileType::PIPE);
         // If the fingerprint has changed, mark it so
-        if (!match_fingerprint(file)) {
+        if (is_pipe) {
+            flag = UNKNOWN;
+        } else if (!match_fingerprint(file)) {
             flag = CHANGED;
         }
-        files[file_id] = new db_file(file_id, file.getType() == db::FileType::PIPE, path, flag);
+        files[file_id] = new db_file(file_id, is_pipe, path, flag);
         file_id++;
     }
 
