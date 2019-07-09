@@ -1,4 +1,4 @@
-@0xe2b1b5c8302b8d9d;
+@0xdc02d836d6eb1de5;
 
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("db");
@@ -18,8 +18,8 @@ struct Command {
   # We don't use Text because paths may not be valid unicode
   initialFDs @3 :List(FDEntry);
   struct FDEntry {
-      fd @0 :UInt16;
-      fileID @1 :UInt64;
+    fd @0 :UInt16;
+    fileID @1 :UInt64;
   }
   # A sorted list of the open and used file discriptors passed to a command on
   # startup. Typically, but not always, this is just the process's stdin, stdout,
@@ -36,19 +36,28 @@ enum FileType {
   pipe @3;
 }
 
+enum FingerprintType {
+  unavailable @0;
+  # There was some error generating a fingerprint
+  nonexistent @1;
+  # The file did not exist when it was fingerprinted
+  metadataOnly @2;
+}
+
 struct File {
   path @0 :Data;
   type @1 :FileType;
 
-  size @2 :UInt64;
-  modificationTime @3 :Timespec;
-  inode @4 :UInt64;
-  checksum @5 :Data;
+  fingerprintType @2 :FingerprintType;
+  size @3 :UInt64;
+  modificationTime @4 :Timespec;
+  inode @5 :UInt64;
+  checksum @6 :Data;
 }
 
 struct Dependency {
-    fileID @0 :UInt64;
-    commandID @1 :UInt64;
+  fileID @0 :UInt64;
+  commandID @1 :UInt64;
 }
 
 struct Graph {
