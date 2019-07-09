@@ -5,6 +5,10 @@
 #include <string>
 
 #include <kj/array.h>
+#include <capnp/orphan.h>
+#include <capnp/message.h>
+
+#include "db.capnp.h"
 
 typedef kj::Array<kj::byte> Blob;
 typedef kj::ArrayPtr<kj::byte> BlobPtr;
@@ -49,9 +53,11 @@ struct Command {
     void print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun);
 };
 
+
 struct File {
     bool is_pipe;
     Blob filename; // Only relevant if not a pipe
+    capnp::Orphan<db::File> serialized;
     std::set<Command*> users;
     std::set<Process*> mmaps;
     std::list<Command*> interactions;
@@ -94,6 +100,7 @@ struct trace_state {
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
     Blob starting_dir;
+    ::capnp::MallocMessageBuilder temp_message;
 
     size_t find_file(BlobPtr path);
     void serialize_graph(void);

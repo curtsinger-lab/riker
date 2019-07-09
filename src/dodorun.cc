@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "fingerprint.h"
 #include "db.capnp.h"
 
 #include <stdio.h>
@@ -142,6 +143,10 @@ int main(int argc, char* argv[]) {
             if (path == std::string(argv[i])) {
                 flag = CHANGED;
             }
+        }
+        // If the fingerprint has changed, mark it so
+        if (!match_fingerprint(file)) {
+            flag = CHANGED;
         }
         files[file_id] = new db_file(file_id, path, flag);
         file_id++;

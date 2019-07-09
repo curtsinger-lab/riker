@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "db.capnp.h"
+#include "fingerprint.h"
 #include "middle.h"
 
 //TODO fix collapse & race handling
@@ -135,7 +136,15 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), creator(creator), writer(NULL), state(state) {}
+File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(NULL), state(state), version(0) {
+    // TODO: consider using orphans to avoid copying
+    if (this->is_pipe) {
+        this->serialized.get().setType(db::FileType::PIPE);
+    } else {
+        this->serialized.get().setType(db::FileType::REGULAR);
+        this->serialized.get().setPath(this->filename.asPtr());
+    }
+}
 
 //TODO fix
 void File::collapse(void) {
@@ -153,6 +162,9 @@ bool File::can_depend(Command* cmd) {
 }
 
 File* File::make_version(void) {
+    // We are at the end of the current version, so snapshot with a fingerprint
+    set_fingerprint(this->serialized.get());
+
     File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state);
     f->version = this->version + 1;
     return f;
@@ -193,6 +205,12 @@ void trace_state::serialize_graph(void) {
         command_index = serialize_commands(c, commands, command_index, command_ids);
     }
 
+    // Prepare files for serialization: we've already fingerprinted the old versions,
+    // but we need to fingerprint the latest versions
+    for (size_t location = 0; location < this->latest_versions.size(); location++) {
+        set_fingerprint(this->latest_versions[location]->serialized.get());
+    }
+
     // Serialize files
     std::map<File*, uint64_t> file_ids;
     uint64_t file_count = 0;
@@ -213,15 +231,8 @@ void trace_state::serialize_graph(void) {
     for (auto file_entry : file_ids) {
         auto file = file_entry.first;
         auto file_id = file_entry.second;
-        if (file->is_pipe) {
-            files[file_id].setType(db::FileType::PIPE);
-        } else {
-            files[file_id].setType(db::FileType::REGULAR);
-            files[file_id].setPath(file->filename.asPtr());
-        }
-
-        // TODO: checksum/state
-
+        // TODO: Use orphans and avoid copying?
+        files.setWithCaveats(file_id, file->serialized.getReader());
     }
 
     // Serialize dependencies

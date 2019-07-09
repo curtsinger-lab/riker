@@ -10,10 +10,10 @@ all: dodo dodo-dryrun
 
 .SUFFIXES:
 
-dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o
+dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o objs/fingerprint.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-dodo-dryrun: objs/db.capnp.o objs/graph.o objs/dodorun.o
+dodo-dryrun: objs/db.capnp.o objs/graph.o objs/dodorun.o objs/fingerprint.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 src/%.capnp.cc src/%.capnp.h: src/%.capnp
