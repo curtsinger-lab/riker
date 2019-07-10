@@ -18,10 +18,11 @@
 #define CHANGED   1
 #define UNKNOWN   2
 
-
+struct db_command;
 struct db_file {
     unsigned int id;
     bool is_pipe;
+    unsigned int writer_id;
     std::string path;
     int status;
 
@@ -179,6 +180,7 @@ int main(int argc, char* argv[]) {
     }
     for (auto dep : db_graph.getOutputs()) {
         db_file* file = files[dep.getFileID()];
+        file->writer_id = dep.getCommandID();
         // if the file is an output of a command, mark it's status as unknown (until the command is run/simulated)
         if (!(file->status == CHANGED)) {
             files[dep.getFileID()]->status = UNKNOWN;
@@ -208,7 +210,10 @@ int main(int argc, char* argv[]) {
         bool ready = true;
         bool rerun = false;
         for (auto in : cur_command->inputs) {
-            if (in->status == UNKNOWN) {
+            // if the input is an output of one of our descendants, run this command
+            if (in->writer_id > cur_command->id && in->writer_id <= cur_command->id + cur_command->num_descendants) {
+                rerun = true;
+            } else if (in->status == UNKNOWN) {
                 ready = false;
             } else if (in->status == CHANGED) {
                 rerun = true;
@@ -237,7 +242,6 @@ int main(int argc, char* argv[]) {
             }
 
             // add command's direct children to worklist
-        }
 
             unsigned int current_id = cur_command->id + 1;
             unsigned int end_id = current_id + cur_command->num_descendants; 
@@ -245,6 +249,7 @@ int main(int argc, char* argv[]) {
                 worklist.push(commands[current_id]);
                 current_id += commands[current_id]->num_descendants + 1;
             }
+        }
     }
 
     Graph graph;
