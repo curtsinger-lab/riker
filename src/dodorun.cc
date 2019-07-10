@@ -132,7 +132,21 @@ static void draw_graph_edges(Graph* graph, db_command* commands[], db_file* file
 }
 
 
+// Simulate the running of a command by marking all of the outputs of all descendants of a command as changed
+static void simulate_run(db_command* commands[], db_command* cur_command) {
+    cur_command->rerun = true;
+    for (auto out : cur_command->outputs) {
+        out->status = CHANGED;
+    }
 
+    // Running a command runs its children
+    unsigned int current_id = cur_command->id + 1;
+    unsigned int end_id = current_id + cur_command->num_descendants;
+    while (current_id < end_id) {
+        simulate_run(commands, commands[current_id]);
+        current_id += commands[current_id]->num_descendants + 1;
+    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -235,12 +249,9 @@ int main(int argc, char* argv[]) {
             if (rerun) {
                 // if the command is ready to run and one of it's dependencies has changed, 
                 //" rerun" it (print for now)
-                cur_command->rerun = true;
                 std::cout << cur_command->executable << "\n";
                 // mark its outputs as changed
-                for (auto out : cur_command->outputs) {
-                    out->status = CHANGED;
-                }
+                simulate_run(commands, cur_command);
             } else {
                 // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
                 for (auto out : cur_command->outputs) {
@@ -248,15 +259,14 @@ int main(int argc, char* argv[]) {
                         out->status = UNCHANGED;
                     }
                 }
-            }
 
-            // add command's direct children to worklist
-
-            unsigned int current_id = cur_command->id + 1;
-            unsigned int end_id = current_id + cur_command->num_descendants; 
-            while (current_id < end_id) { 
-                worklist.push(commands[current_id]);
-                current_id += commands[current_id]->num_descendants + 1;
+                // add command's direct children to worklist
+                unsigned int current_id = cur_command->id + 1;
+                unsigned int end_id = current_id + cur_command->num_descendants;
+                while (current_id < end_id) {
+                    worklist.push(commands[current_id]);
+                    current_id += commands[current_id]->num_descendants + 1;
+                }
             }
         }
     }
