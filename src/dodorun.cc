@@ -168,18 +168,24 @@ int main(int argc, char* argv[]) {
     for (auto file : db_graph.getFiles()) {
         int flag = UNCHANGED;
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
-        // if the path was passed as an argument to the dryrun, mark it as changed
-        for (int i = 1; i < argc; i++) {
-            if (path == std::string(argv[i])) {
-                flag = CHANGED;
-            }
-        }
         bool is_pipe = (file.getType() == db::FileType::PIPE);
         // If the fingerprint has changed, mark it so
         if (is_pipe) {
             flag = UNKNOWN;
         } else if (!match_fingerprint(file)) {
             flag = CHANGED;
+        }
+        // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
+        // whatever the user specified
+        int explicit_flag = CHANGED;
+        for (int i = 1; i < argc; i++) {
+            if ("--changed" == std::string(argv[i])) {
+                explicit_flag = CHANGED;
+            } else if ("--unchanged" == std::string(argv[i])) {
+                explicit_flag = UNCHANGED;
+            } else if (path == std::string(argv[i])) {
+                flag = explicit_flag;
+            }
         }
         files[file_id] = new db_file(file_id, is_pipe, path, flag);
         file_id++;
