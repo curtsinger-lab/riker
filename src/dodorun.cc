@@ -45,7 +45,7 @@ struct db_command {
     unsigned int id;
     unsigned int num_descendants;
     std::string executable;
-    //std::list<std::string> args;
+    std::vector<std::string> args;
     std::set<db_file*> inputs;
     std::set<db_file*> outputs;
     std::set<db_file*> creations;
@@ -63,7 +63,13 @@ static void draw_graph_nodes(Graph* graph, db_command* commands[], db_file* file
         if (commands[command_id]->rerun) {
             attr = "style=filled fillcolor=gold";
         }
-        graph->add_node("c" + std::to_string(command_id), commands[command_id]->executable, attr);
+        std::string label;
+        if (commands[command_id]->args.size() > 0) {
+            label = commands[command_id]->args[0];
+        } else {
+            label = commands[command_id]->executable;
+        }
+        graph->add_node("c" + std::to_string(command_id), label, attr);
     }
 
     for (size_t file_id = 0; file_id < file_count; file_id++) {
@@ -170,7 +176,10 @@ int main(int argc, char* argv[]) {
     unsigned int cmd_id = 0;
     for (auto cmd : db_graph.getCommands()) { 
         auto executable = std::string((const char*) cmd.getExecutable().begin(), cmd.getExecutable().size());
-        commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable); 
+        commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable);
+        for (auto arg : cmd.getArgv()) {
+            commands[cmd_id]->args.push_back(std::string((const char*) arg.begin(), arg.size()));
+        }
         cmd_id++;
     } 
 
