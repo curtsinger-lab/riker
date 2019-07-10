@@ -255,7 +255,11 @@ int main(int argc, char* argv[]) {
             if (rerun) {
                 // if the command is ready to run and one of it's dependencies has changed, 
                 //" rerun" it (print for now)
-                std::cout << cur_command->executable << "\n";
+                std::cout << cur_command->executable;
+                for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
+                    std::cout << " " << cur_command->args[arg_index];
+                }
+                std::cout << std::endl;
                 // mark its outputs as changed
                 simulate_run(commands, cur_command);
             } else {
