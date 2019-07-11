@@ -57,7 +57,7 @@ struct db_command {
     }
 };
 
-static void draw_graph_nodes(Graph* graph, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
+static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
     for (size_t command_id = 0; command_id < command_count; command_id++) {
         std::string attr = "";
         if (commands[command_id]->rerun) {
@@ -73,7 +73,7 @@ static void draw_graph_nodes(Graph* graph, db_command* commands[], db_file* file
     }
 
     for (size_t file_id = 0; file_id < file_count; file_id++) {
-        if (files[file_id]->is_local()) {
+        if (show_sysfiles || files[file_id]->is_local()) {
             std::string attr;
             std::string label;
             if (files[file_id]->is_pipe) {
@@ -91,7 +91,7 @@ static void draw_graph_nodes(Graph* graph, db_command* commands[], db_file* file
     }
 }
 
-static void draw_graph_edges(Graph* graph, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
+static void draw_graph_edges(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
     size_t id = start_id;
     while (id < end_id) {
         auto root = commands[id];
@@ -100,32 +100,32 @@ static void draw_graph_edges(Graph* graph, db_command* commands[], db_file* file
         }
 
         for (auto i : root->inputs) {
-            if (i->is_local()) {
+            if (show_sysfiles || i->is_local()) {
                 graph->add_edge("f" + std::to_string(i->id), "c" + std::to_string(root->id), "arrowhead=empty");
             }
         }
 
         for (auto o : root->outputs) {
-            if (o->is_local()) {
+            if (show_sysfiles || o->is_local()) {
                 graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "arrowhead=empty");
             }
         }
 
         for (auto d : root->deletions) {
-            if (d->is_local()) {
+            if (show_sysfiles || d->is_local()) {
                 graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(d->id), "color=red arrowhead=empty");
             }
         }
 
         for (auto c : root->creations) {
-            if (c->is_local()) {
+            if (show_sysfiles || c->is_local()) {
                 graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(c->id), "color=blue arrowhead=empty");
             }
         }
 
         size_t children_start = id + 1;
         size_t children_end = children_start + root->num_descendants;
-        draw_graph_edges(graph, commands, files, children_start, children_end);
+        draw_graph_edges(graph, show_sysfiles, commands, files, children_start, children_end);
 
         id = children_end;
     }
@@ -157,10 +157,13 @@ int main(int argc, char* argv[]) {
     }
 
     bool use_fingerprints = true;
+    bool show_sysfiles = false;
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if ("--no-fingerprints" == std::string(argv[i])) {
             use_fingerprints = false;
+        } else if ("--show-sysfiles" == std::string(argv[i])) {
+            show_sysfiles = true;
         }
     }
 
@@ -290,7 +293,7 @@ int main(int argc, char* argv[]) {
 
     Graph graph;
     graph.start_graph();
-    draw_graph_nodes(&graph, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
-    draw_graph_edges(&graph, commands, files, 0, db_graph.getCommands().size());
+    draw_graph_nodes(&graph, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
+    draw_graph_edges(&graph, show_sysfiles, commands, files, 0, db_graph.getCommands().size());
     graph.close_graph();
 }
