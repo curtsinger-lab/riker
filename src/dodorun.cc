@@ -20,9 +20,9 @@
 
 struct db_command;
 struct db_file {
-    unsigned int id;
+    size_t id;
     bool is_pipe;
-    unsigned int writer_id;
+    size_t writer_id;
     std::string path;
     int status;
 
@@ -42,8 +42,8 @@ struct db_file {
 
 //TODO setup arguments
 struct db_command { 
-    unsigned int id;
-    unsigned int num_descendants;
+    size_t id;
+    size_t num_descendants;
     std::string executable;
     std::vector<std::string> args;
     std::set<db_file*> inputs;
@@ -51,10 +51,9 @@ struct db_command {
     std::set<db_file*> creations;
     std::set<db_file*> deletions;
     bool rerun;
+    bool collapse_with_parent;
 
-    db_command(unsigned int id, unsigned int num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {
-        this->rerun = false;
-    }
+    db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable), rerun(false), collapse_with_parent(false) {}
 };
 
 static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
@@ -131,6 +130,27 @@ static void draw_graph_edges(Graph* graph, bool show_sysfiles, db_command* comma
     }
 }
 
+// Run a callback on a command and every child or descendant that has been collapsed with that
+// command into a single cluster. The callback is also provided with information about whether
+// a command is a leaf (i.e. has no children also in the cluster).
+template<typename callback_ty>
+static void cluster_for_each(db_command* commands[], db_command* parent, callback_ty& callback) {
+    bool leaf = true;
+
+    // Recursively call on all collapsed children
+    unsigned int current_id = parent->id + 1;
+    unsigned int end_id = current_id + parent->num_descendants;
+    while (current_id < end_id) {
+        if (commands[current_id]->collapse_with_parent) {
+            leaf = false;
+            cluster_for_each(commands, commands[current_id], callback);
+        }
+        current_id += commands[current_id]->num_descendants + 1;
+    }
+
+    // Call on the parent
+    callback(parent, leaf);
+}
 
 // Simulate the running of a command by marking all of the outputs of all descendants of a command as changed
 static void simulate_run(db_command* commands[], db_command* cur_command) {
@@ -234,6 +254,52 @@ int main(int argc, char* argv[]) {
         commands[dep.getCommandID()]->creations.insert(files[dep.getFileID()]);
     }
 
+    // Collapsing codependencies and cycles
+    // TODO: This probably wants to be part of the serialized representation, not here
+    std::queue<db_command*> collapse_worklist;
+    for (size_t root_id = 0; root_id < db_graph.getCommands().size(); root_id++) {
+        // If this command has already been included in another cluster, then its dependencies
+        // have already been considered, so move on.
+        if (commands[root_id]->collapse_with_parent) {
+            continue;
+        }
+
+        // At this point, we know that we are the root of a cluster and need to determine what other
+        // commands are in the cluster. These commands can be forced into the cluster when an input
+        // of the cluster is something else descended from the cluster, i.e. from the cluster's
+        // root, i.e. from the current command.
+        collapse_worklist.push(commands[root_id]);
+        while (!collapse_worklist.empty()) {
+            auto to_collapse = collapse_worklist.front();
+            collapse_worklist.pop();
+
+            for (auto in : to_collapse->inputs) {
+                if (in->writer_id > root_id && in->writer_id <= root_id + commands[root_id]->num_descendants) {
+                    // This input is a descendant of the cluster root. Mark it and all
+                    // ancestors up to the root as part of the cluster by traversing downwards.
+                    size_t parent_id = root_id;
+                    while (parent_id != in->writer_id) {
+                        // Loop through children to find the ancestor of the writer
+                        size_t current_id = parent_id + 1;
+                        size_t end_id = current_id + commands[parent_id]->num_descendants;
+                        while (current_id < end_id) {
+                            size_t next_id = current_id + commands[current_id]->num_descendants + 1;
+                            if (next_id > in->writer_id) {
+                                // Success: mark and move on to the next level
+                                if (!commands[current_id]->collapse_with_parent) {
+                                    commands[current_id]->collapse_with_parent = true;
+                                    collapse_worklist.push(commands[current_id]);
+                                }
+                                parent_id = current_id;
+                                break;
+                            }
+                            current_id = next_id;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // initialize worklist to commands root 
     //TODO multiple roots 
@@ -248,16 +314,25 @@ int main(int argc, char* argv[]) {
         // check if command is ready to run
         bool ready = true;
         bool rerun = false;
-        for (auto in : cur_command->inputs) {
-            // if the input is an output of one of our descendants, run this command
-            if (in->writer_id > cur_command->id && in->writer_id <= cur_command->id + cur_command->num_descendants) {
-                rerun = true;
-            } else if (in->status == UNKNOWN) {
-                ready = false;
-            } else if (in->status == CHANGED) {
-                rerun = true;
+
+        auto check_inputs = [&](db_command* command, bool leaf) {
+            for (auto in : command->inputs) {
+                if (in->status == CHANGED) {
+                    rerun = true;
+                } else if (in->status == UNKNOWN) {
+                    // If this dependency is from another member of our cluster, then it
+                    // will be handled by running the cluster, so ignore it. We can test for this
+                    // by noting that if the dependency is written by a descendant of the current
+                    // command, then it must be in the current cluster as upward dependencies cause
+                    // collapse.
+                    if (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants) {
+                        ready = false;
+                    }
+                }
             }
-        }
+        };
+        cluster_for_each(commands, cur_command, check_inputs);
+
         // if any dependencies are "unknown," put the command back in the worklist
         if (!ready) {
             worklist.push(cur_command);
@@ -272,21 +347,26 @@ int main(int argc, char* argv[]) {
                 std::cout << std::endl;
                 // mark its outputs as changed
                 simulate_run(commands, cur_command);
-            } else {
-                // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
-                for (auto out : cur_command->outputs) {
-                    if (out->status == UNKNOWN) {
-                        out->status = UNCHANGED;
+            } else { // We descend to our (cluster's) children
+                auto descend = [&](db_command* command, bool leaf) {
+                    // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
+                    for (auto out : command->outputs) {
+                        if (out->status == UNKNOWN) {
+                            out->status = UNCHANGED;
+                        }
                     }
-                }
 
-                // add command's direct children to worklist
-                unsigned int current_id = cur_command->id + 1;
-                unsigned int end_id = current_id + cur_command->num_descendants;
-                while (current_id < end_id) {
-                    worklist.push(commands[current_id]);
-                    current_id += commands[current_id]->num_descendants + 1;
-                }
+                    if (leaf) {
+                        // add command's direct children to worklist
+                        unsigned int current_id = command->id + 1;
+                        unsigned int end_id = current_id + command->num_descendants;
+                        while (current_id < end_id) {
+                            worklist.push(commands[current_id]);
+                            current_id += commands[current_id]->num_descendants + 1;
+                        }
+                    }
+                };
+                cluster_for_each(commands, cur_command, descend);
             }
         }
     }
