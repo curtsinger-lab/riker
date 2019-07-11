@@ -101,25 +101,25 @@ static void draw_graph_edges(Graph* graph, db_command* commands[], db_file* file
 
         for (auto i : root->inputs) {
             if (i->is_local()) {
-                graph->add_edge("f" + std::to_string(i->id), "c" + std::to_string(root->id), "");
+                graph->add_edge("f" + std::to_string(i->id), "c" + std::to_string(root->id), "arrowhead=empty");
             }
         }
 
         for (auto o : root->outputs) {
             if (o->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "");
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "arrowhead=empty");
             }
         }
 
         for (auto d : root->deletions) {
             if (d->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(d->id), "color=red");
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(d->id), "color=red arrowhead=empty");
             }
         }
 
         for (auto c : root->creations) {
             if (c->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(c->id), "color=blue");
+                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(c->id), "color=blue arrowhead=empty");
             }
         }
 
