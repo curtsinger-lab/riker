@@ -156,9 +156,16 @@ int main(int argc, char* argv[]) {
         exit(2);
     }
 
+    bool use_fingerprints = true;
+    // Parse arguments
+    for (int i = 1; i < argc; i++) {
+        if ("--no-fingerprints" == std::string(argv[i])) {
+            use_fingerprints = false;
+        }
+    }
+
     ::capnp::StreamFdMessageReader message(db);
     auto db_graph = message.getRoot<db::Graph>();
-
 
     // reconstruct the graph
 
@@ -172,7 +179,7 @@ int main(int argc, char* argv[]) {
         // If the fingerprint has changed, mark it so
         if (is_pipe) {
             flag = UNKNOWN;
-        } else if (!match_fingerprint(file)) {
+        } else if (use_fingerprints && !match_fingerprint(file)) {
             flag = CHANGED;
         }
         // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
