@@ -42,6 +42,7 @@ enum FingerprintType {
   nonexistent @1;
   # The file did not exist when it was fingerprinted
   metadataOnly @2;
+  blake2sp @3;
 }
 
 struct File {
