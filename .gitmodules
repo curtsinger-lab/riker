@@ -1,0 +1,3 @@
+[submodule "blake2"]
+	path = blake2
+	url = https://github.com/BLAKE2/BLAKE2.git

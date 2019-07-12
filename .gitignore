@@ -12,3 +12,4 @@ dodo
 dodo-dryrun
 *.capnp.cc
 *.capnp.h
+.submodules-updated
