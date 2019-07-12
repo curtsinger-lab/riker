@@ -13,16 +13,22 @@
 #include "fingerprint.h"
 #include "middle.h"
 
-//TODO fix collapse & race handling
 
 /* ------------------------------ Command Methods -----------------------------------------*/
-Command::Command(trace_state* state, Blob&& cmd) : state(state), cmd(std::move(cmd)) {}
+Command::Command(trace_state* state, Blob&& cmd, Command* parent, unsigned int depth) : state(state), cmd(std::move(cmd)), parent(parent), depth(depth) {}
 
 void Command::add_input(File* f) {
     // search through all files, do versioning
     f->interactions.push_front(this);
     f->users.insert(this);
     this->inputs.insert(f);
+
+    // if this file is written by a writer lower on the tree than us, collapse 
+    if (this->depth < f->writer->depth) {
+        std::set<Command*> conflict;
+        conflict.insert(f->writer);
+        this->collapse(conflict);
+    }
 
     // if we've read from the file previously, check for a race
     if (f->is_pipe) {
@@ -33,8 +39,8 @@ void Command::add_input(File* f) {
             if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
-                rd->collapse();
-                this->has_race = true;
+                std::set<Command*> conflicts = f->collapse(rd->version);
+                this->collapse(conflicts);
             }
         }
     }
@@ -51,11 +57,10 @@ void Command::add_output(File* f, size_t file_location) {
                 if (f->version == wr->version) {
                     return;
                 } else {
-                    wr->collapse();
-                    // TODO collapse all intermediates
-                    //for (auto it = this->state->files()
-                    //wr->has_race = true;
-                    this->has_race = true;
+                    std::set<Command*> conflicts = f->collapse(wr->version);
+                    this->collapse(conflicts);
+                    // wr->has_race = true;
+                    // this->has_race = true;
                     return;
                 }
             }
@@ -130,13 +135,62 @@ void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_r
     }
 }
 
+// collapse the current command to the designated depth
+Command* Command::collapse_helper(unsigned int depth) {
+    Command* cur_command = this;
+    while (cur_command->depth < depth) {
+        Command* parent = cur_command->parent;
+        for (auto ch : cur_command->children) {
+            parent->children.insert(ch);
+        }
+        parent->children.remove(cur_command);
+        for (auto i : cur_command->inputs) {
+            parent->inputs.insert(i);
+        }
+        for (auto o : cur_command->outputs) {
+            parent->outputs.insert(o);
+        }
+        for (auto d : cur_command->deleted_files) {
+            parent->deleted_files.insert(d);
+        }
+        this->state->commands.remove(cur_command);
+        cur_command = parent;
+    }
+    return cur_command;
+}
+
+void Command::collapse(std::set<Command*> commands) {
+    unsigned int ansc_depth = this->depth;
+    // find the minimum common depth
+    for (auto c : commands) {
+        if (c->depth < ansc_depth) {
+            ansc_depth = c->depth;
+        }
+    }
+    bool fully_collapsed = false;
+    while (!fully_collapsed) {
+        // collapse all commands to this depth
+        Command* prev_command = *(commands->begin());
+        Command* cur_command;
+        bool fully_collapsed = true;
+        for (auto c : commands) {
+            cur_command = c->collapse_helper(ansc_depth);
+            if (cur_command != prev_command) {
+                fully_collapsed = false;
+            }
+            prev_command = cur_command;
+        }
+        ansc_depth--;
+    }
+}
+
 /* -------------------------- FileDescriptor Methods --------------------------------------*/
 FileDescriptor::FileDescriptor() {}
 FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloexec) : location_index(location_index), access_mode(access_mode), cloexec(cloexec) {}
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(NULL), state(state), version(0) {
+File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state, File* prev_version) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(NULL), state(state), prev_version(prev_version), version(0) {
     // TODO: consider using orphans to avoid copying
     if (this->is_pipe) {
         this->serialized.get().setType(db::FileType::PIPE);
@@ -146,13 +200,25 @@ File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is
     }
 }
 
-//TODO fix
-void File::collapse(void) {
+// return a set of the commands which raced on this file, back to the parameter version
+std::set<Command*> File::collapse(unsigned int version) {
     //this->has_race = true;
-    for (auto interaction : this->interactions) {
-        //interaction->has_race = true;
-        this->conflicts.push_front(interaction);
+    File* cur_file = this;
+    std::set<Command*> conflicts;
+    while (cur_file->version != version) {
+        // add writer and all readers to conflict set
+        conflicts.insert(cur_file->writer);
+        for (auto rd : cur_file->interactions) {
+            conflicts.insert(rd);
+        }
+        // add all mmaps to conflicts
+        for (auto m : cur_file->mmaps) {
+            conflicts.insert(m->cmd);
+        }
+        // step back a version
+        cur_file = cur_file->prev_version;
     }
+    return conflicts;
 }
 
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
@@ -165,7 +231,7 @@ File* File::make_version(void) {
     // We are at the end of the current version, so snapshot with a fingerprint
     set_fingerprint(this->serialized.get());
 
-    File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state);
+    File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state, this);
     f->version = this->version + 1;
     return f;
 }
@@ -181,7 +247,7 @@ size_t trace_state::find_file(BlobPtr path) {
             return index;
         }
     }
-    File* new_node = new File(false, kj::heapArray(path), NULL, this);
+    File* new_node = new File(false, kj::heapArray(path), NULL, this, NULL);
     this->files.insert(new_node);
     size_t location = this->latest_versions.size();
     this->latest_versions.push_back(new_node);
@@ -399,7 +465,7 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
 // TODO handle pipes
 void trace_state::add_pipe(Process* proc, int fds[2]) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
-    File* p = new File(true, Blob(), proc->command, this);
+    File* p = new File(true, Blob(), proc->command, this, NULL);
     this->files.insert(p);
     size_t location = this->latest_versions.size();
     this->latest_versions.push_back(p);
@@ -453,7 +519,7 @@ void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
 
 void trace_state::add_exec(Process* proc, Blob&& exe_path) {
     //fprintf(stdout, "[%d] Inside exec: %.*s\n", proc->thread_id, (int) exe_path.size(), exe_path.asChars().begin());
-    Command* cmd = new Command(this, std::move(exe_path));
+    Command* cmd = new Command(this, std::move(exe_path), parent_proc, parent_proc->depth + 1);
     //fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
     proc->command->children.push_front(cmd);
     proc->command = cmd;
