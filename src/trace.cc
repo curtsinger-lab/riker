@@ -52,7 +52,7 @@ pid_t launch_traced(char const* script_line) {
         // This is the child
 
         // Allow ourselves to be traced by our parent
-        if (ptrace(PTRACE_TRACEME, 0, NULL, NULL) != 0) {
+        if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) {
             perror("Failed to start tracing");
             // It is generally better to exit directly within a forked child so that we
             // don't duplicate atexit effects. (This would be strictly required if we used
@@ -152,7 +152,7 @@ pid_t launch_traced(char const* script_line) {
         raise(SIGSTOP);
 
         // TODO: explicitly handle the environment
-        execl("/bin/sh", "sh", "-c", script_line, NULL);
+        execl("/bin/sh", "sh", "-c", script_line, nullptr);
 
         // If we reach here, we failed to exec
         perror("Executing shell");
@@ -172,7 +172,7 @@ pid_t launch_traced(char const* script_line) {
 
     // Set up options to handle everything reliably. We do this before continuing
     // so that the actual running program has everything properly configured.
-    if (ptrace(PTRACE_SETOPTIONS, child_pid, NULL,
+    if (ptrace(PTRACE_SETOPTIONS, child_pid, nullptr,
         PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK | // Follow forks
         PTRACE_O_TRACEEXEC | // Handle execs more reliably
         PTRACE_O_TRACESYSGOOD | // When stepping through syscalls, be clear
@@ -183,7 +183,7 @@ pid_t launch_traced(char const* script_line) {
     }
 
     // Let the child restart to reach its exec.
-    ptrace(PTRACE_CONT, child_pid, NULL, 0);
+    ptrace(PTRACE_CONT, child_pid, nullptr, 0);
 
     // Let the child finish its exec.
     waitpid(child_pid, &wstatus, 0); // Should correspond to SECCOMP_RET_TRACE for execve
@@ -191,13 +191,13 @@ pid_t launch_traced(char const* script_line) {
         fprintf(stderr, "Unexpected stop from child, expected SECCOMP: %x\n", wstatus);
         exit(2);
     }
-    ptrace(PTRACE_CONT, child_pid, NULL, 0);
+    ptrace(PTRACE_CONT, child_pid, nullptr, 0);
     waitpid(child_pid, &wstatus, 0); // Should correspond to inside the exec
     if (!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         fprintf(stderr, "Unexpected stop from child, expected EXEC: %x\n", wstatus);
         exit(2);
     }
-    ptrace(PTRACE_CONT, child_pid, NULL, 0);
+    ptrace(PTRACE_CONT, child_pid, nullptr, 0);
     return child_pid;
 }
 
@@ -240,7 +240,7 @@ pid_t wait_for_syscall(enum stop_type* type) {
                 // We don't bother handling errors here, because any failure
                 // just means that the child is somehow broken, and we shouldn't
                 // continue processing it anyway.
-                ptrace(PTRACE_CONT, child, NULL, WSTOPSIG(wstatus));
+                ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wstatus));
                 break;
             }
         } else if (WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) {
@@ -258,7 +258,7 @@ Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
         // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
         // since PEEKDATA could validly return -1.
         errno = 0;
-        long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), NULL);
+        long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), nullptr);
         if (errno != 0) {
             perror("Failed to read tracee string");
             exit(2);
@@ -311,21 +311,21 @@ int main(int argc, char* argv[]) {
             // GETEVENTMSG returns a unsigned long *always*, even though the value is
             // always a pid_t.
             unsigned long ul_new_child;
-            if (ptrace(PTRACE_GETEVENTMSG, child, NULL, &ul_new_child) != 0) {
+            if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_child) != 0) {
                 perror("Unable to fetch new child from fork");
-                ptrace(PTRACE_CONT, child, NULL, 0);
+                ptrace(PTRACE_CONT, child, nullptr, 0);
                 continue;
             }
             pid_t new_child = (pid_t) ul_new_child;
-            ptrace(PTRACE_CONT, child, NULL, 0);
+            ptrace(PTRACE_CONT, child, nullptr, 0);
             state->add_fork(proc, new_child);
             break;
         }
         case STOP_EXEC: {
             struct user_regs_struct registers;
-            if (ptrace(PTRACE_GETREGS, child, NULL, &registers) != 0) {
+            if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
                 perror("Failed to get registers");
-                ptrace(PTRACE_CONT, child, NULL, 0);
+                ptrace(PTRACE_CONT, child, nullptr, 0);
                 continue;
             }
 
@@ -349,13 +349,13 @@ int main(int argc, char* argv[]) {
 
             state->add_exec(proc, exe_path.releaseAsArray());
 
-            int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, NULL);
+            int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, nullptr);
             for (int i = 0; i < child_argc; i++) {
-                uintptr_t arg_ptr = ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), NULL);
+                uintptr_t arg_ptr = ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), nullptr);
                 state->add_exec_argument(proc, read_tracee_string(child, arg_ptr), i);
             }
 
-            ptrace(PTRACE_CONT, child, NULL, 0);
+            ptrace(PTRACE_CONT, child, nullptr, 0);
             break;
         }
         case STOP_EXIT: {
@@ -364,9 +364,9 @@ int main(int argc, char* argv[]) {
         }
         case STOP_SYSCALL: {
             struct user_regs_struct registers;
-            if (ptrace(PTRACE_GETREGS, child, NULL, &registers) != 0) {
+            if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
                 perror("Failed to get registers");
-                ptrace(PTRACE_CONT, child, NULL, 0);
+                ptrace(PTRACE_CONT, child, nullptr, 0);
                 continue;
             }
             // We need to extract any relevant arguments like paths or file names
@@ -375,12 +375,12 @@ int main(int argc, char* argv[]) {
             // path(s) and nothing else.
             struct file_reference main_file = {
                 .fd = AT_FDCWD,
-                .path = NULL,
+                .path = nullptr,
                 .follow_links = true,
             };
             struct file_reference extra_file = {
                 .fd = AT_FDCWD,
-                .path = NULL,
+                .path = nullptr,
                 .follow_links = true,
             };
             switch (registers.SYSCALL_NUMBER) {
@@ -500,13 +500,13 @@ int main(int argc, char* argv[]) {
             case /* 257 */ __NR_openat:
             case /* 293 */ __NR_pipe2:
                 // We've already hit the syscall-enter, so wait for the syscall-exit.
-                ptrace(PTRACE_SYSCALL, child, NULL, 0);
-                waitpid(child, NULL, 0); // FIXME: handle errors
+                ptrace(PTRACE_SYSCALL, child, nullptr, 0);
+                waitpid(child, nullptr, 0); // FIXME: handle errors
                 // PEEKUSER should hopefully be more efficient than GETREGS here because
                 // we only care about a single register
-                registers.SYSCALL_RETURN = ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), NULL);
+                registers.SYSCALL_RETURN = ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
                 if ((long long)registers.SYSCALL_RETURN < 0) { // The call errored, so skip it
-                    ptrace(PTRACE_CONT, child, NULL, 0);
+                    ptrace(PTRACE_CONT, child, nullptr, 0);
                     continue;
                 }
                 break;
@@ -525,13 +525,13 @@ int main(int argc, char* argv[]) {
 
             // Relaunch the child. After this point, we can no longer access the child's memory,
             // but we are allowed to do slightly more expensive things.
-            ptrace(PTRACE_CONT, child, NULL, 0);
+            ptrace(PTRACE_CONT, child, nullptr, 0);
 
             // Handle fake-relative syscalls by ignoring the fd when the path is absolute
-            if (main_file.path != NULL && main_file.path[0] == '/') {
+            if (main_file.path != nullptr && main_file.path[0] == '/') {
                 main_file.fd = AT_FDCWD;
             }
-            if (extra_file.path != NULL && extra_file.path[0] == '/') {
+            if (extra_file.path != nullptr && extra_file.path[0] == '/') {
                 extra_file.fd = AT_FDCWD;
             }
 
