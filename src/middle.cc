@@ -163,7 +163,7 @@ bool File::can_depend(Command* cmd) {
 
 File* File::make_version(void) {
     // We are at the end of the current version, so snapshot with a fingerprint
-    set_fingerprint(this->serialized.get());
+    set_fingerprint(this->serialized.get(), true);
 
     File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state);
     f->version = this->version + 1;
@@ -208,7 +208,7 @@ void trace_state::serialize_graph(void) {
     // Prepare files for serialization: we've already fingerprinted the old versions,
     // but we need to fingerprint the latest versions
     for (size_t location = 0; location < this->latest_versions.size(); location++) {
-        set_fingerprint(this->latest_versions[location]->serialized.get());
+        set_fingerprint(this->latest_versions[location]->serialized.get(), !this->latest_versions[location]->users.empty());
     }
 
     // Serialize files
