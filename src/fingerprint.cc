@@ -15,7 +15,7 @@
 
 // Assumes that the file path is already entered, returns whether
 // the file was successfully fingerprinted
-void set_fingerprint(db::File::Builder file) {
+void set_fingerprint(db::File::Builder file, bool use_checksum) {
     // We can only fingerprint regular files for now. (Do we even want to try for others?)
     if (file.getType() != db::FileType::REGULAR) {
         file.setFingerprintType(db::FingerprintType::UNAVAILABLE);
@@ -39,7 +39,7 @@ void set_fingerprint(db::File::Builder file) {
     mod_time.setNanoseconds(stat_info.st_mtim.tv_nsec);
     file.setInode(stat_info.st_ino);
 
-    if ((stat_info.st_mode & S_IFMT) != S_IFREG) {
+    if (!use_checksum || (stat_info.st_mode & S_IFMT) != S_IFREG) {
         // Only checksum regular files
         file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
         return;
