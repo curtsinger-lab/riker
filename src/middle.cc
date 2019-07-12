@@ -136,7 +136,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(NULL), state(state), version(0) {
+File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), version(0) {
     // TODO: consider using orphans to avoid copying
     if (this->is_pipe) {
         this->serialized.get().setType(db::FileType::PIPE);
@@ -158,7 +158,7 @@ void File::collapse(void) {
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
 // the only writer
 bool File::can_depend(Command* cmd) {
-    return this->writer != cmd && (this->writer != NULL || this->creator != cmd);
+    return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
 }
 
 File* File::make_version(void) {
@@ -181,7 +181,7 @@ size_t trace_state::find_file(BlobPtr path) {
             return index;
         }
     }
-    File* new_node = new File(false, kj::heapArray(path), NULL, this);
+    File* new_node = new File(false, kj::heapArray(path), nullptr, this);
     this->files.insert(new_node);
     size_t location = this->latest_versions.size();
     this->latest_versions.push_back(new_node);
@@ -219,11 +219,11 @@ void trace_state::serialize_graph(void) {
     uint64_t create_count = 0;
     for (auto file : this->files) {
         // We only care about files that are either written or read so filter those out.
-        if (!file->users.empty() || file->writer != NULL) {
+        if (!file->users.empty() || file->writer != nullptr) {
             file_ids[file] = file_count;
             input_count += file->users.size();
-            output_count += (file->writer != NULL);
-            create_count += (file->creator != NULL);
+            output_count += (file->writer != nullptr);
+            create_count += (file->creator != nullptr);
             file_count += 1;
         }
     }
@@ -251,13 +251,13 @@ void trace_state::serialize_graph(void) {
             inputs[input_index].setCommandID(user_id);
             input_index++;
         }
-        if (file->writer != NULL) {
+        if (file->writer != nullptr) {
             uint64_t writer_id = command_ids[file->writer];
             outputs[output_index].setFileID(file_id);
             outputs[output_index].setCommandID(writer_id);
             output_index++;
         }
-        if (file->creator != NULL) {
+        if (file->creator != nullptr) {
             uint64_t creator_id = command_ids[file->creator];
             creates[create_index].setFileID(file_id);
             creates[create_index].setCommandID(creator_id);
@@ -334,7 +334,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             this->files.insert(f);
             this->latest_versions[file_location] = f;
             f->creator = proc->command;
-            f->writer = NULL;
+            f->writer = nullptr;
             break;
         case DEP_REMOVE:
             //fprintf(stdout, "remove");
@@ -344,7 +344,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
     if (!file.follow_links) {
         //fprintf(stdout, " (nofollow)");
     }
-    if (file.path == NULL) {
+    if (file.path == nullptr) {
         //fprintf(stdout, " FD %d\n", file.fd);
     } else if (file.fd == AT_FDCWD) {
         //fprintf(stdout, " %.*s\n", (int)file.path.size(), file.path.asChars().begin());
@@ -380,13 +380,13 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     // TODO take into account root and cwd
     size_t file_location = this->find_file(file.path.asPtr());
     File* f = this->latest_versions[file_location];
-    if (is_rewrite && (f->creator != proc->command || f->writer != NULL)) {
+    if (is_rewrite && (f->creator != proc->command || f->writer != nullptr)) {
         //fprintf(stdout, "REWRITE ");
         f = f->make_version();
         this->files.insert(f);
         this->latest_versions[file_location] = f;
         f->creator = proc->command;
-        f->writer = NULL;
+        f->writer = nullptr;
     }
     proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
     if (file.fd == AT_FDCWD) {
