@@ -52,7 +52,7 @@ struct Command {
     void add_output(File* f, size_t file_location);
     size_t descendants(void);
     Command* collapse_helper(unsigned int depth);
-    void collapse(std::list<Command*> commands);
+    void collapse(std::set<Command*>* commands);
 };
 
 
@@ -69,10 +69,10 @@ struct File {
     trace_state* state;
     File* prev_version;
     int id;
-    int version;
+    unsigned int version;
 
     File(bool is_pipe, Blob&& path, Command* creator, trace_state* state, File* prev_version);
-    void collapse(void);
+    std::set<Command*> collapse(unsigned int depth);
     bool can_depend(Command* cmd);
     File* make_version(void);
 };

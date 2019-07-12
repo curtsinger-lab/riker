@@ -717,5 +717,5 @@ int main(int argc, char* argv[]) {
     
     //TODO fix
     state->serialize_graph();
-    state->print_changes(changes);
+//    state->print_changes(changes);
 }

@@ -19,28 +19,32 @@ Command::Command(trace_state* state, Blob&& cmd, Command* parent, unsigned int d
 
 void Command::add_input(File* f) {
     // search through all files, do versioning
+    std::cout << "add in\n";
     f->interactions.push_front(this);
     f->users.insert(this);
     this->inputs.insert(f);
-
     // if this file is written by a writer lower on the tree than us, collapse 
+    /*if (f->writer != NULL) {
     if (this->depth < f->writer->depth) {
         std::set<Command*> conflict;
         conflict.insert(f->writer);
-        this->collapse(conflict);
+        this->collapse(&conflict);
     }
+    }
+*/
 
     // if we've read from the file previously, check for a race
     if (f->is_pipe) {
         return;
     }
+    
     for (auto rd : this->rd_interactions) {
         if (f->filename.asPtr() == rd->filename.asPtr() && f->writer != this) {
             if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
                 std::set<Command*> conflicts = f->collapse(rd->version);
-                this->collapse(conflicts);
+                this->collapse(&conflicts);
             }
         }
     }
@@ -49,6 +53,8 @@ void Command::add_input(File* f) {
 }
 
 void Command::add_output(File* f, size_t file_location) {
+    
+    std::cout << "add out\n";
     // if we've written to the file before, check for a race
     if (!f->is_pipe) {
         for (auto wr : this->wr_interactions) {
@@ -58,7 +64,7 @@ void Command::add_output(File* f, size_t file_location) {
                     return;
                 } else {
                     std::set<Command*> conflicts = f->collapse(wr->version);
-                    this->collapse(conflicts);
+                    this->collapse(&conflicts);
                     // wr->has_race = true;
                     // this->has_race = true;
                     return;
@@ -105,6 +111,8 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
     return index;
 }
 
+/*
+
 void Command::rerun_children(std::set<Command*>* to_rerun) {
     (*to_rerun).insert(this);
     for (auto o = this->outputs.begin(); o != this->outputs.end(); ++o) {
@@ -135,13 +143,15 @@ void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_r
     }
 }
 
+*/
+
 // collapse the current command to the designated depth
 Command* Command::collapse_helper(unsigned int depth) {
     Command* cur_command = this;
     while (cur_command->depth < depth) {
         Command* parent = cur_command->parent;
         for (auto ch : cur_command->children) {
-            parent->children.insert(ch);
+            parent->children.push_front(ch);
         }
         parent->children.remove(cur_command);
         for (auto i : cur_command->inputs) {
@@ -159,10 +169,10 @@ Command* Command::collapse_helper(unsigned int depth) {
     return cur_command;
 }
 
-void Command::collapse(std::set<Command*> commands) {
+void Command::collapse(std::set<Command*>* commands) {
     unsigned int ansc_depth = this->depth;
     // find the minimum common depth
-    for (auto c : commands) {
+    for (auto c : *commands) {
         if (c->depth < ansc_depth) {
             ansc_depth = c->depth;
         }
@@ -172,8 +182,8 @@ void Command::collapse(std::set<Command*> commands) {
         // collapse all commands to this depth
         Command* prev_command = *(commands->begin());
         Command* cur_command;
-        bool fully_collapsed = true;
-        for (auto c : commands) {
+        fully_collapsed = true;
+        for (auto c : *commands) {
             cur_command = c->collapse_helper(ansc_depth);
             if (cur_command != prev_command) {
                 fully_collapsed = false;
@@ -213,7 +223,7 @@ std::set<Command*> File::collapse(unsigned int version) {
         }
         // add all mmaps to conflicts
         for (auto m : cur_file->mmaps) {
-            conflicts.insert(m->cmd);
+            conflicts.insert(m->command);
         }
         // step back a version
         cur_file = cur_file->prev_version;
@@ -519,7 +529,7 @@ void trace_state::add_fork(Process* parent_proc, pid_t child_process_id) {
 
 void trace_state::add_exec(Process* proc, Blob&& exe_path) {
     //fprintf(stdout, "[%d] Inside exec: %.*s\n", proc->thread_id, (int) exe_path.size(), exe_path.asChars().begin());
-    Command* cmd = new Command(this, std::move(exe_path), parent_proc, parent_proc->depth + 1);
+    Command* cmd = new Command(this, std::move(exe_path), proc->command, proc->command->depth + 1);
     //fprintf(stdout, "Pushed %.*s to commands list!\n", (int) cmd->cmd.size(), cmd->cmd.asChars().begin());
     proc->command->children.push_front(cmd);
     proc->command = cmd;
@@ -558,7 +568,7 @@ void trace_state::add_exit(Process* proc) {
         (*f)->mmaps.erase(proc);
     }
 }
-
+/*
 void trace_state::print_changes(std::vector<Blob>& changes) {
     if (changes.size() == 0) {
         return;
@@ -579,6 +589,6 @@ void trace_state::print_changes(std::vector<Blob>& changes) {
     }
 }
 
-
+*/
 
 
