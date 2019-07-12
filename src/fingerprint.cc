@@ -6,8 +6,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
+#include "util.h"
 #include "db.capnp.h"
+#include "blake2-wrapper.h"
 #include "fingerprint.h"
 
 // Assumes that the file path is already entered, returns whether
@@ -36,27 +39,48 @@ void set_fingerprint(db::File::Builder file) {
     mod_time.setNanoseconds(stat_info.st_mtim.tv_nsec);
     file.setInode(stat_info.st_ino);
 
-    std::ifstream file_data;
-    file_data.open(path_string.c_str(), std::ios::in | std::ios::binary);
-    if (!file_data.good()) {
+    if ((stat_info.st_mode & S_IFMT) != S_IFREG) {
+        // Only checksum regular files
         file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
         return;
     }
-    // FIXME: Actually support checksumming
-    file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
-    return;
+
+    int file_fd = open(path_string.c_str(), O_RDONLY | O_CLOEXEC);
+    if (file_fd < 0) { // Error opening
+        file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+        return;
+    }
+
+    auto checksum = file.initChecksum(BLAKE2S_OUTBYTES);
+    blake2sp_state hash_state;
+    blake2sp_init(&hash_state, BLAKE2S_OUTBYTES);
+    char buffer[1 << 13];
+    while (true) {
+        auto bytes_read = read(file_fd, buffer, ARRAY_COUNT(buffer));
+        if (bytes_read > 0) {
+            blake2sp_update(&hash_state, buffer, bytes_read);
+        } else if (bytes_read == 0) { // EOF
+            blake2sp_final(&hash_state, checksum.begin(), checksum.size());
+            file.setFingerprintType(db::FingerprintType::BLAKE2SP);
+            return;
+        } else { // Error reading
+            file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+            return;
+        }
+    }
 }
 
 bool match_fingerprint(db::File::Reader file) {
     // First, check if the fingerprint type is something we recognize. If not, we conservatively
     // assume a change.
     switch (file.getFingerprintType()) {
-        case db::FingerprintType::UNAVAILABLE:
-        case db::FingerprintType::NONEXISTENT:
-        case db::FingerprintType::METADATA_ONLY:
-            break;
-        default:
-            return false;
+    case db::FingerprintType::UNAVAILABLE:
+    case db::FingerprintType::NONEXISTENT:
+    case db::FingerprintType::METADATA_ONLY:
+    case db::FingerprintType::BLAKE2SP:
+        break;
+    default:
+        return false;
     }
 
     // If there is no fingerprint, assume no match
@@ -90,6 +114,31 @@ bool match_fingerprint(db::File::Reader file) {
 
     // Otherwise, avoid false negatives as commonly happen with insubstantial input changes
     // by checking against a checksum.
-    // FIXME: Actually checksum the file
-    return false;
+    int file_fd = open(path_string.c_str(), O_RDONLY | O_CLOEXEC);
+    if (file_fd < 0) { // Error opening
+        return false;
+    }
+
+    size_t hash_size = file.getChecksum().size();
+    switch (file.getFingerprintType()) {
+    case db::FingerprintType::BLAKE2SP: {
+        KJ_STACK_ARRAY(kj::byte, checksum, hash_size, hash_size, hash_size);
+        blake2sp_state hash_state;
+        blake2sp_init(&hash_state, hash_size);
+        char buffer[1 << 13];
+        while (true) {
+            auto bytes_read = read(file_fd, buffer, ARRAY_COUNT(buffer));
+            if (bytes_read > 0) {
+                blake2sp_update(&hash_state, buffer, bytes_read);
+            } else if (bytes_read == 0) { // EOF
+                blake2sp_final(&hash_state, checksum.begin(), checksum.size());
+                return checksum == file.getChecksum();
+            } else { // Error reading
+                return false;
+            }
+        }
+    }
+    default:
+        return false;
+    }
 }
