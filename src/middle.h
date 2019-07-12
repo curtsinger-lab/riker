@@ -43,14 +43,16 @@ struct Command {
     std::set<File*> rd_interactions;
     std::set<File*> deleted_files;
     std::list<Blob> args;
+    Command* parent;
+    unsigned int depth;
     bool has_race;
 
-    Command(trace_state* state, Blob&& args);
+    Command(trace_state* state, Blob&& args, Command* parent, unsigned int depth);
     void add_input(File* f);
     void add_output(File* f, size_t file_location);
     size_t descendants(void);
-    void rerun_children(std::set<Command*>* to_rerun);
-    void print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun);
+    Command* collapse_helper(unsigned int depth);
+    void collapse(std::list<Command*> commands);
 };
 
 
@@ -65,10 +67,11 @@ struct File {
     Command* creator;
     Command* writer;
     trace_state* state;
+    File* prev_version;
     int id;
     int version;
 
-    File(bool is_pipe, Blob&& path, Command* creator, trace_state* state);
+    File(bool is_pipe, Blob&& path, Command* creator, trace_state* state, File* prev_version);
     void collapse(void);
     bool can_depend(Command* cmd);
     File* make_version(void);

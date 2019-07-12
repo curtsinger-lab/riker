@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
     }
 
     pid_t pid = launch_traced(argv[1]);
-    Command* cmd = new Command(&*state, kj::heapArray((kj::byte*) argv[1], strlen(argv[1])));
+    Command* cmd = new Command(&*state, kj::heapArray((kj::byte*) argv[1], strlen(argv[1])), NULL, 0);
     Process* proc = new Process(pid, kj::heapArray(state->starting_dir.asPtr()), cmd);
 
     //proc->pid = pid;
