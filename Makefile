@@ -4,7 +4,7 @@ COMMON_CFLAGS = -g -Wall
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj
 
-all: dodo dodo-dryrun
+all: dodo dodo-build
 
 .PHONY: all
 
@@ -13,7 +13,7 @@ all: dodo dodo-dryrun
 dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o objs/fingerprint.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-dodo-dryrun: objs/db.capnp.o objs/graph.o objs/dodorun.o objs/fingerprint.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o
+dodo-build: objs/db.capnp.o objs/graph.o objs/dodorun.o objs/fingerprint.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 .submodules-updated:
