@@ -9,7 +9,7 @@ graph.gv
 graph.gv.pdf
 objs/
 dodo
-dodo-dryrun
+dodo-build
 *.capnp.cc
 *.capnp.h
 .submodules-updated
