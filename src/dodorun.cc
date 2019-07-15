@@ -211,6 +211,7 @@ int main(int argc, char* argv[]) {
         if (is_pipe) {
             flag = UNKNOWN;
         } else if (use_fingerprints && !match_fingerprint(file)) {
+            std::cerr << "Noted change in " << path << std::endl;
             flag = CHANGED;
         }
         // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
@@ -250,10 +251,8 @@ int main(int argc, char* argv[]) {
         db_file* file = files[dep.getFileID()];
         file->writer_id = dep.getCommandID();
         // if the file is an output of a command, mark it's status as unknown (until the command is run/simulated)
-        if (!(file->status == CHANGED)) {
-            files[dep.getFileID()]->status = UNKNOWN;
-        }
-        commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
+        files[dep.getFileID()]->status = UNKNOWN;
+         commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
     }
     //TODO what does the run do with removals?
     for (auto dep : db_graph.getRemovals()) {
