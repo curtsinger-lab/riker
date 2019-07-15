@@ -4,7 +4,10 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <fcntl.h>
+#include <spawn.h>
 
 #include <list>
 #include <vector>
@@ -13,6 +16,8 @@
 
 #include <capnp/message.h>
 #include <capnp/serialize.h>
+
+extern char** environ;
 
 #define UNCHANGED 0
 #define CHANGED   1
@@ -178,12 +183,15 @@ int main(int argc, char* argv[]) {
 
     bool use_fingerprints = true;
     bool show_sysfiles = false;
+    bool dry_run = false;
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if ("--no-fingerprints" == std::string(argv[i])) {
             use_fingerprints = false;
         } else if ("--show-sysfiles" == std::string(argv[i])) {
             show_sysfiles = true;
+        } else if ("--dry-run" == std::string(argv[i])) {
+            dry_run = true;
         }
     }
 
@@ -371,15 +379,47 @@ int main(int argc, char* argv[]) {
             }
         }
         if (ready) {
-            // if the command is ready to run and one of it's dependencies has changed,
-            // "rerun" it (print for now)
+            // if the command is ready to run and one of it's dependencies has changed, rerun it
             std::cout << cur_command->executable;
             for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
                 std::cout << " " << cur_command->args[arg_index];
             }
             std::cout << std::endl;
-            // mark its outputs as changed
-            simulate_run(commands, cur_command);
+            if (dry_run) {
+                // mark its outputs as changed
+                simulate_run(commands, cur_command);
+            } else {
+                // Spawn the child
+                pid_t child_pid;
+                char* child_argv[cur_command->args.size() + 1];
+                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
+                    child_argv[arg_index] = strdup(cur_command->args[arg_index].c_str());
+                }
+                child_argv[cur_command->args.size()] = nullptr;
+                posix_spawn(&child_pid, cur_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
+                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
+                    free(child_argv[arg_index]);
+                }
+
+                // Wait for completion
+                // TODO: Consider detecting errors?
+                waitpid(child_pid, nullptr, 0);
+
+                // Mark all outputs appropriately
+                for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+                    auto finished_command = commands[command_index];
+                    finished_command->rerun = true;
+                    for (auto out : finished_command->outputs) {
+                        if (out->status == UNKNOWN) {
+                            if (use_fingerprints && match_fingerprint(db_graph.getFiles()[out->id])) {
+                                out->status = UNCHANGED;
+                            } else {
+                                out->status = CHANGED;
+                            }
+                        }
+                    }
+                }
+            }
             continue;
         }
 
