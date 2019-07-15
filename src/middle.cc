@@ -24,12 +24,12 @@ void Command::add_input(File* f) {
     this->inputs.insert(f);
 
     // if we've read from the file previously, check for a race
-    if (f->is_pipe) {
+    if (f->serialized.getReader().getType() == db::FileType::PIPE) {
         return;
     }
 
     for (auto rd : this->rd_interactions) {
-        if (f->filename.asPtr() == rd->filename.asPtr() && f->writer != this) {
+        if (f->serialized.getReader().getPath() == rd->serialized.getReader().getPath() && f->writer != this) {
             if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
@@ -44,9 +44,9 @@ void Command::add_input(File* f) {
 
 void Command::add_output(File* f, size_t file_location) {
     // if we've written to the file before, check for a race
-    if (!f->is_pipe) {
+    if (f->serialized.getReader().getType() != db::FileType::PIPE) {
         for (auto wr : this->wr_interactions) {
-            if (f->filename.asPtr() == wr->filename.asPtr()) {
+            if (f->serialized.getReader().getPath() == wr->serialized.getReader().getPath()) {
                 this->outputs.insert(f);
                 if (f->version == wr->version) {
                     return;
@@ -154,13 +154,13 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(bool is_pipe, Blob&& path, Command* creator, trace_state* state, File* prev_version) : is_pipe(is_pipe), filename(std::move(path)), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0) {
+File::File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version) : serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0) {
     // TODO: consider using orphans to avoid copying
-    if (this->is_pipe) {
+    if (is_pipe) {
         this->serialized.get().setType(db::FileType::PIPE);
     } else {
         this->serialized.get().setType(db::FileType::REGULAR);
-        this->serialized.get().setPath(this->filename.asPtr());
+        this->serialized.get().setPath(path);
     }
 }
 
@@ -195,7 +195,13 @@ File* File::make_version(void) {
     // We are at the end of the current version, so snapshot with a fingerprint
     set_fingerprint(this->serialized.get(), true);
 
-    File* f = new File(this->is_pipe, kj::heapArray(this->filename.asPtr()), this->creator, this->state, this);
+    File* f = new File(
+        this->serialized.getReader().getType() == db::FileType::PIPE,
+        this->serialized.getReader().getPath(),
+        this->creator,
+        this->state,
+        this
+    );
     f->version = this->version + 1;
     return f;
 }
@@ -207,7 +213,7 @@ Process::Process(pid_t thread_id, Blob&& cwd, Command* command) : thread_id(thre
 // return latest version of the file, or create file and add to record if not found
 size_t trace_state::find_file(BlobPtr path) {
     for (size_t index = 0; index < this->latest_versions.size(); index++) {
-        if (!this->latest_versions[index]->is_pipe && this->latest_versions[index]->filename.asPtr() == path) {
+        if (this->latest_versions[index]->serialized.getReader().getType() != db::FileType::PIPE && this->latest_versions[index]->serialized.getReader().getPath() == path) {
             return index;
         }
     }
