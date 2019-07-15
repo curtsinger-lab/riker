@@ -132,7 +132,7 @@ bool match_fingerprint(db::File::Reader file) {
                 blake2sp_update(&hash_state, buffer, bytes_read);
             } else if (bytes_read == 0) { // EOF
                 blake2sp_final(&hash_state, checksum.begin(), checksum.size());
-                return checksum == file.getChecksum();
+                return checksum.asConst() == file.getChecksum();
             } else { // Error reading
                 return false;
             }
