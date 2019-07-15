@@ -312,14 +312,13 @@ int main(int argc, char* argv[]) {
         db_command* cur_command = worklist.front();
         worklist.pop();
 
-        // check if command is ready to run
-        bool ready = true;
-        bool rerun = false;
-
+        // Step 1: If all inputs to the cluster are unchanged, then mark the outputs of
+        // the cluster as unchanged and descend to the children.
+        bool can_descend = true;
         auto check_inputs = [&](db_command* command, bool leaf) {
             for (auto in : command->inputs) {
                 if (in->status == CHANGED) {
-                    rerun = true;
+                    can_descend = false;
                 } else if (in->status == UNKNOWN) {
                     // If this dependency is from another member of our cluster, then it
                     // will be handled by running the cluster, so ignore it. We can test for this
@@ -327,49 +326,65 @@ int main(int argc, char* argv[]) {
                     // command, then it must be in the current cluster as upward dependencies cause
                     // collapse.
                     if (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants) {
-                        ready = false;
+                        can_descend = false;
                     }
                 }
             }
         };
         cluster_for_each(commands, cur_command, check_inputs);
-
-        // if any dependencies are "unknown," put the command back in the worklist
-        if (!ready) {
-            worklist.push(cur_command);
-        } else {
-            if (rerun) {
-                // if the command is ready to run and one of it's dependencies has changed, 
-                //" rerun" it (print for now)
-                std::cout << cur_command->executable;
-                for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
-                    std::cout << " " << cur_command->args[arg_index];
+        if (can_descend) {
+            auto descend = [&](db_command* command, bool leaf) {
+                // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
+                for (auto out : command->outputs) {
+                    if (out->status == UNKNOWN) {
+                        out->status = UNCHANGED;
+                    }
                 }
-                std::cout << std::endl;
-                // mark its outputs as changed
-                simulate_run(commands, cur_command);
-            } else { // We descend to our (cluster's) children
-                auto descend = [&](db_command* command, bool leaf) {
-                    // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
-                    for (auto out : command->outputs) {
-                        if (out->status == UNKNOWN) {
-                            out->status = UNCHANGED;
-                        }
-                    }
 
-                    if (leaf) {
-                        // add command's direct children to worklist
-                        unsigned int current_id = command->id + 1;
-                        unsigned int end_id = current_id + command->num_descendants;
-                        while (current_id < end_id) {
-                            worklist.push(commands[current_id]);
-                            current_id += commands[current_id]->num_descendants + 1;
-                        }
+                if (leaf) {
+                    // add command's direct children to worklist
+                    unsigned int current_id = command->id + 1;
+                    unsigned int end_id = current_id + command->num_descendants;
+                    while (current_id < end_id) {
+                        worklist.push(commands[current_id]);
+                        current_id += commands[current_id]->num_descendants + 1;
                     }
-                };
-                cluster_for_each(commands, cur_command, descend);
+                }
+            };
+            cluster_for_each(commands, cur_command, descend);
+            continue;
+        }
+
+        // Step 2: If all inputs to the subtree (not just the cluster) are ready (changed or
+        // unchanged), then run the command.
+        bool ready = true;
+        for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+            auto test_command = commands[command_index];
+            for (auto in : test_command->inputs) {
+                if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
+                    ready = false;
+                    break;
+                }
+            }
+            if (!ready) {
+                break;
             }
         }
+        if (ready) {
+            // if the command is ready to run and one of it's dependencies has changed,
+            // "rerun" it (print for now)
+            std::cout << cur_command->executable;
+            for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
+                std::cout << " " << cur_command->args[arg_index];
+            }
+            std::cout << std::endl;
+            // mark its outputs as changed
+            simulate_run(commands, cur_command);
+            continue;
+        }
+
+        // Step 3: Otherwise, this command is not ready. Try a different command.
+        worklist.push(cur_command);
     }
 
     Graph graph;
