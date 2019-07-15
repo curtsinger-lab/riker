@@ -22,21 +22,12 @@ void Command::add_input(File* f) {
     f->interactions.push_front(this);
     f->users.insert(this);
     this->inputs.insert(f);
-    // if this file is written by a writer lower on the tree than us, collapse 
-    /*if (f->writer != NULL) {
-    if (this->depth < f->writer->depth) {
-        std::set<Command*> conflict;
-        conflict.insert(f->writer);
-        this->collapse(&conflict);
-    }
-    }
-*/
 
     // if we've read from the file previously, check for a race
     if (f->is_pipe) {
         return;
     }
-    
+
     for (auto rd : this->rd_interactions) {
         if (f->filename.asPtr() == rd->filename.asPtr() && f->writer != this) {
             if (f->version == rd->version) {
@@ -107,40 +98,6 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
     command_list[start_index].setDescendants(index - start_index - 1);
     return index;
 }
-
-/*
-
-void Command::rerun_children(std::set<Command*>* to_rerun) {
-    (*to_rerun).insert(this);
-    for (auto o = this->outputs.begin(); o != this->outputs.end(); ++o) {
-        for (auto user = (*o)->users.begin(); user != (*o)->users.end(); ++user) {
-            (*user)->rerun_children(to_rerun);
-        }
-    }
-}
-
-// TODO propagate
-void Command::print_changes(std::vector<Blob>& changes, std::set<Command*>* to_rerun) {
-    for (unsigned int ch = 0; ch < changes.size(); ch++) {
-        //fprintf(stderr, "%.*s\n", (int)changes[ch].size(), changes[ch].asChars().begin());
-        //std::cerr << changes[ch] << "\n";
-        for (auto i : this->inputs) {
-            //fprintf(stderr, "%.*s\n", (int)i->filename.size(), i->filename.asChars().begin());
-            //std::cout << i->filename << " vs " << changes[ch] << "\n";
-            if (changes[ch].asPtr() == i->filename) {
-                this->rerun_children(to_rerun);
-                //for (auto o : this->outputs) {
-                 //   changes.push_back(o->filename);
-                //}
-            }
-        }
-    }
-    for (auto c : this->children) {
-        c->print_changes(changes, to_rerun);
-    }
-}
-
-*/
 
 // collapse the current command to the designated depth
 Command* Command::collapse_helper(unsigned int depth) {
@@ -469,7 +426,6 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     }
 }
 
-// TODO handle pipes
 void trace_state::add_pipe(Process* proc, int fds[2]) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     File* p = new File(true, Blob(), proc->command, this, NULL);
@@ -493,10 +449,6 @@ void trace_state::add_mmap(Process* proc, int fd) {
     //fprintf(stdout, "[%d] Mmap %d\n", proc->thread_id, fd);
     FileDescriptor& desc = proc->fds.find(fd)->second;
     File* f = this->latest_versions[desc.location_index];
-    // TODO: why is this useful?
-    //if (f->filename.find("/lib/")!=std::string::npos) {
-    //    return;
-    //}
     f->mmaps.insert(proc);
     proc->mmaps.insert(f);
     //std::cout << "MMAP ";
@@ -565,27 +517,3 @@ void trace_state::add_exit(Process* proc) {
         (*f)->mmaps.erase(proc);
     }
 }
-/*
-void trace_state::print_changes(std::vector<Blob>& changes) {
-    if (changes.size() == 0) {
-        return;
-    } 
-    std::cerr << "CHANGES\n";
-    std::set<Command*> to_rerun;
-    for (auto c : this->commands) {
-        c->print_changes(changes, &to_rerun);
-    }
-    for (auto r : to_rerun) {
-        flockfile(stderr);
-        fprintf(stderr,"%.*s", (int)r->cmd.size(), r->cmd.asChars().begin());
-        for (auto arg = ++r->args.begin(); arg != r->args.end(); ++arg) {
-            fprintf(stderr," %.*s", (int)(*arg).size(), (*arg).asChars().begin());
-        }
-        fprintf(stderr, "\n");
-        funlockfile(stderr);
-    }
-}
-
-*/
-
-
