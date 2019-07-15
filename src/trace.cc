@@ -27,13 +27,14 @@
 
 #include "util.h"
 #include "middle.h"
+#include "trace.h"
 #include "syscalls.h"
 
 // Launch a program via `sh -c`, fully set up with ptrace and seccomp
 // to be traced by the current process. launch_traced will return the
 // PID of the newly created process, which should be running (or at least
 // ready to be waited on) upon return.
-pid_t launch_traced(char const* script_line) {
+static pid_t launch_traced(char const* script_line) {
     // In terms of overall structure, this is a bog standard fork/exec spawning function.
     // We always launch the program with /bin/sh, similarly to `system`, which should
     // automatically handle resolving the correct instance of a program and supporting
@@ -208,7 +209,7 @@ enum stop_type {
     STOP_EXIT, // Do not resume when this is returned
 };
 
-pid_t wait_for_syscall(enum stop_type* type) {
+static pid_t wait_for_syscall(enum stop_type* type) {
     while (true) {
         int wstatus;
         pid_t child = wait(&wstatus);
@@ -250,7 +251,7 @@ pid_t wait_for_syscall(enum stop_type* type) {
     }
 }
 
-Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     kj::Vector<kj::byte> output;
 
     // Loop to fetch words at a time until we find a null byte
@@ -275,28 +276,13 @@ Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <shell command> [changed file]...\n", argv[0]);
-        return 1;
-    }
-    
-    auto state = std::make_unique<trace_state>();
-    char buf[FILENAME_MAX];
-    getcwd(buf, FILENAME_MAX);
-    state->starting_dir = kj::heapArray((kj::byte*) buf, ARRAY_COUNT(buf));
-    std::vector<Blob> changes;
-    for (int i = 2; i < argc; i++) {
-        changes.push_back(kj::heapArray((kj::byte*) argv[i], strlen(argv[i])));
-    }
-
-    pid_t pid = launch_traced(argv[1]);
-    Command* cmd = new Command(&*state, kj::heapArray((kj::byte*) argv[1], strlen(argv[1])), NULL, 0);
+void run_command(Command* cmd, char* exec_line) {
+    auto state = cmd->state;
+    pid_t pid = launch_traced(exec_line);
     Process* proc = new Process(pid, kj::heapArray(state->starting_dir.asPtr()), cmd);
 
     //proc->pid = pid;
     state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
-    state->commands.push_front(cmd);
 
     while (true) {
         enum stop_type stop_ty;
@@ -724,7 +710,4 @@ int main(int argc, char* argv[]) {
         }
         }
     }
-
-    state->serialize_graph();
-//    state->print_changes(changes);
 }
