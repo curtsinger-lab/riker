@@ -19,7 +19,6 @@ Command::Command(trace_state* state, Blob&& cmd, Command* parent, unsigned int d
 
 void Command::add_input(File* f) {
     // search through all files, do versioning
-    std::cout << "add in\n";
     f->interactions.push_front(this);
     f->users.insert(this);
     this->inputs.insert(f);
@@ -53,8 +52,6 @@ void Command::add_input(File* f) {
 }
 
 void Command::add_output(File* f, size_t file_location) {
-    
-    std::cout << "add out\n";
     // if we've written to the file before, check for a race
     if (!f->is_pipe) {
         for (auto wr : this->wr_interactions) {
