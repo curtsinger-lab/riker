@@ -362,6 +362,11 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
         case DEP_REMOVE:
             //fprintf(stdout, "remove");
             proc->command->deleted_files.insert(f);
+            f = f->make_version();
+            this->files.insert(f);
+            this->latest_versions[file_location] = f;
+            f->creator = nullptr;
+            f->writer = nullptr;
             break;
     }
     if (!file.follow_links) {
