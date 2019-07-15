@@ -230,6 +230,7 @@ int main(int argc, char* argv[]) {
         for (auto arg : cmd.getArgv()) {
             commands[cmd_id]->args.push_back(std::string((const char*) arg.begin(), arg.size()));
         }
+        commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
         cmd_id++;
     } 
 

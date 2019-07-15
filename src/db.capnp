@@ -27,6 +27,8 @@ struct Command {
 
   outOfDate @4 :Bool;
   # Whether we need to rerun this command if demanded.
+  collapseWithParent @5 :Bool;
+  # Whether we should instead run this command's parent if this needs to rerun
 }
 
 enum FileType {
