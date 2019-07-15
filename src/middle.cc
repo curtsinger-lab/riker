@@ -83,6 +83,7 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
     command_ids[command] = start_index;
     command_list[start_index].setExecutable(command->cmd);
     command_list[start_index].setOutOfDate(false);
+    command_list[start_index].setCollapseWithParent(command->collapse_with_parent);
     auto argv = command_list[start_index].initArgv(command->args.size());
     uint64_t argv_index = 0;
     for (auto arg = command->args.begin(); arg != command->args.end(); ++arg) {
@@ -103,22 +104,8 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
 Command* Command::collapse_helper(unsigned int depth) {
     Command* cur_command = this;
     while (cur_command->depth < depth) {
-        Command* parent = cur_command->parent;
-        for (auto ch : cur_command->children) {
-            parent->children.push_front(ch);
-        }
-        parent->children.remove(cur_command);
-        for (auto i : cur_command->inputs) {
-            parent->inputs.insert(i);
-        }
-        for (auto o : cur_command->outputs) {
-            parent->outputs.insert(o);
-        }
-        for (auto d : cur_command->deleted_files) {
-            parent->deleted_files.insert(d);
-        }
-        this->state->commands.remove(cur_command);
-        cur_command = parent;
+        cur_command->collapse_with_parent = true;
+        cur_command = cur_command->parent;
     }
     return cur_command;
 }

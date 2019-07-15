@@ -47,7 +47,7 @@ struct Command {
     std::list<Blob> args;
     Command* parent;
     unsigned int depth;
-    bool has_race;
+    bool collapse_with_parent;
 
     Command(trace_state* state, Blob&& args, Command* parent, unsigned int depth);
     void add_input(File* f);
