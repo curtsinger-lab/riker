@@ -567,8 +567,6 @@ int main(int argc, char* argv[]) {
             // This is the giant switch statement where we handle what every syscall means. Note
             // that we don't handle execve and execveat, since the actual processing there is done
             // on STOP_EXEC (i.e. PTRACE_EVENT_EXEC).
-            // Although this will in the future actually track file descriptor tables, we
-            // currently just log everything.
             switch (registers.SYSCALL_NUMBER) {
             ////// Fiddling with file descriptors //////
             case /* 3 */ __NR_close:
@@ -715,8 +713,7 @@ int main(int argc, char* argv[]) {
         }
         }
     }
-    
-    //TODO fix
+
     state->serialize_graph();
 //    state->print_changes(changes);
 }
