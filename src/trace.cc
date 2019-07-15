@@ -511,7 +511,10 @@ void run_command(Command* cmd, char* exec_line) {
 
             // Relaunch the child. After this point, we can no longer access the child's memory,
             // but we are allowed to do slightly more expensive things.
-            ptrace(PTRACE_CONT, child, nullptr, 0);
+            // FIXME: We previously continued here, but this broke instances where we
+            // needed a fingerprint. Contnuing at the end of the loop doesn't allow us to run
+            // in parallel, so we want to continue as soon as possible. Therefore, once we have
+            // any fingerprints we need, call continue immediately.
 
             // Handle fake-relative syscalls by ignoring the fd when the path is absolute
             if (main_file.path != nullptr && main_file.path[0] == '/') {
@@ -558,6 +561,7 @@ void run_command(Command* cmd, char* exec_line) {
                 main_file.fd == AT_FDCWD &&
                 main_file.path.size() >= 11 &&
                 main_file.path.slice(0, 11).asChars().asConst() == kj::arrayPtr("/proc/self/", 11)) {
+                ptrace(PTRACE_CONT, child, nullptr, 0);
                 continue;
             }
 
@@ -706,6 +710,8 @@ void run_command(Command* cmd, char* exec_line) {
                 break;
             }
 
+            // FIXME: See FIXME above about why this ought to be earlier in the loop
+            ptrace(PTRACE_CONT, child, nullptr, 0);
             break;
         }
         }
