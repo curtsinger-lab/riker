@@ -564,6 +564,17 @@ int main(int argc, char* argv[]) {
                 break;
             }
 
+            // If this syscall only deals with something in /proc/self, then assume that it is messing with
+            // process-internal state and we can safely ignore it.
+            // FIXME: There are paths through /proc/self that lead out of procfs, such as
+            // referencing a something in a directory linked by /proc/self (i.e. /proc/self/fd/10/foo/bar)
+            if (!main_file.follow_links &&
+                main_file.fd == AT_FDCWD &&
+                main_file.path.size() >= 11 &&
+                main_file.path.slice(0, 11).asChars().asConst() == kj::arrayPtr("/proc/self/", 11)) {
+                continue;
+            }
+
             // This is the giant switch statement where we handle what every syscall means. Note
             // that we don't handle execve and execveat, since the actual processing there is done
             // on STOP_EXEC (i.e. PTRACE_EVENT_EXEC).
