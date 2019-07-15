@@ -13,7 +13,7 @@
 #include "db.capnp.h"
 
 typedef kj::Array<kj::byte> Blob;
-typedef kj::ArrayPtr<kj::byte> BlobPtr;
+typedef kj::ArrayPtr<const kj::byte> BlobPtr;
 
 enum dependency_type {
    DEP_READ,
@@ -59,8 +59,6 @@ struct Command {
 
 
 struct File {
-    bool is_pipe;
-    Blob filename; // Only relevant if not a pipe
     capnp::Orphan<db::File> serialized;
     std::set<Command*> users;
     std::set<Process*> mmaps;
@@ -73,7 +71,7 @@ struct File {
     int id;
     unsigned int version;
 
-    File(bool is_pipe, Blob&& path, Command* creator, trace_state* state, File* prev_version);
+    File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version);
     std::set<Command*> collapse(unsigned int depth);
     bool can_depend(Command* cmd);
     File* make_version(void);
