@@ -376,7 +376,7 @@ int main(int argc, char* argv[]) {
 
     for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
         if (commands[command_id]->collapse_with_parent) {
-            std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
+            //std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
             continue;
         }
 
@@ -403,14 +403,14 @@ int main(int argc, char* argv[]) {
             }
         };
         cluster_for_each(commands, commands[command_id], tally_non_cached_outputs);
-        std::cerr << "Found need for " << antidemands_needed << " antidemands." << std::endl;
+        //std::cerr << "Found need for " << antidemands_needed << " antidemands." << std::endl;
 
         commands[command_id]->output_antidemands_left = antidemands_needed;
     }
 
     for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
         if (!files[file_id]->is_cached && files[file_id]->writer_id != std::numeric_limits<size_t>::max() && files[file_id]->reader_antidemands_left == 0) {
-            std::cerr << files[file_id]->path << " has no need for reader antidemands." << std::endl;
+            //std::cerr << files[file_id]->path << " has no need for reader antidemands." << std::endl;
             files[file_id]->propagated = true;
             commands[files[file_id]->writer_id]->cluster_root->output_antidemands_left -= 1;
         }
@@ -425,7 +425,7 @@ int main(int argc, char* argv[]) {
                 // If we won't make this decision later (because a writer exists), rerun
                 // the readers.
                 for (auto reader : files[file_id]->readers) {
-                    std::cerr << "  Demanding " << reader->executable << " due to dependency on changed " << files[file_id]->path << std::endl;
+                    //std::cerr << "  Demanding " << reader->executable << " due to dependency on changed " << files[file_id]->path << std::endl;
                     propagate_command_demand(commands, reader, true);
                 }
             }
@@ -441,18 +441,18 @@ int main(int argc, char* argv[]) {
         // take command off list to run/check
         db_command* cur_command = worklist.front();
         worklist.pop();
-        std::cerr << "Testing " << cur_command->executable << std::endl;
+        //std::cerr << "Testing " << cur_command->executable << std::endl;
 
         // Step 1: If demanded, check if all inputs to the subtree are ready, then run
         // the command if so.
         if (cur_command->demanded) {
-            std::cerr << "  Demanded." << std::endl;
+            //std::cerr << "  Demanded." << std::endl;
             bool ready = true;
             for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
                 auto test_command = commands[command_index];
                 for (auto in : test_command->inputs) {
                     if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
-                        std::cerr << "  " << in->path << " is not ready." << std::endl;
+                        //std::cerr << "  " << in->path << " is not ready." << std::endl;
                         ready = false;
                         break;
                     }
@@ -463,7 +463,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (ready) {
-                std::cerr << "  Ready." << std::endl;
+                //std::cerr << "  Ready." << std::endl;
                 // if the command is ready to run and one of it's dependencies has changed, rerun it
                 std::cout << cur_command->executable;
                 for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
@@ -507,7 +507,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
             } else {
-                std::cerr << "  Not ready." << std::endl;
+                //std::cerr << "  Not ready." << std::endl;
                 worklist.push(cur_command);
             }
         } else {
@@ -518,7 +518,7 @@ int main(int argc, char* argv[]) {
                 auto check_inputs = [&](db_command* command, bool leaf) {
                     for (auto in : command->inputs) {
                         if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
-                            std::cerr << "  " << in->path << " is not ready." << std::endl;
+                            //std::cerr << "  " << in->path << " is not ready." << std::endl;
                             ready = false;
                             break;
                         }
@@ -528,7 +528,7 @@ int main(int argc, char* argv[]) {
             }
             if (ready) {
                 // Step 2: If not demanded, descend if ready.
-                std::cerr << "  Descending." << std::endl;
+                //std::cerr << "  Descending." << std::endl;
                 auto descend = [&](db_command* command, bool leaf) {
                     // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
                     for (auto out : command->outputs) {
@@ -548,7 +548,7 @@ int main(int argc, char* argv[]) {
                 cluster_for_each(commands, cur_command, descend);
             } else {
                 // Step 3: Otherwise, this command is not ready. Try a different command.
-                std::cerr << "  Not ready (antidemands left = " << cur_command->output_antidemands_left << ")." << std::endl;
+                //std::cerr << "  Not ready (antidemands left = " << cur_command->output_antidemands_left << ")." << std::endl;
                 worklist.push(cur_command);
             }
         }
