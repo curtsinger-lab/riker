@@ -181,6 +181,7 @@ bool File::can_depend(Command* cmd) {
 File* File::make_version(void) {
     // We are at the end of the current version, so snapshot with a fingerprint
     set_fingerprint(this->serialized.get(), true);
+    this->serialized.get().setLatestVersion(false);
 
     File* f = new File(
         this->serialized.getReader().getType() == db::FileType::PIPE,
@@ -232,6 +233,7 @@ void trace_state::serialize_graph(void) {
     // but we need to fingerprint the latest versions
     for (size_t location = 0; location < this->latest_versions.size(); location++) {
         set_fingerprint(this->latest_versions[location]->serialized.get(), !this->latest_versions[location]->users.empty());
+        this->latest_versions[location]->serialized.get().setLatestVersion(true);
     }
 
     // Serialize files

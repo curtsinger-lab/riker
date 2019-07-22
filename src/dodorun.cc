@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <spawn.h>
 
+#include <limits>
 #include <list>
 #include <vector>
 #include <set>
@@ -27,11 +28,15 @@ struct db_command;
 struct db_file {
     size_t id;
     bool is_pipe;
+    bool is_cached;
     size_t writer_id;
+    std::set<db_command*> readers;
+    size_t reader_antidemands_left;
+    bool propagated;
     std::string path;
     int status;
 
-    db_file(unsigned int id, bool is_pipe, std::string path, int status) : id(id), is_pipe(is_pipe), path(path), status(status) {}
+    db_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), propagated(false), path(path), status(status) {}
     bool is_local(void) {
         if (path.find("/usr/") != std::string::npos ||
                 path.find("/lib/") != std::string::npos ||
@@ -42,11 +47,11 @@ struct db_file {
         } else {
             return true;
         }
-    } 
+    }
 };
 
 //TODO setup arguments
-struct db_command { 
+struct db_command {
     size_t id;
     size_t num_descendants;
     std::string executable;
@@ -55,10 +60,14 @@ struct db_command {
     std::set<db_file*> outputs;
     std::set<db_file*> creations;
     std::set<db_file*> deletions;
+    size_t output_antidemands_left;
+    bool propagated;
+    bool demanded;
     bool rerun;
     bool collapse_with_parent;
+    db_command* cluster_root;
 
-    db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable), rerun(false), collapse_with_parent(false) {}
+    db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable), propagated(false), demanded(false), rerun(false), collapse_with_parent(false) {}
 };
 
 static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
@@ -157,11 +166,60 @@ static void cluster_for_each(db_command* commands[], db_command* parent, callbac
     callback(parent, leaf);
 }
 
+static void propagate_file_demand(db_command* commands[], db_file* file, bool demanded);
+static void propagate_command_demand(db_command* commands[], db_command* command, bool demanded) {
+    // Go to the root of the cluster
+    command = command->cluster_root;
+
+    if (!command->demanded && (!command->propagated || demanded)) { // Only propagate once
+        command->demanded = demanded;
+
+        auto propagate = [&](db_command* cluster_elem, bool leaf) {
+            // Propagate to all temp file inputs
+            for (auto in : cluster_elem->inputs) {
+                if (!demanded) {
+                    in->reader_antidemands_left -= 1;
+                }
+                propagate_file_demand(commands, in, demanded);
+            }
+
+            if (demanded && leaf) {
+                // If we are demanding a command, also demand its children
+                size_t current_id = command->id + 1;
+                size_t end_id = current_id + command->num_descendants;
+                while (current_id < end_id) {
+                    propagate_command_demand(commands, commands[current_id], demanded);
+                    current_id += commands[current_id]->num_descendants + 1;
+                }
+            }
+        };
+        if (demanded || command->output_antidemands_left == 0) {
+            command->propagated = true;
+            cluster_for_each(commands, command, propagate);
+        }
+    }
+}
+
+static void propagate_file_demand(db_command* commands[], db_file* file, bool demanded) {
+    if ((!file->propagated || demanded) && !file->is_cached && file->writer_id != std::numeric_limits<size_t>::max()) {
+        if (demanded || file->reader_antidemands_left == 0) {
+            file->propagated = true;
+            if (!demanded) {
+                commands[file->writer_id]->output_antidemands_left -= 1;
+            }
+            propagate_command_demand(commands, commands[file->writer_id], demanded);
+        }
+    }
+}
+
 // Simulate the running of a command by marking all of the outputs of all descendants of a command as changed
 static void simulate_run(db_command* commands[], db_command* cur_command) {
     cur_command->rerun = true;
     for (auto out : cur_command->outputs) {
         out->status = CHANGED;
+        for (auto reader : out->readers) {
+            propagate_command_demand(commands, reader, true);
+        }
     }
 
     // Running a command runs its children
@@ -204,36 +262,38 @@ int main(int argc, char* argv[]) {
     db_file* files[db_graph.getFiles().size()];
     unsigned int file_id = 0;
     for (auto file : db_graph.getFiles()) {
-        int flag = UNCHANGED;
+        int flag = UNKNOWN;
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
         bool is_pipe = (file.getType() == db::FileType::PIPE);
-        // If the fingerprint has changed, mark it so
-        if (is_pipe) {
-            flag = UNKNOWN;
-        } else if (use_fingerprints && !match_fingerprint(file)) {
-            std::cerr << "Noted change in " << path << std::endl;
-            flag = CHANGED;
-        }
         // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
         // whatever the user specified
-        int explicit_flag = CHANGED;
-        for (int i = 1; i < argc; i++) {
-            if ("--changed" == std::string(argv[i])) {
-                explicit_flag = CHANGED;
-            } else if ("--unchanged" == std::string(argv[i])) {
-                explicit_flag = UNCHANGED;
-            } else if (path == std::string(argv[i])) {
-                flag = explicit_flag;
+        if (!is_pipe && file.getLatestVersion()) {
+            if (use_fingerprints) {
+                flag = match_fingerprint(file) ? UNCHANGED : CHANGED;
+            } else {
+                flag = UNCHANGED;
+            }
+
+            int explicit_flag = CHANGED;
+            for (int i = 1; i < argc; i++) {
+                if ("--changed" == std::string(argv[i])) {
+                    explicit_flag = CHANGED;
+                } else if ("--unchanged" == std::string(argv[i])) {
+                    explicit_flag = UNCHANGED;
+                } else if (path == std::string(argv[i])) {
+                    flag = explicit_flag;
+                }
             }
         }
-        files[file_id] = new db_file(file_id, is_pipe, path, flag);
+        bool is_cached = file.getLatestVersion() && !is_pipe;
+        files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
         file_id++;
     }
 
     // initialize array of commands
     db_command* commands[db_graph.getCommands().size()];
     unsigned int cmd_id = 0;
-    for (auto cmd : db_graph.getCommands()) { 
+    for (auto cmd : db_graph.getCommands()) {
         auto executable = std::string((const char*) cmd.getExecutable().begin(), cmd.getExecutable().size());
         commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable);
         for (auto arg : cmd.getArgv()) {
@@ -241,10 +301,11 @@ int main(int argc, char* argv[]) {
         }
         commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
         cmd_id++;
-    } 
+    }
 
     // Add the dependencies
     for (auto dep : db_graph.getInputs()) {
+        files[dep.getFileID()]->readers.insert(commands[dep.getCommandID()]);
         commands[dep.getCommandID()]->inputs.insert(files[dep.getFileID()]);
     }
     for (auto dep : db_graph.getOutputs()) {
@@ -309,6 +370,68 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
+        files[file_id]->reader_antidemands_left = files[file_id]->readers.size();
+    }
+
+    for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+        if (commands[command_id]->collapse_with_parent) {
+            std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
+            continue;
+        }
+
+        // Map each command to its cluster root
+        auto set_cluster_root = [&](db_command* cluster_member, bool leaf) {
+            cluster_member->cluster_root = commands[command_id];
+        };
+        cluster_for_each(commands, commands[command_id], set_cluster_root);
+
+        // count antidemands needed to declare a command safe to
+        // descend (total non-cached cluster outputs)
+        size_t antidemands_needed = 0;
+        auto tally_non_cached_outputs = [&](db_command* cluster_member, bool leaf) {
+            for (auto out : cluster_member->outputs) {
+                if (!out->is_cached) {
+                    antidemands_needed += 1;
+                }
+            }
+            // Ignore in-cluster edges
+            for (auto in : cluster_member->inputs) {
+                if (!in->is_cached && command_id <= in->writer_id && in->writer_id <= command_id + commands[command_id]->num_descendants) {
+                    in->reader_antidemands_left -= 1;
+                }
+            }
+        };
+        cluster_for_each(commands, commands[command_id], tally_non_cached_outputs);
+        std::cerr << "Found need for " << antidemands_needed << " antidemands." << std::endl;
+
+        commands[command_id]->output_antidemands_left = antidemands_needed;
+    }
+
+    for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
+        if (!files[file_id]->is_cached && files[file_id]->writer_id != std::numeric_limits<size_t>::max() && files[file_id]->reader_antidemands_left == 0) {
+            std::cerr << files[file_id]->path << " has no need for reader antidemands." << std::endl;
+            files[file_id]->propagated = true;
+            commands[files[file_id]->writer_id]->cluster_root->output_antidemands_left -= 1;
+        }
+    }
+
+    // initialize demands
+    for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
+        if (files[file_id]->status == CHANGED) {
+            // If this is not cached and generated by the build, rebuild it
+            propagate_file_demand(commands, files[file_id], true);
+            if (files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+                // If we won't make this decision later (because a writer exists), rerun
+                // the readers.
+                for (auto reader : files[file_id]->readers) {
+                    std::cerr << "  Demanding " << reader->executable << " due to dependency on changed " << files[file_id]->path << std::endl;
+                    propagate_command_demand(commands, reader, true);
+                }
+            }
+        }
+    }
+
     // initialize worklist to commands root 
     //TODO multiple roots 
     std::queue<db_command*> worklist;
@@ -318,112 +441,117 @@ int main(int argc, char* argv[]) {
         // take command off list to run/check
         db_command* cur_command = worklist.front();
         worklist.pop();
+        std::cerr << "Testing " << cur_command->executable << std::endl;
 
-        // Step 1: If all inputs to the cluster are unchanged, then mark the outputs of
-        // the cluster as unchanged and descend to the children.
-        bool can_descend = true;
-        auto check_inputs = [&](db_command* command, bool leaf) {
-            for (auto in : command->inputs) {
-                if (in->status == CHANGED) {
-                    can_descend = false;
-                } else if (in->status == UNKNOWN) {
-                    // If this dependency is from another member of our cluster, then it
-                    // will be handled by running the cluster, so ignore it. We can test for this
-                    // by noting that if the dependency is written by a descendant of the current
-                    // command, then it must be in the current cluster as upward dependencies cause
-                    // collapse.
-                    if (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants) {
-                        can_descend = false;
+        // Step 1: If demanded, check if all inputs to the subtree are ready, then run
+        // the command if so.
+        if (cur_command->demanded) {
+            std::cerr << "  Demanded." << std::endl;
+            bool ready = true;
+            for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+                auto test_command = commands[command_index];
+                for (auto in : test_command->inputs) {
+                    if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
+                        std::cerr << "  " << in->path << " is not ready." << std::endl;
+                        ready = false;
+                        break;
                     }
                 }
-            }
-        };
-        cluster_for_each(commands, cur_command, check_inputs);
-        if (can_descend) {
-            auto descend = [&](db_command* command, bool leaf) {
-                // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
-                for (auto out : command->outputs) {
-                    if (out->status == UNKNOWN) {
-                        out->status = UNCHANGED;
-                    }
-                }
-
-                if (leaf) {
-                    // add command's direct children to worklist
-                    unsigned int current_id = command->id + 1;
-                    unsigned int end_id = current_id + command->num_descendants;
-                    while (current_id < end_id) {
-                        worklist.push(commands[current_id]);
-                        current_id += commands[current_id]->num_descendants + 1;
-                    }
-                }
-            };
-            cluster_for_each(commands, cur_command, descend);
-            continue;
-        }
-
-        // Step 2: If all inputs to the subtree (not just the cluster) are ready (changed or
-        // unchanged), then run the command.
-        bool ready = true;
-        for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
-            auto test_command = commands[command_index];
-            for (auto in : test_command->inputs) {
-                if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
-                    ready = false;
+                if (!ready) {
                     break;
                 }
             }
-            if (!ready) {
-                break;
-            }
-        }
-        if (ready) {
-            // if the command is ready to run and one of it's dependencies has changed, rerun it
-            std::cout << cur_command->executable;
-            for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
-                std::cout << " " << cur_command->args[arg_index];
-            }
-            std::cout << std::endl;
-            if (dry_run) {
-                // mark its outputs as changed
-                simulate_run(commands, cur_command);
-            } else {
-                // Spawn the child
-                pid_t child_pid;
-                char* child_argv[cur_command->args.size() + 1];
-                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
-                    child_argv[arg_index] = strdup(cur_command->args[arg_index].c_str());
-                }
-                child_argv[cur_command->args.size()] = nullptr;
-                posix_spawn(&child_pid, cur_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
-                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
-                    free(child_argv[arg_index]);
-                }
 
-                // Wait for completion
-                // TODO: Consider detecting errors?
-                waitpid(child_pid, nullptr, 0);
+            if (ready) {
+                std::cerr << "  Ready." << std::endl;
+                // if the command is ready to run and one of it's dependencies has changed, rerun it
+                std::cout << cur_command->executable;
+                for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
+                    std::cout << " " << cur_command->args[arg_index];
+                }
+                std::cout << std::endl;
+                if (dry_run) {
+                    // mark its outputs as changed
+                    simulate_run(commands, cur_command);
+                } else {
+                    // Spawn the child
+                    pid_t child_pid;
+                    char* child_argv[cur_command->args.size() + 1];
+                    for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
+                        child_argv[arg_index] = strdup(cur_command->args[arg_index].c_str());
+                    }
+                    child_argv[cur_command->args.size()] = nullptr;
+                    posix_spawn(&child_pid, cur_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
+                    for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
+                        free(child_argv[arg_index]);
+                    }
 
-                // Mark all outputs appropriately
-                for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
-                    auto finished_command = commands[command_index];
-                    finished_command->rerun = true;
-                    for (auto out : finished_command->outputs) {
-                        if (out->status == UNKNOWN) {
+                    // Wait for completion
+                    // TODO: Consider detecting errors?
+                    waitpid(child_pid, nullptr, 0);
+
+                    // Mark all outputs appropriately
+                    for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+                        auto finished_command = commands[command_index];
+                        finished_command->rerun = true;
+                        for (auto out : finished_command->outputs) {
                             if (use_fingerprints && match_fingerprint(db_graph.getFiles()[out->id])) {
                                 out->status = UNCHANGED;
                             } else {
                                 out->status = CHANGED;
+                                for (auto reader : out->readers) {
+                                    propagate_command_demand(commands, reader, true);
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                std::cerr << "  Not ready." << std::endl;
+                worklist.push(cur_command);
             }
-            continue;
-        }
+        } else {
+            bool ready = (cur_command->output_antidemands_left == 0);
+            if (ready) {
+                propagate_command_demand(commands, cur_command, false);
 
-        // Step 3: Otherwise, this command is not ready. Try a different command.
-        worklist.push(cur_command);
+                auto check_inputs = [&](db_command* command, bool leaf) {
+                    for (auto in : command->inputs) {
+                        if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
+                            std::cerr << "  " << in->path << " is not ready." << std::endl;
+                            ready = false;
+                            break;
+                        }
+                    }
+                };
+                cluster_for_each(commands, cur_command, check_inputs);
+            }
+            if (ready) {
+                // Step 2: If not demanded, descend if ready.
+                std::cerr << "  Descending." << std::endl;
+                auto descend = [&](db_command* command, bool leaf) {
+                    // if all inputs are unchanged, mark outputs as unchanged (unless they are explicitly marked as changed in the dryrun)
+                    for (auto out : command->outputs) {
+                        out->status = UNCHANGED;
+                    }
+
+                    if (leaf) {
+                        // add command's direct children to worklist
+                        unsigned int current_id = command->id + 1;
+                        unsigned int end_id = current_id + command->num_descendants;
+                        while (current_id < end_id) {
+                            worklist.push(commands[current_id]);
+                            current_id += commands[current_id]->num_descendants + 1;
+                        }
+                    }
+                };
+                cluster_for_each(commands, cur_command, descend);
+            } else {
+                // Step 3: Otherwise, this command is not ready. Try a different command.
+                std::cerr << "  Not ready (antidemands left = " << cur_command->output_antidemands_left << ")." << std::endl;
+                worklist.push(cur_command);
+            }
+        }
     }
 
     Graph graph;
