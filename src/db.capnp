@@ -56,6 +56,8 @@ struct File {
   modificationTime @4 :Timespec;
   inode @5 :UInt64;
   checksum @6 :Data;
+
+  latestVersion @7 :Bool;
 }
 
 struct Dependency {
