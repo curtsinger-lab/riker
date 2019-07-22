@@ -242,7 +242,7 @@ void trace_state::serialize_graph(void) {
     uint64_t create_count = 0;
     for (auto file : this->files) {
         // We only care about files that are either written or read so filter those out.
-        if (!file->users.empty() || file->writer != nullptr) {
+        if (!file->users.empty() || file->writer != nullptr || file->creator != nullptr) {
             file_ids[file] = file_count;
             input_count += file->users.size();
             output_count += (file->writer != nullptr);
@@ -352,12 +352,12 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             break;
         case DEP_CREATE:
             //fprintf(stdout, "create");
-            // create edge
-            f = f->make_version();
-            this->files.insert(f);
-            this->latest_versions[file_location] = f;
-            f->creator = proc->command;
-            f->writer = nullptr;
+            // Creation means creation if the file does not already exist. TODO: should
+            // we just stat instead? Should we have multiple creators? This isn't quite
+            // correct for the first version of something that already exists.
+            if (f->creator == nullptr && f->writer == nullptr) {
+                f->creator = proc->command;
+            }
             break;
         case DEP_REMOVE:
             //fprintf(stdout, "remove");
