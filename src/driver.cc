@@ -30,7 +30,8 @@ int main(int argc, char* argv[]) {
     root_cmd->args.push_back(kj::heapArray((const kj::byte*) argv[1], strlen(argv[1])));
     state->commands.push_front(root_cmd);
 
-    run_command(root_cmd);
+    // TODO: set up stdio for logging?
+    run_command(root_cmd, kj::ArrayPtr<InitialFdEntry const>());
 
     state->serialize_graph();
 }

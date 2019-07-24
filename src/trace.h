@@ -2,4 +2,9 @@
 
 #include "middle.h"
 
-void run_command(Command* cmd);
+struct InitialFdEntry {
+    int parent_fd;
+    int child_fd;
+};
+
+void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);
