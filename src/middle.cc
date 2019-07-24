@@ -338,7 +338,21 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
         //fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
         if (proc->fds.find(file.fd) == proc->fds.end()) {
             // TODO: Use a proper placeholder and stop fiddling with string manipulation
-            std::string path_str = "file not found, fd: " + std::to_string(file.fd);
+            std::string path_str;
+            switch (file.fd) { // This is a temporary hack until we handle pipes well
+            case 0:
+                path_str = "<<stdin>>";
+                break;
+            case 1:
+                path_str = "<<stdout>>";
+                break;
+            case 2:
+                path_str = "<<stderr>>";
+                break;
+            default:
+                path_str = "file not found, fd: " + std::to_string(file.fd);
+                break;
+            }
             Blob path_buf = kj::heapArray((const kj::byte*) path_str.data(), path_str.size());
             file_location = this->find_file(path_buf.asPtr());
         } else {
