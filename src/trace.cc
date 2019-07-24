@@ -34,7 +34,7 @@
 // to be traced by the current process. launch_traced will return the
 // PID of the newly created process, which should be running (or at least
 // ready to be waited on) upon return.
-static pid_t launch_traced(char const* exec_path, char* const argv[]) {
+static pid_t launch_traced(char const* exec_path, char* const argv[], kj::ArrayPtr<InitialFdEntry const> initial_fds) {
     // In terms of overall structure, this is a bog standard fork/exec spawning function.
     // We always launch the program with /bin/sh, similarly to `system`, which should
     // automatically handle resolving the correct instance of a program and supporting
@@ -52,12 +52,22 @@ static pid_t launch_traced(char const* exec_path, char* const argv[]) {
     } else if (child_pid == 0) {
         // This is the child
 
+        // Set up FDs as requested. We assume that all parent FDs are marked CLOEXEC if
+        // necessary and that there are no ordering constraints on duping (e.g. if the
+        // child fd for one entry matches the parent fd of another).
+        for (size_t fd_index = 0; fd_index < initial_fds.size(); fd_index++) {
+            if (dup2(initial_fds[fd_index].parent_fd, initial_fds[fd_index].child_fd) != initial_fds[fd_index].child_fd) {
+                perror("Failed to initialize FDs");
+                // It is generally better to exit directly within a forked child so that we
+                // don't duplicate atexit effects. (This would be strictly required if we used
+                // vfork.)
+                _exit(2);
+            }
+        }
+
         // Allow ourselves to be traced by our parent
         if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) {
             perror("Failed to start tracing");
-            // It is generally better to exit directly within a forked child so that we
-            // don't duplicate atexit effects. (This would be strictly required if we used
-            // vfork.)
             _exit(2);
         }
 
@@ -276,7 +286,7 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-void run_command(Command* cmd) {
+void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
     std::string exec_path = std::string(cmd->cmd.asPtr().asChars().begin(), cmd->cmd.asPtr().size());
     std::vector<char*> exec_argv;
     for (auto arg = cmd->args.begin(); arg != cmd->args.end(); ++arg) {
@@ -286,7 +296,7 @@ void run_command(Command* cmd) {
        exec_argv.push_back(c_arg);
     }
     exec_argv.push_back(nullptr);
-    pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data());
+    pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
     for (auto arg : exec_argv) {
         delete arg;
     }
