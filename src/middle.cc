@@ -63,14 +63,20 @@ void Command::add_output(File* f, size_t file_location) {
         }
     }
 
-    // if we haven't written to this file before, create a new version
     f->interactions.push_front(this);
-    File* fnew = f->make_version();
+    // if we haven't written to this file before, create a new version
+    File* fnew;
+    if (f->creator != nullptr && f->writer == nullptr) {
+        // Unless we just created it, in which case it is pristine
+        fnew = f;
+    } else {
+        fnew = f->make_version();
+        this->state->files.insert(fnew);
+        this->state->latest_versions[file_location] = fnew;
+    }
     fnew->writer = this;
     this->outputs.insert(fnew);
     this->wr_interactions.insert(fnew);
-    this->state->files.insert(fnew);
-    this->state->latest_versions[file_location] = fnew;
 }
 
 uint64_t Command::descendants(void) {
