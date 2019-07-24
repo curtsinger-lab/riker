@@ -252,7 +252,7 @@ void trace_state::serialize_graph(void) {
     uint64_t create_count = 0;
     for (auto file : this->files) {
         // We only care about files that are either written or read so filter those out.
-        if (!file->users.empty() || file->writer != nullptr || file->creator != nullptr) {
+        if (!file->users.empty() || file->writer != nullptr || (file->creator != nullptr && file->serialized.getReader().getLatestVersion())) {
             file_ids[file] = file_count;
             input_count += file->users.size();
             output_count += (file->writer != nullptr);

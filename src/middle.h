@@ -68,7 +68,6 @@ struct File {
     Command* writer;
     trace_state* state;
     File* prev_version;
-    int id;
     unsigned int version;
     bool known_removed;
 
