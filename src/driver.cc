@@ -24,7 +24,10 @@ int main(int argc, char* argv[]) {
     }
     state->starting_dir = cwd.releaseAsArray();
 
-    auto root_cmd = new Command(&*state, kj::heapArray((kj::byte*) argv[1], strlen(argv[1])), nullptr, 0);
+    auto root_cmd = new Command(&*state, kj::heapArray((const kj::byte*) "/bin/sh", 7), nullptr, 0);
+    root_cmd->args.push_back(kj::heapArray((const kj::byte*) "sh", 2));
+    root_cmd->args.push_back(kj::heapArray((const kj::byte*) "-c", 2));
+    root_cmd->args.push_back(kj::heapArray((const kj::byte*) argv[1], strlen(argv[1])));
     state->commands.push_front(root_cmd);
 
     run_command(root_cmd, argv[1]);
