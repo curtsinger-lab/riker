@@ -648,6 +648,7 @@ void run_command(Command* cmd, char* exec_line) {
             case /* 316 */ __NR_renameat2: // TODO: Handle the flags
                 state->add_dependency(proc, main_file, DEP_READ);
                 state->add_dependency(proc, main_file, DEP_REMOVE);
+                state->add_dependency(proc, extra_file, DEP_REMOVE);
                 state->add_dependency(proc, extra_file, DEP_CREATE);
                 state->add_dependency(proc, extra_file, DEP_MODIFY);
                 break;

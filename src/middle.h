@@ -70,6 +70,7 @@ struct File {
     File* prev_version;
     int id;
     unsigned int version;
+    bool known_removed;
 
     File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version);
     std::set<Command*> collapse(unsigned int depth);
