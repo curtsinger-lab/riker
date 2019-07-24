@@ -2,4 +2,4 @@
 
 #include "middle.h"
 
-void run_command(Command* cmd, char* exec_line);
+void run_command(Command* cmd);

@@ -34,7 +34,7 @@
 // to be traced by the current process. launch_traced will return the
 // PID of the newly created process, which should be running (or at least
 // ready to be waited on) upon return.
-static pid_t launch_traced(char const* script_line) {
+static pid_t launch_traced(char const* exec_path, char* const argv[]) {
     // In terms of overall structure, this is a bog standard fork/exec spawning function.
     // We always launch the program with /bin/sh, similarly to `system`, which should
     // automatically handle resolving the correct instance of a program and supporting
@@ -153,7 +153,7 @@ static pid_t launch_traced(char const* script_line) {
         raise(SIGSTOP);
 
         // TODO: explicitly handle the environment
-        execl("/bin/sh", "sh", "-c", script_line, nullptr);
+        execv(exec_path, argv);
 
         // If we reach here, we failed to exec
         perror("Executing shell");
@@ -276,9 +276,22 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-void run_command(Command* cmd, char* exec_line) {
+void run_command(Command* cmd) {
+    std::string exec_path = std::string(cmd->cmd.asPtr().asChars().begin(), cmd->cmd.asPtr().size());
+    std::vector<char*> exec_argv;
+    for (auto arg = cmd->args.begin(); arg != cmd->args.end(); ++arg) {
+       char* c_arg = new char[arg->asPtr().size() + 1];
+       memcpy(c_arg, arg->asPtr().begin(), arg->asPtr().size());
+       c_arg[arg->asPtr().size()] = '\0';
+       exec_argv.push_back(c_arg);
+    }
+    exec_argv.push_back(nullptr);
+    pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data());
+    for (auto arg : exec_argv) {
+        delete arg;
+    }
+
     auto state = cmd->state;
-    pid_t pid = launch_traced(exec_line);
     Process* proc = new Process(pid, kj::heapArray(state->starting_dir.asPtr()), cmd);
 
     //proc->pid = pid;
