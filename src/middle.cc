@@ -149,7 +149,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version) : serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0) {
+File::File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version) : serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0), known_removed(false) {
     // TODO: consider using orphans to avoid copying
     if (is_pipe) {
         this->serialized.get().setType(db::FileType::PIPE);
@@ -365,7 +365,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             // Creation means creation only if the file does not already exist.
             if (f->creator == nullptr && f->writer == nullptr) {
                 bool file_exists;
-                if (f->serialized.getReader().getType() == db::FileType::PIPE) {
+                if (f->known_removed || f->serialized.getReader().getType() == db::FileType::PIPE) {
                     file_exists = false;
                 } else {
                     struct stat stat_info;
@@ -386,6 +386,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             this->latest_versions[file_location] = f;
             f->creator = nullptr;
             f->writer = nullptr;
+            f->known_removed = true;
             break;
     }
     if (!file.follow_links) {
