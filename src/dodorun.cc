@@ -383,6 +383,10 @@ int main(int argc, char* argv[]) {
         bool is_cached = file.getLatestVersion() && !is_pipe;
         files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
         file_id++;
+
+        if (flag == CHANGED) {
+            std::cerr << path << " is changed" << std::endl;
+        }
     }
 
     // initialize array of commands
@@ -406,9 +410,7 @@ int main(int argc, char* argv[]) {
     for (auto dep : db_graph.getOutputs()) {
         db_file* file = files[dep.getFileID()];
         file->writer_id = dep.getCommandID();
-        // if the file is an output of a command, mark it's status as unknown (until the command is run/simulated)
-        files[dep.getFileID()]->status = UNKNOWN;
-         commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
+        commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
     }
     //TODO what does the run do with removals?
     for (auto dep : db_graph.getRemovals()) {
@@ -546,8 +548,14 @@ int main(int argc, char* argv[]) {
     descend_to_worklist.push(commands[0]);
     for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
         if (files[file_id]->status == CHANGED) {
-            for (auto reader : files[file_id]->readers) {
-                propagate_rerun_worklist.push(reader);
+            if (files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+                for (auto reader : files[file_id]->readers) {
+                    propagate_rerun_worklist.push(reader);
+                }
+            } else {
+                // Rerun the commands that produce changed files
+                propagate_rerun_worklist.push(commands[files[file_id]->writer_id]);
+                files[file_id]->status = UNKNOWN;
             }
         } else if (files[file_id]->status == UNCHANGED) {
             for (auto reader : files[file_id]->readers) {
