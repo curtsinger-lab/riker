@@ -16,11 +16,13 @@ struct Command {
   executable @1 :Data;
   argv @2 :List(Data);
   # We don't use Text because paths may not be valid unicode
-  initialFDs @3 :List(FDEntry);
   struct FDEntry {
     fd @0 :UInt16;
     fileID @1 :UInt64;
+    canRead @2 :Bool;
+    canWrite @3 :Bool;
   }
+  initialFDs @3 :List(FDEntry);
   # A sorted list of the open and used file discriptors passed to a command on
   # startup. Typically, but not always, this is just the process's stdin, stdout,
   # and stderr.

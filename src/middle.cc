@@ -87,7 +87,7 @@ uint64_t Command::descendants(void) {
     return ret;
 }
 
-static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>::Builder& command_list, uint64_t start_index, std::map<Command*, uint64_t>& command_ids) {
+static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>::Builder& command_list, uint64_t start_index, std::map<Command*, uint64_t>& command_ids, std::map<File*, uint64_t>& file_ids) {
     command_ids[command] = start_index;
     command_list[start_index].setExecutable(command->cmd);
     command_list[start_index].setOutOfDate(false);
@@ -98,10 +98,24 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
         argv.set(argv_index, (*arg).asPtr());
         argv_index++;
     }
+    auto initial_fds = command_list[start_index].initInitialFDs(command->initial_fds.size());
+    size_t fd_index = 0;
+    for (auto fd = command->initial_fds.begin(); fd != command->initial_fds.end(); ++fd) {
+        auto file_id = file_ids.find(fd->second.file);
+        if (file_id == file_ids.end()) {
+            continue;
+        }
+
+        initial_fds[fd_index].setFd(fd->first);
+        initial_fds[fd_index].setFileID(file_id->second);
+        initial_fds[fd_index].setCanRead(fd->second.access_mode != O_WRONLY);
+        initial_fds[fd_index].setCanWrite(fd->second.access_mode != O_RDONLY);
+        fd_index++;
+    }
 
     uint64_t index = start_index + 1;
     for (auto c : command->children) {
-        index = serialize_commands(c, command_list, index, command_ids);
+        index = serialize_commands(c, command_list, index, command_ids, file_ids);
     }
 
     command_list[start_index].setDescendants(index - start_index - 1);
@@ -225,18 +239,6 @@ void trace_state::serialize_graph(void) {
 
     db::Graph::Builder graph = message.initRoot<db::Graph>();
 
-    // Serialize commands
-    std::map<Command*, uint64_t> command_ids;
-    uint64_t command_count = 0;
-    for (auto c : this->commands) {
-        command_count += 1 + c->descendants();
-    }
-    auto commands = graph.initCommands(command_count);
-    uint64_t command_index = 0;
-    for (auto c : this->commands) {
-        command_index = serialize_commands(c, commands, command_index, command_ids);
-    }
-
     // Prepare files for serialization: we've already fingerprinted the old versions,
     // but we need to fingerprint the latest versions
     for (size_t location = 0; location < this->latest_versions.size(); location++) {
@@ -266,6 +268,18 @@ void trace_state::serialize_graph(void) {
         auto file_id = file_entry.second;
         // TODO: Use orphans and avoid copying?
         files.setWithCaveats(file_id, file->serialized.getReader());
+    }
+
+    // Serialize commands
+    std::map<Command*, uint64_t> command_ids;
+    uint64_t command_count = 0;
+    for (auto c : this->commands) {
+        command_count += 1 + c->descendants();
+    }
+    auto commands = graph.initCommands(command_count);
+    uint64_t command_index = 0;
+    for (auto c : this->commands) {
+        command_index = serialize_commands(c, commands, command_index, command_ids, file_ids);
     }
 
     // Serialize dependencies
@@ -526,6 +540,12 @@ void trace_state::add_exec(Process* proc, Blob&& exe_path) {
     for (auto f = proc->mmaps.begin(); f != proc->mmaps.end(); ++f) {
         (*f)->mmaps.erase(proc);
     }
+
+    // Mark the initial open file descriptors
+    for (auto it = proc->fds.begin(); it != proc->fds.end(); ++it) {
+        it->second.file = this->latest_versions[it->second.location_index];
+    }
+    cmd->initial_fds = proc->fds;
 
     // Assume that we can at any time write to stdout or stderr
     // TODO: Instead of checking whether we know about stdout and stderr,

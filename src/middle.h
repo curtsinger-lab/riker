@@ -32,6 +32,7 @@ struct file_reference {
 };
 
 struct File;
+struct FileDescriptor;
 struct Process;
 struct trace_state;
 
@@ -48,6 +49,7 @@ struct Command {
     Command* parent;
     unsigned int depth;
     bool collapse_with_parent;
+    std::map<int, FileDescriptor> initial_fds;
 
     Command(trace_state* state, Blob&& args, Command* parent, unsigned int depth);
     void add_input(File* f);
@@ -78,7 +80,8 @@ struct File {
 };
 
 struct FileDescriptor {
-    size_t location_index;
+    size_t location_index; // Used in Process::fds
+    File* file; // Used in Command::initial_fds
     int access_mode;
     bool cloexec;
 
