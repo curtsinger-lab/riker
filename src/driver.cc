@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
     root_cmd->args.push_back(kj::heapArray((const kj::byte*) argv[1], strlen(argv[1])));
     state->commands.push_front(root_cmd);
 
-    run_command(root_cmd, argv[1]);
+    run_command(root_cmd);
 
     state->serialize_graph();
 }
