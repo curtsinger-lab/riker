@@ -13,6 +13,7 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <map>
 #include <queue>
 
 #include <capnp/message.h>
@@ -258,6 +259,7 @@ int main(int argc, char* argv[]) {
     bool use_fingerprints = true;
     bool show_sysfiles = false;
     bool dry_run = false;
+    size_t parallel_jobs = 1;
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if ("--no-fingerprints" == std::string(argv[i])) {
@@ -266,6 +268,19 @@ int main(int argc, char* argv[]) {
             show_sysfiles = true;
         } else if ("--dry-run" == std::string(argv[i])) {
             dry_run = true;
+        } else if ("-j" == std::string(argv[i])) {
+            if (i + 1 < argc) {
+               i++;
+               long specified_jobs = std::stol(std::string(argv[i]));
+               if (specified_jobs < 1) {
+                   std::cerr << "Invalid number of jobs: specify at least one" << std::endl;
+                   exit(1);
+               }
+               parallel_jobs = specified_jobs;
+            } else {
+               std::cerr << "Please specify a number of jobs to use" << std::endl;
+               exit(1);
+            }
         }
     }
 
@@ -448,10 +463,13 @@ int main(int argc, char* argv[]) {
         adjust_refcounts(commands[command_id], cluster_inputs + 1, commands, &current_generation, ignore_callback);
     }
 
+    pid_t dry_run_pid = 1; // A fake PID for use if we are doing dry run;
+
     std::queue<db_command*> propagate_rerun_worklist;
     std::queue<db_command*> descend_to_worklist;
     std::queue<db_command*> run_worklist;
     std::queue<db_command*> zero_reference_worklist;
+    std::map<pid_t, db_command*> wait_worklist;
 
     // For a callback on adjust_refcounts
     auto add_to_worklist = [&](db_command* node) {
@@ -474,7 +492,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    while (!propagate_rerun_worklist.empty() || !descend_to_worklist.empty() || !zero_reference_worklist.empty() || !run_worklist.empty()) {
+    while (!propagate_rerun_worklist.empty() || !descend_to_worklist.empty() || !zero_reference_worklist.empty() || !run_worklist.empty() || !wait_worklist.empty()) {
         // First propagate reruns as far as we can
         if (!propagate_rerun_worklist.empty()) {
             db_command* rerun_root = propagate_rerun_worklist.front()->cluster_root;
@@ -556,62 +574,88 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        // Finally, find something available to run and run it.
-        // TODO: There may be several things available. Run them in parallel by not
-        // waiting immediately.
-        if (!run_worklist.empty()) {
+        // Find something available to run.
+        // TODO: Heuristics about which jobs to run to maximize parallelism
+        // TODO: Schedule around conflicting writes to a file
+        db_command* run_command;
+        bool ready = false;
+        if (!run_worklist.empty() && wait_worklist.size() < parallel_jobs) {
             // Loop until we find something to run
-            db_command* cur_command;
-            bool ready;
+            size_t searched = 0;
             do {
-                cur_command = run_worklist.front();
+                run_command = run_worklist.front();
                 run_worklist.pop();
 
                 ready = true;
-                for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+                for (size_t command_index = run_command->id; command_index <= run_command->id + run_command->num_descendants; command_index++) {
                     auto test_command = commands[command_index];
                     for (auto in : test_command->inputs) {
-                        if (in->status == UNKNOWN && (in->writer_id < cur_command->id || in->writer_id > cur_command->id + cur_command->num_descendants)) {
+                        if (in->status == UNKNOWN && (in->writer_id < run_command->id || in->writer_id > run_command->id + run_command->num_descendants)) {
                             //std::cerr << "  " << in->path << " is not ready." << std::endl;
                             ready = false;
                             break;
                         }
                     }
                     if (!ready) {
-                        run_worklist.push(cur_command);
+                        run_worklist.push(run_command);
+                        searched++;
                         break;
                     }
                 }
-            } while (!ready);
+            } while (!ready && searched < run_worklist.size());
+        }
 
+        // If we found something to run, run it
+        if (ready) {
             // Print that we will run it
-            std::cout << cur_command->executable;
-            for (size_t arg_index = 1; arg_index < cur_command->args.size(); arg_index++) {
-                std::cout << " " << cur_command->args[arg_index];
+            std::cout << run_command->executable;
+            for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
+                std::cout << " " << run_command->args[arg_index];
             }
             std::cout << std::endl;
 
             // Run it!
-            if (!dry_run) {
+            pid_t child_pid;
+            if (dry_run) {
+                child_pid = dry_run_pid;
+                dry_run_pid++;
+            } else {
                 // Spawn the child
-                pid_t child_pid;
-                char* child_argv[cur_command->args.size() + 1];
-                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
-                    child_argv[arg_index] = strdup(cur_command->args[arg_index].c_str());
+                char* child_argv[run_command->args.size() + 1];
+                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
+                    child_argv[arg_index] = strdup(run_command->args[arg_index].c_str());
                 }
-                child_argv[cur_command->args.size()] = nullptr;
-                posix_spawn(&child_pid, cur_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
-                for (size_t arg_index = 0; arg_index < cur_command->args.size(); arg_index++) {
+                child_argv[run_command->args.size()] = nullptr;
+                posix_spawn(&child_pid, run_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
+                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
                     free(child_argv[arg_index]);
                 }
+            }
+            //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
-                // Wait for completion
-                // TODO: Consider detecting errors?
-                waitpid(child_pid, nullptr, 0);
+            wait_worklist[child_pid] = run_command;
+            continue;
+        }
+
+        if (!wait_worklist.empty()) {
+            pid_t child_pid;
+            if (dry_run) {
+                child_pid = wait_worklist.begin()->first;
+            } else {
+                child_pid = wait(nullptr);
+            }
+            //std::cerr << "Waited at pid " << child_pid << std::endl;
+            db_command* child_command;
+            auto entry = wait_worklist.find(child_pid);
+            if (entry == wait_worklist.end()) {
+                continue;
+            } else {
+                child_command = entry->second;
+                wait_worklist.erase(entry);
             }
 
             // Mark all outputs appropriately
-            for (size_t command_index = cur_command->id; command_index <= cur_command->id + cur_command->num_descendants; command_index++) {
+            for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
                 auto finished_command = commands[command_index];
                 for (auto out : finished_command->outputs) {
                     if (!dry_run && use_fingerprints && match_fingerprint(db_graph.getFiles()[out->id])) {
@@ -627,6 +671,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
             }
+            continue;
         }
     }
 
