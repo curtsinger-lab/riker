@@ -384,9 +384,9 @@ int main(int argc, char* argv[]) {
         files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
         file_id++;
 
-        if (flag == CHANGED) {
-            std::cerr << path << " is changed" << std::endl;
-        }
+        //if (flag == CHANGED) {
+            //std::cerr << path << " is changed" << std::endl;
+        //}
     }
 
     // initialize array of commands
