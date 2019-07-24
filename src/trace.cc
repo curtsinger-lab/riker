@@ -600,8 +600,10 @@ void run_command(Command* cmd, char* exec_line) {
                 break;
             }
             case /* 22 */ __NR_pipe:
+                state->add_pipe(proc, pipe_fds, false);
+                break;
             case /* 293 */ __NR_pipe2:
-                state->add_pipe(proc, pipe_fds);
+                state->add_pipe(proc, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
                 break;
             case /* 32 */ __NR_dup:
                 state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);

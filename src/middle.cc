@@ -444,14 +444,14 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     }
 }
 
-void trace_state::add_pipe(Process* proc, int fds[2]) {
+void trace_state::add_pipe(Process* proc, int fds[2], bool cloexec) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     File* p = new File(true, Blob(), proc->command, this, NULL);
     this->files.insert(p);
     size_t location = this->latest_versions.size();
     this->latest_versions.push_back(p);
-    proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, false /* FIXME cloexec */);
-    proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, false /* FIXME cloexec */);
+    proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
+    proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
 }
 
 void trace_state::add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec) {

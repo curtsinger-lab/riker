@@ -111,7 +111,7 @@ struct trace_state {
     void add_change_cwd(Process* proc, struct file_reference& file);
     void add_change_root(Process* proc, struct file_reference& file);
     void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec);
-    void add_pipe(Process* proc, int fds[2]);
+    void add_pipe(Process* proc, int fds[2], bool cloexec);
     void add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec);
     void add_mmap(Process* proc, int fd);
     void add_close(Process* proc, int fd);
