@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <spawn.h>
+#include <unistd.h>
 
 #include <limits>
 #include <list>
@@ -34,6 +35,15 @@ struct db_file {
     std::set<db_command*> readers;
     std::string path;
     int status;
+
+    // A reference counting-based solution to promptly delete temporary files that are
+    // no longer needed. The scheduled_for_deletion field is set when we descend past a
+    // command that would delete this file, and once all readers are complete, we actually
+    // delete the file. N.B. this reference counting is completely unrelated to the reference
+    // counting used to decide which commands to run.
+    size_t readers_complete = 0;
+    bool scheduled_for_creation = false;
+    bool scheduled_for_deletion = false;
 
     db_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), path(path), status(status) {}
     bool is_local(void) {
@@ -141,6 +151,19 @@ static void draw_graph_edges(Graph* graph, bool show_sysfiles, db_command* comma
         draw_graph_edges(graph, show_sysfiles, commands, files, children_start, children_end);
 
         id = children_end;
+    }
+}
+
+static void mark_complete_for_deletions(db_command* command, bool dry_run) {
+    for (auto in : command->inputs) {
+        in->readers_complete += 1;
+        if (in->scheduled_for_deletion && !in->scheduled_for_creation && in->readers_complete == in->readers.size()) {
+            std::cout << "rm " << in->path << std::endl;
+            if (!dry_run) {
+                unlink(in->path.c_str());
+            }
+            in->scheduled_for_deletion = false; // Don't delete twice
+        }
     }
 }
 
@@ -559,6 +582,17 @@ int main(int argc, char* argv[]) {
                     }
                 }
 
+                // Mark files for deletion that this command would delete
+                for (auto cre : cluster_member->creations) {
+                    // TODO: Actually create files. This probably should happen when
+                    // running a command that needs the file already open.
+                    cre->scheduled_for_creation = true;
+                }
+                for (auto del : cluster_member->deletions) {
+                    del->scheduled_for_deletion = true;
+                }
+                mark_complete_for_deletions(cluster_member, dry_run);
+
                 // Descend to children
                 if (leaf) {
                     size_t current_id = cluster_member->id + 1;
@@ -670,6 +704,7 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
+                mark_complete_for_deletions(finished_command, dry_run);
             }
             continue;
         }
