@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <capnp/message.h>
 #include <capnp/serialize.h>
@@ -354,11 +356,20 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             break;
         case DEP_CREATE:
             //fprintf(stdout, "create");
-            // Creation means creation if the file does not already exist. TODO: should
-            // we just stat instead? Should we have multiple creators? This isn't quite
-            // correct for the first version of something that already exists.
+            // Creation means creation only if the file does not already exist.
             if (f->creator == nullptr && f->writer == nullptr) {
-                f->creator = proc->command;
+                bool file_exists;
+                if (f->serialized.getReader().getType() == db::FileType::PIPE) {
+                    file_exists = false;
+                } else {
+                    struct stat stat_info;
+                    auto path_string = std::string(f->serialized.getReader().getPath().asChars().begin(), f->serialized.getReader().getPath().size());
+                    file_exists = (lstat(path_string.c_str(), &stat_info) == 0);
+                }
+
+                if (!file_exists) {
+                    f->creator = proc->command;
+                }
             }
             break;
         case DEP_REMOVE:
