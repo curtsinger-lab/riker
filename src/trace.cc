@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
-#include <cerrno>
 #include <experimental/filesystem>
 
 #include <memory>
@@ -219,48 +218,6 @@ enum stop_type {
     STOP_EXIT, // Do not resume when this is returned
 };
 
-static pid_t wait_for_syscall(enum stop_type* type) {
-    while (true) {
-        int wstatus;
-        pid_t child = wait(&wstatus);
-        if (child == -1) {
-            if (errno == ECHILD) {
-                // ECHILD is returned when there are no children to wait on, which
-                // is by far the simplest and most reliable signal we have for when
-                // to exit (cleanly).
-                return 0;
-            } else {
-                perror("Error while waiting");
-                exit(2);
-            }
-        }
-
-        if (WIFSTOPPED(wstatus)) {
-            switch (wstatus >> 8) {
-            case (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)):
-                *type = STOP_SYSCALL;
-                return child;
-            case (SIGTRAP | (PTRACE_EVENT_FORK << 8)):
-            case (SIGTRAP | (PTRACE_EVENT_VFORK << 8)):
-                *type = STOP_FORK;
-                return child;
-            case (SIGTRAP | (PTRACE_EVENT_EXEC << 8)):
-                *type = STOP_EXEC;
-                return child;
-            default:
-                // We don't bother handling errors here, because any failure
-                // just means that the child is somehow broken, and we shouldn't
-                // continue processing it anyway.
-                ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wstatus));
-                break;
-            }
-        } else if (WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) {
-            *type = STOP_EXIT;
-            return child;
-        }
-    }
-}
-
 static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     kj::Vector<kj::byte> output;
 
@@ -286,7 +243,7 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+void start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
     std::string exec_path = std::string(cmd->cmd.asPtr().asChars().begin(), cmd->cmd.asPtr().size());
     std::vector<char*> exec_argv;
     for (auto arg = cmd->args.begin(); arg != cmd->args.end(); ++arg) {
@@ -301,19 +258,39 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
         delete arg;
     }
 
-    auto state = cmd->state;
-    Process* proc = new Process(pid, kj::heapArray(state->starting_dir.asPtr()), cmd);
+    Process* proc = new Process(pid, kj::heapArray(cmd->state->starting_dir.asPtr()), cmd);
+    cmd->state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
+}
 
-    //proc->pid = pid;
-    state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
-
-    while (true) {
+void trace_step(trace_state* state, pid_t child, int wait_status) {
         enum stop_type stop_ty;
-        pid_t child = wait_for_syscall(&stop_ty);
-        if (child == 0) {
-            break;
+
+        if (WIFSTOPPED(wait_status)) {
+            switch (wait_status >> 8) {
+            case (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)):
+                stop_ty = STOP_SYSCALL;
+                break;
+            case (SIGTRAP | (PTRACE_EVENT_FORK << 8)):
+            case (SIGTRAP | (PTRACE_EVENT_VFORK << 8)):
+                stop_ty = STOP_FORK;
+                break;
+            case (SIGTRAP | (PTRACE_EVENT_EXEC << 8)):
+                stop_ty = STOP_EXEC;
+                break;
+            default:
+                // We don't bother handling errors here, because any failure
+                // just means that the child is somehow broken, and we shouldn't
+                // continue processing it anyway.
+                ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+                return;
+            }
+        } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
+            stop_ty = STOP_EXIT;
+        } else {
+            return;
         }
-        proc = state->processes.find(child)->second;
+
+        Process* proc = state->processes.find(child)->second;
 
         switch (stop_ty) {
         case STOP_FORK: {
@@ -323,7 +300,7 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
             if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_child) != 0) {
                 perror("Unable to fetch new child from fork");
                 ptrace(PTRACE_CONT, child, nullptr, 0);
-                continue;
+                return;
             }
             pid_t new_child = (pid_t) ul_new_child;
             ptrace(PTRACE_CONT, child, nullptr, 0);
@@ -335,7 +312,7 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
             if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
                 perror("Failed to get registers");
                 ptrace(PTRACE_CONT, child, nullptr, 0);
-                continue;
+                return;
             }
 
             // Load the path to our executable
@@ -376,7 +353,7 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
             if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
                 perror("Failed to get registers");
                 ptrace(PTRACE_CONT, child, nullptr, 0);
-                continue;
+                return;
             }
             // We need to extract any relevant arguments like paths or file names
             // before we tell the process to continue. However, we want to do minimal
@@ -516,7 +493,7 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
                 registers.SYSCALL_RETURN = ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
                 if ((long long)registers.SYSCALL_RETURN < 0) { // The call errored, so skip it
                     ptrace(PTRACE_CONT, child, nullptr, 0);
-                    continue;
+                    return;
                 }
                 break;
             }
@@ -585,7 +562,7 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
                 main_file.path.size() >= 11 &&
                 main_file.path.slice(0, 11).asChars().asConst() == kj::arrayPtr("/proc/self/", 11)) {
                 ptrace(PTRACE_CONT, child, nullptr, 0);
-                continue;
+                return;
             }
 
             // This is the giant switch statement where we handle what every syscall means. Note
@@ -741,5 +718,4 @@ void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
             break;
         }
         }
-    }
 }
