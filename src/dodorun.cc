@@ -154,11 +154,44 @@ static void draw_graph_edges(Graph* graph, bool show_sysfiles, db_command* comma
     }
 }
 
+// Escape a string for correct printing as an argument or command on the shell
+// TODO: avoid copying so much
+static std::string shell_escape(std::string input) {
+    if (input.find_first_of(" \t\n&();|<>!{}") == std::string::npos &&
+        input != std::string("elif") &&
+        input != std::string("fi") &&
+        input != std::string("while") &&
+        input != std::string("case") &&
+        input != std::string("else") &&
+        input != std::string("for") &&
+        input != std::string("then") &&
+        input != std::string("do") &&
+        input != std::string("done") &&
+        input != std::string("until") &&
+        input != std::string("if") &&
+        input != std::string("esac")) {
+        return input;
+    }
+
+    std::string output = "'";
+    size_t escaped_so_far = 0;
+    while (true) {
+        size_t quote_offset = input.find('\'', escaped_so_far);
+        if (quote_offset == std::string::npos) {
+            output += input.substr(escaped_so_far) + std::string("'");
+            return output;
+        } else {
+            output += input.substr(escaped_so_far, quote_offset - escaped_so_far) + std::string("'\\''");
+            escaped_so_far = quote_offset + 1;
+        }
+    }
+}
+
 static void mark_complete_for_deletions(db_command* command, bool dry_run) {
     for (auto in : command->inputs) {
         in->readers_complete += 1;
         if (in->scheduled_for_deletion && !in->scheduled_for_creation && in->readers_complete == in->readers.size()) {
-            std::cout << "rm " << in->path << std::endl;
+            std::cout << "rm " << shell_escape(in->path) << std::endl;
             if (!dry_run) {
                 unlink(in->path.c_str());
             }
@@ -642,9 +675,9 @@ int main(int argc, char* argv[]) {
         // If we found something to run, run it
         if (ready) {
             // Print that we will run it
-            std::cout << run_command->executable;
+            std::cout << shell_escape(run_command->executable);
             for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
-                std::cout << " " << run_command->args[arg_index];
+                std::cout << " " << shell_escape(run_command->args[arg_index]);
             }
             std::cout << std::endl;
 
