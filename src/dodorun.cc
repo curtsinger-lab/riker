@@ -92,6 +92,10 @@ static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* comma
         } else {
             label = commands[command_id]->executable;
         }
+        size_t slash_loc = label.rfind('/');
+        if (slash_loc != std::string::npos) {
+            label = label.substr(slash_loc + 1);
+        }
         graph->add_node("c" + std::to_string(command_id), label, attr);
     }
 
