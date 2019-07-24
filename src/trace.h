@@ -7,4 +7,5 @@ struct InitialFdEntry {
     int child_fd;
 };
 
-void run_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);
+void start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);
+void trace_step(trace_state* state, pid_t child, int wait_status);
