@@ -1,6 +1,9 @@
 #include <memory>
 #include <iostream>
 #include <kj/vector.h>
+
+#include <cerrno>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "middle.h"
@@ -31,7 +34,25 @@ int main(int argc, char* argv[]) {
     state->commands.push_front(root_cmd);
 
     // TODO: set up stdio for logging?
-    run_command(root_cmd, kj::ArrayPtr<InitialFdEntry const>());
+    start_command(root_cmd, kj::ArrayPtr<InitialFdEntry const>());
+
+    while (true) {
+        int wait_status;
+        pid_t child = wait(&wait_status);
+        if (child == -1) {
+            if (errno == ECHILD) {
+                // ECHILD is returned when there are no children to wait on, which
+                // is by far the simplest and most reliable signal we have for when
+                // to exit (cleanly).
+                break;
+            } else {
+                perror("Error while waiting");
+                exit(2);
+            }
+        }
+
+        trace_step(&*state, child, wait_status);
+    }
 
     state->serialize_graph();
 }
