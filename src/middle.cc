@@ -452,7 +452,7 @@ void trace_state::add_change_root(Process* proc, struct file_reference& file) {
 
 // get filenames from their open
 void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec) {
-    //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
+    // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     size_t file_location = this->find_file(file.path.asPtr());
     File* f = this->latest_versions[file_location];

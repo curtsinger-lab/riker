@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <cstdlib>
 #include <cstddef>
 #include <cstdint>
@@ -215,6 +217,7 @@ enum stop_type {
     STOP_SYSCALL,
     STOP_FORK,
     STOP_EXEC,
+    STOP_CLONE,
     STOP_EXIT, // Do not resume when this is returned
 };
 
@@ -276,6 +279,9 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
             break;
         case (SIGTRAP | (PTRACE_EVENT_EXEC << 8)):
             stop_ty = STOP_EXEC;
+            break;
+        case (SIGTRAP | (PTRACE_EVENT_CLONE<<8)):
+            stop_ty = STOP_CLONE;
             break;
         default:
             // We don't bother handling errors here, because any failure
@@ -342,6 +348,19 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
         }
 
         ptrace(PTRACE_CONT, child, nullptr, 0);
+        break;
+    }
+    case STOP_CLONE: { 
+        unsigned long ul_new_thread;
+        if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_thread) != 0) {
+            perror("Unable to fetch new child from fork");
+            ptrace(PTRACE_CONT, child, nullptr, 0);
+            return;
+        }
+        pid_t new_thread = (pid_t) ul_new_thread;
+        ptrace(PTRACE_CONT, child, nullptr, 0);
+        // TODO handling of flags -> CLONE_FILES
+        state->processes[new_thread] = proc;
         break;
     }
     case STOP_EXIT: {
