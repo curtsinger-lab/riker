@@ -355,6 +355,29 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
             ptrace(PTRACE_CONT, child, nullptr, 0);
             return;
         }
+
+        // Certain syscalls have cases that we just don't want to handle. Detect those
+        // first and skip all the work we can. TODO: do this filtering in seccomp
+        switch (registers.SYSCALL_NUMBER) {
+        case /* 9 */ __NR_mmap:
+            if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) != 0) {
+                ptrace(PTRACE_CONT, child, nullptr, 0);
+                return;
+            }
+            break;
+        case /* 72 */ __NR_fcntl:
+            switch (registers.SYSCALL_ARG2) {
+            case F_DUPFD:
+            case F_DUPFD_CLOEXEC:
+            case F_SETFD:
+                break;
+            default:
+                ptrace(PTRACE_CONT, child, nullptr, 0);
+                return;
+            }
+            break;
+        }
+
         // We need to extract any relevant arguments like paths or file names
         // before we tell the process to continue. However, we want to do minimal
         // work so that we can exploit the most parallelism, so we just read the
@@ -642,10 +665,7 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
             break;
         ////// Complex operations /////
         case /* 9 */ __NR_mmap:
-            // TODO: filter anonymous mappings in seccomp
-            if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) == 0) {
-                state->add_mmap(proc, main_file.fd);
-            }
+            state->add_mmap(proc, main_file.fd);
             break;
         case /* 40 */ __NR_sendfile:
         case /* 275 */ __NR_splice:
