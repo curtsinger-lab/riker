@@ -66,7 +66,7 @@ void Command::add_output(File* f, size_t file_location) {
     f->interactions.push_front(this);
     // if we haven't written to this file before, create a new version
     File* fnew;
-    if (f->creator != nullptr && f->writer == nullptr) {
+    if (f->creator != nullptr && (f->writer == nullptr || f->writer == this)) {
         // Unless we just created it, in which case it is pristine
         fnew = f;
     } else {
