@@ -696,6 +696,21 @@ int main(int argc, char* argv[]) {
                 std::cout << " ";
                 write_shell_escaped(std::cout, run_command->args[arg_index]);
             }
+            // Print redirections
+            for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                std::cout << " ";
+                if   (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() && !initial_fd_entry.getCanWrite())
+                   && !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite())) {
+                    std::cout << initial_fd_entry.getFd();
+                }
+                if (initial_fd_entry.getCanRead()) {
+                    std::cout << '<';
+                }
+                if (initial_fd_entry.getCanWrite()) {
+                    std::cout << '>';
+                }
+                write_shell_escaped(std::cout, files[initial_fd_entry.getFileID()]->path);
+            }
             std::cout << std::endl;
 
             // Run it!
