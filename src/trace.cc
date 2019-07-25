@@ -441,6 +441,7 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
         case /* 18 */ __NR_pwrite64:
         case /* 19 */ __NR_readv:
         case /* 20 */ __NR_writev:
+        case /* 72 */ __NR_fcntl:
         case /* 77 */ __NR_ftruncate:
         case /* 78 */ __NR_getdents:
         case /* 217 */ __NR_getdents64:
@@ -482,6 +483,7 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
         case /* 2 */ __NR_open:
         case /* 22 */ __NR_pipe:
         case /* 32 */ __NR_dup:
+        case /* 72 */ __NR_fcntl:
         case /* 85 */ __NR_creat:
         case /* 257 */ __NR_openat:
         case /* 293 */ __NR_pipe2:
@@ -616,6 +618,19 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
             break;
         case /* 292 */ __NR_dup3:
             state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
+            break;
+        case /* 72 */ __NR_fcntl:
+            switch (registers.SYSCALL_ARG2) {
+            case F_DUPFD:
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
+                break;
+            case F_DUPFD_CLOEXEC:
+                state->add_dup(proc, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
+                break;
+            case F_SETFD:
+                state->add_set_cloexec(proc, registers.SYSCALL_ARG1, (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
+                break;
+            }
             break;
         ////// Changing process state //////
         case /* 80 */ __NR_chdir:

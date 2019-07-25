@@ -23,6 +23,7 @@ static const uint16_t syscalls[] = {
     /* 32 */ __NR_dup,
     /* 33 */ __NR_dup2,
     /* 40 */ __NR_sendfile,
+    /* 72 */ __NR_fcntl,
     /* 76 */ __NR_truncate,
     /* 77 */ __NR_ftruncate,
     /* 78 */ __NR_getdents,
@@ -115,7 +116,6 @@ static const uint16_t syscalls[] = {
 // fstat
 // lstat
 // access
-// fcntl
 // flock
 // fsync
 // fdatasync
