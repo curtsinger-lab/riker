@@ -486,8 +486,17 @@ void trace_state::add_pipe(Process* proc, int fds[2], bool cloexec) {
 void trace_state::add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec) {
     //fprintf(stdout, "[%d] Dup %d <- %d\n", thread_id, duped_fd, new_fd);
     auto duped_file = proc->fds.find(duped_fd);
-    if (duped_file != proc->fds.end()) {
+    if (duped_file == proc->fds.end()) {
+        proc->fds.erase(new_fd);
+    } else {
         proc->fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.access_mode, cloexec);
+    }
+}
+
+void trace_state::add_set_cloexec(Process* proc, int fd, bool cloexec) {
+    auto file = proc->fds.find(fd);
+    if (file != proc->fds.end()) {
+        file->second.cloexec = cloexec;
     }
 }
 

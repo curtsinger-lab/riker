@@ -116,6 +116,7 @@ struct trace_state {
     void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec, mode_t mode);
     void add_pipe(Process* proc, int fds[2], bool cloexec);
     void add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec);
+    void add_set_cloexec(Process* proc, int fd, bool cloexec);
     void add_mmap(Process* proc, int fd);
     void add_close(Process* proc, int fd);
     void add_fork(Process* parent_proc, pid_t child_process_id);
