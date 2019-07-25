@@ -540,9 +540,11 @@ void trace_state::add_exec(Process* proc, Blob&& exe_path) {
     proc->command = cmd;
 
     // Close all cloexec file descriptors
-    for (auto fd_entry = proc->fds.begin(); fd_entry != proc->fds.end(); ++fd_entry) {
+    for (auto fd_entry = proc->fds.begin(); fd_entry != proc->fds.end();) {
         if (fd_entry->second.cloexec) {
             fd_entry = proc->fds.erase(fd_entry);
+        } else {
+            ++fd_entry;
         }
     }
 
