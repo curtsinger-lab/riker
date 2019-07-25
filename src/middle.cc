@@ -451,7 +451,7 @@ void trace_state::add_change_root(Process* proc, struct file_reference& file) {
 
 
 // get filenames from their open
-void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec) {
+void trace_state::add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec, mode_t mode) {
     //fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     size_t file_location = this->find_file(file.path.asPtr());
@@ -463,6 +463,7 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
         this->latest_versions[file_location] = f;
         f->creator = proc->command;
         f->writer = nullptr;
+        f->serialized.get().setMode(mode);
     }
     proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
     if (file.fd == AT_FDCWD) {

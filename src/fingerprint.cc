@@ -38,6 +38,7 @@ void set_fingerprint(db::File::Builder file, bool use_checksum) {
     mod_time.setSecondsSinceEpoch(stat_info.st_mtim.tv_sec);
     mod_time.setNanoseconds(stat_info.st_mtim.tv_nsec);
     file.setInode(stat_info.st_ino);
+    file.setMode(stat_info.st_mode);
 
     if (!use_checksum || (stat_info.st_mode & S_IFMT) != S_IFREG) {
         // Only checksum regular files
@@ -102,7 +103,8 @@ bool match_fingerprint(db::File::Reader file) {
     // Otherwise, if the rest of the metadata matches, then we assume no change.
     if (file.getModificationTime().getSecondsSinceEpoch() == stat_info.st_mtim.tv_sec &&
               file.getModificationTime().getNanoseconds() == stat_info.st_mtim.tv_nsec &&
-                                          file.getInode() == stat_info.st_ino) {
+                                          file.getInode() == stat_info.st_ino &&
+                                           file.getMode() == stat_info.st_mode) {
         return true;
     }
 
