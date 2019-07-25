@@ -704,16 +704,71 @@ int main(int argc, char* argv[]) {
                 child_pid = dry_run_pid;
                 dry_run_pid++;
             } else {
-                // Spawn the child
+                // Set up argv
                 char* child_argv[run_command->args.size() + 1];
                 for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
                     child_argv[arg_index] = strdup(run_command->args[arg_index].c_str());
                 }
                 child_argv[run_command->args.size()] = nullptr;
-                posix_spawn(&child_pid, run_command->executable.c_str(), nullptr, nullptr, child_argv, environ);
+                // Set up initial fds
+                posix_spawn_file_actions_t file_actions;
+                if (posix_spawn_file_actions_init(&file_actions) != 0) {
+                    perror("Failed to init file actions");
+                    exit(2);
+                }
+                std::vector<int> opened_fds;
+                int max_fd = 0;
+                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                    int fd = initial_fd_entry.getFd();
+                    if (fd > max_fd) {
+                        max_fd = fd;
+                    }
+                }
+                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                    int flags = O_CLOEXEC;
+                    if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
+                        flags |= O_RDWR;
+                    } else if (initial_fd_entry.getCanWrite()) {
+                        flags |= O_WRONLY;
+                    } else { // TODO: what if the database has no permissions for some reason?
+                        flags |= O_RDONLY;
+                    }
+                    if (files[initial_fd_entry.getFileID()]->scheduled_for_creation) {
+                        files[initial_fd_entry.getFileID()]->scheduled_for_creation = false;
+                        flags |= O_CREAT | O_TRUNC;
+                    }
+                    mode_t mode = db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
+                    int open_fd = open(files[initial_fd_entry.getFileID()]->path.c_str(), flags, mode);
+                    if (open_fd == -1) {
+                        perror("Failed to open");
+                        continue;
+                    }
+                    // Ensure that the dup2s won't step on each other's toes
+                    if (open_fd <= max_fd) {
+                        int new_fd = fcntl(open_fd, F_DUPFD_CLOEXEC, max_fd + 1);
+                        if (new_fd == -1) {
+                            perror("Failed to remap FD");
+                            continue;
+                        }
+                        close(open_fd);
+                        open_fd = new_fd;
+                    }
+                    opened_fds.push_back(open_fd);
+                    if (posix_spawn_file_actions_adddup2(&file_actions, open_fd, initial_fd_entry.getFd()) != 0) {
+                        perror("Failed to add dup2 file action");
+                        exit(2);
+                    }
+                }
+                // Spawn the child
+                posix_spawn(&child_pid, run_command->executable.c_str(), &file_actions, nullptr, child_argv, environ);
+                // Free what we can
                 for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
                     free(child_argv[arg_index]);
                 }
+                for (auto open_fd : opened_fds) {
+                    close(open_fd);
+                }
+                posix_spawn_file_actions_destroy(&file_actions);
             }
             //std::cerr << "  Launched at pid " << child_pid << std::endl;
 

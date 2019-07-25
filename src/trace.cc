@@ -577,26 +577,29 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
         case /* 85 */ __NR_creat:
         case /* 257 */ __NR_openat: {
             int flags;
+            mode_t mode;
             switch (registers.SYSCALL_NUMBER) {
             case __NR_open:
                 flags = registers.SYSCALL_ARG2;
+                mode = registers.SYSCALL_ARG3;
                 break;
             case __NR_creat:
                 flags = O_CREAT | O_WRONLY | O_TRUNC;
+                mode = registers.SYSCALL_ARG2;
                 break;
             case __NR_openat:
                 flags = registers.SYSCALL_ARG3;
+                mode = registers.SYSCALL_ARG4;
                 break;
             }
 
-            // TODO: record this access mode
             int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
             if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
                 main_file.follow_links = false;
             }
             bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
             bool cloexec = (flags & O_CLOEXEC) != 0;
-            state->add_open(proc, registers.SYSCALL_RETURN, main_file, access_mode, rewrite, cloexec);
+            state->add_open(proc, registers.SYSCALL_RETURN, main_file, access_mode, rewrite, cloexec, mode);
             break;
         }
         case /* 22 */ __NR_pipe:
