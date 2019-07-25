@@ -1,4 +1,4 @@
-@0xdc02d836d6eb1de5;
+@0xaa56d2657b9241a2;
 
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("db");
@@ -15,6 +15,7 @@ struct Command {
 
   executable @1 :Data;
   argv @2 :List(Data);
+  workingDirectory @3 :Data;
   # We don't use Text because paths may not be valid unicode
   struct FDEntry {
     fd @0 :UInt16;
@@ -22,14 +23,14 @@ struct Command {
     canRead @2 :Bool;
     canWrite @3 :Bool;
   }
-  initialFDs @3 :List(FDEntry);
+  initialFDs @4 :List(FDEntry);
   # A sorted list of the open and used file discriptors passed to a command on
   # startup. Typically, but not always, this is just the process's stdin, stdout,
   # and stderr.
 
-  outOfDate @4 :Bool;
+  outOfDate @5 :Bool;
   # Whether we need to rerun this command if demanded.
-  collapseWithParent @5 :Bool;
+  collapseWithParent @6 :Bool;
   # Whether we should instead run this command's parent if this needs to rerun
 }
 
@@ -52,14 +53,15 @@ enum FingerprintType {
 struct File {
   path @0 :Data;
   type @1 :FileType;
+  mode @2 :UInt16;
 
-  fingerprintType @2 :FingerprintType;
-  size @3 :UInt64;
-  modificationTime @4 :Timespec;
-  inode @5 :UInt64;
-  checksum @6 :Data;
+  fingerprintType @3 :FingerprintType;
+  size @4 :UInt64;
+  modificationTime @5 :Timespec;
+  inode @6 :UInt64;
+  checksum @7 :Data;
 
-  latestVersion @7 :Bool;
+  latestVersion @8 :Bool;
 }
 
 struct Dependency {
