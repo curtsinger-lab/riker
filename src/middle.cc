@@ -180,7 +180,9 @@ std::set<Command*> File::collapse(unsigned int version) {
     std::set<Command*> conflicts;
     while (cur_file->version != version) {
         // add writer and all readers to conflict set
-        conflicts.insert(cur_file->writer);
+        if (cur_file->writer != nullptr) {
+            conflicts.insert(cur_file->writer);
+        }
         for (auto rd : cur_file->interactions) {
             conflicts.insert(rd);
         }
