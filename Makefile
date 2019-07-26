@@ -1,8 +1,8 @@
 CC  = gcc
 CXX = g++
-COMMON_CFLAGS = -pipe -g -Wall
+COMMON_CFLAGS = -pipe -Wall -O2 -flto
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
-LDFLAGS = -lcapnp -lkj
+LDFLAGS = -lcapnp -lkj -flto
 
 all: dodo dodo-build
 
