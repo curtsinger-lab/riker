@@ -36,14 +36,25 @@ struct db_file {
     std::string path;
     int status;
 
+    bool scheduled_for_creation = false;
+    bool scheduled_for_deletion = false;
+
     // A reference counting-based solution to promptly delete temporary files that are
     // no longer needed. The scheduled_for_deletion field is set when we descend past a
     // command that would delete this file, and once all readers are complete, we actually
     // delete the file. N.B. this reference counting is completely unrelated to the reference
     // counting used to decide which commands to run.
     size_t readers_complete = 0;
-    bool scheduled_for_creation = false;
-    bool scheduled_for_deletion = false;
+
+    // When we open pipes, we need to hold their file descriptors open until all their users
+    // start, since we can't refer to them by a path in the filesystem. (We could theoretically
+    // use named pipes, which would unify some logic, but that would be more expensive, more
+    // system-specific, and wouldn't actually save that much tracking since we need to know
+    // when the readers of a pipe are launched anyway to determine if a process will be blocked.)
+    size_t pipe_writer_references = 0;
+    int pipe_writer_fd;
+    size_t pipe_reader_references = 0;
+    int pipe_reader_fd;
 
     db_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), path(path), status(status) {}
     bool is_local(void) {
@@ -195,6 +206,11 @@ static void write_shell_escaped(std::ostream& out_stream, const std::string& inp
 
 static void mark_complete_for_deletions(db_command* command, bool dry_run) {
     for (auto in : command->inputs) {
+        if (in->is_pipe) {
+            // Pipes are not in the filesystem and not deleted
+            continue;
+        }
+
         in->readers_complete += 1;
         if (in->scheduled_for_deletion && !in->scheduled_for_creation && in->readers_complete == in->readers.size()) {
             std::cout << "rm ";
@@ -482,6 +498,18 @@ int main(int argc, char* argv[]) {
     }
 
     for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+        // Initialize pipe reference counts
+        for (auto initial_fd_entry : db_graph.getCommands()[command_id].getInitialFDs()) {
+            auto file = files[initial_fd_entry.getFileID()];
+            if (file->is_pipe) {
+                if (initial_fd_entry.getCanRead()) {
+                    file->pipe_reader_references += 1;
+                } else {
+                    file->pipe_writer_references += 1;
+                }
+            }
+        }
+
         if (commands[command_id]->collapse_with_parent) {
             //std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
             continue;
@@ -673,7 +701,7 @@ int main(int argc, char* argv[]) {
                 for (size_t command_index = run_command->id; command_index <= run_command->id + run_command->num_descendants; command_index++) {
                     auto test_command = commands[command_index];
                     for (auto in : test_command->inputs) {
-                        if (in->status == UNKNOWN && (in->writer_id < run_command->id || in->writer_id > run_command->id + run_command->num_descendants)) {
+                        if (!in->is_pipe && in->status == UNKNOWN && (in->writer_id < run_command->id || in->writer_id > run_command->id + run_command->num_descendants)) {
                             //std::cerr << "  " << in->path << " is not ready." << std::endl;
                             ready = false;
                             break;
@@ -709,7 +737,11 @@ int main(int argc, char* argv[]) {
                 if (initial_fd_entry.getCanWrite()) {
                     std::cout << '>';
                 }
-                write_shell_escaped(std::cout, files[initial_fd_entry.getFileID()]->path);
+                if (files[initial_fd_entry.getFileID()]->is_pipe) {
+                    std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
+                } else {
+                    write_shell_escaped(std::cout, files[initial_fd_entry.getFileID()]->path);
+                }
             }
             std::cout << std::endl;
 
@@ -740,36 +772,67 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    int flags = O_CLOEXEC;
-                    if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
-                        flags |= O_RDWR;
-                    } else if (initial_fd_entry.getCanWrite()) {
-                        flags |= O_WRONLY;
-                    } else { // TODO: what if the database has no permissions for some reason?
-                        flags |= O_RDONLY;
-                    }
-                    if (files[initial_fd_entry.getFileID()]->scheduled_for_creation) {
-                        files[initial_fd_entry.getFileID()]->scheduled_for_creation = false;
-                        flags |= O_CREAT | O_TRUNC;
-                    }
-                    mode_t mode = db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
-                    int open_fd = open(files[initial_fd_entry.getFileID()]->path.c_str(), flags, mode);
-                    if (open_fd == -1) {
-                        perror("Failed to open");
-                        continue;
+                    auto file = files[initial_fd_entry.getFileID()];
+                    int open_fd_storage;
+                    int* open_fd_ref;
+                    if (file->is_pipe) {
+                        if (file->scheduled_for_creation) {
+                            file->scheduled_for_creation = false;
+                            int pipe_fds[2];
+                            // FIXME(portability): pipe2 is Linux-specific; fall back to pipe+fcntl?
+                            if (pipe2(pipe_fds, O_CLOEXEC) != 0) {
+                                perror("Failed to create pipe");
+                                continue;
+                            }
+                            file->pipe_reader_fd = pipe_fds[0];
+                            file->pipe_writer_fd = pipe_fds[1];
+                        }
+
+                        if (initial_fd_entry.getCanRead()) {
+                            open_fd_ref = &file->pipe_reader_fd;
+                        } else { // TODO: check for invalid read/write combinations?
+                            open_fd_ref = &file->pipe_writer_fd;
+                            // We don't fingerprint pipes and their readers can rerun immediately,
+                            // so propagate the rerun requirement here
+                            for (auto reader : file->readers) {
+                                propagate_rerun_worklist.push(reader);
+                            }
+                        }
+                    } else {
+                        int flags = O_CLOEXEC;
+                        if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
+                            flags |= O_RDWR;
+                        } else if (initial_fd_entry.getCanWrite()) {
+                            flags |= O_WRONLY;
+                        } else { // TODO: what if the database has no permissions for some reason?
+                            flags |= O_RDONLY;
+                        }
+                        if (file->scheduled_for_creation) {
+                            file->scheduled_for_creation = false;
+                            flags |= O_CREAT | O_TRUNC;
+                        }
+                        mode_t mode = db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
+                        open_fd_storage = open(file->path.c_str(), flags, mode);
+                        if (open_fd_storage == -1) {
+                            perror("Failed to open");
+                            continue;
+                        }
+                        open_fd_ref = &open_fd_storage;
                     }
                     // Ensure that the dup2s won't step on each other's toes
-                    if (open_fd <= max_fd) {
-                        int new_fd = fcntl(open_fd, F_DUPFD_CLOEXEC, max_fd + 1);
+                    if (*open_fd_ref <= max_fd) {
+                        int new_fd = fcntl(*open_fd_ref, F_DUPFD_CLOEXEC, max_fd + 1);
                         if (new_fd == -1) {
                             perror("Failed to remap FD");
                             continue;
                         }
-                        close(open_fd);
-                        open_fd = new_fd;
+                        close(*open_fd_ref);
+                        *open_fd_ref = new_fd;
                     }
-                    opened_fds.push_back(open_fd);
-                    if (posix_spawn_file_actions_adddup2(&file_actions, open_fd, initial_fd_entry.getFd()) != 0) {
+                    if (!file->is_pipe) {
+                        opened_fds.push_back(*open_fd_ref);
+                    }
+                    if (posix_spawn_file_actions_adddup2(&file_actions, *open_fd_ref, initial_fd_entry.getFd()) != 0) {
                         perror("Failed to add dup2 file action");
                         exit(2);
                     }
@@ -784,6 +847,22 @@ int main(int argc, char* argv[]) {
                     close(open_fd);
                 }
                 posix_spawn_file_actions_destroy(&file_actions);
+                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                    auto file = files[initial_fd_entry.getFileID()];
+                    if (file->is_pipe) {
+                        if (initial_fd_entry.getCanRead()) {
+                            file->pipe_reader_references -= 1;
+                            if (file->pipe_reader_references == 0) {
+                                close(file->pipe_reader_fd);
+                            }
+                        } else {
+                            file->pipe_writer_references -= 1;
+                            if (file->pipe_writer_references == 0) {
+                                close(file->pipe_writer_fd);
+                            }
+                        }
+                    }
+                }
             }
             //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
