@@ -88,6 +88,13 @@ struct db_command {
     bool collapse_with_parent = false;
     db_command* cluster_root;
 
+    // Since pipes have only a limited buffer size, the users of a pipe could block waiting
+    // for each other to run. Therefore, if we haven't launched all of the commands connected
+    // to a chain of pipes, we shouldn't count any of them towards our job limit; they may be
+    // doing nothing, and not launching more commands could even lead to deadlock. Therefore,
+    // we categorize commands into "pipe clusters" that all become unblocked simultaneously.
+    size_t pipe_cluster = std::numeric_limits<size_t>::max();
+
     db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
 };
 
@@ -497,6 +504,44 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Set up "pipe clusters" as connected components through pipes
+    std::vector<size_t> pipe_cluster_blocked;
+    std::queue<db_command*> pipe_cluster_worklist;
+    for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+        if (commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
+            // We have already assigned this to a cluster
+            continue;
+        }
+
+        size_t pipe_cluster = pipe_cluster_blocked.size();
+        pipe_cluster_blocked.push_back(0);
+
+        pipe_cluster_worklist.push(commands[command_id]);
+        while (!pipe_cluster_worklist.empty()) {
+            auto to_include = pipe_cluster_worklist.front();
+            pipe_cluster_worklist.pop();
+
+            if (to_include->pipe_cluster == std::numeric_limits<size_t>::max()) {
+                to_include->pipe_cluster = pipe_cluster;
+                pipe_cluster_blocked[pipe_cluster] += 1;
+                for (auto in : to_include->inputs) {
+                    if (in->is_pipe && in->writer_id != std::numeric_limits<size_t>::max()) {
+                        pipe_cluster_worklist.push(commands[in->writer_id]);
+                    }
+                }
+                for (auto out : to_include->outputs) {
+                    if (out->is_pipe) {
+                        for (auto reader : out->readers) {
+                            pipe_cluster_worklist.push(reader);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Everything is unlaunched
+    std::vector<size_t> pipe_cluster_unlaunched = pipe_cluster_blocked;
+
     for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
         // Initialize pipe reference counts
         for (auto initial_fd_entry : db_graph.getCommands()[command_id].getInitialFDs()) {
@@ -564,6 +609,7 @@ int main(int argc, char* argv[]) {
     std::queue<db_command*> run_worklist;
     std::queue<db_command*> zero_reference_worklist;
     std::map<pid_t, db_command*> wait_worklist;
+    size_t blocked_processes = 0;
 
     // For a callback on adjust_refcounts
     auto add_to_worklist = [&](db_command* node) {
@@ -679,6 +725,13 @@ int main(int argc, char* argv[]) {
                 }
                 mark_complete_for_deletions(cluster_member, dry_run);
 
+                // Mark ourselves as started yet unblocked
+                pipe_cluster_unlaunched[cluster_member->pipe_cluster] -= 1;
+                pipe_cluster_blocked[cluster_member->pipe_cluster] -= 1;
+                if (pipe_cluster_unlaunched[cluster_member->pipe_cluster] == 0) {
+                    blocked_processes -= pipe_cluster_blocked[cluster_member->pipe_cluster];
+                }
+
                 // Descend to children
                 if (leaf) {
                     size_t current_id = cluster_member->id + 1;
@@ -699,7 +752,7 @@ int main(int argc, char* argv[]) {
         // TODO: Schedule around conflicting writes to a file
         db_command* run_command;
         bool ready = false;
-        if (!run_worklist.empty() && wait_worklist.size() < parallel_jobs) {
+        if (!run_worklist.empty() && wait_worklist.size() < parallel_jobs + blocked_processes) {
             // Loop until we find something to run
             size_t searched = 0;
             do {
@@ -867,6 +920,13 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
+
+                // Mark the child as blocked if it is
+                blocked_processes += 1;
+                pipe_cluster_unlaunched[run_command->pipe_cluster] -= 1;
+                if (pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
+                    blocked_processes -= pipe_cluster_blocked[run_command->pipe_cluster];
+                }
             }
             //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
@@ -889,6 +949,12 @@ int main(int argc, char* argv[]) {
             } else {
                 child_command = entry->second;
                 wait_worklist.erase(entry);
+            }
+
+            // Finished processes were apparently not blocked
+            if (pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
+                blocked_processes -= 1;
+                pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
             }
 
             // Mark all outputs appropriately
