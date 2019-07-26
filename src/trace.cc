@@ -350,7 +350,7 @@ void trace_step(trace_state* state, pid_t child, int wait_status) {
         ptrace(PTRACE_CONT, child, nullptr, 0);
         break;
     }
-    case STOP_CLONE: { 
+    case STOP_CLONE: {
         unsigned long ul_new_thread;
         if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_thread) != 0) {
             perror("Unable to fetch new child from fork");
