@@ -617,6 +617,15 @@ int main(int argc, char* argv[]) {
                         propagate_rerun_worklist.push(commands[in->writer_id]);
                     }
                 }
+                // If we don't have fingerprints for an output (such as with a pipe), we know
+                // immediately that whatever consumers there are will also need to rerun.
+                for (auto out : commands[current_id]->outputs) {
+                    if (db_graph.getFiles()[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
+                        for (auto reader : out->readers) {
+                            propagate_rerun_worklist.push(reader);
+                        }
+                    }
+                }
                 current_id += 1;
             }
             continue;
@@ -792,11 +801,6 @@ int main(int argc, char* argv[]) {
                             open_fd_ref = &file->pipe_reader_fd;
                         } else { // TODO: check for invalid read/write combinations?
                             open_fd_ref = &file->pipe_writer_fd;
-                            // We don't fingerprint pipes and their readers can rerun immediately,
-                            // so propagate the rerun requirement here
-                            for (auto reader : file->readers) {
-                                propagate_rerun_worklist.push(reader);
-                            }
                         }
                     } else {
                         int flags = O_CLOEXEC;
