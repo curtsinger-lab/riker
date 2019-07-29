@@ -110,6 +110,7 @@ struct trace_state {
 
     size_t find_file(BlobPtr path);
     void serialize_graph(void);
+    void collapse_sccs(void);
     void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
     void add_change_cwd(Process* proc, struct file_reference& file);
     void add_change_root(Process* proc, struct file_reference& file);
