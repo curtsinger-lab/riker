@@ -615,21 +615,23 @@ int main(int argc, char* argv[]) {
     //TODO multiple roots
     descend_to_worklist.push(commands[0]);
     for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
-        if (files[file_id]->status == CHANGED) {
-            if (files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+        if (files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+            if (files[file_id]->status == CHANGED) {
                 for (auto reader : files[file_id]->readers) {
                     propagate_rerun_worklist.push(reader);
                 }
-            } else {
+            } else if (files[file_id]->status == UNCHANGED) {
+                //std::cerr << files[file_id]->path << " is unchanged" << std::endl;
+                for (auto reader : files[file_id]->readers) {
+                    //std::cerr << "Decrementing ID " << reader->id << " (root " << reader->cluster_root->id << ")" << std::endl;
+                    adjust_refcounts(reader, -1, commands, &current_generation, ignore_callback);
+                }
+            }
+        } else {
+            files[file_id]->status = UNKNOWN;
+            if (files[file_id]->status == CHANGED) {
                 // Rerun the commands that produce changed files
                 propagate_rerun_worklist.push(commands[files[file_id]->writer_id]);
-                files[file_id]->status = UNKNOWN;
-            }
-        } else if (files[file_id]->status == UNCHANGED) {
-            //std::cerr << files[file_id]->path << " is unchanged" << std::endl;
-            for (auto reader : files[file_id]->readers) {
-                //std::cerr << "Decrementing ID " << reader->id << std::endl;
-                adjust_refcounts(reader, -1, commands, &current_generation, ignore_callback);
             }
         }
     }
@@ -706,7 +708,11 @@ int main(int argc, char* argv[]) {
                     out->status = UNCHANGED;
                     //std::cerr << out->path << " will not be rebuilt" << std::endl;
                     for (auto reader : out->readers) {
-                        adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                        if (reader->cluster_root == node) {
+                            //std::cerr << "Skipping in-cluster edge" << std::endl;
+                        } else {
+                            adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                        }
                     }
                 }
 
@@ -948,6 +954,7 @@ int main(int argc, char* argv[]) {
                 child_command = entry->second;
                 wait_worklist.erase(entry);
             }
+            //std::cerr << child_command->executable << " has finished" << std::endl;
 
             // Finished processes were apparently not blocked
             if (pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
@@ -964,7 +971,11 @@ int main(int argc, char* argv[]) {
                     if (!dry_run && use_fingerprints && match_fingerprint(db_graph.getFiles()[out->id])) {
                         out->status = UNCHANGED;
                         for (auto reader : out->readers) {
-                            adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                            if (reader->cluster_root == child_command) {
+                                //std::cerr << "Skipping in-cluster edge" << std::endl;
+                            } else {
+                                adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                            }
                         }
                     } else {
                         out->status = CHANGED;
