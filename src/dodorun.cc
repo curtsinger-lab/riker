@@ -484,14 +484,6 @@ int main(int argc, char* argv[]) {
                     }
                 }
             };
-
-            for (auto in : to_collapse->inputs) {
-                if (in->writer_id > root_id && in->writer_id <= root_id + commands[root_id]->num_descendants) {
-                    // This input is a descendant of the cluster root. Mark it and all
-                    // ancestors up to the root as part of the cluster by traversing downwards.
-                    collapse_linear(in->writer_id);
-                }
-            }
             for (auto out : to_collapse->outputs) {
                 if (!out->is_cached) {
                     for (auto reader : out->readers) {
@@ -580,6 +572,8 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        //std::cerr << "Tallying inputs to " << commands[command_id]->executable << std::endl;
+
         // Count cluster inputs
         ssize_t cluster_inputs = 0;
         auto tally_inputs = [&](db_command* cluster_member, bool leaf) {
@@ -632,7 +626,9 @@ int main(int argc, char* argv[]) {
                 files[file_id]->status = UNKNOWN;
             }
         } else if (files[file_id]->status == UNCHANGED) {
+            //std::cerr << files[file_id]->path << " is unchanged" << std::endl;
             for (auto reader : files[file_id]->readers) {
+                //std::cerr << "Decrementing ID " << reader->id << std::endl;
                 adjust_refcounts(reader, -1, commands, &current_generation, ignore_callback);
             }
         }
