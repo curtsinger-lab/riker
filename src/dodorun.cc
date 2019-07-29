@@ -920,14 +920,16 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 }
-
-                // Mark the child as blocked if it is
-                blocked_processes += 1;
-                pipe_cluster_unlaunched[run_command->pipe_cluster] -= 1;
-                if (pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
-                    blocked_processes -= pipe_cluster_blocked[run_command->pipe_cluster];
-                }
             }
+
+            // Mark the child as blocked if it is
+            blocked_processes += 1;
+            pipe_cluster_unlaunched[run_command->pipe_cluster] -= 1;
+            if (pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
+                blocked_processes -= pipe_cluster_blocked[run_command->pipe_cluster];
+            }
+            //std::cerr << "Pipe cluster " << run_command->pipe_cluster << " at " << pipe_cluster_unlaunched[run_command->pipe_cluster] << "/" << pipe_cluster_blocked[run_command->pipe_cluster] << std::endl;
+            //std::cerr << "  Blocked at " << blocked_processes << std::endl;
             //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
             wait_worklist[child_pid] = run_command;
@@ -955,6 +957,8 @@ int main(int argc, char* argv[]) {
             if (pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
                 blocked_processes -= 1;
                 pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
+                //std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " << pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" << pipe_cluster_blocked[child_command->pipe_cluster] << std::endl;
+                //std::cerr << "  Blocked at " << blocked_processes << std::endl;
             }
 
             // Mark all outputs appropriately
@@ -977,6 +981,9 @@ int main(int argc, char* argv[]) {
             }
             continue;
         }
+
+        std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
+        break;
     }
 
     Graph graph;
