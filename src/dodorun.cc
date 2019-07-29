@@ -725,7 +725,6 @@ int main(int argc, char* argv[]) {
                 for (auto del : cluster_member->deletions) {
                     del->scheduled_for_deletion = true;
                 }
-                mark_complete_for_deletions(cluster_member, dry_run);
 
                 // Mark ourselves as started yet unblocked
                 pipe_cluster_unlaunched[cluster_member->pipe_cluster] -= 1;
@@ -745,6 +744,12 @@ int main(int argc, char* argv[]) {
                 }
             };
             cluster_for_each(commands, node, descend);
+            // We have to do this in a second pass so everything gets appropriately
+            // marked for creation/deletion
+            auto mark = [&](db_command* cluster_member, bool leaf) {
+                mark_complete_for_deletions(cluster_member, dry_run);
+            };
+            cluster_for_each(commands, node, mark);
 
             continue;
         }
