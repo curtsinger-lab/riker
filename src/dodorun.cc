@@ -98,8 +98,12 @@ struct db_command {
     db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
 };
 
-static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
+static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
     for (size_t command_id = 0; command_id < command_count; command_id++) {
+        if (!show_collapsed && commands[command_id]->collapse_with_parent) {
+            continue;
+        }
+
         std::string attr = "";
         if (commands[command_id]->rerun) {
             attr = "style=filled fillcolor=gold";
@@ -136,41 +140,51 @@ static void draw_graph_nodes(Graph* graph, bool show_sysfiles, db_command* comma
     }
 }
 
-static void draw_graph_edges(Graph* graph, bool show_sysfiles, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
+static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
     size_t id = start_id;
+    if (!show_collapsed && start_id < end_id) {
+        start_id = commands[start_id]->cluster_root->id;
+    }
     while (id < end_id) {
         auto root = commands[id];
+        std::string root_node;
+        if (show_collapsed) {
+            root_node = "c" + std::to_string(id);
+        } else {
+            root_node = "c" + std::to_string(root->cluster_root->id);
+        }
+
         if (start_id > 0) {
-            graph->add_edge("c" + std::to_string(start_id - 1), "c" + std::to_string(id), "style=dashed");
+            graph->add_edge("c" + std::to_string(start_id - 1), root_node, "style=dashed");
         }
 
         for (auto i : root->inputs) {
             if (show_sysfiles || i->is_local()) {
-                graph->add_edge("f" + std::to_string(i->id), "c" + std::to_string(root->id), "arrowhead=empty");
+                graph->add_edge("f" + std::to_string(i->id), root_node, "arrowhead=empty");
             }
         }
 
         for (auto o : root->outputs) {
             if (show_sysfiles || o->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(o->id), "arrowhead=empty");
+                graph->add_edge(root_node, "f" + std::to_string(o->id), "arrowhead=empty");
             }
         }
 
         for (auto d : root->deletions) {
             if (show_sysfiles || d->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(d->id), "color=red arrowhead=empty");
+                graph->add_edge(root_node, "f" + std::to_string(d->id), "color=red arrowhead=empty");
             }
         }
 
         for (auto c : root->creations) {
             if (show_sysfiles || c->is_local()) {
-                graph->add_edge("c" + std::to_string(root->id), "f" + std::to_string(c->id), "color=blue arrowhead=empty");
+                graph->add_edge(root_node, "f" + std::to_string(c->id), "color=blue arrowhead=empty");
             }
         }
 
         size_t children_start = id + 1;
         size_t children_end = children_start + root->num_descendants;
-        draw_graph_edges(graph, show_sysfiles, commands, files, children_start, children_end);
+        draw_graph_edges(graph, show_collapsed, show_sysfiles, commands, files, children_start, children_end);
 
         id = children_end;
     }
@@ -346,6 +360,7 @@ int main(int argc, char* argv[]) {
     bool use_fingerprints = true;
     bool show_sysfiles = false;
     bool dry_run = false;
+    bool show_collapsed = true;
     size_t parallel_jobs = 1;
     // Parse arguments
     for (int i = 1; i < argc; i++) {
@@ -355,6 +370,8 @@ int main(int argc, char* argv[]) {
             show_sysfiles = true;
         } else if ("--dry-run" == std::string(argv[i])) {
             dry_run = true;
+        } else if ("--collapse" == std::string(argv[i])) {
+            show_collapsed = false;
         } else if ("-j" == std::string(argv[i])) {
             if (i + 1 < argc) {
                i++;
@@ -1000,7 +1017,7 @@ int main(int argc, char* argv[]) {
 
     Graph graph;
     graph.start_graph();
-    draw_graph_nodes(&graph, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
-    draw_graph_edges(&graph, show_sysfiles, commands, files, 0, db_graph.getCommands().size());
+    draw_graph_nodes(&graph, show_collapsed, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
+    draw_graph_edges(&graph, show_collapsed, show_sysfiles, commands, files, 0, db_graph.getCommands().size());
     graph.close_graph();
 }
