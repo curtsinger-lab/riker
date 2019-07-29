@@ -140,11 +140,8 @@ static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfil
     }
 }
 
-static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t start_id, size_t end_id) {
+static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t parent_id, size_t start_id, size_t end_id) {
     size_t id = start_id;
-    if (!show_collapsed && start_id < end_id) {
-        start_id = commands[start_id]->cluster_root->id;
-    }
     while (id < end_id) {
         auto root = commands[id];
         std::string root_node;
@@ -154,8 +151,8 @@ static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfil
             root_node = "c" + std::to_string(root->cluster_root->id);
         }
 
-        if (start_id > 0) {
-            graph->add_edge("c" + std::to_string(start_id - 1), root_node, "style=dashed");
+        if (parent_id != std::numeric_limits<size_t>::max() && (show_collapsed || !root->collapse_with_parent)) {
+            graph->add_edge("c" + std::to_string(parent_id), root_node, "style=dashed");
         }
 
         for (auto i : root->inputs) {
@@ -184,7 +181,13 @@ static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfil
 
         size_t children_start = id + 1;
         size_t children_end = children_start + root->num_descendants;
-        draw_graph_edges(graph, show_collapsed, show_sysfiles, commands, files, children_start, children_end);
+        size_t children_parent;
+        if (show_collapsed || !root->collapse_with_parent) {
+            children_parent = id;
+        } else {
+            children_parent = parent_id;
+        }
+        draw_graph_edges(graph, show_collapsed, show_sysfiles, commands, files, children_parent, children_start, children_end);
 
         id = children_end;
     }
@@ -1018,6 +1021,6 @@ int main(int argc, char* argv[]) {
     Graph graph;
     graph.start_graph();
     draw_graph_nodes(&graph, show_collapsed, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
-    draw_graph_edges(&graph, show_collapsed, show_sysfiles, commands, files, 0, db_graph.getCommands().size());
+    draw_graph_edges(&graph, show_collapsed, show_sysfiles, commands, files, std::numeric_limits<size_t>::max(), 0, db_graph.getCommands().size());
     graph.close_graph();
 }
