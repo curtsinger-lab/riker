@@ -125,7 +125,7 @@ static uint64_t serialize_commands(Command* command, ::capnp::List<db::Command>:
 // collapse the current command to the designated depth
 Command* Command::collapse_helper(unsigned int depth) {
     Command* cur_command = this;
-    while (cur_command->depth < depth) {
+    while (cur_command->depth > depth) {
         cur_command->collapse_with_parent = true;
         cur_command = cur_command->parent;
     }
@@ -133,6 +133,7 @@ Command* Command::collapse_helper(unsigned int depth) {
 }
 
 void Command::collapse(std::set<Command*>* commands) {
+    //std::cerr << "Collapsing set of size " << commands->size() << std::endl;
     unsigned int ansc_depth = this->depth;
     // find the minimum common depth
     for (auto c : *commands) {
@@ -142,13 +143,15 @@ void Command::collapse(std::set<Command*>* commands) {
     }
     bool fully_collapsed = false;
     while (!fully_collapsed) {
+        //std::cerr << "  Target depth " << ansc_depth << std::endl;
         // collapse all commands to this depth
-        Command* prev_command = *(commands->begin());
+        Command* prev_command = nullptr;
         Command* cur_command;
         fully_collapsed = true;
         for (auto c : *commands) {
             cur_command = c->collapse_helper(ansc_depth);
-            if (cur_command != prev_command) {
+            //std::cerr << "    " << std::string(c->cmd.asPtr().asChars().begin(), c->cmd.asPtr().size()) << " collapsed to " << std::string(cur_command->cmd.asPtr().asChars().begin(), cur_command->cmd.asPtr().size()) << std::endl;
+            if (cur_command != prev_command && prev_command != nullptr) {
                 fully_collapsed = false;
             }
             prev_command = cur_command;
@@ -236,7 +239,71 @@ size_t trace_state::find_file(BlobPtr path) {
     return location;
 }
 
+struct scc_info {
+    size_t discovery_time;
+    size_t lowlink;
+    bool on_stack;
+};
+
+static void tarjan_scc(size_t* time, std::vector<Command*>& scc_stack, std::map<Command*, scc_info>& info_mapping, Command* command) {
+    size_t self_discovery_time = *time;
+    size_t self_lowlink = *time;
+    size_t stack_index = scc_stack.size();
+    info_mapping[command].discovery_time = self_discovery_time;
+    info_mapping[command].on_stack = true;
+    *time += 1;
+    scc_stack.push_back(command);
+
+    auto handle_out_edge = [&](Command* other) {
+        auto other_entry = info_mapping.find(other);
+        if (other_entry == info_mapping.end()) {
+            tarjan_scc(time, scc_stack, info_mapping, other);
+            size_t other_lowlink = info_mapping[other].lowlink;
+            if (other_lowlink < self_lowlink) {
+                self_lowlink = other_lowlink;
+            }
+        } else if (other_entry->second.on_stack) {
+            if (other_entry->second.discovery_time < self_lowlink) {
+                self_lowlink = other_entry->second.discovery_time;
+            }
+        }
+    };
+    for (auto child : command->children) {
+        handle_out_edge(child);
+    }
+    for (auto out : command->outputs) {
+        for (auto reader : out->users) {
+            handle_out_edge(reader);
+        }
+    }
+
+    info_mapping[command].lowlink = self_lowlink;
+    if (self_lowlink == self_discovery_time) {
+        std::set<Command*> scc;
+        for (size_t i = stack_index; i < scc_stack.size(); i++) {
+            info_mapping[scc_stack[i]].on_stack = false;
+            scc.insert(scc_stack[i]);
+        }
+        command->collapse(&scc);
+        scc_stack.resize(stack_index);
+    }
+}
+
+void trace_state::collapse_sccs(void) {
+    // We use Tarjan's SCC algorithm
+    size_t time = 0;
+    std::vector<Command*> scc_stack;
+    std::map<Command*, scc_info> info_mapping;
+
+    for (auto c : this->commands) {
+        tarjan_scc(&time, scc_stack, info_mapping, c);
+    }
+}
+
 void trace_state::serialize_graph(void) {
+    // Before serializing, search for strongly connected components and collapse them
+    this->collapse_sccs();
+
     ::capnp::MallocMessageBuilder message;
 
     db::Graph::Builder graph = message.initRoot<db::Graph>();
