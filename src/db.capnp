@@ -82,7 +82,7 @@ struct Graph {
   outputs @3 :List(Dependency);
   # From commands to files
   # TODO: order?
-  creates @4 :List(Dependency);
+  creations @4 :List(Dependency);
   # From commands to files
   # TODO: order?
   removals @5 :List(Dependency);
