@@ -70,7 +70,6 @@ struct db_file {
     }
 };
 
-//TODO setup arguments
 struct db_command {
     size_t id;
     size_t num_descendants;
@@ -648,8 +647,9 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else {
-            files[file_id]->status = UNKNOWN;
-            if (files[file_id]->status == CHANGED) {
+            if (files[file_id]->status != CHANGED) {
+                files[file_id]->status = UNKNOWN;
+            } else {
                 // Rerun the commands that produce changed files
                 propagate_rerun_worklist.push(commands[files[file_id]->writer_id]);
             }
@@ -1013,6 +1013,8 @@ int main(int argc, char* argv[]) {
             }
             continue;
         }
+
+
 
         std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
         break;
