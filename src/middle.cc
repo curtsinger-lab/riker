@@ -66,13 +66,14 @@ void Command::add_output(File* f, size_t file_location) {
     f->interactions.push_front(this);
     // if we haven't written to this file before, create a new version
     File* fnew;
-    if (f->creator != nullptr && (f->writer == nullptr || f->writer == this)) {
+    if ((f->creator != nullptr && f->writer == nullptr) || f->writer == this) {
         // Unless we just created it, in which case it is pristine
         fnew = f;
     } else {
         fnew = f->make_version();
         this->state->files.insert(fnew);
         this->state->latest_versions[file_location] = fnew;
+        fnew->creator = nullptr;
     }
     fnew->writer = this;
     this->outputs.insert(fnew);
@@ -321,13 +322,15 @@ void trace_state::serialize_graph(void) {
     uint64_t input_count = 0;
     uint64_t output_count = 0;
     uint64_t create_count = 0;
+    uint64_t modify_count = 0;
     for (auto file : this->files) {
         // We only care about files that are either written or read so filter those out.
-        if (!file->users.empty() || file->writer != nullptr || (file->creator != nullptr && file->serialized.getReader().getLatestVersion())) {
+        if (!file->users.empty() || file->writer != nullptr || file->creator != nullptr || (file->prev_version != nullptr && !file->known_removed)) {
             file_ids[file] = file_count;
             input_count += file->users.size();
             output_count += (file->writer != nullptr);
             create_count += (file->creator != nullptr);
+            modify_count += (file->creator == nullptr && file->prev_version != nullptr && (file->prev_version->creator != nullptr || (file->prev_version->prev_version != nullptr && !file->prev_version->known_removed)));
             file_count += 1;
         }
     }
@@ -354,10 +357,12 @@ void trace_state::serialize_graph(void) {
     // Serialize dependencies
     auto inputs = graph.initInputs(input_count);
     auto outputs = graph.initOutputs(output_count);
-    auto creates = graph.initCreates(create_count);
+    auto creations = graph.initCreations(create_count);
+    auto modifications = graph.initModifications(modify_count);
     uint64_t input_index = 0;
     uint64_t output_index = 0;
     uint64_t create_index = 0;
+    uint64_t modify_index = 0;
     for (auto file_entry : file_ids) {
         auto file = file_entry.first;
         auto file_id = file_entry.second;
@@ -375,9 +380,15 @@ void trace_state::serialize_graph(void) {
         }
         if (file->creator != nullptr) {
             uint64_t creator_id = command_ids[file->creator];
-            creates[create_index].setInputID(creator_id);
-            creates[create_index].setOutputID(file_id);
+            creations[create_index].setInputID(creator_id);
+            creations[create_index].setOutputID(file_id);
             create_index++;
+        }
+        if (file->creator == nullptr && file->prev_version != nullptr && (file->prev_version->creator != nullptr || (file->prev_version->prev_version != nullptr && !file->prev_version->known_removed))) {
+            uint64_t prev_id = file_ids[file->prev_version];
+            modifications[modify_index].setInputID(prev_id);
+            modifications[modify_index].setOutputID(file_id);
+            modify_index++;
         }
     }
 
@@ -472,6 +483,7 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
 
                 if (!file_exists) {
                     f->creator = proc->command;
+                    f->known_removed = false;
                 }
             }
             break;
