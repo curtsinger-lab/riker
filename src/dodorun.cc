@@ -446,20 +446,19 @@ int main(int argc, char* argv[]) {
 
     // Add the dependencies
     for (auto dep : db_graph.getInputs()) {
-        files[dep.getFileID()]->readers.insert(commands[dep.getCommandID()]);
-        commands[dep.getCommandID()]->inputs.insert(files[dep.getFileID()]);
+        files[dep.getInputID()]->readers.insert(commands[dep.getOutputID()]);
+        commands[dep.getOutputID()]->inputs.insert(files[dep.getInputID()]);
     }
     for (auto dep : db_graph.getOutputs()) {
-        db_file* file = files[dep.getFileID()];
-        file->writer_id = dep.getCommandID();
-        commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
+        db_file* file = files[dep.getOutputID()];
+        file->writer_id = dep.getInputID();
+        commands[file->writer_id]->outputs.insert(file);
     }
-    //TODO what does the run do with removals?
     for (auto dep : db_graph.getRemovals()) {
-        commands[dep.getCommandID()]->deletions.insert(files[dep.getFileID()]);
+        commands[dep.getInputID()]->deletions.insert(files[dep.getOutputID()]);
     }
     for (auto dep : db_graph.getCreates()) {
-        commands[dep.getCommandID()]->creations.insert(files[dep.getFileID()]);
+        commands[dep.getInputID()]->creations.insert(files[dep.getOutputID()]);
     }
 
     // Collapsing codependencies and cycles
