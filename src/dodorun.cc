@@ -656,7 +656,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
+
+/*
     while (!propagate_rerun_worklist.empty() || !descend_to_worklist.empty() || !zero_reference_worklist.empty() || !run_worklist.empty() || !wait_worklist.empty()) {
+
+*/
+
+    while (true) {
         // First propagate reruns as far as we can
         if (!propagate_rerun_worklist.empty()) {
             db_command* rerun_root = propagate_rerun_worklist.front()->cluster_root;
@@ -707,7 +713,7 @@ int main(int argc, char* argv[]) {
                 // Remove the parent reference
                 adjust_refcounts(cur_command, -1, commands, &current_generation, add_to_worklist);
                 if (cur_command->references_remaining != 0) {
-                    // Mark the command so that if we propogate a rerun here, we will add it
+                    // Mark the command so that if we propagate a rerun here, we will add it
                     // to the run worklist
                     //std::cerr << "  Not ready yet" << std::endl;
                     cur_command->candidate_for_run = true;
@@ -1014,7 +1020,19 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+    
+        if (run_worklist.empty()) {
+            break;
+        }
 
+        // if we've reached an infinite loop, lazily find a candidate to run and add it to the
+        // run_worklist 
+        for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+            if (commands[command_id]->candidate_for_run) {
+                run_worklist.push(commands[command_id]);
+                continue;
+            }
+        }
 
         std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
         break;
