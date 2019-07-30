@@ -681,12 +681,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-
-/*
-    while (!propagate_rerun_worklist.empty() || !descend_to_worklist.empty() || !zero_reference_worklist.empty() || !run_worklist.empty() || !wait_worklist.empty()) {
-
-*/
-
     while (true) {
         // First propagate reruns as far as we can
         if (!propagate_rerun_worklist.empty()) {
