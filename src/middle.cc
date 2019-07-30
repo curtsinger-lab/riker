@@ -363,20 +363,20 @@ void trace_state::serialize_graph(void) {
         auto file_id = file_entry.second;
         for (auto user : file->users) {
             uint64_t user_id = command_ids[user];
-            inputs[input_index].setFileID(file_id);
-            inputs[input_index].setCommandID(user_id);
+            inputs[input_index].setInputID(file_id);
+            inputs[input_index].setOutputID(user_id);
             input_index++;
         }
         if (file->writer != nullptr) {
             uint64_t writer_id = command_ids[file->writer];
-            outputs[output_index].setFileID(file_id);
-            outputs[output_index].setCommandID(writer_id);
+            outputs[output_index].setInputID(writer_id);
+            outputs[output_index].setOutputID(file_id);
             output_index++;
         }
         if (file->creator != nullptr) {
             uint64_t creator_id = command_ids[file->creator];
-            creates[create_index].setFileID(file_id);
-            creates[create_index].setCommandID(creator_id);
+            creates[create_index].setInputID(creator_id);
+            creates[create_index].setOutputID(file_id);
             create_index++;
         }
     }
@@ -397,8 +397,8 @@ void trace_state::serialize_graph(void) {
         for (auto f : c.first->deleted_files) {
             auto file_id = file_ids.find(f);
             if (file_id != file_ids.end()) {
-                removals[removal_index].setFileID(file_ids[f]);
-                removals[removal_index].setCommandID(c.second);
+                removals[removal_index].setInputID(c.second);
+                removals[removal_index].setOutputID(file_ids[f]);
                 removal_index++;
             }
         }
