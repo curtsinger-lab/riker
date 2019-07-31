@@ -36,6 +36,7 @@ struct db_file {
     std::string path;
     int status;
 
+    bool active = false;
     bool scheduled_for_creation = false;
     bool scheduled_for_deletion = false;
 
@@ -402,6 +403,9 @@ int main(int argc, char* argv[]) {
     for (auto file : db_graph.getFiles()) {
         int flag = UNKNOWN;
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
+
+        std::cout << path << std::endl;
+
         bool is_pipe = (file.getType() == db::FileType::PIPE);
         // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
         // whatever the user specified
@@ -796,6 +800,39 @@ int main(int argc, char* argv[]) {
                             break;
                         }
                     }
+                    // run through outputs to check for conflicting writes 
+                    for (auto out : test_command->outputs) {
+                        // check whether the file can conflict 
+                        // if one of its conflicts are active, then this command is not ready 
+                        size_t id = out->id;
+                        while (id > 1) {
+                            // conflicting file
+                            if (files[id]->path == files[out->id]->path) {
+                                if (files[id]->active) {
+                                    ready = false;
+                                    std::cout << "HIT LOOP\n";
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                            id--;
+                        }
+                        id = out->id + 1;
+                        while (id < db_graph.getFiles().size()) {
+                            // conflicting file
+                            if (files[id]->path == files[out->id]->path) {
+                                if (files[id]->active) {
+                                    ready = false;
+                                    std::cout << "HIT LOOP\n";
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                            id++;
+                        }
+                    }
                     if (!ready) {
                         run_worklist.push(run_command);
                         searched++;
@@ -833,6 +870,14 @@ int main(int argc, char* argv[]) {
                 }
             }
             std::cout << std::endl;
+
+            // indicate that its inputs and outputs are active 
+            for (auto in : run_command->inputs) {
+                in->active = true;
+            }
+            for (auto out : run_command->outputs) {
+                out->active = true;
+            }
 
             // Run it!
             pid_t child_pid;
@@ -978,6 +1023,13 @@ int main(int argc, char* argv[]) {
             } else {
                 child_command = entry->second;
                 wait_worklist.erase(entry);
+                // mark inputs and outputs as no longer active
+                for (auto in : child_command->inputs) {
+                    in->active = false;
+                }
+                for (auto out : child_command->outputs) {
+                    out->active = false;
+                }
             }
             //std::cerr << child_command->executable << " has finished" << std::endl;
 
