@@ -810,7 +810,6 @@ int main(int argc, char* argv[]) {
                             if (files[id]->path == files[out->id]->path) {
                                 if (files[id]->active) {
                                     ready = false;
-                                    std::cout << "HIT LOOP\n";
                                     break;
                                 }
                             } else {
@@ -824,7 +823,6 @@ int main(int argc, char* argv[]) {
                             if (files[id]->path == files[out->id]->path) {
                                 if (files[id]->active) {
                                     ready = false;
-                                    std::cout << "HIT LOOP\n";
                                     break;
                                 }
                             } else {
