@@ -101,16 +101,33 @@ struct Process {
 };
 
 struct file_comparator {
-    bool operator() (File* lhs, File* rhs) {
-        auto path1 = lhs->serialized.getReader().getPath();
-        auto path2 = rhs->serialized.getReader().getPath();
+    bool operator() (File* const& lhs, File* const& rhs) const {
+      //  return false;
+
+        auto lhs_reader = lhs->serialized.getReader();
+        auto rhs_reader = rhs->serialized.getReader();
+        if (lhs_reader.getType() == db::FileType::PIPE) {
+            return true; 
+        } else if (rhs_reader.getType() == db::FileType::PIPE) {
+            return false;
+        }
+
+        auto path1 = lhs_reader.getPath();
+        auto path2 = rhs_reader.getPath();
+        
+        // compare to find alphabetic order
         for (size_t i = 0; i < std::min(path1.size(), path2.size()); i++) {
             if (path1[i] != path2[i]) {
                 return path1[i] < path2[i];
             }
         }
-        return path1 == path2;        
-    }
+
+       
+        // if the first min(path1.size(), path2(size()) characters are the same, order
+        // the shorter string first
+//return true;
+        return path1.size() <= path2.size(); 
+}
 };
 
 struct trace_state {
