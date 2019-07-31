@@ -100,8 +100,21 @@ struct Process {
     Process(pid_t thread_id, Blob&& cwd, Command* command);
 };
 
+struct file_comparator {
+    bool operator() (File* lhs, File* rhs) {
+        auto path1 = lhs->serialized.getReader().getPath();
+        auto path2 = rhs->serialized.getReader().getPath();
+        for (size_t i = 0; i < std::min(path1.size(), path2.size()); i++) {
+            if (path1[i] != path2[i]) {
+                return path1[i] < path2[i];
+            }
+        }
+        return path1 == path2;        
+    }
+};
+
 struct trace_state {
-    std::set<File*> files;
+    std::set<File*, file_comparator> files;
     std::vector<File*> latest_versions;
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
