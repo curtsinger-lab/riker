@@ -100,8 +100,38 @@ struct Process {
     Process(pid_t thread_id, Blob&& cwd, Command* command);
 };
 
+struct file_comparator {
+    bool operator() (File* const& lhs, File* const& rhs) const {
+      //  return false;
+
+        auto lhs_reader = lhs->serialized.getReader();
+        auto rhs_reader = rhs->serialized.getReader();
+        if (lhs_reader.getType() == db::FileType::PIPE) {
+            return true; 
+        } else if (rhs_reader.getType() == db::FileType::PIPE) {
+            return false;
+        }
+
+        auto path1 = lhs_reader.getPath();
+        auto path2 = rhs_reader.getPath();
+        
+        // compare to find alphabetic order
+        for (size_t i = 0; i < std::min(path1.size(), path2.size()); i++) {
+            if (path1[i] != path2[i]) {
+                return path1[i] < path2[i];
+            }
+        }
+
+       
+        // if the first min(path1.size(), path2(size()) characters are the same, order
+        // the shorter string first
+//return true;
+        return path1.size() <= path2.size(); 
+}
+};
+
 struct trace_state {
-    std::set<File*> files;
+    std::set<File*, file_comparator> files;
     std::vector<File*> latest_versions;
     std::list<Command*> commands;
     std::map<pid_t, Process*> processes;
