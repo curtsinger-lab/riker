@@ -421,7 +421,6 @@ int main(int argc, char* argv[]) {
 
     // initialize array of files
     db_file* files[db_graph.getFiles().size()];
-    std::cerr << "This build has: " << db_graph.getFiles().size() << " files\n";
     unsigned int file_id = 0;
     for (auto file : db_graph.getFiles()) {
         int flag = UNKNOWN;
