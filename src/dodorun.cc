@@ -36,6 +36,8 @@ struct db_file {
     std::string path;
     int status;
 
+    db_file* prev_version = nullptr;
+
     bool active = false;
     bool scheduled_for_creation = false;
     bool scheduled_for_deletion = false;
@@ -71,7 +73,6 @@ struct db_file {
     }
 };
 
-//TODO setup arguments
 struct db_command {
     size_t id;
     size_t num_descendants;
@@ -141,7 +142,7 @@ static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfil
     }
 }
 
-static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t parent_id, size_t start_id, size_t end_id) {
+static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t parent_id, size_t start_id, size_t end_id) {
     size_t id = start_id;
     while (id < end_id) {
         auto root = commands[id];
@@ -188,9 +189,17 @@ static void draw_graph_edges(Graph* graph, bool show_collapsed, bool show_sysfil
         } else {
             children_parent = parent_id;
         }
-        draw_graph_edges(graph, show_collapsed, show_sysfiles, commands, files, children_parent, children_start, children_end);
+        draw_graph_command_edges(graph, show_collapsed, show_sysfiles, commands, files, children_parent, children_start, children_end);
 
         id = children_end;
+    }
+}
+
+static void draw_graph_modification_edges(Graph* graph, bool show_sysfiles, db_file* files[], size_t file_count) {
+    for (size_t file_id = 0; file_id < file_count; file_id++) {
+        if (files[file_id]->prev_version != nullptr && (show_sysfiles || files[file_id]->is_local())) {
+            graph->add_edge("f" + std::to_string(files[file_id]->prev_version->id), "f" + std::to_string(file_id), "color=orchid arrowhead=empty");
+        }
     }
 }
 
@@ -237,7 +246,20 @@ static void mark_complete_for_deletions(db_command* command, bool dry_run) {
         }
 
         in->readers_complete += 1;
-        if (in->scheduled_for_deletion && !in->scheduled_for_creation && in->readers_complete == in->readers.size()) {
+        if (in->scheduled_for_deletion && in->readers_complete == in->readers.size()) {
+            bool scheduled_for_creation = in->scheduled_for_creation;
+            db_file* early_version = in;
+            while (early_version->prev_version != nullptr) {
+                early_version = early_version->prev_version;
+                if (early_version->scheduled_for_creation) {
+                    scheduled_for_creation = true;
+                    break;
+                }
+            }
+            if (scheduled_for_creation) {
+                continue;
+            }
+
             std::cout << "rm ";
             write_shell_escaped(std::cout, in->path);
             std::cout << std::endl;
@@ -450,20 +472,22 @@ int main(int argc, char* argv[]) {
 
     // Add the dependencies
     for (auto dep : db_graph.getInputs()) {
-        files[dep.getFileID()]->readers.insert(commands[dep.getCommandID()]);
-        commands[dep.getCommandID()]->inputs.insert(files[dep.getFileID()]);
+        files[dep.getInputID()]->readers.insert(commands[dep.getOutputID()]);
+        commands[dep.getOutputID()]->inputs.insert(files[dep.getInputID()]);
     }
     for (auto dep : db_graph.getOutputs()) {
-        db_file* file = files[dep.getFileID()];
-        file->writer_id = dep.getCommandID();
-        commands[dep.getCommandID()]->outputs.insert(files[dep.getFileID()]);
+        db_file* file = files[dep.getOutputID()];
+        file->writer_id = dep.getInputID();
+        commands[file->writer_id]->outputs.insert(file);
     }
-    //TODO what does the run do with removals?
     for (auto dep : db_graph.getRemovals()) {
-        commands[dep.getCommandID()]->deletions.insert(files[dep.getFileID()]);
+        commands[dep.getInputID()]->deletions.insert(files[dep.getOutputID()]);
     }
-    for (auto dep : db_graph.getCreates()) {
-        commands[dep.getCommandID()]->creations.insert(files[dep.getFileID()]);
+    for (auto dep : db_graph.getCreations()) {
+        commands[dep.getInputID()]->creations.insert(files[dep.getOutputID()]);
+    }
+    for (auto dep : db_graph.getModifications()) {
+        files[dep.getOutputID()]->prev_version = files[dep.getInputID()];
     }
 
     // Collapsing codependencies and cycles
@@ -651,15 +675,16 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else {
-            files[file_id]->status = UNKNOWN;
-            if (files[file_id]->status == CHANGED) {
+            if (files[file_id]->status != CHANGED) {
+                files[file_id]->status = UNKNOWN;
+            } else {
                 // Rerun the commands that produce changed files
                 propagate_rerun_worklist.push(commands[files[file_id]->writer_id]);
             }
         }
     }
 
-    while (!propagate_rerun_worklist.empty() || !descend_to_worklist.empty() || !zero_reference_worklist.empty() || !run_worklist.empty() || !wait_worklist.empty()) {
+    while (true) {
         // First propagate reruns as far as we can
         if (!propagate_rerun_worklist.empty()) {
             db_command* rerun_root = propagate_rerun_worklist.front()->cluster_root;
@@ -710,7 +735,7 @@ int main(int argc, char* argv[]) {
                 // Remove the parent reference
                 adjust_refcounts(cur_command, -1, commands, &current_generation, add_to_worklist);
                 if (cur_command->references_remaining != 0) {
-                    // Mark the command so that if we propogate a rerun here, we will add it
+                    // Mark the command so that if we propagate a rerun here, we will add it
                     // to the run worklist
                     //std::cerr << "  Not ready yet" << std::endl;
                     cur_command->candidate_for_run = true;
@@ -1066,6 +1091,20 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+    
+        if (run_worklist.empty()) {
+            break;
+        }
+
+        // if we've reached an infinite loop, lazily find a candidate to run and add it to the
+        // run_worklist 
+        for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+            if (commands[command_id]->candidate_for_run) {
+                run_worklist.push(commands[command_id]);
+                continue;
+            }
+        }
+
         std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
         break;
     }
@@ -1073,6 +1112,7 @@ int main(int argc, char* argv[]) {
     Graph graph;
     graph.start_graph();
     draw_graph_nodes(&graph, show_collapsed, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
-    draw_graph_edges(&graph, show_collapsed, show_sysfiles, commands, files, std::numeric_limits<size_t>::max(), 0, db_graph.getCommands().size());
+    draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, commands, files, std::numeric_limits<size_t>::max(), 0, db_graph.getCommands().size());
+    draw_graph_modification_edges(&graph, show_sysfiles, files, db_graph.getFiles().size());
     graph.close_graph();
 }

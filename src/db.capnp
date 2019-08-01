@@ -1,4 +1,4 @@
-@0xaa56d2657b9241a2;
+@0xb746a220c274d8b3;
 
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("db");
@@ -65,8 +65,8 @@ struct File {
 }
 
 struct Dependency {
-  fileID @0 :UInt64;
-  commandID @1 :UInt64;
+  inputID @0 :UInt64;
+  outputID @1 :UInt64;
 }
 
 struct Graph {
@@ -76,8 +76,19 @@ struct Graph {
   files @1 :List(File);
   # TODO: What order are these in?
 
-  inputs @2 :List(Dependency); # TODO: order?
-  outputs @3 :List(Dependency); # TODO: order?
-  creates @4 :List(Dependency); # TODO: order?
-  removals @5 :List(Dependency); # TODO: order?
+  inputs @2 :List(Dependency);
+  # From files to commands
+  # TODO: order?
+  outputs @3 :List(Dependency);
+  # From commands to files
+  # TODO: order?
+  creations @4 :List(Dependency);
+  # From commands to files
+  # TODO: order?
+  removals @5 :List(Dependency);
+  # From commands to files
+  # TODO: order?
+  modifications @6 :List(Dependency);
+  # From files to files
+  # TODO: order?
 }
