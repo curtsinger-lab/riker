@@ -9,6 +9,7 @@ runs from a file to a command that reads from that file or from a command to a f
 by that command.
 
 Graph invariants:
+
 - As expressed above, the dependency edges only connect files to commands and vice versa, and
   execution edges only connect commands to other commands.
 - Every command is executed by (i.e. pointed to via an execution edge) at most one other command. We
@@ -21,6 +22,7 @@ Graph invariants:
   of all the vertices involved in the cycle.
 
 To rerun a build:
+
 - Initialize a worklist to all command roots (those that do not have parents).
   - The command roots are also the seed build.
 - Initialize a labeling of the vertices where every vertex is colored as either **changed**,
@@ -59,6 +61,7 @@ To rerun a build:
 - Go back to complete a new piece of work.
 
 Low level details:
+
 - We store commands layed out linearly in a preorder traversal order with each command containing a number
   saying how many (recursive) descendants this command has execed. This is enough information to efficiently navigate
   the tree.
