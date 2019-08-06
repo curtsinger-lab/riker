@@ -1,4 +1,5 @@
 We assume that
+
 - Builds are referentially transparent (i.e. they give the same results on the same inputs)
   - This enables the use of checksums.
   - This may be tricky for systems that are not deterministic, which can happen due to compiler problems.
