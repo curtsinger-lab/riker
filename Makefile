@@ -1,6 +1,6 @@
 CC  = gcc
 CXX = g++
-COMMON_CFLAGS = -pipe -Wall -O2 -flto
+COMMON_CFLAGS = -Wall -O2 -flto
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj -flto
 
