@@ -16,7 +16,11 @@ dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o objs/fingerprint.o
 dodo-build: objs/db.capnp.o objs/graph.o objs/dodorun.o objs/fingerprint.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-.submodules-updated:
+.submodules-cleared:
+	git submodule deinit --all --force
+	touch $@
+
+.submodules-updated: .submodules-cleared
 	git submodule update --init
 	touch $@
 
