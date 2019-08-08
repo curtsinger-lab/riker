@@ -9,6 +9,10 @@
 #include "middle.h"
 #include "trace.h"
 
+/**
+ * This is the entry point for the 'dodo' trace program.
+ */
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: " << std::string(argv[0]) << " <shell command>" << std::endl;

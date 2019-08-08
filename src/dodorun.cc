@@ -375,6 +375,9 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
 
 
 
+/**
+ * This is the entry point for 'dodo-build' incremental rebuild program.
+ */
 int main(int argc, char* argv[]) {
 
     int db = open("db.dodo", O_RDONLY);
