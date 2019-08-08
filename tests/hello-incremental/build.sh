@@ -1,0 +1,5 @@
+#!/bin/sh
+
+gcc -c -o hello.o hello.c
+gcc -o hello hello.o
+
