@@ -63,9 +63,11 @@ void set_fingerprint(db::File::Builder file, bool use_checksum) {
         } else if (bytes_read == 0) { // EOF
             blake2sp_final(&hash_state, checksum.begin(), checksum.size());
             file.setFingerprintType(db::FingerprintType::BLAKE2SP);
+            close(file_fd);
             return;
         } else { // Error reading
             file.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+            close(file_fd);
             return;
         }
     }
@@ -134,13 +136,16 @@ bool match_fingerprint(db::File::Reader file) {
                 blake2sp_update(&hash_state, buffer, bytes_read);
             } else if (bytes_read == 0) { // EOF
                 blake2sp_final(&hash_state, checksum.begin(), checksum.size());
+                close(file_fd);
                 return checksum.asConst() == file.getChecksum();
             } else { // Error reading
+                close(file_fd);
                 return false;
             }
         }
     }
     default:
+        close(file_fd);
         return false;
     }
 }
