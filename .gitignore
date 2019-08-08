@@ -12,4 +12,5 @@ dodo
 dodo-build
 *.capnp.cc
 *.capnp.h
+.submodules-cleared
 .submodules-updated
