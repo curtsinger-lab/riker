@@ -101,3 +101,16 @@ $ dodo
 $ dodo --visualize
 $ dot -Tpdf out.dot >out.pdf
 ```
+
+You should see something like the following:
+
+![helloworld dependence graph](dodo-dependence-graph.png)
+
+Legend:
+
+* Ellipses are commands and rectangles are files.
+* Dashed arrows are parent-child relationships.
+* Red empty-head arrows mark when a command deletes a file.
+* Blue empty-head arrows mark when a command creates a file.
+* Black empty-head arrows mark a read or write dependency.
+* Golden-colored items signify work done during an incremental build: golden commands are those being rerun, and golden files are those that were changed.
