@@ -1,3 +1,4 @@
+#include "dodorun.h"
 #include "graph.h"
 #include "fingerprint.h"
 #include "db.capnp.h"
@@ -26,79 +27,17 @@ extern char** environ;
 #define CHANGED   1
 #define UNKNOWN   2
 
-struct db_command;
-struct db_file {
-    size_t id;
-    bool is_pipe;
-    bool is_cached;
-    size_t writer_id;
-    std::set<db_command*> readers;
-    std::string path;
-    int status;
-
-    db_file* prev_version = nullptr;
-
-    bool active = false;
-    bool scheduled_for_creation = false;
-    bool scheduled_for_deletion = false;
-
-    // A reference counting-based solution to promptly delete temporary files that are
-    // no longer needed. The scheduled_for_deletion field is set when we descend past a
-    // command that would delete this file, and once all readers are complete, we actually
-    // delete the file. N.B. this reference counting is completely unrelated to the reference
-    // counting used to decide which commands to run.
-    size_t readers_complete = 0;
-
-    // When we open pipes, we need to hold their file descriptors open until all their users
-    // start, since we can't refer to them by a path in the filesystem. (We could theoretically
-    // use named pipes, which would unify some logic, but that would be more expensive, more
-    // system-specific, and wouldn't actually save that much tracking since we need to know
-    // when the readers of a pipe are launched anyway to determine if a process will be blocked.)
-    size_t pipe_writer_references = 0;
-    int pipe_writer_fd;
-    size_t pipe_reader_references = 0;
-    int pipe_reader_fd;
-
-    db_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), path(path), status(status) {}
-    bool is_local(void) {
-        if (path.find("/usr/") != std::string::npos ||
-                path.find("/lib/") != std::string::npos ||
-                path.find("/etc/") != std::string::npos ||
-                path.find("/dev/") != std::string::npos ||
-                path.find("/proc/") != std::string::npos) {
-            return false;
-        } else {
-            return true;
-        }
+bool db_file::is_local(void) {
+    if (path.find("/usr/") != std::string::npos ||
+            path.find("/lib/") != std::string::npos ||
+            path.find("/etc/") != std::string::npos ||
+            path.find("/dev/") != std::string::npos ||
+            path.find("/proc/") != std::string::npos) {
+        return false;
+    } else {
+        return true;
     }
-};
-
-struct db_command {
-    size_t id;
-    size_t num_descendants;
-    std::string executable;
-    std::vector<std::string> args;
-    std::set<db_file*> inputs;
-    std::set<db_file*> outputs;
-    std::set<db_file*> creations;
-    std::set<db_file*> deletions;
-    size_t last_reference_generation = 0;
-    // Signed because we sometimes do operations out of order
-    ssize_t references_remaining = 0;
-    bool candidate_for_run = false;
-    bool rerun = false;
-    bool collapse_with_parent = false;
-    db_command* cluster_root;
-
-    // Since pipes have only a limited buffer size, the users of a pipe could block waiting
-    // for each other to run. Therefore, if we haven't launched all of the commands connected
-    // to a chain of pipes, we shouldn't count any of them towards our job limit; they may be
-    // doing nothing, and not launching more commands could even lead to deadlock. Therefore,
-    // we categorize commands into "pipe clusters" that all become unblocked simultaneously.
-    size_t pipe_cluster = std::numeric_limits<size_t>::max();
-
-    db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
-};
+}
 
 static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
     for (size_t command_id = 0; command_id < command_count; command_id++) {
@@ -373,59 +312,15 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
     }
 }
 
-
-
-/**
- * This is the entry point for 'dodo-build' incremental rebuild program.
- */
-int main(int argc, char* argv[]) {
-
-    int db = open("db.dodo", O_RDONLY);
-    if (db < 0) {
-        perror("Failed to open database");
-        exit(2);
-    }
-
-    bool use_fingerprints = true;
-    bool show_sysfiles = false;
-    bool dry_run = false;
-    bool show_collapsed = true;
-    size_t parallel_jobs = 1;
-    // Parse arguments
-    for (int i = 1; i < argc; i++) {
-        if ("--no-fingerprints" == std::string(argv[i])) {
-            use_fingerprints = false;
-        } else if ("--show-sysfiles" == std::string(argv[i])) {
-            show_sysfiles = true;
-        } else if ("--dry-run" == std::string(argv[i])) {
-            dry_run = true;
-        } else if ("--collapse" == std::string(argv[i])) {
-            show_collapsed = false;
-        } else if ("-j" == std::string(argv[i])) {
-            if (i + 1 < argc) {
-               i++;
-               long specified_jobs = std::stol(std::string(argv[i]));
-               if (specified_jobs < 1) {
-                   std::cerr << "Invalid number of jobs: specify at least one" << std::endl;
-                   exit(1);
-               }
-               parallel_jobs = specified_jobs;
-            } else {
-               std::cerr << "Please specify a number of jobs to use" << std::endl;
-               exit(1);
-            }
-        }
-    }
-
-    ::capnp::StreamFdMessageReader message(db);
-    auto db_graph = message.getRoot<db::Graph>();
-
+RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : message(db_fd), db_graph(message.getRoot<db::Graph>()) {
     // reconstruct the graph
+    size_t files_size = this->db_graph.getFiles().size();
+    size_t commands_size = this->db_graph.getCommands().size();
 
     // initialize array of files
-    db_file* files[db_graph.getFiles().size()];
+    this->files = new db_file*[files_size];
     unsigned int file_id = 0;
-    for (auto file : db_graph.getFiles()) {
+    for (auto file : this->db_graph.getFiles()) {
         int flag = UNKNOWN;
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
 
@@ -439,19 +334,14 @@ int main(int argc, char* argv[]) {
                 flag = UNCHANGED;
             }
 
-            int explicit_flag = CHANGED;
-            for (int i = 1; i < argc; i++) {
-                if ("--changed" == std::string(argv[i])) {
-                    explicit_flag = CHANGED;
-                } else if ("--unchanged" == std::string(argv[i])) {
-                    explicit_flag = UNCHANGED;
-                } else if (path == std::string(argv[i])) {
-                    flag = explicit_flag;
-                }
+            if (explicitly_changed.find(path) != explicitly_changed.end()) {
+                flag = CHANGED;
+            } else if (explicitly_unchanged.find(path) != explicitly_unchanged.end()) {
+                flag = UNCHANGED;
             }
         }
         bool is_cached = file.getLatestVersion() && !is_pipe;
-        files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
+        this->files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
         file_id++;
 
         //if (flag == CHANGED) {
@@ -460,45 +350,45 @@ int main(int argc, char* argv[]) {
     }
 
     // initialize array of commands
-    db_command* commands[db_graph.getCommands().size()];
+    this->commands = new db_command*[db_graph.getCommands().size()];
     unsigned int cmd_id = 0;
-    for (auto cmd : db_graph.getCommands()) {
+    for (auto cmd : this->db_graph.getCommands()) {
         auto executable = std::string((const char*) cmd.getExecutable().begin(), cmd.getExecutable().size());
-        commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable);
+        this->commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable);
         for (auto arg : cmd.getArgv()) {
-            commands[cmd_id]->args.push_back(std::string((const char*) arg.begin(), arg.size()));
+            this->commands[cmd_id]->args.push_back(std::string((const char*) arg.begin(), arg.size()));
         }
-        commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
+        this->commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
         cmd_id++;
     }
 
     // Add the dependencies
-    for (auto dep : db_graph.getInputs()) {
-        files[dep.getInputID()]->readers.insert(commands[dep.getOutputID()]);
-        commands[dep.getOutputID()]->inputs.insert(files[dep.getInputID()]);
+    for (auto dep : this->db_graph.getInputs()) {
+        this->files[dep.getInputID()]->readers.insert(this->commands[dep.getOutputID()]);
+        this->commands[dep.getOutputID()]->inputs.insert(this->files[dep.getInputID()]);
     }
-    for (auto dep : db_graph.getOutputs()) {
-        db_file* file = files[dep.getOutputID()];
+    for (auto dep : this->db_graph.getOutputs()) {
+        db_file* file = this->files[dep.getOutputID()];
         file->writer_id = dep.getInputID();
-        commands[file->writer_id]->outputs.insert(file);
+        this->commands[file->writer_id]->outputs.insert(file);
     }
-    for (auto dep : db_graph.getRemovals()) {
-        commands[dep.getInputID()]->deletions.insert(files[dep.getOutputID()]);
+    for (auto dep : this->db_graph.getRemovals()) {
+        this->commands[dep.getInputID()]->deletions.insert(this->files[dep.getOutputID()]);
     }
-    for (auto dep : db_graph.getCreations()) {
-        commands[dep.getInputID()]->creations.insert(files[dep.getOutputID()]);
+    for (auto dep : this->db_graph.getCreations()) {
+        this->commands[dep.getInputID()]->creations.insert(this->files[dep.getOutputID()]);
     }
-    for (auto dep : db_graph.getModifications()) {
-        files[dep.getOutputID()]->prev_version = files[dep.getInputID()];
+    for (auto dep : this->db_graph.getModifications()) {
+        this->files[dep.getOutputID()]->prev_version = this->files[dep.getInputID()];
     }
 
     // Collapsing codependencies and cycles
     // TODO: This probably wants to be part of the serialized representation, not here
     std::queue<db_command*> collapse_worklist;
-    for (size_t root_id = 0; root_id < db_graph.getCommands().size(); root_id++) {
+    for (size_t root_id = 0; root_id < commands_size; root_id++) {
         // If this command has already been included in another cluster, then its dependencies
         // have already been considered, so move on.
-        if (commands[root_id]->collapse_with_parent) {
+        if (this->commands[root_id]->collapse_with_parent) {
             continue;
         }
 
@@ -507,7 +397,7 @@ int main(int argc, char* argv[]) {
         // of the cluster is something else descended from the cluster, i.e. from the cluster's
         // root, i.e. from the current command. Alternatively, if an output of the cluster is
         // not cached and used by a descendant, we also need to collapse.
-        collapse_worklist.push(commands[root_id]);
+        collapse_worklist.push(this->commands[root_id]);
         while (!collapse_worklist.empty()) {
             auto to_collapse = collapse_worklist.front();
             collapse_worklist.pop();
@@ -517,14 +407,14 @@ int main(int argc, char* argv[]) {
                 while (parent_id != descendant_id) {
                     // Loop through children to find the ancestor of the writer
                     size_t current_id = parent_id + 1;
-                    size_t end_id = current_id + commands[parent_id]->num_descendants;
+                    size_t end_id = current_id + this->commands[parent_id]->num_descendants;
                     while (current_id < end_id) {
-                        size_t next_id = current_id + commands[current_id]->num_descendants + 1;
+                        size_t next_id = current_id + this->commands[current_id]->num_descendants + 1;
                         if (next_id > descendant_id) {
                             // Success: mark and move on to the next level
-                            if (!commands[current_id]->collapse_with_parent) {
-                                commands[current_id]->collapse_with_parent = true;
-                                collapse_worklist.push(commands[current_id]);
+                            if (!this->commands[current_id]->collapse_with_parent) {
+                                this->commands[current_id]->collapse_with_parent = true;
+                                collapse_worklist.push(this->commands[current_id]);
                             }
                             parent_id = current_id;
                             break;
@@ -536,7 +426,7 @@ int main(int argc, char* argv[]) {
             for (auto out : to_collapse->outputs) {
                 if (!out->is_cached) {
                     for (auto reader : out->readers) {
-                        if (reader->id > root_id && reader->id <= root_id + commands[root_id]->num_descendants) {
+                        if (reader->id > root_id && reader->id <= root_id + this->commands[root_id]->num_descendants) {
                             collapse_linear(reader->id);
                         }
                     }
@@ -544,12 +434,17 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+}
+
+void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs) {
+    size_t files_size = this->db_graph.getFiles().size();
+    size_t commands_size = this->db_graph.getCommands().size();
 
     // Set up "pipe clusters" as connected components through pipes
     std::vector<size_t> pipe_cluster_blocked;
     std::queue<db_command*> pipe_cluster_worklist;
-    for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
-        if (commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
+    for (size_t command_id = 0; command_id < commands_size; command_id++) {
+        if (this->commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
             // We have already assigned this to a cluster
             continue;
         }
@@ -557,7 +452,7 @@ int main(int argc, char* argv[]) {
         size_t pipe_cluster = pipe_cluster_blocked.size();
         pipe_cluster_blocked.push_back(0);
 
-        pipe_cluster_worklist.push(commands[command_id]);
+        pipe_cluster_worklist.push(this->commands[command_id]);
         while (!pipe_cluster_worklist.empty()) {
             auto to_include = pipe_cluster_worklist.front();
             pipe_cluster_worklist.pop();
@@ -567,7 +462,7 @@ int main(int argc, char* argv[]) {
                 pipe_cluster_blocked[pipe_cluster] += 1;
                 for (auto in : to_include->inputs) {
                     if (in->is_pipe && in->writer_id != std::numeric_limits<size_t>::max()) {
-                        pipe_cluster_worklist.push(commands[in->writer_id]);
+                        pipe_cluster_worklist.push(this->commands[in->writer_id]);
                     }
                 }
                 for (auto out : to_include->outputs) {
@@ -583,10 +478,10 @@ int main(int argc, char* argv[]) {
     // Everything is unlaunched
     std::vector<size_t> pipe_cluster_unlaunched = pipe_cluster_blocked;
 
-    for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
+    for (size_t command_id = 0; command_id < commands_size; command_id++) {
         // Initialize pipe reference counts
-        for (auto initial_fd_entry : db_graph.getCommands()[command_id].getInitialFDs()) {
-            auto file = files[initial_fd_entry.getFileID()];
+        for (auto initial_fd_entry : this->db_graph.getCommands()[command_id].getInitialFDs()) {
+            auto file = this->files[initial_fd_entry.getFileID()];
             if (file->is_pipe) {
                 if (initial_fd_entry.getCanRead()) {
                     file->pipe_reader_references += 1;
@@ -596,16 +491,16 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (commands[command_id]->collapse_with_parent) {
-            //std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
+        if (this->commands[command_id]->collapse_with_parent) {
+            //std::cerr << "Command " << this->commands[command_id]->executable << " is collapsed with parent." << std::endl;
             continue;
         }
 
         // Map each command to its cluster root
         auto set_cluster_root = [&](db_command* cluster_member, bool leaf) {
-            cluster_member->cluster_root = commands[command_id];
+            cluster_member->cluster_root = this->commands[command_id];
         };
-        cluster_for_each(commands, commands[command_id], set_cluster_root);
+        cluster_for_each(this->commands, this->commands[command_id], set_cluster_root);
     }
 
     // Whenever we scan through the graph, we wish to not double-count nodes, so we have a
@@ -615,34 +510,34 @@ int main(int argc, char* argv[]) {
     size_t current_generation = 0;
     auto ignore_callback = [](auto ignored) {};
 
-    for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
-        if (commands[command_id]->collapse_with_parent) {
-            //std::cerr << "Command " << commands[command_id]->executable << " is collapsed with parent." << std::endl;
+    for (size_t command_id = 0; command_id < commands_size; command_id++) {
+        if (this->commands[command_id]->collapse_with_parent) {
+            //std::cerr << "Command " << this->commands[command_id]->executable << " is collapsed with parent." << std::endl;
             continue;
         }
 
-        //std::cerr << "Tallying inputs to " << commands[command_id]->executable << std::endl;
+        //std::cerr << "Tallying inputs to " << this->commands[command_id]->executable << std::endl;
 
         // Count cluster inputs
         ssize_t cluster_inputs = 0;
         auto tally_inputs = [&](db_command* cluster_member, bool leaf) {
             for (auto in : cluster_member->inputs) {
                 // Ignore in-cluster edges
-                if (command_id > in->writer_id || in->writer_id > command_id + commands[command_id]->num_descendants) {
+                if (command_id > in->writer_id || in->writer_id > command_id + this->commands[command_id]->num_descendants) {
                     cluster_inputs += 1;
                     if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
                         // We will later on overcount by including this edge in the counts for
                         // the commands leading into this edge. Correct for that.
-                        adjust_refcounts(commands[in->writer_id], -1, commands, &current_generation, ignore_callback);
+                        adjust_refcounts(this->commands[in->writer_id], -1, this->commands, &current_generation, ignore_callback);
                     }
                 }
             }
         };
-        cluster_for_each(commands, commands[command_id], tally_inputs);
+        cluster_for_each(this->commands, this->commands[command_id], tally_inputs);
 
         // Adjust reference counts to account for those inputs
         // We start at one to record the spawns-child input from our parent
-        adjust_refcounts(commands[command_id], cluster_inputs + 1, commands, &current_generation, ignore_callback);
+        adjust_refcounts(this->commands[command_id], cluster_inputs + 1, this->commands, &current_generation, ignore_callback);
     }
 
     pid_t dry_run_pid = 1; // A fake PID for use if we are doing dry run;
@@ -662,26 +557,26 @@ int main(int argc, char* argv[]) {
 
     // Initialize the worklists
     //TODO multiple roots
-    descend_to_worklist.push(commands[0]);
-    for (size_t file_id = 0; file_id < db_graph.getFiles().size(); file_id++) {
-        if (files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
-            if (files[file_id]->status == CHANGED) {
-                for (auto reader : files[file_id]->readers) {
+    descend_to_worklist.push(this->commands[0]);
+    for (size_t file_id = 0; file_id < files_size; file_id++) {
+        if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+            if (this->files[file_id]->status == CHANGED) {
+                for (auto reader : this->files[file_id]->readers) {
                     propagate_rerun_worklist.push(reader);
                 }
-            } else if (files[file_id]->status == UNCHANGED) {
-                //std::cerr << files[file_id]->path << " is unchanged" << std::endl;
-                for (auto reader : files[file_id]->readers) {
+            } else if (this->files[file_id]->status == UNCHANGED) {
+                //std::cerr << this->files[file_id]->path << " is unchanged" << std::endl;
+                for (auto reader : this->files[file_id]->readers) {
                     //std::cerr << "Decrementing ID " << reader->id << " (root " << reader->cluster_root->id << ")" << std::endl;
-                    adjust_refcounts(reader, -1, commands, &current_generation, ignore_callback);
+                    adjust_refcounts(reader, -1, this->commands, &current_generation, ignore_callback);
                 }
             }
         } else {
-            if (files[file_id]->status != CHANGED) {
-                files[file_id]->status = UNKNOWN;
+            if (this->files[file_id]->status != CHANGED) {
+                this->files[file_id]->status = UNKNOWN;
             } else {
                 // Rerun the commands that produce changed files
-                propagate_rerun_worklist.push(commands[files[file_id]->writer_id]);
+                propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
             }
         }
     }
@@ -700,21 +595,21 @@ int main(int argc, char* argv[]) {
             size_t current_id = rerun_root->id;
             size_t end_id = current_id + 1 + rerun_root->num_descendants;
             while (current_id < end_id) {
-                if (commands[current_id]->rerun) { // we've already propagated this subtree
-                    current_id += commands[current_id]->num_descendants + 1;
+                if (this->commands[current_id]->rerun) { // we've already propagated this subtree
+                    current_id += this->commands[current_id]->num_descendants + 1;
                     continue;
                 }
 
-                commands[current_id]->rerun = true;
-                for (auto in : commands[current_id]->inputs) {
+                this->commands[current_id]->rerun = true;
+                for (auto in : this->commands[current_id]->inputs) {
                     if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
-                        propagate_rerun_worklist.push(commands[in->writer_id]);
+                        propagate_rerun_worklist.push(this->commands[in->writer_id]);
                     }
                 }
                 // If we don't have fingerprints for an output (such as with a pipe), we know
                 // immediately that whatever consumers there are will also need to rerun.
-                for (auto out : commands[current_id]->outputs) {
-                    if (db_graph.getFiles()[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
+                for (auto out : this->commands[current_id]->outputs) {
+                    if (this->db_graph.getFiles()[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
                         for (auto reader : out->readers) {
                             propagate_rerun_worklist.push(reader);
                         }
@@ -735,7 +630,7 @@ int main(int argc, char* argv[]) {
             } else {
                 //std::cerr << "Removing parent reference from " << cur_command->executable << std::endl;
                 // Remove the parent reference
-                adjust_refcounts(cur_command, -1, commands, &current_generation, add_to_worklist);
+                adjust_refcounts(cur_command, -1, this->commands, &current_generation, add_to_worklist);
                 if (cur_command->references_remaining != 0) {
                     // Mark the command so that if we propagate a rerun here, we will add it
                     // to the run worklist
@@ -761,7 +656,7 @@ int main(int argc, char* argv[]) {
                         if (reader->cluster_root == node) {
                             //std::cerr << "Skipping in-cluster edge" << std::endl;
                         } else {
-                            adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                            adjust_refcounts(reader, -1, this->commands, &current_generation, add_to_worklist);
                         }
                     }
                 }
@@ -788,18 +683,18 @@ int main(int argc, char* argv[]) {
                     size_t current_id = cluster_member->id + 1;
                     size_t end_id = current_id + cluster_member->num_descendants;
                     while (current_id < end_id) {
-                        descend_to_worklist.push(commands[current_id]);
-                        current_id += commands[current_id]->num_descendants + 1;
+                        descend_to_worklist.push(this->commands[current_id]);
+                        current_id += this->commands[current_id]->num_descendants + 1;
                     }
                 }
             };
-            cluster_for_each(commands, node, descend);
+            cluster_for_each(this->commands, node, descend);
             // We have to do this in a second pass so everything gets appropriately
             // marked for creation/deletion
             auto mark = [&](db_command* cluster_member, bool leaf) {
                 mark_complete_for_deletions(cluster_member, dry_run);
             };
-            cluster_for_each(commands, node, mark);
+            cluster_for_each(this->commands, node, mark);
 
             continue;
         }
@@ -818,7 +713,7 @@ int main(int argc, char* argv[]) {
 
                 ready = true;
                 for (size_t command_index = run_command->id; command_index <= run_command->id + run_command->num_descendants; command_index++) {
-                    auto test_command = commands[command_index];
+                    auto test_command = this->commands[command_index];
                     for (auto in : test_command->inputs) {
                         if (!in->is_pipe && in->status == UNKNOWN && (in->writer_id < run_command->id || in->writer_id > run_command->id + run_command->num_descendants)) {
                             //std::cerr << "  " << in->path << " is not ready." << std::endl;
@@ -831,31 +726,30 @@ int main(int argc, char* argv[]) {
                         //std::cerr << "Checking for conflicts to: " << out->path << std::endl;
                         // check whether the file can conflict 
                         // if one of its conflicts are active, then this command is not ready 
-                        size_t id = out->id - 1;
-                        while (id > 1) {
-                            // conflicting file
-                            if (files[id]->path == files[out->id]->path) {
-                                if (files[id]->active) {
-                                    ready = false;
-                                    break;
-                                }
-                            } else {
-                                break;
-                            }
-                            id--;
+                        if (out->is_pipe) {
+                            continue;
                         }
-                        id = out->id + 1;
-                        while (id < db_graph.getFiles().size()) {
+                        for (ssize_t id = out->id - 1; id >= 0; id--) {
                             // conflicting file
-                            if (files[id]->path == files[out->id]->path) {
-                                if (files[id]->active) {
+                            if (this->files[id]->path == this->files[out->id]->path) {
+                                if (this->files[id]->active) {
                                     ready = false;
                                     break;
                                 }
                             } else {
                                 break;
                             }
-                            id++;
+                        }
+                        for (size_t id = out->id + 1; id < files_size; id++) {
+                            // conflicting file
+                            if (this->files[id]->path == this->files[out->id]->path) {
+                                if (this->files[id]->active) {
+                                    ready = false;
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
                         }
                     }
                     if (!ready) {
@@ -876,7 +770,7 @@ int main(int argc, char* argv[]) {
                 write_shell_escaped(std::cout, run_command->args[arg_index]);
             }
             // Print redirections
-            for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+            for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
                 std::cout << " ";
                 if   (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() && !initial_fd_entry.getCanWrite())
                    && !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite())) {
@@ -888,10 +782,10 @@ int main(int argc, char* argv[]) {
                 if (initial_fd_entry.getCanWrite()) {
                     std::cout << '>';
                 }
-                if (files[initial_fd_entry.getFileID()]->is_pipe) {
+                if (this->files[initial_fd_entry.getFileID()]->is_pipe) {
                     std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
                 } else {
-                    write_shell_escaped(std::cout, files[initial_fd_entry.getFileID()]->path);
+                    write_shell_escaped(std::cout, this->files[initial_fd_entry.getFileID()]->path);
                 }
             }
             std::cout << std::endl;
@@ -921,14 +815,14 @@ int main(int argc, char* argv[]) {
                 }
                 std::vector<int> opened_fds;
                 int max_fd = 0;
-                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
                     int fd = initial_fd_entry.getFd();
                     if (fd > max_fd) {
                         max_fd = fd;
                     }
                 }
-                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    auto file = files[initial_fd_entry.getFileID()];
+                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                    auto file = this->files[initial_fd_entry.getFileID()];
                     int open_fd_storage;
                     int* open_fd_ref;
                     if (file->is_pipe) {
@@ -962,7 +856,7 @@ int main(int argc, char* argv[]) {
                             file->scheduled_for_creation = false;
                             flags |= O_CREAT | O_TRUNC;
                         }
-                        mode_t mode = db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
+                        mode_t mode = this->db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
                         open_fd_storage = open(file->path.c_str(), flags, mode);
                         if (open_fd_storage == -1) {
                             perror("Failed to open");
@@ -998,8 +892,8 @@ int main(int argc, char* argv[]) {
                     close(open_fd);
                 }
                 posix_spawn_file_actions_destroy(&file_actions);
-                for (auto initial_fd_entry : db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    auto file = files[initial_fd_entry.getFileID()];
+                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
+                    auto file = this->files[initial_fd_entry.getFileID()];
                     if (file->is_pipe) {
                         if (initial_fd_entry.getCanRead()) {
                             file->pipe_reader_references -= 1;
@@ -1059,16 +953,16 @@ int main(int argc, char* argv[]) {
 
             // Mark all outputs appropriately
             for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
-                auto finished_command = commands[command_index];
+                auto finished_command = this->commands[command_index];
                 for (auto out : finished_command->outputs) {
-                    if (!dry_run && use_fingerprints && match_fingerprint(db_graph.getFiles()[out->id])) {
+                    if (!dry_run && use_fingerprints && match_fingerprint(this->db_graph.getFiles()[out->id])) {
                         out->status = UNCHANGED;
                         out->active = false;
                         for (auto reader : out->readers) {
                             if (reader->cluster_root == child_command) {
                                 //std::cerr << "Skipping in-cluster edge" << std::endl;
                             } else {
-                                adjust_refcounts(reader, -1, commands, &current_generation, add_to_worklist);
+                                adjust_refcounts(reader, -1, this->commands, &current_generation, add_to_worklist);
                             }
                         }
                     } else {
@@ -1100,9 +994,9 @@ int main(int argc, char* argv[]) {
 
         // if we've reached an infinite loop, lazily find a candidate to run and add it to the
         // run_worklist 
-        for (size_t command_id = 0; command_id < db_graph.getCommands().size(); command_id++) {
-            if (commands[command_id]->candidate_for_run) {
-                run_worklist.push(commands[command_id]);
+        for (size_t command_id = 0; command_id < commands_size; command_id++) {
+            if (this->commands[command_id]->candidate_for_run) {
+                run_worklist.push(this->commands[command_id]);
                 continue;
             }
         }
@@ -1110,11 +1004,13 @@ int main(int argc, char* argv[]) {
         std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
         break;
     }
+}
 
+void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
     Graph graph;
     graph.start_graph();
-    draw_graph_nodes(&graph, show_collapsed, show_sysfiles, commands, files, db_graph.getCommands().size(), db_graph.getFiles().size());
-    draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, commands, files, std::numeric_limits<size_t>::max(), 0, db_graph.getCommands().size());
-    draw_graph_modification_edges(&graph, show_sysfiles, files, db_graph.getFiles().size());
+    draw_graph_nodes(&graph, show_collapsed, show_sysfiles, this->commands, this->files, this->db_graph.getCommands().size(), this->db_graph.getFiles().size());
+    draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, this->commands, this->files, std::numeric_limits<size_t>::max(), 0, this->db_graph.getCommands().size());
+    draw_graph_modification_edges(&graph, show_sysfiles, this->files, this->db_graph.getFiles().size());
     graph.close_graph();
 }

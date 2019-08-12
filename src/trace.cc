@@ -258,7 +258,7 @@ void start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds)
     exec_argv.push_back(nullptr);
     pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
     for (auto arg : exec_argv) {
-        delete arg;
+        delete[] arg;
     }
 
     Process* proc = new Process(pid, kj::heapArray(cmd->state->starting_dir.asPtr()), cmd);
