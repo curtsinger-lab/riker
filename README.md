@@ -23,7 +23,7 @@ In order to build `dodo`, you will need to install `capnproto` and `libcapnp-dev
 $ sudo apt install capnproto libcapnp-dev
 ```
 
-`dodo-build` outputs dependency graphs in GraphViz format.  To install GraphViz on Ubuntu:
+`dodo` outputs dependency graphs in GraphViz format.  To install GraphViz on Ubuntu:
 
 ```
 $ sudo apt install graphviz
