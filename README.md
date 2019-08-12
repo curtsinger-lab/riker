@@ -31,18 +31,72 @@ $ sudo apt install graphviz
 
 ## Building
 
-To build, run
+To build `dodo`, run
 ```
 $ make
-$ ./dodo "make -B"
 ```
+
+## Running `dodo`
+
+`dodo` does not distinguish between building your project for the first time and rebuilding.  However, since developers need to do some initial setup when creating a new `dodo` project, we describe the two uses separately here.
+
+### For the impatient
+
+1. Create a `Dodofile`.
+2. Run `dodo`.
+
+### First build
+
+We will demonstrate using `dodo` by way of example.  Here is a simple C program.
+
+```
+#include <stdio.h>
+
+int main() {
+  printf("Hello world!\n");
+}
+```
+
+Create a `Dodofile` containing your build commands.  A `Dodofile` may be any executable file.  For example, it could be:
+
+```
+#!/bin/sh
+
+gcc *.c
+mv a.out helloworld
+```
+
+Be sure that your `Dodofile` is marked executable.  E.g.,
+
+```
+$ chmod +x Dodofile
+```
+
+Assuming that `dodo` is in your path, run
+
+```
+$ dodo
+```
+
+### Rebuilds
 
 To rebuild, run
 ```
-$ ./dodo-build --unchanged src .
+$ dodo
 ```
 
-This will also output `out.dot`, which can be rendered to PDF using the GraphViz `dot` command, e.g.
+Notice that this is exactly the same as the first use.
+
+If you aren't convinced that `dodo` is working, try
+
+```
+$ rm helloworld
+$ dodo
+```
+
+## GraphViz output
+
+`dodo` can be configured to output `out.dot`, which can be rendered to PDF using the GraphViz `dot` command, e.g.
 ```
 $ dot -Tpdf out.dot >out.pdf
 ```
