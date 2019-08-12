@@ -96,7 +96,8 @@ $ dodo
 
 ## GraphViz output
 
-`dodo` can be configured to output `out.dot`, which can be rendered to PDF using the GraphViz `dot` command, e.g.
+`dodo` can be configured to output the build dependence graph using the `--visualize` flag.  The file will be called `out.dot`, which can be rendered to PDF using the GraphViz `dot` command, e.g.  
 ```
+$ dodo --visualize
 $ dot -Tpdf out.dot >out.pdf
 ```
