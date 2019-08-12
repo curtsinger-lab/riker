@@ -23,7 +23,7 @@ echo
 echo "Restore code and rebuild"
 echo "TODO: verify that this runs cc1, but not as or collect2"
 cp hello-original.c hello.c
-../../dodo --visualize
+../../dodo
 
 echo
 
