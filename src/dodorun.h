@@ -3,7 +3,6 @@
 #include <limits>
 #include <vector>
 #include <set>
-#include <map>
 #include <queue>
 
 #include <capnp/serialize.h>
@@ -73,7 +72,6 @@ struct db_command {
 };
 
 struct RebuildState {
-    ::capnp::StreamFdMessageReader message;
     db::Graph::Reader db_graph;
     db_file** files;
     db_command** commands;
@@ -83,15 +81,15 @@ struct RebuildState {
 
     size_t current_generation;
 
-    pid_t dry_run_pid;
     std::queue<db_command*> propagate_rerun_worklist;
     std::queue<db_command*> descend_to_worklist;
     std::queue<db_command*> run_worklist;
     std::queue<db_command*> zero_reference_worklist;
-    std::map<pid_t, db_command*> wait_worklist;
     size_t blocked_processes;
+    size_t rerun_candidates;
 
-    RebuildState(int db_fd, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged);
-    void rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs);
+    RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged);
+    db_command* rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs);
+    void mark_complete(bool use_fingerprints, bool dry_run, db_command* child_command);
     void visualize(bool show_sysfiles, bool show_collapsed);
 };

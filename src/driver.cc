@@ -7,10 +7,46 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <spawn.h>
 
 #include "middle.h"
 #include "trace.h"
 #include "dodorun.h"
+
+// Escape a string for correct printing as an argument or command on the shell
+static void write_shell_escaped(std::ostream& out_stream, const std::string& input) {
+    if (input.find_first_of(" \t\n&();|<>!{}'\"") == std::string::npos &&
+        input != std::string("elif") &&
+        input != std::string("fi") &&
+        input != std::string("while") &&
+        input != std::string("case") &&
+        input != std::string("else") &&
+        input != std::string("for") &&
+        input != std::string("then") &&
+        input != std::string("do") &&
+        input != std::string("done") &&
+        input != std::string("until") &&
+        input != std::string("if") &&
+        input != std::string("esac")) {
+        out_stream << input;
+        return;
+    }
+
+    out_stream << '\'';
+    size_t escaped_so_far = 0;
+    while (true) {
+        size_t quote_offset = input.find('\'', escaped_so_far);
+        if (quote_offset == std::string::npos) {
+            out_stream.write(input.data() + escaped_so_far, input.size() - escaped_so_far);
+            out_stream << '\'';
+            return;
+        } else {
+            out_stream.write(input.data() + escaped_so_far, quote_offset - escaped_so_far);
+            out_stream << "'\\''";
+            escaped_so_far = quote_offset + 1;
+        }
+    }
+}
 
 /**
  * This is the entry point for the 'dodo' trace program.
@@ -104,8 +140,189 @@ int main(int argc, char* argv[]) {
 
     int db_fd = open("db.dodo", O_RDWR);
     if (db_fd >= 0) {
-        RebuildState rebuild_state(db_fd, use_fingerprints, explicitly_changed, explicitly_unchanged);
-        rebuild_state.rebuild(use_fingerprints, dry_run, parallel_jobs);
+        ::capnp::StreamFdMessageReader message(db_fd);
+        auto db_graph = message.getRoot<db::Graph>();
+        auto db_files = db_graph.getFiles();
+        auto db_commands = db_graph.getCommands();
+        RebuildState rebuild_state(db_graph, use_fingerprints, explicitly_changed, explicitly_unchanged);
+
+        pid_t dry_run_pid = 1;
+        std::map<pid_t, db_command*> wait_worklist;
+        while (true) {
+            auto run_command = rebuild_state.rebuild(use_fingerprints, dry_run, wait_worklist.size(), parallel_jobs);
+            if (run_command == nullptr) {
+                if (wait_worklist.empty()) {
+                    // We're done!
+                    break;
+                } else {
+                    pid_t child;
+                    if (dry_run) {
+                        child = wait_worklist.begin()->first;
+                    } else {
+                        int wait_status;
+                        child = wait(&wait_status);
+                        if (child == -1) {
+                            perror("Error while waiting");
+                            exit(2);
+                        }
+                    }
+                    auto child_entry = wait_worklist.find(child);
+                    if (child_entry == wait_worklist.end()) {
+                        std::cerr << "Unrecognized process ended: " << child << std::endl;
+                    } else {
+                        db_command* child_command = child_entry->second;
+                        wait_worklist.erase(child_entry);
+
+                        rebuild_state.mark_complete(use_fingerprints, dry_run, child_command);
+                    }
+                    continue;
+                }
+            }
+
+            // Print that we will run it
+            write_shell_escaped(std::cout, run_command->executable);
+            for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
+                std::cout << " ";
+                write_shell_escaped(std::cout, run_command->args[arg_index]);
+            }
+            // Print redirections
+            for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                std::cout << " ";
+                if   (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() && !initial_fd_entry.getCanWrite())
+                   && !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite())) {
+                    std::cout << initial_fd_entry.getFd();
+                }
+                if (initial_fd_entry.getCanRead()) {
+                    std::cout << '<';
+                }
+                if (initial_fd_entry.getCanWrite()) {
+                    std::cout << '>';
+                }
+                if (rebuild_state.files[initial_fd_entry.getFileID()]->is_pipe) {
+                    std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
+                } else {
+                    write_shell_escaped(std::cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
+                }
+            }
+            std::cout << std::endl;
+
+            // Run it!
+            pid_t child_pid;
+            if (dry_run) {
+                child_pid = dry_run_pid;
+                dry_run_pid++;
+            } else {
+                // Set up argv
+                char* child_argv[run_command->args.size() + 1];
+                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
+                    child_argv[arg_index] = strdup(run_command->args[arg_index].c_str());
+                }
+                child_argv[run_command->args.size()] = nullptr;
+                // Set up initial fds
+                posix_spawn_file_actions_t file_actions;
+                if (posix_spawn_file_actions_init(&file_actions) != 0) {
+                    perror("Failed to init file actions");
+                    exit(2);
+                }
+                std::vector<int> opened_fds;
+                int max_fd = 0;
+                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                    int fd = initial_fd_entry.getFd();
+                    if (fd > max_fd) {
+                        max_fd = fd;
+                    }
+                }
+                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                    auto file = rebuild_state.files[initial_fd_entry.getFileID()];
+                    int open_fd_storage;
+                    int* open_fd_ref;
+                    if (file->is_pipe) {
+                        if (file->scheduled_for_creation) {
+                            file->scheduled_for_creation = false;
+                            int pipe_fds[2];
+                            // FIXME(portability): pipe2 is Linux-specific; fall back to pipe+fcntl?
+                            if (pipe2(pipe_fds, O_CLOEXEC) != 0) {
+                                perror("Failed to create pipe");
+                                continue;
+                            }
+                            file->pipe_reader_fd = pipe_fds[0];
+                            file->pipe_writer_fd = pipe_fds[1];
+                        }
+
+                        if (initial_fd_entry.getCanRead()) {
+                            open_fd_ref = &file->pipe_reader_fd;
+                        } else { // TODO: check for invalid read/write combinations?
+                            open_fd_ref = &file->pipe_writer_fd;
+                        }
+                    } else {
+                        int flags = O_CLOEXEC;
+                        if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
+                            flags |= O_RDWR;
+                        } else if (initial_fd_entry.getCanWrite()) {
+                            flags |= O_WRONLY;
+                        } else { // TODO: what if the database has no permissions for some reason?
+                            flags |= O_RDONLY;
+                        }
+                        if (file->scheduled_for_creation) {
+                            file->scheduled_for_creation = false;
+                            flags |= O_CREAT | O_TRUNC;
+                        }
+                        mode_t mode = db_files[initial_fd_entry.getFileID()].getMode();
+                        open_fd_storage = open(file->path.c_str(), flags, mode);
+                        if (open_fd_storage == -1) {
+                            perror("Failed to open");
+                            continue;
+                        }
+                        open_fd_ref = &open_fd_storage;
+                    }
+                    // Ensure that the dup2s won't step on each other's toes
+                    if (*open_fd_ref <= max_fd) {
+                        int new_fd = fcntl(*open_fd_ref, F_DUPFD_CLOEXEC, max_fd + 1);
+                        if (new_fd == -1) {
+                            perror("Failed to remap FD");
+                            continue;
+                        }
+                        close(*open_fd_ref);
+                        *open_fd_ref = new_fd;
+                    }
+                    if (!file->is_pipe) {
+                        opened_fds.push_back(*open_fd_ref);
+                    }
+                    if (posix_spawn_file_actions_adddup2(&file_actions, *open_fd_ref, initial_fd_entry.getFd()) != 0) {
+                        perror("Failed to add dup2 file action");
+                        exit(2);
+                    }
+                }
+                // Spawn the child
+                posix_spawn(&child_pid, run_command->executable.c_str(), &file_actions, nullptr, child_argv, environ);
+                // Free what we can
+                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
+                    free(child_argv[arg_index]);
+                }
+                for (auto open_fd : opened_fds) {
+                    close(open_fd);
+                }
+                posix_spawn_file_actions_destroy(&file_actions);
+                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                    auto file = rebuild_state.files[initial_fd_entry.getFileID()];
+                    if (file->is_pipe) {
+                        if (initial_fd_entry.getCanRead()) {
+                            file->pipe_reader_references -= 1;
+                            if (file->pipe_reader_references == 0) {
+                                close(file->pipe_reader_fd);
+                            }
+                        } else {
+                            file->pipe_writer_references -= 1;
+                            if (file->pipe_writer_references == 0) {
+                                close(file->pipe_writer_fd);
+                            }
+                        }
+                    }
+                }
+            }
+
+            wait_worklist[child_pid] = run_command;
+        }
         if (visualize) {
             rebuild_state.visualize(show_sysfiles, show_collapsed);
         }
@@ -135,6 +352,7 @@ int main(int argc, char* argv[]) {
         }
 
         trace_step(&*state, child, wait_status);
+
     }
 
     state->serialize_graph();
