@@ -25,6 +25,6 @@ src/%.capnp.cc src/%.capnp.h: src/%.capnp
 	capnpc --output=c++ $<
 	mv $(addsuffix .c++,$<) $(addsuffix .cc,$<)
 
-objs/%.o: src/%.cc $(wildcard src/*.h) $(wildcard src/*.hh) $(wildcard src/*.capnp) .submodules-updated
+objs/%.o: src/%.cc $(wildcard src/*.h) $(wildcard src/*.hh) $(wildcard src/*.capnp) #.submodules-updated
 	mkdir -p objs/
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
