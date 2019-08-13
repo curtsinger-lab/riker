@@ -323,7 +323,6 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
     for (auto file : this->db_graph.getFiles()) {
         int flag = UNKNOWN;
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
-
         bool is_pipe = (file.getType() == db::FileType::PIPE);
         // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
         // whatever the user specified
@@ -647,6 +646,13 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             db_command* node = zero_reference_worklist.front();
             zero_reference_worklist.pop();
 
+            // for each input, if we are the last reader, mark the input as inactive 
+            for (auto in : node->inputs) {
+                if (in->readers_complete == in->readers.size() - 1) {
+                    in->active = false;
+                }
+            }
+
             auto descend = [&](db_command* cluster_member, bool leaf) {
                 // Mark and propagate through outputs
                 for (auto out : cluster_member->outputs) {
@@ -957,7 +963,9 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                 for (auto out : finished_command->outputs) {
                     if (!dry_run && use_fingerprints && match_fingerprint(this->db_graph.getFiles()[out->id])) {
                         out->status = UNCHANGED;
-                        out->active = false;
+                        if (out->readers_complete == out->readers.size()) {
+                            out->active = false;
+                        }
                         for (auto reader : out->readers) {
                             if (reader->cluster_root == child_command) {
                                 //std::cerr << "Skipping in-cluster edge" << std::endl;
