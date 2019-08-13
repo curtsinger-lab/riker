@@ -523,7 +523,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
             continue;
         }
 
-        if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
+        if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max() && !this->files[file_id]->readers.empty()) {
             int flag;
 
             if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end()) {
