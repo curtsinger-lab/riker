@@ -819,49 +819,49 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command
         this->zero_reference_worklist.push(node);
     };
 
-            //std::cerr << child_command->executable << " has finished" << std::endl;
+    //std::cerr << child_command->executable << " has finished" << std::endl;
 
-            // Finished processes were apparently not blocked
-            if (this->pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
-                blocked_processes -= 1;
-                this->pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
-                //std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " << this->pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" << this->pipe_cluster_blocked[child_command->pipe_cluster] << std::endl;
-                //std::cerr << "  Blocked at " << blocked_processes << std::endl;
-            }
+    // Finished processes were apparently not blocked
+    if (this->pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
+        blocked_processes -= 1;
+        this->pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
+        //std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " << this->pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" << this->pipe_cluster_blocked[child_command->pipe_cluster] << std::endl;
+        //std::cerr << "  Blocked at " << blocked_processes << std::endl;
+    }
 
-            // Mark all outputs appropriately
-            for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
-                auto finished_command = this->commands[command_index];
-                for (auto out : finished_command->outputs) {
-                    if (!dry_run && use_fingerprints && match_fingerprint(db_files[out->id])) {
-                        out->status = UNCHANGED;
-                        if (out->readers_complete == out->readers.size()) {
-                            out->active = false;
-                        }
-                        for (auto reader : out->readers) {
-                            if (reader->cluster_root == child_command) {
-                                //std::cerr << "Skipping in-cluster edge" << std::endl;
-                            } else {
-                                adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
-                            }
-                        }
+    // Mark all outputs appropriately
+    for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
+        auto finished_command = this->commands[command_index];
+        for (auto out : finished_command->outputs) {
+            if (!dry_run && use_fingerprints && match_fingerprint(db_files[out->id])) {
+                out->status = UNCHANGED;
+                if (out->readers_complete == out->readers.size()) {
+                    out->active = false;
+                }
+                for (auto reader : out->readers) {
+                    if (reader->cluster_root == child_command) {
+                        //std::cerr << "Skipping in-cluster edge" << std::endl;
                     } else {
-                        out->status = CHANGED;
-                        for (auto reader : out->readers) {
-                            this->propagate_rerun_worklist.push(reader);
-                        }
+                        adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
                     }
                 }
-                mark_complete_for_deletions(finished_command, dry_run);
-            }
-
-            // if we were this file's last reader, mark it as no longer active
-            for (auto in : child_command->inputs) {
-                if (in->readers_complete == in->readers.size()) {
-                    //std::cerr << "Finished with file: " << in->path << std::endl;
-                    in->active = false;
+            } else {
+                out->status = CHANGED;
+                for (auto reader : out->readers) {
+                    this->propagate_rerun_worklist.push(reader);
                 }
             }
+        }
+        mark_complete_for_deletions(finished_command, dry_run);
+    }
+
+    // if we were this file's last reader, mark it as no longer active
+    for (auto in : child_command->inputs) {
+        if (in->readers_complete == in->readers.size()) {
+            //std::cerr << "Finished with file: " << in->path << std::endl;
+            in->active = false;
+        }
+    }
 }
 
 void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
