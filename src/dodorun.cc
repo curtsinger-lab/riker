@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include <spawn.h>
 #include <unistd.h>
 
 #include <limits>
@@ -19,7 +18,6 @@
 #include <queue>
 
 #include <capnp/message.h>
-#include <capnp/serialize.h>
 
 extern char** environ;
 
@@ -312,7 +310,7 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
     }
 }
 
-RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : message(db_fd), db_graph(message.getRoot<db::Graph>()) {
+RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : db_graph(db_graph) {
     // reconstruct the graph
     auto db_files = this->db_graph.getFiles();
     size_t files_size = db_files.size();
@@ -514,13 +512,17 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
         adjust_refcounts(this->commands[command_id], cluster_inputs + 1, this->commands, &this->current_generation, ignore_callback);
     }
 
-    this->dry_run_pid = 1; // A fake PID for use if we are doing dry run;
     this->blocked_processes = 0;
+    this->rerun_candidates = 0;
 
     // Initialize the worklists
     //TODO multiple roots
     this->descend_to_worklist.push(this->commands[0]);
     for (size_t file_id = 0; file_id < files_size; file_id++) {
+        if (this->files[file_id]->is_pipe) {
+            continue;
+        }
+
         if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
             int flag;
 
@@ -538,6 +540,7 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
             if (flag == CHANGED) {
                 //std::cerr << this->files[file_id]->path << " is changed" << std::endl;
                 for (auto reader : this->files[file_id]->readers) {
+                    //std::cerr << "  so " << reader->executable << " will be rerun" << std::endl;
                     this->propagate_rerun_worklist.push(reader);
                 }
             } else if (this->files[file_id]->status == UNCHANGED) {
@@ -549,6 +552,8 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
             }
         } else if (db_files[file_id].getLatestVersion()) {
             if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() || (use_fingerprints && !match_fingerprint(db_files[file_id]))) {
+                //std::cerr << this->files[file_id]->path << " is changed (output)" << std::endl;
+                //std::cerr << "  so " << this->commands[this->files[file_id]->writer_id]->executable << " will be rerun" << std::endl;
                 // Rerun the commands that produce changed files
                 this->propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
             }
@@ -556,7 +561,7 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
     }
 }
 
-void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs) {
+db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs) {
     auto db_files = this->db_graph.getFiles();
     size_t files_size = db_files.size();
     size_t commands_size = this->db_graph.getCommands().size();
@@ -564,6 +569,10 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
     // For a callback on adjust_refcounts
     auto add_to_worklist = [&](db_command* node) {
         //std::cerr << node->executable << " will not run" << std::endl;
+        if (node->candidate_for_run) {
+            node->candidate_for_run = false;
+            this->rerun_candidates -= 1;
+        }
         this->zero_reference_worklist.push(node);
     };
 
@@ -575,6 +584,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             //std::cerr << rerun_root->executable << " must rerun" << std::endl;
 
             if (rerun_root->candidate_for_run && !rerun_root->rerun) {
+                this->rerun_candidates -= 1;
                 this->run_worklist.push(rerun_root);
             }
 
@@ -623,6 +633,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                     // to the run worklist
                     //std::cerr << "  Not ready yet" << std::endl;
                     cur_command->candidate_for_run = true;
+                    this->rerun_candidates += 1;
                 }
             }
             continue;
@@ -698,7 +709,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         // TODO: Schedule around conflicting writes to a file
         db_command* run_command;
         bool ready = false;
-        if (!this->run_worklist.empty() && this->wait_worklist.size() < parallel_jobs + blocked_processes) {
+        if (!this->run_worklist.empty() && running_jobs < parallel_jobs + blocked_processes) {
             // Loop until we find something to run
             size_t searched = 0;
             do {
@@ -757,151 +768,9 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
 
         // If we found something to run, run it
         if (ready) {
-            // Print that we will run it
-            write_shell_escaped(std::cout, run_command->executable);
-            for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
-                std::cout << " ";
-                write_shell_escaped(std::cout, run_command->args[arg_index]);
-            }
-            // Print redirections
-            for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                std::cout << " ";
-                if   (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() && !initial_fd_entry.getCanWrite())
-                   && !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite())) {
-                    std::cout << initial_fd_entry.getFd();
-                }
-                if (initial_fd_entry.getCanRead()) {
-                    std::cout << '<';
-                }
-                if (initial_fd_entry.getCanWrite()) {
-                    std::cout << '>';
-                }
-                if (this->files[initial_fd_entry.getFileID()]->is_pipe) {
-                    std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
-                } else {
-                    write_shell_escaped(std::cout, this->files[initial_fd_entry.getFileID()]->path);
-                }
-            }
-            std::cout << std::endl;
-
             // indicate that its outputs are active 
             for (auto out : run_command->outputs) {
                 out->active = true;
-            }
-
-            // Run it!
-            pid_t child_pid;
-            if (dry_run) {
-                child_pid = this->dry_run_pid;
-                this->dry_run_pid++;
-            } else {
-                // Set up argv
-                char* child_argv[run_command->args.size() + 1];
-                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-                    child_argv[arg_index] = strdup(run_command->args[arg_index].c_str());
-                }
-                child_argv[run_command->args.size()] = nullptr;
-                // Set up initial fds
-                posix_spawn_file_actions_t file_actions;
-                if (posix_spawn_file_actions_init(&file_actions) != 0) {
-                    perror("Failed to init file actions");
-                    exit(2);
-                }
-                std::vector<int> opened_fds;
-                int max_fd = 0;
-                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    int fd = initial_fd_entry.getFd();
-                    if (fd > max_fd) {
-                        max_fd = fd;
-                    }
-                }
-                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    auto file = this->files[initial_fd_entry.getFileID()];
-                    int open_fd_storage;
-                    int* open_fd_ref;
-                    if (file->is_pipe) {
-                        if (file->scheduled_for_creation) {
-                            file->scheduled_for_creation = false;
-                            int pipe_fds[2];
-                            // FIXME(portability): pipe2 is Linux-specific; fall back to pipe+fcntl?
-                            if (pipe2(pipe_fds, O_CLOEXEC) != 0) {
-                                perror("Failed to create pipe");
-                                continue;
-                            }
-                            file->pipe_reader_fd = pipe_fds[0];
-                            file->pipe_writer_fd = pipe_fds[1];
-                        }
-
-                        if (initial_fd_entry.getCanRead()) {
-                            open_fd_ref = &file->pipe_reader_fd;
-                        } else { // TODO: check for invalid read/write combinations?
-                            open_fd_ref = &file->pipe_writer_fd;
-                        }
-                    } else {
-                        int flags = O_CLOEXEC;
-                        if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
-                            flags |= O_RDWR;
-                        } else if (initial_fd_entry.getCanWrite()) {
-                            flags |= O_WRONLY;
-                        } else { // TODO: what if the database has no permissions for some reason?
-                            flags |= O_RDONLY;
-                        }
-                        if (file->scheduled_for_creation) {
-                            file->scheduled_for_creation = false;
-                            flags |= O_CREAT | O_TRUNC;
-                        }
-                        mode_t mode = db_files[initial_fd_entry.getFileID()].getMode();
-                        open_fd_storage = open(file->path.c_str(), flags, mode);
-                        if (open_fd_storage == -1) {
-                            perror("Failed to open");
-                            continue;
-                        }
-                        open_fd_ref = &open_fd_storage;
-                    }
-                    // Ensure that the dup2s won't step on each other's toes
-                    if (*open_fd_ref <= max_fd) {
-                        int new_fd = fcntl(*open_fd_ref, F_DUPFD_CLOEXEC, max_fd + 1);
-                        if (new_fd == -1) {
-                            perror("Failed to remap FD");
-                            continue;
-                        }
-                        close(*open_fd_ref);
-                        *open_fd_ref = new_fd;
-                    }
-                    if (!file->is_pipe) {
-                        opened_fds.push_back(*open_fd_ref);
-                    }
-                    if (posix_spawn_file_actions_adddup2(&file_actions, *open_fd_ref, initial_fd_entry.getFd()) != 0) {
-                        perror("Failed to add dup2 file action");
-                        exit(2);
-                    }
-                }
-                // Spawn the child
-                posix_spawn(&child_pid, run_command->executable.c_str(), &file_actions, nullptr, child_argv, environ);
-                // Free what we can
-                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-                    free(child_argv[arg_index]);
-                }
-                for (auto open_fd : opened_fds) {
-                    close(open_fd);
-                }
-                posix_spawn_file_actions_destroy(&file_actions);
-                for (auto initial_fd_entry : this->db_graph.getCommands()[run_command->id].getInitialFDs()) {
-                    auto file = this->files[initial_fd_entry.getFileID()];
-                    if (file->is_pipe) {
-                        if (initial_fd_entry.getCanRead()) {
-                            file->pipe_reader_references -= 1;
-                            if (file->pipe_reader_references == 0) {
-                                close(file->pipe_reader_fd);
-                            }
-                        } else {
-                            file->pipe_writer_references -= 1;
-                            if (file->pipe_writer_references == 0) {
-                                close(file->pipe_writer_fd);
-                            }
-                        }
-                    }
-                }
             }
 
             // Mark the child as blocked if it is
@@ -912,29 +781,44 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             }
             //std::cerr << "Pipe cluster " << run_command->pipe_cluster << " at " << this->pipe_cluster_unlaunched[run_command->pipe_cluster] << "/" << this->pipe_cluster_blocked[run_command->pipe_cluster] << std::endl;
             //std::cerr << "  Blocked at " << blocked_processes << std::endl;
-            //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
-            this->wait_worklist[child_pid] = run_command;
-            continue;
+            return run_command;
         }
 
-        if (!this->wait_worklist.empty()) {
-            pid_t child_pid;
-            if (dry_run) {
-                child_pid = this->wait_worklist.begin()->first;
-            } else {
-                child_pid = wait(nullptr);
+        // if we've reached an infinite loop, lazily find a candidate to run and add it to the
+        // run_worklist
+        if (running_jobs == 0 && (!run_worklist.empty() || this->rerun_candidates != 0)) {
+            bool found_fallback = false;
+            for (size_t command_id = 0; command_id < commands_size; command_id++) {
+                if (this->commands[command_id]->candidate_for_run && !this->commands[command_id]->rerun) {
+                    //std::cerr << "Fallback: " << this->commands[command_id]->executable << std::endl;
+                    this->propagate_rerun_worklist.push(this->commands[command_id]);
+                    found_fallback = true;
+                    break;
+                }
             }
-            //std::cerr << "Waited at pid " << child_pid << std::endl;
-            db_command* child_command;
-            auto entry = this->wait_worklist.find(child_pid);
-            if (entry == this->wait_worklist.end()) {
+
+            if (found_fallback) {
                 continue;
             } else {
-                child_command = entry->second;
-                this->wait_worklist.erase(entry);
-                
+                std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
+                return nullptr;
             }
+        }
+
+        return nullptr;
+    }
+}
+
+void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command* child_command) {
+    auto db_files = this->db_graph.getFiles();
+
+    // For a callback on adjust_refcounts
+    auto add_to_worklist = [&](db_command* node) {
+        //std::cerr << node->executable << " will not run" << std::endl;
+        this->zero_reference_worklist.push(node);
+    };
+
             //std::cerr << child_command->executable << " has finished" << std::endl;
 
             // Finished processes were apparently not blocked
@@ -971,7 +855,6 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                 mark_complete_for_deletions(finished_command, dry_run);
             }
 
-            
             // if we were this file's last reader, mark it as no longer active
             for (auto in : child_command->inputs) {
                 if (in->readers_complete == in->readers.size()) {
@@ -979,27 +862,6 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                     in->active = false;
                 }
             }
-
-            continue;
-        }
-
-    
-        if (this->run_worklist.empty()) {
-            break;
-        }
-
-        // if we've reached an infinite loop, lazily find a candidate to run and add it to the
-        // run_worklist 
-        for (size_t command_id = 0; command_id < commands_size; command_id++) {
-            if (this->commands[command_id]->candidate_for_run) {
-                this->run_worklist.push(this->commands[command_id]);
-                continue;
-            }
-        }
-
-        std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
-        break;
-    }
 }
 
 void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
