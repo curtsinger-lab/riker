@@ -816,6 +816,10 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command
     // For a callback on adjust_refcounts
     auto add_to_worklist = [&](db_command* node) {
         //std::cerr << node->executable << " will not run" << std::endl;
+        if (node->candidate_for_run) {
+            node->candidate_for_run = false;
+            this->rerun_candidates -= 1;
+        }
         this->zero_reference_worklist.push(node);
     };
 
