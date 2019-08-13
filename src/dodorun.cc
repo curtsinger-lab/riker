@@ -314,38 +314,19 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
 
 RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : message(db_fd), db_graph(message.getRoot<db::Graph>()) {
     // reconstruct the graph
-    size_t files_size = this->db_graph.getFiles().size();
+    auto db_files = this->db_graph.getFiles();
+    size_t files_size = db_files.size();
     size_t commands_size = this->db_graph.getCommands().size();
 
     // initialize array of files
     this->files = new db_file*[files_size];
     unsigned int file_id = 0;
-    for (auto file : this->db_graph.getFiles()) {
-        int flag = UNKNOWN;
+    for (auto file : db_files) {
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
         bool is_pipe = (file.getType() == db::FileType::PIPE);
-        // if the path was passed as an argument to the dryrun, mark it as changed or unchanged,
-        // whatever the user specified
-        if (!is_pipe && file.getLatestVersion()) {
-            if (use_fingerprints) {
-                flag = match_fingerprint(file) ? UNCHANGED : CHANGED;
-            } else {
-                flag = UNCHANGED;
-            }
-
-            if (explicitly_changed.find(path) != explicitly_changed.end()) {
-                flag = CHANGED;
-            } else if (explicitly_unchanged.find(path) != explicitly_unchanged.end()) {
-                flag = UNCHANGED;
-            }
-        }
         bool is_cached = file.getLatestVersion() && !is_pipe;
-        this->files[file_id] = new db_file(file_id, is_pipe, is_cached, path, flag);
+        this->files[file_id] = new db_file(file_id, is_pipe, is_cached, path, UNKNOWN);
         file_id++;
-
-        //if (flag == CHANGED) {
-            //std::cerr << path << " is changed" << std::endl;
-        //}
     }
 
     // initialize array of commands
@@ -433,14 +414,8 @@ RebuildState::RebuildState(int db_fd, bool use_fingerprints, std::set<std::strin
             }
         }
     }
-}
-
-void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs) {
-    size_t files_size = this->db_graph.getFiles().size();
-    size_t commands_size = this->db_graph.getCommands().size();
 
     // Set up "pipe clusters" as connected components through pipes
-    std::vector<size_t> pipe_cluster_blocked;
     std::queue<db_command*> pipe_cluster_worklist;
     for (size_t command_id = 0; command_id < commands_size; command_id++) {
         if (this->commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
@@ -448,8 +423,8 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             continue;
         }
 
-        size_t pipe_cluster = pipe_cluster_blocked.size();
-        pipe_cluster_blocked.push_back(0);
+        size_t pipe_cluster = this->pipe_cluster_blocked.size();
+        this->pipe_cluster_blocked.push_back(0);
 
         pipe_cluster_worklist.push(this->commands[command_id]);
         while (!pipe_cluster_worklist.empty()) {
@@ -458,7 +433,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
 
             if (to_include->pipe_cluster == std::numeric_limits<size_t>::max()) {
                 to_include->pipe_cluster = pipe_cluster;
-                pipe_cluster_blocked[pipe_cluster] += 1;
+                this->pipe_cluster_blocked[pipe_cluster] += 1;
                 for (auto in : to_include->inputs) {
                     if (in->is_pipe && in->writer_id != std::numeric_limits<size_t>::max()) {
                         pipe_cluster_worklist.push(this->commands[in->writer_id]);
@@ -475,7 +450,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         }
     }
     // Everything is unlaunched
-    std::vector<size_t> pipe_cluster_unlaunched = pipe_cluster_blocked;
+    this->pipe_cluster_unlaunched = this->pipe_cluster_blocked;
 
     for (size_t command_id = 0; command_id < commands_size; command_id++) {
         // Initialize pipe reference counts
@@ -506,7 +481,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
     // "generation" for each scan that is unique. Whenever we touch a node, we mark that node as
     // last touched in the current generation so that if we see it again, we will recognize it
     // as already touched.
-    size_t current_generation = 0;
+    this->current_generation = 0;
     auto ignore_callback = [](auto ignored) {};
 
     for (size_t command_id = 0; command_id < commands_size; command_id++) {
@@ -527,7 +502,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                     if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
                         // We will later on overcount by including this edge in the counts for
                         // the commands leading into this edge. Correct for that.
-                        adjust_refcounts(this->commands[in->writer_id], -1, this->commands, &current_generation, ignore_callback);
+                        adjust_refcounts(this->commands[in->writer_id], -1, this->commands, &this->current_generation, ignore_callback);
                     }
                 }
             }
@@ -536,58 +511,71 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
 
         // Adjust reference counts to account for those inputs
         // We start at one to record the spawns-child input from our parent
-        adjust_refcounts(this->commands[command_id], cluster_inputs + 1, this->commands, &current_generation, ignore_callback);
+        adjust_refcounts(this->commands[command_id], cluster_inputs + 1, this->commands, &this->current_generation, ignore_callback);
     }
 
-    pid_t dry_run_pid = 1; // A fake PID for use if we are doing dry run;
-
-    std::queue<db_command*> propagate_rerun_worklist;
-    std::queue<db_command*> descend_to_worklist;
-    std::queue<db_command*> run_worklist;
-    std::queue<db_command*> zero_reference_worklist;
-    std::map<pid_t, db_command*> wait_worklist;
-    size_t blocked_processes = 0;
-
-    // For a callback on adjust_refcounts
-    auto add_to_worklist = [&](db_command* node) {
-        //std::cerr << node->executable << " will not run" << std::endl;
-        zero_reference_worklist.push(node);
-    };
+    this->dry_run_pid = 1; // A fake PID for use if we are doing dry run;
+    this->blocked_processes = 0;
 
     // Initialize the worklists
     //TODO multiple roots
-    descend_to_worklist.push(this->commands[0]);
+    this->descend_to_worklist.push(this->commands[0]);
     for (size_t file_id = 0; file_id < files_size; file_id++) {
         if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max()) {
-            if (this->files[file_id]->status == CHANGED) {
+            int flag;
+
+            if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end()) {
+                flag = CHANGED;
+            } else if (explicitly_unchanged.find(this->files[file_id]->path) != explicitly_unchanged.end()) {
+                flag = UNCHANGED;
+            } else if (use_fingerprints) {
+                flag = match_fingerprint(db_files[file_id]) ? UNCHANGED : CHANGED;
+            } else {
+                flag = UNCHANGED;
+            }
+
+            this->files[file_id]->status = flag;
+            if (flag == CHANGED) {
+                //std::cerr << this->files[file_id]->path << " is changed" << std::endl;
                 for (auto reader : this->files[file_id]->readers) {
-                    propagate_rerun_worklist.push(reader);
+                    this->propagate_rerun_worklist.push(reader);
                 }
             } else if (this->files[file_id]->status == UNCHANGED) {
                 //std::cerr << this->files[file_id]->path << " is unchanged" << std::endl;
                 for (auto reader : this->files[file_id]->readers) {
                     //std::cerr << "Decrementing ID " << reader->id << " (root " << reader->cluster_root->id << ")" << std::endl;
-                    adjust_refcounts(reader, -1, this->commands, &current_generation, ignore_callback);
+                    adjust_refcounts(reader, -1, this->commands, &this->current_generation, ignore_callback);
                 }
             }
-        } else {
-            if (this->files[file_id]->status != CHANGED) {
-                this->files[file_id]->status = UNKNOWN;
-            } else {
+        } else if (db_files[file_id].getLatestVersion()) {
+            if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() || (use_fingerprints && !match_fingerprint(db_files[file_id]))) {
                 // Rerun the commands that produce changed files
-                propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
+                this->propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
             }
         }
     }
+}
+
+void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs) {
+    auto db_files = this->db_graph.getFiles();
+    size_t files_size = db_files.size();
+    size_t commands_size = this->db_graph.getCommands().size();
+
+    // For a callback on adjust_refcounts
+    auto add_to_worklist = [&](db_command* node) {
+        //std::cerr << node->executable << " will not run" << std::endl;
+        this->zero_reference_worklist.push(node);
+    };
 
     while (true) {
         // First propagate reruns as far as we can
-        if (!propagate_rerun_worklist.empty()) {
-            db_command* rerun_root = propagate_rerun_worklist.front()->cluster_root;
-            propagate_rerun_worklist.pop();
+        if (!this->propagate_rerun_worklist.empty()) {
+            db_command* rerun_root = this->propagate_rerun_worklist.front()->cluster_root;
+            this->propagate_rerun_worklist.pop();
+            //std::cerr << rerun_root->executable << " must rerun" << std::endl;
 
             if (rerun_root->candidate_for_run && !rerun_root->rerun) {
-                run_worklist.push(rerun_root);
+                this->run_worklist.push(rerun_root);
             }
 
             // Mark all descendents and their non-cached inputs
@@ -602,15 +590,15 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                 this->commands[current_id]->rerun = true;
                 for (auto in : this->commands[current_id]->inputs) {
                     if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
-                        propagate_rerun_worklist.push(this->commands[in->writer_id]);
+                        this->propagate_rerun_worklist.push(this->commands[in->writer_id]);
                     }
                 }
                 // If we don't have fingerprints for an output (such as with a pipe), we know
                 // immediately that whatever consumers there are will also need to rerun.
                 for (auto out : this->commands[current_id]->outputs) {
-                    if (this->db_graph.getFiles()[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
+                    if (db_files[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
                         for (auto reader : out->readers) {
-                            propagate_rerun_worklist.push(reader);
+                            this->propagate_rerun_worklist.push(reader);
                         }
                     }
                 }
@@ -620,16 +608,16 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         }
 
         // Then, descend as much as possible, queueing up whatever needs to be rerun
-        if (!descend_to_worklist.empty()) {
-            db_command* cur_command = descend_to_worklist.front();
-            descend_to_worklist.pop();
+        if (!this->descend_to_worklist.empty()) {
+            db_command* cur_command = this->descend_to_worklist.front();
+            this->descend_to_worklist.pop();
 
             if (cur_command->rerun) {
-                run_worklist.push(cur_command);
+                this->run_worklist.push(cur_command);
             } else {
                 //std::cerr << "Removing parent reference from " << cur_command->executable << std::endl;
                 // Remove the parent reference
-                adjust_refcounts(cur_command, -1, this->commands, &current_generation, add_to_worklist);
+                adjust_refcounts(cur_command, -1, this->commands, &this->current_generation, add_to_worklist);
                 if (cur_command->references_remaining != 0) {
                     // Mark the command so that if we propagate a rerun here, we will add it
                     // to the run worklist
@@ -642,9 +630,9 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
 
         // If something hits 0 references, we will never run it, so mark outputs appropriately
         // and descend
-        if (!zero_reference_worklist.empty()) {
-            db_command* node = zero_reference_worklist.front();
-            zero_reference_worklist.pop();
+        if (!this->zero_reference_worklist.empty()) {
+            db_command* node = this->zero_reference_worklist.front();
+            this->zero_reference_worklist.pop();
 
             // for each input, if we are the last reader, mark the input as inactive 
             for (auto in : node->inputs) {
@@ -662,7 +650,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                         if (reader->cluster_root == node) {
                             //std::cerr << "Skipping in-cluster edge" << std::endl;
                         } else {
-                            adjust_refcounts(reader, -1, this->commands, &current_generation, add_to_worklist);
+                            adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
                         }
                     }
                 }
@@ -678,10 +666,10 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                 }
 
                 // Mark ourselves as started yet unblocked
-                pipe_cluster_unlaunched[cluster_member->pipe_cluster] -= 1;
-                pipe_cluster_blocked[cluster_member->pipe_cluster] -= 1;
-                if (pipe_cluster_unlaunched[cluster_member->pipe_cluster] == 0) {
-                    blocked_processes -= pipe_cluster_blocked[cluster_member->pipe_cluster];
+                this->pipe_cluster_unlaunched[cluster_member->pipe_cluster] -= 1;
+                this->pipe_cluster_blocked[cluster_member->pipe_cluster] -= 1;
+                if (this->pipe_cluster_unlaunched[cluster_member->pipe_cluster] == 0) {
+                    blocked_processes -= this->pipe_cluster_blocked[cluster_member->pipe_cluster];
                 }
 
                 // Descend to children
@@ -689,7 +677,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                     size_t current_id = cluster_member->id + 1;
                     size_t end_id = current_id + cluster_member->num_descendants;
                     while (current_id < end_id) {
-                        descend_to_worklist.push(this->commands[current_id]);
+                        this->descend_to_worklist.push(this->commands[current_id]);
                         current_id += this->commands[current_id]->num_descendants + 1;
                     }
                 }
@@ -710,12 +698,12 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         // TODO: Schedule around conflicting writes to a file
         db_command* run_command;
         bool ready = false;
-        if (!run_worklist.empty() && wait_worklist.size() < parallel_jobs + blocked_processes) {
+        if (!this->run_worklist.empty() && this->wait_worklist.size() < parallel_jobs + blocked_processes) {
             // Loop until we find something to run
             size_t searched = 0;
             do {
-                run_command = run_worklist.front();
-                run_worklist.pop();
+                run_command = this->run_worklist.front();
+                this->run_worklist.pop();
 
                 ready = true;
                 for (size_t command_index = run_command->id; command_index <= run_command->id + run_command->num_descendants; command_index++) {
@@ -759,12 +747,12 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                         }
                     }
                     if (!ready) {
-                        run_worklist.push(run_command);
+                        this->run_worklist.push(run_command);
                         searched++;
                         break;
                     }
                 }
-            } while (!ready && searched < run_worklist.size());
+            } while (!ready && searched < this->run_worklist.size());
         }
 
         // If we found something to run, run it
@@ -804,8 +792,8 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             // Run it!
             pid_t child_pid;
             if (dry_run) {
-                child_pid = dry_run_pid;
-                dry_run_pid++;
+                child_pid = this->dry_run_pid;
+                this->dry_run_pid++;
             } else {
                 // Set up argv
                 char* child_argv[run_command->args.size() + 1];
@@ -862,7 +850,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                             file->scheduled_for_creation = false;
                             flags |= O_CREAT | O_TRUNC;
                         }
-                        mode_t mode = this->db_graph.getFiles()[initial_fd_entry.getFileID()].getMode();
+                        mode_t mode = db_files[initial_fd_entry.getFileID()].getMode();
                         open_fd_storage = open(file->path.c_str(), flags, mode);
                         if (open_fd_storage == -1) {
                             perror("Failed to open");
@@ -918,42 +906,42 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
 
             // Mark the child as blocked if it is
             blocked_processes += 1;
-            pipe_cluster_unlaunched[run_command->pipe_cluster] -= 1;
-            if (pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
-                blocked_processes -= pipe_cluster_blocked[run_command->pipe_cluster];
+            this->pipe_cluster_unlaunched[run_command->pipe_cluster] -= 1;
+            if (this->pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
+                blocked_processes -= this->pipe_cluster_blocked[run_command->pipe_cluster];
             }
-            //std::cerr << "Pipe cluster " << run_command->pipe_cluster << " at " << pipe_cluster_unlaunched[run_command->pipe_cluster] << "/" << pipe_cluster_blocked[run_command->pipe_cluster] << std::endl;
+            //std::cerr << "Pipe cluster " << run_command->pipe_cluster << " at " << this->pipe_cluster_unlaunched[run_command->pipe_cluster] << "/" << this->pipe_cluster_blocked[run_command->pipe_cluster] << std::endl;
             //std::cerr << "  Blocked at " << blocked_processes << std::endl;
             //std::cerr << "  Launched at pid " << child_pid << std::endl;
 
-            wait_worklist[child_pid] = run_command;
+            this->wait_worklist[child_pid] = run_command;
             continue;
         }
 
-        if (!wait_worklist.empty()) {
+        if (!this->wait_worklist.empty()) {
             pid_t child_pid;
             if (dry_run) {
-                child_pid = wait_worklist.begin()->first;
+                child_pid = this->wait_worklist.begin()->first;
             } else {
                 child_pid = wait(nullptr);
             }
             //std::cerr << "Waited at pid " << child_pid << std::endl;
             db_command* child_command;
-            auto entry = wait_worklist.find(child_pid);
-            if (entry == wait_worklist.end()) {
+            auto entry = this->wait_worklist.find(child_pid);
+            if (entry == this->wait_worklist.end()) {
                 continue;
             } else {
                 child_command = entry->second;
-                wait_worklist.erase(entry);
+                this->wait_worklist.erase(entry);
                 
             }
             //std::cerr << child_command->executable << " has finished" << std::endl;
 
             // Finished processes were apparently not blocked
-            if (pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
+            if (this->pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
                 blocked_processes -= 1;
-                pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
-                //std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " << pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" << pipe_cluster_blocked[child_command->pipe_cluster] << std::endl;
+                this->pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
+                //std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " << this->pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" << this->pipe_cluster_blocked[child_command->pipe_cluster] << std::endl;
                 //std::cerr << "  Blocked at " << blocked_processes << std::endl;
             }
 
@@ -961,7 +949,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
             for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
                 auto finished_command = this->commands[command_index];
                 for (auto out : finished_command->outputs) {
-                    if (!dry_run && use_fingerprints && match_fingerprint(this->db_graph.getFiles()[out->id])) {
+                    if (!dry_run && use_fingerprints && match_fingerprint(db_files[out->id])) {
                         out->status = UNCHANGED;
                         if (out->readers_complete == out->readers.size()) {
                             out->active = false;
@@ -970,13 +958,13 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
                             if (reader->cluster_root == child_command) {
                                 //std::cerr << "Skipping in-cluster edge" << std::endl;
                             } else {
-                                adjust_refcounts(reader, -1, this->commands, &current_generation, add_to_worklist);
+                                adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
                             }
                         }
                     } else {
                         out->status = CHANGED;
                         for (auto reader : out->readers) {
-                            propagate_rerun_worklist.push(reader);
+                            this->propagate_rerun_worklist.push(reader);
                         }
                     }
                 }
@@ -996,7 +984,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         }
 
     
-        if (run_worklist.empty()) {
+        if (this->run_worklist.empty()) {
             break;
         }
 
@@ -1004,7 +992,7 @@ void RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t parallel_
         // run_worklist 
         for (size_t command_id = 0; command_id < commands_size; command_id++) {
             if (this->commands[command_id]->candidate_for_run) {
-                run_worklist.push(this->commands[command_id]);
+                this->run_worklist.push(this->commands[command_id]);
                 continue;
             }
         }
