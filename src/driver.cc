@@ -1,3 +1,4 @@
+
 #include <memory>
 #include <iostream>
 #include <kj/vector.h>
@@ -138,9 +139,14 @@ int main(int argc, char* argv[]) {
     }
     state->starting_dir = cwd.releaseAsArray();
 
+    // Although the documentation recommends against this, we implicitly trust the database
+    // anyway.
+    ::capnp::ReaderOptions options;
+    options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
+
     int db_fd = open("db.dodo", O_RDWR);
     if (db_fd >= 0) {
-        ::capnp::StreamFdMessageReader message(db_fd);
+        ::capnp::StreamFdMessageReader message(db_fd, options);
         auto db_graph = message.getRoot<db::Graph>();
         auto db_files = db_graph.getFiles();
         auto db_commands = db_graph.getCommands();
@@ -165,7 +171,13 @@ int main(int argc, char* argv[]) {
                             perror("Error while waiting");
                             exit(2);
                         }
+
+                        trace_step(&*state, child, wait_status);
+                        if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
+                            continue;
+                        }
                     }
+
                     auto child_entry = wait_worklist.find(child);
                     if (child_entry == wait_worklist.end()) {
                         std::cerr << "Unrecognized process ended: " << child << std::endl;
@@ -212,18 +224,8 @@ int main(int argc, char* argv[]) {
                 child_pid = dry_run_pid;
                 dry_run_pid++;
             } else {
-                // Set up argv
-                char* child_argv[run_command->args.size() + 1];
-                for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-                    child_argv[arg_index] = strdup(run_command->args[arg_index].c_str());
-                }
-                child_argv[run_command->args.size()] = nullptr;
                 // Set up initial fds
-                posix_spawn_file_actions_t file_actions;
-                if (posix_spawn_file_actions_init(&file_actions) != 0) {
-                    perror("Failed to init file actions");
-                    exit(2);
-                }
+                kj::Vector<InitialFdEntry> file_actions;
                 std::vector<int> opened_fds;
                 int max_fd = 0;
                 for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
@@ -288,21 +290,21 @@ int main(int argc, char* argv[]) {
                     if (!file->is_pipe) {
                         opened_fds.push_back(*open_fd_ref);
                     }
-                    if (posix_spawn_file_actions_adddup2(&file_actions, *open_fd_ref, initial_fd_entry.getFd()) != 0) {
-                        perror("Failed to add dup2 file action");
-                        exit(2);
-                    }
+                    file_actions.add((InitialFdEntry) {
+                        .parent_fd = *open_fd_ref,
+                        .child_fd = initial_fd_entry.getFd()
+                    });
                 }
                 // Spawn the child
-                posix_spawn(&child_pid, run_command->executable.c_str(), &file_actions, nullptr, child_argv, environ);
-                // Free what we can
+                auto middle_cmd = new Command(&*state, kj::heapArray((const kj::byte*) run_command->executable.data(), run_command->executable.size()), nullptr, 0);
                 for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-                    free(child_argv[arg_index]);
+                    middle_cmd->args.push_back(kj::heapArray((const kj::byte*) run_command->args[arg_index].data(), run_command->args[arg_index].size()));
                 }
+                child_pid = start_command(middle_cmd, file_actions);
+                // Free what we can
                 for (auto open_fd : opened_fds) {
                     close(open_fd);
                 }
-                posix_spawn_file_actions_destroy(&file_actions);
                 for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
                     auto file = rebuild_state.files[initial_fd_entry.getFileID()];
                     if (file->is_pipe) {
