@@ -1,5 +1,5 @@
 #!/bin/bash
 
-gcc -o evil evil.c
+g++ -o evil evil.cc
 ./evil log.txt
 
