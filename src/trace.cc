@@ -248,7 +248,30 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
 
 void start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
     std::string exec_path = std::string(cmd->cmd.asPtr().asChars().begin(), cmd->cmd.asPtr().size());
+    
     std::vector<char*> exec_argv;
+
+    // Are we running the root Dodofile?
+    if (exec_path == "Dodofile") {
+        // Will we be able to execute the Dodofile?
+        if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
+            // Execute would fail. Can we read it and run with sh?
+            if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
+                // No. Print an error.
+                std::cerr << "Unable to access Dodofile, which is required for the build." << std::endl
+                          << "See http://dodo.build for instructions." << std::endl;
+                exit(1);
+            }
+
+            // Dodofile is readable but not executable. Run with sh by default.
+            // Convert "Dodofile" to arg string
+            exec_argv.push_back(strdup("Dodofile"));
+
+            // Replace exec path with sh
+            exec_path = "/bin/sh";
+        }
+    }
+
     for (auto arg = cmd->args.begin(); arg != cmd->args.end(); ++arg) {
        char* c_arg = new char[arg->asPtr().size() + 1];
        memcpy(c_arg, arg->asPtr().begin(), arg->asPtr().size());
