@@ -5,6 +5,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
+#include <linux/magic.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -14,22 +16,36 @@
 #include "blake2-wrapper.h"
 #include "fingerprint.h"
 
+// Filter out db.dodo from the directory listing when fingerprinting directories
+static int filter_default(const struct dirent* e) {
+  if (std::string(e->d_name) == "db.dodo") return 0;
+  else return 1;
+}
+
+// For NFS filesystems, filter out .nfs files
+static int filter_nfs(const struct dirent* e) {
+  if (std::string(e->d_name).compare(0, 4, ".nfs") == 0) return 0;
+  else return filter_default(e);
+}
+
 // Compute the blake2sp checksum of a directory's contents
 // Return true on success
 template<typename OutType>
 static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
+    // Select a directory filter based on filesystem
+    auto filter = filter_default;
+
+    // Use statfs to check for NFS
+    struct statfs fs;
+    if (statfs(path_string.c_str(), &fs) == 0) {
+        if (fs.f_type == NFS_SUPER_MAGIC) {
+            filter = filter_nfs;
+        }
+    }
+
     // Get a sorted list of directory entries
     struct dirent **namelist;
-    int entries = scandir(path_string.c_str(),
-                          &namelist,
-                          // Filter out db.dodo
-                          [](const struct dirent* e) {
-                              std::string name(e->d_name);
-                              if (name == "db.dodo") return 0;
-                              else return 1;
-                          },
-                          // Use default sorting
-                          alphasort);
+    int entries = scandir(path_string.c_str(), &namelist, filter, alphasort);
     
     // Did reading the directory fail?
     if (entries == -1) {
@@ -39,9 +55,33 @@ static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
     // Start a checksum
     blake2sp_state hash_state;
     blake2sp_init(&hash_state, BLAKE2S_OUTBYTES);
-    
+   
+    //std::cerr << "Directory " << path_string << " contains:" << std::endl; 
+
     // Add each directory entry into the checksum
     for(int i=0; i<entries; i++) {
+        //std::cerr << "  " << namelist[i]->d_name;
+
+        /*if (namelist[i]->d_type == DT_BLK) {
+          std::cerr << " (block device)" << std::endl;
+        } else if (namelist[i]->d_type == DT_CHR) {
+          std::cerr << " (character device)" << std::endl;
+        } else if (namelist[i]->d_type == DT_DIR) {
+          std::cerr << " (directory)" << std::endl;
+        } else if (namelist[i]->d_type == DT_FIFO) {
+          std::cerr << " (named pipe)" << std::endl;
+        } else if (namelist[i]->d_type == DT_LNK) {
+          std::cerr << " (symbolic link)" << std::endl;
+        } else if (namelist[i]->d_type == DT_REG) {
+          std::cerr << " (regular file)" << std::endl;
+        } else if (namelist[i]->d_type == DT_SOCK) {
+          std::cerr << " (socket)" << std::endl;
+        } else if (namelist[i]->d_type == DT_UNKNOWN) {
+          std::cerr << " (unknown)" << std::endl;
+        } else {
+          std::cerr << " (unrecognized type)" << std::endl;
+        }*/
+
         // Hash the entry name and null terminator to mark boundaries between entries
         blake2sp_update(&hash_state, namelist[i]->d_name, strlen(namelist[i]->d_name)+1);
         free(namelist[i]);
