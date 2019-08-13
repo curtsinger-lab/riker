@@ -3,6 +3,8 @@
 #include <limits>
 #include <vector>
 #include <set>
+#include <map>
+#include <queue>
 
 #include <capnp/serialize.h>
 
@@ -75,6 +77,19 @@ struct RebuildState {
     db::Graph::Reader db_graph;
     db_file** files;
     db_command** commands;
+
+    std::vector<size_t> pipe_cluster_blocked;
+    std::vector<size_t> pipe_cluster_unlaunched;
+
+    size_t current_generation;
+
+    pid_t dry_run_pid;
+    std::queue<db_command*> propagate_rerun_worklist;
+    std::queue<db_command*> descend_to_worklist;
+    std::queue<db_command*> run_worklist;
+    std::queue<db_command*> zero_reference_worklist;
+    std::map<pid_t, db_command*> wait_worklist;
+    size_t blocked_processes;
 
     RebuildState(int db_fd, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged);
     void rebuild(bool use_fingerprints, bool dry_run, size_t parallel_jobs);
