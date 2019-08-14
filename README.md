@@ -102,7 +102,7 @@ $ dodo --visualize
 $ dot -Tpdf out.dot >out.pdf
 ```
 
-You should see something like the following:
+Here is a sample graph after changing `helloworld.c`.
 
 ![helloworld dependence graph](dodo-dependence-graph.png)
 
