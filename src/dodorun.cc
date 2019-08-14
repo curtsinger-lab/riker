@@ -25,7 +25,7 @@ extern char** environ;
 #define CHANGED   1
 #define UNKNOWN   2
 
-bool db_file::is_local(void) {
+bool old_file::is_local(void) {
     if (path.find("/usr/") != std::string::npos ||
             path.find("/lib/") != std::string::npos ||
             path.find("/etc/") != std::string::npos ||
@@ -37,7 +37,7 @@ bool db_file::is_local(void) {
     }
 }
 
-static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t command_count, size_t file_count) {
+static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfiles, old_command* commands[], old_file* files[], size_t command_count, size_t file_count) {
     for (size_t command_id = 0; command_id < command_count; command_id++) {
         if (!show_collapsed && commands[command_id]->collapse_with_parent) {
             continue;
@@ -79,7 +79,7 @@ static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfil
     }
 }
 
-static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, db_command* commands[], db_file* files[], size_t parent_id, size_t start_id, size_t end_id) {
+static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool show_sysfiles, old_command* commands[], old_file* files[], size_t parent_id, size_t start_id, size_t end_id) {
     size_t id = start_id;
     while (id < end_id) {
         auto root = commands[id];
@@ -132,7 +132,7 @@ static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool sho
     }
 }
 
-static void draw_graph_modification_edges(Graph* graph, bool show_sysfiles, db_file* files[], size_t file_count) {
+static void draw_graph_modification_edges(Graph* graph, bool show_sysfiles, old_file* files[], size_t file_count) {
     for (size_t file_id = 0; file_id < file_count; file_id++) {
         if (files[file_id]->prev_version != nullptr && (show_sysfiles || files[file_id]->is_local())) {
             graph->add_edge("f" + std::to_string(files[file_id]->prev_version->id), "f" + std::to_string(file_id), "color=orchid arrowhead=empty");
@@ -175,7 +175,7 @@ static void write_shell_escaped(std::ostream& out_stream, const std::string& inp
     }
 }
 
-static void mark_complete_for_deletions(db_command* command, bool dry_run) {
+static void mark_complete_for_deletions(old_command* command, bool dry_run) {
     for (auto in : command->inputs) {
         if (in->is_pipe) {
             // Pipes are not in the filesystem and not deleted
@@ -185,7 +185,7 @@ static void mark_complete_for_deletions(db_command* command, bool dry_run) {
         in->readers_complete += 1;
         if (in->scheduled_for_deletion && in->readers_complete == in->readers.size()) {
             bool scheduled_for_creation = in->scheduled_for_creation;
-            db_file* early_version = in;
+            old_file* early_version = in;
             while (early_version->prev_version != nullptr) {
                 early_version = early_version->prev_version;
                 if (early_version->scheduled_for_creation) {
@@ -212,7 +212,7 @@ static void mark_complete_for_deletions(db_command* command, bool dry_run) {
 // command into a single cluster. The callback is also provided with information about whether
 // a command is a leaf (i.e. has no children also in the cluster).
 template<typename callback_ty>
-static void cluster_for_each(db_command* commands[], db_command* parent, callback_ty& callback) {
+static void cluster_for_each(old_command* commands[], old_command* parent, callback_ty& callback) {
     bool leaf = true;
 
     // Recursively call on all collapsed children
@@ -274,12 +274,12 @@ static void cluster_for_each(db_command* commands[], db_command* parent, callbac
 // non-cached files that feed the given command. Calls the given callback on any nodes that
 // drop to zero references.
 template<typename callback_ty>
-void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* commands[], size_t* current_generation, callback_ty& zero_callback) {
+void adjust_refcounts(old_command* start, ssize_t adjustment, old_command* commands[], size_t* current_generation, callback_ty& zero_callback) {
     (*current_generation)++; // Grab a new generation for this scan
-    std::vector<db_command*> worklist;
+    std::vector<old_command*> worklist;
     worklist.push_back(start);
     while (!worklist.empty()) {
-        db_command* node = worklist.back();
+        old_command* node = worklist.back();
         worklist.pop_back();
 
         // We are treating clusters as individuals here.
@@ -295,7 +295,7 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
             }
 
             // Propagate to all non-cached inputs
-            auto propagate = [&](db_command* cluster_member, bool leaf) {
+            auto propagate = [&](old_command* cluster_member, bool leaf) {
                 for (auto in : cluster_member->inputs) {
                     // Ignore in-cluster edges
                     if (!in->is_cached
@@ -310,29 +310,29 @@ void adjust_refcounts(db_command* start, ssize_t adjustment, db_command* command
     }
 }
 
-RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : db_graph(db_graph) {
+RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged) : old_graph(old_graph) {
     // reconstruct the graph
-    auto db_files = this->db_graph.getFiles();
-    size_t files_size = db_files.size();
-    size_t commands_size = this->db_graph.getCommands().size();
+    auto old_files = this->old_graph.getFiles();
+    size_t files_size = old_files.size();
+    size_t commands_size = this->old_graph.getCommands().size();
 
     // initialize array of files
-    this->files = new db_file*[files_size];
+    this->files = new old_file*[files_size];
     unsigned int file_id = 0;
-    for (auto file : db_files) {
+    for (auto file : old_files) {
         std::string path = std::string((const char*) file.getPath().begin(), file.getPath().size()); 
         bool is_pipe = (file.getType() == db::FileType::PIPE);
         bool is_cached = file.getLatestVersion() && !is_pipe;
-        this->files[file_id] = new db_file(file_id, is_pipe, is_cached, path, UNKNOWN);
+        this->files[file_id] = new old_file(file_id, is_pipe, is_cached, path, UNKNOWN);
         file_id++;
     }
 
     // initialize array of commands
-    this->commands = new db_command*[db_graph.getCommands().size()];
+    this->commands = new old_command*[old_graph.getCommands().size()];
     unsigned int cmd_id = 0;
-    for (auto cmd : this->db_graph.getCommands()) {
+    for (auto cmd : this->old_graph.getCommands()) {
         auto executable = std::string((const char*) cmd.getExecutable().begin(), cmd.getExecutable().size());
-        this->commands[cmd_id] = new db_command(cmd_id, cmd.getDescendants(), executable);
+        this->commands[cmd_id] = new old_command(cmd_id, cmd.getDescendants(), executable);
         for (auto arg : cmd.getArgv()) {
             this->commands[cmd_id]->args.push_back(std::string((const char*) arg.begin(), arg.size()));
         }
@@ -341,28 +341,28 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
     }
 
     // Add the dependencies
-    for (auto dep : this->db_graph.getInputs()) {
+    for (auto dep : this->old_graph.getInputs()) {
         this->files[dep.getInputID()]->readers.insert(this->commands[dep.getOutputID()]);
         this->commands[dep.getOutputID()]->inputs.insert(this->files[dep.getInputID()]);
     }
-    for (auto dep : this->db_graph.getOutputs()) {
-        db_file* file = this->files[dep.getOutputID()];
+    for (auto dep : this->old_graph.getOutputs()) {
+        old_file* file = this->files[dep.getOutputID()];
         file->writer_id = dep.getInputID();
         this->commands[file->writer_id]->outputs.insert(file);
     }
-    for (auto dep : this->db_graph.getRemovals()) {
+    for (auto dep : this->old_graph.getRemovals()) {
         this->commands[dep.getInputID()]->deletions.insert(this->files[dep.getOutputID()]);
     }
-    for (auto dep : this->db_graph.getCreations()) {
+    for (auto dep : this->old_graph.getCreations()) {
         this->commands[dep.getInputID()]->creations.insert(this->files[dep.getOutputID()]);
     }
-    for (auto dep : this->db_graph.getModifications()) {
+    for (auto dep : this->old_graph.getModifications()) {
         this->files[dep.getOutputID()]->prev_version = this->files[dep.getInputID()];
     }
 
     // Collapsing codependencies and cycles
     // TODO: This probably wants to be part of the serialized representation, not here
-    std::queue<db_command*> collapse_worklist;
+    std::queue<old_command*> collapse_worklist;
     for (size_t root_id = 0; root_id < commands_size; root_id++) {
         // If this command has already been included in another cluster, then its dependencies
         // have already been considered, so move on.
@@ -414,7 +414,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
     }
 
     // Set up "pipe clusters" as connected components through pipes
-    std::queue<db_command*> pipe_cluster_worklist;
+    std::queue<old_command*> pipe_cluster_worklist;
     for (size_t command_id = 0; command_id < commands_size; command_id++) {
         if (this->commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
             // We have already assigned this to a cluster
@@ -452,7 +452,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
 
     for (size_t command_id = 0; command_id < commands_size; command_id++) {
         // Initialize pipe reference counts
-        for (auto initial_fd_entry : this->db_graph.getCommands()[command_id].getInitialFDs()) {
+        for (auto initial_fd_entry : this->old_graph.getCommands()[command_id].getInitialFDs()) {
             auto file = this->files[initial_fd_entry.getFileID()];
             if (file->is_pipe) {
                 if (initial_fd_entry.getCanRead()) {
@@ -469,7 +469,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
         }
 
         // Map each command to its cluster root
-        auto set_cluster_root = [&](db_command* cluster_member, bool leaf) {
+        auto set_cluster_root = [&](old_command* cluster_member, bool leaf) {
             cluster_member->cluster_root = this->commands[command_id];
         };
         cluster_for_each(this->commands, this->commands[command_id], set_cluster_root);
@@ -492,7 +492,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
 
         // Count cluster inputs
         ssize_t cluster_inputs = 0;
-        auto tally_inputs = [&](db_command* cluster_member, bool leaf) {
+        auto tally_inputs = [&](old_command* cluster_member, bool leaf) {
             for (auto in : cluster_member->inputs) {
                 // Ignore in-cluster edges
                 if (command_id > in->writer_id || in->writer_id > command_id + this->commands[command_id]->num_descendants) {
@@ -531,7 +531,7 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
             } else if (explicitly_unchanged.find(this->files[file_id]->path) != explicitly_unchanged.end()) {
                 flag = UNCHANGED;
             } else if (use_fingerprints) {
-                flag = match_fingerprint(db_files[file_id]) ? UNCHANGED : CHANGED;
+                flag = match_fingerprint(old_files[file_id]) ? UNCHANGED : CHANGED;
             } else {
                 flag = UNCHANGED;
             }
@@ -550,8 +550,8 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
                     adjust_refcounts(reader, -1, this->commands, &this->current_generation, ignore_callback);
                 }
             }
-        } else if (db_files[file_id].getLatestVersion()) {
-            if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() || (use_fingerprints && !match_fingerprint(db_files[file_id]))) {
+        } else if (old_files[file_id].getLatestVersion()) {
+            if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() || (use_fingerprints && !match_fingerprint(old_files[file_id]))) {
                 //std::cerr << this->files[file_id]->path << " is changed (output)" << std::endl;
                 //std::cerr << "  so " << this->commands[this->files[file_id]->writer_id]->executable << " will be rerun" << std::endl;
                 // Rerun the commands that produce changed files
@@ -561,13 +561,13 @@ RebuildState::RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, st
     }
 }
 
-db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs) {
-    auto db_files = this->db_graph.getFiles();
-    size_t files_size = db_files.size();
-    size_t commands_size = this->db_graph.getCommands().size();
+old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs) {
+    auto old_files = this->old_graph.getFiles();
+    size_t files_size = old_files.size();
+    size_t commands_size = this->old_graph.getCommands().size();
 
     // For a callback on adjust_refcounts
-    auto add_to_worklist = [&](db_command* node) {
+    auto add_to_worklist = [&](old_command* node) {
         //std::cerr << node->executable << " will not run" << std::endl;
         if (node->candidate_for_run) {
             node->candidate_for_run = false;
@@ -579,7 +579,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
     while (true) {
         // First propagate reruns as far as we can
         if (!this->propagate_rerun_worklist.empty()) {
-            db_command* rerun_root = this->propagate_rerun_worklist.front()->cluster_root;
+            old_command* rerun_root = this->propagate_rerun_worklist.front()->cluster_root;
             this->propagate_rerun_worklist.pop();
             //std::cerr << rerun_root->executable << " must rerun" << std::endl;
 
@@ -606,7 +606,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
                 // If we don't have fingerprints for an output (such as with a pipe), we know
                 // immediately that whatever consumers there are will also need to rerun.
                 for (auto out : this->commands[current_id]->outputs) {
-                    if (db_files[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
+                    if (old_files[out->id].getFingerprintType() == db::FingerprintType::UNAVAILABLE) {
                         for (auto reader : out->readers) {
                             this->propagate_rerun_worklist.push(reader);
                         }
@@ -619,7 +619,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
 
         // Then, descend as much as possible, queueing up whatever needs to be rerun
         if (!this->descend_to_worklist.empty()) {
-            db_command* cur_command = this->descend_to_worklist.front();
+            old_command* cur_command = this->descend_to_worklist.front();
             this->descend_to_worklist.pop();
 
             if (cur_command->rerun) {
@@ -642,7 +642,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
         // If something hits 0 references, we will never run it, so mark outputs appropriately
         // and descend
         if (!this->zero_reference_worklist.empty()) {
-            db_command* node = this->zero_reference_worklist.front();
+            old_command* node = this->zero_reference_worklist.front();
             this->zero_reference_worklist.pop();
 
             // for each input, if we are the last reader, mark the input as inactive 
@@ -652,7 +652,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
                 }
             }
 
-            auto descend = [&](db_command* cluster_member, bool leaf) {
+            auto descend = [&](old_command* cluster_member, bool leaf) {
                 // Mark and propagate through outputs
                 for (auto out : cluster_member->outputs) {
                     out->status = UNCHANGED;
@@ -696,7 +696,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
             cluster_for_each(this->commands, node, descend);
             // We have to do this in a second pass so everything gets appropriately
             // marked for creation/deletion
-            auto mark = [&](db_command* cluster_member, bool leaf) {
+            auto mark = [&](old_command* cluster_member, bool leaf) {
                 mark_complete_for_deletions(cluster_member, dry_run);
             };
             cluster_for_each(this->commands, node, mark);
@@ -707,7 +707,7 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
         // Find something available to run.
         // TODO: Heuristics about which jobs to run to maximize parallelism
         // TODO: Schedule around conflicting writes to a file
-        db_command* run_command;
+        old_command* run_command;
         bool ready = false;
         if (!this->run_worklist.empty() && running_jobs < parallel_jobs + blocked_processes) {
             // Loop until we find something to run
@@ -810,11 +810,11 @@ db_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t ru
     }
 }
 
-void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command* child_command) {
-    auto db_files = this->db_graph.getFiles();
+void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command) {
+    auto old_files = this->old_graph.getFiles();
 
     // For a callback on adjust_refcounts
-    auto add_to_worklist = [&](db_command* node) {
+    auto add_to_worklist = [&](old_command* node) {
         //std::cerr << node->executable << " will not run" << std::endl;
         if (node->candidate_for_run) {
             node->candidate_for_run = false;
@@ -837,7 +837,7 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command
     for (size_t command_index = child_command->id; command_index <= child_command->id + child_command->num_descendants; command_index++) {
         auto finished_command = this->commands[command_index];
         for (auto out : finished_command->outputs) {
-            if (!dry_run && use_fingerprints && match_fingerprint(db_files[out->id])) {
+            if (!dry_run && use_fingerprints && match_fingerprint(old_files[out->id])) {
                 out->status = UNCHANGED;
                 if (out->readers_complete == out->readers.size()) {
                     out->active = false;
@@ -871,8 +871,8 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, db_command
 void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
     Graph graph;
     graph.start_graph();
-    draw_graph_nodes(&graph, show_collapsed, show_sysfiles, this->commands, this->files, this->db_graph.getCommands().size(), this->db_graph.getFiles().size());
-    draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, this->commands, this->files, std::numeric_limits<size_t>::max(), 0, this->db_graph.getCommands().size());
-    draw_graph_modification_edges(&graph, show_sysfiles, this->files, this->db_graph.getFiles().size());
+    draw_graph_nodes(&graph, show_collapsed, show_sysfiles, this->commands, this->files, this->old_graph.getCommands().size(), this->old_graph.getFiles().size());
+    draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, this->commands, this->files, std::numeric_limits<size_t>::max(), 0, this->old_graph.getCommands().size());
+    draw_graph_modification_edges(&graph, show_sysfiles, this->files, this->old_graph.getFiles().size());
     graph.close_graph();
 }
