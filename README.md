@@ -110,7 +110,7 @@ Legend:
 
 * Ellipses are commands and rectangles are files.
 * Dashed arrows are parent-child relationships.
-* Red empty-head arrows mark when a command deletes a file.
-* Blue empty-head arrows mark when a command creates a file.
-* Black empty-head arrows mark a read or write dependency.
-* Golden-colored items signify work done during an incremental build: golden commands are those being rerun, and golden files are those that were changed.
+* <span style="color:red">Red</span> arrows mark when a command deletes a file.
+* <span style="color:blue">Blue</span> arrows mark when a command creates a file.
+* <span style="color:black">Black</span> arrows mark a read or write dependency.
+* <span style="color:goldenrod">Golden-colored</span> items signify work done during an incremental build: golden commands are those being rerun, and golden files are those that were changed.
