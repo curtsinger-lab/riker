@@ -31,7 +31,7 @@ void new_command::add_input(new_file* f) {
     }
 
     for (auto rd : this->rd_interactions) {
-        if (f->serialized.getReader().getPath() == rd->serialized.getReader().getPath() && f->writer != this) {
+        if (f->location == rd->location && f->writer != this) {
             if (f->version == rd->version) {
                 return;
             } else /* we've found a race */ {
@@ -48,7 +48,7 @@ void new_command::add_output(new_file* f, size_t file_location) {
     // if we've written to the file before, check for a race
     if (f->serialized.getReader().getType() != db::FileType::PIPE) {
         for (auto wr : this->wr_interactions) {
-            if (f->serialized.getReader().getPath() == wr->serialized.getReader().getPath()) {
+            if (f->location == wr->location) {
                 this->outputs.insert(f);
                 if (f->version == wr->version) {
                     return;
