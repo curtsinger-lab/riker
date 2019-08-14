@@ -71,8 +71,6 @@ void new_command::add_output(new_file* f, size_t file_location) {
         fnew = f;
     } else {
         fnew = f->make_version();
-        this->state->files.insert(fnew);
-        this->state->latest_versions[file_location] = fnew;
         fnew->creator = nullptr;
     }
     fnew->writer = this;
@@ -167,7 +165,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 
 /* ------------------------------- new_file Methods -------------------------------------------*/
-new_file::new_file(bool is_pipe, BlobPtr path, new_command* creator, trace_state* state, new_file* prev_version) : serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0), known_removed(false) {
+new_file::new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator, trace_state* state, new_file* prev_version) : location(location), serialized(state->temp_message.getOrphanage().newOrphan<db::File>()), creator(creator), writer(nullptr), state(state), prev_version(prev_version), version(0), known_removed(false) {
     // TODO: consider using orphans to avoid copying
     if (is_pipe) {
         this->serialized.get().setType(db::FileType::PIPE);
@@ -212,6 +210,7 @@ new_file* new_file::make_version(void) {
     this->serialized.get().setLatestVersion(false);
 
     new_file* f = new new_file(
+        this->location,
         this->serialized.getReader().getType() == db::FileType::PIPE,
         this->serialized.getReader().getPath(),
         this->creator,
@@ -219,6 +218,9 @@ new_file* new_file::make_version(void) {
         this
     );
     f->version = this->version + 1;
+
+    this->state->files.insert(f);
+    this->state->latest_versions[this->location] = f;
     return f;
 }
 
@@ -233,9 +235,9 @@ size_t trace_state::find_file(BlobPtr path) {
             return index;
         }
     }
-    new_file* new_node = new new_file(false, kj::heapArray(path), nullptr, this, nullptr);
-    this->files.insert(new_node);
     size_t location = this->latest_versions.size();
+    new_file* new_node = new new_file(location, false, kj::heapArray(path), nullptr, this, nullptr);
+    this->files.insert(new_node);
     this->latest_versions.push_back(new_node);
     return location;
 }
@@ -491,8 +493,6 @@ void trace_state::add_dependency(Process* proc, struct file_reference& file, enu
             //fprintf(stdout, "remove");
             proc->command->deleted_files.insert(f);
             f = f->make_version();
-            this->files.insert(f);
-            this->latest_versions[file_location] = f;
             f->creator = nullptr;
             f->writer = nullptr;
             f->known_removed = true;
@@ -540,8 +540,6 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
     if (is_rewrite && (f->creator != proc->command || f->writer != nullptr)) {
         //fprintf(stdout, "REWRITE ");
         f = f->make_version();
-        this->files.insert(f);
-        this->latest_versions[file_location] = f;
         f->creator = proc->command;
         f->writer = nullptr;
         f->serialized.get().setMode(mode);
@@ -556,9 +554,9 @@ void trace_state::add_open(Process* proc, int fd, struct file_reference& file, i
 
 void trace_state::add_pipe(Process* proc, int fds[2], bool cloexec) {
     //fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
-    new_file* p = new new_file(true, Blob(), proc->command, this, NULL);
-    this->files.insert(p);
     size_t location = this->latest_versions.size();
+    new_file* p = new new_file(location, true, Blob(), proc->command, this, NULL);
+    this->files.insert(p);
     this->latest_versions.push_back(p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
     proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);

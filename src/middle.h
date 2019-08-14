@@ -61,6 +61,7 @@ struct new_command {
 
 
 struct new_file {
+    size_t location;
     capnp::Orphan<db::File> serialized;
     std::set<new_command*> users;
     std::set<Process*> mmaps;
@@ -73,7 +74,7 @@ struct new_file {
     unsigned int version;
     bool known_removed;
 
-    new_file(bool is_pipe, BlobPtr path, new_command* creator, trace_state* state, new_file* prev_version);
+    new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator, trace_state* state, new_file* prev_version);
     std::set<new_command*> collapse(unsigned int depth);
     bool can_depend(new_command* cmd);
     new_file* make_version(void);
