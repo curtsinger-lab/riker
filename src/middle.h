@@ -31,57 +31,57 @@ struct file_reference {
     bool follow_links;
 };
 
-struct File;
+struct new_file;
 struct FileDescriptor;
 struct Process;
 struct trace_state;
 
-struct Command {
+struct new_command {
     trace_state* state;
     Blob cmd;
-    std::list<Command*> children;
-    std::set<File*> inputs;
-    std::set<File*> outputs;
-    std::set<File*> wr_interactions;
-    std::set<File*> rd_interactions;
-    std::set<File*> deleted_files;
+    std::list<new_command*> children;
+    std::set<new_file*> inputs;
+    std::set<new_file*> outputs;
+    std::set<new_file*> wr_interactions;
+    std::set<new_file*> rd_interactions;
+    std::set<new_file*> deleted_files;
     std::list<Blob> args;
-    Command* parent;
+    new_command* parent;
     unsigned int depth;
     bool collapse_with_parent;
     std::map<int, FileDescriptor> initial_fds;
 
-    Command(trace_state* state, Blob&& args, Command* parent, unsigned int depth);
-    void add_input(File* f);
-    void add_output(File* f, size_t file_location);
+    new_command(trace_state* state, Blob&& args, new_command* parent, unsigned int depth);
+    void add_input(new_file* f);
+    void add_output(new_file* f, size_t file_location);
     size_t descendants(void);
-    Command* collapse_helper(unsigned int depth);
-    void collapse(std::set<Command*>* commands);
+    new_command* collapse_helper(unsigned int depth);
+    void collapse(std::set<new_command*>* commands);
 };
 
 
-struct File {
+struct new_file {
     capnp::Orphan<db::File> serialized;
-    std::set<Command*> users;
+    std::set<new_command*> users;
     std::set<Process*> mmaps;
-    std::list<Command*> interactions;
-    std::list<Command*> conflicts;
-    Command* creator;
-    Command* writer;
+    std::list<new_command*> interactions;
+    std::list<new_command*> conflicts;
+    new_command* creator;
+    new_command* writer;
     trace_state* state;
-    File* prev_version;
+    new_file* prev_version;
     unsigned int version;
     bool known_removed;
 
-    File(bool is_pipe, BlobPtr path, Command* creator, trace_state* state, File* prev_version);
-    std::set<Command*> collapse(unsigned int depth);
-    bool can_depend(Command* cmd);
-    File* make_version(void);
+    new_file(bool is_pipe, BlobPtr path, new_command* creator, trace_state* state, new_file* prev_version);
+    std::set<new_command*> collapse(unsigned int depth);
+    bool can_depend(new_command* cmd);
+    new_file* make_version(void);
 };
 
 struct FileDescriptor {
     size_t location_index; // Used in Process::fds
-    File* file; // Used in Command::initial_fds
+    new_file* file; // Used in new_command::initial_fds
     int access_mode;
     bool cloexec;
 
@@ -94,14 +94,14 @@ struct Process {
     Blob cwd;
     Blob root;
     std::map<int, FileDescriptor> fds;
-    std::set<File*> mmaps;
-    Command* command;
+    std::set<new_file*> mmaps;
+    new_command* command;
 
-    Process(pid_t thread_id, Blob&& cwd, Command* command);
+    Process(pid_t thread_id, Blob&& cwd, new_command* command);
 };
 
 struct file_comparator {
-    bool operator() (File* const& lhs, File* const& rhs) const {
+    bool operator() (new_file* const& lhs, new_file* const& rhs) const {
       //  return false;
 
         auto lhs_reader = lhs->serialized.getReader();
@@ -131,9 +131,9 @@ struct file_comparator {
 };
 
 struct trace_state {
-    std::set<File*, file_comparator> files;
-    std::vector<File*> latest_versions;
-    std::list<Command*> commands;
+    std::set<new_file*, file_comparator> files;
+    std::vector<new_file*> latest_versions;
+    std::list<new_command*> commands;
     std::map<pid_t, Process*> processes;
     Blob starting_dir;
     ::capnp::MallocMessageBuilder temp_message;

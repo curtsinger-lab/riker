@@ -147,13 +147,13 @@ int main(int argc, char* argv[]) {
     int db_fd = open("db.dodo", O_RDWR);
     if (db_fd >= 0) {
         ::capnp::StreamFdMessageReader message(db_fd, options);
-        auto db_graph = message.getRoot<db::Graph>();
-        auto db_files = db_graph.getFiles();
-        auto db_commands = db_graph.getCommands();
-        RebuildState rebuild_state(db_graph, use_fingerprints, explicitly_changed, explicitly_unchanged);
+        auto old_graph = message.getRoot<db::Graph>();
+        auto old_files = old_graph.getFiles();
+        auto old_commands = old_graph.getCommands();
+        RebuildState rebuild_state(old_graph, use_fingerprints, explicitly_changed, explicitly_unchanged);
 
         pid_t dry_run_pid = 1;
-        std::map<pid_t, db_command*> wait_worklist;
+        std::map<pid_t, old_command*> wait_worklist;
         while (true) {
             auto run_command = rebuild_state.rebuild(use_fingerprints, dry_run, wait_worklist.size(), parallel_jobs);
             if (run_command == nullptr) {
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
                     if (child_entry == wait_worklist.end()) {
                         std::cerr << "Unrecognized process ended: " << child << std::endl;
                     } else {
-                        db_command* child_command = child_entry->second;
+                        old_command* child_command = child_entry->second;
                         wait_worklist.erase(child_entry);
 
                         rebuild_state.mark_complete(use_fingerprints, dry_run, child_command);
@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
                 write_shell_escaped(std::cout, run_command->args[arg_index]);
             }
             // Print redirections
-            for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+            for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
                 std::cout << " ";
                 if   (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() && !initial_fd_entry.getCanWrite())
                    && !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite())) {
@@ -228,13 +228,13 @@ int main(int argc, char* argv[]) {
                 kj::Vector<InitialFdEntry> file_actions;
                 std::vector<int> opened_fds;
                 int max_fd = 0;
-                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
                     int fd = initial_fd_entry.getFd();
                     if (fd > max_fd) {
                         max_fd = fd;
                     }
                 }
-                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
                     auto file = rebuild_state.files[initial_fd_entry.getFileID()];
                     int open_fd_storage;
                     int* open_fd_ref;
@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
                             file->scheduled_for_creation = false;
                             flags |= O_CREAT | O_TRUNC;
                         }
-                        mode_t mode = db_files[initial_fd_entry.getFileID()].getMode();
+                        mode_t mode = old_files[initial_fd_entry.getFileID()].getMode();
                         open_fd_storage = open(file->path.c_str(), flags, mode);
                         if (open_fd_storage == -1) {
                             perror("Failed to open");
@@ -296,7 +296,7 @@ int main(int argc, char* argv[]) {
                     });
                 }
                 // Spawn the child
-                auto middle_cmd = new Command(&*state, kj::heapArray((const kj::byte*) run_command->executable.data(), run_command->executable.size()), nullptr, 0);
+                auto middle_cmd = new new_command(&*state, kj::heapArray((const kj::byte*) run_command->executable.data(), run_command->executable.size()), nullptr, 0);
                 for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
                     middle_cmd->args.push_back(kj::heapArray((const kj::byte*) run_command->args[arg_index].data(), run_command->args[arg_index].size()));
                 }
@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
                 for (auto open_fd : opened_fds) {
                     close(open_fd);
                 }
-                for (auto initial_fd_entry : db_commands[run_command->id].getInitialFDs()) {
+                for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
                     auto file = rebuild_state.files[initial_fd_entry.getFileID()];
                     if (file->is_pipe) {
                         if (initial_fd_entry.getCanRead()) {
@@ -331,7 +331,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    auto root_cmd = new Command(&*state, kj::heapArray((const kj::byte*) "Dodofile", 8), nullptr, 0);
+    auto root_cmd = new new_command(&*state, kj::heapArray((const kj::byte*) "Dodofile", 8), nullptr, 0);
     root_cmd->args.push_back(kj::heapArray((const kj::byte*) "Dodofile", 8));
     state->commands.push_front(root_cmd);
 

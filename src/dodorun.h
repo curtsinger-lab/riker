@@ -7,17 +7,17 @@
 
 #include <capnp/serialize.h>
 
-struct db_command;
-struct db_file {
+struct old_command;
+struct old_file {
     size_t id;
     bool is_pipe;
     bool is_cached;
     size_t writer_id;
-    std::set<db_command*> readers;
+    std::set<old_command*> readers;
     std::string path;
     int status;
 
-    db_file* prev_version = nullptr;
+    old_file* prev_version = nullptr;
 
     bool active = false;
     bool scheduled_for_creation = false;
@@ -40,26 +40,26 @@ struct db_file {
     size_t pipe_reader_references = 0;
     int pipe_reader_fd;
 
-    db_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), path(path), status(status) {}
+    old_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) : id(id), is_pipe(is_pipe), is_cached(is_cached), writer_id(std::numeric_limits<size_t>::max()), path(path), status(status) {}
     bool is_local(void);
 };
 
-struct db_command {
+struct old_command {
     size_t id;
     size_t num_descendants;
     std::string executable;
     std::vector<std::string> args;
-    std::set<db_file*> inputs;
-    std::set<db_file*> outputs;
-    std::set<db_file*> creations;
-    std::set<db_file*> deletions;
+    std::set<old_file*> inputs;
+    std::set<old_file*> outputs;
+    std::set<old_file*> creations;
+    std::set<old_file*> deletions;
     size_t last_reference_generation = 0;
     // Signed because we sometimes do operations out of order
     ssize_t references_remaining = 0;
     bool candidate_for_run = false;
     bool rerun = false;
     bool collapse_with_parent = false;
-    db_command* cluster_root;
+    old_command* cluster_root;
 
     // Since pipes have only a limited buffer size, the users of a pipe could block waiting
     // for each other to run. Therefore, if we haven't launched all of the commands connected
@@ -68,28 +68,28 @@ struct db_command {
     // we categorize commands into "pipe clusters" that all become unblocked simultaneously.
     size_t pipe_cluster = std::numeric_limits<size_t>::max();
 
-    db_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
+    old_command(size_t id, size_t num_descendants, std::string executable) : id(id), num_descendants(num_descendants), executable(executable) {}
 };
 
 struct RebuildState {
-    db::Graph::Reader db_graph;
-    db_file** files;
-    db_command** commands;
+    db::Graph::Reader old_graph;
+    old_file** files;
+    old_command** commands;
 
     std::vector<size_t> pipe_cluster_blocked;
     std::vector<size_t> pipe_cluster_unlaunched;
 
     size_t current_generation;
 
-    std::queue<db_command*> propagate_rerun_worklist;
-    std::queue<db_command*> descend_to_worklist;
-    std::queue<db_command*> run_worklist;
-    std::queue<db_command*> zero_reference_worklist;
+    std::queue<old_command*> propagate_rerun_worklist;
+    std::queue<old_command*> descend_to_worklist;
+    std::queue<old_command*> run_worklist;
+    std::queue<old_command*> zero_reference_worklist;
     size_t blocked_processes;
     size_t rerun_candidates;
 
-    RebuildState(db::Graph::Reader db_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged);
-    db_command* rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs);
-    void mark_complete(bool use_fingerprints, bool dry_run, db_command* child_command);
+    RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, std::set<std::string> const& explicitly_changed, std::set<std::string> const& explicitly_unchanged);
+    old_command* rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs);
+    void mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command);
     void visualize(bool show_sysfiles, bool show_collapsed);
 };
