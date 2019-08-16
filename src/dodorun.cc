@@ -747,6 +747,11 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
                     }
                 };
                 cluster_for_each(this->commands, node, check_inputs);
+
+                if (!ready) {
+                    this->simulate_worklist.push(node);
+                    searched++;
+                }
             } while (!ready && searched < this->simulate_worklist.size());
 
             auto descend = [&](old_command* cluster_member, bool leaf) {
