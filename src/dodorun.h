@@ -53,9 +53,12 @@ struct old_command {
     std::set<old_file*> outputs;
     std::set<old_file*> creations;
     std::set<old_file*> deletions;
-    size_t last_reference_generation = 0;
-    // Signed because we sometimes do operations out of order
-    ssize_t references_remaining = 0;
+    old_command* parent = nullptr;
+
+    // The minimum number of reversed edges (through uncached temporaries) needed to reach this
+    // command from the changed root.
+    size_t distance = std::numeric_limits<size_t>::max();
+    size_t equal_distance_references = 0;
     bool candidate_for_run = false;
     bool rerun = false;
     bool collapse_with_parent = false;
@@ -84,7 +87,7 @@ struct RebuildState {
     std::queue<old_command*> propagate_rerun_worklist;
     std::queue<old_command*> descend_to_worklist;
     std::queue<old_command*> run_worklist;
-    std::queue<old_command*> zero_reference_worklist;
+    std::queue<old_command*> simulate_worklist;
     size_t blocked_processes;
     size_t rerun_candidates;
 
@@ -92,4 +95,7 @@ struct RebuildState {
     old_command* rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs, size_t parallel_jobs);
     void mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command);
     void visualize(bool show_sysfiles, bool show_collapsed);
+
+private:
+    void remove_edge(size_t distance_through_edge, old_command* destination);
 };

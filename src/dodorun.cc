@@ -3,6 +3,7 @@
 #include "fingerprint.h"
 #include "db.capnp.h"
 
+#include <cassert>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -16,6 +17,7 @@
 #include <set>
 #include <map>
 #include <queue>
+#include <utility>
 
 #include <capnp/message.h>
 
@@ -258,55 +260,128 @@ static void cluster_for_each(old_command* commands[], old_command* parent, callb
 // - Spawns-child edges (since a command will run its children)
 // This has two issues. First, due to including both dependencies and reverse dependencies, it
 // is likely to have cycles. More trickily, since files can move from unknown to unchanged, the
-// reachable portion of the graph actually shrinks over time. Since we are looking to detect
-// non-reachability and edges only disappear, this is essentially equivalent to a problem of
-// prompt garbage collection. We use a reference counting approach, modified to handle the
-// cycles.
+// reachable portion of the graph actually shrinks over time. The combination of these two
+// requirements results is a decremental single-source reachability problem. We use an an approach
+// inspired by ES-trees, maintaining a shortest-path distance from the single source on every
+// vertex and updating it when necessary. To improve performance, we note that a set of edge weights
+// can be assigned such that the length of a path is determined entirely by its endpoints and the number
+// of backedges that it crosses. Therefore, we only measure distances in numbers of reversed edges,
+// and for the acyclic forward component, the algorithm reduces to reference counting.
 //
-// Instead of just tracking the number of incoming primitive may-trigger edges for a single
-// command (or a cluster of commands to handle codependencies), we track references to any
-// command that is recursively dependent through entirely non-cached files. This is similar to
-// tracking references into the strongly connected component instead of individual elements, but
-// encodes the directionality of dependencies to cleanly continue working if the SCC is broken
-// by files turning unchanged and therefore being removed from the (relevant) graph.
+// Marking a file as unchanged is equivalent to removing the edge or edges that pass through it from the
+// may-trigger graph. This is what we implement here.
+bool on_edge_changed(size_t distance_through_edge, old_command* destination) {
+    if (distance_through_edge > destination->distance) {
+        return false;
+    }
+    // Due to the distanced being shortest path distances, distance_through_edge cannot be smaller
+    assert(distance_through_edge == destination->distance);
 
-// Adjust the reference count for a command, properly propagating the change to producers of
-// non-cached files that feed the given command. Calls the given callback on any nodes that
-// drop to zero references.
-template<typename callback_ty>
-void adjust_refcounts(old_command* start, ssize_t adjustment, old_command* commands[], size_t* current_generation, callback_ty& zero_callback) {
-    (*current_generation)++; // Grab a new generation for this scan
-    std::vector<old_command*> worklist;
-    worklist.push_back(start);
-    while (!worklist.empty()) {
-        old_command* node = worklist.back();
-        worklist.pop_back();
+    destination->equal_distance_references -= 1;
+    return (destination->equal_distance_references == 0); // Return whether the change need propagation
+}
 
-        // We are treating clusters as individuals here.
-        node = node->cluster_root;
-        if (!node->rerun && node->last_reference_generation != *current_generation) {
-            node->last_reference_generation = *current_generation;
-            node->references_remaining += adjustment;
+// NB: Never call this on an already-unreachable destination (this prevents weird overflow errors)
+void RebuildState::remove_edge(size_t distance_through_edge, old_command* destination) {
+    if (on_edge_changed(distance_through_edge, destination)) {
+        // Propagate
+        std::queue<old_command*> reevaluate_worklist;
+        reevaluate_worklist.push(destination);
 
-            //std::cerr << *current_generation << ": Adding " << adjustment << " references to " << node->executable << " (now " << node->references_remaining << ")" << std::endl;
+        while (!reevaluate_worklist.empty()) {
+            old_command* to_reevaluate = reevaluate_worklist.front()->cluster_root;
+            reevaluate_worklist.pop();
 
-            if (node->references_remaining == 0) {
-                zero_callback(node);
-            }
-
-            // Propagate to all non-cached inputs
-            auto propagate = [&](old_command* cluster_member, bool leaf) {
+            // Scan outgoing edges for places that need changes
+            auto scan_for_changes = [&](old_command* cluster_member, bool leaf) {
+                for (auto out : cluster_member->outputs) {
+                    for (auto reader : out->readers) {
+                        auto outgoing_destination = reader->cluster_root;
+                        // NB: we use the old distance here
+                        if (outgoing_destination != to_reevaluate && on_edge_changed(to_reevaluate->distance, outgoing_destination)) {
+                            reevaluate_worklist.push(outgoing_destination);
+                        }
+                    }
+                }
                 for (auto in : cluster_member->inputs) {
-                    // Ignore in-cluster edges
-                    if (!in->is_cached
-                     && (node->id > in->writer_id || in->writer_id > node->id + node->num_descendants)
-                     && in->writer_id != std::numeric_limits<size_t>::max()) {
-                        worklist.push_back(commands[in->writer_id]);
+                    if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
+                        auto outgoing_destination = this->commands[in->writer_id]->cluster_root;
+                        if (outgoing_destination != to_reevaluate && on_edge_changed(to_reevaluate->distance + 1, outgoing_destination)) {
+                            reevaluate_worklist.push(outgoing_destination);
+                        }
+                    }
+                }
+                if (leaf) {
+                    size_t current_id = cluster_member->id + 1;
+                    size_t end_id = current_id + cluster_member->num_descendants;
+                    while (current_id < end_id) {
+                        if (on_edge_changed(to_reevaluate->distance, this->commands[current_id])) {
+                            reevaluate_worklist.push(this->commands[current_id]);
+                        }
+                        current_id += this->commands[current_id]->num_descendants + 1;
                     }
                 }
             };
-            cluster_for_each(commands, node, propagate);
+            cluster_for_each(this->commands, to_reevaluate, scan_for_changes);
+
+            // Scan incoming edges to determine the new distance
+            size_t new_distance = std::numeric_limits<size_t>::max();
+            size_t new_references = 0;
+            auto on_incoming_edge = [&](size_t incoming_distance) {
+                if (incoming_distance < new_distance) {
+                    new_distance = incoming_distance;
+                    new_references = 1;
+                } else if (incoming_distance == new_distance) {
+                    new_references += 1;
+                }
+            };
+            auto tally_inputs = [&](old_command* cluster_member, bool leaf) {
+                for (auto in : cluster_member->inputs) {
+                    if (in->writer_id != std::numeric_limits<size_t>::max()) {
+                        auto incoming_source = this->commands[in->writer_id]->cluster_root;
+                        if (incoming_source != to_reevaluate) {
+                            on_incoming_edge(incoming_source->distance);
+                        }
+                    }
+                }
+                for (auto out : cluster_member->outputs) {
+                    if (!out->is_cached) {
+                        for (auto reader : out->readers) {
+                            auto incoming_source = reader->cluster_root;
+                            if (incoming_source != to_reevaluate) {
+                                on_incoming_edge(incoming_source->distance + 1);
+                            }
+                        }
+                    }
+                }
+            };
+            cluster_for_each(this->commands, to_reevaluate, tally_inputs);
+            if (to_reevaluate->parent != nullptr) {
+                on_incoming_edge(to_reevaluate->parent->cluster_root->distance);
+            }
+            to_reevaluate->distance = new_distance;
+            to_reevaluate->equal_distance_references = new_references;
+
+            // If this fires, we know that this will never run
+            if (new_distance == std::numeric_limits<size_t>::max() && to_reevaluate->candidate_for_run) {
+                //std::cerr << to_reevaluate->executable << " will not run" << std::endl;
+                to_reevaluate->candidate_for_run = false;
+                this->rerun_candidates -= 1;
+                this->simulate_worklist.push(to_reevaluate);
+            }
         }
+    }
+}
+
+// Recursively initialize parent edges
+void initialize_parent_edges(old_command* commands[], old_command* parent, size_t child_start_id, size_t child_end_id) {
+    size_t current_id = child_start_id;
+    while (current_id < child_end_id) {
+        commands[current_id]->parent = parent;
+        size_t grandchildren_start = current_id + 1;
+        size_t grandchildren_end = grandchildren_start + commands[current_id]->num_descendants;
+        initialize_parent_edges(commands, commands[current_id], grandchildren_start, grandchildren_end);
+        current_id = grandchildren_end;
     }
 }
 
@@ -328,7 +403,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, s
     }
 
     // initialize array of commands
-    this->commands = new old_command*[old_graph.getCommands().size()];
+    this->commands = new old_command*[commands_size];
     unsigned int cmd_id = 0;
     for (auto cmd : this->old_graph.getCommands()) {
         auto executable = std::string((const char*) cmd.getExecutable().begin(), cmd.getExecutable().size());
@@ -339,6 +414,9 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, s
         this->commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
         cmd_id++;
     }
+
+    // Initialize parent edges
+    initialize_parent_edges(this->commands, nullptr, 0, commands_size);
 
     // Add the dependencies
     for (auto dep : this->old_graph.getInputs()) {
@@ -475,47 +553,11 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, s
         cluster_for_each(this->commands, this->commands[command_id], set_cluster_root);
     }
 
-    // Whenever we scan through the graph, we wish to not double-count nodes, so we have a
-    // "generation" for each scan that is unique. Whenever we touch a node, we mark that node as
-    // last touched in the current generation so that if we see it again, we will recognize it
-    // as already touched.
-    this->current_generation = 0;
-    auto ignore_callback = [](auto ignored) {};
-
-    for (size_t command_id = 0; command_id < commands_size; command_id++) {
-        if (this->commands[command_id]->collapse_with_parent) {
-            //std::cerr << "Command " << this->commands[command_id]->executable << " is collapsed with parent." << std::endl;
-            continue;
-        }
-
-        //std::cerr << "Tallying inputs to " << this->commands[command_id]->executable << std::endl;
-
-        // Count cluster inputs
-        ssize_t cluster_inputs = 0;
-        auto tally_inputs = [&](old_command* cluster_member, bool leaf) {
-            for (auto in : cluster_member->inputs) {
-                // Ignore in-cluster edges
-                if (command_id > in->writer_id || in->writer_id > command_id + this->commands[command_id]->num_descendants) {
-                    cluster_inputs += 1;
-                    if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
-                        // We will later on overcount by including this edge in the counts for
-                        // the commands leading into this edge. Correct for that.
-                        adjust_refcounts(this->commands[in->writer_id], -1, this->commands, &this->current_generation, ignore_callback);
-                    }
-                }
-            }
-        };
-        cluster_for_each(this->commands, this->commands[command_id], tally_inputs);
-
-        // Adjust reference counts to account for those inputs
-        // We start at one to record the spawns-child input from our parent
-        adjust_refcounts(this->commands[command_id], cluster_inputs + 1, this->commands, &this->current_generation, ignore_callback);
-    }
-
     this->blocked_processes = 0;
     this->rerun_candidates = 0;
 
     // Initialize the worklists
+    std::queue<old_command*> possibly_changed_worklist; // For determining initial distances
     //TODO multiple roots
     this->descend_to_worklist.push(this->commands[0]);
     for (size_t file_id = 0; file_id < files_size; file_id++) {
@@ -542,22 +584,67 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints, s
                 for (auto reader : this->files[file_id]->readers) {
                     //std::cerr << "  so " << reader->executable << " will be rerun" << std::endl;
                     this->propagate_rerun_worklist.push(reader);
-                }
-            } else if (this->files[file_id]->status == UNCHANGED) {
-                //std::cerr << this->files[file_id]->path << " is unchanged" << std::endl;
-                for (auto reader : this->files[file_id]->readers) {
-                    //std::cerr << "Decrementing ID " << reader->id << " (root " << reader->cluster_root->id << ")" << std::endl;
-                    adjust_refcounts(reader, -1, this->commands, &this->current_generation, ignore_callback);
+                    possibly_changed_worklist.push(reader);
                 }
             }
+            // We don't need to mark the edges through unchanged files as removed since these are built inputs, and aren't reachable
+            // from anywhere: we just won't include them in the reachable set to begin with.
         } else if (old_files[file_id].getLatestVersion()) {
             if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() || (use_fingerprints && !match_fingerprint(old_files[file_id]))) {
                 //std::cerr << this->files[file_id]->path << " is changed (output)" << std::endl;
                 //std::cerr << "  so " << this->commands[this->files[file_id]->writer_id]->executable << " will be rerun" << std::endl;
                 // Rerun the commands that produce changed files
                 this->propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
+                possibly_changed_worklist.push(this->commands[this->files[file_id]->writer_id]);
             }
         }
+    }
+
+    // Initialize distanes
+    std::queue<old_command*> next_distance_worklist;
+    size_t current_distance = 0;
+    while (!possibly_changed_worklist.empty()) {
+        while (!possibly_changed_worklist.empty()) {
+            auto reachable_command = possibly_changed_worklist.front()->cluster_root;
+            possibly_changed_worklist.pop();
+
+            if (current_distance < reachable_command->distance) {
+                reachable_command->distance = current_distance;
+                reachable_command->equal_distance_references = 1;
+
+                // Expand through outgoing edges
+                auto expand = [&](old_command* cluster_member, bool leaf) {
+                    for (auto out : cluster_member->outputs) {
+                        for (auto reader : out->readers) {
+                            if (reader->cluster_root != reachable_command) {
+                                possibly_changed_worklist.push(reader);
+                            }
+                        }
+                    }
+                    for (auto in : cluster_member->inputs) {
+                        if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
+                            if (this->commands[in->writer_id]->cluster_root != reachable_command) {
+                                next_distance_worklist.push(this->commands[in->writer_id]);
+                            }
+                        }
+                    }
+                    if (leaf) {
+                        size_t current_id = cluster_member->id + 1;
+                        size_t end_id = current_id + cluster_member->num_descendants;
+                        while (current_id < end_id) {
+                            possibly_changed_worklist.push(this->commands[current_id]);
+                            current_id += this->commands[current_id]->num_descendants + 1;
+                        }
+                    }
+                };
+                cluster_for_each(this->commands, reachable_command, expand);
+            } else if (current_distance == reachable_command->distance) {
+                reachable_command->equal_distance_references += 1;
+            }
+        }
+
+        std::swap(possibly_changed_worklist, next_distance_worklist);
+        current_distance += 1;
     }
 }
 
@@ -565,16 +652,6 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
     auto old_files = this->old_graph.getFiles();
     size_t files_size = old_files.size();
     size_t commands_size = this->old_graph.getCommands().size();
-
-    // For a callback on adjust_refcounts
-    auto add_to_worklist = [&](old_command* node) {
-        //std::cerr << node->executable << " will not run" << std::endl;
-        if (node->candidate_for_run) {
-            node->candidate_for_run = false;
-            this->rerun_candidates -= 1;
-        }
-        this->zero_reference_worklist.push(node);
-    };
 
     while (true) {
         // First propagate reruns as far as we can
@@ -622,13 +699,18 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
             old_command* cur_command = this->descend_to_worklist.front();
             this->descend_to_worklist.pop();
 
+            //std::cerr << "Removing parent reference from " << cur_command->executable << std::endl;
             if (cur_command->rerun) {
+                //std::cerr << "  so rerunning" << std::endl;
                 this->run_worklist.push(cur_command);
             } else {
-                //std::cerr << "Removing parent reference from " << cur_command->executable << std::endl;
-                // Remove the parent reference
-                adjust_refcounts(cur_command, -1, this->commands, &this->current_generation, add_to_worklist);
-                if (cur_command->references_remaining != 0) {
+                // We will only descend to a command if its parent will never run, so we don't need to remove the edge
+                // TOOO(recognized commands): this might change
+                assert(cur_command->parent == nullptr || (!cur_command->parent->rerun && cur_command->parent->cluster_root->distance == std::numeric_limits<size_t>::max()));
+
+                if (cur_command->distance == std::numeric_limits<size_t>::max()) {
+                    this->simulate_worklist.push(cur_command);
+                } else {
                     // Mark the command so that if we propagate a rerun here, we will add it
                     // to the run worklist
                     //std::cerr << "  Not ready yet" << std::endl;
@@ -639,31 +721,47 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
             continue;
         }
 
-        // If something hits 0 references, we will never run it, so mark outputs appropriately
+        // If something hits infinite distance, we will never run it, so mark outputs appropriately
         // and descend
-        if (!this->zero_reference_worklist.empty()) {
-            old_command* node = this->zero_reference_worklist.front();
-            this->zero_reference_worklist.pop();
+        if (!this->simulate_worklist.empty()) {
+            // Loop until we find something ready to simulate
+            size_t searched = 0;
+            bool ready = false;
+            old_command* node;
+            do {
+                node = this->simulate_worklist.front();
+                this->simulate_worklist.pop();
 
-            // for each input, if we are the last reader, mark the input as inactive 
-            for (auto in : node->inputs) {
-                if (in->readers_complete == in->readers.size() - 1) {
-                    in->active = false;
-                }
-            }
+                // Sanity checks
+                assert(!node->rerun);
+                assert(node->distance == std::numeric_limits<size_t>::max());
 
-            auto descend = [&](old_command* cluster_member, bool leaf) {
-                // Mark and propagate through outputs
-                for (auto out : cluster_member->outputs) {
-                    out->status = UNCHANGED;
-                    //std::cerr << out->path << " will not be rebuilt" << std::endl;
-                    for (auto reader : out->readers) {
-                        if (reader->cluster_root == node) {
-                            //std::cerr << "Skipping in-cluster edge" << std::endl;
-                        } else {
-                            adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
+                ready = true;
+                auto check_inputs = [&](old_command* cluster_member, bool leaf) {
+                    for (auto in : cluster_member->inputs) {
+                        if (!in->is_pipe && in->status == UNKNOWN && (in->writer_id < node->id || in->writer_id > node->id + node->num_descendants)) {
+                            //std::cerr << "  " << in->path << " is not ready." << std::endl;
+                            ready = false;
+                            break;
                         }
                     }
+                };
+                cluster_for_each(this->commands, node, check_inputs);
+            } while (!ready && searched < this->simulate_worklist.size());
+
+            auto descend = [&](old_command* cluster_member, bool leaf) {
+                // for each input, if we are the last reader, mark the input as inactive
+                for (auto in : node->inputs) {
+                    if (in->readers_complete == in->readers.size() - 1) {
+                        in->active = false;
+                    }
+                }
+
+                // Mark and propagate through outputs
+                for (auto out : cluster_member->outputs) {
+                    // We don't need to remove the edges through `out` here because we already weren't reachable from the changed root
+                    out->status = UNCHANGED;
+                    //std::cerr << out->path << " will not be rebuilt" << std::endl;
                 }
 
                 // Mark files for deletion that this command would delete
@@ -693,15 +791,18 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
                     }
                 }
             };
-            cluster_for_each(this->commands, node, descend);
-            // We have to do this in a second pass so everything gets appropriately
-            // marked for creation/deletion
-            auto mark = [&](old_command* cluster_member, bool leaf) {
-                mark_complete_for_deletions(cluster_member, dry_run);
-            };
-            cluster_for_each(this->commands, node, mark);
+            if (ready) {
+                cluster_for_each(this->commands, node, descend);
 
-            continue;
+                // We have to do this in a second pass so everything gets appropriately
+                // marked for creation/deletion
+                auto mark = [&](old_command* cluster_member, bool leaf) {
+                    mark_complete_for_deletions(cluster_member, dry_run);
+                };
+                cluster_for_each(this->commands, node, mark);
+
+                continue;
+            }
         }
 
         // Find something available to run.
@@ -813,16 +914,6 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
 void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command) {
     auto old_files = this->old_graph.getFiles();
 
-    // For a callback on adjust_refcounts
-    auto add_to_worklist = [&](old_command* node) {
-        //std::cerr << node->executable << " will not run" << std::endl;
-        if (node->candidate_for_run) {
-            node->candidate_for_run = false;
-            this->rerun_candidates -= 1;
-        }
-        this->zero_reference_worklist.push(node);
-    };
-
     //std::cerr << child_command->executable << " has finished" << std::endl;
 
     // Finished processes were apparently not blocked
@@ -843,10 +934,8 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_comman
                     out->active = false;
                 }
                 for (auto reader : out->readers) {
-                    if (reader->cluster_root == child_command) {
-                        //std::cerr << "Skipping in-cluster edge" << std::endl;
-                    } else {
-                        adjust_refcounts(reader, -1, this->commands, &this->current_generation, add_to_worklist);
+                    if (reader->cluster_root->distance != std::numeric_limits<size_t>::max()) {
+                        this->remove_edge(finished_command->cluster_root->distance, reader->cluster_root);
                     }
                 }
             } else {
