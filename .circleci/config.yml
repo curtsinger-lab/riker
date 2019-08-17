@@ -38,6 +38,6 @@ workflows:
   buildandtest:
     jobs:
       - build
-      - selfbuild
+      - selfbuild:
         requires:
           - build
