@@ -13,6 +13,10 @@ jobs:
       - run:
           name: Building with make
           command: make
+  selfbuild:
+    docker:
+      - image: circleci/buildpack-deps:bionic
+    steps:
       - run:
           name: Building with dodo
           command: ./dodo
@@ -26,4 +30,11 @@ jobs:
           path: out.dot
       - store_artifacts:
           path: out.pdf
-
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - selfbuild:
+        requires:
+          - build
