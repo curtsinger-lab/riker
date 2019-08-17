@@ -4,7 +4,6 @@ executors:
   default:
     docker:
       - image: circleci/buildpack-deps:bionic
-    working_directory: ~/dodo-test
 jobs:
   build:
     executor: default
@@ -12,41 +11,13 @@ jobs:
       - checkout
       - run: sudo apt-get update
       - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz
-      - run:
-          name: Fetch submodules
-          command: git submodule update --init
-      - run:
-          name: Building with make
-          command: make
-      - persist_to_workspace:
-          root: ~/dodo-test
-          paths:
-            - "*"
-  
-  self-build:
-    executor: default
-    steps:
-      - attach_workspace:
-          at: ~/dodo-test
-      - run:
-          name: Building with dodo
-          command: ./dodo
-      - run:
-          name: Generating build graph
-          command: ./dodo --dry-run --visualize
-      - run:
-          name: Rendering graph
-          command: dot -Tpdf out.dot > out.pdf
+      - run: git submodule update --init
+      - run: make
+      - run: ./dodo
+      - run: ./dodo --dry-run --visualize
+      - run: mv out.dot self-build.dot
       - store_artifacts:
-          path: out.dot
+          path: self-build.dot
+      - run: dot -Tpdf self-build.dot > self-build.pdf
       - store_artifacts:
-          path: out.pdf
-
-workflows:
-  version: 2
-  build-and-test:
-    jobs:
-      - build
-      - self-build:
-          requires:
-            - build
+          path: self-build.pdf
