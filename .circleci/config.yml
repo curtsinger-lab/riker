@@ -1,9 +1,13 @@
-version: 2.0
+version: 2.1
 
-jobs:
-  build:
+executors:
+  default:
     docker:
       - image: circleci/buildpack-deps:bionic
+    working_directory: ~/dodo-test
+jobs:
+  build:
+    executor: default
     steps:
       - checkout
       - run: sudo apt-get update
@@ -14,11 +18,16 @@ jobs:
       - run:
           name: Building with make
           command: make
+      - persist_to_workspace:
+          root: ~/dodo-test
+          paths:
+            - *
   
   self-build:
-    docker:
-      - image: circleci/buildpack-deps:bionic
+    executor: default
     steps:
+      - attach_workspace:
+          at: ~/dodo-test
       - run:
           name: Building with dodo
           command: ./dodo
