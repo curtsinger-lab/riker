@@ -54,7 +54,7 @@ static void write_shell_escaped(std::ostream& out_stream, const std::string& inp
  */
 
 int main(int argc, char* argv[]) {
-    bool use_fingerprints = true;
+    //bool use_fingerprints = true;
     std::set<std::string> explicitly_changed;
     std::set<std::string> explicitly_unchanged;
     bool dry_run = false;
