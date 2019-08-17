@@ -1,4 +1,5 @@
-version: 2
+version: 2.0
+
 jobs:
   build:
     docker:
@@ -13,6 +14,7 @@ jobs:
       - run:
           name: Building with make
           command: make
+  
   selfbuild:
     docker:
       - image: circleci/buildpack-deps:bionic
@@ -30,11 +32,10 @@ jobs:
           path: out.dot
       - store_artifacts:
           path: out.pdf
+
 workflows:
   version: 2
-  build_and_test:
+  buildandtest
     jobs:
       - build
-      - selfbuild:
-        requires:
-          - build
+      - selfbuild
