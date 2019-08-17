@@ -15,7 +15,7 @@ jobs:
           name: Building with make
           command: make
   
-  selfbuild:
+  self-build:
     docker:
       - image: circleci/buildpack-deps:bionic
     steps:
@@ -35,9 +35,9 @@ jobs:
 
 workflows:
   version: 2
-  buildandtest:
+  build-and-test:
     jobs:
       - build
-      - selfbuild:
-        requires:
-          - build
+      - self-build:
+          requires:
+            - build
