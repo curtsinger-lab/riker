@@ -1,0 +1,26 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/buildpack-deps:bionic
+    steps:
+      - checkout
+      - run: sudo apt-get update
+      - run: sudo apt-get install build-essential git libcapnp-dev graphviz
+      - run:
+          name: Building with make
+          command: make
+      - run:
+          name: Building with dodo
+          command: ./dodo
+      - run:
+          name: Generating build graph
+          command: ./dodo --dry-run --visualize
+      - run:
+          name: Rendering graph
+          command: dot -Tpdf out.dot > out.pdf
+      - store_artifacts:
+          path: out.dot
+      - store_artifacts:
+          path: out.pdf
+
