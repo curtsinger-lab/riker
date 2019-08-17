@@ -6,7 +6,7 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get update
-      - run: sudo apt-get install build-essential git libcapnp-dev graphviz
+      - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz
       - run:
           name: Building with make
           command: make
