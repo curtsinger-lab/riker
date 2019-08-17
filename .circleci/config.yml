@@ -8,6 +8,9 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz
       - run:
+          name: Fetch submodules
+          command: git submodule update --init
+      - run:
           name: Building with make
           command: make
       - run:
