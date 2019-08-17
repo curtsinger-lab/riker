@@ -4,9 +4,11 @@ COMMON_CFLAGS = -Wall -g -flto
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj -flto
 
+TESTS = hello
+
 all: dodo
 
-.PHONY: all
+.PHONY: all test
 
 .SUFFIXES:
 
@@ -28,3 +30,11 @@ src/%.capnp.cc src/%.capnp.h: src/%.capnp
 objs/%.o: src/%.cc $(wildcard src/*.h) $(wildcard src/*.hh) $(wildcard src/*.capnp) #.submodules-updated
 	mkdir -p objs/
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
+
+test: dodo
+	@echo "Running test cases"
+	@for test in $(TESTS); do \
+		echo "[$$test]"; \
+		cram tests/$$test/*.t; \
+		echo; \
+	done

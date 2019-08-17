@@ -1,11 +1,11 @@
 #*
 *~
 ._*
-db.dodo
-out.dot
-out.pdf
 objs/
 dodo
+*db.dodo
+*out.dot
+*out.pdf
 *.capnp.cc
 *.capnp.h
 .submodules-cleared

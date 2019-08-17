@@ -5,12 +5,12 @@ executors:
     docker:
       - image: circleci/buildpack-deps:bionic
 jobs:
-  build:
+  build-and-test:
     executor: default
     steps:
       - checkout
       - run: sudo apt-get update
-      - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz
+      - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz python-cram
       - run: git submodule update --init
       - run: make
       - run: ./dodo
@@ -21,3 +21,4 @@ jobs:
       - run: dot -Tpdf self-build.dot > self-build.pdf
       - store_artifacts:
           path: self-build.pdf
+      - run: make test
