@@ -4,7 +4,7 @@ COMMON_CFLAGS = -Wall -g -flto
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj -flto
 
-TESTS = hello
+TESTS = simple
 
 all: dodo
 
