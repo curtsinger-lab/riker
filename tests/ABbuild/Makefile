@@ -10,3 +10,6 @@ B: B.c
 clean:
 	@rm -f A
 	@rm -f B
+	@rm -f db.dodo
+	@rm -f myfile
+	@echo " world" > inputB
