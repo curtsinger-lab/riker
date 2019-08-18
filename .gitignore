@@ -11,3 +11,4 @@ dodo
 *.capnp.h
 .submodules-cleared
 .submodules-updated
+test_results

@@ -22,6 +22,8 @@ jobs:
       - store_artifacts:
           path: self-build.pdf
       - run: make test
+      - store_test_results:
+          path: test_results
 
 workflows:
   version: 2
