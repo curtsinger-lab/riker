@@ -4,7 +4,7 @@ COMMON_CFLAGS = -Wall -g -flto
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj -flto
 
-TESTS = simple incremental readonly-Dodofile inaccessible-Dodofile
+TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
 all: dodo
 
