@@ -7,8 +7,11 @@ LDFLAGS = -lcapnp -lkj -flto
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
 all: dodo
+	
+clean:
+	rm -rf dodo objs db.dodo src/*.capnp.cc src/*.capnp.h
 
-.PHONY: all test
+.PHONY: all clean test
 
 .SUFFIXES:
 
