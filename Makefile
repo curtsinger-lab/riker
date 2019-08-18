@@ -32,10 +32,9 @@ objs/%.o: src/%.cc $(wildcard src/*.h) $(wildcard src/*.hh) $(wildcard src/*.cap
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
 test: dodo
-	@mkdir -p test_results
 	@echo "Running test cases"
 	@for test in $(TESTS); do \
 		echo "[$$test]"; \
-		cram  --xunit-file=test_results/$$test.xml tests/$$test/*.t; \
+		cram  tests/$$test/*.t; \
 		echo; \
 	done
