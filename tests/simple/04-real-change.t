@@ -6,12 +6,12 @@ Change the output message
 
 Rebuild
   $ ../../dodo
-  [^ ]*/cc1 .* (re)
-  [^ ]*/.*-as .* (re)
-  rm [^ ]*\.s (re)
-  [^ ]*/collect2 .* (re)
+  .*/cc1 .* (re)
+  .*-as .* (re)
+  rm .*\.s (re)
+  .*/collect2 .* (re)
   Unrecognized process ended: [0-9]+ (re)
-  rm [^ ]*\.o (re)
+  rm .*\.o (re)
 
 Check output
   $ ./hello
