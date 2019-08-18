@@ -6,6 +6,7 @@ dodo
 *db.dodo
 *out.dot
 *out.pdf
+*.t.err
 *.capnp.cc
 *.capnp.h
 .submodules-cleared
