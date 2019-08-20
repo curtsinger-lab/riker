@@ -104,7 +104,7 @@ $ dot -Tpdf out.dot >out.pdf
 
 Here is a sample graph after changing `helloworld.c`.
 
-![helloworld dependence graph](dodo-dependence-graph.png)
+![helloworld dependence graph](docs/dodo-dependence-graph.png)
 
 Legend:
 

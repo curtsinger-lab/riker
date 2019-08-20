@@ -2,11 +2,10 @@
 dev
 #*
 *~
-__pycache__
+._*
 db.dodo
 out.dot
-graph.gv
-graph.gv.pdf
+out.pdf
 objs/
 dodo
 *.capnp.cc

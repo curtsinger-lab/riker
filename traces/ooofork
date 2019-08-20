@@ -1,6 +1,0 @@
-6474  execve("/bin/bash", ["bash", "-c", "gcc -o output main.c"], []) = 0
-6474  vfork( <unfinished ...>
-6476  execve("/usr/sbin/as", ["as", "--64", "-o", "/tmp/cc7cbUQo.o", "/tmp/ccN6trON.s"], []) = -1 ENOENT (No such file or directory)
-6476  execve("/usr/bin/as", ["as", "--64", "-o", "/tmp/cc7cbUQo.o", "/tmp/ccN6trON.s"], [] <unfinished ...>
-6474  <... vfork resumed> )             = 6476
-6476  <... execve resumed> )            = 0
