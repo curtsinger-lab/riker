@@ -5,7 +5,7 @@ CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
 LDFLAGS = -lcapnp -lkj -flto
 
 all: dodo
-	
+
 clean:
 	rm -rf dodo objs db.dodo src/*.capnp.cc src/*.capnp.h
 
