@@ -1,0 +1,30 @@
+version: 2.1
+
+executors:
+  default:
+    docker:
+      - image: circleci/buildpack-deps:bionic
+jobs:
+  all:
+    executor: default
+    steps:
+      - checkout
+      - run: sudo apt-get update
+      - run: sudo apt-get install build-essential git capnproto libcapnp-dev graphviz python-cram
+      - run: git submodule update --init
+      - run: make
+      - run: ./dodo
+      - run: ./dodo --dry-run --visualize
+      - run: mv out.dot self-build.dot
+      - store_artifacts:
+          path: self-build.dot
+      - run: dot -Tpdf self-build.dot > self-build.pdf
+      - store_artifacts:
+          path: self-build.pdf
+      - run: make test
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - all

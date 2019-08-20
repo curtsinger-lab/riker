@@ -31,12 +31,42 @@ $ sudo apt install graphviz
 
 ## Building
 
-To build `dodo`, run
+To build `dodo`, you will need:
+
+- A C++ compiler that supports C++14 or later
+- The CapnProto data interchange tools
+- The CapnProto C++ development library
+
+On Ubuntu machines, install these with the following command.
+
 ```
-$ make
+sudo apt-get install build-essential capnproto libcapnp-dev
 ```
 
-## Running `dodo`
+To build `dodo`, run
+```
+git submodule update --init
+make
+```
+
+Some additional optional dependencies are:
+
+- graphviz, for rendering build graphs
+- cram, for running automated tests
+
+To install these additional packages on Ubunutu, run:
+
+```
+sudo apt-get install graphviz python-cram
+```
+
+After building `dodo`, you can run the included automated tests with the command
+
+```
+make test
+```
+
+## Using `dodo`
 
 `dodo` does not distinguish between building your project for the first time and rebuilding.  However, since developers need to do some initial setup when creating a new `dodo` project, we describe the two uses separately here.
 
@@ -66,23 +96,19 @@ gcc *.c
 mv a.out helloworld
 ```
 
-Be sure that your `Dodofile` is marked executable.  E.g.,
-
-```
-$ chmod +x Dodofile
-```
+If your `Dodofile` is marked executable, `dodo` will run it using the interpreter you specify in your `#!` line. If `Dodofile` is not executable, `dodo` will run it with `/bin/sh`.
 
 Assuming that `dodo` is in your path, run
 
 ```
-$ dodo
+dodo
 ```
 
 ### Rebuilds
 
 To rebuild, run
 ```
-$ dodo
+dodo
 ```
 
 Notice that this is exactly the same as the first use.
@@ -90,8 +116,8 @@ Notice that this is exactly the same as the first use.
 If you aren't convinced that `dodo` is working, try
 
 ```
-$ rm helloworld
-$ dodo
+rm helloworld
+dodo
 ```
 
 ## GraphViz output
