@@ -27,4 +27,9 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - all
+      - all:
+        branches:
+          ignore:
+            - apl-proposal
+            - paper
+            - presentation
