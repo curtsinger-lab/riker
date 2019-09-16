@@ -1,25 +1,28 @@
 #include "dodorun.h"
-#include "graph.h"
-#include "fingerprint.h"
-#include "db.capnp.h"
 
 #include <cassert>
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
+#include <list>
+#include <map>
+#include <queue>
+#include <set>
+#include <utility>
+#include <vector>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <limits>
-#include <list>
-#include <vector>
-#include <set>
-#include <map>
-#include <queue>
-#include <utility>
-
 #include <capnp/message.h>
+
+#include "db.capnp.h"
+
+#include "fingerprint.h"
+#include "graph.h"
+#include "util.hh"
 
 extern char** environ;
 
@@ -138,41 +141,6 @@ static void draw_graph_modification_edges(Graph* graph, bool show_sysfiles, old_
     for (size_t file_id = 0; file_id < file_count; file_id++) {
         if (files[file_id]->prev_version != nullptr && (show_sysfiles || files[file_id]->is_local())) {
             graph->add_edge("f" + std::to_string(files[file_id]->prev_version->id), "f" + std::to_string(file_id), "color=orchid arrowhead=empty");
-        }
-    }
-}
-
-// Escape a string for correct printing as an argument or command on the shell
-static void write_shell_escaped(std::ostream& out_stream, const std::string& input) {
-    if (input.find_first_of(" \t\n&();|<>!{}'\"") == std::string::npos &&
-        input != std::string("elif") &&
-        input != std::string("fi") &&
-        input != std::string("while") &&
-        input != std::string("case") &&
-        input != std::string("else") &&
-        input != std::string("for") &&
-        input != std::string("then") &&
-        input != std::string("do") &&
-        input != std::string("done") &&
-        input != std::string("until") &&
-        input != std::string("if") &&
-        input != std::string("esac")) {
-        out_stream << input;
-        return;
-    }
-
-    out_stream << '\'';
-    size_t escaped_so_far = 0;
-    while (true) {
-        size_t quote_offset = input.find('\'', escaped_so_far);
-        if (quote_offset == std::string::npos) {
-            out_stream.write(input.data() + escaped_so_far, input.size() - escaped_so_far);
-            out_stream << '\'';
-            return;
-        } else {
-            out_stream.write(input.data() + escaped_so_far, quote_offset - escaped_so_far);
-            out_stream << "'\\''";
-            escaped_so_far = quote_offset + 1;
         }
     }
 }

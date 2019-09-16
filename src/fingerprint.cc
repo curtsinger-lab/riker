@@ -11,7 +11,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#include "util.h"
+#include "util.hh"
 #include "db.capnp.h"
 #include "blake2-wrapper.h"
 #include "fingerprint.h"

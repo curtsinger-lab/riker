@@ -26,7 +26,7 @@
 #include <linux/audit.h>
 #include <linux/limits.h>
 
-#include "util.h"
+#include "util.hh"
 #include "middle.h"
 #include "trace.h"
 #include "syscalls.h"
