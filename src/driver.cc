@@ -37,7 +37,9 @@ struct dodo_opts {
 dodo_opts parse_argv(forward_list<string> argv) {
   dodo_opts opts;
 
+  // Loop until we've consumed all command line arguments
   while (!argv.empty()) {
+    // Take the first argument off the list
     string arg = argv.front();
     argv.pop_front();
 
