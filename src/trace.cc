@@ -289,7 +289,7 @@ pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry cons
         }
     }
 
-    for (auto& arg: cmd->args) {
+    for (auto& arg: cmd->getArguments()) {
       exec_argv.push_back((char*)arg.c_str());
     }
     exec_argv.push_back(nullptr);

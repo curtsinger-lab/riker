@@ -60,10 +60,17 @@ struct Command {
   }
   
   const std::string& getCommand() { return _cmd; }
+  
+  const std::vector<std::string>& getArguments() { return _args; }
+  
+  void addArgument(std::string arg) {
+    _args.push_back(arg);
+  }
 
  private:
   Trace& _state;
   std::string _cmd;
+  std::vector<std::string> _args;
   Command* _parent;
 
  public:
@@ -73,7 +80,6 @@ struct Command {
   std::set<new_file*> wr_interactions;
   std::set<new_file*> rd_interactions;
   std::set<new_file*> deleted_files;
-  std::vector<std::string> args;
   unsigned int depth;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
@@ -387,7 +393,7 @@ struct Trace {
   }
 
   void add_exec_argument(pid_t pid, Blob&& argument, int index) {
-    _processes.at(pid)->getCommand()->args.push_back(blobToString(argument));
+    _processes[pid]->getCommand()->addArgument(blobToString(argument));
   }
 
   void add_exit(pid_t pid) {
