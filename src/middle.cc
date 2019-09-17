@@ -16,12 +16,6 @@
 #include "middle.h"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
-Command::Command(Trace& state, Blob&& cmd, Command* parent, unsigned int depth) :
-    state(state),
-    cmd(std::move(cmd)),
-    parent(parent),
-    depth(depth) {}
-
 void Command::add_input(new_file* f) {
   // search through all files, do versioning
   f->interactions.push_front(this);

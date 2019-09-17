@@ -283,7 +283,7 @@ int main(int argc, char* argv[]) {
               kj::heapArray((const kj::byte*)run_command->args[arg_index].data(),
                             run_command->args[arg_index].size()));
         }
-        child_pid = start_command(middle_cmd, file_actions);
+        child_pid = start_command(trace, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
@@ -320,7 +320,7 @@ int main(int argc, char* argv[]) {
   trace.commands.push_front(root_cmd);
 
   // TODO: set up stdio for logging?
-  start_command(root_cmd, kj::ArrayPtr<InitialFdEntry const>());
+  start_command(trace, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
 
   while (true) {
     int wait_status;

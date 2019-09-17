@@ -246,7 +246,7 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     }
 }
 
-pid_t start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
     std::string exec_path = std::string(cmd->cmd.asPtr().asChars().begin(), cmd->cmd.asPtr().size());
     
     std::vector<char*> exec_argv;
@@ -284,7 +284,7 @@ pid_t start_command(Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds
         delete[] arg;
     }
 
-    cmd->state.newProcess(pid, cmd);
+    trace.newProcess(pid, cmd);
     
     return pid;
 }

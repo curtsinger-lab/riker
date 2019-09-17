@@ -38,7 +38,22 @@ struct Process;
 struct Trace;
 
 struct Command {
-  Trace& state;
+  Command(Trace& state, Blob&& cmd, Command* parent, unsigned int depth) :
+      _state(state),
+      cmd(std::move(cmd)),
+      parent(parent),
+      depth(depth) {}
+
+  void add_input(new_file* f);
+  void add_output(new_file* f, size_t file_location);
+  size_t descendants(void);
+  Command* collapse_helper(unsigned int depth);
+  void collapse(std::set<Command*>* commands);
+
+ private:
+  Trace& _state;
+
+ public:
   Blob cmd;
   std::list<Command*> children;
   std::set<new_file*> inputs;
@@ -51,13 +66,6 @@ struct Command {
   unsigned int depth;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
-
-  Command(Trace& state, Blob&& args, Command* parent, unsigned int depth);
-  void add_input(new_file* f);
-  void add_output(new_file* f, size_t file_location);
-  size_t descendants(void);
-  Command* collapse_helper(unsigned int depth);
-  void collapse(std::set<Command*>* commands);
 };
 
 struct new_file {
