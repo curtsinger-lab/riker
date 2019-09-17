@@ -8,4 +8,4 @@ struct InitialFdEntry {
 };
 
 pid_t start_command(new_command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);
-void trace_step(Trace* state, pid_t child, int wait_status);
+void trace_step(Trace& state, pid_t child, int wait_status);

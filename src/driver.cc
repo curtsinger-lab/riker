@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
   // Create a managed reference to a trace state
-  auto state = std::make_unique<Trace>(cwd);
+  Trace trace(cwd);
 
   // Clean up after getcwd
   free(cwd);
@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
             child = wait(&wait_status);
             FAIL_IF(child == -1) << "Error waiting for child: " << ERR;
 
-            trace_step(&*state, child, wait_status);
+            trace_step(trace, child, wait_status);
             if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
               continue;
             }
@@ -274,7 +274,7 @@ int main(int argc, char* argv[]) {
         }
         // Spawn the child
         auto middle_cmd =
-            new new_command(&*state,
+            new new_command(&trace,
                             kj::heapArray((const kj::byte*)run_command->executable.data(),
                                           run_command->executable.size()),
                             nullptr, 0);
@@ -315,9 +315,9 @@ int main(int argc, char* argv[]) {
   }
 
   auto root_cmd =
-      new new_command(&*state, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
+      new new_command(&trace, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
   root_cmd->args.push_back(kj::heapArray((const kj::byte*)"Dodofile", 8));
-  state->commands.push_front(root_cmd);
+  trace.commands.push_front(root_cmd);
 
   // TODO: set up stdio for logging?
   start_command(root_cmd, kj::ArrayPtr<InitialFdEntry const>());
@@ -336,8 +336,8 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    trace_step(&*state, child, wait_status);
+    trace_step(trace, child, wait_status);
   }
 
-  state->serialize_graph();
+  trace.serialize_graph();
 }
