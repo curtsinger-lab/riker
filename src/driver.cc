@@ -13,42 +13,47 @@
 #include <kj/vector.h>
 
 #include "dodorun.h"
+#include "log.hh"
 #include "middle.h"
+#include "options.hh"
 #include "trace.h"
 #include "util.hh"
 
 using std::forward_list;
 using std::string;
 
-struct dodo_opts {
-  bool use_fingerprints = true;
-  std::set<std::string> explicitly_changed;
-  std::set<std::string> explicitly_unchanged;
-  bool dry_run = false;
-  size_t parallel_jobs = 1;
-  bool visualize = false;
-  bool show_sysfiles = false;
-  bool show_collapsed = true;
-};
+// Declare the global command-line options struct
+dodo_options options;
 
 /**
- * Parse command line options and return a dodo_opts struct.
+ * Parse command line options and return a dodo_options struct.
  */
-dodo_opts parse_argv(forward_list<string> argv) {
-  dodo_opts opts;
-
+void parse_argv(forward_list<string> argv) {
   // Loop until we've consumed all command line arguments
   while (!argv.empty()) {
     // Take the first argument off the list
     string arg = argv.front();
     argv.pop_front();
 
-    if (arg == "--no-fingerprints") {
-      opts.use_fingerprints = false;
+    if (arg == "--debug") {
+      options.log_source_locations = true;
+      options.log_threshold = log_level::Info;
+
+    } else if (arg == "-v") {
+      options.log_threshold = log_level::Warning;
+
+    } else if (arg == "-vv") {
+      options.log_threshold = log_level::Info;
+
+    } else if (arg == "-vvv") {
+      options.log_threshold = log_level::Verbose;
+
+    } else if (arg == "--no-fingerprints") {
+      options.use_fingerprints = false;
 
     } else if (arg == "--changed") {
       if (!argv.empty()) {
-        opts.explicitly_changed.insert(argv.front());
+        options.explicitly_changed.insert(argv.front());
         argv.pop_front();
       } else {
         std::cerr << "Please specify a file to mark as changed.\n";
@@ -57,7 +62,7 @@ dodo_opts parse_argv(forward_list<string> argv) {
 
     } else if (arg == "--unchanged") {
       if (!argv.empty()) {
-        opts.explicitly_unchanged.insert(argv.front());
+        options.explicitly_unchanged.insert(argv.front());
         argv.pop_front();
       } else {
         std::cerr << "Please specify a file to mark as unchanged.\n";
@@ -65,7 +70,7 @@ dodo_opts parse_argv(forward_list<string> argv) {
       }
 
     } else if (arg == "--dry-run") {
-      opts.dry_run = true;
+      options.dry_run = true;
 
     } else if (arg == "-j") {
       if (!argv.empty()) {
@@ -76,44 +81,39 @@ dodo_opts parse_argv(forward_list<string> argv) {
           std::cerr << "Invalid number of jobs: specify at least one.\n";
           exit(1);
         }
-        opts.parallel_jobs = specified_jobs;
+        options.parallel_jobs = specified_jobs;
       } else {
         std::cerr << "Please specify a number of jobs to use" << std::endl;
         exit(1);
       }
 
     } else if (arg == "--visualize") {
-      opts.visualize = true;
+      options.visualize = true;
 
     } else if (arg == "--visualize-all") {
-      opts.visualize = true;
-      opts.show_sysfiles = true;
+      options.visualize = true;
+      options.show_sysfiles = true;
 
     } else if (arg == "--hide-collapsed") {
-      opts.show_collapsed = false;
+      options.show_collapsed = false;
 
     } else {
       std::cerr << "Invalid argument " << arg << std::endl;
       exit(1);
     }
   }
-
-  return opts;
 }
 
 /**
  * This is the entry point for the dodo command line tool
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Parse command line options
-  dodo_opts opts = parse_argv(forward_list<string>(argv + 1, argv + argc));
+  parse_argv(forward_list<string>(argv + 1, argv + argc));
 
   // Get the current working directory
-  char *cwd = getcwd(nullptr, 0);
-  if (cwd == nullptr) {
-    std::cerr << "Failed to get current working directory.\n";
-    exit(1);
-  }
+  char* cwd = getcwd(nullptr, 0);
+  FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
   // Create a managed reference to a trace state
   auto state = std::make_unique<trace_state>(cwd);
@@ -123,43 +123,38 @@ int main(int argc, char *argv[]) {
 
   // Although the documentation recommends against this, we implicitly trust the
   // database anyway. Without this we may hit the recursion limit.
-  ::capnp::ReaderOptions options;
-  options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
+  ::capnp::ReaderOptions capnp_options;
+  capnp_options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
 
   // Open the database
   int db_fd = open("db.dodo", O_RDWR);
-  
+
   // If the database exists, read it
   if (db_fd >= 0) {
-    ::capnp::StreamFdMessageReader message(db_fd, options);
+    ::capnp::StreamFdMessageReader message(db_fd, capnp_options);
     auto old_graph = message.getRoot<db::Graph>();
     auto old_files = old_graph.getFiles();
     auto old_commands = old_graph.getCommands();
-    RebuildState rebuild_state(old_graph, opts.use_fingerprints,
-                               opts.explicitly_changed,
-                               opts.explicitly_unchanged);
+    RebuildState rebuild_state(old_graph, options.use_fingerprints, options.explicitly_changed,
+                               options.explicitly_unchanged);
 
     pid_t dry_run_pid = 1;
-    std::map<pid_t, old_command *> wait_worklist;
+    std::map<pid_t, old_command*> wait_worklist;
     while (true) {
-      auto run_command =
-          rebuild_state.rebuild(opts.use_fingerprints, opts.dry_run,
-                                wait_worklist.size(), opts.parallel_jobs);
+      auto run_command = rebuild_state.rebuild(options.use_fingerprints, options.dry_run,
+                                               wait_worklist.size(), options.parallel_jobs);
       if (run_command == nullptr) {
         if (wait_worklist.empty()) {
           // We're done!
           break;
         } else {
           pid_t child;
-          if (opts.dry_run) {
+          if (options.dry_run) {
             child = wait_worklist.begin()->first;
           } else {
             int wait_status;
             child = wait(&wait_status);
-            if (child == -1) {
-              perror("Error while waiting");
-              exit(2);
-            }
+            FAIL_IF(child == -1) << "Error waiting for child: " << ERR;
 
             trace_step(&*state, child, wait_status);
             if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
@@ -169,13 +164,12 @@ int main(int argc, char *argv[]) {
 
           auto child_entry = wait_worklist.find(child);
           if (child_entry == wait_worklist.end()) {
-            std::cerr << "Unrecognized process ended: " << child << std::endl;
+            WARN << "Unrecognized process ended: " << child;
           } else {
-            old_command *child_command = child_entry->second;
+            old_command* child_command = child_entry->second;
             wait_worklist.erase(child_entry);
 
-            rebuild_state.mark_complete(opts.use_fingerprints, opts.dry_run,
-                                        child_command);
+            rebuild_state.mark_complete(options.use_fingerprints, options.dry_run, child_command);
           }
           continue;
         }
@@ -183,20 +177,16 @@ int main(int argc, char *argv[]) {
 
       // Print that we will run it
       write_shell_escaped(std::cout, run_command->executable);
-      for (size_t arg_index = 1; arg_index < run_command->args.size();
-           arg_index++) {
+      for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
         std::cout << " ";
         write_shell_escaped(std::cout, run_command->args[arg_index]);
       }
       // Print redirections
-      for (auto initial_fd_entry :
-           old_commands[run_command->id].getInitialFDs()) {
+      for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
         std::cout << " ";
-        if (!(initial_fd_entry.getFd() == fileno(stdin) &&
-              initial_fd_entry.getCanRead() &&
+        if (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() &&
               !initial_fd_entry.getCanWrite()) &&
-            !(initial_fd_entry.getFd() == fileno(stdout) &&
-              !initial_fd_entry.getCanRead() &&
+            !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() &&
               initial_fd_entry.getCanWrite())) {
           std::cout << initial_fd_entry.getFd();
         }
@@ -209,16 +199,14 @@ int main(int argc, char *argv[]) {
         if (rebuild_state.files[initial_fd_entry.getFileID()]->is_pipe) {
           std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
         } else {
-          write_shell_escaped(
-              std::cout,
-              rebuild_state.files[initial_fd_entry.getFileID()]->path);
+          write_shell_escaped(std::cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
         }
       }
       std::cout << std::endl;
 
       // Run it!
       pid_t child_pid;
-      if (opts.dry_run) {
+      if (options.dry_run) {
         child_pid = dry_run_pid;
         dry_run_pid++;
       } else {
@@ -226,46 +214,40 @@ int main(int argc, char *argv[]) {
         kj::Vector<InitialFdEntry> file_actions;
         std::vector<int> opened_fds;
         int max_fd = 0;
-        for (auto initial_fd_entry :
-             old_commands[run_command->id].getInitialFDs()) {
+        for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
           int fd = initial_fd_entry.getFd();
           if (fd > max_fd) {
             max_fd = fd;
           }
         }
-        for (auto initial_fd_entry :
-             old_commands[run_command->id].getInitialFDs()) {
+        for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
           auto file = rebuild_state.files[initial_fd_entry.getFileID()];
           int open_fd_storage;
-          int *open_fd_ref;
+          int* open_fd_ref;
           if (file->is_pipe) {
             if (file->scheduled_for_creation) {
               file->scheduled_for_creation = false;
               int pipe_fds[2];
-              // FIXME(portability): pipe2 is Linux-specific; fall back to
-              // pipe+fcntl?
-              if (pipe2(pipe_fds, O_CLOEXEC) != 0) {
-                perror("Failed to create pipe");
-                continue;
-              }
+              // FIXME(portability): pipe2 is Linux-specific; fall back to pipe+fcntl?
+              FAIL_IF(pipe2(pipe_fds, O_CLOEXEC)) << "Failed to create pipe: " << ERR;
+
               file->pipe_reader_fd = pipe_fds[0];
               file->pipe_writer_fd = pipe_fds[1];
             }
 
             if (initial_fd_entry.getCanRead()) {
               open_fd_ref = &file->pipe_reader_fd;
-            } else { // TODO: check for invalid read/write combinations?
+            } else {  // TODO: check for invalid read/write combinations?
               open_fd_ref = &file->pipe_writer_fd;
             }
           } else {
             int flags = O_CLOEXEC;
-            if (initial_fd_entry.getCanRead() &&
-                initial_fd_entry.getCanWrite()) {
+            if (initial_fd_entry.getCanRead() && initial_fd_entry.getCanWrite()) {
               flags |= O_RDWR;
             } else if (initial_fd_entry.getCanWrite()) {
               flags |= O_WRONLY;
-            } else { // TODO: what if the database has no permissions for some
-                     // reason?
+            } else {  // TODO: what if the database has no permissions for some
+                      // reason?
               flags |= O_RDONLY;
             }
             if (file->scheduled_for_creation) {
@@ -274,47 +256,39 @@ int main(int argc, char *argv[]) {
             }
             mode_t mode = old_files[initial_fd_entry.getFileID()].getMode();
             open_fd_storage = open(file->path.c_str(), flags, mode);
-            if (open_fd_storage == -1) {
-              perror("Failed to open");
-              continue;
-            }
+            FAIL_IF(open_fd_storage == -1) << "Failed to open output: " << ERR;
             open_fd_ref = &open_fd_storage;
           }
           // Ensure that the dup2s won't step on each other's toes
           if (*open_fd_ref <= max_fd) {
             int new_fd = fcntl(*open_fd_ref, F_DUPFD_CLOEXEC, max_fd + 1);
-            if (new_fd == -1) {
-              perror("Failed to remap FD");
-              continue;
-            }
+            FAIL_IF(new_fd == -1) << "Failed to remap fd: " << ERR;
             close(*open_fd_ref);
             *open_fd_ref = new_fd;
           }
           if (!file->is_pipe) {
             opened_fds.push_back(*open_fd_ref);
           }
-          file_actions.add((InitialFdEntry){
-              .parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
+          file_actions.add(
+              (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
         }
         // Spawn the child
-        auto middle_cmd = new new_command(
-            &*state,
-            kj::heapArray((const kj::byte *)run_command->executable.data(),
-                          run_command->executable.size()),
-            nullptr, 0);
-        for (size_t arg_index = 0; arg_index < run_command->args.size();
-             arg_index++) {
-          middle_cmd->args.push_back(kj::heapArray(
-              (const kj::byte *)run_command->args[arg_index].data(),
-              run_command->args[arg_index].size()));
+        auto middle_cmd =
+            new new_command(&*state,
+                            kj::heapArray((const kj::byte*)run_command->executable.data(),
+                                          run_command->executable.size()),
+                            nullptr, 0);
+        for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
+          middle_cmd->args.push_back(
+              kj::heapArray((const kj::byte*)run_command->args[arg_index].data(),
+                            run_command->args[arg_index].size()));
         }
         child_pid = start_command(middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
         }
-        for (auto initial_fd_entry :
-             old_commands[run_command->id].getInitialFDs()) {
+        for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
           auto file = rebuild_state.files[initial_fd_entry.getFileID()];
           if (file->is_pipe) {
             if (initial_fd_entry.getCanRead()) {
@@ -334,15 +308,15 @@ int main(int argc, char *argv[]) {
 
       wait_worklist[child_pid] = run_command;
     }
-    if (opts.visualize) {
-      rebuild_state.visualize(opts.show_sysfiles, opts.show_collapsed);
+    if (options.visualize) {
+      rebuild_state.visualize(options.show_sysfiles, options.show_collapsed);
     }
     return 0;
   }
 
-  auto root_cmd = new new_command(
-      &*state, kj::heapArray((const kj::byte *)"Dodofile", 8), nullptr, 0);
-  root_cmd->args.push_back(kj::heapArray((const kj::byte *)"Dodofile", 8));
+  auto root_cmd =
+      new new_command(&*state, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
+  root_cmd->args.push_back(kj::heapArray((const kj::byte*)"Dodofile", 8));
   state->commands.push_front(root_cmd);
 
   // TODO: set up stdio for logging?
@@ -358,8 +332,7 @@ int main(int argc, char *argv[]) {
         // to exit (cleanly).
         break;
       } else {
-        perror("Error while waiting");
-        exit(2);
+        FAIL << "Error while waiting: " << ERR;
       }
     }
 
