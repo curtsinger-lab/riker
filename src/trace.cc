@@ -284,9 +284,8 @@ pid_t start_command(new_command* cmd, kj::ArrayPtr<InitialFdEntry const> initial
         delete[] arg;
     }
 
-    Process* proc = new Process(pid, kj::heapArray(cmd->state->starting_dir.asPtr()), cmd);
-    cmd->state->processes.insert(std::pair<pid_t, Process*>(pid, proc));
-
+    cmd->state->newProcess(pid, cmd);
+    
     return pid;
 }
 

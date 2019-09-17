@@ -32,7 +32,7 @@ struct dodo_opts {
 };
 
 /**
- * Parse commadn line options and return a dodo_opts struct.
+ * Parse command line options and return a dodo_opts struct.
  */
 dodo_opts parse_argv(forward_list<string> argv) {
   dodo_opts opts;
@@ -106,29 +106,28 @@ int main(int argc, char *argv[]) {
   // Parse command line options
   dodo_opts opts = parse_argv(forward_list<string>(argv + 1, argv + argc));
 
-  // Create a managed reference to a trace state
-  auto state = std::make_unique<trace_state>();
-  
   // Get the current working directory
-  kj::Vector<kj::byte> cwd(16);
-  while (true) { // Loop because we have no working upper bound on path length
-    cwd.resize(cwd.capacity());
-    if (getcwd(cwd.asPtr().asChars().begin(), cwd.size()) != nullptr) {
-      cwd.resize(strlen((char *)cwd.begin()));
-      break;
-    }
-    cwd.reserve(cwd.capacity() + 1);
+  char *cwd = getcwd(nullptr, 0);
+  if (cwd == nullptr) {
+    std::cerr << "Failed to get current working directory.\n";
+    exit(1);
   }
-  
-  // Set the cwd in the trace state
-  state->starting_dir = cwd.releaseAsArray();
+
+  // Create a managed reference to a trace state
+  auto state = std::make_unique<trace_state>(cwd);
+
+  // Clean up after getcwd
+  free(cwd);
 
   // Although the documentation recommends against this, we implicitly trust the
-  // database anyway.
+  // database anyway. Without this we may hit the recursion limit.
   ::capnp::ReaderOptions options;
   options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
 
+  // Open the database
   int db_fd = open("db.dodo", O_RDWR);
+  
+  // If the database exists, read it
   if (db_fd >= 0) {
     ::capnp::StreamFdMessageReader message(db_fd, options);
     auto old_graph = message.getRoot<db::Graph>();

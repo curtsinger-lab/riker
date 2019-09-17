@@ -12,6 +12,8 @@
 
 #include "db.capnp.h"
 
+#include "util.hh"
+
 typedef kj::Array<kj::byte> Blob;
 typedef kj::ArrayPtr<const kj::byte> BlobPtr;
 
@@ -132,28 +134,42 @@ struct file_comparator {
 };
 
 struct trace_state {
-    std::set<new_file*, file_comparator> files;
-    std::vector<new_file*> latest_versions;
-    std::list<new_command*> commands;
-    std::map<pid_t, Process*> processes;
-    Blob starting_dir;
-    ::capnp::MallocMessageBuilder temp_message;
+  std::set<new_file*, file_comparator> files;
+  std::vector<new_file*> latest_versions;
+  std::list<new_command*> commands;
+  std::map<pid_t, Process*> processes;
+  ::capnp::MallocMessageBuilder temp_message;
 
-    size_t find_file(BlobPtr path);
-    void serialize_graph(void);
-    void collapse_sccs(void);
-    void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
-    void add_change_cwd(Process* proc, struct file_reference& file);
-    void add_change_root(Process* proc, struct file_reference& file);
-    void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec, mode_t mode);
-    void add_pipe(Process* proc, int fds[2], bool cloexec);
-    void add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec);
-    void add_set_cloexec(Process* proc, int fd, bool cloexec);
-    void add_mmap(Process* proc, int fd);
-    void add_close(Process* proc, int fd);
-    void add_fork(Process* parent_proc, pid_t child_process_id);
-    void add_exec(Process* proc, Blob&& exe_path);
-    void add_exec_argument(Process* proc, Blob&& argument, int index);
-    void add_exit(Process* proc);
-    void print_changes(std::vector<Blob>& changes);
+  trace_state(std::string starting_dir) : _starting_dir(starting_dir) {}
+  
+  Blob getStartingDir() {
+    return stringToBlob(_starting_dir);
+  }
+  
+  void newProcess(pid_t pid, new_command* cmd) {
+    Process* proc = new Process(pid, kj::heapArray(getStartingDir().asPtr()), cmd);
+    processes.emplace(pid, proc);
+    //processes.insert(std::pair<pid_t, Process*>(pid, proc));
+  } 
+
+  size_t find_file(BlobPtr path);
+  void serialize_graph(void);
+  void collapse_sccs(void);
+  void add_dependency(Process* proc, struct file_reference& file, enum dependency_type type);
+  void add_change_cwd(Process* proc, struct file_reference& file);
+  void add_change_root(Process* proc, struct file_reference& file);
+  void add_open(Process* proc, int fd, struct file_reference& file, int access_mode, bool is_rewrite, bool cloexec, mode_t mode);
+  void add_pipe(Process* proc, int fds[2], bool cloexec);
+  void add_dup(Process* proc, int duped_fd, int new_fd, bool cloexec);
+  void add_set_cloexec(Process* proc, int fd, bool cloexec);
+  void add_mmap(Process* proc, int fd);
+  void add_close(Process* proc, int fd);
+  void add_fork(Process* parent_proc, pid_t child_process_id);
+  void add_exec(Process* proc, Blob&& exe_path);
+  void add_exec_argument(Process* proc, Blob&& argument, int index);
+  void add_exit(Process* proc);
+  void print_changes(std::vector<Blob>& changes);
+  
+private:
+  std::string _starting_dir;
 };

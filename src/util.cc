@@ -3,6 +3,22 @@
 #include <iostream>
 #include <string>
 
+#include <kj/array.h>
+#include <kj/vector.h>
+
+// Convert a KJ blob to a C++ string
+std::string blobToString(kj::Array<kj::byte> b) {
+  return std::string((char*)b.asPtr().begin());
+}
+
+// Convert a C++ string to a KJ blob
+kj::Array<kj::byte> stringToBlob(std::string str) {
+  kj::Vector<kj::byte> output;
+  output.addAll(str);
+  return output.releaseAsArray();
+}
+
+
 void write_shell_escaped(std::ostream &out_stream, const std::string &input) {
   if (input.find_first_of(" \t\n&();|<>!{}'\"") == std::string::npos &&
       input != std::string("elif") && input != std::string("fi") &&
