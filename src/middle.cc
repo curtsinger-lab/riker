@@ -122,16 +122,6 @@ static uint64_t serialize_commands(Command* command,
   return index;
 }
 
-// collapse the current command to the designated depth
-Command* Command::collapse_helper(unsigned int depth) {
-  Command* cur_command = this;
-  while (cur_command->depth > depth) {
-    cur_command->collapse_with_parent = true;
-    cur_command = cur_command->parent;
-  }
-  return cur_command;
-}
-
 void Command::collapse(std::set<Command*>* commands) {
   // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
   unsigned int ansc_depth = this->depth;

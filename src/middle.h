@@ -41,20 +41,30 @@ struct Command {
   Command(Trace& state, std::string cmd, Command* parent, unsigned int depth) :
       _state(state),
       _cmd(cmd),
-      parent(parent),
+      _parent(parent),
       depth(depth) {}
 
   void add_input(new_file* f);
   void add_output(new_file* f, size_t file_location);
   size_t descendants(void);
-  Command* collapse_helper(unsigned int depth);
+  
   void collapse(std::set<Command*>* commands);
+  
+  Command* collapse_helper(unsigned int min_depth) {
+    if(this->depth > min_depth) {
+      this->collapse_with_parent = true;
+      return _parent->collapse_helper(min_depth);
+    } else {
+      return this;
+    }
+  }
   
   const std::string& getCommand() { return _cmd; }
 
  private:
   Trace& _state;
   std::string _cmd;
+  Command* _parent;
 
  public:
   std::list<Command*> children;
@@ -64,7 +74,6 @@ struct Command {
   std::set<new_file*> rd_interactions;
   std::set<new_file*> deleted_files;
   std::list<Blob> args;
-  Command* parent;
   unsigned int depth;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
