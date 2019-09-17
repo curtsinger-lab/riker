@@ -16,7 +16,7 @@
 #include "middle.h"
 
 /* ------------------------------ new_command Methods -----------------------------------------*/
-new_command::new_command(Trace* state, Blob&& cmd, new_command* parent, unsigned int depth) :
+new_command::new_command(Trace& state, Blob&& cmd, new_command* parent, unsigned int depth) :
     state(state),
     cmd(std::move(cmd)),
     parent(parent),
@@ -239,7 +239,7 @@ new_file* new_file::make_version(void) {
   return f;
 }
 
-void Process::exec(Trace* trace, Blob&& exe_path) {
+void Process::exec(Trace& trace, Blob&& exe_path) {
   new_command* cmd = new new_command(trace, std::move(exe_path), _command, _command->depth + 1);
   _command->children.push_front(cmd);
   _command = cmd;
@@ -260,7 +260,7 @@ void Process::exec(Trace* trace, Blob&& exe_path) {
 
   // Mark the initial open file descriptors
   for (auto it = fds.begin(); it != fds.end(); ++it) {
-    it->second.file = trace->latest_versions[it->second.location_index];
+    it->second.file = trace.latest_versions[it->second.location_index];
   }
   cmd->initial_fds = fds;
 
@@ -268,10 +268,10 @@ void Process::exec(Trace* trace, Blob&& exe_path) {
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
   if (fds.find(fileno(stdout)) != fds.end()) {
-    trace->add_mmap(this->thread_id, fileno(stdout));
+    trace.add_mmap(this->thread_id, fileno(stdout));
   }
   if (fds.find(fileno(stderr)) != fds.end()) {
-    trace->add_mmap(this->thread_id, fileno(stderr));
+    trace.add_mmap(this->thread_id, fileno(stderr));
   }
 }
 

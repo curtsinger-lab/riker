@@ -284,7 +284,7 @@ pid_t start_command(new_command* cmd, kj::ArrayPtr<InitialFdEntry const> initial
         delete[] arg;
     }
 
-    cmd->state->newProcess(pid, cmd);
+    cmd->state.newProcess(pid, cmd);
     
     return pid;
 }

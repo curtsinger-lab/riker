@@ -38,7 +38,7 @@ struct Process;
 struct Trace;
 
 struct new_command {
-  Trace* state;
+  Trace& state;
   Blob cmd;
   std::list<new_command*> children;
   std::set<new_file*> inputs;
@@ -52,7 +52,7 @@ struct new_command {
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
 
-  new_command(Trace* state, Blob&& args, new_command* parent, unsigned int depth);
+  new_command(Trace& state, Blob&& args, new_command* parent, unsigned int depth);
   void add_input(new_file* f);
   void add_output(new_file* f, size_t file_location);
   size_t descendants(void);
@@ -113,7 +113,7 @@ struct Process {
     return child_proc;
   }
 
-  void exec(Trace* trace, Blob&& exe_path);
+  void exec(Trace& trace, Blob&& exe_path);
 
  private:
   new_command* _command;
@@ -364,7 +364,7 @@ struct Trace {
 
   void add_exec(pid_t pid, Blob&& exe_path) {
     Process* proc = _processes.at(pid);
-    proc->exec(this, std::move(exe_path));
+    proc->exec(*this, std::move(exe_path));
   }
 
   void add_exec_argument(pid_t pid, Blob&& argument, int index) {

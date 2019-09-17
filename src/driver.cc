@@ -274,7 +274,7 @@ int main(int argc, char* argv[]) {
         }
         // Spawn the child
         auto middle_cmd =
-            new new_command(&trace,
+            new new_command(trace,
                             kj::heapArray((const kj::byte*)run_command->executable.data(),
                                           run_command->executable.size()),
                             nullptr, 0);
@@ -315,7 +315,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto root_cmd =
-      new new_command(&trace, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
+      new new_command(trace, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
   root_cmd->args.push_back(kj::heapArray((const kj::byte*)"Dodofile", 8));
   trace.commands.push_front(root_cmd);
 
