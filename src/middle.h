@@ -53,25 +53,23 @@ struct Command {
   void add_input(File* f);
   void add_output(File* f, size_t file_location);
   size_t descendants(void);
-  
+
   void collapse(std::set<Command*>* commands);
-  
+
   Command* collapse_helper(unsigned int min_depth) {
-    if(_depth > min_depth) {
+    if (_depth > min_depth) {
       this->collapse_with_parent = true;
       return _parent->collapse_helper(min_depth);
     } else {
       return this;
     }
   }
-  
+
   const std::string& getCommand() { return _cmd; }
-  
+
   const std::vector<std::string>& getArguments() { return _args; }
-  
-  void addArgument(std::string arg) {
-    _args.push_back(arg);
-  }
+
+  void addArgument(std::string arg) { _args.push_back(arg); }
 
  private:
   Trace& _state;
@@ -92,8 +90,31 @@ struct Command {
 };
 
 struct File {
+  File(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
+       File* prev_version);
+  std::set<Command*> collapse(unsigned int depth);
+  bool can_depend(Command* cmd);
+  File* make_version(void);
+  
+  std::string getPath() { return blobToString(_serialized.getReader().getPath()); }
+  
+  bool isPipe() { return _serialized.getReader().getType() == db::FileType::PIPE; }
+  
+  void setMode(uint16_t mode) { _serialized.get().setMode(mode); }
+  
+  void setLatestVersion() { _serialized.get().setLatestVersion(true); }
+  
+  db::File::Builder getBuilder() { return _serialized.get(); }
+  
+  db::File::Reader getReader() { return _serialized.getReader(); }
+
+ public:
   size_t location;
-  capnp::Orphan<db::File> serialized;
+
+ private:
+  capnp::Orphan<db::File> _serialized;
+
+ public:
   std::set<Command*> users;
   std::set<Process*> mmaps;
   std::list<Command*> interactions;
@@ -104,17 +125,11 @@ struct File {
   File* prev_version;
   unsigned int version;
   bool known_removed;
-
-  File(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
-           File* prev_version);
-  std::set<Command*> collapse(unsigned int depth);
-  bool can_depend(Command* cmd);
-  File* make_version(void);
 };
 
 struct FileDescriptor {
   size_t location_index;  // Used in Process::fds
-  File* file;         // Used in Command::initial_fds
+  File* file;             // Used in Command::initial_fds
   int access_mode;
   bool cloexec;
 
@@ -154,30 +169,9 @@ struct Process {
 
 struct file_comparator {
   bool operator()(File* const& lhs, File* const& rhs) const {
-    //  return false;
-
-    auto lhs_reader = lhs->serialized.getReader();
-    auto rhs_reader = rhs->serialized.getReader();
-    if (lhs_reader.getType() == db::FileType::PIPE) {
-      return true;
-    } else if (rhs_reader.getType() == db::FileType::PIPE) {
-      return false;
-    }
-
-    auto path1 = lhs_reader.getPath();
-    auto path2 = rhs_reader.getPath();
-
-    // compare to find alphabetic order
-    for (size_t i = 0; i < std::min(path1.size(), path2.size()); i++) {
-      if (path1[i] != path2[i]) {
-        return path1[i] < path2[i];
-      }
-    }
-
-    // if the first min(path1.size(), path2(size()) characters are the same,
-    // order the shorter string first
-    // return true;
-    return path1.size() <= path2.size();
+    if(lhs->isPipe()) return true;
+    else if(rhs->isPipe()) return false;
+    else return lhs->getPath() <= rhs->getPath();
   }
 };
 
@@ -199,8 +193,8 @@ struct Trace {
 
   size_t find_file(BlobPtr path) {
     for (size_t index = 0; index < this->latest_versions.size(); index++) {
-      if (this->latest_versions[index]->serialized.getReader().getType() != db::FileType::PIPE &&
-          this->latest_versions[index]->serialized.getReader().getPath() == path) {
+      if (!this->latest_versions[index]->isPipe() &&
+          this->latest_versions[index]->getPath() == blobToString(path)) {
         return index;
       }
     }
@@ -265,13 +259,11 @@ struct Trace {
         // Creation means creation only if the file does not already exist.
         if (f->creator == nullptr && f->writer == nullptr) {
           bool file_exists;
-          if (f->known_removed || f->serialized.getReader().getType() == db::FileType::PIPE) {
+          if (f->known_removed || f->isPipe()) {
             file_exists = false;
           } else {
             struct stat stat_info;
-            auto path_string = std::string(f->serialized.getReader().getPath().asChars().begin(),
-                                           f->serialized.getReader().getPath().size());
-            file_exists = (lstat(path_string.c_str(), &stat_info) == 0);
+            file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
           }
 
           if (!file_exists) {
@@ -324,7 +316,7 @@ struct Trace {
       f = f->make_version();
       f->creator = proc->getCommand();
       f->writer = nullptr;
-      f->serialized.get().setMode(mode);
+      f->setMode(mode);
     }
     proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
     if (file.fd == AT_FDCWD) {

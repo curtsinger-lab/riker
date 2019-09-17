@@ -23,7 +23,7 @@ void Command::add_input(File* f) {
   this->inputs.insert(f);
 
   // if we've read from the file previously, check for a race
-  if (f->serialized.getReader().getType() == db::FileType::PIPE) {
+  if (f->isPipe()) {
     return;
   }
 
@@ -43,7 +43,7 @@ void Command::add_input(File* f) {
 
 void Command::add_output(File* f, size_t file_location) {
   // if we've written to the file before, check for a race
-  if (f->serialized.getReader().getType() != db::FileType::PIPE) {
+  if (!f->isPipe()) {
     for (auto wr : this->wr_interactions) {
       if (f->location == wr->location) {
         this->outputs.insert(f);
@@ -163,7 +163,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 File::File(size_t location, bool is_pipe, BlobPtr path, Command* creator,
                    Trace* state, File* prev_version) :
     location(location),
-    serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
+    _serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
     creator(creator),
     writer(nullptr),
     state(state),
@@ -172,10 +172,10 @@ File::File(size_t location, bool is_pipe, BlobPtr path, Command* creator,
     known_removed(false) {
   // TODO: consider using orphans to avoid copying
   if (is_pipe) {
-    this->serialized.get().setType(db::FileType::PIPE);
+    _serialized.get().setType(db::FileType::PIPE);
   } else {
-    this->serialized.get().setType(db::FileType::REGULAR);
-    this->serialized.get().setPath(path);
+    _serialized.get().setType(db::FileType::REGULAR);
+    _serialized.get().setPath(path);
   }
 }
 
@@ -210,12 +210,12 @@ bool File::can_depend(Command* cmd) {
 
 File* File::make_version(void) {
   // We are at the end of the current version, so snapshot with a fingerprint
-  set_fingerprint(this->serialized.get(), true);
-  this->serialized.get().setLatestVersion(false);
+  set_fingerprint(_serialized.get(), true);
+  _serialized.get().setLatestVersion(false);
 
   File* f =
-      new File(this->location, this->serialized.getReader().getType() == db::FileType::PIPE,
-                   this->serialized.getReader().getPath(), this->creator, this->state, this);
+      new File(this->location, _serialized.getReader().getType() == db::FileType::PIPE,
+                   _serialized.getReader().getPath(), this->creator, this->state, this);
   f->version = this->version + 1;
 
   this->state->files.insert(f);
@@ -267,9 +267,9 @@ void Trace::serialize_graph(void) {
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
   for (size_t location = 0; location < this->latest_versions.size(); location++) {
-    set_fingerprint(this->latest_versions[location]->serialized.get(),
+    set_fingerprint(this->latest_versions[location]->getBuilder(),
                     !this->latest_versions[location]->users.empty());
-    this->latest_versions[location]->serialized.get().setLatestVersion(true);
+    this->latest_versions[location]->setLatestVersion();
   }
 
   // Serialize files
@@ -299,7 +299,7 @@ void Trace::serialize_graph(void) {
     auto file = file_entry.first;
     auto file_id = file_entry.second;
     // TODO: Use orphans and avoid copying?
-    files.setWithCaveats(file_id, file->serialized.getReader());
+    files.setWithCaveats(file_id, file->getReader());
   }
 
   // Serialize commands

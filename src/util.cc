@@ -11,6 +11,10 @@ std::string blobToString(const kj::Array<kj::byte>& b) {
   return std::string(b.asPtr().asChars().begin(), b.asPtr().size());
 }
 
+std::string blobToString(const kj::ArrayPtr<const unsigned char>& b) {
+  return std::string(b.asChars().begin(), b.size());
+}
+
 // Convert a C++ string to a KJ blob
 kj::Array<kj::byte> stringToBlob(std::string str) {
   kj::Vector<kj::byte> output;
