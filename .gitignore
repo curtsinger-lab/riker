@@ -12,3 +12,4 @@ dodo
 *.capnp.h
 .submodules-cleared
 .submodules-updated
+tests/*/*.t.err
