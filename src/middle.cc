@@ -89,7 +89,7 @@ static uint64_t serialize_commands(Command* command,
                                    std::map<Command*, uint64_t>& command_ids,
                                    std::map<new_file*, uint64_t>& file_ids) {
   command_ids[command] = start_index;
-  command_list[start_index].setExecutable(command->cmd);
+  command_list[start_index].setExecutable(command->getCommand());
   command_list[start_index].setOutOfDate(false);
   command_list[start_index].setCollapseWithParent(command->collapse_with_parent);
   auto argv = command_list[start_index].initArgv(command->args.size());

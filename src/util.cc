@@ -7,8 +7,8 @@
 #include <kj/vector.h>
 
 // Convert a KJ blob to a C++ string
-std::string blobToString(kj::Array<kj::byte>& b) {
-  return std::string((char*)b.asPtr().begin());
+std::string blobToString(const kj::Array<kj::byte>& b) {
+  return std::string(b.asPtr().asChars().begin(), b.asPtr().size());
 }
 
 // Convert a C++ string to a KJ blob
