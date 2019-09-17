@@ -37,53 +37,53 @@ struct FileDescriptor;
 struct Process;
 struct Trace;
 
-struct new_command {
+struct Command {
   Trace& state;
   Blob cmd;
-  std::list<new_command*> children;
+  std::list<Command*> children;
   std::set<new_file*> inputs;
   std::set<new_file*> outputs;
   std::set<new_file*> wr_interactions;
   std::set<new_file*> rd_interactions;
   std::set<new_file*> deleted_files;
   std::list<Blob> args;
-  new_command* parent;
+  Command* parent;
   unsigned int depth;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
 
-  new_command(Trace& state, Blob&& args, new_command* parent, unsigned int depth);
+  Command(Trace& state, Blob&& args, Command* parent, unsigned int depth);
   void add_input(new_file* f);
   void add_output(new_file* f, size_t file_location);
   size_t descendants(void);
-  new_command* collapse_helper(unsigned int depth);
-  void collapse(std::set<new_command*>* commands);
+  Command* collapse_helper(unsigned int depth);
+  void collapse(std::set<Command*>* commands);
 };
 
 struct new_file {
   size_t location;
   capnp::Orphan<db::File> serialized;
-  std::set<new_command*> users;
+  std::set<Command*> users;
   std::set<Process*> mmaps;
-  std::list<new_command*> interactions;
-  std::list<new_command*> conflicts;
-  new_command* creator;
-  new_command* writer;
+  std::list<Command*> interactions;
+  std::list<Command*> conflicts;
+  Command* creator;
+  Command* writer;
   Trace* state;
   new_file* prev_version;
   unsigned int version;
   bool known_removed;
 
-  new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator, Trace* state,
+  new_file(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
            new_file* prev_version);
-  std::set<new_command*> collapse(unsigned int depth);
-  bool can_depend(new_command* cmd);
+  std::set<Command*> collapse(unsigned int depth);
+  bool can_depend(Command* cmd);
   new_file* make_version(void);
 };
 
 struct FileDescriptor {
   size_t location_index;  // Used in Process::fds
-  new_file* file;         // Used in new_command::initial_fds
+  new_file* file;         // Used in Command::initial_fds
   int access_mode;
   bool cloexec;
 
@@ -96,12 +96,12 @@ struct Process {
   std::map<int, FileDescriptor> fds;
   std::set<new_file*> mmaps;
 
-  Process(pid_t thread_id, std::string cwd, new_command* command) :
+  Process(pid_t thread_id, std::string cwd, Command* command) :
       thread_id(thread_id),
       _command(command),
       _cwd(cwd) {}
 
-  new_command* getCommand() { return _command; }
+  Command* getCommand() { return _command; }
 
   void chdir(std::string newdir) { _cwd = newdir; }
 
@@ -116,7 +116,7 @@ struct Process {
   void exec(Trace& trace, Blob&& exe_path);
 
  private:
-  new_command* _command;
+  Command* _command;
   std::string _cwd;
   std::string _root;
 };
@@ -153,14 +153,14 @@ struct file_comparator {
 struct Trace {
   std::set<new_file*, file_comparator> files;
   std::vector<new_file*> latest_versions;
-  std::list<new_command*> commands;
+  std::list<Command*> commands;
   ::capnp::MallocMessageBuilder temp_message;
 
   Trace(std::string starting_dir) : _starting_dir(starting_dir) {}
 
   Blob getStartingDir() { return stringToBlob(_starting_dir); }
 
-  void newProcess(pid_t pid, new_command* cmd) {
+  void newProcess(pid_t pid, Command* cmd) {
     Process* proc = new Process(pid, _starting_dir, cmd);
     _processes.emplace(pid, proc);
     // processes.insert(std::pair<pid_t, Process*>(pid, proc));

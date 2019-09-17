@@ -15,14 +15,14 @@
 #include "fingerprint.h"
 #include "middle.h"
 
-/* ------------------------------ new_command Methods -----------------------------------------*/
-new_command::new_command(Trace& state, Blob&& cmd, new_command* parent, unsigned int depth) :
+/* ------------------------------ Command Methods -----------------------------------------*/
+Command::Command(Trace& state, Blob&& cmd, Command* parent, unsigned int depth) :
     state(state),
     cmd(std::move(cmd)),
     parent(parent),
     depth(depth) {}
 
-void new_command::add_input(new_file* f) {
+void Command::add_input(new_file* f) {
   // search through all files, do versioning
   f->interactions.push_front(this);
   f->users.insert(this);
@@ -38,7 +38,7 @@ void new_command::add_input(new_file* f) {
       if (f->version == rd->version) {
         return;
       } else /* we've found a race */ {
-        std::set<new_command*> conflicts = f->collapse(rd->version);
+        std::set<Command*> conflicts = f->collapse(rd->version);
         this->collapse(&conflicts);
       }
     }
@@ -47,7 +47,7 @@ void new_command::add_input(new_file* f) {
   this->rd_interactions.insert(f);
 }
 
-void new_command::add_output(new_file* f, size_t file_location) {
+void Command::add_output(new_file* f, size_t file_location) {
   // if we've written to the file before, check for a race
   if (f->serialized.getReader().getType() != db::FileType::PIPE) {
     for (auto wr : this->wr_interactions) {
@@ -56,7 +56,7 @@ void new_command::add_output(new_file* f, size_t file_location) {
         if (f->version == wr->version) {
           return;
         } else {
-          std::set<new_command*> conflicts = f->collapse(wr->version);
+          std::set<Command*> conflicts = f->collapse(wr->version);
           this->collapse(&conflicts);
           // wr->has_race = true;
           // this->has_race = true;
@@ -81,7 +81,7 @@ void new_command::add_output(new_file* f, size_t file_location) {
   this->wr_interactions.insert(fnew);
 }
 
-uint64_t new_command::descendants(void) {
+uint64_t Command::descendants(void) {
   uint64_t ret = 0;
   for (auto c : this->children) {
     ret += 1 + c->descendants();
@@ -89,10 +89,10 @@ uint64_t new_command::descendants(void) {
   return ret;
 }
 
-static uint64_t serialize_commands(new_command* command,
+static uint64_t serialize_commands(Command* command,
                                    ::capnp::List<db::Command>::Builder& command_list,
                                    uint64_t start_index,
-                                   std::map<new_command*, uint64_t>& command_ids,
+                                   std::map<Command*, uint64_t>& command_ids,
                                    std::map<new_file*, uint64_t>& file_ids) {
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(command->cmd);
@@ -129,8 +129,8 @@ static uint64_t serialize_commands(new_command* command,
 }
 
 // collapse the current command to the designated depth
-new_command* new_command::collapse_helper(unsigned int depth) {
-  new_command* cur_command = this;
+Command* Command::collapse_helper(unsigned int depth) {
+  Command* cur_command = this;
   while (cur_command->depth > depth) {
     cur_command->collapse_with_parent = true;
     cur_command = cur_command->parent;
@@ -138,7 +138,7 @@ new_command* new_command::collapse_helper(unsigned int depth) {
   return cur_command;
 }
 
-void new_command::collapse(std::set<new_command*>* commands) {
+void Command::collapse(std::set<Command*>* commands) {
   // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
   unsigned int ansc_depth = this->depth;
   // find the minimum common depth
@@ -151,8 +151,8 @@ void new_command::collapse(std::set<new_command*>* commands) {
   while (!fully_collapsed) {
     // std::cerr << "  Target depth " << ansc_depth << std::endl;
     // collapse all commands to this depth
-    new_command* prev_command = nullptr;
-    new_command* cur_command;
+    Command* prev_command = nullptr;
+    Command* cur_command;
     fully_collapsed = true;
     for (auto c : *commands) {
       cur_command = c->collapse_helper(ansc_depth);
@@ -176,7 +176,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
     cloexec(cloexec) {}
 
 /* ------------------------------- new_file Methods -------------------------------------------*/
-new_file::new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator,
+new_file::new_file(size_t location, bool is_pipe, BlobPtr path, Command* creator,
                    Trace* state, new_file* prev_version) :
     location(location),
     serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
@@ -196,10 +196,10 @@ new_file::new_file(size_t location, bool is_pipe, BlobPtr path, new_command* cre
 }
 
 // return a set of the commands which raced on this file, back to the parameter version
-std::set<new_command*> new_file::collapse(unsigned int version) {
+std::set<Command*> new_file::collapse(unsigned int version) {
   // this->has_race = true;
   new_file* cur_file = this;
-  std::set<new_command*> conflicts;
+  std::set<Command*> conflicts;
   while (cur_file->version != version) {
     // add writer and all readers to conflict set
     if (cur_file->writer != nullptr) {
@@ -220,7 +220,7 @@ std::set<new_command*> new_file::collapse(unsigned int version) {
 
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
 // the only writer
-bool new_file::can_depend(new_command* cmd) {
+bool new_file::can_depend(Command* cmd) {
   return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
 }
 
@@ -240,7 +240,7 @@ new_file* new_file::make_version(void) {
 }
 
 void Process::exec(Trace& trace, Blob&& exe_path) {
-  new_command* cmd = new new_command(trace, std::move(exe_path), _command, _command->depth + 1);
+  Command* cmd = new Command(trace, std::move(exe_path), _command, _command->depth + 1);
   _command->children.push_front(cmd);
   _command = cmd;
 
@@ -321,7 +321,7 @@ void Trace::serialize_graph(void) {
   }
 
   // Serialize commands
-  std::map<new_command*, uint64_t> command_ids;
+  std::map<Command*, uint64_t> command_ids;
   uint64_t command_count = 0;
   for (auto c : this->commands) {
     command_count += 1 + c->descendants();
