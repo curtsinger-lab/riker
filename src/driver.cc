@@ -275,9 +275,7 @@ int main(int argc, char* argv[]) {
         // Spawn the child
         auto middle_cmd = new Command(trace, run_command->executable, nullptr, 0);
         for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-          middle_cmd->args.push_back(
-              kj::heapArray((const kj::byte*)run_command->args[arg_index].data(),
-                            run_command->args[arg_index].size()));
+          middle_cmd->args.push_back(run_command->args[arg_index]);
         }
         child_pid = start_command(trace, middle_cmd, file_actions);
         // Free what we can
@@ -311,7 +309,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto root_cmd = new Command(trace, "Dodofile", nullptr, 0);
-  root_cmd->args.push_back(kj::heapArray((const kj::byte*)"Dodofile", 8));
+  root_cmd->args.push_back("Dodofile");
   trace.commands.push_front(root_cmd);
 
   // TODO: set up stdio for logging?

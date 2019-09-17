@@ -289,17 +289,11 @@ pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry cons
         }
     }
 
-    for (auto arg = cmd->args.begin(); arg != cmd->args.end(); ++arg) {
-       char* c_arg = new char[arg->asPtr().size() + 1];
-       memcpy(c_arg, arg->asPtr().begin(), arg->asPtr().size());
-       c_arg[arg->asPtr().size()] = '\0';
-       exec_argv.push_back(c_arg);
+    for (auto& arg: cmd->args) {
+      exec_argv.push_back((char*)arg.c_str());
     }
     exec_argv.push_back(nullptr);
     pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
-    for (auto arg : exec_argv) {
-        delete[] arg;
-    }
 
     trace.newProcess(pid, cmd);
     

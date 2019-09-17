@@ -73,7 +73,7 @@ struct Command {
   std::set<new_file*> wr_interactions;
   std::set<new_file*> rd_interactions;
   std::set<new_file*> deleted_files;
-  std::list<Blob> args;
+  std::vector<std::string> args;
   unsigned int depth;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
@@ -387,7 +387,7 @@ struct Trace {
   }
 
   void add_exec_argument(pid_t pid, Blob&& argument, int index) {
-    _processes.at(pid)->getCommand()->args.push_back(std::move(argument));
+    _processes.at(pid)->getCommand()->args.push_back(blobToString(argument));
   }
 
   void add_exit(pid_t pid) {
