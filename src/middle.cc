@@ -124,11 +124,11 @@ static uint64_t serialize_commands(Command* command,
 
 void Command::collapse(std::set<Command*>* commands) {
   // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
-  unsigned int ansc_depth = this->depth;
+  unsigned int ansc_depth = _depth;
   // find the minimum common depth
   for (auto c : *commands) {
-    if (c->depth < ansc_depth) {
-      ansc_depth = c->depth;
+    if (c->_depth < ansc_depth) {
+      ansc_depth = c->_depth;
     }
   }
   bool fully_collapsed = false;
@@ -224,9 +224,7 @@ new_file* new_file::make_version(void) {
 }
 
 void Process::exec(Trace& trace, std::string exe_path) {
-  Command* cmd = new Command(trace, exe_path, _command, _command->depth + 1);
-  _command->children.push_front(cmd);
-  _command = cmd;
+  _command = _command->createChild(exe_path);
 
   // Close all cloexec file descriptors
   for (auto fd_entry = fds.begin(); fd_entry != fds.end();) {
@@ -246,7 +244,7 @@ void Process::exec(Trace& trace, std::string exe_path) {
   for (auto it = fds.begin(); it != fds.end(); ++it) {
     it->second.file = trace.latest_versions[it->second.location_index];
   }
-  cmd->initial_fds = fds;
+  _command->initial_fds = fds;
 
   // Assume that we can at any time write to stdout or stderr
   // TODO: Instead of checking whether we know about stdout and stderr,
