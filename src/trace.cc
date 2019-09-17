@@ -31,6 +31,23 @@
 #include "trace.h"
 #include "syscalls.h"
 
+std::string get_executable(pid_t pid) {
+  char path_buffer[24]; // 24 is long enough for any integer PID
+  sprintf(path_buffer, "/proc/%d/exe", pid);
+
+  std::unique_ptr<char> buffer(nullptr);
+  ssize_t capacity = 0;
+  ssize_t bytes_read = 0;
+  
+  do {
+    capacity += PATH_MAX;
+    buffer = std::unique_ptr<char>(new char[capacity]);
+    bytes_read = readlink(path_buffer, buffer.get(), capacity);
+  } while(bytes_read == capacity);
+  
+  return std::string(buffer.get(), bytes_read);
+}
+
 // Launch a program via `sh -c`, fully set up with ptrace and seccomp
 // to be traced by the current process. launch_traced will return the
 // PID of the newly created process, which should be running (or at least
@@ -343,25 +360,8 @@ void trace_step(Trace& trace, pid_t child, int wait_status) {
             return;
         }
 
-        // Load the path to our executable
-        char proc_path_buffer[24]; // 24 is long enough for any integer PID
-        sprintf(proc_path_buffer, "/proc/%d/exe", child);
-
-        // In practice, many paths are longer than PATH_MAX, so make sure to handle
-        // an arbitrary length response from readlink
-        kj::Vector<kj::byte> exe_path(PATH_MAX);
-        while (true) {
-            exe_path.resize(exe_path.capacity());
-            size_t bytes_written = readlink(proc_path_buffer, (char*) exe_path.begin(), exe_path.size());
-            if (bytes_written < exe_path.size()) {
-                exe_path.truncate(bytes_written);
-                break;
-            } else {
-                exe_path.reserve(exe_path.capacity() + 1);
-            }
-        }
-
-        trace.add_exec(child, exe_path.releaseAsArray());
+        // Get the executable path for the file we are exec-ing
+        trace.add_exec(child, get_executable(child));
 
         int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, nullptr);
         for (int i = 0; i < child_argc; i++) {

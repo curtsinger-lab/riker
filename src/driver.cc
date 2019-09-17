@@ -273,11 +273,7 @@ int main(int argc, char* argv[]) {
               (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
         }
         // Spawn the child
-        auto middle_cmd =
-            new Command(trace,
-                            kj::heapArray((const kj::byte*)run_command->executable.data(),
-                                          run_command->executable.size()),
-                            nullptr, 0);
+        auto middle_cmd = new Command(trace, run_command->executable, nullptr, 0);
         for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
           middle_cmd->args.push_back(
               kj::heapArray((const kj::byte*)run_command->args[arg_index].data(),
@@ -314,8 +310,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  auto root_cmd =
-      new Command(trace, kj::heapArray((const kj::byte*)"Dodofile", 8), nullptr, 0);
+  auto root_cmd = new Command(trace, "Dodofile", nullptr, 0);
   root_cmd->args.push_back(kj::heapArray((const kj::byte*)"Dodofile", 8));
   trace.commands.push_front(root_cmd);
 

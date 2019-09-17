@@ -38,9 +38,9 @@ struct Process;
 struct Trace;
 
 struct Command {
-  Command(Trace& state, Blob&& cmd, Command* parent, unsigned int depth) :
+  Command(Trace& state, std::string cmd, Command* parent, unsigned int depth) :
       _state(state),
-      _cmd(blobToString(cmd)),
+      _cmd(cmd),
       parent(parent),
       depth(depth) {}
 
@@ -123,7 +123,7 @@ struct Process {
     return child_proc;
   }
 
-  void exec(Trace& trace, Blob&& exe_path);
+  void exec(Trace& trace, std::string exe_path);
 
  private:
   Command* _command;
@@ -372,9 +372,9 @@ struct Trace {
 
   void add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
 
-  void add_exec(pid_t pid, Blob&& exe_path) {
+  void add_exec(pid_t pid, std::string exe_path) {
     Process* proc = _processes.at(pid);
-    proc->exec(*this, std::move(exe_path));
+    proc->exec(*this, exe_path);
   }
 
   void add_exec_argument(pid_t pid, Blob&& argument, int index) {

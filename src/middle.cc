@@ -233,8 +233,8 @@ new_file* new_file::make_version(void) {
   return f;
 }
 
-void Process::exec(Trace& trace, Blob&& exe_path) {
-  Command* cmd = new Command(trace, std::move(exe_path), _command, _command->depth + 1);
+void Process::exec(Trace& trace, std::string exe_path) {
+  Command* cmd = new Command(trace, exe_path, _command, _command->depth + 1);
   _command->children.push_front(cmd);
   _command = cmd;
 
