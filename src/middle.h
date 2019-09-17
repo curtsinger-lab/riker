@@ -32,7 +32,7 @@ struct file_reference {
   bool follow_links;
 };
 
-struct new_file;
+struct File;
 struct FileDescriptor;
 struct Process;
 struct Trace;
@@ -50,8 +50,8 @@ struct Command {
     return child;
   }
 
-  void add_input(new_file* f);
-  void add_output(new_file* f, size_t file_location);
+  void add_input(File* f);
+  void add_output(File* f, size_t file_location);
   size_t descendants(void);
   
   void collapse(std::set<Command*>* commands);
@@ -82,16 +82,16 @@ struct Command {
 
  public:
   std::list<Command*> children;
-  std::set<new_file*> inputs;
-  std::set<new_file*> outputs;
-  std::set<new_file*> wr_interactions;
-  std::set<new_file*> rd_interactions;
-  std::set<new_file*> deleted_files;
+  std::set<File*> inputs;
+  std::set<File*> outputs;
+  std::set<File*> wr_interactions;
+  std::set<File*> rd_interactions;
+  std::set<File*> deleted_files;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
 };
 
-struct new_file {
+struct File {
   size_t location;
   capnp::Orphan<db::File> serialized;
   std::set<Command*> users;
@@ -101,20 +101,20 @@ struct new_file {
   Command* creator;
   Command* writer;
   Trace* state;
-  new_file* prev_version;
+  File* prev_version;
   unsigned int version;
   bool known_removed;
 
-  new_file(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
-           new_file* prev_version);
+  File(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
+           File* prev_version);
   std::set<Command*> collapse(unsigned int depth);
   bool can_depend(Command* cmd);
-  new_file* make_version(void);
+  File* make_version(void);
 };
 
 struct FileDescriptor {
   size_t location_index;  // Used in Process::fds
-  new_file* file;         // Used in Command::initial_fds
+  File* file;         // Used in Command::initial_fds
   int access_mode;
   bool cloexec;
 
@@ -125,7 +125,7 @@ struct FileDescriptor {
 struct Process {
   pid_t thread_id;
   std::map<int, FileDescriptor> fds;
-  std::set<new_file*> mmaps;
+  std::set<File*> mmaps;
 
   Process(pid_t thread_id, std::string cwd, Command* command) :
       thread_id(thread_id),
@@ -153,7 +153,7 @@ struct Process {
 };
 
 struct file_comparator {
-  bool operator()(new_file* const& lhs, new_file* const& rhs) const {
+  bool operator()(File* const& lhs, File* const& rhs) const {
     //  return false;
 
     auto lhs_reader = lhs->serialized.getReader();
@@ -182,8 +182,8 @@ struct file_comparator {
 };
 
 struct Trace {
-  std::set<new_file*, file_comparator> files;
-  std::vector<new_file*> latest_versions;
+  std::set<File*, file_comparator> files;
+  std::vector<File*> latest_versions;
   std::list<Command*> commands;
   ::capnp::MallocMessageBuilder temp_message;
 
@@ -205,7 +205,7 @@ struct Trace {
       }
     }
     size_t location = this->latest_versions.size();
-    new_file* new_node = new new_file(location, false, kj::heapArray(path), nullptr, this, nullptr);
+    File* new_node = new File(location, false, kj::heapArray(path), nullptr, this, nullptr);
     this->files.insert(new_node);
     this->latest_versions.push_back(new_node);
     return location;
@@ -244,7 +244,7 @@ struct Trace {
         file_location = proc->fds.find(file.fd)->second.location_index;
       }
     }
-    new_file* f = this->latest_versions[file_location];
+    File* f = this->latest_versions[file_location];
 
     // fprintf(stdout, "file: %.*s-%d ", (int)path.size(),
     // path.asChars().begin(), f->version);
@@ -318,7 +318,7 @@ struct Trace {
     // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
     size_t file_location = this->find_file(file.path.asPtr());
-    new_file* f = this->latest_versions[file_location];
+    File* f = this->latest_versions[file_location];
     if (is_rewrite && (f->creator != proc->getCommand() || f->writer != nullptr)) {
       // fprintf(stdout, "REWRITE ");
       f = f->make_version();
@@ -340,7 +340,7 @@ struct Trace {
     Process* proc = _processes[pid];
     // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     size_t location = this->latest_versions.size();
-    new_file* p = new new_file(location, true, Blob(), proc->getCommand(), this, NULL);
+    File* p = new File(location, true, Blob(), proc->getCommand(), this, NULL);
     this->files.insert(p);
     this->latest_versions.push_back(p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
@@ -369,7 +369,7 @@ struct Trace {
   void add_mmap(pid_t pid, int fd) {
     Process* proc = _processes[pid];
     FileDescriptor& desc = proc->fds.find(fd)->second;
-    new_file* f = this->latest_versions[desc.location_index];
+    File* f = this->latest_versions[desc.location_index];
     f->mmaps.insert(proc);
     proc->mmaps.insert(f);
     // std::cout << "MMAP ";

@@ -16,7 +16,7 @@
 #include "middle.h"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
-void Command::add_input(new_file* f) {
+void Command::add_input(File* f) {
   // search through all files, do versioning
   f->interactions.push_front(this);
   f->users.insert(this);
@@ -41,7 +41,7 @@ void Command::add_input(new_file* f) {
   this->rd_interactions.insert(f);
 }
 
-void Command::add_output(new_file* f, size_t file_location) {
+void Command::add_output(File* f, size_t file_location) {
   // if we've written to the file before, check for a race
   if (f->serialized.getReader().getType() != db::FileType::PIPE) {
     for (auto wr : this->wr_interactions) {
@@ -62,7 +62,7 @@ void Command::add_output(new_file* f, size_t file_location) {
 
   f->interactions.push_front(this);
   // if we haven't written to this file before, create a new version
-  new_file* fnew;
+  File* fnew;
   if ((f->creator != nullptr && f->writer == nullptr) || f->writer == this) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
@@ -87,7 +87,7 @@ static uint64_t serialize_commands(Command* command,
                                    ::capnp::List<db::Command>::Builder& command_list,
                                    uint64_t start_index,
                                    std::map<Command*, uint64_t>& command_ids,
-                                   std::map<new_file*, uint64_t>& file_ids) {
+                                   std::map<File*, uint64_t>& file_ids) {
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(stringToBlob(command->getCommand()));
   command_list[start_index].setOutOfDate(false);
@@ -159,9 +159,9 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
     access_mode(access_mode),
     cloexec(cloexec) {}
 
-/* ------------------------------- new_file Methods -------------------------------------------*/
-new_file::new_file(size_t location, bool is_pipe, BlobPtr path, Command* creator,
-                   Trace* state, new_file* prev_version) :
+/* ------------------------------- File Methods -------------------------------------------*/
+File::File(size_t location, bool is_pipe, BlobPtr path, Command* creator,
+                   Trace* state, File* prev_version) :
     location(location),
     serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
     creator(creator),
@@ -180,9 +180,9 @@ new_file::new_file(size_t location, bool is_pipe, BlobPtr path, Command* creator
 }
 
 // return a set of the commands which raced on this file, back to the parameter version
-std::set<Command*> new_file::collapse(unsigned int version) {
+std::set<Command*> File::collapse(unsigned int version) {
   // this->has_race = true;
-  new_file* cur_file = this;
+  File* cur_file = this;
   std::set<Command*> conflicts;
   while (cur_file->version != version) {
     // add writer and all readers to conflict set
@@ -204,17 +204,17 @@ std::set<Command*> new_file::collapse(unsigned int version) {
 
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
 // the only writer
-bool new_file::can_depend(Command* cmd) {
+bool File::can_depend(Command* cmd) {
   return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
 }
 
-new_file* new_file::make_version(void) {
+File* File::make_version(void) {
   // We are at the end of the current version, so snapshot with a fingerprint
   set_fingerprint(this->serialized.get(), true);
   this->serialized.get().setLatestVersion(false);
 
-  new_file* f =
-      new new_file(this->location, this->serialized.getReader().getType() == db::FileType::PIPE,
+  File* f =
+      new File(this->location, this->serialized.getReader().getType() == db::FileType::PIPE,
                    this->serialized.getReader().getPath(), this->creator, this->state, this);
   f->version = this->version + 1;
 
@@ -273,7 +273,7 @@ void Trace::serialize_graph(void) {
   }
 
   // Serialize files
-  std::map<new_file*, uint64_t> file_ids;
+  std::map<File*, uint64_t> file_ids;
   uint64_t file_count = 0;
   uint64_t input_count = 0;
   uint64_t output_count = 0;
