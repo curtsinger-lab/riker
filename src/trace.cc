@@ -289,7 +289,7 @@ pid_t start_command(new_command* cmd, kj::ArrayPtr<InitialFdEntry const> initial
     return pid;
 }
 
-void trace_step(trace_state* state, pid_t child, int wait_status) {
+void trace_step(Trace* state, pid_t child, int wait_status) {
     enum stop_type stop_ty;
 
     if (WIFSTOPPED(wait_status)) {

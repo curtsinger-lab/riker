@@ -16,7 +16,7 @@
 #include "middle.h"
 
 /* ------------------------------ new_command Methods -----------------------------------------*/
-new_command::new_command(trace_state* state, Blob&& cmd, new_command* parent, unsigned int depth) :
+new_command::new_command(Trace* state, Blob&& cmd, new_command* parent, unsigned int depth) :
     state(state),
     cmd(std::move(cmd)),
     parent(parent),
@@ -177,7 +177,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 
 /* ------------------------------- new_file Methods -------------------------------------------*/
 new_file::new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator,
-                   trace_state* state, new_file* prev_version) :
+                   Trace* state, new_file* prev_version) :
     location(location),
     serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
     creator(creator),
@@ -239,7 +239,7 @@ new_file* new_file::make_version(void) {
   return f;
 }
 
-void Process::exec(trace_state* trace, Blob&& exe_path) {
+void Process::exec(Trace* trace, Blob&& exe_path) {
   new_command* cmd = new new_command(trace, std::move(exe_path), _command, _command->depth + 1);
   _command->children.push_front(cmd);
   _command = cmd;
@@ -277,7 +277,7 @@ void Process::exec(trace_state* trace, Blob&& exe_path) {
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
 
-void trace_state::serialize_graph(void) {
+void Trace::serialize_graph(void) {
   ::capnp::MallocMessageBuilder message;
 
   db::Graph::Builder graph = message.initRoot<db::Graph>();

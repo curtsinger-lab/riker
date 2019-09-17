@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
   // Create a managed reference to a trace state
-  auto state = std::make_unique<trace_state>(cwd);
+  auto state = std::make_unique<Trace>(cwd);
 
   // Clean up after getcwd
   free(cwd);

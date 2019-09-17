@@ -35,10 +35,10 @@ struct file_reference {
 struct new_file;
 struct FileDescriptor;
 struct Process;
-struct trace_state;
+struct Trace;
 
 struct new_command {
-  trace_state* state;
+  Trace* state;
   Blob cmd;
   std::list<new_command*> children;
   std::set<new_file*> inputs;
@@ -52,7 +52,7 @@ struct new_command {
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
 
-  new_command(trace_state* state, Blob&& args, new_command* parent, unsigned int depth);
+  new_command(Trace* state, Blob&& args, new_command* parent, unsigned int depth);
   void add_input(new_file* f);
   void add_output(new_file* f, size_t file_location);
   size_t descendants(void);
@@ -69,12 +69,12 @@ struct new_file {
   std::list<new_command*> conflicts;
   new_command* creator;
   new_command* writer;
-  trace_state* state;
+  Trace* state;
   new_file* prev_version;
   unsigned int version;
   bool known_removed;
 
-  new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator, trace_state* state,
+  new_file(size_t location, bool is_pipe, BlobPtr path, new_command* creator, Trace* state,
            new_file* prev_version);
   std::set<new_command*> collapse(unsigned int depth);
   bool can_depend(new_command* cmd);
@@ -113,7 +113,7 @@ struct Process {
     return child_proc;
   }
 
-  void exec(trace_state* trace, Blob&& exe_path);
+  void exec(Trace* trace, Blob&& exe_path);
 
  private:
   new_command* _command;
@@ -150,13 +150,13 @@ struct file_comparator {
   }
 };
 
-struct trace_state {
+struct Trace {
   std::set<new_file*, file_comparator> files;
   std::vector<new_file*> latest_versions;
   std::list<new_command*> commands;
   ::capnp::MallocMessageBuilder temp_message;
 
-  trace_state(std::string starting_dir) : _starting_dir(starting_dir) {}
+  Trace(std::string starting_dir) : _starting_dir(starting_dir) {}
 
   Blob getStartingDir() { return stringToBlob(_starting_dir); }
 
