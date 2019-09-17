@@ -40,7 +40,7 @@ struct Trace;
 struct Command {
   Command(Trace& state, Blob&& cmd, Command* parent, unsigned int depth) :
       _state(state),
-      _cmd(std::move(cmd)),
+      _cmd(blobToString(cmd)),
       parent(parent),
       depth(depth) {}
 
@@ -50,11 +50,11 @@ struct Command {
   Command* collapse_helper(unsigned int depth);
   void collapse(std::set<Command*>* commands);
   
-  const Blob& getCommand() { return _cmd; }
+  const std::string& getCommand() { return _cmd; }
 
  private:
   Trace& _state;
-  Blob _cmd;
+  std::string _cmd;
 
  public:
   std::list<Command*> children;
