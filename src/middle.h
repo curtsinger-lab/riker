@@ -72,14 +72,15 @@ struct Command {
   const std::vector<std::string>& getArguments() { return _args; }
 
   void addArgument(std::string arg) { _args.push_back(arg); }
-  
+
   bool canDependOn(const File* f) {
     // If this command is the only writer, it cannot depend on the file
-    if (f->writer == this) return false;
-    
+
+    if (f->getWriter() == this) return false;
+
     // If the file is not written and was created by this command, it cannot depend on the file
-    if (f->writer == nullptr && f->creator == this) return false;
-    
+    if (!f->isWritten() && f->getCreator() == this) return false;
+
     // Otherwise the command can depend on the file
     return true;
   }
@@ -177,7 +178,8 @@ struct Trace {
       }
     }
     size_t location = this->latest_versions.size();
-    File* new_node = new File(*this, location, false, kj::heapArray(path), nullptr, nullptr);
+    File* new_node =
+        new File(*this, location, false, blobToString(kj::heapArray(path)), nullptr, nullptr);
     this->files.insert(new_node);
     this->latest_versions.push_back(new_node);
     return location;
@@ -241,7 +243,7 @@ struct Trace {
             file_exists = false;
           } else {
             struct stat stat_info;
-            file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
+            file_exists = (lstat(f->getPath().cStr(), &stat_info) == 0);
           }
 
           if (!file_exists) {
@@ -310,7 +312,7 @@ struct Trace {
     Process* proc = _processes[pid];
     // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     size_t location = this->latest_versions.size();
-    File* p = new File(*this, location, true, Blob(), proc->getCommand(), NULL);
+    File* p = new File(*this, location, true, "", proc->getCommand(), NULL);
     this->files.insert(p);
     this->latest_versions.push_back(p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);

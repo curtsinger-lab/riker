@@ -51,7 +51,7 @@ enum FingerprintType {
 }
 
 struct File {
-  path @0 :Data;
+  path @0 :Text;
   type @1 :FileType;
   mode @2 :UInt16;
 

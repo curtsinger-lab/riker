@@ -15,8 +15,8 @@
 
 #include "middle.h"
 
-File::File(Trace& trace, size_t location, bool is_pipe, kj::ArrayPtr<const kj::byte> path,
-           Command* creator, File* prev_version) :
+File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+           File* prev_version) :
     _trace(trace),
     _location(location),
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
@@ -57,7 +57,7 @@ std::set<Command*> File::collapse(unsigned int version) {
   return conflicts;
 }
 
-File* File::createVersion(void) {
+File* File::createVersion() {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
   _serialized.get().setLatestVersion(false);
@@ -185,7 +185,7 @@ void File::fingerprint() {
 
   auto path_string = getPath();
   struct stat stat_info;
-  if (stat(path_string.c_str(), &stat_info) != 0) {
+  if (stat(path_string.cStr(), &stat_info) != 0) {
     if (errno == ENOENT) {
       builder.setFingerprintType(db::FingerprintType::NONEXISTENT);
     } else {
@@ -271,9 +271,9 @@ bool match_fingerprint(db::File::Reader file) {
   }
 
   // All the rest of the fingerprint types require metadata.
-  auto path_string = std::string(file.getPath().asChars().begin(), file.getPath().size());
+  kj::StringPtr path_string = file.getPath();
   struct stat stat_info;
-  if (stat(path_string.c_str(), &stat_info) != 0) {
+  if (stat(path_string.cStr(), &stat_info) != 0) {
     return (errno == ENOENT && file.getFingerprintType() == db::FingerprintType::NONEXISTENT);
   }
 

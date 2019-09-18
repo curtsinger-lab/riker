@@ -17,22 +17,22 @@ struct Trace;
 bool match_fingerprint(db::File::Reader file);
 
 struct File {
-  File(Trace& trace, size_t location, bool is_pipe, kj::ArrayPtr<const kj::byte> path,
-       Command* creator, File* prev_version);
+  File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+       File* prev_version);
 
   std::set<Command*> collapse(unsigned int depth);
 
   File* createVersion();
 
   void fingerprint();
-  
+
   bool shouldSave();
 
   void serialize(db::File::Builder builder);
 
   /****** Getters and setters ******/
-
-  std::string getPath() { return blobToString(_serialized.getReader().getPath()); }
+  
+  kj::StringPtr getPath() const { return _serialized.getReader().getPath(); }
 
   db::FileType getType() { return _serialized.getReader().getType(); }
   bool isPipe() { return getType() == db::FileType::PIPE; }
@@ -49,15 +49,27 @@ struct File {
 
   const std::set<Command*>& getReaders() { return _readers; }
   void addReader(Command* c) { _readers.insert(c); }
-  
-  const std::set<Command*>& getInteractors() { return _interactors; }
+
+  const std::set<Command*>& getInteractors() const { return _interactors; }
   void addInteractor(Command* c) { _interactors.insert(c); }
 
   bool isWritten() { return writer != nullptr; }
 
-  bool isCreated() { return creator != nullptr; }
+  Command* getCreator() const { return creator; }
+  void setCreator(Command* c) { creator = c; }
+  bool isCreated() const { return getCreator() != nullptr; }
   
-  unsigned int getVersion() { return _version; }
+  Command* getWriter() const { return writer; }
+  void setWriter(Command* c) { writer = c; }
+  bool isWritten() const { return getWriter() != nullptr; }
+
+  unsigned int getVersion() const { return _version; }
+
+  const File* getPreviousVersion() const { return prev_version; }
+  bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
+
+  bool isRemoved() const { return known_removed; }
+  void setRemoved() { known_removed = true; }
 
  private:
   Trace& _trace;                        // A reference to the trace this file is part of
