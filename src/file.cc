@@ -2,21 +2,21 @@
 
 #include <set>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/vfs.h>
-#include <linux/magic.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <dirent.h>
-
-#include "db.capnp.h"
+#include <fcntl.h>
+#include <linux/magic.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/vfs.h>
+#include <unistd.h>
 
 #include "blake2-wrapper.h"
+#include "db.capnp.h"
+
 #include "middle.h"
 
-File::File(Trace& trace, size_t location, bool is_pipe, kj::ArrayPtr<const kj::byte> path, Command* creator,
-           File* prev_version) :
+File::File(Trace& trace, size_t location, bool is_pipe, kj::ArrayPtr<const kj::byte> path,
+           Command* creator, File* prev_version) :
     _trace(trace),
     _location(location),
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
@@ -121,32 +121,8 @@ static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
   blake2sp_state hash_state;
   blake2sp_init(&hash_state, BLAKE2S_OUTBYTES);
 
-  // std::cerr << "Directory " << path_string << " contains:" << std::endl;
-
   // Add each directory entry into the checksum
   for (int i = 0; i < entries; i++) {
-    // std::cerr << "  " << namelist[i]->d_name;
-
-    /*if (namelist[i]->d_type == DT_BLK) {
-      std::cerr << " (block device)" << std::endl;
-    } else if (namelist[i]->d_type == DT_CHR) {
-      std::cerr << " (character device)" << std::endl;
-    } else if (namelist[i]->d_type == DT_DIR) {
-      std::cerr << " (directory)" << std::endl;
-    } else if (namelist[i]->d_type == DT_FIFO) {
-      std::cerr << " (named pipe)" << std::endl;
-    } else if (namelist[i]->d_type == DT_LNK) {
-      std::cerr << " (symbolic link)" << std::endl;
-    } else if (namelist[i]->d_type == DT_REG) {
-      std::cerr << " (regular file)" << std::endl;
-    } else if (namelist[i]->d_type == DT_SOCK) {
-      std::cerr << " (socket)" << std::endl;
-    } else if (namelist[i]->d_type == DT_UNKNOWN) {
-      std::cerr << " (unknown)" << std::endl;
-    } else {
-      std::cerr << " (unrecognized type)" << std::endl;
-    }*/
-
     // Hash the entry name and null terminator to mark boundaries between entries
     blake2sp_update(&hash_state, namelist[i]->d_name, strlen(namelist[i]->d_name) + 1);
     free(namelist[i]);

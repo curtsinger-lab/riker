@@ -308,10 +308,9 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  
   auto root_cmd = new Command(trace, "Dodofile", nullptr, 0);
   root_cmd->addArgument("Dodofile");
-  
+
   trace.commands.push_front(root_cmd);
 
   // TODO: set up stdio for logging?

@@ -37,7 +37,7 @@ static const uint16_t syscalls[] = {
     /* 88 */ __NR_symlink,
     /* 89 */ __NR_readlink,
     /* 133 */ __NR_mknod,
-    /* 155 */ __NR_pivot_root, // ????
+    /* 155 */ __NR_pivot_root,  // ????
     /* 161 */ __NR_chroot,
     /* 217 */ __NR_getdents64,
     /* 257 */ __NR_openat,
@@ -58,7 +58,7 @@ static const uint16_t syscalls[] = {
     /* 326 */ __NR_copy_file_range,
     /* 327 */ __NR_preadv2,
     /* 328 */ __NR_pwritev2,
-//--------------- Metadata ops ----------------
+    //--------------- Metadata ops ----------------
     /* 90 */ __NR_chmod,
     /* 91 */ __NR_fchmod,
     /* 92 */ __NR_chown,
@@ -79,67 +79,65 @@ static const uint16_t syscalls[] = {
     /* 199 */ __NR_fremovexattr,
     /* 260 */ __NR_fchownat,
     /* 268 */ __NR_fchmodat,
-// --------------- Process ops, mostly tracked via ptrace, not seccomp ----------------
-//    /* 56 */ __NR_clone,
-//    /* 57 */ __NR_fork,
-//    /* 58 */ __NR_vfork,
+    // --------------- Process ops, mostly tracked via ptrace, not seccomp ----------------
+    //    /* 56 */ __NR_clone,
+    //    /* 57 */ __NR_fork,
+    //    /* 58 */ __NR_vfork,
     /* 59 */ __NR_execve,
-//    /* 60 */ __NR_exit,
-//    /* 231 */ __NR_exit_group,
+    //    /* 60 */ __NR_exit,
+    //    /* 231 */ __NR_exit_group,
     /* 322 */ __NR_execveat,
-// --------------- Things we probably should handle but don't -------
-// Asynchronous IO (io_setup, io_destroy, io_getevents, io_submit, io_cancel)
-//    /* 303 */ __NR_name_to_handle_at,
-//    /* 304 */ __NR_open_by_handle_at,
-//
-// -------------- Communication methods we don't handle ----------------
-// XSI shm (shmget, shmat, shmctl, shmdt)
-// Sockets (socket, connect, accept, sendto, recvfrom, sendmsg, recvmsg, shutdown, bind, listen, getsockname, getpeername, socketpair, setsockopt, getsockopt, recvmmsg, sendmmsg)
-// Return codes (wait4, waitid)
-// Signals (kill, rt_sigpending, rt_sigtimeswait, rt_sigqueueinfo, rt_sigsuspent, sigaltstack, tkill, tgkill, pselect, signalfd, epoll_pwait, signalfd4, rt_tgsigqueueinfo)
-// XSI semaphores (semget, semop, semctl, semtimedop)
-// XSI Message Queues  (msgget, msgsnd, msgrcv, msgctl)
-// Hard links (link, linkat) + tracking inodes
-// Ptrace (ptrace)
-// FIFOs (mknod with S_IFIFO)
-// System configuration (...lots...)
-// Futexes (futex)
-// POSIX Message Queues (mq_open, mq_unlink, mq_timedsend, mq_timedreceive, mq_notify, mq_getsetattr)
-// Keyrings (add_key, request_key, keyctl)
-// Filesystem watching (inotify_init, inotify_add_watch, inotify_rm_watch, inotify_init1, fanotify_init, fanotify_mark)
-// Eventfd (eventfd, eventfd2)
-// Perf (perf_event_open)
-// Process memory transfers (process_vm_readv, process_vm_writev)
-// Process limits (...lots...)
-// -------------- File access methods we hope we can ignore ----------------
-// stat
-// fstat
-// lstat
-// access
-// flock
-// fsync
-// fdatasync
-// umask
-// utime
-// ustat
-// statfs
-// fstatfs
-// sync
-// acct
-// mount
-// umount2
-// swapon
-// swapoff
-// utimes
-// futimesat
-// newfstatat
-// faccessat
-// sync_file_range
-// utimensat
-// fallocate
-// name_to_handle_at
-// syncfs
-// -------------- File ops we should pay attention to if we ever track file ranges ----------------------
-// __llseek
-// lseek
+    // --------------- Things we probably should handle but don't -------
+    // Asynchronous IO (io_setup, io_destroy, io_getevents, io_submit, io_cancel)
+    //    /* 303 */ __NR_name_to_handle_at,
+    //    /* 304 */ __NR_open_by_handle_at,
+    //
+    // -------------- Communication methods we don't handle ----------------
+    // XSI shm (shmget, shmat, shmctl, shmdt)
+    // Sockets (socket, connect, accept, sendto, recvfrom, sendmsg, recvmsg, shutdown, bind, listen,
+    // getsockname, getpeername, socketpair, setsockopt, getsockopt, recvmmsg, sendmmsg) Return
+    // codes (wait4, waitid) Signals (kill, rt_sigpending, rt_sigtimeswait, rt_sigqueueinfo,
+    // rt_sigsuspent, sigaltstack, tkill, tgkill, pselect, signalfd, epoll_pwait, signalfd4,
+    // rt_tgsigqueueinfo) XSI semaphores (semget, semop, semctl, semtimedop) XSI Message Queues
+    // (msgget, msgsnd, msgrcv, msgctl) Hard links (link, linkat) + tracking inodes Ptrace (ptrace)
+    // FIFOs (mknod with S_IFIFO)
+    // System configuration (...lots...)
+    // Futexes (futex)
+    // POSIX Message Queues (mq_open, mq_unlink, mq_timedsend, mq_timedreceive, mq_notify,
+    // mq_getsetattr) Keyrings (add_key, request_key, keyctl) Filesystem watching (inotify_init,
+    // inotify_add_watch, inotify_rm_watch, inotify_init1, fanotify_init, fanotify_mark) Eventfd
+    // (eventfd, eventfd2) Perf (perf_event_open) Process memory transfers (process_vm_readv,
+    // process_vm_writev) Process limits (...lots...)
+    // -------------- File access methods we hope we can ignore ----------------
+    // stat
+    // fstat
+    // lstat
+    // access
+    // flock
+    // fsync
+    // fdatasync
+    // umask
+    // utime
+    // ustat
+    // statfs
+    // fstatfs
+    // sync
+    // acct
+    // mount
+    // umount2
+    // swapon
+    // swapoff
+    // utimes
+    // futimesat
+    // newfstatat
+    // faccessat
+    // sync_file_range
+    // utimensat
+    // fallocate
+    // name_to_handle_at
+    // syncfs
+    // -------------- File ops we should pay attention to if we ever track file ranges
+    // ----------------------
+    // __llseek
+    // lseek
 };

@@ -16,10 +16,10 @@ struct dodo_options {
   bool visualize = false;
   bool show_sysfiles = false;
   bool show_collapsed = true;
-  
+
   // Only display log messages that are fatal
   log_level log_threshold = log_level::Fatal;
-  
+
   // Do not display source locations with log messages
   bool log_source_locations = false;
 };

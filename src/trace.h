@@ -3,8 +3,8 @@
 #include "middle.h"
 
 struct InitialFdEntry {
-    int parent_fd;
-    int child_fd;
+  int parent_fd;
+  int child_fd;
 };
 
 pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);

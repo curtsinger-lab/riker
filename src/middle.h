@@ -133,9 +133,12 @@ struct Process {
 
 struct file_comparator {
   bool operator()(File* const& lhs, File* const& rhs) const {
-    if(lhs->isPipe()) return true;
-    else if(rhs->isPipe()) return false;
-    else return lhs->getPath() <= rhs->getPath();
+    if (lhs->isPipe())
+      return true;
+    else if (rhs->isPipe())
+      return false;
+    else
+      return lhs->getPath() <= rhs->getPath();
   }
 };
 

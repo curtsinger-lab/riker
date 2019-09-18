@@ -43,30 +43,30 @@ struct File {
   size_t getLocation() { return _location; }
 
   void addUser(Command* c) { _users.insert(c); }
-  
+
   const std::set<Command*>& getUsers() { return _users; }
-  
+
   size_t numUsers() { return _users.size(); }
-  
+
   bool hasUsers() { return !_users.empty(); }
-  
+
   bool isWritten() { return writer != nullptr; }
-  
+
   bool isCreated() { return creator != nullptr; }
-  
+
   bool shouldSave() {
     // Save files that have at least one user
     if (hasUsers()) return true;
-    
+
     // Save files with a writer
     if (isWritten()) return true;
-    
+
     // Save files with a creator
     if (isCreated()) return true;
-    
+
     // Save files with a previous version that are not removed (CC: why?)
     if (prev_version != nullptr && !known_removed) return true;
-    
+
     // Skip anything else
     return false;
   }

@@ -9,23 +9,27 @@ BreakConstructorInitializers: AfterColon
 # Regroup includes by category
 IncludeBlocks: Regroup
 IncludeCategories:
-  # C++ include files go in block 1
-  - Regex: '^<[:alnum:]+>'
+  # C++ include files
+  - Regex: '<[[:alnum:]_]+>'
     Priority: 1
-  
-  # Capnproto files go in block 3
-  - Regex: '^<capnp/[[:alnum:].]+>'
-    Priority: 3
-  
-  # C include files go in block 2
-  - Regex: '^<[[:alnum:]./]+>'
+    
+  # Experimental C++ includes
+  - Regex: '<experimental/[[:alnum:]_]+>'
     Priority: 2
   
-  # A few special includes go in block 4 (internal, but generated or imported to the project)
-  - Regex: '^"(db\.capnp\.h)|(blake2-.*)"'
+  # Capnproto files
+  - Regex: '^<(capnp)|(kj)/[[:alnum:]._]+>'
     Priority: 4
   
-  # Everything else goes in block 5
-  - Regex: '.*'
+  # C include files
+  - Regex: '^<[[:alnum:]./_]+\.h>'
+    Priority: 3
+  
+  # A few special includes (internal, but generated or imported to the project)
+  - Regex: '^"(db\.capnp\.h)|(blake2-.*)"'
     Priority: 5
+  
+  # Everything else
+  - Regex: '.*'
+    Priority: 6
   
