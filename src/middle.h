@@ -329,7 +329,7 @@ struct Trace {
     Process* proc = _processes[pid];
     FileDescriptor& desc = proc->fds.find(fd)->second;
     File* f = this->latest_versions[desc.location_index];
-    f->mmaps.insert(proc);
+    f->addMmap(proc);
     proc->mmaps.insert(f);
     // std::cout << "MMAP ";
     if (desc.access_mode != O_WRONLY) {
@@ -364,7 +364,7 @@ struct Trace {
   void add_exit(pid_t pid) {
     Process* proc = _processes[pid];
     for (auto f : proc->mmaps) {
-      f->mmaps.erase(proc);
+      f->removeMmap(proc);
     }
   }
 

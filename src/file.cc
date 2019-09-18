@@ -48,7 +48,7 @@ std::set<Command*> File::collapse(unsigned int version) {
       conflicts.insert(rd);
     }
     // add all mmaps to conflicts
-    for (auto m : cur_file->mmaps) {
+    for (auto m : cur_file->_mmaps) {
       conflicts.insert(m->getCommand());
     }
     // step back a version

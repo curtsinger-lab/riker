@@ -53,6 +53,10 @@ struct File {
   bool isWritten() { return writer != nullptr; }
 
   bool isCreated() { return creator != nullptr; }
+  
+  void addMmap(Process* p) { _mmaps.insert(p); }
+  
+  void removeMmap(Process* p) { _mmaps.erase(p); }
 
   bool shouldSave() {
     // Save files that have at least one user
@@ -76,9 +80,9 @@ struct File {
   size_t _location;
   capnp::Orphan<db::File> _serialized;
   std::set<Command*> _users;
+  std::set<Process*> _mmaps;
 
  public:
-  std::set<Process*> mmaps;
   std::list<Command*> interactions;
   std::list<Command*> conflicts;
   Command* creator;

@@ -174,8 +174,8 @@ void Process::exec(Trace& trace, std::string exe_path) {
   }
 
   // Close all mmaps, since the address space is replaced
-  for (auto f = mmaps.begin(); f != mmaps.end(); ++f) {
-    (*f)->mmaps.erase(this);
+  for (auto file : mmaps) {
+    file->removeMmap(this);
   }
 
   // Mark the initial open file descriptors
