@@ -20,10 +20,10 @@ File::File(Trace& trace, size_t location, bool is_pipe, kj::ArrayPtr<const kj::b
     _trace(trace),
     _location(location),
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
+    _version(0),
     creator(creator),
     writer(nullptr),
     prev_version(prev_version),
-    version(0),
     known_removed(false) {
   // TODO: consider using orphans to avoid copying
   if (is_pipe) {
@@ -39,7 +39,7 @@ std::set<Command*> File::collapse(unsigned int version) {
   // this->has_race = true;
   File* cur_file = this;
   std::set<Command*> conflicts;
-  while (cur_file->version != version) {
+  while (cur_file->getVersion() != version) {
     // add writer and all readers to conflict set
     if (cur_file->writer != nullptr) {
       conflicts.insert(cur_file->writer);
@@ -70,7 +70,7 @@ File* File::createVersion(void) {
 
   File* f = new File(_trace, _location, _serialized.getReader().getType() == db::FileType::PIPE,
                      _serialized.getReader().getPath(), creator, this);
-  f->version = this->version + 1;
+  f->_version = _version + 1;
 
   _trace.files.insert(f);
   _trace.latest_versions[this->_location] = f;

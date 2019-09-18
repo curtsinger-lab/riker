@@ -36,29 +36,30 @@ struct File {
 
   std::string getPath() { return blobToString(_serialized.getReader().getPath()); }
 
-  bool isPipe() { return _serialized.getReader().getType() == db::FileType::PIPE; }
+  db::FileType getType() { return _serialized.getReader().getType(); }
+  bool isPipe() { return getType() == db::FileType::PIPE; }
 
   void setMode(uint16_t mode) { _serialized.get().setMode(mode); }
+  uint16_t getMode() { return _serialized.getReader().getMode(); }
 
   void setLatestVersion() { _serialized.get().setLatestVersion(true); }
 
   size_t getLocation() { return _location; }
 
-  void addReader(Command* c) { _readers.insert(c); }
+  void addMmap(Process* p) { _mmaps.insert(p); }
+  void removeMmap(Process* p) { _mmaps.erase(p); }
 
   const std::set<Command*>& getReaders() { return _readers; }
+  void addReader(Command* c) { _readers.insert(c); }
+  
+  const std::set<Command*>& getInteractors() { return _interactors; }
+  void addInteractor(Command* c) { _interactors.insert(c); }
 
   bool isWritten() { return writer != nullptr; }
 
   bool isCreated() { return creator != nullptr; }
-
-  void addMmap(Process* p) { _mmaps.insert(p); }
-
-  void removeMmap(Process* p) { _mmaps.erase(p); }
-
-  void addInteractor(Command* c) { _interactors.insert(c); }
-
-  const std::set<Command*>& getInteractors() { return _interactors; }
+  
+  unsigned int getVersion() { return _version; }
 
  private:
   Trace& _trace;                        // A reference to the trace this file is part of
@@ -67,11 +68,11 @@ struct File {
   std::set<Command*> _readers;          // Commands that read this file
   std::set<Command*> _interactors;      // Commands that read OR modify this file
   std::set<Process*> _mmaps;            // Processes that currently have an mmap of this file
+  unsigned int _version;                // The version number of this file
 
  public:
   Command* creator;
   Command* writer;
   File* prev_version;
-  unsigned int version;
   bool known_removed;
 };

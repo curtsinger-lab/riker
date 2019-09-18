@@ -32,10 +32,10 @@ void Command::add_input(File* f) {
   // TODO: Use set find
   for (auto rd : this->rd_interactions) {
     if (f->getLocation() == rd->getLocation() && f->writer != this) {
-      if (f->version == rd->version) {
+      if (f->getVersion() == rd->getVersion()) {
         return;
       } else /* we've found a race */ {
-        std::set<Command*> conflicts = f->collapse(rd->version);
+        std::set<Command*> conflicts = f->collapse(rd->getVersion());
         this->collapse(&conflicts);
       }
     }
@@ -50,10 +50,10 @@ void Command::add_output(File* f, size_t file_location) {
     for (auto wr : this->wr_interactions) {
       if (f->getLocation() == wr->getLocation()) {
         this->outputs.insert(f);
-        if (f->version == wr->version) {
+        if (f->getVersion() == wr->getVersion()) {
           return;
         } else {
-          std::set<Command*> conflicts = f->collapse(wr->version);
+          std::set<Command*> conflicts = f->collapse(wr->getVersion());
           this->collapse(&conflicts);
           // wr->has_race = true;
           // this->has_race = true;
