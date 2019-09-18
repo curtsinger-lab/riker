@@ -107,12 +107,12 @@ struct File {
   db::File::Builder getBuilder() { return _serialized.get(); }
   
   db::File::Reader getReader() { return _serialized.getReader(); }
+  
+  size_t getLocation() { return _location; }
 
 private:
   Trace& _trace;
-
- public:
-  size_t location;
+  size_t _location;
 
  private:
   capnp::Orphan<db::File> _serialized;

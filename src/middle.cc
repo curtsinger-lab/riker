@@ -22,13 +22,13 @@ void Command::add_input(File* f) {
   f->users.insert(this);
   this->inputs.insert(f);
 
-  // if we've read from the file previously, check for a race
-  if (f->isPipe()) {
-    return;
-  }
-
+  // No checking for races on pipes
+  if (f->isPipe()) return;
+  
+  // If we've read from this file before, check for a race
+  // TODO: Use set find
   for (auto rd : this->rd_interactions) {
-    if (f->location == rd->location && f->writer != this) {
+    if (f->getLocation() == rd->getLocation() && f->writer != this) {
       if (f->version == rd->version) {
         return;
       } else /* we've found a race */ {
@@ -45,7 +45,7 @@ void Command::add_output(File* f, size_t file_location) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
     for (auto wr : this->wr_interactions) {
-      if (f->location == wr->location) {
+      if (f->getLocation() == wr->getLocation()) {
         this->outputs.insert(f);
         if (f->version == wr->version) {
           return;
@@ -162,7 +162,7 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
 File::File(Trace& trace, size_t location, bool is_pipe, BlobPtr path, Command* creator,
            File* prev_version) :
     _trace(trace),
-    location(location),
+    _location(location),
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
     creator(creator),
     writer(nullptr),
@@ -212,12 +212,12 @@ File* File::make_version(void) {
   set_fingerprint(_serialized.get(), true);
   _serialized.get().setLatestVersion(false);
 
-  File* f = new File(_trace, location, _serialized.getReader().getType() == db::FileType::PIPE,
+  File* f = new File(_trace, _location, _serialized.getReader().getType() == db::FileType::PIPE,
                      _serialized.getReader().getPath(), creator, this);
   f->version = this->version + 1;
 
   _trace.files.insert(f);
-  _trace.latest_versions[this->location] = f;
+  _trace.latest_versions[this->_location] = f;
   return f;
 }
 
