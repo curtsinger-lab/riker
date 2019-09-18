@@ -90,7 +90,7 @@ struct Command {
 };
 
 struct File {
-  File(size_t location, bool is_pipe, BlobPtr path, Command* creator, Trace* state,
+  File(Trace& trace, size_t location, bool is_pipe, BlobPtr path, Command* creator,
        File* prev_version);
   std::set<Command*> collapse(unsigned int depth);
   bool can_depend(Command* cmd);
@@ -108,6 +108,9 @@ struct File {
   
   db::File::Reader getReader() { return _serialized.getReader(); }
 
+private:
+  Trace& _trace;
+
  public:
   size_t location;
 
@@ -121,7 +124,6 @@ struct File {
   std::list<Command*> conflicts;
   Command* creator;
   Command* writer;
-  Trace* state;
   File* prev_version;
   unsigned int version;
   bool known_removed;
@@ -199,7 +201,7 @@ struct Trace {
       }
     }
     size_t location = this->latest_versions.size();
-    File* new_node = new File(location, false, kj::heapArray(path), nullptr, this, nullptr);
+    File* new_node = new File(*this, location, false, kj::heapArray(path), nullptr, nullptr);
     this->files.insert(new_node);
     this->latest_versions.push_back(new_node);
     return location;
@@ -332,7 +334,7 @@ struct Trace {
     Process* proc = _processes[pid];
     // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     size_t location = this->latest_versions.size();
-    File* p = new File(location, true, Blob(), proc->getCommand(), this, NULL);
+    File* p = new File(*this, location, true, Blob(), proc->getCommand(), NULL);
     this->files.insert(p);
     this->latest_versions.push_back(p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);

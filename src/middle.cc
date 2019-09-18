@@ -85,8 +85,7 @@ uint64_t Command::descendants(void) {
 
 static uint64_t serialize_commands(Command* command,
                                    ::capnp::List<db::Command>::Builder& command_list,
-                                   uint64_t start_index,
-                                   std::map<Command*, uint64_t>& command_ids,
+                                   uint64_t start_index, std::map<Command*, uint64_t>& command_ids,
                                    std::map<File*, uint64_t>& file_ids) {
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(stringToBlob(command->getCommand()));
@@ -160,13 +159,13 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
     cloexec(cloexec) {}
 
 /* ------------------------------- File Methods -------------------------------------------*/
-File::File(size_t location, bool is_pipe, BlobPtr path, Command* creator,
-                   Trace* state, File* prev_version) :
+File::File(Trace& trace, size_t location, bool is_pipe, BlobPtr path, Command* creator,
+           File* prev_version) :
+    _trace(trace),
     location(location),
-    _serialized(state->temp_message.getOrphanage().newOrphan<db::File>()),
+    _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
     creator(creator),
     writer(nullptr),
-    state(state),
     prev_version(prev_version),
     version(0),
     known_removed(false) {
@@ -213,13 +212,12 @@ File* File::make_version(void) {
   set_fingerprint(_serialized.get(), true);
   _serialized.get().setLatestVersion(false);
 
-  File* f =
-      new File(this->location, _serialized.getReader().getType() == db::FileType::PIPE,
-                   _serialized.getReader().getPath(), this->creator, this->state, this);
+  File* f = new File(_trace, location, _serialized.getReader().getType() == db::FileType::PIPE,
+                     _serialized.getReader().getPath(), creator, this);
   f->version = this->version + 1;
 
-  this->state->files.insert(f);
-  this->state->latest_versions[this->location] = f;
+  _trace.files.insert(f);
+  _trace.latest_versions[this->location] = f;
   return f;
 }
 
