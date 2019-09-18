@@ -1,6 +1,7 @@
 #include "middle.h"
 
 #include <fcntl.h>
+#include <iostream>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,9 +12,9 @@
 
 #include <capnp/message.h>
 #include <capnp/serialize.h>
-#include <iostream>
 
 #include "db.capnp.h"
+
 #include "file.hh"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
@@ -25,7 +26,7 @@ void Command::add_input(File* f) {
 
   // No checking for races on pipes
   if (f->isPipe()) return;
-  
+
   // If we've read from this file before, check for a race
   // TODO: Use set find
   for (auto rd : this->rd_interactions) {
@@ -202,7 +203,7 @@ void Trace::serialize_graph(void) {
 
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
-  for(File* f : latest_versions) {
+  for (File* f : latest_versions) {
     f->fingerprint();
     f->setLatestVersion();
   }
