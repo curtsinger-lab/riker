@@ -59,11 +59,11 @@ std::set<Command*> File::collapse(unsigned int version) {
 
 // file can only be depended on if it wasn't truncated/created, and if the current command isn't
 // the only writer
-bool File::can_depend(Command* cmd) {
+bool File::canDependOn(Command* cmd) {
   return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
 }
 
-File* File::make_version(void) {
+File* File::createVersion(void) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
   _serialized.get().setLatestVersion(false);
@@ -75,6 +75,23 @@ File* File::make_version(void) {
   _trace.files.insert(f);
   _trace.latest_versions[this->_location] = f;
   return f;
+}
+
+bool File::shouldSave() {
+  // Save files that have at least one reader
+  if (!_readers.empty()) return true;
+
+  // Save files with a writer
+  if (isWritten()) return true;
+
+  // Save files with a creator
+  if (isCreated()) return true;
+
+  // Save files with a previous version that are not removed (CC: why?)
+  if (prev_version != nullptr && !known_removed) return true;
+
+  // Skip anything else
+  return false;
 }
 
 // Filter out db.dodo from the directory listing when fingerprinting directories

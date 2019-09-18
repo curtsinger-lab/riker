@@ -22,11 +22,13 @@ struct File {
 
   std::set<Command*> collapse(unsigned int depth);
 
-  bool can_depend(Command* cmd);
+  bool canDependOn(Command* cmd);
 
-  File* make_version();
+  File* createVersion();
 
   void fingerprint();
+  
+  bool shouldSave();
 
   void serialize(db::File::Builder builder);
 
@@ -57,23 +59,6 @@ struct File {
   void addInteractor(Command* c) { _interactors.insert(c); }
 
   const std::set<Command*>& getInteractors() { return _interactors; }
-
-  bool shouldSave() {
-    // Save files that have at least one reader
-    if (!_readers.empty()) return true;
-
-    // Save files with a writer
-    if (isWritten()) return true;
-
-    // Save files with a creator
-    if (isCreated()) return true;
-
-    // Save files with a previous version that are not removed (CC: why?)
-    if (prev_version != nullptr && !known_removed) return true;
-
-    // Skip anything else
-    return false;
-  }
 
  private:
   Trace& _trace;                        // A reference to the trace this file is part of

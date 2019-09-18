@@ -212,7 +212,7 @@ struct Trace {
     switch (type) {
       case DEP_READ:
         // fprintf(stdout, "read");
-        if (f->can_depend(proc->getCommand())) {
+        if (f->canDependOn(proc->getCommand())) {
           proc->getCommand()->add_input(f);
           // fprintf(stdout, ", depend");
         }
@@ -242,7 +242,7 @@ struct Trace {
       case DEP_REMOVE:
         // fprintf(stdout, "remove");
         proc->getCommand()->deleted_files.insert(f);
-        f = f->make_version();
+        f = f->createVersion();
         f->creator = nullptr;
         f->writer = nullptr;
         f->known_removed = true;
@@ -280,7 +280,7 @@ struct Trace {
     File* f = this->latest_versions[file_location];
     if (is_rewrite && (f->creator != proc->getCommand() || f->writer != nullptr)) {
       // fprintf(stdout, "REWRITE ");
-      f = f->make_version();
+      f = f->createVersion();
       f->creator = proc->getCommand();
       f->writer = nullptr;
       f->setMode(mode);

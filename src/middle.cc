@@ -70,7 +70,7 @@ void Command::add_output(File* f, size_t file_location) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
-    fnew = f->make_version();
+    fnew = f->createVersion();
     fnew->creator = nullptr;
   }
   fnew->writer = this;
