@@ -106,7 +106,18 @@ struct File {
   
   db::File::Builder getBuilder() { return _serialized.get(); }
   
-  db::File::Reader getReader() { return _serialized.getReader(); }
+  void serialize(db::File::Builder builder) {
+    auto r = _serialized.getReader();
+    builder.setPath(r.getPath());
+    builder.setType(r.getType());
+    builder.setMode(r.getMode());
+    builder.setFingerprintType(r.getFingerprintType());
+    builder.setSize(r.getSize());
+    builder.setModificationTime(r.getModificationTime());
+    builder.setInode(r.getInode());
+    builder.setChecksum(r.getChecksum());
+    builder.setLatestVersion(r.getLatestVersion());
+  }
   
   size_t getLocation() { return _location; }
 
@@ -114,7 +125,6 @@ private:
   Trace& _trace;
   size_t _location;
 
- private:
   capnp::Orphan<db::File> _serialized;
 
  public:

@@ -297,7 +297,7 @@ void Trace::serialize_graph(void) {
     auto file = file_entry.first;
     auto file_id = file_entry.second;
     // TODO: Use orphans and avoid copying?
-    files.setWithCaveats(file_id, file->getReader());
+    file->serialize(files[file_id]);
   }
 
   // Serialize commands
