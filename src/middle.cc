@@ -21,8 +21,8 @@
 /* ------------------------------ Command Methods -----------------------------------------*/
 void Command::add_input(File* f) {
   // search through all files, do versioning
-  f->interactions.push_front(this);
-  f->addUser(this);
+  f->addInteractor(this);
+  f->addReader(this);
   this->inputs.insert(f);
 
   // No checking for races on pipes
@@ -63,7 +63,7 @@ void Command::add_output(File* f, size_t file_location) {
     }
   }
 
-  f->interactions.push_front(this);
+  f->addInteractor(this);
   // if we haven't written to this file before, create a new version
   File* fnew;
   if ((f->creator != nullptr && f->writer == nullptr) || f->writer == this) {
@@ -220,7 +220,7 @@ void Trace::serialize_graph(void) {
     // We only care about files that are either written or read so filter those out.
     if (file->shouldSave()) {
       file_ids[file] = file_count;
-      input_count += file->numUsers();
+      input_count += file->getReaders().size();
       if (file->isWritten()) output_count++;
       if (file->isCreated()) create_count++;
       modify_count +=
@@ -262,7 +262,7 @@ void Trace::serialize_graph(void) {
   for (auto file_entry : file_ids) {
     auto file = file_entry.first;
     auto file_id = file_entry.second;
-    for (auto user : file->getUsers()) {
+    for (auto user : file->getReaders()) {
       uint64_t user_id = command_ids[user];
       inputs[input_index].setInputID(file_id);
       inputs[input_index].setOutputID(user_id);

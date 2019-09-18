@@ -44,7 +44,7 @@ std::set<Command*> File::collapse(unsigned int version) {
     if (cur_file->writer != nullptr) {
       conflicts.insert(cur_file->writer);
     }
-    for (auto rd : cur_file->interactions) {
+    for (auto rd : cur_file->getInteractors()) {
       conflicts.insert(rd);
     }
     // add all mmaps to conflicts
@@ -193,7 +193,7 @@ void File::fingerprint() {
   builder.setMode(stat_info.st_mode);
 
   // Skip checksum if the file has no users
-  if (hasUsers()) {
+  if (getReaders().size()) {
     builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
     return;
   }

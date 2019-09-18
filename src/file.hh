@@ -42,25 +42,25 @@ struct File {
 
   size_t getLocation() { return _location; }
 
-  void addUser(Command* c) { _users.insert(c); }
+  void addReader(Command* c) { _readers.insert(c); }
 
-  const std::set<Command*>& getUsers() { return _users; }
-
-  size_t numUsers() { return _users.size(); }
-
-  bool hasUsers() { return !_users.empty(); }
+  const std::set<Command*>& getReaders() { return _readers; }
 
   bool isWritten() { return writer != nullptr; }
 
   bool isCreated() { return creator != nullptr; }
-  
+
   void addMmap(Process* p) { _mmaps.insert(p); }
-  
+
   void removeMmap(Process* p) { _mmaps.erase(p); }
 
+  void addInteractor(Command* c) { _interactors.insert(c); }
+
+  const std::set<Command*>& getInteractors() { return _interactors; }
+
   bool shouldSave() {
-    // Save files that have at least one user
-    if (hasUsers()) return true;
+    // Save files that have at least one reader
+    if (!_readers.empty()) return true;
 
     // Save files with a writer
     if (isWritten()) return true;
@@ -76,15 +76,14 @@ struct File {
   }
 
  private:
-  Trace& _trace;
-  size_t _location;
-  capnp::Orphan<db::File> _serialized;
-  std::set<Command*> _users;
-  std::set<Process*> _mmaps;
+  Trace& _trace;                        // A reference to the trace this file is part of
+  size_t _location;                     // ???
+  capnp::Orphan<db::File> _serialized;  // A serialized representation of this file
+  std::set<Command*> _readers;          // Commands that read this file
+  std::set<Command*> _interactors;      // Commands that read OR modify this file
+  std::set<Process*> _mmaps;            // Processes that currently have an mmap of this file
 
  public:
-  std::list<Command*> interactions;
-  std::list<Command*> conflicts;
   Command* creator;
   Command* writer;
   File* prev_version;
