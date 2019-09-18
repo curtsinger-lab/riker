@@ -57,12 +57,6 @@ std::set<Command*> File::collapse(unsigned int version) {
   return conflicts;
 }
 
-// file can only be depended on if it wasn't truncated/created, and if the current command isn't
-// the only writer
-bool File::canDependOn(Command* cmd) {
-  return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
-}
-
 File* File::createVersion(void) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();

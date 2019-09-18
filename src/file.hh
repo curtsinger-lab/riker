@@ -22,8 +22,6 @@ struct File {
 
   std::set<Command*> collapse(unsigned int depth);
 
-  bool canDependOn(Command* cmd);
-
   File* createVersion();
 
   void fingerprint();

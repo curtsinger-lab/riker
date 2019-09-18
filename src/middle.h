@@ -72,6 +72,17 @@ struct Command {
   const std::vector<std::string>& getArguments() { return _args; }
 
   void addArgument(std::string arg) { _args.push_back(arg); }
+  
+  bool canDependOn(const File* f) {
+    // If this command is the only writer, it cannot depend on the file
+    if (f->getWriter() == this) return false;
+    
+    // If the file is not written and was created by this command, it cannot depend on the file
+    if (!f->isWritten() && f->getCreator() == this) return false;
+    
+    // Otherwise the command can depend on the file
+    return true;
+  }
 
  private:
   Trace& _state;
@@ -212,7 +223,7 @@ struct Trace {
     switch (type) {
       case DEP_READ:
         // fprintf(stdout, "read");
-        if (f->canDependOn(proc->getCommand())) {
+        if (proc->getCommand()->canDependOn(f)) {
           proc->getCommand()->add_input(f);
           // fprintf(stdout, ", depend");
         }
