@@ -20,7 +20,7 @@
 
 #include "db.capnp.h"
 
-#include "fingerprint.h"
+#include "file.hh"
 #include "graph.h"
 #include "util.hh"
 

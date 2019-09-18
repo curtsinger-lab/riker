@@ -12,7 +12,8 @@ struct Process;
 struct Trace;
 
 // TODO: Move this into the File class.
-// Before that can happen, we'll need to update the code to inflate the loaded graph into File objects.
+// Before that can happen, we'll need to update the code to inflate the loaded graph into File
+// objects.
 bool match_fingerprint(db::File::Reader file);
 
 struct File {
@@ -24,7 +25,7 @@ struct File {
   bool can_depend(Command* cmd);
 
   File* make_version();
-  
+
   void fingerprint();
 
   void serialize(db::File::Builder builder);
@@ -41,13 +42,42 @@ struct File {
 
   size_t getLocation() { return _location; }
 
+  void addUser(Command* c) { _users.insert(c); }
+  
+  const std::set<Command*>& getUsers() { return _users; }
+  
+  size_t numUsers() { return _users.size(); }
+  
+  bool hasUsers() { return !_users.empty(); }
+  
+  bool isWritten() { return writer != nullptr; }
+  
+  bool isCreated() { return creator != nullptr; }
+  
+  bool shouldSave() {
+    // Save files that have at least one user
+    if (hasUsers()) return true;
+    
+    // Save files with a writer
+    if (isWritten()) return true;
+    
+    // Save files with a creator
+    if (isCreated()) return true;
+    
+    // Save files with a previous version that are not removed (CC: why?)
+    if (prev_version != nullptr && !known_removed) return true;
+    
+    // Skip anything else
+    return false;
+  }
+
  private:
   Trace& _trace;
   size_t _location;
   capnp::Orphan<db::File> _serialized;
+  std::set<Command*> _users;
 
  public:
-  std::set<Command*> users;
   std::set<Process*> mmaps;
   std::list<Command*> interactions;
   std::list<Command*> conflicts;

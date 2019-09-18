@@ -1,3 +1,5 @@
+#include "middle.h"
+
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -12,14 +14,13 @@
 #include <iostream>
 
 #include "db.capnp.h"
-#include "fingerprint.h"
-#include "middle.h"
+#include "file.hh"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
 void Command::add_input(File* f) {
   // search through all files, do versioning
   f->interactions.push_front(this);
-  f->users.insert(this);
+  f->addUser(this);
   this->inputs.insert(f);
 
   // No checking for races on pipes
@@ -158,69 +159,6 @@ FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloe
     access_mode(access_mode),
     cloexec(cloexec) {}
 
-/* ------------------------------- File Methods -------------------------------------------*/
-File::File(Trace& trace, size_t location, bool is_pipe, BlobPtr path, Command* creator,
-           File* prev_version) :
-    _trace(trace),
-    _location(location),
-    _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
-    creator(creator),
-    writer(nullptr),
-    prev_version(prev_version),
-    version(0),
-    known_removed(false) {
-  // TODO: consider using orphans to avoid copying
-  if (is_pipe) {
-    _serialized.get().setType(db::FileType::PIPE);
-  } else {
-    _serialized.get().setType(db::FileType::REGULAR);
-    _serialized.get().setPath(path);
-  }
-}
-
-// return a set of the commands which raced on this file, back to the parameter version
-std::set<Command*> File::collapse(unsigned int version) {
-  // this->has_race = true;
-  File* cur_file = this;
-  std::set<Command*> conflicts;
-  while (cur_file->version != version) {
-    // add writer and all readers to conflict set
-    if (cur_file->writer != nullptr) {
-      conflicts.insert(cur_file->writer);
-    }
-    for (auto rd : cur_file->interactions) {
-      conflicts.insert(rd);
-    }
-    // add all mmaps to conflicts
-    for (auto m : cur_file->mmaps) {
-      conflicts.insert(m->getCommand());
-    }
-    // step back a version
-    cur_file = cur_file->prev_version;
-  }
-  return conflicts;
-}
-
-// file can only be depended on if it wasn't truncated/created, and if the current command isn't
-// the only writer
-bool File::can_depend(Command* cmd) {
-  return this->writer != cmd && (this->writer != nullptr || this->creator != cmd);
-}
-
-File* File::make_version(void) {
-  // We are at the end of the current version, so snapshot with a fingerprint
-  set_fingerprint(_serialized.get(), true);
-  _serialized.get().setLatestVersion(false);
-
-  File* f = new File(_trace, _location, _serialized.getReader().getType() == db::FileType::PIPE,
-                     _serialized.getReader().getPath(), creator, this);
-  f->version = this->version + 1;
-
-  _trace.files.insert(f);
-  _trace.latest_versions[this->_location] = f;
-  return f;
-}
-
 void Process::exec(Trace& trace, std::string exe_path) {
   _command = _command->createChild(exe_path);
 
@@ -264,10 +202,9 @@ void Trace::serialize_graph(void) {
 
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
-  for (size_t location = 0; location < this->latest_versions.size(); location++) {
-    set_fingerprint(this->latest_versions[location]->getBuilder(),
-                    !this->latest_versions[location]->users.empty());
-    this->latest_versions[location]->setLatestVersion();
+  for(File* f : latest_versions) {
+    f->fingerprint();
+    f->setLatestVersion();
   }
 
   // Serialize files
@@ -279,12 +216,11 @@ void Trace::serialize_graph(void) {
   uint64_t modify_count = 0;
   for (auto file : this->files) {
     // We only care about files that are either written or read so filter those out.
-    if (!file->users.empty() || file->writer != nullptr || file->creator != nullptr ||
-        (file->prev_version != nullptr && !file->known_removed)) {
+    if (file->shouldSave()) {
       file_ids[file] = file_count;
-      input_count += file->users.size();
-      output_count += (file->writer != nullptr);
-      create_count += (file->creator != nullptr);
+      input_count += file->numUsers();
+      if (file->isWritten()) output_count++;
+      if (file->isCreated()) create_count++;
       modify_count +=
           (file->creator == nullptr && file->prev_version != nullptr &&
            (file->prev_version->creator != nullptr ||
@@ -324,7 +260,7 @@ void Trace::serialize_graph(void) {
   for (auto file_entry : file_ids) {
     auto file = file_entry.first;
     auto file_id = file_entry.second;
-    for (auto user : file->users) {
+    for (auto user : file->getUsers()) {
       uint64_t user_id = command_ids[user];
       inputs[input_index].setInputID(file_id);
       inputs[input_index].setOutputID(user_id);

@@ -217,7 +217,7 @@ void File::fingerprint() {
   builder.setMode(stat_info.st_mode);
 
   // Skip checksum if the file has no users
-  if (users.empty()) {
+  if (hasUsers()) {
     builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
     return;
   }

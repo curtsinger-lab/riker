@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -16,6 +17,7 @@
 
 #include "db.capnp.h"
 
+#include "file.hh"
 #include "util.hh"
 
 typedef kj::Array<kj::byte> Blob;
@@ -87,56 +89,6 @@ struct Command {
   std::set<File*> deleted_files;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
-};
-
-struct File {
-  File(Trace& trace, size_t location, bool is_pipe, BlobPtr path, Command* creator,
-       File* prev_version);
-  std::set<Command*> collapse(unsigned int depth);
-  bool can_depend(Command* cmd);
-  File* make_version(void);
-  
-  std::string getPath() { return blobToString(_serialized.getReader().getPath()); }
-  
-  bool isPipe() { return _serialized.getReader().getType() == db::FileType::PIPE; }
-  
-  void setMode(uint16_t mode) { _serialized.get().setMode(mode); }
-  
-  void setLatestVersion() { _serialized.get().setLatestVersion(true); }
-  
-  db::File::Builder getBuilder() { return _serialized.get(); }
-  
-  void serialize(db::File::Builder builder) {
-    auto r = _serialized.getReader();
-    builder.setPath(r.getPath());
-    builder.setType(r.getType());
-    builder.setMode(r.getMode());
-    builder.setFingerprintType(r.getFingerprintType());
-    builder.setSize(r.getSize());
-    builder.setModificationTime(r.getModificationTime());
-    builder.setInode(r.getInode());
-    builder.setChecksum(r.getChecksum());
-    builder.setLatestVersion(r.getLatestVersion());
-  }
-  
-  size_t getLocation() { return _location; }
-
-private:
-  Trace& _trace;
-  size_t _location;
-
-  capnp::Orphan<db::File> _serialized;
-
- public:
-  std::set<Command*> users;
-  std::set<Process*> mmaps;
-  std::list<Command*> interactions;
-  std::list<Command*> conflicts;
-  Command* creator;
-  Command* writer;
-  File* prev_version;
-  unsigned int version;
-  bool known_removed;
 };
 
 struct FileDescriptor {

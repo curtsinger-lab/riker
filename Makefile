@@ -15,7 +15,7 @@ clean:
 
 .SUFFIXES:
 
-dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o objs/fingerprint.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o objs/dodorun.o objs/util.o
+dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graph.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o objs/dodorun.o objs/util.o objs/file.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 .submodules-cleared:
