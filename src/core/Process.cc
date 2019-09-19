@@ -46,7 +46,7 @@ void Process::exec(BuildGraph& trace, std::string exe_path, const std::list<std:
 
   // Mark the initial open file descriptors
   for (auto it = fds.begin(); it != fds.end(); ++it) {
-    it->second.file = trace.latest_versions[it->second.location_index];
+    it->second.file = trace.getLatestVersion(it->second.location_index);
   }
   _command->setInitialFDs(fds);
 

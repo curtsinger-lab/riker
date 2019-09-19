@@ -71,7 +71,7 @@ File* File::createVersion() {
 
   File& f = _graph.files.emplace_front(_graph, _location, isPipe(), getPath(), getCreator(), this);
   f._version++;
-  _graph.latest_versions[this->_location] = &f;
+  _graph.setLatestVersion(_location, &f);
   return &f;
 }
 

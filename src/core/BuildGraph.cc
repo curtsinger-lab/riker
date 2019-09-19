@@ -66,15 +66,15 @@ void BuildGraph::newProcess(pid_t pid, Command* cmd) {
 }
 
 size_t BuildGraph::find_file(std::string path) {
-  for (size_t index = 0; index < this->latest_versions.size(); index++) {
-    if (!this->latest_versions[index]->isPipe() &&
-        this->latest_versions[index]->getPath() == path) {
+  for (size_t index = 0; index < _latest_versions.size(); index++) {
+    if (!_latest_versions[index]->isPipe() &&
+        _latest_versions[index]->getPath() == path) {
       return index;
     }
   }
-  size_t location = this->latest_versions.size();
+  size_t location = _latest_versions.size();
   File& new_node = files.emplace_front(*this, location, false, path, nullptr, nullptr);
-  this->latest_versions.push_back(&new_node);
+  _latest_versions.push_back(&new_node);
   return location;
 }
 
@@ -109,7 +109,7 @@ void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int ac
 
   // TODO take into account root and cwd
   size_t file_location = this->find_file(file.path);
-  File* f = this->latest_versions[file_location];
+  File* f = _latest_versions[file_location];
   if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
     f = f->createVersion();
     f->setCreator(proc->getCommand());
@@ -124,9 +124,9 @@ void BuildGraph::add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); 
 void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
   // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
-  size_t location = this->latest_versions.size();
+  size_t location = _latest_versions.size();
   File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
-  latest_versions.push_back(&p);
+  _latest_versions.push_back(&p);
   proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
   proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
 }
@@ -153,7 +153,7 @@ void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
 void BuildGraph::add_mmap(pid_t pid, int fd) {
   auto proc = _processes[pid];
   FileDescriptor& desc = proc->fds.find(fd)->second;
-  File* f = this->latest_versions[desc.location_index];
+  File* f = _latest_versions[desc.location_index];
   f->addMmap(proc);
   proc->mmaps.insert(f);
   if (desc.access_mode != O_WRONLY) {
@@ -194,7 +194,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
       file_location = proc->fds.find(file.fd)->second.location_index;
     }
   }
-  File* f = this->latest_versions[file_location];
+  File* f = _latest_versions[file_location];
 
   switch (type) {
     case DEP_READ:
@@ -240,7 +240,7 @@ void BuildGraph::serialize_graph(void) {
 
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
-  for (File* f : latest_versions) {
+  for (File* f : _latest_versions) {
     f->fingerprint();
     f->setLatestVersion();
   }

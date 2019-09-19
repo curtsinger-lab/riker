@@ -29,7 +29,6 @@ struct file_reference {
 
 struct BuildGraph {
   std::list<File> files;
-  std::vector<File*> latest_versions;
 
   /****** Constructors ******/
   
@@ -83,9 +82,13 @@ struct BuildGraph {
   std::string getStartingDir() { return _starting_dir; }
   
   void addCommand(Command* c) { _commands.push_front(c); }
+  
+  File* getLatestVersion(size_t index) const { return _latest_versions[index]; }
+  void setLatestVersion(size_t index, File* f) { _latest_versions[index] = f; }
 
  private:
   std::string _starting_dir;
   std::map<pid_t, std::shared_ptr<Process>> _processes;
   std::list<Command*> _commands;
+  std::vector<File*> _latest_versions;
 };
