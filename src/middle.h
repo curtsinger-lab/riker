@@ -75,10 +75,10 @@ struct Command {
   
   bool canDependOn(const File* f) {
     // If this command is the only writer, it cannot depend on the file
-    if (f->getWriter() == this) return false;
+    if (f->writer == this) return false;
     
     // If the file is not written and was created by this command, it cannot depend on the file
-    if (!f->isWritten() && f->getCreator() == this) return false;
+    if (f->writer == nullptr && f->creator == this) return false;
     
     // Otherwise the command can depend on the file
     return true;

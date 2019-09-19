@@ -35,13 +35,13 @@ std::string get_executable(pid_t pid) {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", pid);
 
-  std::unique_ptr<char> buffer(nullptr);
+  std::unique_ptr<char[]> buffer(nullptr);
   ssize_t capacity = 0;
   ssize_t bytes_read = 0;
 
   do {
     capacity += PATH_MAX;
-    buffer = std::unique_ptr<char>(new char[capacity]);
+    buffer = std::unique_ptr<char[]>(new char[capacity]);
     bytes_read = readlink(path_buffer, buffer.get(), capacity);
   } while (bytes_read == capacity);
 
