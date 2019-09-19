@@ -8,9 +8,6 @@
 
 #include <sys/stat.h>
 
-#include <capnp/orphan.h>
-#include <kj/string.h>
-
 #include "db/db.capnp.h"
 
 struct Command;
@@ -23,7 +20,7 @@ struct BuildGraph;
 bool match_fingerprint(db::File::Reader file);
 
 struct File {
-  File(BuildGraph& graph, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
        File* prev_version);
 
   std::set<Command*> collapse(unsigned int depth);
@@ -38,7 +35,7 @@ struct File {
 
   /****** Getters and setters ******/
 
-  kj::StringPtr getPath() const { return _path; }
+  const std::string& getPath() const { return _path; }
 
   db::FileType getType() const { return _type; }
   bool isPipe() { return getType() == db::FileType::PIPE; }
@@ -75,7 +72,7 @@ struct File {
 
   bool isRemoved() const { return _removed; }
   void setRemoved(bool r = true) { _removed = r; }
-  
+
   void setFingerprintType(db::FingerprintType t) { _fingerprint_type = t; }
   db::FingerprintType getFingerprintType() const { return _fingerprint_type; }
 

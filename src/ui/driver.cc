@@ -321,7 +321,7 @@ int main(int argc, char* argv[]) {
 
   auto root_cmd = new Command(trace, "Dodofile", {"Dodofile"});
 
-  trace.commands.push_front(root_cmd);
+  trace.addCommand(root_cmd);
 
   // TODO: set up stdio for logging?
   start_command(trace, root_cmd, kj::ArrayPtr<InitialFdEntry const>());

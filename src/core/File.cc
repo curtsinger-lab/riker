@@ -26,7 +26,7 @@
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
 
-File::File(BuildGraph& graph, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
            File* prev_version) :
     _graph(graph),
     _location(location),
@@ -191,7 +191,7 @@ void File::fingerprint() {
 
   auto path_string = getPath();
 
-  if (stat(path_string.cStr(), &_stat_info) != 0) {
+  if (stat(path_string.c_str(), &_stat_info) != 0) {
     if (errno == ENOENT) {
       setFingerprintType(db::FingerprintType::NONEXISTENT);
     } else {

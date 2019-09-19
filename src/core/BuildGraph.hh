@@ -28,17 +28,14 @@ struct file_reference {
 };
 
 struct BuildGraph {
-  // Because files hold a reference into the memory managed by this message builder, it must appear
-  // before the files list to control destructor order. This is a gross hack, and should be fixed.
-  ::capnp::MallocMessageBuilder temp_message;
-
   std::list<File> files;
   std::vector<File*> latest_versions;
-  std::list<Command*> commands;
 
   BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {}
 
   std::string getStartingDir() { return _starting_dir; }
+  
+  void addCommand(Command* c) { _commands.push_front(c); }
 
   void newProcess(pid_t pid, Command* cmd);
 
@@ -76,4 +73,5 @@ struct BuildGraph {
  private:
   std::string _starting_dir;
   std::map<pid_t, std::shared_ptr<Process>> _processes;
+  std::list<Command*> _commands;
 };

@@ -214,7 +214,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
           file_exists = false;
         } else {
           struct stat stat_info;
-          file_exists = (lstat(f->getPath().cStr(), &stat_info) == 0);
+          file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
         }
 
         if (!file_exists) {
@@ -278,12 +278,12 @@ void BuildGraph::serialize_graph(void) {
   // Serialize commands
   std::map<Command*, uint64_t> command_ids;
   uint64_t command_count = 0;
-  for (auto c : this->commands) {
+  for (auto c : _commands) {
     command_count += 1 + c->descendants();
   }
   auto commands = graph.initCommands(command_count);
   uint64_t command_index = 0;
-  for (auto c : this->commands) {
+  for (auto c : _commands) {
     command_index = serialize_commands(c, commands, command_index, command_ids, file_ids);
   }
 
