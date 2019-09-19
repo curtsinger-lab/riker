@@ -7,7 +7,7 @@
 
 struct Command;
 struct Process;
-struct Trace;
+struct BuildGraph;
 
 // TODO: Move this into the File class.
 // Before that can happen, we'll need to update the code to inflate the loaded graph into File
@@ -15,7 +15,7 @@ struct Trace;
 bool match_fingerprint(db::File::Reader file);
 
 struct File {
-  File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+  File(BuildGraph& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
        File* prev_version);
 
   std::set<Command*> collapse(unsigned int depth);
@@ -68,7 +68,7 @@ struct File {
   void setRemoved(bool r = true) { _removed = r; }
 
  private:
-  Trace& _trace;                        // A reference to the trace this file is part of
+  BuildGraph& _trace;                        // A reference to the trace this file is part of
   size_t _location;                     // ???
   capnp::Orphan<db::File> _serialized;  // A serialized representation of this file
   std::set<Command*> _readers;          // Commands that read this file

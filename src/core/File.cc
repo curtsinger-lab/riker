@@ -1,4 +1,4 @@
-#include "core/file.hh"
+#include "core/File.hh"
 
 #include <set>
 
@@ -10,11 +10,11 @@
 #include <sys/vfs.h>
 #include <unistd.h>
 
-#include "core/middle.hh"
+#include "core/BuildGraph.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
 
-File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+File::File(BuildGraph& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
            File* prev_version) :
     _trace(trace),
     _location(location),

@@ -15,8 +15,10 @@
 #include <capnp/orphan.h>
 #include <kj/array.h>
 
-#include "core/command.hh"
-#include "core/file.hh"
+#include "core/Command.hh"
+#include "core/File.hh"
+#include "core/FileDescriptor.hh"
+#include "core/Process.hh"
 #include "db/db.capnp.h"
 
 typedef kj::Array<kj::byte> Blob;
@@ -33,52 +35,7 @@ struct file_reference {
   bool follow_links;
 };
 
-struct File;
-struct FileDescriptor;
-struct Process;
-struct Trace;
-
-struct FileDescriptor {
-  size_t location_index;  // Used in Process::fds
-  File* file;             // Used in Command::initial_fds
-  int access_mode;
-  bool cloexec;
-
-  FileDescriptor();
-  FileDescriptor(size_t location_index, int access_mode, bool cloexec);
-};
-
-struct Process {
-  pid_t thread_id;
-  std::map<int, FileDescriptor> fds;
-  std::set<File*> mmaps;
-
-  Process(pid_t thread_id, std::string cwd, Command* command) :
-      thread_id(thread_id),
-      _command(command),
-      _cwd(cwd) {}
-
-  Command* getCommand() { return _command; }
-
-  void chdir(std::string newdir) { _cwd = newdir; }
-
-  void chroot(std::string newroot) { _root = newroot; }
-
-  Process* fork(pid_t child_pid) {
-    Process* child_proc = new Process(child_pid, _cwd, _command);
-    child_proc->fds = fds;
-    return child_proc;
-  }
-
-  void exec(Trace& trace, std::string exe_path);
-
- private:
-  Command* _command;
-  std::string _cwd;
-  std::string _root;
-};
-
-struct Trace {
+struct BuildGraph {
   // Because files hold a reference into the memory managed by this message builder, it must appear
   // before the files list to control destructor order. This is a gross hack, and should be fixed.
   ::capnp::MallocMessageBuilder temp_message;
@@ -87,7 +44,7 @@ struct Trace {
   std::vector<File*> latest_versions;
   std::list<Command*> commands;
 
-  Trace(std::string starting_dir) : _starting_dir(starting_dir) {}
+  BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {}
 
   std::string getStartingDir() { return _starting_dir; }
 
@@ -99,9 +56,9 @@ struct Trace {
 
   void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type);
 
-  void add_chdir(pid_t pid, struct file_reference& file) { _processes[pid]->chdir(file.path); }
+  void add_chdir(pid_t pid, struct file_reference& file);
 
-  void add_chroot(pid_t pid, struct file_reference& file) { _processes[pid]->chroot(file.path); }
+  void add_chroot(pid_t pid, struct file_reference& file);
 
   void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
                 bool cloexec, mode_t mode);
@@ -114,7 +71,7 @@ struct Trace {
 
   void add_mmap(pid_t pid, int fd);
 
-  void add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
+  void add_close(pid_t pid, int fd);
 
   void add_fork(pid_t pid, pid_t child_pid);
 

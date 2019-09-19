@@ -1,4 +1,4 @@
-#include "core/middle.hh"
+#include "core/BuildGraph.hh"
 
 #include <iostream>
 
@@ -14,11 +14,9 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 
-#include "core/command.hh"
-#include "core/file.hh"
+#include "core/Command.hh"
+#include "core/File.hh"
 #include "db/db.capnp.h"
-
-/* ------------------------------ Command Methods -----------------------------------------*/
 
 static uint64_t serialize_commands(Command* command,
                                    ::capnp::List<db::Command>::Builder& command_list,
@@ -58,55 +56,12 @@ static uint64_t serialize_commands(Command* command,
   return index;
 }
 
-/* -------------------------- FileDescriptor Methods --------------------------------------*/
-FileDescriptor::FileDescriptor() {}
-FileDescriptor::FileDescriptor(size_t location_index, int access_mode, bool cloexec) :
-    location_index(location_index),
-    access_mode(access_mode),
-    cloexec(cloexec) {}
-
-void Process::exec(Trace& trace, std::string exe_path) {
-  _command = _command->createChild(exe_path);
-
-  // Close all cloexec file descriptors
-  for (auto fd_entry = fds.begin(); fd_entry != fds.end();) {
-    if (fd_entry->second.cloexec) {
-      fd_entry = fds.erase(fd_entry);
-    } else {
-      ++fd_entry;
-    }
-  }
-
-  // Close all mmaps, since the address space is replaced
-  for (auto file : mmaps) {
-    file->removeMmap(this);
-  }
-
-  // Mark the initial open file descriptors
-  for (auto it = fds.begin(); it != fds.end(); ++it) {
-    it->second.file = trace.latest_versions[it->second.location_index];
-  }
-  _command->initial_fds = fds;
-
-  // Assume that we can at any time write to stdout or stderr
-  // TODO: Instead of checking whether we know about stdout and stderr,
-  // tread the initial stdout and stderr properly as pipes
-  if (fds.find(fileno(stdout)) != fds.end()) {
-    trace.add_mmap(this->thread_id, fileno(stdout));
-  }
-  if (fds.find(fileno(stderr)) != fds.end()) {
-    trace.add_mmap(this->thread_id, fileno(stderr));
-  }
-}
-
-/* -------------------------- Trace_State Methods ----------------------------------------*/
-
-void Trace::newProcess(pid_t pid, Command* cmd) {
+void BuildGraph::newProcess(pid_t pid, Command* cmd) {
   Process* proc = new Process(pid, _starting_dir, cmd);
   _processes.emplace(pid, proc);
 }
 
-size_t Trace::find_file(std::string path) {
+size_t BuildGraph::find_file(std::string path) {
   for (size_t index = 0; index < this->latest_versions.size(); index++) {
     if (!this->latest_versions[index]->isPipe() &&
         this->latest_versions[index]->getPath() == path) {
@@ -119,30 +74,38 @@ size_t Trace::find_file(std::string path) {
   return location;
 }
 
-void Trace::add_fork(pid_t pid, pid_t child_pid) {
+void BuildGraph::add_chdir(pid_t pid, struct file_reference& file) {
+  _processes[pid]->chdir(file.path);
+}
+
+void BuildGraph::add_chroot(pid_t pid, struct file_reference& file) {
+  _processes[pid]->chroot(file.path);
+}
+
+void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
   // fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id,
   // child_process_id);
   _processes[child_pid] = _processes[pid]->fork(child_pid);
 }
 
-void Trace::add_exec(pid_t pid, std::string exe_path) {
+void BuildGraph::add_exec(pid_t pid, std::string exe_path) {
   Process* proc = _processes.at(pid);
   proc->exec(*this, exe_path);
 }
 
-void Trace::add_exec_argument(pid_t pid, std::string argument, int index) {
+void BuildGraph::add_exec_argument(pid_t pid, std::string argument, int index) {
   _processes[pid]->getCommand()->addArgument(argument);
 }
 
-void Trace::add_exit(pid_t pid) {
+void BuildGraph::add_exit(pid_t pid) {
   Process* proc = _processes[pid];
   for (auto f : proc->mmaps) {
     f->removeMmap(proc);
   }
 }
 
-void Trace::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
-                     bool is_rewrite, bool cloexec, mode_t mode) {
+void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
+                          bool is_rewrite, bool cloexec, mode_t mode) {
   Process* proc = _processes[pid];
 
   // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
@@ -166,7 +129,9 @@ void Trace::add_open(pid_t pid, int fd, struct file_reference& file, int access_
   }
 }
 
-void Trace::add_pipe(pid_t pid, int fds[2], bool cloexec) {
+void BuildGraph::add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
+
+void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
   Process* proc = _processes[pid];
   // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
   size_t location = this->latest_versions.size();
@@ -176,7 +141,7 @@ void Trace::add_pipe(pid_t pid, int fds[2], bool cloexec) {
   proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
 }
 
-void Trace::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
+void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   Process* proc = _processes[pid];
   auto duped_file = proc->fds.find(duped_fd);
   if (duped_file == proc->fds.end()) {
@@ -187,7 +152,7 @@ void Trace::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   }
 }
 
-void Trace::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
+void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
   Process* proc = _processes[pid];
   auto file = proc->fds.find(fd);
   if (file != proc->fds.end()) {
@@ -195,7 +160,7 @@ void Trace::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
   }
 }
 
-void Trace::add_mmap(pid_t pid, int fd) {
+void BuildGraph::add_mmap(pid_t pid, int fd) {
   Process* proc = _processes[pid];
   FileDescriptor& desc = proc->fds.find(fd)->second;
   File* f = this->latest_versions[desc.location_index];
@@ -212,7 +177,7 @@ void Trace::add_mmap(pid_t pid, int fd) {
   }
 }
 
-void Trace::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
+void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
   Process* proc = _processes[pid];
   size_t file_location;
   if (file.fd == AT_FDCWD) {
@@ -287,7 +252,7 @@ void Trace::add_dependency(pid_t pid, struct file_reference& file, enum dependen
   }
 }
 
-void Trace::serialize_graph(void) {
+void BuildGraph::serialize_graph(void) {
   ::capnp::MallocMessageBuilder message;
 
   db::Graph::Builder graph = message.initRoot<db::Graph>();

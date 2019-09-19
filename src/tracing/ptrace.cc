@@ -27,7 +27,7 @@
 #include <kj/array.h>
 #include <kj/vector.h>
 
-#include "core/middle.hh"
+#include "core/BuildGraph.hh"
 #include "tracing/syscalls.hh"
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
@@ -267,7 +267,7 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+pid_t start_command(BuildGraph& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
   std::string exec_path = cmd->getCommand();
 
   std::vector<char*> exec_argv;
@@ -304,7 +304,7 @@ pid_t start_command(Trace& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry cons
   return pid;
 }
 
-void trace_step(Trace& trace, pid_t child, int wait_status) {
+void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
   enum stop_type stop_ty;
 
   if (WIFSTOPPED(wait_status)) {

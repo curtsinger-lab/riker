@@ -12,8 +12,8 @@
 
 #include <kj/vector.h>
 
+#include "core/BuildGraph.hh"
 #include "core/dodorun.hh"
-#include "core/middle.hh"
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
   // Create a managed reference to a trace state
-  Trace trace(cwd);
+  BuildGraph trace(cwd);
 
   // Clean up after getcwd
   free(cwd);

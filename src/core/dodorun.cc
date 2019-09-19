@@ -18,7 +18,7 @@
 
 #include <capnp/message.h>
 
-#include "core/file.hh"
+#include "core/File.hh"
 #include "db/db.capnp.h"
 #include "ui/graphviz.hh"
 #include "ui/util.hh"

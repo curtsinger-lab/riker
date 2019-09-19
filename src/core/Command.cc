@@ -1,8 +1,8 @@
-#include "core/command.hh"
+#include "core/Command.hh"
 
-#include "core/file.hh"
+#include "core/File.hh"
 
-Command::Command(Trace& state, std::string cmd, Command* parent, unsigned int depth) :
+Command::Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth) :
     _state(state),
     _cmd(cmd),
     _parent(parent),

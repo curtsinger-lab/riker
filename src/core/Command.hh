@@ -5,22 +5,22 @@
 #include <set>
 #include <string>
 
-#include "core/file.hh"
-#include "core/middle.hh"
+#include "core/BuildGraph.hh"
+#include "core/File.hh"
 
 struct File;
 struct FileDescriptor;
-struct Trace;
+struct BuildGraph;
 
 struct Command {
-  Command(Trace& state, std::string cmd, Command* parent, unsigned int depth);
+  Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth);
 
   Command* createChild(std::string cmd);
 
   void add_input(File* f);
-  
+
   void add_output(File* f, size_t file_location);
-  
+
   size_t descendants(void);
 
   void collapse(std::set<Command*>* commands);
@@ -36,7 +36,7 @@ struct Command {
   bool canDependOn(const File* f);
 
  private:
-  Trace& _state;
+  BuildGraph& _state;
   std::string _cmd;
   std::vector<std::string> _args;
   Command* _parent;
