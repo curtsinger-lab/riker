@@ -15,6 +15,7 @@
 #include <capnp/orphan.h>
 #include <kj/array.h>
 
+#include "core/command.hh"
 #include "core/file.hh"
 #include "db/db.capnp.h"
 
@@ -36,70 +37,6 @@ struct File;
 struct FileDescriptor;
 struct Process;
 struct Trace;
-
-struct Command {
-  Command(Trace& state, std::string cmd, Command* parent, unsigned int depth) :
-      _state(state),
-      _cmd(cmd),
-      _parent(parent),
-      _depth(depth) {}
-
-  Command* createChild(std::string cmd) {
-    Command* child = new Command(_state, cmd, this, _depth + 1);
-    children.push_back(child);
-    return child;
-  }
-
-  void add_input(File* f);
-  void add_output(File* f, size_t file_location);
-  size_t descendants(void);
-
-  void collapse(std::set<Command*>* commands);
-
-  Command* collapse_helper(unsigned int min_depth) {
-    if (_depth > min_depth) {
-      this->collapse_with_parent = true;
-      return _parent->collapse_helper(min_depth);
-    } else {
-      return this;
-    }
-  }
-
-  const std::string& getCommand() { return _cmd; }
-
-  const std::vector<std::string>& getArguments() { return _args; }
-
-  void addArgument(std::string arg) { _args.push_back(arg); }
-
-  bool canDependOn(const File* f) {
-    // If this command is the only writer, it cannot depend on the file
-
-    if (f->getWriter() == this) return false;
-
-    // If the file is not written and was created by this command, it cannot depend on the file
-    if (!f->isWritten() && f->getCreator() == this) return false;
-
-    // Otherwise the command can depend on the file
-    return true;
-  }
-
- private:
-  Trace& _state;
-  std::string _cmd;
-  std::vector<std::string> _args;
-  Command* _parent;
-  const unsigned int _depth;
-
- public:
-  std::list<Command*> children;
-  std::set<File*> inputs;
-  std::set<File*> outputs;
-  std::set<File*> wr_interactions;
-  std::set<File*> rd_interactions;
-  std::set<File*> deleted_files;
-  bool collapse_with_parent;
-  std::map<int, FileDescriptor> initial_fds;
-};
 
 struct FileDescriptor {
   size_t location_index;  // Used in Process::fds
@@ -154,202 +91,40 @@ struct Trace {
 
   std::string getStartingDir() { return _starting_dir; }
 
-  void newProcess(pid_t pid, Command* cmd) {
-    Process* proc = new Process(pid, _starting_dir, cmd);
-    _processes.emplace(pid, proc);
-    // processes.insert(std::pair<pid_t, Process*>(pid, proc));
-  }
+  void newProcess(pid_t pid, Command* cmd);
 
-  size_t find_file(std::string path) {
-    for (size_t index = 0; index < this->latest_versions.size(); index++) {
-      if (!this->latest_versions[index]->isPipe() &&
-          this->latest_versions[index]->getPath() == path) {
-        return index;
-      }
-    }
-    size_t location = this->latest_versions.size();
-    File& new_node = files.emplace_front(*this, location, false, path, nullptr, nullptr);
-    this->latest_versions.push_back(&new_node);
-    return location;
-  }
+  size_t find_file(std::string path);
 
   void serialize_graph();
 
-  void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
-    Process* proc = _processes[pid];
-    size_t file_location;
-    if (file.fd == AT_FDCWD) {
-      file_location = this->find_file(file.path);
-    } else {
-      // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
-      if (proc->fds.find(file.fd) == proc->fds.end()) {
-        // TODO: Use a proper placeholder and stop fiddling with string
-        // manipulation
-        std::string path_str;
-        switch (file.fd) {  // This is a temporary hack until we handle pipes well
-          case 0:
-            path_str = "<<stdin>>";
-            break;
-          case 1:
-            path_str = "<<stdout>>";
-            break;
-          case 2:
-            path_str = "<<stderr>>";
-            break;
-          default:
-            path_str = "file not found, fd: " + std::to_string(file.fd);
-            break;
-        }
-        file_location = this->find_file(path_str);
-      } else {
-        file_location = proc->fds.find(file.fd)->second.location_index;
-      }
-    }
-    File* f = this->latest_versions[file_location];
-
-    // fprintf(stdout, "file: %.*s-%d ", (int)path.size(),
-    // path.asChars().begin(), f->version);
-    switch (type) {
-      case DEP_READ:
-        // fprintf(stdout, "read");
-        if (proc->getCommand()->canDependOn(f)) {
-          proc->getCommand()->add_input(f);
-          // fprintf(stdout, ", depend");
-        }
-        break;
-      case DEP_MODIFY:
-        // fprintf(stdout, "modify");
-        proc->getCommand()->add_output(f, file_location);
-        break;
-      case DEP_CREATE:
-        // fprintf(stdout, "create");
-        // Creation means creation only if the file does not already exist.
-        if (f->isCreated() && !f->isWritten()) {
-          bool file_exists;
-          if (f->isRemoved() || f->isPipe()) {
-            file_exists = false;
-          } else {
-            struct stat stat_info;
-            file_exists = (lstat(f->getPath().cStr(), &stat_info) == 0);
-          }
-
-          if (!file_exists) {
-            f->setCreator(proc->getCommand());
-            f->setRemoved(false);
-          }
-        }
-        break;
-      case DEP_REMOVE:
-        // fprintf(stdout, "remove");
-        proc->getCommand()->deleted_files.insert(f);
-        f = f->createVersion();
-        f->setCreator(nullptr);
-        f->setWriter(nullptr);
-        f->setRemoved();
-        break;
-    }
-  }
+  void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type);
 
   void add_chdir(pid_t pid, struct file_reference& file) { _processes[pid]->chdir(file.path); }
 
   void add_chroot(pid_t pid, struct file_reference& file) { _processes[pid]->chroot(file.path); }
 
   void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
-                bool cloexec, mode_t mode) {
-    Process* proc = _processes[pid];
+                bool cloexec, mode_t mode);
 
-    // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
-    // TODO take into account root and cwd
-    size_t file_location = this->find_file(file.path);
-    File* f = this->latest_versions[file_location];
-    if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
-      // fprintf(stdout, "REWRITE ");
-      f = f->createVersion();
-      f->setCreator(proc->getCommand());
-      f->setWriter(nullptr);
-      f->setMode(mode);
-    }
-    proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
-    if (file.fd == AT_FDCWD) {
-      // fprintf(stdout, " %.*s\n", (int)file.path.size(),
-      // file.path.asChars().begin());
-    } else {
-      // fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(),
-      // file.path.asChars().begin());
-    }
-  }
+  void add_pipe(pid_t pid, int fds[2], bool cloexec);
 
-  void add_pipe(pid_t pid, int fds[2], bool cloexec) {
-    Process* proc = _processes[pid];
-    // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
-    size_t location = this->latest_versions.size();
-    File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
-    latest_versions.push_back(&p);
-    proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
-    proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
-  }
+  void add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec);
 
-  void add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-    Process* proc = _processes[pid];
-    auto duped_file = proc->fds.find(duped_fd);
-    if (duped_file == proc->fds.end()) {
-      proc->fds.erase(new_fd);
-    } else {
-      proc->fds[new_fd] = FileDescriptor(duped_file->second.location_index,
-                                         duped_file->second.access_mode, cloexec);
-    }
-  }
+  void add_set_cloexec(pid_t pid, int fd, bool cloexec);
 
-  void add_set_cloexec(pid_t pid, int fd, bool cloexec) {
-    Process* proc = _processes[pid];
-    auto file = proc->fds.find(fd);
-    if (file != proc->fds.end()) {
-      file->second.cloexec = cloexec;
-    }
-  }
-
-  void add_mmap(pid_t pid, int fd) {
-    Process* proc = _processes[pid];
-    FileDescriptor& desc = proc->fds.find(fd)->second;
-    File* f = this->latest_versions[desc.location_index];
-    f->addMmap(proc);
-    proc->mmaps.insert(f);
-    // std::cout << "MMAP ";
-    if (desc.access_mode != O_WRONLY) {
-      // std::cout << "read ";
-      proc->getCommand()->add_input(f);
-    }
-    if (desc.access_mode != O_RDONLY) {
-      // std::cout << "write";
-      proc->getCommand()->add_output(f, desc.location_index);
-    }
-  }
+  void add_mmap(pid_t pid, int fd);
 
   void add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
 
-  void add_fork(pid_t pid, pid_t child_pid) {
-    // fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id,
-    // child_process_id);
-    _processes[child_pid] = _processes[pid]->fork(child_pid);
-  }
+  void add_fork(pid_t pid, pid_t child_pid);
 
   void add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
 
-  void add_exec(pid_t pid, std::string exe_path) {
-    Process* proc = _processes.at(pid);
-    proc->exec(*this, exe_path);
-  }
+  void add_exec(pid_t pid, std::string exe_path);
 
-  void add_exec_argument(pid_t pid, std::string argument, int index) {
-    _processes[pid]->getCommand()->addArgument(argument);
-  }
+  void add_exec_argument(pid_t pid, std::string argument, int index);
 
-  void add_exit(pid_t pid) {
-    Process* proc = _processes[pid];
-    for (auto f : proc->mmaps) {
-      f->removeMmap(proc);
-    }
-  }
+  void add_exit(pid_t pid);
 
  private:
   std::string _starting_dir;

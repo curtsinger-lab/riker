@@ -14,76 +14,11 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 
+#include "core/command.hh"
 #include "core/file.hh"
 #include "db/db.capnp.h"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
-void Command::add_input(File* f) {
-  // search through all files, do versioning
-  f->addInteractor(this);
-  f->addReader(this);
-  this->inputs.insert(f);
-
-  // No checking for races on pipes
-  if (f->isPipe()) return;
-
-  // If we've read from this file before, check for a race
-  // TODO: Use set find
-  for (auto rd : this->rd_interactions) {
-    if (f->getLocation() == rd->getLocation() && f->getWriter() != this) {
-      if (f->getVersion() == rd->getVersion()) {
-        return;
-      } else /* we've found a race */ {
-        std::set<Command*> conflicts = f->collapse(rd->getVersion());
-        this->collapse(&conflicts);
-      }
-    }
-  }
-  // mark that we've now interacted with this version of the file
-  this->rd_interactions.insert(f);
-}
-
-void Command::add_output(File* f, size_t file_location) {
-  // if we've written to the file before, check for a race
-  if (!f->isPipe()) {
-    for (auto wr : this->wr_interactions) {
-      if (f->getLocation() == wr->getLocation()) {
-        this->outputs.insert(f);
-        if (f->getVersion() == wr->getVersion()) {
-          return;
-        } else {
-          std::set<Command*> conflicts = f->collapse(wr->getVersion());
-          this->collapse(&conflicts);
-          // wr->has_race = true;
-          // this->has_race = true;
-          return;
-        }
-      }
-    }
-  }
-
-  f->addInteractor(this);
-  // if we haven't written to this file before, create a new version
-  File* fnew;
-  if ((f->isCreated() && !f->isWritten()) || f->getWriter() == this) {
-    // Unless we just created it, in which case it is pristine
-    fnew = f;
-  } else {
-    fnew = f->createVersion();
-    fnew->setCreator(nullptr);
-  }
-  fnew->setWriter(this);
-  this->outputs.insert(fnew);
-  this->wr_interactions.insert(fnew);
-}
-
-uint64_t Command::descendants(void) {
-  uint64_t ret = 0;
-  for (auto c : this->children) {
-    ret += 1 + c->descendants();
-  }
-  return ret;
-}
 
 static uint64_t serialize_commands(Command* command,
                                    ::capnp::List<db::Command>::Builder& command_list,
@@ -121,36 +56,6 @@ static uint64_t serialize_commands(Command* command,
 
   command_list[start_index].setDescendants(index - start_index - 1);
   return index;
-}
-
-void Command::collapse(std::set<Command*>* commands) {
-  // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
-  unsigned int ansc_depth = _depth;
-  // find the minimum common depth
-  for (auto c : *commands) {
-    if (c->_depth < ansc_depth) {
-      ansc_depth = c->_depth;
-    }
-  }
-  bool fully_collapsed = false;
-  while (!fully_collapsed) {
-    // std::cerr << "  Target depth " << ansc_depth << std::endl;
-    // collapse all commands to this depth
-    Command* prev_command = nullptr;
-    Command* cur_command;
-    fully_collapsed = true;
-    for (auto c : *commands) {
-      cur_command = c->collapse_helper(ansc_depth);
-      // std::cerr << "    " << std::string(c->cmd.asPtr().asChars().begin(), c->cmd.asPtr().size())
-      // << " collapsed to " << std::string(cur_command->cmd.asPtr().asChars().begin(),
-      // cur_command->cmd.asPtr().size()) << std::endl;
-      if (cur_command != prev_command && prev_command != nullptr) {
-        fully_collapsed = false;
-      }
-      prev_command = cur_command;
-    }
-    ansc_depth--;
-  }
 }
 
 /* -------------------------- FileDescriptor Methods --------------------------------------*/
@@ -195,6 +100,192 @@ void Process::exec(Trace& trace, std::string exe_path) {
 }
 
 /* -------------------------- Trace_State Methods ----------------------------------------*/
+
+void Trace::newProcess(pid_t pid, Command* cmd) {
+  Process* proc = new Process(pid, _starting_dir, cmd);
+  _processes.emplace(pid, proc);
+}
+
+size_t Trace::find_file(std::string path) {
+  for (size_t index = 0; index < this->latest_versions.size(); index++) {
+    if (!this->latest_versions[index]->isPipe() &&
+        this->latest_versions[index]->getPath() == path) {
+      return index;
+    }
+  }
+  size_t location = this->latest_versions.size();
+  File& new_node = files.emplace_front(*this, location, false, path, nullptr, nullptr);
+  this->latest_versions.push_back(&new_node);
+  return location;
+}
+
+void Trace::add_fork(pid_t pid, pid_t child_pid) {
+  // fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id,
+  // child_process_id);
+  _processes[child_pid] = _processes[pid]->fork(child_pid);
+}
+
+void Trace::add_exec(pid_t pid, std::string exe_path) {
+  Process* proc = _processes.at(pid);
+  proc->exec(*this, exe_path);
+}
+
+void Trace::add_exec_argument(pid_t pid, std::string argument, int index) {
+  _processes[pid]->getCommand()->addArgument(argument);
+}
+
+void Trace::add_exit(pid_t pid) {
+  Process* proc = _processes[pid];
+  for (auto f : proc->mmaps) {
+    f->removeMmap(proc);
+  }
+}
+
+void Trace::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
+                     bool is_rewrite, bool cloexec, mode_t mode) {
+  Process* proc = _processes[pid];
+
+  // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
+  // TODO take into account root and cwd
+  size_t file_location = this->find_file(file.path);
+  File* f = this->latest_versions[file_location];
+  if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
+    // fprintf(stdout, "REWRITE ");
+    f = f->createVersion();
+    f->setCreator(proc->getCommand());
+    f->setWriter(nullptr);
+    f->setMode(mode);
+  }
+  proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
+  if (file.fd == AT_FDCWD) {
+    // fprintf(stdout, " %.*s\n", (int)file.path.size(),
+    // file.path.asChars().begin());
+  } else {
+    // fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(),
+    // file.path.asChars().begin());
+  }
+}
+
+void Trace::add_pipe(pid_t pid, int fds[2], bool cloexec) {
+  Process* proc = _processes[pid];
+  // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
+  size_t location = this->latest_versions.size();
+  File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
+  latest_versions.push_back(&p);
+  proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
+  proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
+}
+
+void Trace::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
+  Process* proc = _processes[pid];
+  auto duped_file = proc->fds.find(duped_fd);
+  if (duped_file == proc->fds.end()) {
+    proc->fds.erase(new_fd);
+  } else {
+    proc->fds[new_fd] =
+        FileDescriptor(duped_file->second.location_index, duped_file->second.access_mode, cloexec);
+  }
+}
+
+void Trace::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
+  Process* proc = _processes[pid];
+  auto file = proc->fds.find(fd);
+  if (file != proc->fds.end()) {
+    file->second.cloexec = cloexec;
+  }
+}
+
+void Trace::add_mmap(pid_t pid, int fd) {
+  Process* proc = _processes[pid];
+  FileDescriptor& desc = proc->fds.find(fd)->second;
+  File* f = this->latest_versions[desc.location_index];
+  f->addMmap(proc);
+  proc->mmaps.insert(f);
+  // std::cout << "MMAP ";
+  if (desc.access_mode != O_WRONLY) {
+    // std::cout << "read ";
+    proc->getCommand()->add_input(f);
+  }
+  if (desc.access_mode != O_RDONLY) {
+    // std::cout << "write";
+    proc->getCommand()->add_output(f, desc.location_index);
+  }
+}
+
+void Trace::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
+  Process* proc = _processes[pid];
+  size_t file_location;
+  if (file.fd == AT_FDCWD) {
+    file_location = this->find_file(file.path);
+  } else {
+    // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
+    if (proc->fds.find(file.fd) == proc->fds.end()) {
+      // TODO: Use a proper placeholder and stop fiddling with string
+      // manipulation
+      std::string path_str;
+      switch (file.fd) {  // This is a temporary hack until we handle pipes well
+        case 0:
+          path_str = "<<stdin>>";
+          break;
+        case 1:
+          path_str = "<<stdout>>";
+          break;
+        case 2:
+          path_str = "<<stderr>>";
+          break;
+        default:
+          path_str = "file not found, fd: " + std::to_string(file.fd);
+          break;
+      }
+      file_location = this->find_file(path_str);
+    } else {
+      file_location = proc->fds.find(file.fd)->second.location_index;
+    }
+  }
+  File* f = this->latest_versions[file_location];
+
+  // fprintf(stdout, "file: %.*s-%d ", (int)path.size(),
+  // path.asChars().begin(), f->version);
+  switch (type) {
+    case DEP_READ:
+      // fprintf(stdout, "read");
+      if (proc->getCommand()->canDependOn(f)) {
+        proc->getCommand()->add_input(f);
+        // fprintf(stdout, ", depend");
+      }
+      break;
+    case DEP_MODIFY:
+      // fprintf(stdout, "modify");
+      proc->getCommand()->add_output(f, file_location);
+      break;
+    case DEP_CREATE:
+      // fprintf(stdout, "create");
+      // Creation means creation only if the file does not already exist.
+      if (f->isCreated() && !f->isWritten()) {
+        bool file_exists;
+        if (f->isRemoved() || f->isPipe()) {
+          file_exists = false;
+        } else {
+          struct stat stat_info;
+          file_exists = (lstat(f->getPath().cStr(), &stat_info) == 0);
+        }
+
+        if (!file_exists) {
+          f->setCreator(proc->getCommand());
+          f->setRemoved(false);
+        }
+      }
+      break;
+    case DEP_REMOVE:
+      // fprintf(stdout, "remove");
+      proc->getCommand()->deleted_files.insert(f);
+      f = f->createVersion();
+      f->setCreator(nullptr);
+      f->setWriter(nullptr);
+      f->setRemoved();
+      break;
+  }
+}
 
 void Trace::serialize_graph(void) {
   ::capnp::MallocMessageBuilder message;
