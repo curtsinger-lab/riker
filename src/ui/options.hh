@@ -1,5 +1,8 @@
 #pragma once
 
+#include <set>
+#include <string>
+
 #include "ui/log.hh"
 
 enum log_level : int { Verbose = 0, Info = 1, Warning = 2, Fatal = 3 };

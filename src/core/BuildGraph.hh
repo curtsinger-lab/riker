@@ -1,26 +1,20 @@
 #pragma once
 
+#include <cstddef>
 #include <list>
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #include <capnp/message.h>
-#include <capnp/orphan.h>
-#include <kj/array.h>
 
-#include "core/Command.hh"
 #include "core/File.hh"
-#include "core/FileDescriptor.hh"
-#include "core/Process.hh"
-#include "db/db.capnp.h"
+
+struct Command;
+struct Process;
 
 enum dependency_type { DEP_READ, DEP_MODIFY, DEP_CREATE, DEP_REMOVE };
 

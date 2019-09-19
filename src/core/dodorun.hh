@@ -1,14 +1,14 @@
+#include <cstddef>
 #include <limits>
 #include <queue>
 #include <set>
 #include <string>
 #include <vector>
 
-#include <capnp/serialize.h>
-
 #include "db/db.capnp.h"
 
 struct old_command;
+
 struct old_file {
   size_t id;
   bool is_pipe;

@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
+#include <syscall.h>
+
 #define SYSCALL_NUMBER orig_rax
 #define SYSCALL_RETURN rax
 #define SYSCALL_ARG1 rdi

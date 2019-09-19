@@ -1,16 +1,16 @@
 #pragma once
 
+#include <cstddef>
 #include <list>
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
-#include "core/BuildGraph.hh"
-#include "core/File.hh"
+#include "core/FileDescriptor.hh"
 
-struct File;
-struct FileDescriptor;
 struct BuildGraph;
+struct File;
 
 struct Command {
   Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth);

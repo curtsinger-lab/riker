@@ -1,19 +1,32 @@
 #include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <forward_list>
 #include <iostream>
-#include <memory>
+#include <limits>
+#include <list>
+#include <map>
+#include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <fcntl.h>
-#include <spawn.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <capnp/list.h>
+#include <capnp/message.h>
+#include <capnp/serialize.h>
+#include <kj/common.h>
 #include <kj/vector.h>
 
 #include "core/BuildGraph.hh"
+#include "core/Command.hh"
 #include "core/dodorun.hh"
+#include "db/db.capnp.h"
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"

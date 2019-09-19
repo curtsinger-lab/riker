@@ -1,6 +1,8 @@
 #pragma once
 
-#include "core/File.hh"
+#include <cstddef>
+
+struct File;
 
 struct FileDescriptor {
   size_t location_index;  // Used in Process::fds

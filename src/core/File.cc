@@ -1,16 +1,28 @@
 #include "core/File.hh"
 
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <list>
 #include <set>
+#include <string>
+#include <vector>
 
 #include <dirent.h>
 #include <fcntl.h>
 #include <linux/magic.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <sys/types.h>
-#include <sys/vfs.h>
 #include <unistd.h>
 
+#include <capnp/blob.h>
+#include <capnp/message.h>
+#include <kj/array.h>
+#include <kj/common.h>
+
 #include "core/BuildGraph.hh"
+#include "core/Process.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
 

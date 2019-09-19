@@ -1,22 +1,16 @@
 #include "core/dodorun.hh"
 
 #include <cassert>
-#include <cstdint>
-#include <cstdio>
+#include <iostream>
 #include <limits>
-#include <list>
-#include <map>
 #include <queue>
 #include <set>
-#include <utility>
 #include <vector>
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
-#include <capnp/message.h>
+#include <capnp/blob.h>
+#include <capnp/list.h>
 
 #include "core/File.hh"
 #include "db/db.capnp.h"

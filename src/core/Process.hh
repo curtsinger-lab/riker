@@ -5,11 +5,13 @@
 #include <set>
 #include <string>
 
-#include "core/BuildGraph.hh"
-#include "core/Command.hh"
-#include "core/File.hh"
+#include <sys/types.h>
 
-struct FileDescriptor;
+#include "core/FileDescriptor.hh"
+
+struct BuildGraph;
+struct Command;
+struct File;
 
 struct Process : public std::enable_shared_from_this<Process> {
   pid_t thread_id;

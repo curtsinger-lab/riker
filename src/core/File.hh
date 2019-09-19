@@ -1,8 +1,12 @@
 #pragma once
 
-#include <list>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
+
+#include <capnp/orphan.h>
+#include <kj/string.h>
 
 #include "db/db.capnp.h"
 

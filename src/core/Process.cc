@@ -1,9 +1,15 @@
 #include "core/Process.hh"
 
+#include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "core/BuildGraph.hh"
+#include "core/Command.hh"
+#include "core/File.hh"
+#include "core/FileDescriptor.hh"
 
 Process::Process(pid_t thread_id, std::string cwd, Command* command) :
     thread_id(thread_id),

@@ -1,9 +1,6 @@
 #include "ui/graphviz.hh"
 
-#include <cstdio>
-#include <cstdlib>
 #include <fstream>
-#include <iostream>
 
 Graphviz::Graphviz(void) { this->graph.open("out.dot"); }
 

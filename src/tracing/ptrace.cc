@@ -1,33 +1,35 @@
 #include "tracing/ptrace.hh"
 
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <list>
 #include <memory>
-
-#include <experimental/filesystem>
+#include <string>
+#include <vector>
 
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/audit.h>
+#include <linux/bpf_common.h>
 #include <linux/filter.h>
-#include <linux/limits.h>
 #include <linux/seccomp.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
-#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <syscall.h>
 #include <unistd.h>
 
-#include <kj/array.h>
-#include <kj/vector.h>
-
 #include "core/BuildGraph.hh"
+#include "core/Command.hh"
 #include "tracing/syscalls.hh"
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
@@ -267,7 +269,8 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(BuildGraph& trace, Command* cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+pid_t start_command(BuildGraph& trace, Command* cmd,
+                    kj::ArrayPtr<InitialFdEntry const> initial_fds) {
   std::string exec_path = cmd->getCommand();
 
   std::vector<char*> exec_argv;
@@ -366,7 +369,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
             ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), nullptr);
         args.push_back(read_tracee_string(child, arg_ptr));
       }
-      
+
       trace.add_exec(child, get_executable(child), args);
 
       ptrace(PTRACE_CONT, child, nullptr, 0);

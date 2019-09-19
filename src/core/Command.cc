@@ -1,6 +1,9 @@
 #include "core/Command.hh"
 
+#include <cstdint>
+
 #include "core/File.hh"
+#include "core/FileDescriptor.hh"
 
 Command::Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth) :
     _state(state),

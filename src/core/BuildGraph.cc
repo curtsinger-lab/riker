@@ -1,21 +1,24 @@
 #include "core/BuildGraph.hh"
 
-#include <iostream>
+#include <cstdint>
+#include <set>
+#include <utility>
 
 #include <fcntl.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
+#include <capnp/list.h>
 #include <capnp/message.h>
 #include <capnp/serialize.h>
+#include <kj/string.h>
 
 #include "core/Command.hh"
 #include "core/File.hh"
+#include "core/FileDescriptor.hh"
+#include "core/Process.hh"
 #include "db/db.capnp.h"
 
 static uint64_t serialize_commands(Command* command,
