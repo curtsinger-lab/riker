@@ -19,10 +19,20 @@ struct Process : public std::enable_shared_from_this<Process> {
   std::map<int, FileDescriptor> fds;
   std::set<File*> mmaps;
 
+  /****** Constructors ******/
+  
   Process(pid_t thread_id, std::string cwd, Command* command);
+  
+  // Disallow Copy
+  Process(const Process&) = delete;
+  Process& operator=(const Process&) = delete;
+  
+  // Allow Move
+  Process(Process&&) = default;
+  Process& operator=(Process&&) = default;
 
-  Command* getCommand() { return _command; }
-
+  /****** Non-trivial methods ******/
+  
   void chdir(std::string newdir);
 
   void chroot(std::string newroot);
@@ -30,6 +40,10 @@ struct Process : public std::enable_shared_from_this<Process> {
   std::shared_ptr<Process> fork(pid_t child_pid);
 
   void exec(BuildGraph& trace, std::string exe_path, const std::list<std::string>& args);
+  
+  /****** Getters and setters ******/
+
+  Command* getCommand() { return _command; }
 
  private:
   Command* _command;

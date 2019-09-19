@@ -13,12 +13,24 @@ struct BuildGraph;
 struct File;
 
 struct Command {
+  /****** Constructors ******/
+
  private:
   Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args, Command* parent,
           unsigned int depth);
 
  public:
   Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args);
+
+  // Disallow Copy
+  Command(const Command&) = delete;
+  Command& operator=(const Command&) = delete;
+
+  // Allow Move
+  Command(Command&&) = default;
+  Command& operator=(Command&&) = default;
+
+  /****** Non-trivial methods ******/
 
   Command* createChild(std::string cmd, const std::list<std::string>& args);
 
@@ -30,14 +42,14 @@ struct Command {
 
   void collapse(std::set<Command*>* commands);
 
-  Command* collapse_helper(unsigned int min_depth);  
+  Command* collapse_helper(unsigned int min_depth);
 
   bool canDependOn(const File* f);
 
   /****** Getters and setters ******/
-  
+
   const std::string& getCommand() { return _cmd; }
-  
+
   const std::list<std::string>& getArguments() { return _args; }
 
   const std::list<Command*>& getChildren() { return _children; }

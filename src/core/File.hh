@@ -20,8 +20,20 @@ struct BuildGraph;
 bool match_fingerprint(db::File::Reader file);
 
 struct File {
+  /****** Constructors ******/
+
   File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
        File* prev_version);
+
+  // Disallow Copy
+  File(const File&) = delete;
+  File& operator=(const File&) = delete;
+  
+  // Allow Move
+  File(File&&) = default;
+  File& operator=(File&&) = default;
+
+  /****** Non-trivial methods ******/
 
   std::set<Command*> collapse(unsigned int depth);
 
