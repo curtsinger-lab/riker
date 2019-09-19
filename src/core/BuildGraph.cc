@@ -35,18 +35,19 @@ static uint64_t serialize_commands(Command* command,
     argv.set(argv_index, arg);
     argv_index++;
   }
-  auto initial_fds = command_list[start_index].initInitialFDs(command->initial_fds.size());
+  auto initial_fds = command_list[start_index].initInitialFDs(command->getInitialFDs().size());
   size_t fd_index = 0;
-  for (auto fd = command->initial_fds.begin(); fd != command->initial_fds.end(); ++fd) {
-    auto file_id = file_ids.find(fd->second.file);
+
+  for (auto fd : command->getInitialFDs()) {
+    auto file_id = file_ids.find(fd.second.file);
     if (file_id == file_ids.end()) {
       continue;
     }
 
-    initial_fds[fd_index].setFd(fd->first);
+    initial_fds[fd_index].setFd(fd.first);
     initial_fds[fd_index].setFileID(file_id->second);
-    initial_fds[fd_index].setCanRead(fd->second.access_mode != O_WRONLY);
-    initial_fds[fd_index].setCanWrite(fd->second.access_mode != O_RDONLY);
+    initial_fds[fd_index].setCanRead(fd.second.access_mode != O_WRONLY);
+    initial_fds[fd_index].setCanWrite(fd.second.access_mode != O_RDONLY);
     fd_index++;
   }
 

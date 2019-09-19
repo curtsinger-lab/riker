@@ -43,6 +43,9 @@ struct Command {
   void addDeletedFile(File* f) { _deleted_files.insert(f); }
   
   bool getCollapseWithParent() const { return _collapse_with_parent; }
+  
+  const std::map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
+  void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
  private:
   BuildGraph& _state;
@@ -57,7 +60,5 @@ struct Command {
   std::set<File*> _rd_interactions;
   std::set<File*> _deleted_files;
   bool _collapse_with_parent;
-
- public:
-  std::map<int, FileDescriptor> initial_fds;
+  std::map<int, FileDescriptor> _initial_fds;
 };

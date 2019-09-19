@@ -47,7 +47,7 @@ void Process::exec(BuildGraph& trace, std::string exe_path) {
   for (auto it = fds.begin(); it != fds.end(); ++it) {
     it->second.file = trace.latest_versions[it->second.location_index];
   }
-  _command->initial_fds = fds;
+  _command->setInitialFDs(fds);
 
   // Assume that we can at any time write to stdout or stderr
   // TODO: Instead of checking whether we know about stdout and stderr,
