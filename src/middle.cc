@@ -216,7 +216,8 @@ void Trace::serialize_graph(void) {
   uint64_t output_count = 0;
   uint64_t create_count = 0;
   uint64_t modify_count = 0;
-  for (auto file : this->files) {
+  for (auto& f : this->files) {
+    File* file = &f;
     // We only care about files that are either written or read so filter those out.
     if (file->shouldSave()) {
       file_ids[file] = file_count;

@@ -144,10 +144,13 @@ struct Process {
 };
 
 struct Trace {
-  std::list<File*> files;
+  // Because files hold a reference into the memory managed by this message builder, it must appear
+  // before the files list to control destructor order. This is a gross hack, and should be fixed.
+  ::capnp::MallocMessageBuilder temp_message;
+  
+  std::list<File> files;
   std::vector<File*> latest_versions;
   std::list<Command*> commands;
-  ::capnp::MallocMessageBuilder temp_message;
 
   Trace(std::string starting_dir) : _starting_dir(starting_dir) {}
 
@@ -167,10 +170,8 @@ struct Trace {
       }
     }
     size_t location = this->latest_versions.size();
-    File* new_node =
-        new File(*this, location, false, path, nullptr, nullptr);
-    this->files.push_front(new_node);
-    this->latest_versions.push_back(new_node);
+    File& new_node = files.emplace_front(*this, location, false, path, nullptr, nullptr);
+    this->latest_versions.push_back(&new_node);
     return location;
   }
 
@@ -288,9 +289,8 @@ struct Trace {
     Process* proc = _processes[pid];
     // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     size_t location = this->latest_versions.size();
-    File* p = new File(*this, location, true, "", proc->getCommand(), NULL);
-    this->files.push_front(p);
-    this->latest_versions.push_back(p);
+    File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
+    latest_versions.push_back(&p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
     proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
   }

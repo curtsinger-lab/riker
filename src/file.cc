@@ -60,13 +60,12 @@ File* File::createVersion() {
   fingerprint();
   _serialized.get().setLatestVersion(false);
 
-  File* f = new File(_trace, _location, _serialized.getReader().getType() == db::FileType::PIPE,
-                     _serialized.getReader().getPath(), getCreator(), this);
-  f->_version = _version + 1;
-
-  _trace.files.push_front(f);
-  _trace.latest_versions[this->_location] = f;
-  return f;
+  File& f = _trace.files.emplace_front(_trace, _location,
+                                       _serialized.getReader().getType() == db::FileType::PIPE,
+                                       _serialized.getReader().getPath(), getCreator(), this);
+  f._version++;
+  _trace.latest_versions[this->_location] = &f;
+  return &f;
 }
 
 bool File::shouldSave() {
