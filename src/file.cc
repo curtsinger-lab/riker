@@ -22,7 +22,7 @@ File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Comm
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
     _version(0),
     _prev_version(prev_version),
-    creator(creator) {
+    _creator(creator) {
   // TODO: consider using orphans to avoid copying
   if (is_pipe) {
     _serialized.get().setType(db::FileType::PIPE);
@@ -61,7 +61,7 @@ File* File::createVersion() {
   _serialized.get().setLatestVersion(false);
 
   File* f = new File(_trace, _location, _serialized.getReader().getType() == db::FileType::PIPE,
-                     _serialized.getReader().getPath(), creator, this);
+                     _serialized.getReader().getPath(), getCreator(), this);
   f->_version = _version + 1;
 
   _trace.files.insert(f);

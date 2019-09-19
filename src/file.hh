@@ -53,10 +53,8 @@ struct File {
   const std::set<Command*>& getInteractors() const { return _interactors; }
   void addInteractor(Command* c) { _interactors.insert(c); }
 
-  bool isWritten() { return writer != nullptr; }
-
-  Command* getCreator() const { return creator; }
-  void setCreator(Command* c) { creator = c; }
+  Command* getCreator() const { return _creator; }
+  void setCreator(Command* c) { _creator = c; }
   bool isCreated() const { return getCreator() != nullptr; }
   
   Command* getWriter() const { return writer; }
@@ -81,8 +79,8 @@ struct File {
   unsigned int _version;                // The version number of this file
   File* _prev_version;
   bool _removed = false;
+  Command* _creator;
 
  public:
-  Command* creator;
   Command* writer = nullptr;
 };

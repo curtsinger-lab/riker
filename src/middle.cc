@@ -66,12 +66,12 @@ void Command::add_output(File* f, size_t file_location) {
   f->addInteractor(this);
   // if we haven't written to this file before, create a new version
   File* fnew;
-  if ((f->creator != nullptr && f->writer == nullptr) || f->writer == this) {
+  if ((f->isCreated() && f->writer == nullptr) || f->writer == this) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
     fnew = f->createVersion();
-    fnew->creator = nullptr;
+    fnew->setCreator(nullptr);
   }
   fnew->writer = this;
   this->outputs.insert(fnew);
@@ -223,8 +223,8 @@ void Trace::serialize_graph(void) {
       input_count += file->getReaders().size();
       if (file->isWritten()) output_count++;
       if (file->isCreated()) create_count++;
-      modify_count += (file->creator == nullptr && file->getPreviousVersion() != nullptr &&
-                       (file->getPreviousVersion()->creator != nullptr ||
+      modify_count += (!file->isCreated() && file->getPreviousVersion() != nullptr &&
+                       (file->getPreviousVersion()->isCreated() ||
                         (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
                          !file->getPreviousVersion()->isRemoved())));
       file_count += 1;
@@ -274,14 +274,14 @@ void Trace::serialize_graph(void) {
       outputs[output_index].setOutputID(file_id);
       output_index++;
     }
-    if (file->creator != nullptr) {
-      uint64_t creator_id = command_ids[file->creator];
+    if (file->isCreated()) {
+      uint64_t creator_id = command_ids[file->getCreator()];
       creations[create_index].setInputID(creator_id);
       creations[create_index].setOutputID(file_id);
       create_index++;
     }
-    if (file->creator == nullptr && file->getPreviousVersion() != nullptr &&
-        (file->getPreviousVersion()->creator != nullptr ||
+    if (!file->isCreated() && file->getPreviousVersion() != nullptr &&
+        (file->getPreviousVersion()->isCreated() ||
          (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
           !file->getPreviousVersion()->isRemoved()))) {
       uint64_t prev_id = file_ids[file->getPreviousVersion()];
