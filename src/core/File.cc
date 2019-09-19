@@ -26,20 +26,18 @@
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
 
-File::File(BuildGraph& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
+File::File(BuildGraph& graph, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
            File* prev_version) :
-    _trace(trace),
+    _graph(graph),
     _location(location),
-    _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
+    _path(path),
     _version(0),
     _prev_version(prev_version),
     _creator(creator) {
-  // TODO: consider using orphans to avoid copying
   if (is_pipe) {
-    _serialized.get().setType(db::FileType::PIPE);
+    _type = db::FileType::PIPE;
   } else {
-    _serialized.get().setType(db::FileType::REGULAR);
-    _serialized.get().setPath(path);
+    _type = db::FileType::REGULAR;
   }
 }
 
@@ -69,13 +67,11 @@ std::set<Command*> File::collapse(unsigned int version) {
 File* File::createVersion() {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
-  _serialized.get().setLatestVersion(false);
+  _is_latest_version = false;
 
-  File& f = _trace.files.emplace_front(_trace, _location,
-                                       _serialized.getReader().getType() == db::FileType::PIPE,
-                                       _serialized.getReader().getPath(), getCreator(), this);
+  File& f = _graph.files.emplace_front(_graph, _location, isPipe(), getPath(), getCreator(), this);
   f._version++;
-  _trace.latest_versions[this->_location] = &f;
+  _graph.latest_versions[this->_location] = &f;
   return &f;
 }
 
@@ -114,8 +110,9 @@ static int filter_nfs(const struct dirent* e) {
 
 // Compute the blake2sp checksum of a directory's contents
 // Return true on success
-template <typename OutType>
-static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
+static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
+  std::vector<uint8_t> checksum;
+
   // Select a directory filter based on filesystem
   auto filter = filter_default;
 
@@ -133,7 +130,7 @@ static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
 
   // Did reading the directory fail?
   if (entries == -1) {
-    return false;
+    return checksum;
   }
 
   // Start a checksum
@@ -151,17 +148,19 @@ static bool blake2sp_dir(std::string path_string, OutType checksum_output) {
   free(namelist);
 
   // Finish the checksum
-  blake2sp_final(&hash_state, checksum_output.begin(), checksum_output.size());
-  return true;
+  checksum.resize(BLAKE2S_OUTBYTES);
+  blake2sp_final(&hash_state, checksum.data(), checksum.size());
+  return checksum;
 }
 
 // Compute the blake2sp checksum of a file's contents
 // Return true on success
-template <typename OutType>
-static bool blake2sp_file(std::string path_string, OutType checksum_output) {
+static std::vector<uint8_t> blake2sp_file(std::string path_string) {
+  std::vector<uint8_t> checksum;
+  
   int file_fd = open(path_string.c_str(), O_RDONLY | O_CLOEXEC);
   if (file_fd < 0) {  // Error opening
-    return false;
+    return checksum;
   }
 
   blake2sp_state hash_state;
@@ -172,92 +171,91 @@ static bool blake2sp_file(std::string path_string, OutType checksum_output) {
     if (bytes_read > 0) {
       blake2sp_update(&hash_state, buffer, bytes_read);
     } else if (bytes_read == 0) {  // EOF
-      blake2sp_final(&hash_state, checksum_output.begin(), checksum_output.size());
+      checksum.resize(BLAKE2S_OUTBYTES);
+      blake2sp_final(&hash_state, checksum.data(), checksum.size());
       close(file_fd);
-      return true;
+      return checksum;
     } else {  // Error reading
       close(file_fd);
-      return false;
+      return checksum;
     }
   }
 }
 
 void File::fingerprint() {
-  auto builder = _serialized.get();
-
   // We can only fingerprint regular files for now. (Do we even want to try for others?)
-  if (builder.getType() != db::FileType::REGULAR) {
-    builder.setFingerprintType(db::FingerprintType::UNAVAILABLE);
+  if (getType() != db::FileType::REGULAR) {
+    setFingerprintType(db::FingerprintType::UNAVAILABLE);
     return;
   }
 
   auto path_string = getPath();
-  struct stat stat_info;
-  if (stat(path_string.cStr(), &stat_info) != 0) {
+
+  if (stat(path_string.cStr(), &_stat_info) != 0) {
     if (errno == ENOENT) {
-      builder.setFingerprintType(db::FingerprintType::NONEXISTENT);
+      setFingerprintType(db::FingerprintType::NONEXISTENT);
     } else {
-      builder.setFingerprintType(db::FingerprintType::UNAVAILABLE);
+      setFingerprintType(db::FingerprintType::UNAVAILABLE);
     }
     return;
   }
-
-  builder.setSize((uint64_t)stat_info.st_size);
-
-  auto mod_time = builder.initModificationTime();
-  mod_time.setSecondsSinceEpoch(stat_info.st_mtim.tv_sec);
-  mod_time.setNanoseconds(stat_info.st_mtim.tv_nsec);
-
-  builder.setInode(stat_info.st_ino);
-  builder.setMode(stat_info.st_mode);
 
   // Skip checksum if the file has no users
   if (getReaders().size()) {
-    builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+    setFingerprintType(db::FingerprintType::METADATA_ONLY);
     return;
   }
-
-  // Set up to record a checksum
-  auto checksum = builder.initChecksum(BLAKE2S_OUTBYTES);
-
   // Is this a file or a directory?
-  if ((stat_info.st_mode & S_IFMT) == S_IFDIR) {
+  if ((_stat_info.st_mode & S_IFMT) == S_IFDIR) {
     // Checksum a directory
-    if (blake2sp_dir(path_string, checksum)) {
-      builder.setFingerprintType(db::FingerprintType::BLAKE2SP);
+    _checksum = blake2sp_dir(path_string);
+
+    if (_checksum.size()) {
+      setFingerprintType(db::FingerprintType::BLAKE2SP);
     } else {
       // Accessing contents failed
-      builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+      setFingerprintType(db::FingerprintType::METADATA_ONLY);
     }
     return;
 
-  } else if ((stat_info.st_mode & S_IFMT) == S_IFREG) {
+  } else if ((_stat_info.st_mode & S_IFMT) == S_IFREG) {
     // Checksum a file
-    if (blake2sp_file(path_string, checksum)) {
-      builder.setFingerprintType(db::FingerprintType::BLAKE2SP);
+    _checksum = blake2sp_file(path_string);
+
+    if (_checksum.size()) {
+      setFingerprintType(db::FingerprintType::BLAKE2SP);
     } else {
       // Accessing contents failed
-      builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+      setFingerprintType(db::FingerprintType::METADATA_ONLY);
     }
     return;
   } else {
     // Don't checksum other types of files
-    builder.setFingerprintType(db::FingerprintType::METADATA_ONLY);
+    setFingerprintType(db::FingerprintType::METADATA_ONLY);
     return;
   }
 }
 
 void File::serialize(db::File::Builder builder) {
-  auto r = _serialized.getReader();
-  builder.setPath(r.getPath());
-  builder.setType(r.getType());
-  builder.setMode(r.getMode());
-  builder.setFingerprintType(r.getFingerprintType());
-  builder.setSize(r.getSize());
-  builder.setModificationTime(r.getModificationTime());
-  builder.setInode(r.getInode());
-  builder.setChecksum(r.getChecksum());
-  builder.setLatestVersion(r.getLatestVersion());
+  builder.setPath(getPath());
+  builder.setType(getType());
+  builder.setMode(getMode());
+  builder.setLatestVersion(isLatestVersion());
+  
+  builder.setFingerprintType(getFingerprintType());
+  
+  if(_checksum.size()) {
+    auto output_checksum = builder.initChecksum(_checksum.size());
+    memcpy(output_checksum.begin(), _checksum.data(), _checksum.size());
+  }
+  
+  builder.setSize(_stat_info.st_size);
+  builder.setInode(_stat_info.st_ino);
+  builder.setMode(_stat_info.st_mode);
+  
+  auto mod_time = builder.initModificationTime();
+  mod_time.setSecondsSinceEpoch(_stat_info.st_mtim.tv_sec);
+  mod_time.setNanoseconds(_stat_info.st_mtim.tv_nsec);
 }
 
 bool match_fingerprint(db::File::Reader file) {
@@ -306,21 +304,21 @@ bool match_fingerprint(db::File::Reader file) {
   if (file.getFingerprintType() == db::FingerprintType::BLAKE2SP) {
     // Using blake2sp
 
-    // Make space for the checksum output
-    size_t hash_size = file.getChecksum().size();
-    KJ_STACK_ARRAY(kj::byte, checksum, hash_size, hash_size, hash_size);
+    std::vector<uint8_t> checksum;
 
     // Is this a file or a directory?
     if ((stat_info.st_mode & S_IFMT) == S_IFDIR) {
       // Checksum a directory
-      if (!blake2sp_dir(path_string, checksum)) {
+      checksum = blake2sp_dir(path_string);
+      if (!checksum.size()) {
         // Checksum failed. Return mismatch
         return false;
       }
 
     } else if ((stat_info.st_mode & S_IFMT) == S_IFREG) {
       // Checksum a regular file
-      if (!blake2sp_file(path_string, checksum)) {
+      checksum = blake2sp_file(path_string);
+      if (!checksum.size()) {
         // Checksum failed. Return mismatch
         return false;
       }
@@ -330,8 +328,7 @@ bool match_fingerprint(db::File::Reader file) {
     }
 
     // Compare checksums
-    return checksum.asConst() == file.getChecksum();
-
+    return memcmp(checksum.data(), file.getChecksum().begin(), checksum.size()) == 0;
   } else {
     // Unrecognized fingerprint type
     return false;
