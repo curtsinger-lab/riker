@@ -39,8 +39,8 @@ std::set<Command*> File::collapse(unsigned int version) {
   std::set<Command*> conflicts;
   while (cur_file->getVersion() != version) {
     // add writer and all readers to conflict set
-    if (cur_file->writer != nullptr) {
-      conflicts.insert(cur_file->writer);
+    if (cur_file->isWritten()) {
+      conflicts.insert(cur_file->getWriter());
     }
     for (auto rd : cur_file->getInteractors()) {
       conflicts.insert(rd);

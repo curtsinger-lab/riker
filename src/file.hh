@@ -57,8 +57,8 @@ struct File {
   void setCreator(Command* c) { _creator = c; }
   bool isCreated() const { return getCreator() != nullptr; }
   
-  Command* getWriter() const { return writer; }
-  void setWriter(Command* c) { writer = c; }
+  Command* getWriter() const { return _writer; }
+  void setWriter(Command* c) { _writer = c; }
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
@@ -80,7 +80,5 @@ struct File {
   File* _prev_version;
   bool _removed = false;
   Command* _creator;
-
- public:
-  Command* writer = nullptr;
+  Command* _writer = nullptr;
 };

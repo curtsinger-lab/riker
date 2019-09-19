@@ -237,7 +237,7 @@ struct Trace {
       case DEP_CREATE:
         // fprintf(stdout, "create");
         // Creation means creation only if the file does not already exist.
-        if (f->isCreated() && f->writer == nullptr) {
+        if (f->isCreated() && !f->isWritten()) {
           bool file_exists;
           if (f->isRemoved() || f->isPipe()) {
             file_exists = false;
@@ -257,7 +257,7 @@ struct Trace {
         proc->getCommand()->deleted_files.insert(f);
         f = f->createVersion();
         f->setCreator(nullptr);
-        f->writer = nullptr;
+        f->setWriter(nullptr);
         f->setRemoved();
         break;
     }
@@ -291,11 +291,11 @@ struct Trace {
     // TODO take into account root and cwd
     size_t file_location = this->find_file(file.path.asPtr());
     File* f = this->latest_versions[file_location];
-    if (is_rewrite && (f->getCreator() != proc->getCommand() || f->writer != nullptr)) {
+    if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
       // fprintf(stdout, "REWRITE ");
       f = f->createVersion();
       f->setCreator(proc->getCommand());
-      f->writer = nullptr;
+      f->setWriter(nullptr);
       f->setMode(mode);
     }
     proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);

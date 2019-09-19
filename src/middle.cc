@@ -31,7 +31,7 @@ void Command::add_input(File* f) {
   // If we've read from this file before, check for a race
   // TODO: Use set find
   for (auto rd : this->rd_interactions) {
-    if (f->getLocation() == rd->getLocation() && f->writer != this) {
+    if (f->getLocation() == rd->getLocation() && f->getWriter() != this) {
       if (f->getVersion() == rd->getVersion()) {
         return;
       } else /* we've found a race */ {
@@ -66,14 +66,14 @@ void Command::add_output(File* f, size_t file_location) {
   f->addInteractor(this);
   // if we haven't written to this file before, create a new version
   File* fnew;
-  if ((f->isCreated() && f->writer == nullptr) || f->writer == this) {
+  if ((f->isCreated() && !f->isWritten()) || f->getWriter() == this) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
     fnew = f->createVersion();
     fnew->setCreator(nullptr);
   }
-  fnew->writer = this;
+  fnew->setWriter(this);
   this->outputs.insert(fnew);
   this->wr_interactions.insert(fnew);
 }
@@ -268,8 +268,8 @@ void Trace::serialize_graph(void) {
       inputs[input_index].setOutputID(user_id);
       input_index++;
     }
-    if (file->writer != nullptr) {
-      uint64_t writer_id = command_ids[file->writer];
+    if (file->isWritten()) {
+      uint64_t writer_id = command_ids[file->getWriter()];
       outputs[output_index].setInputID(writer_id);
       outputs[output_index].setOutputID(file_id);
       output_index++;
