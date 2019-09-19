@@ -1,6 +1,7 @@
 #include "core/Process.hh"
 
 #include <cstdio>
+#include <list>
 #include <memory>
 #include <string>
 #include <utility>
@@ -26,8 +27,8 @@ std::shared_ptr<Process> Process::fork(pid_t child_pid) {
   return child_proc;
 }
 
-void Process::exec(BuildGraph& trace, std::string exe_path) {
-  _command = _command->createChild(exe_path);
+void Process::exec(BuildGraph& trace, std::string exe_path, const std::list<std::string>& args) {
+  _command = _command->createChild(exe_path, args);
 
   // Close all cloexec file descriptors
   for (auto fd_entry = fds.begin(); fd_entry != fds.end();) {

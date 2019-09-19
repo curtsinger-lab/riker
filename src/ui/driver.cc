@@ -190,10 +190,11 @@ int main(int argc, char* argv[]) {
 
       // Print that we will run it
       write_shell_escaped(std::cout, run_command->executable);
-      for (size_t arg_index = 1; arg_index < run_command->args.size(); arg_index++) {
+      for (auto arg : run_command->args) {
         std::cout << " ";
-        write_shell_escaped(std::cout, run_command->args[arg_index]);
+        write_shell_escaped(std::cout, arg);
       }
+      
       // Print redirections
       for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
         std::cout << " ";
@@ -286,10 +287,7 @@ int main(int argc, char* argv[]) {
               (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
         }
         // Spawn the child
-        auto middle_cmd = new Command(trace, run_command->executable, nullptr, 0);
-        for (size_t arg_index = 0; arg_index < run_command->args.size(); arg_index++) {
-          middle_cmd->addArgument(run_command->args[arg_index]);
-        }
+        auto middle_cmd = new Command(trace, run_command->executable, run_command->args);
         child_pid = start_command(trace, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
@@ -321,8 +319,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  auto root_cmd = new Command(trace, "Dodofile", nullptr, 0);
-  root_cmd->addArgument("Dodofile");
+  auto root_cmd = new Command(trace, "Dodofile", {"Dodofile"});
 
   trace.commands.push_front(root_cmd);
 

@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <limits>
+#include <list>
 #include <queue>
 #include <set>
 #include <string>
@@ -55,7 +56,7 @@ struct old_command {
   size_t id;
   size_t num_descendants;
   std::string executable;
-  std::vector<std::string> args;
+  std::list<std::string> args;
   std::set<old_file*> inputs;
   std::set<old_file*> outputs;
   std::set<old_file*> creations;

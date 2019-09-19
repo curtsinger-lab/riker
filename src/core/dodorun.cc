@@ -47,7 +47,7 @@ static void draw_graph_nodes(Graphviz* graph, bool show_collapsed, bool show_sys
     }
     std::string label;
     if (commands[command_id]->args.size() > 0) {
-      label = commands[command_id]->args[0];
+      label = commands[command_id]->args.front();
     } else {
       label = commands[command_id]->executable;
     }

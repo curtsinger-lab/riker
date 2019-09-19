@@ -69,7 +69,7 @@ struct BuildGraph {
 
   void add_clone(pid_t pid, pid_t thread_id);
 
-  void add_exec(pid_t pid, std::string exe_path, std::list<std::string> args);
+  void add_exec(pid_t pid, std::string exe_path, const std::list<std::string>& args);
 
   void add_exit(pid_t pid);
 

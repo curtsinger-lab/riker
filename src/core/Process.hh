@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
@@ -28,7 +29,7 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   std::shared_ptr<Process> fork(pid_t child_pid);
 
-  void exec(BuildGraph& trace, std::string exe_path);
+  void exec(BuildGraph& trace, std::string exe_path, const std::list<std::string>& args);
 
  private:
   Command* _command;

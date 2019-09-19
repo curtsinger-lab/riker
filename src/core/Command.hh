@@ -13,9 +13,14 @@ struct BuildGraph;
 struct File;
 
 struct Command {
-  Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth);
+ private:
+  Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args, Command* parent,
+          unsigned int depth);
 
-  Command* createChild(std::string cmd);
+ public:
+  Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args);
+
+  Command* createChild(std::string cmd, const std::list<std::string>& args);
 
   void addInput(File* f);
 
@@ -29,28 +34,26 @@ struct Command {
 
   const std::string& getCommand() { return _cmd; }
 
-  const std::vector<std::string>& getArguments() { return _args; }
-
-  void addArgument(std::string arg) { _args.push_back(arg); }
+  const std::list<std::string>& getArguments() { return _args; }
 
   bool canDependOn(const File* f);
-  
+
   /****** Getters and setters ******/
-  
+
   const std::list<Command*>& getChildren() { return _children; }
-  
+
   const std::set<File*>& getDeletedFiles() const { return _deleted_files; }
   void addDeletedFile(File* f) { _deleted_files.insert(f); }
-  
+
   bool getCollapseWithParent() const { return _collapse_with_parent; }
-  
+
   const std::map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
   void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
  private:
-  BuildGraph& _state;
+  BuildGraph& _graph;
   std::string _cmd;
-  std::vector<std::string> _args;
+  std::list<std::string> _args;
   Command* _parent;
   const unsigned int _depth;
   std::list<Command*> _children;

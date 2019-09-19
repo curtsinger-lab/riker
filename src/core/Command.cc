@@ -5,14 +5,26 @@
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 
-Command::Command(BuildGraph& state, std::string cmd, Command* parent, unsigned int depth) :
-    _state(state),
+using std::string;
+using std::vector;
+
+Command::Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args,
+                 Command* parent, unsigned int depth) :
+    _graph(graph),
     _cmd(cmd),
+    _args(args),
     _parent(parent),
     _depth(depth) {}
 
-Command* Command::createChild(std::string cmd) {
-  Command* child = new Command(_state, cmd, this, _depth + 1);
+Command::Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args) :
+    _graph(graph),
+    _cmd(cmd),
+    _args(args),
+    _parent(nullptr),
+    _depth(0) {}
+
+Command* Command::createChild(std::string cmd, const std::list<std::string>& args) {
+  Command* child = new Command(_graph, cmd, args, this, _depth + 1);
   _children.push_back(child);
   return child;
 }
