@@ -1,4 +1,4 @@
-#include "dodorun.h"
+#include "core/dodorun.hh"
 
 #include <cassert>
 #include <cstdint>
@@ -18,11 +18,10 @@
 
 #include <capnp/message.h>
 
-#include "db.capnp.h"
-
-#include "file.hh"
-#include "graphviz.h"
-#include "util.hh"
+#include "core/file.hh"
+#include "db/db.capnp.h"
+#include "ui/graphviz.hh"
+#include "ui/util.hh"
 
 extern char** environ;
 

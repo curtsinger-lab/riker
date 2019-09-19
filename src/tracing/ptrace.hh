@@ -1,6 +1,6 @@
 #pragma once
 
-#include "middle.h"
+#include "core/middle.hh"
 
 struct InitialFdEntry {
   int parent_fd;

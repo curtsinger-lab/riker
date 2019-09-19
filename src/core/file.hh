@@ -3,9 +3,7 @@
 #include <list>
 #include <set>
 
-#include "db.capnp.h"
-
-#include "util.hh"
+#include "db/db.capnp.h"
 
 struct Command;
 struct Process;
@@ -31,7 +29,7 @@ struct File {
   void serialize(db::File::Builder builder);
 
   /****** Getters and setters ******/
-  
+
   kj::StringPtr getPath() const { return _serialized.getReader().getPath(); }
 
   db::FileType getType() { return _serialized.getReader().getType(); }
@@ -56,7 +54,7 @@ struct File {
   Command* getCreator() const { return _creator; }
   void setCreator(Command* c) { _creator = c; }
   bool isCreated() const { return getCreator() != nullptr; }
-  
+
   Command* getWriter() const { return _writer; }
   void setWriter(Command* c) { _writer = c; }
   bool isWritten() const { return getWriter() != nullptr; }

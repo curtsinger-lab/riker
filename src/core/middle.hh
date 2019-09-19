@@ -15,10 +15,8 @@
 #include <capnp/orphan.h>
 #include <kj/array.h>
 
-#include "db.capnp.h"
-
-#include "file.hh"
-#include "util.hh"
+#include "core/file.hh"
+#include "db/db.capnp.h"
 
 typedef kj::Array<kj::byte> Blob;
 typedef kj::ArrayPtr<const kj::byte> BlobPtr;
@@ -147,14 +145,14 @@ struct Trace {
   // Because files hold a reference into the memory managed by this message builder, it must appear
   // before the files list to control destructor order. This is a gross hack, and should be fixed.
   ::capnp::MallocMessageBuilder temp_message;
-  
+
   std::list<File> files;
   std::vector<File*> latest_versions;
   std::list<Command*> commands;
 
   Trace(std::string starting_dir) : _starting_dir(starting_dir) {}
 
-  Blob getStartingDir() { return stringToBlob(_starting_dir); }
+  std::string getStartingDir() { return _starting_dir; }
 
   void newProcess(pid_t pid, Command* cmd) {
     Process* proc = new Process(pid, _starting_dir, cmd);
@@ -252,13 +250,9 @@ struct Trace {
     }
   }
 
-  void add_chdir(pid_t pid, struct file_reference& file) {
-    _processes[pid]->chdir(file.path);
-  }
+  void add_chdir(pid_t pid, struct file_reference& file) { _processes[pid]->chdir(file.path); }
 
-  void add_chroot(pid_t pid, struct file_reference& file) {
-    _processes[pid]->chroot(file.path);
-  }
+  void add_chroot(pid_t pid, struct file_reference& file) { _processes[pid]->chroot(file.path); }
 
   void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
                 bool cloexec, mode_t mode) {

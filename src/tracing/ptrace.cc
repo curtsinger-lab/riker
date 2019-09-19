@@ -1,4 +1,4 @@
-#include "ptrace.h"
+#include "tracing/ptrace.hh"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,9 +27,10 @@
 #include <kj/array.h>
 #include <kj/vector.h>
 
-#include "middle.h"
-#include "syscalls.h"
-#include "util.hh"
+#include "core/middle.hh"
+#include "tracing/syscalls.hh"
+
+#define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
 std::string get_executable(pid_t pid) {
   char path_buffer[24];  // 24 is long enough for any integer PID
@@ -258,8 +259,10 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     // Copy in the data
     for (size_t i = 0; i < sizeof(long); i++) {
       char c = ((char*)&data)[i];
-      if (c == '\0') return output;
-      else output.push_back(c);
+      if (c == '\0')
+        return output;
+      else
+        output.push_back(c);
     }
   }
 }

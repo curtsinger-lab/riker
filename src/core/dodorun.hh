@@ -6,7 +6,7 @@
 
 #include <capnp/serialize.h>
 
-#include "db.capnp.h"
+#include "db/db.capnp.h"
 
 struct old_command;
 struct old_file {

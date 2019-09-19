@@ -1,37 +1,34 @@
 CC  = gcc
 CXX = g++
-COMMON_CFLAGS = -Wall -g -flto -Wfatal-errors
+COMMON_CFLAGS = -Isrc -Wall -g -flto -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -flto -lcapnp -lkj
+
+DB := src/db/db.capnp
+SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
+OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
+HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.hh?")
 
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
 all: dodo
 	
 clean:
-	rm -rf dodo objs db.dodo src/*.capnp.cc src/*.capnp.h
+	rm -rf dodo objs db.dodo $(DB).cc $(DB).h
 
 .PHONY: all clean test selftest
 
 .SUFFIXES:
 
-dodo: objs/db.capnp.o objs/ptrace.o objs/middle.o objs/graphviz.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o objs/dodorun.o objs/util.o objs/file.o
+dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
-
-.submodules-cleared:
-	git submodule deinit --all --force
-	touch $@
-
-.submodules-updated: .submodules-cleared
-	git submodule update --init
-	touch $@
 
 src/%.capnp.cc src/%.capnp.h: src/%.capnp
 	capnpc --output=c++ $<
-	mv $(addsuffix .c++,$<) $(addsuffix .cc,$<)
+	mv $(addsuffix .c++, $<) $(addsuffix .cc, $<)
 
-objs/%.o: src/%.cc $(wildcard src/*.h) $(wildcard src/*.hh) $(wildcard src/*.capnp) #.submodules-updated
-	mkdir -p objs/
+$(OBJS): objs/%.o: src/%.cc $(HEADERS) $(wildcard src/*.capnp)
+	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
 test: dodo

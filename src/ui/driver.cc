@@ -12,12 +12,12 @@
 
 #include <kj/vector.h>
 
-#include "dodorun.h"
-#include "log.hh"
-#include "middle.h"
-#include "options.hh"
-#include "ptrace.h"
-#include "util.hh"
+#include "core/dodorun.hh"
+#include "core/middle.hh"
+#include "tracing/ptrace.hh"
+#include "ui/log.hh"
+#include "ui/options.hh"
+#include "ui/util.hh"
 
 using std::forward_list;
 using std::string;

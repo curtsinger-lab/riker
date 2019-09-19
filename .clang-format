@@ -25,11 +25,7 @@ IncludeCategories:
   - Regex: '^<[[:alnum:]./_]+\.h>'
     Priority: 3
   
-  # A few special includes (internal, but generated or imported to the project)
-  - Regex: '^"(db\.capnp\.h)|(blake2-.*)"'
-    Priority: 5
-  
   # Everything else
   - Regex: '.*'
-    Priority: 6
+    Priority: 5
   

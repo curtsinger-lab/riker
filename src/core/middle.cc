@@ -1,4 +1,4 @@
-#include "middle.h"
+#include "core/middle.hh"
 
 #include <iostream>
 
@@ -14,9 +14,8 @@
 #include <capnp/message.h>
 #include <capnp/serialize.h>
 
-#include "db.capnp.h"
-
-#include "file.hh"
+#include "core/file.hh"
+#include "db/db.capnp.h"
 
 /* ------------------------------ Command Methods -----------------------------------------*/
 void Command::add_input(File* f) {

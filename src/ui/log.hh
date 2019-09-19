@@ -4,7 +4,7 @@
 #include <cstring>
 #include <iostream>
 
-#include "options.hh"
+#include "ui/options.hh"
 
 #define COLOR_VERBOSE "\033[00;32m"
 #define COLOR_INFO "\033[01;34m"

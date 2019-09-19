@@ -1,4 +1,4 @@
-#include "file.hh"
+#include "core/file.hh"
 
 #include <set>
 
@@ -10,10 +10,9 @@
 #include <sys/vfs.h>
 #include <unistd.h>
 
-#include "blake2-wrapper.h"
-#include "db.capnp.h"
-
-#include "middle.h"
+#include "core/middle.hh"
+#include "db/db.capnp.h"
+#include "fingerprint/blake2.hh"
 
 File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Command* creator,
            File* prev_version) :
@@ -157,7 +156,7 @@ static bool blake2sp_file(std::string path_string, OutType checksum_output) {
   blake2sp_init(&hash_state, BLAKE2S_OUTBYTES);
   char buffer[1 << 13];
   while (true) {
-    auto bytes_read = read(file_fd, buffer, ARRAY_COUNT(buffer));
+    auto bytes_read = read(file_fd, buffer, sizeof(buffer));
     if (bytes_read > 0) {
       blake2sp_update(&hash_state, buffer, bytes_read);
     } else if (bytes_read == 0) {  // EOF
