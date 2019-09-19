@@ -65,7 +65,7 @@ struct File {
 
   unsigned int getVersion() const { return _version; }
 
-  const File* getPreviousVersion() const { return prev_version; }
+  File* getPreviousVersion() const { return _prev_version; }
   bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
 
   bool isRemoved() const { return _removed; }
@@ -79,10 +79,10 @@ struct File {
   std::set<Command*> _interactors;      // Commands that read OR modify this file
   std::set<Process*> _mmaps;            // Processes that currently have an mmap of this file
   unsigned int _version;                // The version number of this file
+  File* _prev_version;
   bool _removed = false;
 
  public:
   Command* creator;
-  Command* writer;
-  File* prev_version;
+  Command* writer = nullptr;
 };

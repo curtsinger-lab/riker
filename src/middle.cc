@@ -223,10 +223,10 @@ void Trace::serialize_graph(void) {
       input_count += file->getReaders().size();
       if (file->isWritten()) output_count++;
       if (file->isCreated()) create_count++;
-      modify_count +=
-          (file->creator == nullptr && file->prev_version != nullptr &&
-           (file->prev_version->creator != nullptr ||
-            (file->prev_version->prev_version != nullptr && !file->prev_version->isRemoved())));
+      modify_count += (file->creator == nullptr && file->getPreviousVersion() != nullptr &&
+                       (file->getPreviousVersion()->creator != nullptr ||
+                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
+                         !file->getPreviousVersion()->isRemoved())));
       file_count += 1;
     }
   }
@@ -280,10 +280,11 @@ void Trace::serialize_graph(void) {
       creations[create_index].setOutputID(file_id);
       create_index++;
     }
-    if (file->creator == nullptr && file->prev_version != nullptr &&
-        (file->prev_version->creator != nullptr ||
-         (file->prev_version->prev_version != nullptr && !file->prev_version->isRemoved()))) {
-      uint64_t prev_id = file_ids[file->prev_version];
+    if (file->creator == nullptr && file->getPreviousVersion() != nullptr &&
+        (file->getPreviousVersion()->creator != nullptr ||
+         (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
+          !file->getPreviousVersion()->isRemoved()))) {
+      uint64_t prev_id = file_ids[file->getPreviousVersion()];
       modifications[modify_index].setInputID(prev_id);
       modifications[modify_index].setOutputID(file_id);
       modify_index++;

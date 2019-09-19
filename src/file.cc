@@ -21,9 +21,8 @@ File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Comm
     _location(location),
     _serialized(_trace.temp_message.getOrphanage().newOrphan<db::File>()),
     _version(0),
-    creator(creator),
-    writer(nullptr),
-    prev_version(prev_version) {
+    _prev_version(prev_version),
+    creator(creator) {
   // TODO: consider using orphans to avoid copying
   if (is_pipe) {
     _serialized.get().setType(db::FileType::PIPE);
@@ -51,7 +50,7 @@ std::set<Command*> File::collapse(unsigned int version) {
       conflicts.insert(m->getCommand());
     }
     // step back a version
-    cur_file = cur_file->prev_version;
+    cur_file = cur_file->getPreviousVersion();
   }
   return conflicts;
 }
@@ -81,7 +80,7 @@ bool File::shouldSave() {
   if (isCreated()) return true;
 
   // Save files with a previous version that are not removed (CC: why?)
-  if (prev_version != nullptr && !isRemoved()) return true;
+  if (hasPreviousVersion() && !isRemoved()) return true;
 
   // Skip anything else
   return false;
