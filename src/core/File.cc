@@ -69,7 +69,7 @@ File* File::createVersion() {
   fingerprint();
   _is_latest_version = false;
 
-  File& f = _graph.files.emplace_front(_graph, _location, isPipe(), getPath(), getCreator(), this);
+  File& f = _graph.addFile(File(_graph, _location, isPipe(), getPath(), getCreator(), this));
   f._version++;
   _graph.setLatestVersion(_location, &f);
   return &f;
