@@ -64,7 +64,7 @@ File* File::createVersion() {
                      _serialized.getReader().getPath(), getCreator(), this);
   f->_version = _version + 1;
 
-  _trace.files.insert(f);
+  _trace.files.push_front(f);
   _trace.latest_versions[this->_location] = f;
   return f;
 }

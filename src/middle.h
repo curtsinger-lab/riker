@@ -143,19 +143,8 @@ struct Process {
   std::string _root;
 };
 
-struct file_comparator {
-  bool operator()(File* const& lhs, File* const& rhs) const {
-    if (lhs->isPipe())
-      return true;
-    else if (rhs->isPipe())
-      return false;
-    else
-      return lhs->getPath() <= rhs->getPath();
-  }
-};
-
 struct Trace {
-  std::set<File*, file_comparator> files;
+  std::list<File*> files;
   std::vector<File*> latest_versions;
   std::list<Command*> commands;
   ::capnp::MallocMessageBuilder temp_message;
@@ -180,7 +169,7 @@ struct Trace {
     size_t location = this->latest_versions.size();
     File* new_node =
         new File(*this, location, false, path, nullptr, nullptr);
-    this->files.insert(new_node);
+    this->files.push_front(new_node);
     this->latest_versions.push_back(new_node);
     return location;
   }
@@ -300,7 +289,7 @@ struct Trace {
     // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
     size_t location = this->latest_versions.size();
     File* p = new File(*this, location, true, "", proc->getCommand(), NULL);
-    this->files.insert(p);
+    this->files.push_front(p);
     this->latest_versions.push_back(p);
     proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
     proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
