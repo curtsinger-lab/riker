@@ -23,8 +23,7 @@ File::File(Trace& trace, size_t location, bool is_pipe, kj::StringPtr path, Comm
     _version(0),
     creator(creator),
     writer(nullptr),
-    prev_version(prev_version),
-    known_removed(false) {
+    prev_version(prev_version) {
   // TODO: consider using orphans to avoid copying
   if (is_pipe) {
     _serialized.get().setType(db::FileType::PIPE);
@@ -82,7 +81,7 @@ bool File::shouldSave() {
   if (isCreated()) return true;
 
   // Save files with a previous version that are not removed (CC: why?)
-  if (prev_version != nullptr && !known_removed) return true;
+  if (prev_version != nullptr && !isRemoved()) return true;
 
   // Skip anything else
   return false;

@@ -68,8 +68,8 @@ struct File {
   const File* getPreviousVersion() const { return prev_version; }
   bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
 
-  bool isRemoved() const { return known_removed; }
-  void setRemoved() { known_removed = true; }
+  bool isRemoved() const { return _removed; }
+  void setRemoved(bool r = true) { _removed = r; }
 
  private:
   Trace& _trace;                        // A reference to the trace this file is part of
@@ -79,10 +79,10 @@ struct File {
   std::set<Command*> _interactors;      // Commands that read OR modify this file
   std::set<Process*> _mmaps;            // Processes that currently have an mmap of this file
   unsigned int _version;                // The version number of this file
+  bool _removed = false;
 
  public:
   Command* creator;
   Command* writer;
   File* prev_version;
-  bool known_removed;
 };

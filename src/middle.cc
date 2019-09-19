@@ -226,7 +226,7 @@ void Trace::serialize_graph(void) {
       modify_count +=
           (file->creator == nullptr && file->prev_version != nullptr &&
            (file->prev_version->creator != nullptr ||
-            (file->prev_version->prev_version != nullptr && !file->prev_version->known_removed)));
+            (file->prev_version->prev_version != nullptr && !file->prev_version->isRemoved())));
       file_count += 1;
     }
   }
@@ -282,7 +282,7 @@ void Trace::serialize_graph(void) {
     }
     if (file->creator == nullptr && file->prev_version != nullptr &&
         (file->prev_version->creator != nullptr ||
-         (file->prev_version->prev_version != nullptr && !file->prev_version->known_removed))) {
+         (file->prev_version->prev_version != nullptr && !file->prev_version->isRemoved()))) {
       uint64_t prev_id = file_ids[file->prev_version];
       modifications[modify_index].setInputID(prev_id);
       modifications[modify_index].setOutputID(file_id);

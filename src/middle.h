@@ -239,7 +239,7 @@ struct Trace {
         // Creation means creation only if the file does not already exist.
         if (f->creator == nullptr && f->writer == nullptr) {
           bool file_exists;
-          if (f->known_removed || f->isPipe()) {
+          if (f->isRemoved() || f->isPipe()) {
             file_exists = false;
           } else {
             struct stat stat_info;
@@ -248,7 +248,7 @@ struct Trace {
 
           if (!file_exists) {
             f->creator = proc->getCommand();
-            f->known_removed = false;
+            f->setRemoved(false);
           }
         }
         break;
@@ -258,7 +258,7 @@ struct Trace {
         f = f->createVersion();
         f->creator = nullptr;
         f->writer = nullptr;
-        f->known_removed = true;
+        f->setRemoved();
         break;
     }
     if (!file.follow_links) {
