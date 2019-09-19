@@ -75,7 +75,7 @@ struct BuildGraph {
 
   void add_fork(pid_t pid, pid_t child_pid);
 
-  void add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
+  void add_clone(pid_t pid, pid_t thread_id);
 
   void add_exec(pid_t pid, std::string exe_path);
 

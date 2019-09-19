@@ -88,6 +88,8 @@ void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
   _processes[child_pid] = _processes[pid]->fork(child_pid);
 }
 
+void BuildGraph::add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
+
 void BuildGraph::add_exec(pid_t pid, std::string exe_path) {
   Process* proc = _processes.at(pid);
   proc->exec(*this, exe_path);
