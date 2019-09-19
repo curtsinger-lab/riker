@@ -28,7 +28,7 @@ static uint64_t serialize_commands(Command* command,
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(command->getCommand());
   command_list[start_index].setOutOfDate(false);
-  command_list[start_index].setCollapseWithParent(command->collapse_with_parent);
+  command_list[start_index].setCollapseWithParent(command->getCollapseWithParent());
   auto argv = command_list[start_index].initArgv(command->getArguments().size());
   uint64_t argv_index = 0;
   for (auto& arg : command->getArguments()) {

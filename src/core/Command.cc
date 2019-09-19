@@ -116,7 +116,7 @@ void Command::collapse(std::set<Command*>* commands) {
 
 Command* Command::collapse_helper(unsigned int min_depth) {
   if (_depth > min_depth) {
-    this->collapse_with_parent = true;
+    this->_collapse_with_parent = true;
     return _parent->collapse_helper(min_depth);
   } else {
     return this;
