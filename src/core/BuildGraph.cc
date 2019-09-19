@@ -172,11 +172,11 @@ void BuildGraph::add_mmap(pid_t pid, int fd) {
   // std::cout << "MMAP ";
   if (desc.access_mode != O_WRONLY) {
     // std::cout << "read ";
-    proc->getCommand()->add_input(f);
+    proc->getCommand()->addInput(f);
   }
   if (desc.access_mode != O_RDONLY) {
     // std::cout << "write";
-    proc->getCommand()->add_output(f, desc.location_index);
+    proc->getCommand()->addOutput(f, desc.location_index);
   }
 }
 
@@ -218,13 +218,13 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
     case DEP_READ:
       // fprintf(stdout, "read");
       if (proc->getCommand()->canDependOn(f)) {
-        proc->getCommand()->add_input(f);
+        proc->getCommand()->addInput(f);
         // fprintf(stdout, ", depend");
       }
       break;
     case DEP_MODIFY:
       // fprintf(stdout, "modify");
-      proc->getCommand()->add_output(f, file_location);
+      proc->getCommand()->addOutput(f, file_location);
       break;
     case DEP_CREATE:
       // fprintf(stdout, "create");

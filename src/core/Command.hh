@@ -17,9 +17,9 @@ struct Command {
 
   Command* createChild(std::string cmd);
 
-  void add_input(File* f);
+  void addInput(File* f);
 
-  void add_output(File* f, size_t file_location);
+  void addOutput(File* f, size_t file_location);
 
   size_t descendants(void);
 
@@ -46,9 +46,9 @@ struct Command {
   Command* _parent;
   const unsigned int _depth;
   std::list<Command*> _children;
+  std::set<File*> _inputs;
 
  public:
-  std::set<File*> inputs;
   std::set<File*> outputs;
   std::set<File*> wr_interactions;
   std::set<File*> rd_interactions;

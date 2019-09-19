@@ -17,11 +17,11 @@ Command* Command::createChild(std::string cmd) {
   return child;
 }
 
-void Command::add_input(File* f) {
+void Command::addInput(File* f) {
   // search through all files, do versioning
   f->addInteractor(this);
   f->addReader(this);
-  this->inputs.insert(f);
+  this->_inputs.insert(f);
 
   // No checking for races on pipes
   if (f->isPipe()) return;
@@ -42,7 +42,7 @@ void Command::add_input(File* f) {
   this->rd_interactions.insert(f);
 }
 
-void Command::add_output(File* f, size_t file_location) {
+void Command::addOutput(File* f, size_t file_location) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
     for (auto wr : this->wr_interactions) {
