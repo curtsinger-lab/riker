@@ -21,7 +21,7 @@
 #include "db.capnp.h"
 
 #include "file.hh"
-#include "graph.h"
+#include "graphviz.h"
 #include "util.hh"
 
 extern char** environ;
@@ -40,7 +40,7 @@ bool old_file::is_local(void) {
   }
 }
 
-static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfiles,
+static void draw_graph_nodes(Graphviz* graph, bool show_collapsed, bool show_sysfiles,
                              old_command* commands[], old_file* files[], size_t command_count,
                              size_t file_count) {
   for (size_t command_id = 0; command_id < command_count; command_id++) {
@@ -84,7 +84,7 @@ static void draw_graph_nodes(Graph* graph, bool show_collapsed, bool show_sysfil
   }
 }
 
-static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool show_sysfiles,
+static void draw_graph_command_edges(Graphviz* graph, bool show_collapsed, bool show_sysfiles,
                                      old_command* commands[], old_file* files[], size_t parent_id,
                                      size_t start_id, size_t end_id) {
   size_t id = start_id;
@@ -141,7 +141,7 @@ static void draw_graph_command_edges(Graph* graph, bool show_collapsed, bool sho
   }
 }
 
-static void draw_graph_modification_edges(Graph* graph, bool show_sysfiles, old_file* files[],
+static void draw_graph_modification_edges(Graphviz* graph, bool show_sysfiles, old_file* files[],
                                           size_t file_count) {
   for (size_t file_id = 0; file_id < file_count; file_id++) {
     if (files[file_id]->prev_version != nullptr && (show_sysfiles || files[file_id]->is_local())) {
@@ -965,7 +965,7 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_comman
 }
 
 void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
-  Graph graph;
+  Graphviz graph;
   graph.start_graph();
   draw_graph_nodes(&graph, show_collapsed, show_sysfiles, this->commands, this->files,
                    this->old_graph.getCommands().size(), this->old_graph.getFiles().size());
