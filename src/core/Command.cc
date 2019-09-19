@@ -54,7 +54,7 @@ void Command::addInput(File* f) {
   this->_rd_interactions.insert(f);
 }
 
-void Command::addOutput(File* f, size_t file_location) {
+void Command::addOutput(File* f) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
     for (auto wr : this->_wr_interactions) {
@@ -65,8 +65,6 @@ void Command::addOutput(File* f, size_t file_location) {
         } else {
           std::set<Command*> conflicts = f->collapse(wr->getVersion());
           this->collapse(&conflicts);
-          // wr->has_race = true;
-          // this->has_race = true;
           return;
         }
       }

@@ -87,8 +87,6 @@ void BuildGraph::add_chroot(pid_t pid, struct file_reference& file) {
 }
 
 void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
-  // fprintf(stdout, "[%d] Fork %d\n", parent_proc->thread_id,
-  // child_process_id);
   _processes[child_pid] = _processes[pid]->fork(child_pid);
 }
 
@@ -109,25 +107,16 @@ void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int ac
                           bool is_rewrite, bool cloexec, mode_t mode) {
   auto proc = _processes[pid];
 
-  // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
   // TODO take into account root and cwd
   size_t file_location = this->find_file(file.path);
   File* f = this->latest_versions[file_location];
   if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
-    // fprintf(stdout, "REWRITE ");
     f = f->createVersion();
     f->setCreator(proc->getCommand());
     f->setWriter(nullptr);
     f->setMode(mode);
   }
   proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
-  if (file.fd == AT_FDCWD) {
-    // fprintf(stdout, " %.*s\n", (int)file.path.size(),
-    // file.path.asChars().begin());
-  } else {
-    // fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(),
-    // file.path.asChars().begin());
-  }
 }
 
 void BuildGraph::add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
@@ -167,14 +156,11 @@ void BuildGraph::add_mmap(pid_t pid, int fd) {
   File* f = this->latest_versions[desc.location_index];
   f->addMmap(proc);
   proc->mmaps.insert(f);
-  // std::cout << "MMAP ";
   if (desc.access_mode != O_WRONLY) {
-    // std::cout << "read ";
     proc->getCommand()->addInput(f);
   }
   if (desc.access_mode != O_RDONLY) {
-    // std::cout << "write";
-    proc->getCommand()->addOutput(f, desc.location_index);
+    proc->getCommand()->addOutput(f);
   }
 }
 
@@ -210,22 +196,17 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
   }
   File* f = this->latest_versions[file_location];
 
-  // fprintf(stdout, "file: %.*s-%d ", (int)path.size(),
-  // path.asChars().begin(), f->version);
   switch (type) {
     case DEP_READ:
-      // fprintf(stdout, "read");
       if (proc->getCommand()->canDependOn(f)) {
         proc->getCommand()->addInput(f);
-        // fprintf(stdout, ", depend");
       }
       break;
     case DEP_MODIFY:
       // fprintf(stdout, "modify");
-      proc->getCommand()->addOutput(f, file_location);
+      proc->getCommand()->addOutput(f);
       break;
     case DEP_CREATE:
-      // fprintf(stdout, "create");
       // Creation means creation only if the file does not already exist.
       if (f->isCreated() && !f->isWritten()) {
         bool file_exists;
@@ -243,7 +224,6 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
       }
       break;
     case DEP_REMOVE:
-      // fprintf(stdout, "remove");
       proc->getCommand()->addDeletedFile(f);
       f = f->createVersion();
       f->setCreator(nullptr);

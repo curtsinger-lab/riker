@@ -24,21 +24,21 @@ struct Command {
 
   void addInput(File* f);
 
-  void addOutput(File* f, size_t file_location);
+  void addOutput(File* f);
 
-  size_t descendants(void);
+  size_t descendants();
 
   void collapse(std::set<Command*>* commands);
 
-  Command* collapse_helper(unsigned int min_depth);
-
-  const std::string& getCommand() { return _cmd; }
-
-  const std::list<std::string>& getArguments() { return _args; }
+  Command* collapse_helper(unsigned int min_depth);  
 
   bool canDependOn(const File* f);
 
   /****** Getters and setters ******/
+  
+  const std::string& getCommand() { return _cmd; }
+  
+  const std::list<std::string>& getArguments() { return _args; }
 
   const std::list<Command*>& getChildren() { return _children; }
 
