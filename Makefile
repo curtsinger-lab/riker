@@ -7,7 +7,7 @@ LDFLAGS = -flto -lcapnp -lkj
 DB := src/db/db.capnp
 SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
-HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.hh?")
+HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.h+")
 
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
