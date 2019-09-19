@@ -48,10 +48,10 @@ struct Command {
   std::list<Command*> _children;
   std::set<File*> _inputs;
   std::set<File*> _outputs;
+  std::set<File*> _wr_interactions;
+  std::set<File*> _rd_interactions;
 
  public:
-  std::set<File*> wr_interactions;
-  std::set<File*> rd_interactions;
   std::set<File*> deleted_files;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;

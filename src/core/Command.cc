@@ -28,7 +28,7 @@ void Command::addInput(File* f) {
 
   // If we've read from this file before, check for a race
   // TODO: Use set find
-  for (auto rd : this->rd_interactions) {
+  for (auto rd : this->_rd_interactions) {
     if (f->getLocation() == rd->getLocation() && f->getWriter() != this) {
       if (f->getVersion() == rd->getVersion()) {
         return;
@@ -39,13 +39,13 @@ void Command::addInput(File* f) {
     }
   }
   // mark that we've now interacted with this version of the file
-  this->rd_interactions.insert(f);
+  this->_rd_interactions.insert(f);
 }
 
 void Command::addOutput(File* f, size_t file_location) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
-    for (auto wr : this->wr_interactions) {
+    for (auto wr : this->_wr_interactions) {
       if (f->getLocation() == wr->getLocation()) {
         this->_outputs.insert(f);
         if (f->getVersion() == wr->getVersion()) {
@@ -73,7 +73,7 @@ void Command::addOutput(File* f, size_t file_location) {
   }
   fnew->setWriter(this);
   this->_outputs.insert(fnew);
-  this->wr_interactions.insert(fnew);
+  this->_wr_interactions.insert(fnew);
 }
 
 uint64_t Command::descendants(void) {
