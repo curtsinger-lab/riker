@@ -47,7 +47,7 @@ void Command::addOutput(File* f, size_t file_location) {
   if (!f->isPipe()) {
     for (auto wr : this->wr_interactions) {
       if (f->getLocation() == wr->getLocation()) {
-        this->outputs.insert(f);
+        this->_outputs.insert(f);
         if (f->getVersion() == wr->getVersion()) {
           return;
         } else {
@@ -72,7 +72,7 @@ void Command::addOutput(File* f, size_t file_location) {
     fnew->setCreator(nullptr);
   }
   fnew->setWriter(this);
-  this->outputs.insert(fnew);
+  this->_outputs.insert(fnew);
   this->wr_interactions.insert(fnew);
 }
 

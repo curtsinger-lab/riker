@@ -47,9 +47,9 @@ struct Command {
   const unsigned int _depth;
   std::list<Command*> _children;
   std::set<File*> _inputs;
+  std::set<File*> _outputs;
 
  public:
-  std::set<File*> outputs;
   std::set<File*> wr_interactions;
   std::set<File*> rd_interactions;
   std::set<File*> deleted_files;
