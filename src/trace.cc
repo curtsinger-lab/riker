@@ -241,8 +241,8 @@ enum stop_type {
   STOP_EXIT,  // Do not resume when this is returned
 };
 
-static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
-  kj::Vector<kj::byte> output;
+static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+  std::string output;
 
   // Loop to fetch words at a time until we find a null byte
   while (true) {
@@ -257,11 +257,9 @@ static Blob read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
 
     // Copy in the data
     for (size_t i = 0; i < sizeof(long); i++) {
-      if (((kj::byte*)&data)[i] == '\0') {
-        return output.releaseAsArray();
-      } else {
-        output.add(((kj::byte*)&data)[i]);
-      }
+      char c = ((char*)&data)[i];
+      if (c == '\0') return output;
+      else output.push_back(c);
     }
   }
 }
@@ -423,12 +421,12 @@ void trace_step(Trace& trace, pid_t child, int wait_status) {
       // path(s) and nothing else.
       struct file_reference main_file = {
           .fd = AT_FDCWD,
-          .path = nullptr,
+          .path = "",
           .follow_links = true,
       };
       struct file_reference extra_file = {
           .fd = AT_FDCWD,
-          .path = nullptr,
+          .path = "",
           .follow_links = true,
       };
       switch (registers.SYSCALL_NUMBER) {
@@ -582,10 +580,10 @@ void trace_step(Trace& trace, pid_t child, int wait_status) {
       // any fingerprints we need, call continue immediately.
 
       // Handle fake-relative syscalls by ignoring the fd when the path is absolute
-      if (main_file.path != nullptr && main_file.path[0] == '/') {
+      if (main_file.path[0] == '/') {
         main_file.fd = AT_FDCWD;
       }
-      if (extra_file.path != nullptr && extra_file.path[0] == '/') {
+      if (extra_file.path[0] == '/') {
         extra_file.fd = AT_FDCWD;
       }
 
@@ -623,7 +621,7 @@ void trace_step(Trace& trace, pid_t child, int wait_status) {
       // FIXME: There are paths through /proc/self that lead out of procfs, such as
       // referencing a something in a directory linked by /proc/self (i.e. /proc/self/fd/10/foo/bar)
       if (!main_file.follow_links && main_file.fd == AT_FDCWD && main_file.path.size() >= 11 &&
-          main_file.path.slice(0, 11).asChars().asConst() == kj::arrayPtr("/proc/self/", 11)) {
+          main_file.path.substr(0, 11) == "/proc/self/") {
         ptrace(PTRACE_CONT, child, nullptr, 0);
         return;
       }

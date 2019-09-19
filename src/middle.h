@@ -29,7 +29,7 @@ struct file_reference {
   // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
   // then path is relative with respect to the directory in fd.
   int fd;
-  Blob path;
+  std::string path;
   // Whether to follow the link if the reference points at a symlink
   bool follow_links;
 };
@@ -170,16 +170,16 @@ struct Trace {
     // processes.insert(std::pair<pid_t, Process*>(pid, proc));
   }
 
-  size_t find_file(BlobPtr path) {
+  size_t find_file(std::string path) {
     for (size_t index = 0; index < this->latest_versions.size(); index++) {
       if (!this->latest_versions[index]->isPipe() &&
-          this->latest_versions[index]->getPath() == blobToString(path)) {
+          this->latest_versions[index]->getPath() == path) {
         return index;
       }
     }
     size_t location = this->latest_versions.size();
     File* new_node =
-        new File(*this, location, false, blobToString(kj::heapArray(path)), nullptr, nullptr);
+        new File(*this, location, false, path, nullptr, nullptr);
     this->files.insert(new_node);
     this->latest_versions.push_back(new_node);
     return location;
@@ -191,7 +191,7 @@ struct Trace {
     Process* proc = _processes[pid];
     size_t file_location;
     if (file.fd == AT_FDCWD) {
-      file_location = this->find_file(file.path.asPtr());
+      file_location = this->find_file(file.path);
     } else {
       // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
       if (proc->fds.find(file.fd) == proc->fds.end()) {
@@ -212,8 +212,7 @@ struct Trace {
             path_str = "file not found, fd: " + std::to_string(file.fd);
             break;
         }
-        Blob path_buf = kj::heapArray((const kj::byte*)path_str.data(), path_str.size());
-        file_location = this->find_file(path_buf.asPtr());
+        file_location = this->find_file(path_str);
       } else {
         file_location = proc->fds.find(file.fd)->second.location_index;
       }
@@ -261,26 +260,14 @@ struct Trace {
         f->setRemoved();
         break;
     }
-    if (!file.follow_links) {
-      // fprintf(stdout, " (nofollow)");
-    }
-    if (file.path == nullptr) {
-      // fprintf(stdout, " FD %d\n", file.fd);
-    } else if (file.fd == AT_FDCWD) {
-      // fprintf(stdout, " %.*s\n", (int)file.path.size(),
-      // file.path.asChars().begin());
-    } else {
-      // fprintf(stdout, " {%d/}%.*s\n", file.fd, (int)file.path.size(),
-      // file.path.asChars().begin());
-    }
   }
 
   void add_change_cwd(pid_t pid, struct file_reference& file) {
-    _processes[pid]->chdir(blobToString(file.path));
+    _processes[pid]->chdir(file.path);
   }
 
   void add_change_root(pid_t pid, struct file_reference& file) {
-    _processes[pid]->chroot(blobToString(file.path));
+    _processes[pid]->chroot(file.path);
   }
 
   void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
@@ -289,7 +276,7 @@ struct Trace {
 
     // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
     // TODO take into account root and cwd
-    size_t file_location = this->find_file(file.path.asPtr());
+    size_t file_location = this->find_file(file.path);
     File* f = this->latest_versions[file_location];
     if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
       // fprintf(stdout, "REWRITE ");
@@ -370,8 +357,8 @@ struct Trace {
     proc->exec(*this, exe_path);
   }
 
-  void add_exec_argument(pid_t pid, Blob&& argument, int index) {
-    _processes[pid]->getCommand()->addArgument(blobToString(argument));
+  void add_exec_argument(pid_t pid, std::string argument, int index) {
+    _processes[pid]->getCommand()->addArgument(argument);
   }
 
   void add_exit(pid_t pid) {

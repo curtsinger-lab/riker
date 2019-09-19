@@ -1,8 +1,8 @@
 CC  = gcc
 CXX = g++
-COMMON_CFLAGS = -Wall -g -flto -Wfatal-errors
+COMMON_CFLAGS = -Wall -g -O0 -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++14
-LDFLAGS = -lcapnp -lkj -flto
+LDFLAGS = -lcapnp -lkj
 
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
