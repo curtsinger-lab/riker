@@ -2,6 +2,7 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -85,5 +86,5 @@ struct BuildGraph {
 
  private:
   std::string _starting_dir;
-  std::map<pid_t, Process*> _processes;
+  std::map<pid_t, std::shared_ptr<Process>> _processes;
 };

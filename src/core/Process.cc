@@ -1,5 +1,6 @@
 #include "core/Process.hh"
 
+#include <memory>
 #include <string>
 
 #include "core/BuildGraph.hh"
@@ -13,8 +14,8 @@ void Process::chdir(std::string newdir) { _cwd = newdir; }
 
 void Process::chroot(std::string newroot) { _root = newroot; }
 
-Process* Process::fork(pid_t child_pid) {
-  Process* child_proc = new Process(child_pid, _cwd, _command);
+std::shared_ptr<Process> Process::fork(pid_t child_pid) {
+  auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command);
   child_proc->fds = fds;
   return child_proc;
 }
@@ -33,7 +34,7 @@ void Process::exec(BuildGraph& trace, std::string exe_path) {
 
   // Close all mmaps, since the address space is replaced
   for (auto file : mmaps) {
-    file->removeMmap(this);
+    file->removeMmap(shared_from_this());
   }
 
   // Mark the initial open file descriptors

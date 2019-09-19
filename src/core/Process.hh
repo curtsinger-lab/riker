@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -10,7 +11,7 @@
 
 struct FileDescriptor;
 
-struct Process {
+struct Process : public std::enable_shared_from_this<Process> {
   pid_t thread_id;
   std::map<int, FileDescriptor> fds;
   std::set<File*> mmaps;
@@ -23,7 +24,7 @@ struct Process {
 
   void chroot(std::string newroot);
 
-  Process* fork(pid_t child_pid);
+  std::shared_ptr<Process> fork(pid_t child_pid);
 
   void exec(BuildGraph& trace, std::string exe_path);
 

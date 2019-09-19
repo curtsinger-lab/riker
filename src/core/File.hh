@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <memory>
 #include <set>
 
 #include "db/db.capnp.h"
@@ -42,8 +43,8 @@ struct File {
 
   size_t getLocation() { return _location; }
 
-  void addMmap(Process* p) { _mmaps.insert(p); }
-  void removeMmap(Process* p) { _mmaps.erase(p); }
+  void addMmap(std::shared_ptr<Process> p) { _mmaps.insert(p); }
+  void removeMmap(std::shared_ptr<Process> p) { _mmaps.erase(p); }
 
   const std::set<Command*>& getReaders() { return _readers; }
   void addReader(Command* c) { _readers.insert(c); }
@@ -68,13 +69,13 @@ struct File {
   void setRemoved(bool r = true) { _removed = r; }
 
  private:
-  BuildGraph& _trace;                        // A reference to the trace this file is part of
-  size_t _location;                     // ???
-  capnp::Orphan<db::File> _serialized;  // A serialized representation of this file
-  std::set<Command*> _readers;          // Commands that read this file
-  std::set<Command*> _interactors;      // Commands that read OR modify this file
-  std::set<Process*> _mmaps;            // Processes that currently have an mmap of this file
-  unsigned int _version;                // The version number of this file
+  BuildGraph& _trace;                         // A reference to the trace this file is part of
+  size_t _location;                           // ???
+  capnp::Orphan<db::File> _serialized;        // A serialized representation of this file
+  std::set<Command*> _readers;                // Commands that read this file
+  std::set<Command*> _interactors;            // Commands that read OR modify this file
+  std::set<std::shared_ptr<Process>> _mmaps;  // Processes that currently have an mmap of this file
+  unsigned int _version;                      // The version number of this file
   File* _prev_version;
   bool _removed = false;
   Command* _creator;

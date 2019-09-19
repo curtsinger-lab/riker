@@ -91,8 +91,7 @@ void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
 void BuildGraph::add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
 
 void BuildGraph::add_exec(pid_t pid, std::string exe_path) {
-  Process* proc = _processes.at(pid);
-  proc->exec(*this, exe_path);
+  _processes[pid]->exec(*this, exe_path);
 }
 
 void BuildGraph::add_exec_argument(pid_t pid, std::string argument, int index) {
@@ -100,7 +99,7 @@ void BuildGraph::add_exec_argument(pid_t pid, std::string argument, int index) {
 }
 
 void BuildGraph::add_exit(pid_t pid) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   for (auto f : proc->mmaps) {
     f->removeMmap(proc);
   }
@@ -108,7 +107,7 @@ void BuildGraph::add_exit(pid_t pid) {
 
 void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
                           bool is_rewrite, bool cloexec, mode_t mode) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
 
   // fprintf(stdout, "[%d] Open %d -> ", proc->thread_id, fd);
   // TODO take into account root and cwd
@@ -134,7 +133,7 @@ void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int ac
 void BuildGraph::add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
 
 void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
   size_t location = this->latest_versions.size();
   File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
@@ -144,7 +143,7 @@ void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
 }
 
 void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   auto duped_file = proc->fds.find(duped_fd);
   if (duped_file == proc->fds.end()) {
     proc->fds.erase(new_fd);
@@ -155,7 +154,7 @@ void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
 }
 
 void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   auto file = proc->fds.find(fd);
   if (file != proc->fds.end()) {
     file->second.cloexec = cloexec;
@@ -163,7 +162,7 @@ void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
 }
 
 void BuildGraph::add_mmap(pid_t pid, int fd) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   FileDescriptor& desc = proc->fds.find(fd)->second;
   File* f = this->latest_versions[desc.location_index];
   f->addMmap(proc);
@@ -180,7 +179,7 @@ void BuildGraph::add_mmap(pid_t pid, int fd) {
 }
 
 void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
-  Process* proc = _processes[pid];
+  auto proc = _processes[pid];
   size_t file_location;
   if (file.fd == AT_FDCWD) {
     file_location = this->find_file(file.path);
