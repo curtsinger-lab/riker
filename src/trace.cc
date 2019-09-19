@@ -697,10 +697,10 @@ void trace_step(Trace& trace, pid_t child, int wait_status) {
         ////// Changing process state //////
         case /* 80 */ __NR_chdir:
         case /* 81 */ __NR_fchdir:
-          trace.add_change_cwd(child, main_file);
+          trace.add_chdir(child, main_file);
           break;
         case /* 161 */ __NR_chroot:
-          trace.add_change_root(child, main_file);
+          trace.add_chroot(child, main_file);
           break;
         ////// Complex operations /////
         case /* 9 */ __NR_mmap:

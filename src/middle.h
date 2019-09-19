@@ -262,11 +262,11 @@ struct Trace {
     }
   }
 
-  void add_change_cwd(pid_t pid, struct file_reference& file) {
+  void add_chdir(pid_t pid, struct file_reference& file) {
     _processes[pid]->chdir(file.path);
   }
 
-  void add_change_root(pid_t pid, struct file_reference& file) {
+  void add_chroot(pid_t pid, struct file_reference& file) {
     _processes[pid]->chroot(file.path);
   }
 
