@@ -11,11 +11,11 @@ all: dodo
 clean:
 	rm -rf dodo objs db.dodo src/*.capnp.cc src/*.capnp.h
 
-.PHONY: all clean test
+.PHONY: all clean test selftest
 
 .SUFFIXES:
 
-dodo: objs/db.capnp.o objs/trace.o objs/middle.o objs/graphviz.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o objs/dodorun.o objs/util.o objs/file.o
+dodo: objs/db.capnp.o objs/ptrace.o objs/middle.o objs/graphviz.o objs/blake2s-wrapper.o objs/blake2sp-wrapper.o objs/driver.o objs/dodorun.o objs/util.o objs/file.o
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 .submodules-cleared:
@@ -41,3 +41,8 @@ test: dodo
 		cram  tests/$$test/*.t; \
 		echo; \
 	done
+
+selftest: dodo
+	@echo "Running self test"
+	@rm -f db.dodo
+	./dodo

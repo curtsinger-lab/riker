@@ -16,7 +16,7 @@
 #include "log.hh"
 #include "middle.h"
 #include "options.hh"
-#include "trace.h"
+#include "ptrace.h"
 #include "util.hh"
 
 using std::forward_list;
