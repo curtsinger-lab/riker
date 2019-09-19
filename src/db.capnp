@@ -14,7 +14,7 @@ struct Command {
   # Note: 0 can also mean that this node is opaque and cannot be split.
 
   executable @1 :Text;
-  argv @2 :List(Data);
+  argv @2 :List(Text);
   workingDirectory @3 :Data;
   # We don't use Text because paths may not be valid unicode
   struct FDEntry {

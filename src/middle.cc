@@ -97,7 +97,7 @@ static uint64_t serialize_commands(Command* command,
   auto argv = command_list[start_index].initArgv(command->getArguments().size());
   uint64_t argv_index = 0;
   for (auto& arg : command->getArguments()) {
-    argv.set(argv_index, stringToBlob(arg));
+    argv.set(argv_index, arg);
     argv_index++;
   }
   auto initial_fds = command_list[start_index].initInitialFDs(command->initial_fds.size());
