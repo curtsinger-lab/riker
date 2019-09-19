@@ -15,7 +15,7 @@ struct Command {
 
   executable @1 :Text;
   argv @2 :List(Text);
-  workingDirectory @3 :Data;
+  workingDirectory @3 :Text;
   # We don't use Text because paths may not be valid unicode
   struct FDEntry {
     fd @0 :UInt16;
