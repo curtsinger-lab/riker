@@ -22,9 +22,6 @@
 #include "core/Process.hh"
 #include "db/db.capnp.h"
 
-typedef kj::Array<kj::byte> Blob;
-typedef kj::ArrayPtr<const kj::byte> BlobPtr;
-
 enum dependency_type { DEP_READ, DEP_MODIFY, DEP_CREATE, DEP_REMOVE };
 
 struct file_reference {
