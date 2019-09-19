@@ -34,6 +34,10 @@ struct Command {
   void addArgument(std::string arg) { _args.push_back(arg); }
 
   bool canDependOn(const File* f);
+  
+  /****** Getters and setters ******/
+  
+  const std::list<Command*>& getChildren() { return _children; }
 
  private:
   BuildGraph& _state;
@@ -41,9 +45,9 @@ struct Command {
   std::vector<std::string> _args;
   Command* _parent;
   const unsigned int _depth;
+  std::list<Command*> _children;
 
  public:
-  std::list<Command*> children;
   std::set<File*> inputs;
   std::set<File*> outputs;
   std::set<File*> wr_interactions;

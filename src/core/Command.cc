@@ -13,7 +13,7 @@ Command::Command(BuildGraph& state, std::string cmd, Command* parent, unsigned i
 
 Command* Command::createChild(std::string cmd) {
   Command* child = new Command(_state, cmd, this, _depth + 1);
-  children.push_back(child);
+  _children.push_back(child);
   return child;
 }
 
@@ -78,7 +78,7 @@ void Command::add_output(File* f, size_t file_location) {
 
 uint64_t Command::descendants(void) {
   uint64_t ret = 0;
-  for (auto c : this->children) {
+  for (auto c : getChildren()) {
     ret += 1 + c->descendants();
   }
   return ret;

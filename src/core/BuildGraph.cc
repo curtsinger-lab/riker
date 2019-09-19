@@ -51,7 +51,7 @@ static uint64_t serialize_commands(Command* command,
   }
 
   uint64_t index = start_index + 1;
-  for (auto c : command->children) {
+  for (auto c : command->getChildren()) {
     index = serialize_commands(c, command_list, index, command_ids, file_ids);
   }
 
