@@ -90,12 +90,11 @@ void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
 
 void BuildGraph::add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
 
-void BuildGraph::add_exec(pid_t pid, std::string exe_path) {
+void BuildGraph::add_exec(pid_t pid, std::string exe_path, std::list<std::string> arguments) {
   _processes[pid]->exec(*this, exe_path);
-}
-
-void BuildGraph::add_exec_argument(pid_t pid, std::string argument, int index) {
-  _processes[pid]->getCommand()->addArgument(argument);
+  for (auto arg : arguments) {
+    _processes[pid]->getCommand()->addArgument(arg);
+  }
 }
 
 void BuildGraph::add_exit(pid_t pid) {

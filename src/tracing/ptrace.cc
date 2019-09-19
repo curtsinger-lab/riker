@@ -358,15 +358,16 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         return;
       }
 
-      // Get the executable path for the file we are exec-ing
-      trace.add_exec(child, get_executable(child));
+      std::list<std::string> args;
 
       int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, nullptr);
       for (int i = 0; i < child_argc; i++) {
         uintptr_t arg_ptr =
             ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), nullptr);
-        trace.add_exec_argument(child, read_tracee_string(child, arg_ptr), i);
+        args.push_back(read_tracee_string(child, arg_ptr));
       }
+      
+      trace.add_exec(child, get_executable(child), args);
 
       ptrace(PTRACE_CONT, child, nullptr, 0);
       break;
