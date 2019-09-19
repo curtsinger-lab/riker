@@ -38,6 +38,9 @@ struct Command {
   /****** Getters and setters ******/
   
   const std::list<Command*>& getChildren() { return _children; }
+  
+  const std::set<File*>& getDeletedFiles() const { return _deleted_files; }
+  void addDeletedFile(File* f) { _deleted_files.insert(f); }
 
  private:
   BuildGraph& _state;
@@ -50,9 +53,9 @@ struct Command {
   std::set<File*> _outputs;
   std::set<File*> _wr_interactions;
   std::set<File*> _rd_interactions;
+  std::set<File*> _deleted_files;
 
  public:
-  std::set<File*> deleted_files;
   bool collapse_with_parent;
   std::map<int, FileDescriptor> initial_fds;
 };

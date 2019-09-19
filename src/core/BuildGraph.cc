@@ -246,7 +246,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
       break;
     case DEP_REMOVE:
       // fprintf(stdout, "remove");
-      proc->getCommand()->deleted_files.insert(f);
+      proc->getCommand()->addDeletedFile(f);
       f = f->createVersion();
       f->setCreator(nullptr);
       f->setWriter(nullptr);
@@ -353,7 +353,7 @@ void BuildGraph::serialize_graph(void) {
   // Serialize removal edges
   uint64_t removal_count = 0;
   for (auto c : command_ids) {
-    for (auto f : c.first->deleted_files) {
+    for (auto f : c.first->getDeletedFiles()) {
       auto file_id = file_ids.find(f);
       if (file_id != file_ids.end()) {
         removal_count++;
@@ -363,7 +363,7 @@ void BuildGraph::serialize_graph(void) {
   auto removals = graph.initRemovals(removal_count);
   uint64_t removal_index = 0;
   for (auto c : command_ids) {
-    for (auto f : c.first->deleted_files) {
+    for (auto f : c.first->getDeletedFiles()) {
       auto file_id = file_ids.find(f);
       if (file_id != file_ids.end()) {
         removals[removal_index].setInputID(c.second);
