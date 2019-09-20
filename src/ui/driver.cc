@@ -343,5 +343,5 @@ int main(int argc, char* argv[]) {
     trace_step(trace, child, wait_status);
   }
 
-  trace.serialize_graph();
+  trace.serializeGraph();
 }

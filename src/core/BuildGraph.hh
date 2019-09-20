@@ -44,9 +44,9 @@ struct BuildGraph {
   
   void newProcess(pid_t pid, Command* cmd);
   
-  size_t find_file(std::string path);
+  size_t findFile(std::string path);
   
-  void serialize_graph();
+  void serializeGraph();
   
   void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type);
 

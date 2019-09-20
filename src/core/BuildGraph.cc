@@ -65,7 +65,7 @@ void BuildGraph::newProcess(pid_t pid, Command* cmd) {
   _processes.emplace(pid, proc);
 }
 
-size_t BuildGraph::find_file(std::string path) {
+size_t BuildGraph::findFile(std::string path) {
   for (size_t index = 0; index < _latest_versions.size(); index++) {
     if (!_latest_versions[index]->isPipe() &&
         _latest_versions[index]->getPath() == path) {
@@ -108,7 +108,7 @@ void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int ac
   auto proc = _processes[pid];
 
   // TODO take into account root and cwd
-  size_t file_location = this->find_file(file.path);
+  size_t file_location = this->findFile(file.path);
   File* f = _latest_versions[file_location];
   if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
     f = f->createVersion();
@@ -168,7 +168,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
   auto proc = _processes[pid];
   size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = this->find_file(file.path);
+    file_location = this->findFile(file.path);
   } else {
     // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
     if (proc->fds.find(file.fd) == proc->fds.end()) {
@@ -189,7 +189,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
           path_str = "file not found, fd: " + std::to_string(file.fd);
           break;
       }
-      file_location = this->find_file(path_str);
+      file_location = this->findFile(path_str);
     } else {
       file_location = proc->fds.find(file.fd)->second.location_index;
     }
@@ -233,7 +233,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
   }
 }
 
-void BuildGraph::serialize_graph(void) {
+void BuildGraph::serializeGraph(void) {
   ::capnp::MallocMessageBuilder message;
 
   db::Graph::Builder graph = message.initRoot<db::Graph>();
