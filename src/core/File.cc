@@ -39,6 +39,10 @@ File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, C
   }
 }
 
+File* File::getLatestVersion() {
+  return _graph.getLatestVersion(_location);
+}
+
 // return a set of the commands which raced on this file, back to the parameter version
 std::set<Command*> File::collapse(unsigned int version) {
   // this->has_race = true;

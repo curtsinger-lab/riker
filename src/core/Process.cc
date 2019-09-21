@@ -6,10 +6,13 @@
 #include <string>
 #include <utility>
 
+#include <fcntl.h>
+
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
+#include "ui/log.hh"
 
 Process::Process(pid_t thread_id, std::string cwd, Command* command) :
     thread_id(thread_id),
@@ -20,9 +23,20 @@ void Process::traceChdir(std::string newdir) { _cwd = newdir; }
 
 void Process::traceChroot(std::string newroot) { _root = newroot; }
 
-void Process::traceClose(int fd) {
-  fds.erase(fd);
+void Process::traceMmap(BuildGraph& graph, int fd) {
+  auto& desc = fds[fd];
+  // Get the latest version of this file.
+  // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
+  // opened by the current process.
+  File* f = graph.getLatestVersion(desc.location_index);
+  f->addMmap(shared_from_this());
+  mmaps.insert(f);
+
+  if (desc.access_mode != O_WRONLY) getCommand()->addInput(f);
+  if (desc.access_mode != O_RDONLY) getCommand()->addOutput(f);
 }
+
+void Process::traceClose(int fd) { fds.erase(fd); }
 
 std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
   auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command);
@@ -58,10 +72,10 @@ void Process::traceExec(BuildGraph& trace, std::string executable,
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
   if (fds.find(fileno(stdout)) != fds.end()) {
-    trace.add_mmap(this->thread_id, fileno(stdout));
+    trace.traceMmap(this->thread_id, fileno(stdout));
   }
   if (fds.find(fileno(stderr)) != fds.end()) {
-    trace.add_mmap(this->thread_id, fileno(stderr));
+    trace.traceMmap(this->thread_id, fileno(stderr));
   }
 }
 

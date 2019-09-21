@@ -33,6 +33,8 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   /****** Non-trivial methods ******/
   
+  void traceMmap(BuildGraph& graph, int fd);
+  
   void traceChdir(std::string newdir);
 
   void traceChroot(std::string newroot);

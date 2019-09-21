@@ -711,7 +711,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
         ////// Complex operations /////
         case /* 9 */ __NR_mmap:
-          trace.add_mmap(child, main_file.fd);
+          trace.traceMmap(child, main_file.fd);
           break;
         case /* 40 */ __NR_sendfile:
         case /* 275 */ __NR_splice:

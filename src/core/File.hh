@@ -44,6 +44,8 @@ struct File {
   bool shouldSave();
 
   void serialize(db::File::Builder builder);
+  
+  File* getLatestVersion();
 
   /****** Getters and setters ******/
 

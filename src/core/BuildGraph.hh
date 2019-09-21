@@ -64,7 +64,7 @@ struct BuildGraph {
 
   void add_set_cloexec(pid_t pid, int fd, bool cloexec);
 
-  void add_mmap(pid_t pid, int fd);
+  void traceMmap(pid_t pid, int fd);
 
   void traceClose(pid_t pid, int fd);
 

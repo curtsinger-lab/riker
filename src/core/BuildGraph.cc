@@ -146,18 +146,8 @@ void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
   }
 }
 
-void BuildGraph::add_mmap(pid_t pid, int fd) {
-  auto proc = _processes[pid];
-  FileDescriptor& desc = proc->fds.find(fd)->second;
-  File* f = _latest_versions[desc.location_index];
-  f->addMmap(proc);
-  proc->mmaps.insert(f);
-  if (desc.access_mode != O_WRONLY) {
-    proc->getCommand()->addInput(f);
-  }
-  if (desc.access_mode != O_RDONLY) {
-    proc->getCommand()->addOutput(f);
-  }
+void BuildGraph::traceMmap(pid_t pid, int fd) {
+  _processes[pid]->traceMmap(*this, fd);
 }
 
 void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
