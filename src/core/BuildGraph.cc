@@ -71,24 +71,20 @@ size_t BuildGraph::findFile(std::string path) {
     }
   }
   size_t location = _latest_versions.size();
-  File& new_node = files.emplace_front(*this, location, false, path, nullptr, nullptr);
+  File& new_node = addFile(File(*this, location, false, path, nullptr));
   _latest_versions.push_back(&new_node);
   return location;
 }
 
-void BuildGraph::traceChdir(pid_t pid, std::string path) {
-  _processes[pid]->traceChdir(path);
-}
+void BuildGraph::traceChdir(pid_t pid, std::string path) { _processes[pid]->traceChdir(path); }
 
-void BuildGraph::traceChroot(pid_t pid, std::string path) {
-  _processes[pid]->traceChroot(path);
-}
+void BuildGraph::traceChroot(pid_t pid, std::string path) { _processes[pid]->traceChroot(path); }
 
 void BuildGraph::traceFork(pid_t pid, pid_t child_pid) {
   _processes[child_pid] = _processes[pid]->traceFork(child_pid);
 }
 
-void BuildGraph::traceClone(pid_t pid, pid_t thread_id) { 
+void BuildGraph::traceClone(pid_t pid, pid_t thread_id) {
   // Threads in the same process just appear as pid references to the same process
   _processes[thread_id] = _processes[pid];
 }
@@ -99,20 +95,29 @@ void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<st
 
 void BuildGraph::traceExit(pid_t pid) { _processes[pid]->traceExit(); }
 
-void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
-                          bool is_rewrite, bool cloexec, mode_t mode) {
+void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
   auto proc = _processes[pid];
 
+  int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
+
+  // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
+  /*if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
+    main_file.follow_links = false;
+  }*/
+
+  bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
+  bool cloexec = (flags & O_CLOEXEC) != 0;
+
   // TODO take into account root and cwd
-  size_t file_location = this->findFile(file.path);
+  size_t file_location = this->findFile(path);
   File* f = _latest_versions[file_location];
-  if (is_rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
-    f = f->createVersion();
+  if (rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
+    f = &f->createVersion();
     f->setCreator(proc->getCommand());
     f->setWriter(nullptr);
     f->setMode(mode);
   }
-  proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
+  proc->fds[fd] = FileDescriptor(file_location, f, access_mode, cloexec);
 }
 
 void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd); }
@@ -121,10 +126,10 @@ void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
   // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
   size_t location = _latest_versions.size();
-  File& p = files.emplace_front(*this, location, true, "", proc->getCommand(), nullptr);
+  File& p = addFile(File(*this, location, true, "", proc->getCommand()));
   _latest_versions.push_back(&p);
-  proc->fds[fds[0]] = FileDescriptor(location, O_RDONLY, cloexec);
-  proc->fds[fds[1]] = FileDescriptor(location, O_WRONLY, cloexec);
+  proc->fds[fds[0]] = FileDescriptor(location, &p, O_RDONLY, cloexec);
+  proc->fds[fds[1]] = FileDescriptor(location, &p, O_WRONLY, cloexec);
 }
 
 void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
@@ -133,8 +138,8 @@ void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   if (duped_file == proc->fds.end()) {
     proc->fds.erase(new_fd);
   } else {
-    proc->fds[new_fd] =
-        FileDescriptor(duped_file->second.location_index, duped_file->second.access_mode, cloexec);
+    proc->fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.file,
+                                       duped_file->second.access_mode, cloexec);
   }
 }
 
@@ -146,9 +151,7 @@ void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
   }
 }
 
-void BuildGraph::traceMmap(pid_t pid, int fd) {
-  _processes[pid]->traceMmap(*this, fd);
-}
+void BuildGraph::traceMmap(pid_t pid, int fd) { _processes[pid]->traceMmap(*this, fd); }
 
 void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
   auto proc = _processes[pid];
@@ -211,7 +214,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
       break;
     case DEP_REMOVE:
       proc->getCommand()->addDeletedFile(f);
-      f = f->createVersion();
+      f = &f->createVersion();
       f->setCreator(nullptr);
       f->setWriter(nullptr);
       f->setRemoved();
@@ -228,7 +231,6 @@ void BuildGraph::serializeGraph(void) {
   // but we need to fingerprint the latest versions
   for (File* f : _latest_versions) {
     f->fingerprint();
-    f->setLatestVersion();
   }
 
   // Serialize files
@@ -238,18 +240,17 @@ void BuildGraph::serializeGraph(void) {
   uint64_t output_count = 0;
   uint64_t create_count = 0;
   uint64_t modify_count = 0;
-  for (auto& f : this->files) {
-    File* file = &f;
+  for (File& file : this->files) {
     // We only care about files that are either written or read so filter those out.
-    if (file->shouldSave()) {
-      file_ids[file] = file_count;
-      input_count += file->getReaders().size();
-      if (file->isWritten()) output_count++;
-      if (file->isCreated()) create_count++;
-      modify_count += (!file->isCreated() && file->getPreviousVersion() != nullptr &&
-                       (file->getPreviousVersion()->isCreated() ||
-                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
-                         !file->getPreviousVersion()->isRemoved())));
+    if (file.shouldSave()) {
+      file_ids[&file] = file_count;
+      input_count += file.getReaders().size();
+      if (file.isWritten()) output_count++;
+      if (file.isCreated()) create_count++;
+      modify_count += (!file.isCreated() && file.getPreviousVersion() != nullptr &&
+                       (file.getPreviousVersion()->isCreated() ||
+                        (file.getPreviousVersion()->getPreviousVersion() != nullptr &&
+                         !file.getPreviousVersion()->isRemoved())));
       file_count += 1;
     }
   }

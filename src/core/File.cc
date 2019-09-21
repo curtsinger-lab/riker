@@ -24,23 +24,36 @@
 #include "fingerprint/blake2.hh"
 #include "ui/log.hh"
 
-File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
-           File* prev_version) :
+File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator) :
     _graph(graph),
     _location(location),
     _path(path),
-    _version(0),
-    _prev_version(prev_version),
     _creator(creator) {
   if (is_pipe) {
     _type = db::FileType::PIPE;
   } else {
     _type = db::FileType::REGULAR;
   }
+  LOG << "HERE: " << this;
+}
+
+File& File::createVersion() {
+  // We are at the end of the current version, so snapshot with a fingerprint
+  fingerprint();
+
+  File& f = _graph.addFile(File(_graph, _location, isPipe(), getPath(), getCreator()));
+  f._version++;
+  f._prev_version = this;
+  _next_version = &f;
+  LOG << "Next version at " << _next_version;
+  _graph.setLatestVersion(_location, &f);
+  return f;
 }
 
 File* File::getLatestVersion() {
-  return _graph.getLatestVersion(_location);
+  LOG << this;
+  if (_next_version) return _next_version->getLatestVersion();
+  else return this;
 }
 
 // return a set of the commands which raced on this file, back to the parameter version
@@ -64,17 +77,6 @@ std::set<Command*> File::collapse(unsigned int version) {
     cur_file = cur_file->getPreviousVersion();
   }
   return conflicts;
-}
-
-File* File::createVersion() {
-  // We are at the end of the current version, so snapshot with a fingerprint
-  fingerprint();
-  _is_latest_version = false;
-
-  File& f = _graph.addFile(File(_graph, _location, isPipe(), getPath(), getCreator(), this));
-  f._version++;
-  _graph.setLatestVersion(_location, &f);
-  return &f;
 }
 
 bool File::shouldSave() {
@@ -125,7 +127,7 @@ static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
       filter = filter_nfs;
     }
   }
-  
+
   // Get a sorted list of directory entries
   struct dirent** namelist;
   int entries = scandir(path_string.c_str(), &namelist, filter, alphasort);
@@ -159,7 +161,7 @@ static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
 // Return true on success
 static std::vector<uint8_t> blake2sp_file(std::string path_string) {
   std::vector<uint8_t> checksum;
-  
+
   int file_fd = open(path_string.c_str(), O_RDONLY | O_CLOEXEC);
   if (file_fd < 0) {  // Error opening
     return checksum;
@@ -244,18 +246,18 @@ void File::serialize(db::File::Builder builder) {
   builder.setType(getType());
   builder.setMode(getMode());
   builder.setLatestVersion(isLatestVersion());
-  
+
   builder.setFingerprintType(getFingerprintType());
-  
-  if(_checksum.size()) {
+
+  if (_checksum.size()) {
     auto output_checksum = builder.initChecksum(_checksum.size());
     memcpy(output_checksum.begin(), _checksum.data(), _checksum.size());
   }
-  
+
   builder.setSize(_stat_info.st_size);
   builder.setInode(_stat_info.st_ino);
   builder.setMode(_stat_info.st_mode);
-  
+
   auto mod_time = builder.initModificationTime();
   mod_time.setSecondsSinceEpoch(_stat_info.st_mtim.tv_sec);
   mod_time.setNanoseconds(_stat_info.st_mtim.tv_nsec);

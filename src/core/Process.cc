@@ -28,7 +28,7 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   // Get the latest version of this file.
   // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
   // opened by the current process.
-  File* f = graph.getLatestVersion(desc.location_index);
+  File* f = desc.file->getLatestVersion();
   f->addMmap(shared_from_this());
   mmaps.insert(f);
 

@@ -75,7 +75,7 @@ void Command::addOutput(File* f) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
-    fnew = f->createVersion();
+    fnew = &f->createVersion();
     fnew->setCreator(nullptr);
   }
   fnew->setWriter(this);

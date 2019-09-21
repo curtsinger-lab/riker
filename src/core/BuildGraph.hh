@@ -55,8 +55,7 @@ struct BuildGraph {
 
   void traceChroot(pid_t pid, std::string path);
 
-  void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
-                bool cloexec, mode_t mode);
+  void traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode);
 
   void add_pipe(pid_t pid, int fds[2], bool cloexec);
 

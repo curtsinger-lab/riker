@@ -5,15 +5,16 @@
 struct File;
 
 struct FileDescriptor {
-  size_t location_index;  // Used in Process::fds
-  File* file;             // Used in Command::initial_fds
+  size_t location_index;
+  File* file;
   int access_mode;
   bool cloexec;
 
   FileDescriptor() {}
 
-  FileDescriptor(size_t location_index, int access_mode, bool cloexec) :
+  FileDescriptor(size_t location_index, File* file, int access_mode, bool cloexec) :
       location_index(location_index),
+      file(file),
       access_mode(access_mode),
       cloexec(cloexec) {}
 };

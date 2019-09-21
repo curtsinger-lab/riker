@@ -23,13 +23,12 @@ bool match_fingerprint(db::File::Reader file);
 struct File {
   /****** Constructors ******/
 
-  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
-       File* prev_version);
+  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator);
 
   // Disallow Copy
   File(const File&) = delete;
   File& operator=(const File&) = delete;
-  
+
   // Allow Move
   File(File&&) = default;
 
@@ -37,14 +36,14 @@ struct File {
 
   std::set<Command*> collapse(unsigned int depth);
 
-  File* createVersion();
+  File& createVersion();
 
   void fingerprint();
 
   bool shouldSave();
 
   void serialize(db::File::Builder builder);
-  
+
   File* getLatestVersion();
 
   /****** Getters and setters ******/
@@ -56,8 +55,6 @@ struct File {
 
   void setMode(uint16_t mode) { _mode = mode; }
   uint16_t getMode() const { return _mode; }
-
-  void setLatestVersion() { _is_latest_version = true; }
 
   size_t getLocation() const { return _location; }
 
@@ -79,7 +76,7 @@ struct File {
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
-  bool isLatestVersion() const { return _is_latest_version; }
+  bool isLatestVersion() const { return _next_version == nullptr; }
 
   File* getPreviousVersion() const { return _prev_version; }
   bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
@@ -99,12 +96,14 @@ struct File {
   std::set<Command*> _readers;      // Commands that read this file
   std::set<Command*> _interactors;  // Commands that read OR modify this file
   std::set<std::shared_ptr<Process>> _mmaps;  // Processes that currently have an mmap of this file
-  unsigned int _version;                      // The version number of this file
-  File* _prev_version;
+  
+  unsigned int _version = 0;                  // The version number of this file
+  File* _prev_version = nullptr;
+  File* _next_version = nullptr;
+
   bool _removed = false;
   Command* _creator;
   Command* _writer = nullptr;
-  bool _is_latest_version = true;
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;
   std::vector<uint8_t> _checksum;

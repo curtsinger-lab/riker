@@ -642,35 +642,30 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           trace.traceClose(child, registers.SYSCALL_ARG1);
           break;
         case /* 2 */ __NR_open:
-        case /* 85 */ __NR_creat:
-        case /* 257 */ __NR_openat: {
-          int flags;
-          mode_t mode;
-          switch (registers.SYSCALL_NUMBER) {
-            case __NR_open:
-              flags = registers.SYSCALL_ARG2;
-              mode = registers.SYSCALL_ARG3;
-              break;
-            case __NR_creat:
-              flags = O_CREAT | O_WRONLY | O_TRUNC;
-              mode = registers.SYSCALL_ARG2;
-              break;
-            case __NR_openat:
-              flags = registers.SYSCALL_ARG3;
-              mode = registers.SYSCALL_ARG4;
-              break;
-          }
-
-          int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
-          if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
-            main_file.follow_links = false;
-          }
-          bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
-          bool cloexec = (flags & O_CLOEXEC) != 0;
-          trace.add_open(child, registers.SYSCALL_RETURN, main_file, access_mode, rewrite, cloexec,
-                         mode);
+          trace.traceOpen(child,
+                          registers.SYSCALL_RETURN,  // File descriptor
+                          main_file.path,            // File path
+                          registers.SYSCALL_ARG2,    // Flags
+                          registers.SYSCALL_ARG3);   // File mode
           break;
-        }
+
+        case /* 85 */ __NR_creat:
+          trace.traceOpen(child,
+                          registers.SYSCALL_RETURN,      // File descriptor
+                          main_file.path,                // File path
+                          O_CREAT | O_WRONLY | O_TRUNC,  // Flags
+                          registers.SYSCALL_ARG2);       // File mode
+
+          break;
+
+        case /* 257 */ __NR_openat:
+          trace.traceOpen(child,
+                          registers.SYSCALL_RETURN,  // File descriptor
+                          main_file.path,            // File path
+                          registers.SYSCALL_ARG3,    // Flags
+                          registers.SYSCALL_ARG4);   // File mode
+          break;
+
         case /* 22 */ __NR_pipe:
           trace.add_pipe(child, pipe_fds, false);
           break;
