@@ -16,18 +16,23 @@ Process::Process(pid_t thread_id, std::string cwd, Command* command) :
     _command(command),
     _cwd(cwd) {}
 
-void Process::chdir(std::string newdir) { _cwd = newdir; }
+void Process::traceChdir(std::string newdir) { _cwd = newdir; }
 
-void Process::chroot(std::string newroot) { _root = newroot; }
+void Process::traceChroot(std::string newroot) { _root = newroot; }
 
-std::shared_ptr<Process> Process::fork(pid_t child_pid) {
+void Process::traceClose(int fd) {
+  fds.erase(fd);
+}
+
+std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
   auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command);
   child_proc->fds = fds;
   return child_proc;
 }
 
-void Process::exec(BuildGraph& trace, std::string exe_path, const std::list<std::string>& args) {
-  _command = _command->createChild(exe_path, args);
+void Process::traceExec(BuildGraph& trace, std::string executable,
+                        const std::list<std::string>& args) {
+  _command = _command->createChild(executable, args);
 
   // Close all cloexec file descriptors
   for (auto fd_entry = fds.begin(); fd_entry != fds.end();) {
@@ -57,5 +62,11 @@ void Process::exec(BuildGraph& trace, std::string exe_path, const std::list<std:
   }
   if (fds.find(fileno(stderr)) != fds.end()) {
     trace.add_mmap(this->thread_id, fileno(stderr));
+  }
+}
+
+void Process::traceExit() {
+  for (auto f : mmaps) {
+    f->removeMmap(shared_from_this());
   }
 }

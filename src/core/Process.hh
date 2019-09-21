@@ -33,13 +33,17 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   /****** Non-trivial methods ******/
   
-  void chdir(std::string newdir);
+  void traceChdir(std::string newdir);
 
-  void chroot(std::string newroot);
+  void traceChroot(std::string newroot);
+  
+  void traceClose(int fd);
 
-  std::shared_ptr<Process> fork(pid_t child_pid);
+  std::shared_ptr<Process> traceFork(pid_t child_pid);
 
-  void exec(BuildGraph& trace, std::string exe_path, const std::list<std::string>& args);
+  void traceExec(BuildGraph& trace, std::string executable, const std::list<std::string>& args);
+  
+  void traceExit();
   
   /****** Getters and setters ******/
 

@@ -66,8 +66,7 @@ void BuildGraph::newProcess(pid_t pid, Command* cmd) {
 
 size_t BuildGraph::findFile(std::string path) {
   for (size_t index = 0; index < _latest_versions.size(); index++) {
-    if (!_latest_versions[index]->isPipe() &&
-        _latest_versions[index]->getPath() == path) {
+    if (!_latest_versions[index]->isPipe() && _latest_versions[index]->getPath() == path) {
       return index;
     }
   }
@@ -77,30 +76,28 @@ size_t BuildGraph::findFile(std::string path) {
   return location;
 }
 
-void BuildGraph::add_chdir(pid_t pid, struct file_reference& file) {
-  _processes[pid]->chdir(file.path);
+void BuildGraph::traceChdir(pid_t pid, std::string path) {
+  _processes[pid]->traceChdir(path);
 }
 
-void BuildGraph::add_chroot(pid_t pid, struct file_reference& file) {
-  _processes[pid]->chroot(file.path);
+void BuildGraph::traceChroot(pid_t pid, std::string path) {
+  _processes[pid]->traceChroot(path);
 }
 
-void BuildGraph::add_fork(pid_t pid, pid_t child_pid) {
-  _processes[child_pid] = _processes[pid]->fork(child_pid);
+void BuildGraph::traceFork(pid_t pid, pid_t child_pid) {
+  _processes[child_pid] = _processes[pid]->traceFork(child_pid);
 }
 
-void BuildGraph::add_clone(pid_t pid, pid_t thread_id) { _processes[thread_id] = _processes[pid]; }
-
-void BuildGraph::add_exec(pid_t pid, std::string exe_path, const std::list<std::string>& args) {
-  _processes[pid]->exec(*this, exe_path, args);
+void BuildGraph::traceClone(pid_t pid, pid_t thread_id) { 
+  // Threads in the same process just appear as pid references to the same process
+  _processes[thread_id] = _processes[pid];
 }
 
-void BuildGraph::add_exit(pid_t pid) {
-  auto proc = _processes[pid];
-  for (auto f : proc->mmaps) {
-    f->removeMmap(proc);
-  }
+void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
+  _processes[pid]->traceExec(*this, executable, args);
 }
+
+void BuildGraph::traceExit(pid_t pid) { _processes[pid]->traceExit(); }
 
 void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int access_mode,
                           bool is_rewrite, bool cloexec, mode_t mode) {
@@ -118,7 +115,7 @@ void BuildGraph::add_open(pid_t pid, int fd, struct file_reference& file, int ac
   proc->fds[fd] = FileDescriptor(file_location, access_mode, cloexec);
 }
 
-void BuildGraph::add_close(pid_t pid, int fd) { _processes[pid]->fds.erase(fd); }
+void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd); }
 
 void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];

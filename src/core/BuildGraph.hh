@@ -47,11 +47,13 @@ struct BuildGraph {
   
   void serializeGraph();
   
+  /****** Tracing methods ******/
+  
   void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type);
 
-  void add_chdir(pid_t pid, struct file_reference& file);
+  void traceChdir(pid_t pid, std::string path);
 
-  void add_chroot(pid_t pid, struct file_reference& file);
+  void traceChroot(pid_t pid, std::string path);
 
   void add_open(pid_t pid, int fd, struct file_reference& file, int access_mode, bool is_rewrite,
                 bool cloexec, mode_t mode);
@@ -64,15 +66,15 @@ struct BuildGraph {
 
   void add_mmap(pid_t pid, int fd);
 
-  void add_close(pid_t pid, int fd);
+  void traceClose(pid_t pid, int fd);
 
-  void add_fork(pid_t pid, pid_t child_pid);
+  void traceFork(pid_t pid, pid_t child_pid);
 
-  void add_clone(pid_t pid, pid_t thread_id);
+  void traceClone(pid_t pid, pid_t thread_id);
 
-  void add_exec(pid_t pid, std::string exe_path, const std::list<std::string>& args);
+  void traceExec(pid_t pid, std::string executable, const std::list<std::string>& args);
 
-  void add_exit(pid_t pid);
+  void traceExit(pid_t pid);
   
   /****** Getters and setters ******/
 

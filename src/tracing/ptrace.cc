@@ -350,7 +350,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       }
       pid_t new_child = (pid_t)ul_new_child;
       ptrace(PTRACE_CONT, child, nullptr, 0);
-      trace.add_fork(child, new_child);
+      trace.traceFork(child, new_child);
       break;
     }
     case STOP_EXEC: {
@@ -370,7 +370,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         args.push_back(read_tracee_string(child, arg_ptr));
       }
 
-      trace.add_exec(child, get_executable(child), args);
+      trace.traceExec(child, get_executable(child), args);
 
       ptrace(PTRACE_CONT, child, nullptr, 0);
       break;
@@ -385,11 +385,11 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       pid_t new_thread = (pid_t)ul_new_thread;
       ptrace(PTRACE_CONT, child, nullptr, 0);
       // TODO handling of flags -> CLONE_FILES
-      trace.add_clone(child, new_thread);
+      trace.traceClone(child, new_thread);
       break;
     }
     case STOP_EXIT: {
-      trace.add_exit(child);
+      trace.traceExit(child);
       break;
     }
     case STOP_SYSCALL: {
@@ -639,7 +639,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       switch (registers.SYSCALL_NUMBER) {
         ////// Fiddling with file descriptors //////
         case /* 3 */ __NR_close:
-          trace.add_close(child, registers.SYSCALL_ARG1);
+          trace.traceClose(child, registers.SYSCALL_ARG1);
           break;
         case /* 2 */ __NR_open:
         case /* 85 */ __NR_creat:
@@ -704,10 +704,10 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         ////// Changing process state //////
         case /* 80 */ __NR_chdir:
         case /* 81 */ __NR_fchdir:
-          trace.add_chdir(child, main_file);
+          trace.traceChdir(child, main_file.path);
           break;
         case /* 161 */ __NR_chroot:
-          trace.add_chroot(child, main_file);
+          trace.traceChroot(child, main_file.path);
           break;
         ////// Complex operations /////
         case /* 9 */ __NR_mmap:
