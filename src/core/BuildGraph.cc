@@ -20,9 +20,10 @@
 #include "core/Process.hh"
 #include "db/db.capnp.h"
 
-static uint64_t serialize_commands(Command* command,
+static uint64_t serialize_commands(std::shared_ptr<Command> command,
                                    ::capnp::List<db::Command>::Builder& command_list,
-                                   uint64_t start_index, std::map<Command*, uint64_t>& command_ids,
+                                   uint64_t start_index,
+                                   std::map<std::shared_ptr<Command>, uint64_t>& command_ids,
                                    std::map<File*, uint64_t>& file_ids) {
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(command->getCommand());
@@ -59,7 +60,7 @@ static uint64_t serialize_commands(Command* command,
   return index;
 }
 
-void BuildGraph::newProcess(pid_t pid, Command* cmd) {
+void BuildGraph::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
   Process* proc = new Process(pid, _starting_dir, cmd);
   _processes.emplace(pid, proc);
 }
@@ -263,7 +264,7 @@ void BuildGraph::serializeGraph(void) {
   }
 
   // Serialize commands
-  std::map<Command*, uint64_t> command_ids;
+  std::map<std::shared_ptr<Command>, uint64_t> command_ids;
   uint64_t command_count = 0;
   for (auto c : _commands) {
     command_count += 1 + c->descendants();

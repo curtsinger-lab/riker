@@ -7,8 +7,8 @@
 
 using std::string;
 
-Command::Command(std::string cmd, const std::list<std::string>& args, Command* parent,
-                 unsigned int depth) :
+Command::Command(std::string cmd, const std::list<std::string>& args,
+                 std::shared_ptr<Command> parent, unsigned int depth) :
     _cmd(cmd),
     _args(args),
     _parent(parent),
@@ -20,16 +20,16 @@ Command::Command(std::string cmd, const std::list<std::string>& args) :
     _parent(nullptr),
     _depth(0) {}
 
-Command* Command::createChild(std::string cmd, const std::list<std::string>& args) {
-  Command* child = new Command(cmd, args, this, _depth + 1);
+std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<std::string>& args) {
+  std::shared_ptr<Command> child(new Command(cmd, args, shared_from_this(), _depth + 1));
   _children.push_back(child);
   return child;
 }
 
 void Command::addInput(File* f) {
   // search through all files, do versioning
-  f->addInteractor(this);
-  f->addReader(this);
+  f->addInteractor(shared_from_this());
+  f->addReader(shared_from_this());
   this->_inputs.insert(f);
 
   // No checking for races on pipes
@@ -38,12 +38,12 @@ void Command::addInput(File* f) {
   // If we've read from this file before, check for a race
   // TODO: Use set find
   for (auto rd : this->_rd_interactions) {
-    if (f->getLocation() == rd->getLocation() && f->getWriter() != this) {
+    if (f->getLocation() == rd->getLocation() && f->getWriter().get() != this) {
       if (f->getVersion() == rd->getVersion()) {
         return;
       } else /* we've found a race */ {
-        std::set<Command*> conflicts = f->collapse(rd->getVersion());
-        this->collapse(&conflicts);
+        std::set<std::shared_ptr<Command>> conflicts = f->collapse(rd->getVersion());
+        this->collapse(conflicts);
       }
     }
   }
@@ -60,25 +60,25 @@ void Command::addOutput(File* f) {
         if (f->getVersion() == wr->getVersion()) {
           return;
         } else {
-          std::set<Command*> conflicts = f->collapse(wr->getVersion());
-          this->collapse(&conflicts);
+          std::set<std::shared_ptr<Command>> conflicts = f->collapse(wr->getVersion());
+          this->collapse(conflicts);
           return;
         }
       }
     }
   }
 
-  f->addInteractor(this);
+  f->addInteractor(shared_from_this());
   // if we haven't written to this file before, create a new version
   File* fnew;
-  if ((f->isCreated() && !f->isWritten()) || f->getWriter() == this) {
+  if ((f->isCreated() && !f->isWritten()) || f->getWriter().get() == this) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
     fnew = &f->createVersion();
     fnew->setCreator(nullptr);
   }
-  fnew->setWriter(this);
+  fnew->setWriter(shared_from_this());
   this->_outputs.insert(fnew);
   this->_wr_interactions.insert(fnew);
 }
@@ -91,11 +91,11 @@ uint64_t Command::descendants(void) {
   return ret;
 }
 
-void Command::collapse(std::set<Command*>* commands) {
+void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
   // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
   unsigned int ansc_depth = _depth;
   // find the minimum common depth
-  for (auto c : *commands) {
+  for (auto c : commands) {
     if (c->_depth < ansc_depth) {
       ansc_depth = c->_depth;
     }
@@ -104,10 +104,10 @@ void Command::collapse(std::set<Command*>* commands) {
   while (!fully_collapsed) {
     // std::cerr << "  Target depth " << ansc_depth << std::endl;
     // collapse all commands to this depth
-    Command* prev_command = nullptr;
-    Command* cur_command;
+    std::shared_ptr<Command> prev_command = nullptr;
+    std::shared_ptr<Command> cur_command;
     fully_collapsed = true;
-    for (auto c : *commands) {
+    for (auto c : commands) {
       cur_command = c->collapse_helper(ansc_depth);
       // std::cerr << "    " << std::string(c->cmd.asPtr().asChars().begin(), c->cmd.asPtr().size())
       // << " collapsed to " << std::string(cur_command->cmd.asPtr().asChars().begin(),
@@ -121,22 +121,22 @@ void Command::collapse(std::set<Command*>* commands) {
   }
 }
 
-Command* Command::collapse_helper(unsigned int min_depth) {
+std::shared_ptr<Command> Command::collapse_helper(unsigned int min_depth) {
   if (_depth > min_depth) {
     this->_collapse_with_parent = true;
     return _parent->collapse_helper(min_depth);
   } else {
-    return this;
+    return shared_from_this();
   }
 }
 
 bool Command::canDependOn(const File* f) {
   // If this command is the only writer, it cannot depend on the file
 
-  if (f->getWriter() == this) return false;
+  if (f->getWriter().get() == this) return false;
 
   // If the file is not written and was created by this command, it cannot depend on the file
-  if (!f->isWritten() && f->getCreator() == this) return false;
+  if (!f->isWritten() && f->getCreator().get() == this) return false;
 
   // Otherwise the command can depend on the file
   return true;

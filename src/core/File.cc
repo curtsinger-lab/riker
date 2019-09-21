@@ -24,7 +24,8 @@
 #include "fingerprint/blake2.hh"
 #include "ui/log.hh"
 
-File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator) :
+File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
+           std::shared_ptr<Command> creator) :
     _graph(graph),
     _location(location),
     _path(path),
@@ -52,15 +53,17 @@ File& File::createVersion() {
 
 File* File::getLatestVersion() {
   LOG << this;
-  if (_next_version) return _next_version->getLatestVersion();
-  else return this;
+  if (_next_version)
+    return _next_version->getLatestVersion();
+  else
+    return this;
 }
 
 // return a set of the commands which raced on this file, back to the parameter version
-std::set<Command*> File::collapse(unsigned int version) {
+std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
   // this->has_race = true;
   File* cur_file = this;
-  std::set<Command*> conflicts;
+  std::set<std::shared_ptr<Command>> conflicts;
   while (cur_file->getVersion() != version) {
     // add writer and all readers to conflict set
     if (cur_file->isWritten()) {

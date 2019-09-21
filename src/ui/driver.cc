@@ -7,6 +7,7 @@
 #include <limits>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
@@ -192,7 +193,7 @@ int main(int argc, char* argv[]) {
         std::cout << " ";
         write_shell_escaped(std::cout, arg);
       }
-      
+
       // Print redirections
       for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
         std::cout << " ";
@@ -285,7 +286,8 @@ int main(int argc, char* argv[]) {
               (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
         }
         // Spawn the child
-        auto middle_cmd = new Command(run_command->executable, run_command->args);
+        std::shared_ptr<Command> middle_cmd(
+            new Command(run_command->executable, run_command->args));
         child_pid = start_command(trace, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
@@ -317,7 +319,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  auto root_cmd = new Command("Dodofile", {"Dodofile"});
+  std::shared_ptr<Command> root_cmd(new Command("Dodofile", {"Dodofile"}));
 
   trace.addCommand(root_cmd);
 

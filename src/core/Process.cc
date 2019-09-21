@@ -12,9 +12,8 @@
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-#include "ui/log.hh"
 
-Process::Process(pid_t thread_id, std::string cwd, Command* command) :
+Process::Process(pid_t thread_id, std::string cwd, std::shared_ptr<Command> command) :
     thread_id(thread_id),
     _command(command),
     _cwd(cwd) {}

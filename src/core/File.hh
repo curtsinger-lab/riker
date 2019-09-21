@@ -23,7 +23,8 @@ bool match_fingerprint(db::File::Reader file);
 struct File {
   /****** Constructors ******/
 
-  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator);
+  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
+       std::shared_ptr<Command> creator);
 
   // Disallow Copy
   File(const File&) = delete;
@@ -34,7 +35,7 @@ struct File {
 
   /****** Non-trivial methods ******/
 
-  std::set<Command*> collapse(unsigned int depth);
+  std::set<std::shared_ptr<Command>> collapse(unsigned int depth);
 
   File& createVersion();
 
@@ -61,18 +62,18 @@ struct File {
   void addMmap(std::shared_ptr<Process> p) { _mmaps.insert(p); }
   void removeMmap(std::shared_ptr<Process> p) { _mmaps.erase(p); }
 
-  const std::set<Command*>& getReaders() const { return _readers; }
-  void addReader(Command* c) { _readers.insert(c); }
+  const std::set<std::shared_ptr<Command>>& getReaders() const { return _readers; }
+  void addReader(std::shared_ptr<Command> c) { _readers.insert(c); }
 
-  const std::set<Command*>& getInteractors() const { return _interactors; }
-  void addInteractor(Command* c) { _interactors.insert(c); }
+  const std::set<std::shared_ptr<Command>>& getInteractors() const { return _interactors; }
+  void addInteractor(std::shared_ptr<Command> c) { _interactors.insert(c); }
 
-  Command* getCreator() const { return _creator; }
-  void setCreator(Command* c) { _creator = c; }
+  std::shared_ptr<Command> getCreator() const { return _creator; }
+  void setCreator(std::shared_ptr<Command> c) { _creator = c; }
   bool isCreated() const { return getCreator() != nullptr; }
 
-  Command* getWriter() const { return _writer; }
-  void setWriter(Command* c) { _writer = c; }
+  std::shared_ptr<Command> getWriter() const { return _writer; }
+  void setWriter(std::shared_ptr<Command> c) { _writer = c; }
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
@@ -88,22 +89,22 @@ struct File {
   db::FingerprintType getFingerprintType() const { return _fingerprint_type; }
 
  private:
-  BuildGraph& _graph;               // A reference to the trace this file is part of
-  size_t _location;                 // This file's index in the BuildGraph::latest_versions map
-  db::FileType _type;               // The type of file
-  std::string _path;                // The path to this file
-  uint16_t _mode;                   // The file's access mode
-  std::set<Command*> _readers;      // Commands that read this file
-  std::set<Command*> _interactors;  // Commands that read OR modify this file
+  BuildGraph& _graph;  // A reference to the trace this file is part of
+  size_t _location;    // This file's index in the BuildGraph::latest_versions map
+  db::FileType _type;  // The type of file
+  std::string _path;   // The path to this file
+  uint16_t _mode;      // The file's access mode
+  std::set<std::shared_ptr<Command>> _readers;      // Commands that read this file
+  std::set<std::shared_ptr<Command>> _interactors;  // Commands that read OR modify this file
   std::set<std::shared_ptr<Process>> _mmaps;  // Processes that currently have an mmap of this file
-  
-  unsigned int _version = 0;                  // The version number of this file
+
+  unsigned int _version = 0;  // The version number of this file
   File* _prev_version = nullptr;
   File* _next_version = nullptr;
 
   bool _removed = false;
-  Command* _creator;
-  Command* _writer = nullptr;
+  std::shared_ptr<Command> _creator;
+  std::shared_ptr<Command> _writer;
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;
   std::vector<uint8_t> _checksum;

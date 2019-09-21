@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -10,11 +11,11 @@
 
 struct File;
 
-struct Command {
+struct Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
 
  private:
-  Command(std::string cmd, const std::list<std::string>& args, Command* parent,
+  Command(std::string cmd, const std::list<std::string>& args, std::shared_ptr<Command> parent,
           unsigned int depth);
 
  public:
@@ -30,7 +31,7 @@ struct Command {
 
   /****** Non-trivial methods ******/
 
-  Command* createChild(std::string cmd, const std::list<std::string>& args);
+  std::shared_ptr<Command> createChild(std::string cmd, const std::list<std::string>& args);
 
   void addInput(File* f);
 
@@ -38,9 +39,9 @@ struct Command {
 
   size_t descendants();
 
-  void collapse(std::set<Command*>* commands);
+  void collapse(std::set<std::shared_ptr<Command>>& commands);
 
-  Command* collapse_helper(unsigned int min_depth);
+  std::shared_ptr<Command> collapse_helper(unsigned int min_depth);
 
   bool canDependOn(const File* f);
 
@@ -50,7 +51,7 @@ struct Command {
 
   const std::list<std::string>& getArguments() { return _args; }
 
-  const std::list<Command*>& getChildren() { return _children; }
+  const std::list<std::shared_ptr<Command>>& getChildren() { return _children; }
 
   const std::set<File*>& getDeletedFiles() const { return _deleted_files; }
   void addDeletedFile(File* f) { _deleted_files.insert(f); }
@@ -63,9 +64,9 @@ struct Command {
  private:
   std::string _cmd;
   std::list<std::string> _args;
-  Command* _parent;
+  std::shared_ptr<Command> _parent;
   unsigned int _depth;
-  std::list<Command*> _children;
+  std::list<std::shared_ptr<Command>> _children;
   std::set<File*> _inputs;
   std::set<File*> _outputs;
   std::set<File*> _wr_interactions;

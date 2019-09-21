@@ -20,39 +20,39 @@ struct Process : public std::enable_shared_from_this<Process> {
   std::set<File*> mmaps;
 
   /****** Constructors ******/
-  
-  Process(pid_t thread_id, std::string cwd, Command* command);
-  
+
+  Process(pid_t thread_id, std::string cwd, std::shared_ptr<Command> command);
+
   // Disallow Copy
   Process(const Process&) = delete;
   Process& operator=(const Process&) = delete;
-  
+
   // Allow Move
   Process(Process&&) = default;
   Process& operator=(Process&&) = default;
 
   /****** Non-trivial methods ******/
-  
+
   void traceMmap(BuildGraph& graph, int fd);
-  
+
   void traceChdir(std::string newdir);
 
   void traceChroot(std::string newroot);
-  
+
   void traceClose(int fd);
 
   std::shared_ptr<Process> traceFork(pid_t child_pid);
 
   void traceExec(BuildGraph& trace, std::string executable, const std::list<std::string>& args);
-  
+
   void traceExit();
-  
+
   /****** Getters and setters ******/
 
-  Command* getCommand() { return _command; }
+  std::shared_ptr<Command> getCommand() { return _command; }
 
  private:
-  Command* _command;
+  std::shared_ptr<Command> _command;
   std::string _cwd;
   std::string _root;
 };
