@@ -25,6 +25,7 @@
 #include "core/Process.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
+#include "ui/log.hh"
 
 File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path, Command* creator,
            File* prev_version) :
@@ -123,7 +124,7 @@ static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
       filter = filter_nfs;
     }
   }
-
+  
   // Get a sorted list of directory entries
   struct dirent** namelist;
   int entries = scandir(path_string.c_str(), &namelist, filter, alphasort);
@@ -190,6 +191,7 @@ void File::fingerprint() {
   }
 
   auto path_string = getPath();
+  INFO << path_string;
 
   if (stat(path_string.c_str(), &_stat_info) != 0) {
     if (errno == ENOENT) {

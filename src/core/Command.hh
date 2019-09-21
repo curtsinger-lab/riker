@@ -16,11 +16,11 @@ struct Command {
   /****** Constructors ******/
 
  private:
-  Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args, Command* parent,
+  Command(std::string cmd, const std::list<std::string>& args, Command* parent,
           unsigned int depth);
 
  public:
-  Command(BuildGraph& graph, std::string cmd, const std::list<std::string>& args);
+  Command(std::string cmd, const std::list<std::string>& args);
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -63,11 +63,10 @@ struct Command {
   void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
  private:
-  BuildGraph& _graph;
   std::string _cmd;
   std::list<std::string> _args;
   Command* _parent;
-  const unsigned int _depth;
+  unsigned int _depth;
   std::list<Command*> _children;
   std::set<File*> _inputs;
   std::set<File*> _outputs;

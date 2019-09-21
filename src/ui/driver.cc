@@ -176,9 +176,7 @@ int main(int argc, char* argv[]) {
           }
 
           auto child_entry = wait_worklist.find(child);
-          if (child_entry == wait_worklist.end()) {
-            WARN << "Unrecognized process ended: " << child;
-          } else {
+          if (child_entry != wait_worklist.end()) {
             old_command* child_command = child_entry->second;
             wait_worklist.erase(child_entry);
 
@@ -287,7 +285,7 @@ int main(int argc, char* argv[]) {
               (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
         }
         // Spawn the child
-        auto middle_cmd = new Command(trace, run_command->executable, run_command->args);
+        auto middle_cmd = new Command(run_command->executable, run_command->args);
         child_pid = start_command(trace, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
@@ -319,7 +317,7 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
-  auto root_cmd = new Command(trace, "Dodofile", {"Dodofile"});
+  auto root_cmd = new Command("Dodofile", {"Dodofile"});
 
   trace.addCommand(root_cmd);
 

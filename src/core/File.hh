@@ -31,7 +31,6 @@ struct File {
   
   // Allow Move
   File(File&&) = default;
-  File& operator=(File&&) = default;
 
   /****** Non-trivial methods ******/
 
