@@ -9,6 +9,14 @@ SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
 HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
+IWYU := iwyu 
+IWYUFLAGS := -Xiwyu --mapping_file=.iwyu-mappings \
+             -Isrc \
+             -isystem /usr/include/c++/8/ \
+             -isystem /usr/lib/llvm-8/lib/clang/8.0.0/include/
+IWYU_SKIP := $(DB)% src/fingerprint/%
+IWYU_SRCS := $(filter-out $(IWYU_SKIP), $(SRCS))
+
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
 
 all: dodo
@@ -16,7 +24,7 @@ all: dodo
 clean:
 	rm -rf dodo objs db.dodo $(DB).cc $(DB).h
 
-.PHONY: all clean test selftest
+.PHONY: all clean iwyu test selftest
 
 .SUFFIXES:
 
@@ -43,3 +51,8 @@ selftest: dodo
 	@echo "Running self test"
 	@rm -f db.dodo
 	./dodo
+
+iwyu:
+	@for src in $(IWYU_SRCS); do \
+		$(IWYU) $(IWYUFLAGS) $(CXXFLAGS) $$src; \
+	done || true

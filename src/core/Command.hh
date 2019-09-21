@@ -5,11 +5,9 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector>
 
 #include "core/FileDescriptor.hh"
 
-struct BuildGraph;
 struct File;
 
 struct Command {

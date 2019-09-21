@@ -3,7 +3,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <list>
+#include <ctime>
 #include <set>
 #include <string>
 #include <vector>
@@ -13,13 +13,10 @@
 #include <linux/magic.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <capnp/blob.h>
-#include <capnp/message.h>
-#include <kj/array.h>
-#include <kj/common.h>
+#include <kj/string.h>
 
 #include "core/BuildGraph.hh"
 #include "core/Process.hh"

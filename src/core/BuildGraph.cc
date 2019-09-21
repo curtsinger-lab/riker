@@ -13,7 +13,6 @@
 #include <capnp/list.h>
 #include <capnp/message.h>
 #include <capnp/serialize.h>
-#include <kj/string.h>
 
 #include "core/Command.hh"
 #include "core/File.hh"

@@ -1,0 +1,12 @@
+[
+  # Pull in STL mappings
+  { ref: "/usr/share/include-what-you-use/stl.c.headers.imp" },
+  
+  # Odd linux-specific fixes for C++ includes
+  { include: [ "<bits/stdint-uintn.h>", public, "<cstdint>", public ] },
+  { symbol: ["timespec", private, "<ctime>", public ] },
+  
+  
+  # Dodo-specific wrappers
+  { include: [ "\"../blake2/sse/blake2.h\"", public, "\"fingerprint/blake2.hh\"", public ] },
+]

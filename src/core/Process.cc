@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"

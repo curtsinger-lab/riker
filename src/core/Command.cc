@@ -6,7 +6,6 @@
 #include "core/FileDescriptor.hh"
 
 using std::string;
-using std::vector;
 
 Command::Command(std::string cmd, const std::list<std::string>& args, Command* parent,
                  unsigned int depth) :
