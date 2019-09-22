@@ -49,7 +49,7 @@ struct BuildGraph {
 
   /****** Tracing methods ******/
 
-  void add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type);
+  void addDependency(pid_t pid, struct file_reference& file, enum dependency_type type);
 
   void traceChdir(pid_t pid, std::string path);
 
@@ -57,7 +57,7 @@ struct BuildGraph {
 
   void traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode);
 
-  void add_pipe(pid_t pid, int fds[2], bool cloexec);
+  void tracePipe(pid_t pid, int fds[2], bool cloexec);
 
   void add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec);
 

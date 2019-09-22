@@ -667,10 +667,10 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
 
         case /* 22 */ __NR_pipe:
-          trace.add_pipe(child, pipe_fds, false);
+          trace.tracePipe(child, pipe_fds, false);
           break;
         case /* 293 */ __NR_pipe2:
-          trace.add_pipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
+          trace.tracePipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
           break;
         case /* 32 */ __NR_dup:
           trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
@@ -712,26 +712,26 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 275 */ __NR_splice:
         case /* 276 */ __NR_tee:
         case /* 326 */ __NR_copy_file_range:
-          trace.add_dependency(child, main_file, DEP_READ);
-          trace.add_dependency(child, extra_file, DEP_MODIFY);
+          trace.addDependency(child, main_file, DEP_READ);
+          trace.addDependency(child, extra_file, DEP_MODIFY);
           break;
         case /* 76 */ __NR_truncate:
         case /* 77 */ __NR_ftruncate:
           if (registers.SYSCALL_ARG2 == 0) {
-            trace.add_dependency(child, main_file, DEP_REMOVE);
-            trace.add_dependency(child, main_file, DEP_CREATE);
+            trace.addDependency(child, main_file, DEP_REMOVE);
+            trace.addDependency(child, main_file, DEP_CREATE);
           } else {
-            trace.add_dependency(child, main_file, DEP_MODIFY);
+            trace.addDependency(child, main_file, DEP_MODIFY);
           }
           break;
         case /* 82 */ __NR_rename:
         case /* 264 */ __NR_renameat:
         case /* 316 */ __NR_renameat2:  // TODO: Handle the flags
-          trace.add_dependency(child, main_file, DEP_READ);
-          trace.add_dependency(child, main_file, DEP_REMOVE);
-          trace.add_dependency(child, extra_file, DEP_REMOVE);
-          trace.add_dependency(child, extra_file, DEP_CREATE);
-          trace.add_dependency(child, extra_file, DEP_MODIFY);
+          trace.addDependency(child, main_file, DEP_READ);
+          trace.addDependency(child, main_file, DEP_REMOVE);
+          trace.addDependency(child, extra_file, DEP_REMOVE);
+          trace.addDependency(child, extra_file, DEP_CREATE);
+          trace.addDependency(child, extra_file, DEP_MODIFY);
           break;
         ////// Simple reads and writes //////
         case /* 0 */ __NR_read:
@@ -751,7 +751,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 196 */ __NR_flistxattr:
         case /* 267 */ __NR_readlinkat:
         case /* 322 */ __NR_execveat:
-          trace.add_dependency(child, main_file, DEP_READ);
+          trace.addDependency(child, main_file, DEP_READ);
           break;
         case /* 1 */ __NR_write:
         case /* 18 */ __NR_pwrite64:
@@ -772,7 +772,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 199 */ __NR_fremovexattr:
         case /* 260 */ __NR_fchownat:
         case /* 268 */ __NR_fchmodat:
-          trace.add_dependency(child, main_file, DEP_MODIFY);
+          trace.addDependency(child, main_file, DEP_MODIFY);
           break;
         case /* 83 */ __NR_mkdir:
         case /* 88 */ __NR_symlink:
@@ -780,12 +780,12 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 258 */ __NR_mkdirat:
         case /* 259 */ __NR_mknodat:
         case /* 266 */ __NR_symlinkat:
-          trace.add_dependency(child, main_file, DEP_CREATE);
+          trace.addDependency(child, main_file, DEP_CREATE);
           break;
         case /* 84 */ __NR_rmdir:
         case /* 87 */ __NR_unlink:
         case /* 263 */ __NR_unlinkat:
-          trace.add_dependency(child, main_file, DEP_REMOVE);
+          trace.addDependency(child, main_file, DEP_REMOVE);
           break;
         default:
           fprintf(stderr, "[%d] UNHANDLED SYSCALL: %d\n", child, (int)registers.SYSCALL_NUMBER);

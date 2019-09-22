@@ -97,71 +97,43 @@ void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<st
 void BuildGraph::traceExit(pid_t pid) { _processes[pid]->traceExit(); }
 
 void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
-  auto proc = _processes[pid];
-
-  int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
-
-  // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
-  /*if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
-    main_file.follow_links = false;
-  }*/
-
-  bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
-  bool cloexec = (flags & O_CLOEXEC) != 0;
-
-  // TODO take into account root and cwd
-  size_t file_location = this->findFile(path);
+  size_t file_location = findFile(path);
   File* f = _latest_versions[file_location];
-  if (rewrite && (f->getCreator() != proc->getCommand() || f->isWritten())) {
-    f = &f->createVersion();
-    f->setCreator(proc->getCommand());
-    f->setWriter(nullptr);
-    f->setMode(mode);
-  }
-  proc->fds[fd] = FileDescriptor(file_location, f, access_mode, cloexec);
+  _processes[pid]->traceOpen(fd, *f, flags, mode);
 }
 
 void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd); }
 
-void BuildGraph::add_pipe(pid_t pid, int fds[2], bool cloexec) {
+void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
-  // fprintf(stdout, "[%d] Pipe %d, %d\n", proc->thread_id, fds[0], fds[1]);
+  
   size_t location = _latest_versions.size();
-  File& p = addFile(File(*this, location, true, "", proc->getCommand()));
-  _latest_versions.push_back(&p);
-  proc->fds[fds[0]] = FileDescriptor(location, &p, O_RDONLY, cloexec);
-  proc->fds[fds[1]] = FileDescriptor(location, &p, O_WRONLY, cloexec);
+  File& f = addFile(File(*this, location, true, "", proc->getCommand()));
+  _latest_versions.push_back(&f);
+  
+  proc->tracePipe(fds[0], fds[1], f, cloexec);
 }
 
 void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-  auto proc = _processes[pid];
-  auto duped_file = proc->fds.find(duped_fd);
-  if (duped_file == proc->fds.end()) {
-    proc->fds.erase(new_fd);
-  } else {
-    proc->fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.file,
-                                       duped_file->second.access_mode, cloexec);
-  }
+  _processes[pid]->traceDup(duped_fd, new_fd, cloexec);
 }
 
 void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
-  auto proc = _processes[pid];
-  auto file = proc->fds.find(fd);
-  if (file != proc->fds.end()) {
-    file->second.cloexec = cloexec;
-  }
+  _processes[pid]->traceSetCloexec(fd, cloexec);
 }
 
 void BuildGraph::traceMmap(pid_t pid, int fd) { _processes[pid]->traceMmap(*this, fd); }
 
-void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
+void BuildGraph::addDependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
   auto proc = _processes[pid];
+  auto fds = proc->getFds();
+  
   size_t file_location;
   if (file.fd == AT_FDCWD) {
     file_location = this->findFile(file.path);
   } else {
     // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
-    if (proc->fds.find(file.fd) == proc->fds.end()) {
+    if (fds.find(file.fd) == fds.end()) {
       // TODO: Use a proper placeholder and stop fiddling with string
       // manipulation
       std::string path_str;
@@ -181,7 +153,7 @@ void BuildGraph::add_dependency(pid_t pid, struct file_reference& file, enum dep
       }
       file_location = this->findFile(path_str);
     } else {
-      file_location = proc->fds.find(file.fd)->second.location_index;
+      file_location = fds.find(file.fd)->second.location_index;
     }
   }
   File* f = _latest_versions[file_location];
