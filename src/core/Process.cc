@@ -27,7 +27,7 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   // Get the latest version of this file.
   // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
   // opened by the current process.
-  File* f = desc.file->getLatestVersion();
+  std::shared_ptr<File> f = desc.file->getLatestVersion();
   f->addMmap(shared_from_this());
   _mmaps.insert(f);
 
@@ -78,7 +78,7 @@ void Process::traceExec(BuildGraph& trace, std::string executable,
   }
 }
 
-void Process::traceOpen(int fd, File& f, int flags, mode_t mode) {
+void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode) {
   int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
 
   // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
@@ -89,20 +89,20 @@ void Process::traceOpen(int fd, File& f, int flags, mode_t mode) {
   bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
-  if (rewrite && (f.getCreator() != getCommand() || f.isWritten())) {
-    File& newfile = f.createVersion();
-    newfile.setCreator(getCommand());
-    newfile.setWriter(nullptr);
-    newfile.setMode(mode);
-    _fds[fd] = FileDescriptor(f.getLocation(), &newfile, access_mode, cloexec);
+  if (rewrite && (f->getCreator() != getCommand() || f->isWritten())) {
+    std::shared_ptr<File> newfile = f->createVersion();
+    newfile->setCreator(getCommand());
+    newfile->setWriter(nullptr);
+    newfile->setMode(mode);
+    _fds[fd] = FileDescriptor(f->getLocation(), newfile, access_mode, cloexec);
   } else {
-    _fds[fd] = FileDescriptor(f.getLocation(), &f, access_mode, cloexec);
+    _fds[fd] = FileDescriptor(f->getLocation(), f, access_mode, cloexec);
   }
 }
 
-void Process::tracePipe(int fd1, int fd2, File& f, bool cloexec) {
-  _fds[fd1] = FileDescriptor(f.getLocation(), &f, O_RDONLY, cloexec);
-  _fds[fd2] = FileDescriptor(f.getLocation(), &f, O_WRONLY, cloexec);
+void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {
+  _fds[fd1] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
+  _fds[fd2] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);
 }
 
 void Process::traceDup(int fd, int new_fd, bool cloexec) {

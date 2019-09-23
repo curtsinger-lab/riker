@@ -24,7 +24,7 @@ static uint64_t serialize_commands(std::shared_ptr<Command> command,
                                    ::capnp::List<db::Command>::Builder& command_list,
                                    uint64_t start_index,
                                    std::map<std::shared_ptr<Command>, uint64_t>& command_ids,
-                                   std::map<File*, uint64_t>& file_ids) {
+                                   std::map<std::shared_ptr<File>, uint64_t>& file_ids) {
   command_ids[command] = start_index;
   command_list[start_index].setExecutable(command->getCommand());
   command_list[start_index].setOutOfDate(false);
@@ -72,8 +72,9 @@ size_t BuildGraph::findFile(std::string path) {
     }
   }
   size_t location = _latest_versions.size();
-  File& new_node = addFile(File(*this, location, false, path, nullptr));
-  _latest_versions.push_back(&new_node);
+  std::shared_ptr<File> new_node = std::make_shared<File>(*this, location, false, path, nullptr);
+  addFile(new_node);
+  _latest_versions.push_back(new_node);
   return location;
 }
 
@@ -98,8 +99,8 @@ void BuildGraph::traceExit(pid_t pid) { _processes[pid]->traceExit(); }
 
 void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
   size_t file_location = findFile(path);
-  File* f = _latest_versions[file_location];
-  _processes[pid]->traceOpen(fd, *f, flags, mode);
+  std::shared_ptr<File> f = _latest_versions[file_location];
+  _processes[pid]->traceOpen(fd, f, flags, mode);
 }
 
 void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd); }
@@ -108,8 +109,9 @@ void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
   
   size_t location = _latest_versions.size();
-  File& f = addFile(File(*this, location, true, "", proc->getCommand()));
-  _latest_versions.push_back(&f);
+  std::shared_ptr<File> f = std::make_shared<File>(*this, location, true, "", proc->getCommand());
+  addFile(f);
+  _latest_versions.push_back(f);
   
   proc->tracePipe(fds[0], fds[1], f, cloexec);
 }
@@ -156,7 +158,7 @@ void BuildGraph::addDependency(pid_t pid, struct file_reference& file, enum depe
       file_location = fds.find(file.fd)->second.location_index;
     }
   }
-  File* f = _latest_versions[file_location];
+  std::shared_ptr<File> f = _latest_versions[file_location];
 
   switch (type) {
     case DEP_READ:
@@ -187,7 +189,7 @@ void BuildGraph::addDependency(pid_t pid, struct file_reference& file, enum depe
       break;
     case DEP_REMOVE:
       proc->getCommand()->addDeletedFile(f);
-      f = &f->createVersion();
+      f = f->createVersion();
       f->setCreator(nullptr);
       f->setWriter(nullptr);
       f->setRemoved();
@@ -202,28 +204,28 @@ void BuildGraph::serializeGraph(void) {
 
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
-  for (File* f : _latest_versions) {
+  for (std::shared_ptr<File> f : _latest_versions) {
     f->fingerprint();
   }
 
   // Serialize files
-  std::map<File*, uint64_t> file_ids;
+  std::map<std::shared_ptr<File>, uint64_t> file_ids;
   uint64_t file_count = 0;
   uint64_t input_count = 0;
   uint64_t output_count = 0;
   uint64_t create_count = 0;
   uint64_t modify_count = 0;
-  for (File& file : _files) {
+  for (std::shared_ptr<File> file : _files) {
     // We only care about files that are either written or read so filter those out.
-    if (file.shouldSave()) {
-      file_ids[&file] = file_count;
-      input_count += file.getReaders().size();
-      if (file.isWritten()) output_count++;
-      if (file.isCreated()) create_count++;
-      modify_count += (!file.isCreated() && file.getPreviousVersion() != nullptr &&
-                       (file.getPreviousVersion()->isCreated() ||
-                        (file.getPreviousVersion()->getPreviousVersion() != nullptr &&
-                         !file.getPreviousVersion()->isRemoved())));
+    if (file->shouldSave()) {
+      file_ids[file] = file_count;
+      input_count += file->getReaders().size();
+      if (file->isWritten()) output_count++;
+      if (file->isCreated()) create_count++;
+      modify_count += (!file->isCreated() && file->getPreviousVersion() != nullptr &&
+                       (file->getPreviousVersion()->isCreated() ||
+                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
+                         !file->getPreviousVersion()->isRemoved())));
       file_count += 1;
     }
   }

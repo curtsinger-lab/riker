@@ -33,9 +33,9 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   std::shared_ptr<Command> createChild(std::string cmd, const std::list<std::string>& args);
 
-  void addInput(File* f);
+  void addInput(std::shared_ptr<File> f);
 
-  void addOutput(File* f);
+  void addOutput(std::shared_ptr<File> f);
 
   size_t descendants();
 
@@ -43,7 +43,7 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   std::shared_ptr<Command> collapse_helper(unsigned int min_depth);
 
-  bool canDependOn(const File* f);
+  bool canDependOn(const std::shared_ptr<File> f);
 
   /****** Getters and setters ******/
 
@@ -53,8 +53,8 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   const std::list<std::shared_ptr<Command>>& getChildren() { return _children; }
 
-  const std::set<File*>& getDeletedFiles() const { return _deleted_files; }
-  void addDeletedFile(File* f) { _deleted_files.insert(f); }
+  const std::set<std::shared_ptr<File>>& getDeletedFiles() const { return _deleted_files; }
+  void addDeletedFile(std::shared_ptr<File> f) { _deleted_files.insert(f); }
 
   bool getCollapseWithParent() const { return _collapse_with_parent; }
 
@@ -67,11 +67,11 @@ struct Command : public std::enable_shared_from_this<Command> {
   std::shared_ptr<Command> _parent;
   unsigned int _depth;
   std::list<std::shared_ptr<Command>> _children;
-  std::set<File*> _inputs;
-  std::set<File*> _outputs;
-  std::set<File*> _wr_interactions;
-  std::set<File*> _rd_interactions;
-  std::set<File*> _deleted_files;
+  std::set<std::shared_ptr<File>> _inputs;
+  std::set<std::shared_ptr<File>> _outputs;
+  std::set<std::shared_ptr<File>> _wr_interactions;
+  std::set<std::shared_ptr<File>> _rd_interactions;
+  std::set<std::shared_ptr<File>> _deleted_files;
   bool _collapse_with_parent;
   std::map<int, FileDescriptor> _initial_fds;
 };

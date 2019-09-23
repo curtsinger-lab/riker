@@ -26,7 +26,7 @@ std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<s
   return child;
 }
 
-void Command::addInput(File* f) {
+void Command::addInput(std::shared_ptr<File> f) {
   // search through all files, do versioning
   f->addInteractor(shared_from_this());
   f->addReader(shared_from_this());
@@ -51,7 +51,7 @@ void Command::addInput(File* f) {
   this->_rd_interactions.insert(f);
 }
 
-void Command::addOutput(File* f) {
+void Command::addOutput(std::shared_ptr<File> f) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
     for (auto wr : this->_wr_interactions) {
@@ -70,12 +70,12 @@ void Command::addOutput(File* f) {
 
   f->addInteractor(shared_from_this());
   // if we haven't written to this file before, create a new version
-  File* fnew;
+  std::shared_ptr<File> fnew;
   if ((f->isCreated() && !f->isWritten()) || f->getWriter().get() == this) {
     // Unless we just created it, in which case it is pristine
     fnew = f;
   } else {
-    fnew = &f->createVersion();
+    fnew = f->createVersion();
     fnew->setCreator(nullptr);
   }
   fnew->setWriter(shared_from_this());
@@ -130,7 +130,7 @@ std::shared_ptr<Command> Command::collapse_helper(unsigned int min_depth) {
   }
 }
 
-bool Command::canDependOn(const File* f) {
+bool Command::canDependOn(const std::shared_ptr<File> f) {
   // If this command is the only writer, it cannot depend on the file
 
   if (f->getWriter().get() == this) return false;

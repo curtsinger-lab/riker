@@ -41,9 +41,9 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   std::shared_ptr<Process> traceFork(pid_t child_pid);
   
-  void traceOpen(int fd, File& f, int flags, mode_t mode);
+  void traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode);
   
-  void tracePipe(int fd1, int fd2, File& f, bool cloexec);
+  void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
   
   void traceDup(int fd, int new_fd, bool cloexec);
   
@@ -64,6 +64,6 @@ struct Process : public std::enable_shared_from_this<Process> {
   std::shared_ptr<Command> _command;
   std::string _cwd;
   std::string _root;
-  std::set<File*> _mmaps;
+  std::set<std::shared_ptr<File>> _mmaps;
   std::map<int, FileDescriptor> _fds;
 };

@@ -20,7 +20,7 @@ struct BuildGraph;
 // objects.
 bool match_fingerprint(db::File::Reader file);
 
-struct File {
+struct File : std::enable_shared_from_this<File> {
   /****** Constructors ******/
 
   File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
@@ -37,7 +37,7 @@ struct File {
 
   std::set<std::shared_ptr<Command>> collapse(unsigned int depth);
 
-  File& createVersion();
+  std::shared_ptr<File> createVersion();
 
   void fingerprint();
 
@@ -45,7 +45,7 @@ struct File {
 
   void serialize(db::File::Builder builder);
 
-  File* getLatestVersion();
+  std::shared_ptr<File> getLatestVersion();
 
   /****** Getters and setters ******/
 
@@ -79,7 +79,7 @@ struct File {
   unsigned int getVersion() const { return _version; }
   bool isLatestVersion() const { return _next_version == nullptr; }
 
-  File* getPreviousVersion() const { return _prev_version; }
+  std::shared_ptr<File> getPreviousVersion() const { return _prev_version; }
   bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
 
   bool isRemoved() const { return _removed; }
@@ -99,8 +99,8 @@ struct File {
   std::set<std::shared_ptr<Process>> _mmaps;  // Processes that currently have an mmap of this file
 
   unsigned int _version = 0;  // The version number of this file
-  File* _prev_version = nullptr;
-  File* _next_version = nullptr;
+  std::shared_ptr<File> _prev_version;
+  std::shared_ptr<File> _next_version;
 
   bool _removed = false;
   std::shared_ptr<Command> _creator;

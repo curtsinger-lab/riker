@@ -81,15 +81,15 @@ struct BuildGraph {
 
   void addCommand(std::shared_ptr<Command> c) { _commands.push_front(c); }
 
-  File* getLatestVersion(size_t index) const { return _latest_versions[index]; }
-  void setLatestVersion(size_t index, File* f) { _latest_versions[index] = f; }
+  std::shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
+  void setLatestVersion(size_t index, std::shared_ptr<File> f) { _latest_versions[index] = f; }
 
-  File& addFile(File&& f) { return _files.emplace_front(std::move(f)); }
+  void addFile(std::shared_ptr<File> f) { _files.emplace_front(f); }
 
  private:
   std::string _starting_dir;
   std::map<pid_t, std::shared_ptr<Process>> _processes;
   std::list<std::shared_ptr<Command>> _commands;
-  std::vector<File*> _latest_versions;
-  std::list<File> _files;
+  std::vector<std::shared_ptr<File>> _latest_versions;
+  std::list<std::shared_ptr<File>> _files;
 };

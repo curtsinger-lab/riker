@@ -35,34 +35,33 @@ File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
   } else {
     _type = db::FileType::REGULAR;
   }
-  LOG << "HERE: " << this;
 }
 
-File& File::createVersion() {
+std::shared_ptr<File> File::createVersion() {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
 
-  File& f = _graph.addFile(File(_graph, _location, isPipe(), getPath(), getCreator()));
-  f._version++;
-  f._prev_version = this;
-  _next_version = &f;
-  LOG << "Next version at " << _next_version;
-  _graph.setLatestVersion(_location, &f);
+  std::shared_ptr<File> f =
+      std::make_shared<File>(_graph, _location, isPipe(), getPath(), getCreator());
+  _graph.addFile(f);
+  f->_version++;
+  f->_prev_version = shared_from_this();
+  _next_version = f;
+  _graph.setLatestVersion(_location, f);
   return f;
 }
 
-File* File::getLatestVersion() {
-  LOG << this;
+std::shared_ptr<File> File::getLatestVersion() {
   if (_next_version)
     return _next_version->getLatestVersion();
   else
-    return this;
+    return shared_from_this();
 }
 
 // return a set of the commands which raced on this file, back to the parameter version
 std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
   // this->has_race = true;
-  File* cur_file = this;
+  std::shared_ptr<File> cur_file = shared_from_this();
   std::set<std::shared_ptr<Command>> conflicts;
   while (cur_file->getVersion() != version) {
     // add writer and all readers to conflict set
