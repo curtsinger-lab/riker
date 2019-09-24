@@ -65,12 +65,12 @@ BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   _stdin = std::make_shared<File>(*this, stdin_location, true, "<<stdin>>");
   _files.push_front(_stdin);
   _latest_versions.push_back(_stdin);
-  
+
   size_t stdout_location = _latest_versions.size();
   _stdout = std::make_shared<File>(*this, stdout_location, true, "<<stdout>>");
   _files.push_front(_stdout);
   _latest_versions.push_back(_stdout);
-  
+
   size_t stderr_location = _latest_versions.size();
   _stderr = std::make_shared<File>(*this, stderr_location, true, "<<stderr>>");
   _files.push_front(_stderr);
@@ -125,12 +125,12 @@ void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd)
 
 void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
-  
+
   size_t location = _latest_versions.size();
   std::shared_ptr<File> f = std::make_shared<File>(*this, location, true, "", proc->getCommand());
   addFile(f);
   _latest_versions.push_back(f);
-  
+
   proc->tracePipe(fds[0], fds[1], f, cloexec);
 }
 
@@ -144,75 +144,83 @@ void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
 
 void BuildGraph::traceMmap(pid_t pid, int fd) { _processes[pid]->traceMmap(*this, fd); }
 
-void BuildGraph::addDependency(pid_t pid, struct file_reference& file, enum dependency_type type) {
+void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   auto fds = proc->getFds();
-  
+
   size_t file_location;
   if (file.fd == AT_FDCWD) {
     file_location = this->findFile(file.path);
   } else {
-    // fprintf(stdout, "[%d] Dep: %d -> ", proc->thread_id, file.fd);
-    if (fds.find(file.fd) == fds.end()) {
-      // TODO: Use a proper placeholder and stop fiddling with string
-      // manipulation
-      std::string path_str;
-      switch (file.fd) {  // This is a temporary hack until we handle pipes well
-        case 0:
-          path_str = "<<stdin>>";
-          break;
-        case 1:
-          path_str = "<<stdout>>";
-          break;
-        case 2:
-          path_str = "<<stderr>>";
-          break;
-        default:
-          path_str = "file not found, fd: " + std::to_string(file.fd);
-          break;
-      }
-      file_location = this->findFile(path_str);
-    } else {
-      file_location = fds.find(file.fd)->second.location_index;
-    }
+    file_location = fds.find(file.fd)->second.location_index;
   }
   std::shared_ptr<File> f = _latest_versions[file_location];
 
-  switch (type) {
-    case DEP_READ:
-      if (proc->getCommand()->canDependOn(f)) {
-        proc->getCommand()->addInput(f);
-      }
-      break;
-    case DEP_MODIFY:
-      // fprintf(stdout, "modify");
-      proc->getCommand()->addOutput(f);
-      break;
-    case DEP_CREATE:
-      // Creation means creation only if the file does not already exist.
-      if (f->isCreated() && !f->isWritten()) {
-        bool file_exists;
-        if (f->isRemoved() || f->isPipe()) {
-          file_exists = false;
-        } else {
-          struct stat stat_info;
-          file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
-        }
-
-        if (!file_exists) {
-          f->setCreator(proc->getCommand());
-          f->setRemoved(false);
-        }
-      }
-      break;
-    case DEP_REMOVE:
-      proc->getCommand()->addDeletedFile(f);
-      f = f->createVersion();
-      f->setCreator(nullptr);
-      f->setWriter(nullptr);
-      f->setRemoved();
-      break;
+  if (proc->getCommand()->canDependOn(f)) {
+    proc->getCommand()->addInput(f);
   }
+}
+
+void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
+  auto proc = _processes[pid];
+  auto fds = proc->getFds();
+
+  size_t file_location;
+  if (file.fd == AT_FDCWD) {
+    file_location = this->findFile(file.path);
+  } else {
+    file_location = fds.find(file.fd)->second.location_index;
+  }
+  std::shared_ptr<File> f = _latest_versions[file_location];
+
+  proc->getCommand()->addOutput(f);
+}
+
+void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
+  auto proc = _processes[pid];
+  auto fds = proc->getFds();
+
+  size_t file_location;
+  if (file.fd == AT_FDCWD) {
+    file_location = this->findFile(file.path);
+  } else {
+    file_location = fds.find(file.fd)->second.location_index;
+  }
+  std::shared_ptr<File> f = _latest_versions[file_location];
+
+  if (f->isCreated() && !f->isWritten()) {
+    bool file_exists;
+    if (f->isRemoved() || f->isPipe()) {
+      file_exists = false;
+    } else {
+      struct stat stat_info;
+      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
+    }
+
+    if (!file_exists) {
+      f->setCreator(proc->getCommand());
+      f->setRemoved(false);
+    }
+  }
+}
+
+void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
+  auto proc = _processes[pid];
+  auto fds = proc->getFds();
+
+  size_t file_location;
+  if (file.fd == AT_FDCWD) {
+    file_location = this->findFile(file.path);
+  } else {
+    file_location = fds.find(file.fd)->second.location_index;
+  }
+  std::shared_ptr<File> f = _latest_versions[file_location];
+  
+  proc->getCommand()->addDeletedFile(f);
+  f = f->createVersion();
+  f->setCreator(nullptr);
+  f->setWriter(nullptr);
+  f->setRemoved();
 }
 
 void BuildGraph::serializeGraph(void) {

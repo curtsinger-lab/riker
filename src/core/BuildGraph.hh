@@ -15,8 +15,6 @@
 struct Command;
 struct Process;
 
-enum dependency_type { DEP_READ, DEP_MODIFY, DEP_CREATE, DEP_REMOVE };
-
 struct file_reference {
   // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
   // then path is relative with respect to the directory in fd.
@@ -49,7 +47,13 @@ struct BuildGraph {
 
   /****** Tracing methods ******/
 
-  void addDependency(pid_t pid, struct file_reference& file, enum dependency_type type);
+  void traceRead(pid_t pid, struct file_reference& file);
+
+  void traceModify(pid_t pid, struct file_reference& file);
+  
+  void traceCreate(pid_t pid, struct file_reference& file);
+  
+  void traceRemove(pid_t pid, struct file_reference& file);
 
   void traceChdir(pid_t pid, std::string path);
 
