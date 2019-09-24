@@ -1,6 +1,7 @@
 #include "core/Command.hh"
 
 #include <cstdint>
+#include <limits>
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
@@ -30,38 +31,38 @@ void Command::addInput(std::shared_ptr<File> f) {
   // search through all files, do versioning
   f->addInteractor(shared_from_this());
   f->addReader(shared_from_this());
-  this->_inputs.insert(f);
+  _inputs.insert(f);
 
   // No checking for races on pipes
   if (f->isPipe()) return;
 
   // If we've read from this file before, check for a race
   // TODO: Use set find
-  for (auto rd : this->_rd_interactions) {
+  for (auto rd : _rd_interactions) {
     if (f->getLocation() == rd->getLocation() && f->getWriter().get() != this) {
       if (f->getVersion() == rd->getVersion()) {
         return;
       } else /* we've found a race */ {
         std::set<std::shared_ptr<Command>> conflicts = f->collapse(rd->getVersion());
-        this->collapse(conflicts);
+        Command::collapse(conflicts);
       }
     }
   }
   // mark that we've now interacted with this version of the file
-  this->_rd_interactions.insert(f);
+  _rd_interactions.insert(f);
 }
 
 void Command::addOutput(std::shared_ptr<File> f) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
-    for (auto wr : this->_wr_interactions) {
+    for (auto wr : _wr_interactions) {
       if (f->getLocation() == wr->getLocation()) {
-        this->_outputs.insert(f);
+        _outputs.insert(f);
         if (f->getVersion() == wr->getVersion()) {
           return;
         } else {
           std::set<std::shared_ptr<Command>> conflicts = f->collapse(wr->getVersion());
-          this->collapse(conflicts);
+          Command::collapse(conflicts);
           return;
         }
       }
@@ -79,21 +80,22 @@ void Command::addOutput(std::shared_ptr<File> f) {
     fnew->setCreator(nullptr);
   }
   fnew->setWriter(shared_from_this());
-  this->_outputs.insert(fnew);
-  this->_wr_interactions.insert(fnew);
+  _outputs.insert(fnew);
+  _wr_interactions.insert(fnew);
 }
 
-uint64_t Command::descendants(void) {
+uint64_t Command::numDescendants() {
   uint64_t ret = 0;
   for (auto c : getChildren()) {
-    ret += 1 + c->descendants();
+    ret += 1 + c->numDescendants();
   }
   return ret;
 }
 
 void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
-  // std::cerr << "Collapsing set of size " << commands->size() << std::endl;
-  unsigned int ansc_depth = _depth;
+  if (commands.empty()) return;
+  size_t ansc_depth = std::numeric_limits<size_t>::max();
+  
   // find the minimum common depth
   for (auto c : commands) {
     if (c->_depth < ansc_depth) {
@@ -102,16 +104,12 @@ void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
   }
   bool fully_collapsed = false;
   while (!fully_collapsed) {
-    // std::cerr << "  Target depth " << ansc_depth << std::endl;
     // collapse all commands to this depth
     std::shared_ptr<Command> prev_command = nullptr;
     std::shared_ptr<Command> cur_command;
     fully_collapsed = true;
     for (auto c : commands) {
-      cur_command = c->collapse_helper(ansc_depth);
-      // std::cerr << "    " << std::string(c->cmd.asPtr().asChars().begin(), c->cmd.asPtr().size())
-      // << " collapsed to " << std::string(cur_command->cmd.asPtr().asChars().begin(),
-      // cur_command->cmd.asPtr().size()) << std::endl;
+      cur_command = c->collapseHelper(ansc_depth);
       if (cur_command != prev_command && prev_command != nullptr) {
         fully_collapsed = false;
       }
@@ -121,10 +119,10 @@ void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
   }
 }
 
-std::shared_ptr<Command> Command::collapse_helper(unsigned int min_depth) {
+std::shared_ptr<Command> Command::collapseHelper(unsigned int min_depth) {
   if (_depth > min_depth) {
-    this->_collapse_with_parent = true;
-    return _parent->collapse_helper(min_depth);
+    _collapse_with_parent = true;
+    return _parent->collapseHelper(min_depth);
   } else {
     return shared_from_this();
   }

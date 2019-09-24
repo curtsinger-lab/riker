@@ -26,7 +26,7 @@ static uint64_t serialize_commands(std::shared_ptr<Command> command,
                                    std::map<std::shared_ptr<Command>, uint64_t>& command_ids,
                                    std::map<std::shared_ptr<File>, uint64_t>& file_ids) {
   command_ids[command] = start_index;
-  command_list[start_index].setExecutable(command->getCommand());
+  command_list[start_index].setExecutable(command->getExecutable());
   command_list[start_index].setOutOfDate(false);
   command_list[start_index].setCollapseWithParent(command->getCollapseWithParent());
   auto argv = command_list[start_index].initArgv(command->getArguments().size());
@@ -160,7 +160,7 @@ void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
 
   size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = this->findFile(file.path);
+    file_location = findFile(file.path);
   } else {
     file_location = fds.find(file.fd)->second.location_index;
   }
@@ -177,7 +177,7 @@ void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
 
   size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = this->findFile(file.path);
+    file_location = findFile(file.path);
   } else {
     file_location = fds.find(file.fd)->second.location_index;
   }
@@ -192,7 +192,7 @@ void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
 
   size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = this->findFile(file.path);
+    file_location = findFile(file.path);
   } else {
     file_location = fds.find(file.fd)->second.location_index;
   }
@@ -220,7 +220,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
 
   size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = this->findFile(file.path);
+    file_location = findFile(file.path);
   } else {
     file_location = fds.find(file.fd)->second.location_index;
   }
@@ -277,7 +277,7 @@ void BuildGraph::serializeGraph(void) {
   std::map<std::shared_ptr<Command>, uint64_t> command_ids;
   uint64_t command_count = 0;
   for (auto c : _commands) {
-    command_count += 1 + c->descendants();
+    command_count += 1 + c->numDescendants();
   }
   auto commands = graph.initCommands(command_count);
   uint64_t command_index = 0;

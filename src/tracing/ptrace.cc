@@ -271,7 +271,7 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
 
 pid_t start_command(BuildGraph& graph, std::shared_ptr<Command> cmd,
                     kj::ArrayPtr<InitialFdEntry const> initial_fds) {
-  std::string exec_path = cmd->getCommand();
+  std::string exec_path = cmd->getExecutable();
 
   std::vector<char*> exec_argv;
 

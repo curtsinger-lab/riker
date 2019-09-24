@@ -84,10 +84,10 @@ void Process::traceExec(BuildGraph& graph, std::string executable,
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
   if (_fds.find(fileno(stdout)) != _fds.end()) {
-    graph.traceMmap(this->_pid, fileno(stdout));
+    graph.traceMmap(_pid, fileno(stdout));
   }
   if (_fds.find(fileno(stderr)) != _fds.end()) {
-    graph.traceMmap(this->_pid, fileno(stderr));
+    graph.traceMmap(_pid, fileno(stderr));
   }
 }
 

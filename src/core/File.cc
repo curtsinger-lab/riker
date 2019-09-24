@@ -60,7 +60,6 @@ std::shared_ptr<File> File::getLatestVersion() {
 
 // return a set of the commands which raced on this file, back to the parameter version
 std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
-  // this->has_race = true;
   std::shared_ptr<File> cur_file = shared_from_this();
   std::set<std::shared_ptr<Command>> conflicts;
   while (cur_file->getVersion() != version) {
