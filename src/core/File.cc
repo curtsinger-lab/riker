@@ -36,12 +36,11 @@ File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
   }
 }
 
-std::shared_ptr<File> File::createVersion() {
+std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
 
-  std::shared_ptr<File> f =
-      std::make_shared<File>(_graph, _location, isPipe(), getPath(), getCreator());
+  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, isPipe(), getPath(), creator);
   _graph.addFile(f);
   f->_version++;
   f->_prev_version = shared_from_this();

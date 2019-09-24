@@ -37,7 +37,7 @@ struct File : std::enable_shared_from_this<File> {
 
   std::set<std::shared_ptr<Command>> collapse(unsigned int depth);
 
-  std::shared_ptr<File> createVersion();
+  std::shared_ptr<File> createVersion(std::shared_ptr<Command> creator = nullptr);
 
   void fingerprint();
 
@@ -71,7 +71,7 @@ struct File : std::enable_shared_from_this<File> {
   void addInteractor(std::shared_ptr<Command> c) { _interactors.insert(c); }
 
   std::shared_ptr<Command> getCreator() const { return _creator; }
-  void setCreator(std::shared_ptr<Command> c) { _creator = c; }
+  //void setCreator(std::shared_ptr<Command> c) { _creator = c; }
   bool isCreated() const { return getCreator() != nullptr; }
 
   std::shared_ptr<Command> getWriter() const { return _writer; }

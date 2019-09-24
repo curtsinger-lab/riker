@@ -83,7 +83,6 @@ void Command::addOutput(std::shared_ptr<File> f) {
     fnew = f;
   } else {
     fnew = f->createVersion();
-    fnew->setCreator(nullptr);
   }
   fnew->setWriter(shared_from_this());
   _outputs.insert(fnew);

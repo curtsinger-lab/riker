@@ -160,7 +160,7 @@ void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
     }
 
     if (!file_exists) {
-      f->setCreator(proc->getCommand());
+      f->createVersion(proc->getCommand());
       f->setRemoved(false);
     }
   }
@@ -180,7 +180,6 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
 
   proc->getCommand()->addDeletedFile(f);
   f = f->createVersion();
-  f->setCreator(nullptr);
   f->setWriter(nullptr);
   f->setRemoved();
 }
