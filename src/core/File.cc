@@ -65,21 +65,12 @@ bool File::isModified() const {
   // Files that do not have previous version cannot be modified
   if (!hasPreviousVersion()) return false;
 
-  // CC: I think the conditions below are wrong. If there is a previous version that was not removed
-  // then this file is a modification. These seem too restrictive, but porting them over for now.
-
-  if (getPreviousVersion()->isCreated()) return true;
-
-  if (!getPreviousVersion()->hasPreviousVersion()) return false;
+  // The file is only modified if the previous version was not removed
   return !getPreviousVersion()->isRemoved();
 
-  // Modified if:
-  //   File is not created,
-  //   File has previous version, and
-  //   one of:
-  //     previous version was created, or
-  //     previous version has a previous version, and previous version was not removed
-
+  // This is a simplification of a previous check that I believe was wrong.
+  // The check is copied below in case there is a problem in the future or some missed detail:
+  //
   //(!file->isCreated() && file->getPreviousVersion() != nullptr &&
   //                       (file->getPreviousVersion()->isCreated() ||
   //                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
