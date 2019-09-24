@@ -5,6 +5,7 @@ DerivePointerAlignment: false
 PointerAlignment: Left
 AlignOperands: true
 BreakConstructorInitializers: AfterColon
+AllowShortFunctionsOnASingleLine: Inline
 
 # Regroup includes by category
 IncludeBlocks: Regroup

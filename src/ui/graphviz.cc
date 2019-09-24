@@ -2,7 +2,9 @@
 
 #include <fstream>
 
-Graphviz::Graphviz(void) { this->graph.open("out.dot"); }
+Graphviz::Graphviz(void) {
+  this->graph.open("out.dot");
+}
 
 void Graphviz::start_graph(void) {
   this->graph << "digraph {\n\tgraph [rankdir=LR]\n\tnode [fontname=Courier]\n";

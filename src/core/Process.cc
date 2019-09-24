@@ -25,9 +25,13 @@ void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> s
   _fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
 }
 
-void Process::traceChdir(std::string newdir) { _cwd = newdir; }
+void Process::traceChdir(std::string newdir) {
+  _cwd = newdir;
+}
 
-void Process::traceChroot(std::string newroot) { _root = newroot; }
+void Process::traceChroot(std::string newroot) {
+  _root = newroot;
+}
 
 void Process::traceMmap(BuildGraph& graph, int fd) {
   auto& desc = _fds[fd];
@@ -42,7 +46,9 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   if (desc.access_mode != O_RDONLY) getCommand()->addOutput(f);
 }
 
-void Process::traceClose(int fd) { _fds.erase(fd); }
+void Process::traceClose(int fd) {
+  _fds.erase(fd);
+}
 
 std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
   auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command);

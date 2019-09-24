@@ -50,9 +50,9 @@ struct BuildGraph {
   void traceRead(pid_t pid, struct file_reference& file);
 
   void traceModify(pid_t pid, struct file_reference& file);
-  
+
   void traceCreate(pid_t pid, struct file_reference& file);
-  
+
   void traceRemove(pid_t pid, struct file_reference& file);
 
   void traceChdir(pid_t pid, std::string path);
@@ -96,7 +96,7 @@ struct BuildGraph {
   std::list<std::shared_ptr<Command>> _commands;
   std::vector<std::shared_ptr<File>> _latest_versions;
   std::list<std::shared_ptr<File>> _files;
-  
+
   std::shared_ptr<File> _stdin;
   std::shared_ptr<File> _stdout;
   std::shared_ptr<File> _stderr;

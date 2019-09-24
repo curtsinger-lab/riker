@@ -96,9 +96,13 @@ size_t BuildGraph::findFile(std::string path) {
   return location;
 }
 
-void BuildGraph::traceChdir(pid_t pid, std::string path) { _processes[pid]->traceChdir(path); }
+void BuildGraph::traceChdir(pid_t pid, std::string path) {
+  _processes[pid]->traceChdir(path);
+}
 
-void BuildGraph::traceChroot(pid_t pid, std::string path) { _processes[pid]->traceChroot(path); }
+void BuildGraph::traceChroot(pid_t pid, std::string path) {
+  _processes[pid]->traceChroot(path);
+}
 
 void BuildGraph::traceFork(pid_t pid, pid_t child_pid) {
   _processes[child_pid] = _processes[pid]->traceFork(child_pid);
@@ -113,7 +117,9 @@ void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<st
   _processes[pid]->traceExec(*this, executable, args);
 }
 
-void BuildGraph::traceExit(pid_t pid) { _processes[pid]->traceExit(); }
+void BuildGraph::traceExit(pid_t pid) {
+  _processes[pid]->traceExit();
+}
 
 void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
   size_t file_location = findFile(path);
@@ -121,7 +127,9 @@ void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_
   _processes[pid]->traceOpen(fd, f, flags, mode);
 }
 
-void BuildGraph::traceClose(pid_t pid, int fd) { _processes[pid]->traceClose(fd); }
+void BuildGraph::traceClose(pid_t pid, int fd) {
+  _processes[pid]->traceClose(fd);
+}
 
 void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
@@ -142,7 +150,9 @@ void BuildGraph::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
   _processes[pid]->traceSetCloexec(fd, cloexec);
 }
 
-void BuildGraph::traceMmap(pid_t pid, int fd) { _processes[pid]->traceMmap(*this, fd); }
+void BuildGraph::traceMmap(pid_t pid, int fd) {
+  _processes[pid]->traceMmap(*this, fd);
+}
 
 void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
@@ -215,7 +225,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
     file_location = fds.find(file.fd)->second.location_index;
   }
   std::shared_ptr<File> f = _latest_versions[file_location];
-  
+
   proc->getCommand()->addDeletedFile(f);
   f = f->createVersion();
   f->setCreator(nullptr);

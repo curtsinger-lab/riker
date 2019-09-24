@@ -680,7 +680,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
         case /* 292 */ __NR_dup3:
           trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
-                        (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
+                         (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
           break;
         case /* 72 */ __NR_fcntl:
           switch (registers.SYSCALL_ARG2) {
