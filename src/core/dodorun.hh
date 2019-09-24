@@ -49,7 +49,7 @@ struct old_file {
       writer_id(std::numeric_limits<size_t>::max()),
       path(path),
       status(status) {}
-  bool is_local(void);
+  bool is_local();
 };
 
 struct old_command {

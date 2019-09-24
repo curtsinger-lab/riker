@@ -233,7 +233,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
   f->setRemoved();
 }
 
-void BuildGraph::serializeGraph(void) {
+void BuildGraph::serializeGraph() {
   ::capnp::MallocMessageBuilder message;
 
   db::Graph::Builder graph = message.initRoot<db::Graph>();

@@ -23,7 +23,7 @@ extern char** environ;
 #define CHANGED 1
 #define UNKNOWN 2
 
-bool old_file::is_local(void) {
+bool old_file::is_local() {
   if (path.find("/usr/") != std::string::npos || path.find("/lib/") != std::string::npos ||
       path.find("/etc/") != std::string::npos || path.find("/dev/") != std::string::npos ||
       path.find("/proc/") != std::string::npos) {
