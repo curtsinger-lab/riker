@@ -87,9 +87,6 @@ struct File : std::enable_shared_from_this<File> {
   bool isRemoved() const { return _removed; }
   void setRemoved(bool r = true) { _removed = r; }
 
-  void setFingerprintType(db::FingerprintType t) { _fingerprint_type = t; }
-  db::FingerprintType getFingerprintType() const { return _fingerprint_type; }
-
  private:
   BuildGraph& _graph;  // A reference to the trace this file is part of
   size_t _location;    // This file's index in the BuildGraph::latest_versions map
@@ -107,6 +104,7 @@ struct File : std::enable_shared_from_this<File> {
   bool _removed = false;
   std::shared_ptr<Command> _creator;
   std::shared_ptr<Command> _writer;
+  
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;
   std::vector<uint8_t> _checksum;

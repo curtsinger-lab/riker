@@ -209,55 +209,44 @@ static std::vector<uint8_t> blake2sp_file(std::string path_string) {
 void File::fingerprint() {
   // We can only fingerprint regular files for now. (Do we even want to try for others?)
   if (getType() != db::FileType::REGULAR) {
-    setFingerprintType(db::FingerprintType::UNAVAILABLE);
+    _fingerprint_type = db::FingerprintType::UNAVAILABLE;
     return;
   }
 
   auto path_string = getPath();
-  INFO << path_string;
 
+  // Stat the file to get metadata
   if (stat(path_string.c_str(), &_stat_info) != 0) {
     if (errno == ENOENT) {
-      setFingerprintType(db::FingerprintType::NONEXISTENT);
+      _fingerprint_type = db::FingerprintType::NONEXISTENT;
     } else {
-      setFingerprintType(db::FingerprintType::UNAVAILABLE);
+      _fingerprint_type = db::FingerprintType::UNAVAILABLE;
     }
+    
     return;
   }
+  
+  // At least for now, we only have a metadata fingerprint
+  _fingerprint_type = db::FingerprintType::METADATA_ONLY;
 
   // Skip checksum if the file has no users
-  if (getReaders().size()) {
-    setFingerprintType(db::FingerprintType::METADATA_ONLY);
-    return;
-  }
+  if (getReaders().size()) return;
+  
   // Is this a file or a directory?
   if ((_stat_info.st_mode & S_IFMT) == S_IFDIR) {
     // Checksum a directory
     _checksum = blake2sp_dir(path_string);
 
-    if (_checksum.size()) {
-      setFingerprintType(db::FingerprintType::BLAKE2SP);
-    } else {
-      // Accessing contents failed
-      setFingerprintType(db::FingerprintType::METADATA_ONLY);
-    }
-    return;
+    // If the checksum succeeded, update to a blake2 fingerprint
+    if (_checksum.size()) _fingerprint_type = db::FingerprintType::BLAKE2SP;
 
   } else if ((_stat_info.st_mode & S_IFMT) == S_IFREG) {
     // Checksum a file
     _checksum = blake2sp_file(path_string);
-
-    if (_checksum.size()) {
-      setFingerprintType(db::FingerprintType::BLAKE2SP);
-    } else {
-      // Accessing contents failed
-      setFingerprintType(db::FingerprintType::METADATA_ONLY);
-    }
-    return;
-  } else {
-    // Don't checksum other types of files
-    setFingerprintType(db::FingerprintType::METADATA_ONLY);
-    return;
+    
+    // If the checksum succeeded, update to a blake2 fingerprint
+    if (_checksum.size()) _fingerprint_type = db::FingerprintType::BLAKE2SP;
+    
   }
 }
 
@@ -267,7 +256,7 @@ void File::serialize(db::File::Builder builder) {
   builder.setMode(getMode());
   builder.setLatestVersion(isLatestVersion());
 
-  builder.setFingerprintType(getFingerprintType());
+  builder.setFingerprintType(_fingerprint_type);
 
   if (_checksum.size()) {
     auto output_checksum = builder.initChecksum(_checksum.size());
