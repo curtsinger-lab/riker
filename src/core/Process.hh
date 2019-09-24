@@ -15,11 +15,10 @@ struct BuildGraph;
 struct Command;
 struct File;
 
-
 struct Process : public std::enable_shared_from_this<Process> {
   /****** Constructors ******/
 
-  Process(pid_t thread_id, std::string cwd, std::shared_ptr<Command> command);
+  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command);
 
   // Disallow Copy
   Process(const Process&) = delete;
@@ -31,6 +30,9 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   /****** Non-trivial methods ******/
 
+  void setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
+                     std::shared_ptr<File> stderr);
+
   void traceMmap(BuildGraph& graph, int fd);
 
   void traceChdir(std::string newdir);
@@ -40,13 +42,13 @@ struct Process : public std::enable_shared_from_this<Process> {
   void traceClose(int fd);
 
   std::shared_ptr<Process> traceFork(pid_t child_pid);
-  
+
   void traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode);
-  
+
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
-  
+
   void traceDup(int fd, int new_fd, bool cloexec);
-  
+
   void traceSetCloexec(int fd, bool cloexec);
 
   void traceExec(BuildGraph& trace, std::string executable, const std::list<std::string>& args);
@@ -56,7 +58,7 @@ struct Process : public std::enable_shared_from_this<Process> {
   /****** Getters and setters ******/
 
   std::shared_ptr<Command> getCommand() { return _command; }
-  
+
   const std::map<int, FileDescriptor>& getFds() const { return _fds; }
 
  private:

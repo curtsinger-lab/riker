@@ -24,7 +24,7 @@ struct File : std::enable_shared_from_this<File> {
   /****** Constructors ******/
 
   File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
-       std::shared_ptr<Command> creator);
+       std::shared_ptr<Command> creator = nullptr);
 
   // Disallow Copy
   File(const File&) = delete;

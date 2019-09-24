@@ -29,7 +29,7 @@ struct file_reference {
 struct BuildGraph {
   /****** Constructors ******/
 
-  BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {}
+  BuildGraph(std::string starting_dir);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;
@@ -92,4 +92,8 @@ struct BuildGraph {
   std::list<std::shared_ptr<Command>> _commands;
   std::vector<std::shared_ptr<File>> _latest_versions;
   std::list<std::shared_ptr<File>> _files;
+  
+  std::shared_ptr<File> _stdin;
+  std::shared_ptr<File> _stdout;
+  std::shared_ptr<File> _stderr;
 };

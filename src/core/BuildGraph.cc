@@ -60,8 +60,26 @@ static uint64_t serialize_commands(std::shared_ptr<Command> command,
   return index;
 }
 
+BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
+  size_t stdin_location = _latest_versions.size();
+  _stdin = std::make_shared<File>(*this, stdin_location, true, "<<stdin>>");
+  _files.push_front(_stdin);
+  _latest_versions.push_back(_stdin);
+  
+  size_t stdout_location = _latest_versions.size();
+  _stdout = std::make_shared<File>(*this, stdout_location, true, "<<stdout>>");
+  _files.push_front(_stdout);
+  _latest_versions.push_back(_stdout);
+  
+  size_t stderr_location = _latest_versions.size();
+  _stderr = std::make_shared<File>(*this, stderr_location, true, "<<stderr>>");
+  _files.push_front(_stderr);
+  _latest_versions.push_back(_stderr);
+}
+
 void BuildGraph::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
   Process* proc = new Process(pid, _starting_dir, cmd);
+  proc->setDefaultFds(_stdin, _stdout, _stderr);
   _processes.emplace(pid, proc);
 }
 

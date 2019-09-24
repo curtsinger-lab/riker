@@ -18,6 +18,13 @@ Process::Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
     _command(command),
     _cwd(cwd) {}
 
+void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
+                            std::shared_ptr<File> stderr) {
+  _fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);
+  _fds[1] = FileDescriptor(stdout->getLocation(), stdout, O_WRONLY, false);
+  _fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
+}
+
 void Process::traceChdir(std::string newdir) { _cwd = newdir; }
 
 void Process::traceChroot(std::string newroot) { _root = newroot; }
