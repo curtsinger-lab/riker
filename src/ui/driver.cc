@@ -54,6 +54,9 @@ void parse_argv(forward_list<string> argv) {
       options.log_source_locations = true;
       options.log_threshold = log_level::Info;
 
+    } else if (arg == "--no-color") {
+      options.color_output = false;
+
     } else if (arg == "-v") {
       options.log_threshold = log_level::Warning;
 
@@ -119,10 +122,20 @@ void parse_argv(forward_list<string> argv) {
   }
 }
 
+static bool stderr_supports_colors() {
+  if (!isatty(STDERR_FILENO)) return false;
+  std::string s = getenv("TERM");
+  if (s == "dumb") return false;
+  return true;
+}
+
 /**
  * This is the entry point for the dodo command line tool
  */
 int main(int argc, char* argv[]) {
+  // Set color output based on TERM setting (can be overridden with command line option)
+  if (!stderr_supports_colors()) options.color_output = false;
+
   // Parse command line options
   parse_argv(forward_list<string>(argv + 1, argv + argc));
 

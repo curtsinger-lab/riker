@@ -31,18 +31,21 @@ class logger {
     if (_level >= options.log_threshold) {
       // Print source information, if enabled
       if (options.log_source_locations) {
-        std::cerr << COLOR_SOURCE << "[" << source_file << ":" << source_line << "] ";
+        if (options.color_output) std::cerr << COLOR_SOURCE;
+        std::cerr << "[" << source_file << ":" << source_line << "] ";
       }
 
       // Set the log color
-      if (_level == log_level::Verbose) {
-        std::cerr << COLOR_VERBOSE;
-      } else if (_level == log_level::Info) {
-        std::cerr << COLOR_INFO;
-      } else if (_level == log_level::Warning) {
-        std::cerr << COLOR_WARNING;
-      } else if (_level == log_level::Fatal) {
-        std::cerr << COLOR_FATAL;
+      if (options.color_output) {
+        if (_level == log_level::Verbose) {
+          std::cerr << COLOR_VERBOSE;
+        } else if (_level == log_level::Info) {
+          std::cerr << COLOR_INFO;
+        } else if (_level == log_level::Warning) {
+          std::cerr << COLOR_WARNING;
+        } else if (_level == log_level::Fatal) {
+          std::cerr << COLOR_FATAL;
+        }
       }
     }
   }
@@ -56,7 +59,10 @@ class logger {
   ~logger() {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
-      if (_level >= options.log_threshold) std::cerr << COLOR_END << "\n";
+      if (_level >= options.log_threshold) {
+        if (options.color_output) std::cerr << COLOR_END;
+        std::cerr << "\n";
+      }
 
       // If this log is a fatal
       if (_level == log_level::Fatal) exit(2);

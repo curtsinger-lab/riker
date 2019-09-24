@@ -22,6 +22,7 @@ struct dodo_options {
 
   // Only display log messages that are fatal
   log_level log_threshold = log_level::Fatal;
+  bool color_output = true;
 
   // Do not display source locations with log messages
   bool log_source_locations = false;
