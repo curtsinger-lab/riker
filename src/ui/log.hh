@@ -15,30 +15,12 @@
 #define COLOR_END "\033[0m"
 
 /**
- * This class provides the same interface as the logger class, but does not display anything.
- * Conditional logging (PREFER, REQUIRE, ASSERT) macros return an instance of this class when checks
- * pass so no message is displayed.
- */
-class null_logger {
- public:
-  null_logger indent(size_t n, size_t tab_size = 2) { return null_logger(); }
-
-  template <typename T>
-  null_logger operator<<(T t) {
-    return null_logger();
-  }
-};
-
-/**
  * This class is used for logging to the console. The macros defined below return an instance of
  * this class, which they can then print through using the << operator. The logger will
  * automatically insert a newline at the end of the output. If instantiated with exit=true, the
  * logger aborts the program when output is finished.
- *
- * This class must extend null_logger so conditional logging (PREFER and REQUIRE) can return a real
- * logger when a check fails, or a null logger when the check passes.
  */
-class logger : public null_logger {
+class logger {
  private:
   log_level _level;  // Should the program abort when the log message is finished?
   bool _done;        // Is this the final command in the log output?
