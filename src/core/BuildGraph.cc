@@ -270,17 +270,17 @@ void BuildGraph::serializeGraph() {
     file->serialize(files[file_id]);
   }
 
-  // Serialize commands
+  /****** Serialize Commands ******/
+  
+  // Create a map to track numeric ids for commands
   std::map<std::shared_ptr<Command>, uint64_t> command_ids;
-  uint64_t command_count = 0;
-  for (auto c : _commands) {
-    command_count += 1 + c->numDescendants();
-  }
-  auto commands = graph.initCommands(command_count);
-  uint64_t command_index = 0;
-  for (auto c : _commands) {
-    command_index = serialize_commands(c, commands, command_index, command_ids, file_ids);
-  }
+  
+  // Initialize the array of commands to make room for the root and all its descendants
+  auto commands = graph.initCommands(_root_command->numDescendants() + 1);
+  
+  
+  // Serialize the commands
+  serialize_commands(_root_command, commands, 0, command_ids, file_ids);
 
   // Serialize dependencies
   auto inputs = graph.initInputs(input_count);

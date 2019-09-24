@@ -130,7 +130,7 @@ int main(int argc, char* argv[]) {
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
   // Create a managed reference to a trace state
-  BuildGraph trace(cwd);
+  BuildGraph graph(cwd);
 
   // Clean up after getcwd
   free(cwd);
@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
             child = wait(&wait_status);
             FAIL_IF(child == -1) << "Error waiting for child: " << ERR;
 
-            trace_step(trace, child, wait_status);
+            trace_step(graph, child, wait_status);
             if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
               continue;
             }
@@ -288,7 +288,7 @@ int main(int argc, char* argv[]) {
         // Spawn the child
         std::shared_ptr<Command> middle_cmd(
             new Command(run_command->executable, run_command->args));
-        child_pid = start_command(trace, middle_cmd, file_actions);
+        child_pid = start_command(graph, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
@@ -321,10 +321,10 @@ int main(int argc, char* argv[]) {
 
   std::shared_ptr<Command> root_cmd(new Command("Dodofile", {"Dodofile"}));
 
-  trace.addCommand(root_cmd);
+  graph.setRootCommand(root_cmd);
 
   // TODO: set up stdio for logging?
-  start_command(trace, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
+  start_command(graph, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
 
   while (true) {
     int wait_status;
@@ -340,8 +340,8 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    trace_step(trace, child, wait_status);
+    trace_step(graph, child, wait_status);
   }
 
-  trace.serializeGraph();
+  graph.serializeGraph();
 }

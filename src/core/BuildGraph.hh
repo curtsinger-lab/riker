@@ -81,9 +81,9 @@ struct BuildGraph {
 
   /****** Getters and setters ******/
 
-  std::string getStartingDir() { return _starting_dir; }
+  void setRootCommand(std::shared_ptr<Command> cmd) { _root_command = cmd; }
 
-  void addCommand(std::shared_ptr<Command> c) { _commands.push_front(c); }
+  std::string getStartingDir() { return _starting_dir; }
 
   std::shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
   void setLatestVersion(size_t index, std::shared_ptr<File> f) { _latest_versions[index] = f; }
@@ -92,8 +92,8 @@ struct BuildGraph {
 
  private:
   std::string _starting_dir;
+  std::shared_ptr<Command> _root_command;
   std::map<pid_t, std::shared_ptr<Process>> _processes;
-  std::list<std::shared_ptr<Command>> _commands;
   std::vector<std::shared_ptr<File>> _latest_versions;
   std::list<std::shared_ptr<File>> _files;
 
