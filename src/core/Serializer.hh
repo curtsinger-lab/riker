@@ -14,7 +14,7 @@
 
 struct Serializer {
  public:
-  Serializer() {}
+  Serializer(std::string output_path) : _output_path(output_path) {}
 
   bool hasFile(std::shared_ptr<File> f) const {
     return _file_indices.find(f) != _file_indices.end();
@@ -60,7 +60,7 @@ struct Serializer {
     }
   }
 
-  void serialize(std::string path) {
+  void serialize() {
     capnp::MallocMessageBuilder message;
     db::Graph::Builder graph = message.initRoot<db::Graph>();
 
@@ -69,7 +69,7 @@ struct Serializer {
 
     // Serialize files
     for (auto entry : _file_indices) {
-      entry.first->serialize(files[entry.second]);
+      entry.first->serialize(*this, files[entry.second]);
     }
 
     // Reserve space for each command
@@ -144,7 +144,7 @@ struct Serializer {
     }
 
     // Write the serialized message out to file
-    int db_file = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
+    int db_file = open(_output_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
                        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
     FAIL_IF(db_file < 0) << "Failed to open database file: " << ERR;
@@ -152,6 +152,8 @@ struct Serializer {
   }
 
  private:
+  std::string _output_path;
+
   std::map<std::shared_ptr<File>, size_t> _file_indices;
   std::map<std::shared_ptr<Command>, size_t> _command_indices;
 

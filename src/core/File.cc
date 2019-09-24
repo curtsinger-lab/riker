@@ -247,7 +247,7 @@ void File::fingerprint() {
   }
 }
 
-void File::serialize(db::File::Builder builder) {
+void File::serialize(Serializer& serializer, db::File::Builder builder) {
   builder.setPath(getPath());
   builder.setType(getType());
   builder.setMode(getMode());

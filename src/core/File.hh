@@ -11,9 +11,10 @@
 
 #include "db/db.capnp.h"
 
+struct BuildGraph;
 struct Command;
 struct Process;
-struct BuildGraph;
+struct Serializer;
 
 // TODO: Move this into the File class.
 // Before that can happen, we'll need to update the code to inflate the loaded graph into File
@@ -43,7 +44,7 @@ struct File : std::enable_shared_from_this<File> {
 
   bool shouldSave();
 
-  void serialize(db::File::Builder builder);
+  void serialize(Serializer& serializer, db::File::Builder builder);
 
   std::shared_ptr<File> getLatestVersion();
 

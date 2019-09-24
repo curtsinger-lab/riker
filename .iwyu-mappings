@@ -4,8 +4,8 @@
   
   # Odd linux-specific fixes for C++ includes
   { include: [ "<bits/stdint-uintn.h>", public, "<cstdint>", public ] },
+  { include: [ "<ext/alloc_traits.h>", public, "<vector>", public ] },
   { symbol: ["timespec", private, "<ctime>", public ] },
-  
   
   # Dodo-specific wrappers
   { include: [ "\"../blake2/sse/blake2.h\"", public, "\"fingerprint/blake2.hh\"", public ] },

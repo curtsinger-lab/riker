@@ -184,9 +184,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
   f->setRemoved();
 }
 
-void BuildGraph::serializeGraph() {
-  Serializer serializer;
-
+void BuildGraph::serialize(Serializer& serializer) {
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
   for (std::shared_ptr<File> f : _latest_versions) {
@@ -207,5 +205,5 @@ void BuildGraph::serializeGraph() {
   serializer.addCommand(_root_command);
 
   // Run the serialization
-  serializer.serialize("db.dodo");
+  serializer.serialize();
 }

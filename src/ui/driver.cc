@@ -27,6 +27,7 @@
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/dodorun.hh"
+#include "core/Serializer.hh"
 #include "db/db.capnp.h"
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"
@@ -343,5 +344,6 @@ int main(int argc, char* argv[]) {
     trace_step(graph, child, wait_status);
   }
 
-  graph.serializeGraph();
+  Serializer serializer("db.dodo");
+  graph.serialize(serializer);
 }

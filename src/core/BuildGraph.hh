@@ -12,6 +12,7 @@
 struct Command;
 struct File;
 struct Process;
+struct Serializer;
 
 struct file_reference {
   // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
@@ -41,7 +42,7 @@ struct BuildGraph {
 
   size_t findFile(std::string path);
 
-  void serializeGraph();
+  void serialize(Serializer& serializer);
 
   /****** Tracing methods ******/
 
