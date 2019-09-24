@@ -22,7 +22,6 @@
 #include "core/Process.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
-#include "ui/log.hh"
 
 File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
            std::shared_ptr<Command> creator) :
@@ -222,16 +221,16 @@ void File::fingerprint() {
     } else {
       _fingerprint_type = db::FingerprintType::UNAVAILABLE;
     }
-    
+
     return;
   }
-  
+
   // At least for now, we only have a metadata fingerprint
   _fingerprint_type = db::FingerprintType::METADATA_ONLY;
 
   // Skip checksum if the file has no users
   if (getReaders().size()) return;
-  
+
   // Is this a file or a directory?
   if ((_stat_info.st_mode & S_IFMT) == S_IFDIR) {
     // Checksum a directory
@@ -243,10 +242,9 @@ void File::fingerprint() {
   } else if ((_stat_info.st_mode & S_IFMT) == S_IFREG) {
     // Checksum a file
     _checksum = blake2sp_file(path_string);
-    
+
     // If the checksum succeeded, update to a blake2 fingerprint
     if (_checksum.size()) _fingerprint_type = db::FingerprintType::BLAKE2SP;
-    
   }
 }
 

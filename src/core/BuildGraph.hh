@@ -5,14 +5,12 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <sys/types.h>
 
-#include "core/File.hh"
-
 struct Command;
+struct File;
 struct Process;
 
 struct file_reference {

@@ -119,14 +119,14 @@ class logger : public null_logger {
 #endif
 
 // Define conditional logging macros
-#define INFO_IF(cond) (cond) ? INFO : null_logger()
-#define INFO_UNLESS(cond) (cond) ? null_logger() : INFO
+#define INFO_IF(cond) if (cond) INFO
+#define INFO_UNLESS(cond) if (!(cond)) INFO
 
-#define WARN_IF(cond) (cond) ? WARN : null_logger()
-#define WARN_UNLESS(cond) (cond) ? null_logger() : WARN
+#define WARN_IF(cond) if (cond) WARN
+#define WARN_UNLESS(cond) if (!(cond)) WARN
 
-#define FAIL_IF(cond) (cond) ? FAIL : null_logger()
-#define FAIL_UNLESS(cond) (cond) ? null_logger() : FAIL
+#define FAIL_IF(cond) if (cond) FAIL
+#define FAIL_UNLESS(cond) if (!(cond)) FAIL
 
 // Define a shortcut for printing the error message corresponding to the current errno
 #define ERR strerror(errno)

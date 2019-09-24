@@ -2,9 +2,15 @@
 
 #include <cstdint>
 #include <limits>
+#include <utility>
+
+#include <fcntl.h>
+
+#include <capnp/list.h>
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
+#include "core/Serializer.hh"
 
 using std::string;
 
@@ -95,7 +101,7 @@ uint64_t Command::numDescendants() {
 void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
   if (commands.empty()) return;
   size_t ansc_depth = std::numeric_limits<size_t>::max();
-  
+
   // find the minimum common depth
   for (auto c : commands) {
     if (c->_depth < ansc_depth) {
@@ -138,4 +144,45 @@ bool Command::canDependOn(const std::shared_ptr<File> f) {
 
   // Otherwise the command can depend on the file
   return true;
+}
+
+void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {
+  builder.setExecutable(_cmd);
+  builder.setOutOfDate(false);
+  builder.setCollapseWithParent(_collapse_with_parent);
+
+  auto args_output = builder.initArgv(_args.size());
+  size_t args_index = 0;
+  for (auto arg : _args) {
+    args_output.set(args_index, arg);
+    args_index++;
+  }
+
+  size_t initial_fd_count = 0;
+  for (auto iter : _initial_fds) {
+    if (serializer.hasFile(iter.second.file)) {
+      initial_fd_count++;
+    }
+  }
+
+  auto initial_fds_output = builder.initInitialFDs(initial_fd_count);
+
+  size_t initial_fd_index = 0;
+  for (auto iter : _initial_fds) {
+    if (serializer.hasFile(iter.second.file)) {
+      auto output = initial_fds_output[initial_fd_index];
+      initial_fd_index++;
+
+      output.setFd(iter.first);
+      output.setFileID(serializer.getFileIndex(iter.second.file));
+      output.setCanRead(iter.second.access_mode != O_WRONLY);
+      output.setCanWrite(iter.second.access_mode != O_RDONLY);
+    }
+  }
+
+  // This relies on the order of commands within the graph file.
+  // Every command must be followed by all of its descendants.
+  // This is true because of the implementation of Serializer::addCommand, but splitting the logic
+  // up across these two files seems risky.
+  builder.setDescendants(numDescendants());
 }

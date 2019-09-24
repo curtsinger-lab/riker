@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <list>
 #include <map>
 #include <memory>
@@ -8,7 +9,6 @@
 
 #include <sys/types.h>
 
-#include "core/BuildGraph.hh"
 #include "core/FileDescriptor.hh"
 
 struct BuildGraph;

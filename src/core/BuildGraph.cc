@@ -1,64 +1,16 @@
 #include "core/BuildGraph.hh"
 
-#include <cstdint>
-#include <set>
 #include <utility>
 
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-#include <capnp/list.h>
-#include <capnp/message.h>
-#include <capnp/serialize.h>
 
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 #include "core/Process.hh"
-#include "db/db.capnp.h"
-
-static uint64_t serialize_commands(std::shared_ptr<Command> command,
-                                   ::capnp::List<db::Command>::Builder& command_list,
-                                   uint64_t start_index,
-                                   std::map<std::shared_ptr<Command>, uint64_t>& command_ids,
-                                   std::map<std::shared_ptr<File>, uint64_t>& file_ids) {
-  command_ids[command] = start_index;
-  command_list[start_index].setExecutable(command->getExecutable());
-  command_list[start_index].setOutOfDate(false);
-  command_list[start_index].setCollapseWithParent(command->getCollapseWithParent());
-  auto argv = command_list[start_index].initArgv(command->getArguments().size());
-  uint64_t argv_index = 0;
-  for (auto& arg : command->getArguments()) {
-    argv.set(argv_index, arg);
-    argv_index++;
-  }
-  auto initial_fds = command_list[start_index].initInitialFDs(command->getInitialFDs().size());
-  size_t fd_index = 0;
-
-  for (auto fd : command->getInitialFDs()) {
-    auto file_id = file_ids.find(fd.second.file);
-    if (file_id == file_ids.end()) {
-      continue;
-    }
-
-    initial_fds[fd_index].setFd(fd.first);
-    initial_fds[fd_index].setFileID(file_id->second);
-    initial_fds[fd_index].setCanRead(fd.second.access_mode != O_WRONLY);
-    initial_fds[fd_index].setCanWrite(fd.second.access_mode != O_RDONLY);
-    fd_index++;
-  }
-
-  uint64_t index = start_index + 1;
-  for (auto c : command->getChildren()) {
-    index = serialize_commands(c, command_list, index, command_ids, file_ids);
-  }
-
-  command_list[start_index].setDescendants(index - start_index - 1);
-  return index;
-}
+#include "core/Serializer.hh"
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();
@@ -234,9 +186,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
 }
 
 void BuildGraph::serializeGraph() {
-  ::capnp::MallocMessageBuilder message;
-
-  db::Graph::Builder graph = message.initRoot<db::Graph>();
+  Serializer serializer;
 
   // Prepare files for serialization: we've already fingerprinted the old versions,
   // but we need to fingerprint the latest versions
@@ -244,114 +194,19 @@ void BuildGraph::serializeGraph() {
     f->fingerprint();
   }
 
-  // Serialize files
-  std::map<std::shared_ptr<File>, uint64_t> file_ids;
-  uint64_t file_count = 0;
-  uint64_t input_count = 0;
-  uint64_t output_count = 0;
-  uint64_t create_count = 0;
-  uint64_t modify_count = 0;
-  for (std::shared_ptr<File> file : _files) {
-    // We only care about files that are either written or read so filter those out.
-    if (file->shouldSave()) {
-      file_ids[file] = file_count;
-      input_count += file->getReaders().size();
-      if (file->isWritten()) output_count++;
-      if (file->isCreated()) create_count++;
-      if (file->isModified()) modify_count++;
-      file_count += 1;
-    }
-  }
-  auto files = graph.initFiles(file_count);
-  for (auto file_entry : file_ids) {
-    auto file = file_entry.first;
-    auto file_id = file_entry.second;
-    // TODO: Use orphans and avoid copying?
-    file->serialize(files[file_id]);
-  }
-
-  /****** Serialize Commands ******/
-  
-  // Create a map to track numeric ids for commands
-  std::map<std::shared_ptr<Command>, uint64_t> command_ids;
-  
-  // Initialize the array of commands to make room for the root and all its descendants
-  auto commands = graph.initCommands(_root_command->numDescendants() + 1);
-  
-  
-  // Serialize the commands
-  serialize_commands(_root_command, commands, 0, command_ids, file_ids);
-
-  // Serialize dependencies
-  auto inputs = graph.initInputs(input_count);
-  auto outputs = graph.initOutputs(output_count);
-  auto creations = graph.initCreations(create_count);
-  auto modifications = graph.initModifications(modify_count);
-  uint64_t input_index = 0;
-  uint64_t output_index = 0;
-  uint64_t create_index = 0;
-  uint64_t modify_index = 0;
-  for (auto file_entry : file_ids) {
-    auto file = file_entry.first;
-    auto file_id = file_entry.second;
-    for (auto user : file->getReaders()) {
-      uint64_t user_id = command_ids[user];
-      inputs[input_index].setInputID(file_id);
-      inputs[input_index].setOutputID(user_id);
-      input_index++;
-    }
-    if (file->isWritten()) {
-      uint64_t writer_id = command_ids[file->getWriter()];
-      outputs[output_index].setInputID(writer_id);
-      outputs[output_index].setOutputID(file_id);
-      output_index++;
-    }
-    if (file->isCreated()) {
-      uint64_t creator_id = command_ids[file->getCreator()];
-      creations[create_index].setInputID(creator_id);
-      creations[create_index].setOutputID(file_id);
-      create_index++;
-    }
-    if (!file->isCreated() && file->getPreviousVersion() != nullptr &&
-        (file->getPreviousVersion()->isCreated() ||
-         (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
-          !file->getPreviousVersion()->isRemoved()))) {
-      uint64_t prev_id = file_ids[file->getPreviousVersion()];
-      modifications[modify_index].setInputID(prev_id);
-      modifications[modify_index].setOutputID(file_id);
-      modify_index++;
+  // Add files to the serializer
+  for (std::shared_ptr<File> f : _files) {
+    // Files can check whether or not they should be saved
+    // Also skip the phony files created for stdin, stdout, and stderr
+    if (f->shouldSave() && f->getPath() != "<<stdint>>" && f->getPath() != "<<stdout>>" &&
+        f->getPath() != "<<stderr>>") {
+      serializer.addFile(f);
     }
   }
 
-  // Serialize removal edges
-  uint64_t removal_count = 0;
-  for (auto c : command_ids) {
-    for (auto f : c.first->getDeletedFiles()) {
-      auto file_id = file_ids.find(f);
-      if (file_id != file_ids.end()) {
-        removal_count++;
-      }
-    }
-  }
-  auto removals = graph.initRemovals(removal_count);
-  uint64_t removal_index = 0;
-  for (auto c : command_ids) {
-    for (auto f : c.first->getDeletedFiles()) {
-      auto file_id = file_ids.find(f);
-      if (file_id != file_ids.end()) {
-        removals[removal_index].setInputID(c.second);
-        removals[removal_index].setOutputID(file_ids[f]);
-        removal_index++;
-      }
-    }
-  }
+  // Add the root command (and its descendants) to the serializer
+  serializer.addCommand(_root_command);
 
-  // TODO: Is kj::OutputStream suitable?
-  int db_file = open("db.dodo", O_CREAT | O_TRUNC | O_WRONLY,
-                     S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-  if (db_file < 0) {
-    perror("Failed to open database");
-    exit(2);
-  }
-  writeMessageToFd(db_file, message);
+  // Run the serialization
+  serializer.serialize("db.dodo");
 }

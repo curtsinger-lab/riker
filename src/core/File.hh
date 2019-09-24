@@ -46,7 +46,7 @@ struct File : std::enable_shared_from_this<File> {
   void serialize(db::File::Builder builder);
 
   std::shared_ptr<File> getLatestVersion();
-  
+
   bool isModified() const;
 
   /****** Getters and setters ******/
@@ -104,7 +104,7 @@ struct File : std::enable_shared_from_this<File> {
   bool _removed = false;
   std::shared_ptr<Command> _creator;
   std::shared_ptr<Command> _writer;
-  
+
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;
   std::vector<uint8_t> _checksum;

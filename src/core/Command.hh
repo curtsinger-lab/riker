@@ -8,8 +8,10 @@
 #include <string>
 
 #include "core/FileDescriptor.hh"
+#include "db/db.capnp.h"
 
 struct File;
+struct Serializer;
 
 struct Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
@@ -40,6 +42,8 @@ struct Command : public std::enable_shared_from_this<Command> {
   size_t numDescendants();
 
   bool canDependOn(const std::shared_ptr<File> f);
+
+  void serialize(const Serializer& serializer, db::Command::Builder builder);
 
   /****** Getters and setters ******/
 
