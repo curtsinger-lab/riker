@@ -124,8 +124,8 @@ void parse_argv(forward_list<string> argv) {
 
 static bool stderr_supports_colors() {
   if (!isatty(STDERR_FILENO)) return false;
-  std::string s = getenv("TERM");
-  if (s == "dumb") return false;
+  char* term = getenv("TERM");
+  if (term == nullptr || std::string(term) == "dumb") return false;
   return true;
 }
 
