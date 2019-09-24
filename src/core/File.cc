@@ -58,6 +58,34 @@ std::shared_ptr<File> File::getLatestVersion() {
     return shared_from_this();
 }
 
+bool File::isModified() const {
+  // Files that were created cannot be modified (modifications would make a new version)
+  if (isCreated()) return false;
+
+  // Files that do not have previous version cannot be modified
+  if (!hasPreviousVersion()) return false;
+
+  // CC: I think the conditions below are wrong. If there is a previous version that was not removed
+  // then this file is a modification. These seem too restrictive, but porting them over for now.
+
+  if (getPreviousVersion()->isCreated()) return true;
+
+  if (!getPreviousVersion()->hasPreviousVersion()) return false;
+  return !getPreviousVersion()->isRemoved();
+
+  // Modified if:
+  //   File is not created,
+  //   File has previous version, and
+  //   one of:
+  //     previous version was created, or
+  //     previous version has a previous version, and previous version was not removed
+
+  //(!file->isCreated() && file->getPreviousVersion() != nullptr &&
+  //                       (file->getPreviousVersion()->isCreated() ||
+  //                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
+  //                         !file->getPreviousVersion()->isRemoved())));
+}
+
 // return a set of the commands which raced on this file, back to the parameter version
 std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
   std::shared_ptr<File> cur_file = shared_from_this();

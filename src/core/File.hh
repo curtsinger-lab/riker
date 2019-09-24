@@ -46,6 +46,8 @@ struct File : std::enable_shared_from_this<File> {
   void serialize(db::File::Builder builder);
 
   std::shared_ptr<File> getLatestVersion();
+  
+  bool isModified() const;
 
   /****** Getters and setters ******/
 

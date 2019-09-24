@@ -258,10 +258,7 @@ void BuildGraph::serializeGraph() {
       input_count += file->getReaders().size();
       if (file->isWritten()) output_count++;
       if (file->isCreated()) create_count++;
-      modify_count += (!file->isCreated() && file->getPreviousVersion() != nullptr &&
-                       (file->getPreviousVersion()->isCreated() ||
-                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
-                         !file->getPreviousVersion()->isRemoved())));
+      if (file->isModified()) modify_count++;
       file_count += 1;
     }
   }
