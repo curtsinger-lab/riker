@@ -10,7 +10,7 @@
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 #include "core/Process.hh"
-#include "core/Serializer.hh"
+#include "db/Serializer.hh"
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();

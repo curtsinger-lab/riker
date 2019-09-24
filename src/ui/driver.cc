@@ -27,7 +27,7 @@
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/dodorun.hh"
-#include "core/Serializer.hh"
+#include "db/Serializer.hh"
 #include "db/db.capnp.h"
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"

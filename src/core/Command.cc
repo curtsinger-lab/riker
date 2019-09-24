@@ -10,7 +10,7 @@
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-#include "core/Serializer.hh"
+#include "db/Serializer.hh"
 
 using std::string;
 
