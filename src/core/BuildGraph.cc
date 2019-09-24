@@ -198,7 +198,7 @@ void BuildGraph::serializeGraph() {
   for (std::shared_ptr<File> f : _files) {
     // Files can check whether or not they should be saved
     // Also skip the phony files created for stdin, stdout, and stderr
-    if (f->shouldSave() && f->getPath() != "<<stdint>>" && f->getPath() != "<<stdout>>" &&
+    if (f->shouldSave() && f->getPath() != "<<stdin>>" && f->getPath() != "<<stdout>>" &&
         f->getPath() != "<<stderr>>") {
       serializer.addFile(f);
     }
