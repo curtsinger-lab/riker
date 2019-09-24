@@ -99,7 +99,7 @@ std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
 
 bool File::shouldSave() {
   // Save files that have at least one reader
-  if (!_readers.empty()) return true;
+  if (isRead()) return true;
 
   // Save files with a writer
   if (isWritten()) return true;
@@ -228,7 +228,7 @@ void File::fingerprint() {
   _fingerprint_type = db::FingerprintType::METADATA_ONLY;
 
   // Skip checksum if the file has no users
-  if (getReaders().size()) return;
+  if (!isRead()) return;
 
   // Is this a file or a directory?
   if ((_stat_info.st_mode & S_IFMT) == S_IFDIR) {

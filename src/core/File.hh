@@ -67,6 +67,7 @@ struct File : std::enable_shared_from_this<File> {
 
   const std::set<std::shared_ptr<Command>>& getReaders() const { return _readers; }
   void addReader(std::shared_ptr<Command> c) { _readers.insert(c); }
+  bool isRead() const { return !_readers.empty(); }
 
   const std::set<std::shared_ptr<Command>>& getInteractors() const { return _interactors; }
   void addInteractor(std::shared_ptr<Command> c) { _interactors.insert(c); }
