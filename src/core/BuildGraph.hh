@@ -63,9 +63,9 @@ struct BuildGraph {
 
   void tracePipe(pid_t pid, int fds[2], bool cloexec);
 
-  void add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec);
+  void traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec);
 
-  void add_set_cloexec(pid_t pid, int fd, bool cloexec);
+  void traceSetCloexec(pid_t pid, int fd, bool cloexec);
 
   void traceMmap(pid_t pid, int fd);
 

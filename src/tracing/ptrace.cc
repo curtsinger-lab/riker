@@ -673,25 +673,25 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           trace.tracePipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
           break;
         case /* 32 */ __NR_dup:
-          trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
+          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
           break;
         case /* 33 */ __NR_dup2:
-          trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
+          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
           break;
         case /* 292 */ __NR_dup3:
-          trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
+          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
                         (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
           break;
         case /* 72 */ __NR_fcntl:
           switch (registers.SYSCALL_ARG2) {
             case F_DUPFD:
-              trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
+              trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
               break;
             case F_DUPFD_CLOEXEC:
-              trace.add_dup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
+              trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
               break;
             case F_SETFD:
-              trace.add_set_cloexec(child, registers.SYSCALL_ARG1,
+              trace.traceSetCloexec(child, registers.SYSCALL_ARG1,
                                     (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
               break;
           }

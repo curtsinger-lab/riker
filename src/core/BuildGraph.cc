@@ -134,11 +134,11 @@ void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   proc->tracePipe(fds[0], fds[1], f, cloexec);
 }
 
-void BuildGraph::add_dup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
+void BuildGraph::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   _processes[pid]->traceDup(duped_fd, new_fd, cloexec);
 }
 
-void BuildGraph::add_set_cloexec(pid_t pid, int fd, bool cloexec) {
+void BuildGraph::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
   _processes[pid]->traceSetCloexec(fd, cloexec);
 }
 
