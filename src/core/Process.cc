@@ -56,7 +56,7 @@ std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
   return child_proc;
 }
 
-void Process::traceExec(BuildGraph& trace, std::string executable,
+void Process::traceExec(BuildGraph& graph, std::string executable,
                         const std::list<std::string>& args) {
   _command = _command->createChild(executable, args);
 
@@ -76,7 +76,7 @@ void Process::traceExec(BuildGraph& trace, std::string executable,
 
   // Mark the initial open file descriptors
   for (auto iter : _fds) {
-    iter.second.file = trace.getLatestVersion(iter.second.location_index);
+    iter.second.file = graph.getLatestVersion(iter.second.location_index);
   }
   _command->setInitialFDs(_fds);
 
@@ -84,10 +84,10 @@ void Process::traceExec(BuildGraph& trace, std::string executable,
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
   if (_fds.find(fileno(stdout)) != _fds.end()) {
-    trace.traceMmap(this->_pid, fileno(stdout));
+    graph.traceMmap(this->_pid, fileno(stdout));
   }
   if (_fds.find(fileno(stderr)) != _fds.end()) {
-    trace.traceMmap(this->_pid, fileno(stderr));
+    graph.traceMmap(this->_pid, fileno(stderr));
   }
 }
 

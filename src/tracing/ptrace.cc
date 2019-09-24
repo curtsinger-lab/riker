@@ -269,7 +269,7 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(BuildGraph& trace, std::shared_ptr<Command> cmd,
+pid_t start_command(BuildGraph& graph, std::shared_ptr<Command> cmd,
                     kj::ArrayPtr<InitialFdEntry const> initial_fds) {
   std::string exec_path = cmd->getCommand();
 
@@ -302,12 +302,12 @@ pid_t start_command(BuildGraph& trace, std::shared_ptr<Command> cmd,
   exec_argv.push_back(nullptr);
   pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
 
-  trace.newProcess(pid, cmd);
+  graph.newProcess(pid, cmd);
 
   return pid;
 }
 
-void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
+void trace_step(BuildGraph& graph, pid_t child, int wait_status) {
   enum stop_type stop_ty;
 
   if (WIFSTOPPED(wait_status)) {
@@ -350,7 +350,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       }
       pid_t new_child = (pid_t)ul_new_child;
       ptrace(PTRACE_CONT, child, nullptr, 0);
-      trace.traceFork(child, new_child);
+      graph.traceFork(child, new_child);
       break;
     }
     case STOP_EXEC: {
@@ -370,7 +370,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         args.push_back(read_tracee_string(child, arg_ptr));
       }
 
-      trace.traceExec(child, get_executable(child), args);
+      graph.traceExec(child, get_executable(child), args);
 
       ptrace(PTRACE_CONT, child, nullptr, 0);
       break;
@@ -385,11 +385,11 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       pid_t new_thread = (pid_t)ul_new_thread;
       ptrace(PTRACE_CONT, child, nullptr, 0);
       // TODO handling of flags -> CLONE_FILES
-      trace.traceClone(child, new_thread);
+      graph.traceClone(child, new_thread);
       break;
     }
     case STOP_EXIT: {
-      trace.traceExit(child);
+      graph.traceExit(child);
       break;
     }
     case STOP_SYSCALL: {
@@ -639,10 +639,10 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
       switch (registers.SYSCALL_NUMBER) {
         ////// Fiddling with file descriptors //////
         case /* 3 */ __NR_close:
-          trace.traceClose(child, registers.SYSCALL_ARG1);
+          graph.traceClose(child, registers.SYSCALL_ARG1);
           break;
         case /* 2 */ __NR_open:
-          trace.traceOpen(child,
+          graph.traceOpen(child,
                           registers.SYSCALL_RETURN,  // File descriptor
                           main_file.path,            // File path
                           registers.SYSCALL_ARG2,    // Flags
@@ -650,7 +650,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
 
         case /* 85 */ __NR_creat:
-          trace.traceOpen(child,
+          graph.traceOpen(child,
                           registers.SYSCALL_RETURN,      // File descriptor
                           main_file.path,                // File path
                           O_CREAT | O_WRONLY | O_TRUNC,  // Flags
@@ -659,7 +659,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
 
         case /* 257 */ __NR_openat:
-          trace.traceOpen(child,
+          graph.traceOpen(child,
                           registers.SYSCALL_RETURN,  // File descriptor
                           main_file.path,            // File path
                           registers.SYSCALL_ARG3,    // Flags
@@ -667,31 +667,31 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
           break;
 
         case /* 22 */ __NR_pipe:
-          trace.tracePipe(child, pipe_fds, false);
+          graph.tracePipe(child, pipe_fds, false);
           break;
         case /* 293 */ __NR_pipe2:
-          trace.tracePipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
+          graph.tracePipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
           break;
         case /* 32 */ __NR_dup:
-          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
+          graph.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
           break;
         case /* 33 */ __NR_dup2:
-          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
+          graph.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
           break;
         case /* 292 */ __NR_dup3:
-          trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
+          graph.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
                          (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
           break;
         case /* 72 */ __NR_fcntl:
           switch (registers.SYSCALL_ARG2) {
             case F_DUPFD:
-              trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
+              graph.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
               break;
             case F_DUPFD_CLOEXEC:
-              trace.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
+              graph.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
               break;
             case F_SETFD:
-              trace.traceSetCloexec(child, registers.SYSCALL_ARG1,
+              graph.traceSetCloexec(child, registers.SYSCALL_ARG1,
                                     (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
               break;
           }
@@ -699,39 +699,39 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         ////// Changing process state //////
         case /* 80 */ __NR_chdir:
         case /* 81 */ __NR_fchdir:
-          trace.traceChdir(child, main_file.path);
+          graph.traceChdir(child, main_file.path);
           break;
         case /* 161 */ __NR_chroot:
-          trace.traceChroot(child, main_file.path);
+          graph.traceChroot(child, main_file.path);
           break;
         ////// Complex operations /////
         case /* 9 */ __NR_mmap:
-          trace.traceMmap(child, main_file.fd);
+          graph.traceMmap(child, main_file.fd);
           break;
         case /* 40 */ __NR_sendfile:
         case /* 275 */ __NR_splice:
         case /* 276 */ __NR_tee:
         case /* 326 */ __NR_copy_file_range:
-          trace.traceRead(child, main_file);
-          trace.traceModify(child, extra_file);
+          graph.traceRead(child, main_file);
+          graph.traceModify(child, extra_file);
           break;
         case /* 76 */ __NR_truncate:
         case /* 77 */ __NR_ftruncate:
           if (registers.SYSCALL_ARG2 == 0) {
-            trace.traceRemove(child, main_file);
-            trace.traceCreate(child, main_file);
+            graph.traceRemove(child, main_file);
+            graph.traceCreate(child, main_file);
           } else {
-            trace.traceModify(child, main_file);
+            graph.traceModify(child, main_file);
           }
           break;
         case /* 82 */ __NR_rename:
         case /* 264 */ __NR_renameat:
         case /* 316 */ __NR_renameat2:  // TODO: Handle the flags
-          trace.traceRead(child, main_file);
-          trace.traceRemove(child, main_file);
-          trace.traceRemove(child, extra_file);
-          trace.traceCreate(child, extra_file);
-          trace.traceModify(child, extra_file);
+          graph.traceRead(child, main_file);
+          graph.traceRemove(child, main_file);
+          graph.traceRemove(child, extra_file);
+          graph.traceCreate(child, extra_file);
+          graph.traceModify(child, extra_file);
           break;
         ////// Simple reads and writes //////
         case /* 0 */ __NR_read:
@@ -751,7 +751,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 196 */ __NR_flistxattr:
         case /* 267 */ __NR_readlinkat:
         case /* 322 */ __NR_execveat:
-          trace.traceRead(child, main_file);
+          graph.traceRead(child, main_file);
           break;
         case /* 1 */ __NR_write:
         case /* 18 */ __NR_pwrite64:
@@ -772,7 +772,7 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 199 */ __NR_fremovexattr:
         case /* 260 */ __NR_fchownat:
         case /* 268 */ __NR_fchmodat:
-          trace.traceModify(child, main_file);
+          graph.traceModify(child, main_file);
           break;
         case /* 83 */ __NR_mkdir:
         case /* 88 */ __NR_symlink:
@@ -780,12 +780,12 @@ void trace_step(BuildGraph& trace, pid_t child, int wait_status) {
         case /* 258 */ __NR_mkdirat:
         case /* 259 */ __NR_mknodat:
         case /* 266 */ __NR_symlinkat:
-          trace.traceCreate(child, main_file);
+          graph.traceCreate(child, main_file);
           break;
         case /* 84 */ __NR_rmdir:
         case /* 87 */ __NR_unlink:
         case /* 263 */ __NR_unlinkat:
-          trace.traceRemove(child, main_file);
+          graph.traceRemove(child, main_file);
           break;
         default:
           fprintf(stderr, "[%d] UNHANDLED SYSCALL: %d\n", child, (int)registers.SYSCALL_NUMBER);

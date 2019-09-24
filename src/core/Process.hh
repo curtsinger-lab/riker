@@ -51,7 +51,7 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   void traceSetCloexec(int fd, bool cloexec);
 
-  void traceExec(BuildGraph& trace, std::string executable, const std::list<std::string>& args);
+  void traceExec(BuildGraph& graph, std::string executable, const std::list<std::string>& args);
 
   void traceExit();
 
