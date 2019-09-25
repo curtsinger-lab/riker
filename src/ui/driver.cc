@@ -123,10 +123,7 @@ void parse_argv(forward_list<string> argv) {
 }
 
 static bool stderr_supports_colors() {
-  if (!isatty(STDERR_FILENO)) return false;
-  char* term = getenv("TERM");
-  if (term == nullptr || std::string(term) == "dumb") return false;
-  return true;
+  return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
 }
 
 /**
