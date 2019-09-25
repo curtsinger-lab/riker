@@ -10,7 +10,6 @@ Rebuild
   .*-as .* (re)
   rm .*\.s (re)
   .*/collect2 .* (re)
-  Unrecognized process ended: [0-9]+ (re)
 
 Check output
   $ ./hello

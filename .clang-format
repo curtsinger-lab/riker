@@ -1,0 +1,32 @@
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 100
+DerivePointerAlignment: false
+PointerAlignment: Left
+AlignOperands: true
+BreakConstructorInitializers: AfterColon
+AllowShortFunctionsOnASingleLine: Inline
+
+# Regroup includes by category
+IncludeBlocks: Regroup
+IncludeCategories:
+  # C++ include files
+  - Regex: '<[[:alnum:]_]+>'
+    Priority: 1
+    
+  # Experimental C++ includes
+  - Regex: '<experimental/[[:alnum:]_]+>'
+    Priority: 2
+  
+  # Capnproto files
+  - Regex: '^<(capnp)|(kj)/[[:alnum:]._]+>'
+    Priority: 4
+  
+  # C include files
+  - Regex: '^<[[:alnum:]./_]+\.h>'
+    Priority: 3
+  
+  # Everything else
+  - Regex: '.*'
+    Priority: 5
+  

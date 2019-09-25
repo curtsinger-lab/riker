@@ -13,9 +13,9 @@ struct Command {
   # For the tree structure, how many children did this (recursively) execute?
   # Note: 0 can also mean that this node is opaque and cannot be split.
 
-  executable @1 :Data;
-  argv @2 :List(Data);
-  workingDirectory @3 :Data;
+  executable @1 :Text;
+  argv @2 :List(Text);
+  workingDirectory @3 :Text;
   # We don't use Text because paths may not be valid unicode
   struct FDEntry {
     fd @0 :UInt16;
@@ -51,7 +51,7 @@ enum FingerprintType {
 }
 
 struct File {
-  path @0 :Data;
+  path @0 :Text;
   type @1 :FileType;
   mode @2 :UInt16;
 
