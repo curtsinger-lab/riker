@@ -42,20 +42,22 @@ struct File : std::enable_shared_from_this<File> {
 
   void fingerprint();
 
-  bool shouldSave();
+  bool shouldSave() const;
 
   void serialize(Serializer& serializer, db::File::Builder builder);
 
   std::shared_ptr<File> getLatestVersion();
 
   bool isModified() const;
+  
+  bool isLocal() const;
 
   /****** Getters and setters ******/
 
   const std::string& getPath() const { return _path; }
 
   db::FileType getType() const { return _type; }
-  bool isPipe() { return getType() == db::FileType::PIPE; }
+  bool isPipe() const { return getType() == db::FileType::PIPE; }
 
   void setMode(uint16_t mode) { _mode = mode; }
   uint16_t getMode() const { return _mode; }

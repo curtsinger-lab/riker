@@ -52,22 +52,34 @@ void parse_argv(forward_list<string> argv) {
 
     if (arg == "--debug") {
       options.log_source_locations = true;
-      options.log_threshold = log_level::Info;
+      options.log_threshold = LogLevel::Info;
 
     } else if (arg == "--no-color") {
       options.color_output = false;
 
     } else if (arg == "-v") {
-      options.log_threshold = log_level::Warning;
+      options.log_threshold = LogLevel::Warning;
 
     } else if (arg == "-vv") {
-      options.log_threshold = log_level::Info;
+      options.log_threshold = LogLevel::Info;
 
     } else if (arg == "-vvv") {
-      options.log_threshold = log_level::Verbose;
+      options.log_threshold = LogLevel::Verbose;
 
-    } else if (arg == "--no-fingerprints") {
-      options.use_fingerprints = false;
+    } else if (arg == "--fingerprint") {
+      if (!argv.empty()) {
+        if (argv.front() == "none") {
+          options.fingerprint = FingerprintLevel::None;
+        } else if (argv.front() == "local") {
+          options.fingerprint = FingerprintLevel::Local;
+        } else if (argv.front() == "all") {
+          options.fingerprint = FingerprintLevel::All;
+        } else {
+          FAIL << "Please specifiy a fingerprint level: none, local, or all.";
+        }
+
+        argv.pop_front();
+      }
 
     } else if (arg == "--changed") {
       if (!argv.empty()) {
@@ -160,13 +172,18 @@ int main(int argc, char* argv[]) {
     auto old_graph = message.getRoot<db::Graph>();
     auto old_files = old_graph.getFiles();
     auto old_commands = old_graph.getCommands();
-    RebuildState rebuild_state(old_graph, options.use_fingerprints, options.explicitly_changed,
+
+    // For now, fingerprint any time we have fingerprinting enabled on the tracing end
+    bool use_fingerprints = options.fingerprint == FingerprintLevel::Local ||
+                            options.fingerprint == FingerprintLevel::All;
+
+    RebuildState rebuild_state(old_graph, use_fingerprints, options.explicitly_changed,
                                options.explicitly_unchanged);
 
     pid_t dry_run_pid = 1;
     std::map<pid_t, old_command*> wait_worklist;
     while (true) {
-      auto run_command = rebuild_state.rebuild(options.use_fingerprints, options.dry_run,
+      auto run_command = rebuild_state.rebuild(use_fingerprints, options.dry_run,
                                                wait_worklist.size(), options.parallel_jobs);
       if (run_command == nullptr) {
         if (wait_worklist.empty()) {
@@ -192,7 +209,7 @@ int main(int argc, char* argv[]) {
             old_command* child_command = child_entry->second;
             wait_worklist.erase(child_entry);
 
-            rebuild_state.mark_complete(options.use_fingerprints, options.dry_run, child_command);
+            rebuild_state.mark_complete(use_fingerprints, options.dry_run, child_command);
           }
           continue;
         }

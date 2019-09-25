@@ -22,6 +22,7 @@
 #include "core/Process.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
+#include "ui/log.hh"
 
 File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
            std::shared_ptr<Command> creator) :
@@ -97,7 +98,7 @@ std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
   return conflicts;
 }
 
-bool File::shouldSave() {
+bool File::shouldSave() const {
   // Save files that have at least one reader
   if (isRead()) return true;
 
@@ -112,6 +113,15 @@ bool File::shouldSave() {
 
   // Skip anything else
   return false;
+}
+
+bool File::isLocal() const {
+  // A future version should check if a path falls under the current working directory, not just
+  // whether it's absolute. That will require remembering the cwd somewhere along the way when
+  // we create file objects.
+
+  // If path is absolute, it's not local
+  return _path[0] != '/';
 }
 
 // Filter out db.dodo from the directory listing when fingerprinting directories
@@ -229,6 +239,12 @@ void File::fingerprint() {
 
   // Skip checksum if the file has no users
   if (!isRead()) return;
+
+  // If fingerprints are disabled, return immediately
+  if (options.fingerprint == FingerprintLevel::None) return;
+  
+  // When fingerprints are set to local, skip files that are not local and not created
+  if (options.fingerprint == FingerprintLevel::Local && !isCreated() && !isLocal()) return;
 
   // Is this a file or a directory?
   if ((_stat_info.st_mode & S_IFMT) == S_IFDIR) {

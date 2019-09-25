@@ -22,11 +22,11 @@
  */
 class logger {
  private:
-  log_level _level;  // Should the program abort when the log message is finished?
-  bool _done;        // Is this the final command in the log output?
+  LogLevel _level;  // Should the program abort when the log message is finished?
+  bool _done;       // Is this the final command in the log output?
 
  public:
-  logger(const char* source_file, int source_line, log_level level) : _level(level), _done(true) {
+  logger(const char* source_file, int source_line, LogLevel level) : _level(level), _done(true) {
     // Only log things if they're at or above our log threshold
     if (_level >= options.log_threshold) {
       // Print source information, if enabled
@@ -37,13 +37,13 @@ class logger {
 
       // Set the log color
       if (options.color_output) {
-        if (_level == log_level::Verbose) {
+        if (_level == LogLevel::Verbose) {
           std::cerr << COLOR_VERBOSE;
-        } else if (_level == log_level::Info) {
+        } else if (_level == LogLevel::Info) {
           std::cerr << COLOR_INFO;
-        } else if (_level == log_level::Warning) {
+        } else if (_level == LogLevel::Warning) {
           std::cerr << COLOR_WARNING;
-        } else if (_level == log_level::Fatal) {
+        } else if (_level == LogLevel::Fatal) {
           std::cerr << COLOR_FATAL;
         }
       }
@@ -59,13 +59,13 @@ class logger {
   ~logger() {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
-      if (_level >= options.log_threshold) {
+      if (static_cast<int>(_level) >= static_cast<int>(options.log_threshold)) {
         if (options.color_output) std::cerr << COLOR_END;
         std::cerr << "\n";
       }
 
       // If this log is a fatal
-      if (_level == log_level::Fatal) exit(2);
+      if (_level == LogLevel::Fatal) exit(2);
     }
   }
 
@@ -94,10 +94,10 @@ class logger {
 };
 
 // Set macros for explicit logging
-#define LOG logger(__FILE__, __LINE__, log_level::Verbose)
-#define INFO logger(__FILE__, __LINE__, log_level::Info)
-#define WARN logger(__FILE__, __LINE__, log_level::Warning)
-#define FAIL logger(__FILE__, __LINE__, log_level::Fatal)
+#define LOG logger(__FILE__, __LINE__, LogLevel::Verbose)
+#define INFO logger(__FILE__, __LINE__, LogLevel::Info)
+#define WARN logger(__FILE__, __LINE__, LogLevel::Warning)
+#define FAIL logger(__FILE__, __LINE__, LogLevel::Fatal)
 
 // Define an ASSERT macro, but disable checks when NDEBUG is defined
 #ifdef NDEBUG
@@ -107,14 +107,20 @@ class logger {
 #endif
 
 // Define conditional logging macros
-#define INFO_IF(cond) if (cond) INFO
-#define INFO_UNLESS(cond) if (!(cond)) INFO
+#define INFO_IF(cond) \
+  if (cond) INFO
+#define INFO_UNLESS(cond) \
+  if (!(cond)) INFO
 
-#define WARN_IF(cond) if (cond) WARN
-#define WARN_UNLESS(cond) if (!(cond)) WARN
+#define WARN_IF(cond) \
+  if (cond) WARN
+#define WARN_UNLESS(cond) \
+  if (!(cond)) WARN
 
-#define FAIL_IF(cond) if (cond) FAIL
-#define FAIL_UNLESS(cond) if (!(cond)) FAIL
+#define FAIL_IF(cond) \
+  if (cond) FAIL
+#define FAIL_UNLESS(cond) \
+  if (!(cond)) FAIL
 
 // Define a shortcut for printing the error message corresponding to the current errno
 #define ERR strerror(errno)

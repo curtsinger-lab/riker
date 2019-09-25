@@ -5,13 +5,14 @@
 
 #include "ui/log.hh"
 
-enum log_level : int { Verbose = 0, Info = 1, Warning = 2, Fatal = 3 };
+enum class LogLevel { Verbose = 0, Info = 1, Warning = 2, Fatal = 3 };
+
+enum class FingerprintLevel { None, Local, All };
 
 /**
  * Struct to hold command-line options for Dodo, with defaults set here
  */
 struct dodo_options {
-  bool use_fingerprints = true;
   std::set<std::string> explicitly_changed;
   std::set<std::string> explicitly_unchanged;
   bool dry_run = false;
@@ -20,8 +21,13 @@ struct dodo_options {
   bool show_sysfiles = false;
   bool show_collapsed = true;
 
+  // Fingerprint local or created files by default
+  FingerprintLevel fingerprint = FingerprintLevel::Local;
+
   // Only display log messages that are fatal
-  log_level log_threshold = log_level::Fatal;
+  LogLevel log_threshold = LogLevel::Fatal;
+
+  // Color log output by defaulz
   bool color_output = true;
 
   // Do not display source locations with log messages
