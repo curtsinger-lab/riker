@@ -33,6 +33,10 @@ std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<s
   return child;
 }
 
+void Command::traceRead(std::shared_ptr<File> f) {
+  if (canDependOn(f)) addInput(f);
+}
+
 void Command::addInput(std::shared_ptr<File> f) {
   // search through all files, do versioning
   f->addInteractor(shared_from_this());

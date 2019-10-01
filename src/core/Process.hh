@@ -45,6 +45,10 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   void traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode);
 
+  void traceRead(std::shared_ptr<File> f);
+
+  void traceRead(int fd);
+
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
 
   void traceDup(int fd, int new_fd, bool cloexec);

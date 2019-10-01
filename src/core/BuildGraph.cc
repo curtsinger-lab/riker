@@ -107,19 +107,13 @@ void BuildGraph::traceMmap(pid_t pid, int fd) {
 }
 
 void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceRead(f);
+    
   } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
-
-  if (proc->getCommand()->canDependOn(f)) {
-    proc->getCommand()->addInput(f);
+    _processes[pid]->traceRead(file.fd);
   }
 }
 

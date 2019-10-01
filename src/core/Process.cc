@@ -112,6 +112,14 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
   }
 }
 
+void Process::traceRead(std::shared_ptr<File> f) {
+  getCommand()->traceRead(f);
+}
+
+void Process::traceRead(int fd) {
+  getCommand()->traceRead(_fds[fd].file);
+}
+
 void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {
   _fds[fd1] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
   _fds[fd2] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);
