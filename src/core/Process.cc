@@ -42,8 +42,8 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   f->addMmap(shared_from_this());
   _mmaps.insert(f);
 
-  if (desc.access_mode != O_WRONLY) getCommand()->addInput(f);
-  if (desc.access_mode != O_RDONLY) getCommand()->addOutput(f);
+  if (desc.access_mode != O_WRONLY) _command->addInput(f);
+  if (desc.access_mode != O_RDONLY) _command->addOutput(f);
 }
 
 void Process::traceClose(int fd) {
@@ -102,7 +102,7 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
   bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
-  if (rewrite && (f->getCreator() != getCommand() || f->isWritten())) {
+  if (rewrite && (f->getCreator() != _command || f->isWritten())) {
     std::shared_ptr<File> newfile = f->createVersion(_command);
     newfile->setWriter(nullptr);
     newfile->setMode(mode);

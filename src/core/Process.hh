@@ -73,9 +73,7 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   /****** Getters and setters ******/
 
-  std::shared_ptr<Command> getCommand() { return _command; }
-
-  const std::map<int, FileDescriptor>& getFds() const { return _fds; }
+  std::shared_ptr<Command> getCommand() const { return _command; }
 
  private:
   pid_t _pid;
