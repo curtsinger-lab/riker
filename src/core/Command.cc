@@ -41,6 +41,23 @@ void Command::traceModify(std::shared_ptr<File> f) {
   addOutput(f);
 }
 
+void Command::traceCreate(std::shared_ptr<File> f) {
+  if (f->isCreated() && !f->isWritten()) {
+    bool file_exists;
+    if (f->isRemoved() || f->isPipe()) {
+      file_exists = false;
+    } else {
+      struct stat stat_info;
+      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
+    }
+
+    if (!file_exists) {
+      f->createVersion(shared_from_this());
+      f->setRemoved(false);
+    }
+  }
+}
+
 void Command::addInput(std::shared_ptr<File> f) {
   // search through all files, do versioning
   f->addInteractor(shared_from_this());

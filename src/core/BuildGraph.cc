@@ -129,30 +129,13 @@ void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
 }
 
 void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceCreate(f);
+    
   } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
-
-  if (f->isCreated() && !f->isWritten()) {
-    bool file_exists;
-    if (f->isRemoved() || f->isPipe()) {
-      file_exists = false;
-    } else {
-      struct stat stat_info;
-      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
-    }
-
-    if (!file_exists) {
-      f->createVersion(proc->getCommand());
-      f->setRemoved(false);
-    }
+    _processes[pid]->traceCreate(file.fd);
   }
 }
 

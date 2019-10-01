@@ -128,6 +128,14 @@ void Process::traceModify(int fd) {
   traceModify(_fds[fd].file->getLatestVersion());
 }
 
+void Process::traceCreate(std::shared_ptr<File> f) {
+  _command->traceCreate(f);
+}
+
+void Process::traceCreate(int fd) {
+  traceCreate(_fds[fd].file->getLatestVersion());
+}
+
 void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {
   _fds[fd1] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
   _fds[fd2] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);

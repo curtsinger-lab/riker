@@ -46,6 +46,8 @@ struct Command : public std::enable_shared_from_this<Command> {
   void traceRead(std::shared_ptr<File> f);
   
   void traceModify(std::shared_ptr<File> f);
+  
+  void traceCreate(std::shared_ptr<File> f);
 
   void serialize(const Serializer& serializer, db::Command::Builder builder);
 
