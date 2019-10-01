@@ -116,6 +116,20 @@ void File::traceRead(std::shared_ptr<Command> c) {
   addReader(c);
 }
 
+std::shared_ptr<File> File::traceWrite(std::shared_ptr<Command> c) {
+  addInteractor(c);
+  
+  std::shared_ptr<File> fnew;
+  if ((isCreated() && !isWritten()) || getWriter() == c) {
+    // Unless we just created it, in which case it is pristine
+    fnew = shared_from_this();
+  } else {
+    fnew = createVersion();
+  }
+  fnew->setWriter(c);
+  return fnew;
+}
+
 // Filter out db.dodo from the directory listing when fingerprinting directories
 static int filter_default(const struct dirent* e) {
   if (std::string(e->d_name) == "db.dodo")

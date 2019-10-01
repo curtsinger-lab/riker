@@ -82,8 +82,6 @@ struct Command : public std::enable_shared_from_this<Command> {
   std::list<std::shared_ptr<Command>> _children;
   std::set<std::shared_ptr<File>> _inputs;
   std::set<std::shared_ptr<File>> _outputs;
-  std::set<std::shared_ptr<File>> _wr_interactions;
-  std::set<std::shared_ptr<File>> _rd_interactions;
   std::set<std::shared_ptr<File>> _deleted_files;
   bool _collapse_with_parent;
   std::map<int, FileDescriptor> _initial_fds;

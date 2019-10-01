@@ -21,48 +21,21 @@ std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<s
 }
 
 void Command::traceRead(std::shared_ptr<File> f) {
-  // If this command wrote the file, no dependency
-  if (f->getWriter().get() == this) return;
-  
-  // If the file was not written, and was created by this command, no dependency
-  if (!f->isWritten() && f->getCreator().get() == this) return;
-  
   // Record this command's dependency in the file
   f->traceRead(shared_from_this());
   
-  // This file is now an input
-  _inputs.insert(f);
+  // This file is now an input, unless we've also written to it
+  if (_outputs.find(f) != _outputs.end()) {
+    _inputs.insert(f);
+  }
 }
 
 void Command::traceModify(std::shared_ptr<File> f) {
-  // if we've written to the file before, check for a race
-  if (!f->isPipe()) {
-    for (auto wr : _wr_interactions) {
-      if (f->getLocation() == wr->getLocation()) {
-        _outputs.insert(f);
-        if (f->getVersion() == wr->getVersion()) {
-          return;
-        } else {
-          std::set<std::shared_ptr<Command>> conflicts = f->collapse(wr->getVersion());
-          Command::collapse(conflicts);
-          return;
-        }
-      }
-    }
-  }
-
-  f->addInteractor(shared_from_this());
-  // if we haven't written to this file before, create a new version
-  std::shared_ptr<File> fnew;
-  if ((f->isCreated() && !f->isWritten()) || f->getWriter().get() == this) {
-    // Unless we just created it, in which case it is pristine
-    fnew = f;
-  } else {
-    fnew = f->createVersion();
-  }
-  fnew->setWriter(shared_from_this());
-  _outputs.insert(fnew);
-  _wr_interactions.insert(fnew);
+  // Record this command's effect on the file
+  auto new_f = f->traceWrite(shared_from_this());
+  
+  // This file is now an output
+  _outputs.insert(new_f);
 }
 
 void Command::traceCreate(std::shared_ptr<File> f) {

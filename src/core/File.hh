@@ -57,6 +57,8 @@ struct File : std::enable_shared_from_this<File> {
   bool isLocal() const;
   
   void traceRead(std::shared_ptr<Command> c);
+  
+  std::shared_ptr<File> traceWrite(std::shared_ptr<Command> c);
 
   /****** Getters and setters ******/
 
