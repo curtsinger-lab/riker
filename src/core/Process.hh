@@ -56,6 +56,10 @@ struct Process : public std::enable_shared_from_this<Process> {
   void traceCreate(std::shared_ptr<File> f);
   
   void traceCreate(int fd);
+  
+  void traceRemove(std::shared_ptr<File> f);
+  
+  void traceRemove(int fd);
 
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
 

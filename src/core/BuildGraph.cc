@@ -140,21 +140,14 @@ void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
 }
 
 void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceRemove(f);
+    
   } else {
-    file_location = fds.find(file.fd)->second.location_index;
+    _processes[pid]->traceRemove(file.fd);
   }
-  std::shared_ptr<File> f = _latest_versions[file_location];
-
-  proc->getCommand()->addDeletedFile(f);
-  f = f->createVersion();
-  f->setWriter(nullptr);
-  f->setRemoved();
 }
 
 void BuildGraph::serialize(Serializer& serializer) {
