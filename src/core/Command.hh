@@ -35,13 +35,7 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   std::shared_ptr<Command> createChild(std::string cmd, const std::list<std::string>& args);
 
-  void addInput(std::shared_ptr<File> f);
-
-  void addOutput(std::shared_ptr<File> f);
-
   size_t numDescendants();
-
-  bool canDependOn(const std::shared_ptr<File> f);
 
   void traceRead(std::shared_ptr<File> f);
   
@@ -55,18 +49,16 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   /****** Getters and setters ******/
 
-  const std::string& getExecutable() { return _cmd; }
+  const std::string& getExecutable() const { return _cmd; }
 
-  const std::list<std::string>& getArguments() { return _args; }
+  const std::list<std::string>& getArguments() const { return _args; }
 
-  const std::list<std::shared_ptr<Command>>& getChildren() { return _children; }
+  const std::list<std::shared_ptr<Command>>& getChildren() const { return _children; }
 
   const std::set<std::shared_ptr<File>>& getDeletedFiles() const { return _deleted_files; }
-  void addDeletedFile(std::shared_ptr<File> f) { _deleted_files.insert(f); }
-
-  bool getCollapseWithParent() const { return _collapse_with_parent; }
 
   const std::map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
+  
   void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
   /****** Private methods ******/

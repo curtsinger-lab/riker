@@ -42,8 +42,8 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   f->addMmap(shared_from_this());
   _mmaps.insert(f);
 
-  if (desc.access_mode != O_WRONLY) _command->addInput(f);
-  if (desc.access_mode != O_RDONLY) _command->addOutput(f);
+  if (desc.access_mode != O_WRONLY) _command->traceRead(f);
+  if (desc.access_mode != O_RDONLY) _command->traceModify(f);
 }
 
 void Process::traceClose(int fd) {

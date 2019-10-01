@@ -34,38 +34,12 @@ std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<s
 }
 
 void Command::traceRead(std::shared_ptr<File> f) {
-  if (canDependOn(f)) addInput(f);
-}
-
-void Command::traceModify(std::shared_ptr<File> f) {
-  addOutput(f);
-}
-
-void Command::traceCreate(std::shared_ptr<File> f) {
-  if (f->isCreated() && !f->isWritten()) {
-    bool file_exists;
-    if (f->isRemoved() || f->isPipe()) {
-      file_exists = false;
-    } else {
-      struct stat stat_info;
-      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
-    }
-
-    if (!file_exists) {
-      f->createVersion(shared_from_this());
-      f->setRemoved(false);
-    }
-  }
-}
-
-void Command::traceRemove(std::shared_ptr<File> f) {
-  addDeletedFile(f);
-  f = f->createVersion();
-  f->setWriter(nullptr);
-  f->setRemoved();
-}
-
-void Command::addInput(std::shared_ptr<File> f) {
+  // If this command wrote the file, no dependency
+  if (f->getWriter().get() == this) return;
+  
+  // If the file was not written, and was created by this command, no dependency
+  if (!f->isWritten() && f->getCreator().get() == this) return;
+  
   // search through all files, do versioning
   f->addInteractor(shared_from_this());
   f->addReader(shared_from_this());
@@ -90,7 +64,7 @@ void Command::addInput(std::shared_ptr<File> f) {
   _rd_interactions.insert(f);
 }
 
-void Command::addOutput(std::shared_ptr<File> f) {
+void Command::traceModify(std::shared_ptr<File> f) {
   // if we've written to the file before, check for a race
   if (!f->isPipe()) {
     for (auto wr : _wr_interactions) {
@@ -119,6 +93,30 @@ void Command::addOutput(std::shared_ptr<File> f) {
   fnew->setWriter(shared_from_this());
   _outputs.insert(fnew);
   _wr_interactions.insert(fnew);
+}
+
+void Command::traceCreate(std::shared_ptr<File> f) {
+  if (f->isCreated() && !f->isWritten()) {
+    bool file_exists;
+    if (f->isRemoved() || f->isPipe()) {
+      file_exists = false;
+    } else {
+      struct stat stat_info;
+      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
+    }
+
+    if (!file_exists) {
+      f->createVersion(shared_from_this());
+      f->setRemoved(false);
+    }
+  }
+}
+
+void Command::traceRemove(std::shared_ptr<File> f) {
+  _deleted_files.insert(f);
+  f = f->createVersion();
+  f->setWriter(nullptr);
+  f->setRemoved();
 }
 
 uint64_t Command::numDescendants() {
@@ -163,18 +161,6 @@ std::shared_ptr<Command> Command::collapseHelper(unsigned int min_depth) {
   } else {
     return shared_from_this();
   }
-}
-
-bool Command::canDependOn(const std::shared_ptr<File> f) {
-  // If this command is the only writer, it cannot depend on the file
-
-  if (f->getWriter().get() == this) return false;
-
-  // If the file is not written and was created by this command, it cannot depend on the file
-  if (!f->isWritten() && f->getCreator().get() == this) return false;
-
-  // Otherwise the command can depend on the file
-  return true;
 }
 
 void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {
