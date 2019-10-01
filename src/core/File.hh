@@ -56,11 +56,9 @@ struct File : std::enable_shared_from_this<File> {
 
   const std::string& getPath() const { return _path; }
 
-  db::FileType getType() const { return _type; }
-  bool isPipe() const { return getType() == db::FileType::PIPE; }
+  bool isPipe() const { return _type == db::FileType::PIPE; }
 
   void setMode(uint16_t mode) { _mode = mode; }
-  uint16_t getMode() const { return _mode; }
 
   size_t getLocation() const { return _location; }
 
@@ -82,10 +80,6 @@ struct File : std::enable_shared_from_this<File> {
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
-  bool isLatestVersion() const { return _next_version == nullptr; }
-
-  std::shared_ptr<File> getPreviousVersion() const { return _prev_version; }
-  bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
 
   bool isRemoved() const { return _removed; }
   void setRemoved(bool r = true) { _removed = r; }
