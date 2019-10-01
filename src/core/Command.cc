@@ -37,6 +37,10 @@ void Command::traceRead(std::shared_ptr<File> f) {
   if (canDependOn(f)) addInput(f);
 }
 
+void Command::traceModify(std::shared_ptr<File> f) {
+  addOutput(f);
+}
+
 void Command::addInput(std::shared_ptr<File> f) {
   // search through all files, do versioning
   f->addInteractor(shared_from_this());

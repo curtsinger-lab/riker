@@ -113,11 +113,19 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
 }
 
 void Process::traceRead(std::shared_ptr<File> f) {
-  getCommand()->traceRead(f);
+  _command->traceRead(f);
 }
 
 void Process::traceRead(int fd) {
-  getCommand()->traceRead(_fds[fd].file);
+  traceRead(_fds[fd].file->getLatestVersion());
+}
+
+void Process::traceModify(std::shared_ptr<File> f) {
+  _command->traceModify(f);
+}
+
+void Process::traceModify(int fd) {
+  traceModify(_fds[fd].file->getLatestVersion());
 }
 
 void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {
