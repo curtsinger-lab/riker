@@ -14,17 +14,17 @@
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();
-  _stdin = std::make_shared<File>(*this, stdin_location, true, "<<stdin>>");
+  _stdin = std::make_shared<File>(*this, stdin_location, db::FileType::PIPE, "<<stdin>>");
   _files.push_front(_stdin);
   _latest_versions.push_back(_stdin);
 
   size_t stdout_location = _latest_versions.size();
-  _stdout = std::make_shared<File>(*this, stdout_location, true, "<<stdout>>");
+  _stdout = std::make_shared<File>(*this, stdout_location, db::FileType::PIPE, "<<stdout>>");
   _files.push_front(_stdout);
   _latest_versions.push_back(_stdout);
 
   size_t stderr_location = _latest_versions.size();
-  _stderr = std::make_shared<File>(*this, stderr_location, true, "<<stderr>>");
+  _stderr = std::make_shared<File>(*this, stderr_location, db::FileType::PIPE, "<<stderr>>");
   _files.push_front(_stderr);
   _latest_versions.push_back(_stderr);
 }
@@ -42,7 +42,8 @@ size_t BuildGraph::findFile(std::string path) {
     }
   }
   size_t location = _latest_versions.size();
-  std::shared_ptr<File> new_node = std::make_shared<File>(*this, location, false, path, nullptr);
+  std::shared_ptr<File> new_node =
+      std::make_shared<File>(*this, location, db::FileType::REGULAR, path, nullptr);
   addFile(new_node);
   _latest_versions.push_back(new_node);
   return location;
@@ -87,7 +88,8 @@ void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
 
   size_t location = _latest_versions.size();
-  std::shared_ptr<File> f = std::make_shared<File>(*this, location, true, "", proc->getCommand());
+  std::shared_ptr<File> f =
+      std::make_shared<File>(*this, location, db::FileType::PIPE, "", proc->getCommand());
   addFile(f);
   _latest_versions.push_back(f);
 
@@ -111,7 +113,7 @@ void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
     size_t file_location = findFile(file.path);
     std::shared_ptr<File> f = _latest_versions[file_location];
     _processes[pid]->traceRead(f);
-    
+
   } else {
     _processes[pid]->traceRead(file.fd);
   }
@@ -122,7 +124,7 @@ void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
     size_t file_location = findFile(file.path);
     std::shared_ptr<File> f = _latest_versions[file_location];
     _processes[pid]->traceModify(f);
-    
+
   } else {
     _processes[pid]->traceModify(file.fd);
   }
@@ -133,7 +135,7 @@ void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
     size_t file_location = findFile(file.path);
     std::shared_ptr<File> f = _latest_versions[file_location];
     _processes[pid]->traceCreate(f);
-    
+
   } else {
     _processes[pid]->traceCreate(file.fd);
   }
@@ -144,7 +146,7 @@ void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
     size_t file_location = findFile(file.path);
     std::shared_ptr<File> f = _latest_versions[file_location];
     _processes[pid]->traceRemove(f);
-    
+
   } else {
     _processes[pid]->traceRemove(file.fd);
   }

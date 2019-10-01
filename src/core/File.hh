@@ -23,9 +23,13 @@ bool match_fingerprint(db::File::Reader file);
 
 struct File : std::enable_shared_from_this<File> {
   /****** Constructors ******/
-
-  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
-       std::shared_ptr<Command> creator = nullptr);
+  File(BuildGraph& graph, size_t location, db::FileType type, std::string path,
+       std::shared_ptr<Command> creator = nullptr) :
+      _graph(graph),
+      _location(location),
+      _type(type),
+      _path(path),
+      _creator(creator) {}
 
   // Disallow Copy
   File(const File&) = delete;
@@ -49,7 +53,7 @@ struct File : std::enable_shared_from_this<File> {
   std::shared_ptr<File> getLatestVersion();
 
   bool isModified() const;
-  
+
   bool isLocal() const;
 
   /****** Getters and setters ******/

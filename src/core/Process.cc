@@ -13,11 +13,6 @@
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 
-Process::Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
-    _pid(pid),
-    _command(command),
-    _cwd(cwd) {}
-
 void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
                             std::shared_ptr<File> stderr) {
   _fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);

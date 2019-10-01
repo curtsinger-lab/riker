@@ -15,13 +15,20 @@ struct Serializer;
 
 struct Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
-
  private:
   Command(std::string cmd, const std::list<std::string>& args, std::shared_ptr<Command> parent,
-          unsigned int depth);
+          unsigned int depth) :
+      _cmd(cmd),
+      _args(args),
+      _parent(parent),
+      _depth(depth) {}
 
  public:
-  Command(std::string cmd, const std::list<std::string>& args);
+  Command(std::string cmd, const std::list<std::string>& args) :
+      _cmd(cmd),
+      _args(args),
+      _parent(nullptr),
+      _depth(0) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -38,11 +45,11 @@ struct Command : public std::enable_shared_from_this<Command> {
   size_t numDescendants();
 
   void traceRead(std::shared_ptr<File> f);
-  
+
   void traceModify(std::shared_ptr<File> f);
-  
+
   void traceCreate(std::shared_ptr<File> f);
-  
+
   void traceRemove(std::shared_ptr<File> f);
 
   void serialize(const Serializer& serializer, db::Command::Builder builder);
@@ -58,7 +65,7 @@ struct Command : public std::enable_shared_from_this<Command> {
   const std::set<std::shared_ptr<File>>& getDeletedFiles() const { return _deleted_files; }
 
   const std::map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
-  
+
   void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
   /****** Private methods ******/

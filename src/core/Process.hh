@@ -17,8 +17,10 @@ struct File;
 
 struct Process : public std::enable_shared_from_this<Process> {
   /****** Constructors ******/
-
-  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command);
+  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
+      _pid(pid),
+      _command(command),
+      _cwd(cwd) {}
 
   // Disallow Copy
   Process(const Process&) = delete;
@@ -48,17 +50,17 @@ struct Process : public std::enable_shared_from_this<Process> {
   void traceRead(std::shared_ptr<File> f);
 
   void traceRead(int fd);
-  
+
   void traceModify(std::shared_ptr<File> f);
-  
+
   void traceModify(int fd);
-  
+
   void traceCreate(std::shared_ptr<File> f);
-  
+
   void traceCreate(int fd);
-  
+
   void traceRemove(std::shared_ptr<File> f);
-  
+
   void traceRemove(int fd);
 
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);

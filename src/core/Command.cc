@@ -14,19 +14,6 @@
 
 using std::string;
 
-Command::Command(std::string cmd, const std::list<std::string>& args,
-                 std::shared_ptr<Command> parent, unsigned int depth) :
-    _cmd(cmd),
-    _args(args),
-    _parent(parent),
-    _depth(depth) {}
-
-Command::Command(std::string cmd, const std::list<std::string>& args) :
-    _cmd(cmd),
-    _args(args),
-    _parent(nullptr),
-    _depth(0) {}
-
 std::shared_ptr<Command> Command::createChild(std::string cmd, const std::list<std::string>& args) {
   std::shared_ptr<Command> child(new Command(cmd, args, shared_from_this(), _depth + 1));
   _children.push_back(child);

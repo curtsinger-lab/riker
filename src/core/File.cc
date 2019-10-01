@@ -24,24 +24,11 @@
 #include "fingerprint/blake2.hh"
 #include "ui/log.hh"
 
-File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
-           std::shared_ptr<Command> creator) :
-    _graph(graph),
-    _location(location),
-    _path(path),
-    _creator(creator) {
-  if (is_pipe) {
-    _type = db::FileType::PIPE;
-  } else {
-    _type = db::FileType::REGULAR;
-  }
-}
-
 std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
 
-  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, isPipe(), getPath(), creator);
+  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, _type, _path, creator);
   _graph.addFile(f);
   f->_version++;
   f->_prev_version = shared_from_this();
@@ -242,7 +229,7 @@ void File::fingerprint() {
 
   // If fingerprints are disabled, return immediately
   if (options.fingerprint == FingerprintLevel::None) return;
-  
+
   // When fingerprints are set to local, skip files that are not local and not created
   if (options.fingerprint == FingerprintLevel::Local && !isCreated() && !isLocal()) return;
 
