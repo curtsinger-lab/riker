@@ -58,7 +58,6 @@ void Command::traceCreate(std::shared_ptr<File> f) {
 void Command::traceRemove(std::shared_ptr<File> f) {
   _deleted_files.insert(f);
   f = f->createVersion();
-  f->setWriter(nullptr);
   f->setRemoved();
 }
 

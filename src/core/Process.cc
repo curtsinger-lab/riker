@@ -99,7 +99,6 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
 
   if (rewrite && (f->getCreator() != _command || f->isWritten())) {
     std::shared_ptr<File> newfile = f->createVersion(_command);
-    newfile->setWriter(nullptr);
     newfile->setMode(mode);
     _fds[fd] = FileDescriptor(f->getLocation(), newfile, access_mode, cloexec);
   } else {

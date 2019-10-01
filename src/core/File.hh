@@ -84,7 +84,6 @@ struct File : std::enable_shared_from_this<File> {
   bool isCreated() const { return getCreator() != nullptr; }
 
   std::shared_ptr<Command> getWriter() const { return _writer; }
-  void setWriter(std::shared_ptr<Command> c) { _writer = c; }
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
@@ -108,7 +107,7 @@ struct File : std::enable_shared_from_this<File> {
 
   bool _removed = false;
   std::shared_ptr<Command> _creator;
-  std::shared_ptr<Command> _writer;
+  std::shared_ptr<Command> _writer = nullptr;
 
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;

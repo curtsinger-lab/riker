@@ -126,7 +126,7 @@ std::shared_ptr<File> File::traceWrite(std::shared_ptr<Command> c) {
   } else {
     fnew = createVersion();
   }
-  fnew->setWriter(c);
+  fnew->_writer = c;
   return fnew;
 }
 
