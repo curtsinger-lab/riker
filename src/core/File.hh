@@ -55,6 +55,8 @@ struct File : std::enable_shared_from_this<File> {
   bool isModified() const;
 
   bool isLocal() const;
+  
+  void traceRead(std::shared_ptr<Command> c);
 
   /****** Getters and setters ******/
 

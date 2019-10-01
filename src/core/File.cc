@@ -111,6 +111,11 @@ bool File::isLocal() const {
   return _path[0] != '/';
 }
 
+void File::traceRead(std::shared_ptr<Command> c) {
+  addInteractor(c);
+  addReader(c);
+}
+
 // Filter out db.dodo from the directory listing when fingerprinting directories
 static int filter_default(const struct dirent* e) {
   if (std::string(e->d_name) == "db.dodo")

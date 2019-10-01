@@ -27,28 +27,11 @@ void Command::traceRead(std::shared_ptr<File> f) {
   // If the file was not written, and was created by this command, no dependency
   if (!f->isWritten() && f->getCreator().get() == this) return;
   
-  // search through all files, do versioning
-  f->addInteractor(shared_from_this());
-  f->addReader(shared_from_this());
+  // Record this command's dependency in the file
+  f->traceRead(shared_from_this());
+  
+  // This file is now an input
   _inputs.insert(f);
-
-  // No checking for races on pipes
-  if (f->isPipe()) return;
-
-  // If we've read from this file before, check for a race
-  // TODO: Use set find
-  for (auto rd : _rd_interactions) {
-    if (f->getLocation() == rd->getLocation() && f->getWriter().get() != this) {
-      if (f->getVersion() == rd->getVersion()) {
-        return;
-      } else /* we've found a race */ {
-        std::set<std::shared_ptr<Command>> conflicts = f->collapse(rd->getVersion());
-        Command::collapse(conflicts);
-      }
-    }
-  }
-  // mark that we've now interacted with this version of the file
-  _rd_interactions.insert(f);
 }
 
 void Command::traceModify(std::shared_ptr<File> f) {
