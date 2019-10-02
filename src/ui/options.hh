@@ -3,8 +3,6 @@
 #include <set>
 #include <string>
 
-#include "ui/log.hh"
-
 enum class LogLevel { Verbose = 0, Info = 1, Warning = 2, Fatal = 3 };
 
 enum class FingerprintLevel { None, Local, All };

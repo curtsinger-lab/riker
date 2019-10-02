@@ -1,7 +1,6 @@
 #include "Tracer.hh"
 
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 
 #include "core/BuildGraph.hh"

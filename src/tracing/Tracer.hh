@@ -5,6 +5,8 @@
 #include <memory>
 #include <string>
 
+#include <sys/types.h>
+
 struct BuildGraph;
 struct Command;
 struct Process;
@@ -28,7 +30,7 @@ class Tracer {
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
   void run(shared_ptr<Command> cmd);
-  
+
   void newProcess(pid_t pid, shared_ptr<Command> cmd);
 
   /****** Trace handler methods ******/

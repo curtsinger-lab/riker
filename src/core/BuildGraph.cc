@@ -1,15 +1,7 @@
 #include "core/BuildGraph.hh"
 
-#include <utility>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#include "core/Command.hh"
 #include "core/File.hh"
-#include "core/FileDescriptor.hh"
-#include "core/Process.hh"
+#include "db/db.capnp.h"
 #include "db/Serializer.hh"
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {

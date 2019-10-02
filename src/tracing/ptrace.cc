@@ -28,7 +28,6 @@
 #include <syscall.h>
 #include <unistd.h>
 
-#include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "tracing/syscalls.hh"
 #include "tracing/Tracer.hh"

@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <list>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,7 +10,6 @@
 
 struct Command;
 struct File;
-struct Process;
 struct Serializer;
 
 struct BuildGraph {

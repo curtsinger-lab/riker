@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -19,10 +18,9 @@
 #include <kj/string.h>
 
 #include "core/BuildGraph.hh"
-#include "core/Process.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
-#include "ui/log.hh"
+#include "ui/options.hh"
 
 std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
   // We are at the end of the current version, so snapshot with a fingerprint

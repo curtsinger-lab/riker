@@ -13,7 +13,6 @@
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
-#include "ui/log.hh"
 
 void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
                             std::shared_ptr<File> stderr) {
