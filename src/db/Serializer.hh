@@ -36,7 +36,6 @@ struct Serializer {
       _input_count += f->getReaders().size();
       if (f->isWritten()) _output_count++;
       if (f->isCreated()) _create_count++;
-      if (f->isModified()) _modify_count++;
     }
   }
 
@@ -90,9 +89,6 @@ struct Serializer {
     auto creations = graph.initCreations(_create_count);
     size_t create_index = 0;
 
-    auto modifications = graph.initModifications(_modify_count);
-    size_t modify_index = 0;
-
     // Serialize dependency edges
     for (auto iter : _file_indices) {
       auto file = iter.first;
@@ -114,12 +110,6 @@ struct Serializer {
         creations[create_index].setInputID(getCommandIndex(file->getCreator()));
         creations[create_index].setOutputID(file_id);
         create_index++;
-      }
-
-      if (file->isModified()) {
-        modifications[modify_index].setInputID(getFileIndex(file->getPreviousVersion()));
-        modifications[modify_index].setOutputID(file_id);
-        modify_index++;
       }
     }
 
@@ -160,5 +150,4 @@ struct Serializer {
   size_t _input_count = 0;
   size_t _output_count = 0;
   size_t _create_count = 0;
-  size_t _modify_count = 0;
 };

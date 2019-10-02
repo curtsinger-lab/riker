@@ -23,9 +23,13 @@ bool match_fingerprint(db::File::Reader file);
 
 struct File : std::enable_shared_from_this<File> {
   /****** Constructors ******/
-
-  File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
-       std::shared_ptr<Command> creator = nullptr);
+  File(BuildGraph& graph, size_t location, db::FileType type, std::string path,
+       std::shared_ptr<Command> creator = nullptr) :
+      _graph(graph),
+      _location(location),
+      _type(type),
+      _path(path),
+      _creator(creator) {}
 
   // Disallow Copy
   File(const File&) = delete;
@@ -35,8 +39,6 @@ struct File : std::enable_shared_from_this<File> {
   File(File&&) = default;
 
   /****** Non-trivial methods ******/
-
-  std::set<std::shared_ptr<Command>> collapse(unsigned int depth);
 
   std::shared_ptr<File> createVersion(std::shared_ptr<Command> creator = nullptr);
 
@@ -49,18 +51,20 @@ struct File : std::enable_shared_from_this<File> {
   std::shared_ptr<File> getLatestVersion();
 
   bool isModified() const;
-  
+
   bool isLocal() const;
+  
+  void traceRead(std::shared_ptr<Command> c);
+  
+  std::shared_ptr<File> traceWrite(std::shared_ptr<Command> c);
 
   /****** Getters and setters ******/
 
   const std::string& getPath() const { return _path; }
 
-  db::FileType getType() const { return _type; }
-  bool isPipe() const { return getType() == db::FileType::PIPE; }
+  bool isPipe() const { return _type == db::FileType::PIPE; }
 
   void setMode(uint16_t mode) { _mode = mode; }
-  uint16_t getMode() const { return _mode; }
 
   size_t getLocation() const { return _location; }
 
@@ -78,14 +82,9 @@ struct File : std::enable_shared_from_this<File> {
   bool isCreated() const { return getCreator() != nullptr; }
 
   std::shared_ptr<Command> getWriter() const { return _writer; }
-  void setWriter(std::shared_ptr<Command> c) { _writer = c; }
   bool isWritten() const { return getWriter() != nullptr; }
 
   unsigned int getVersion() const { return _version; }
-  bool isLatestVersion() const { return _next_version == nullptr; }
-
-  std::shared_ptr<File> getPreviousVersion() const { return _prev_version; }
-  bool hasPreviousVersion() const { return getPreviousVersion() != nullptr; }
 
   bool isRemoved() const { return _removed; }
   void setRemoved(bool r = true) { _removed = r; }
@@ -106,7 +105,7 @@ struct File : std::enable_shared_from_this<File> {
 
   bool _removed = false;
   std::shared_ptr<Command> _creator;
-  std::shared_ptr<Command> _writer;
+  std::shared_ptr<Command> _writer = nullptr;
 
   db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
   struct stat _stat_info;

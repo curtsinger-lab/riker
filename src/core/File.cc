@@ -24,24 +24,11 @@
 #include "fingerprint/blake2.hh"
 #include "ui/log.hh"
 
-File::File(BuildGraph& graph, size_t location, bool is_pipe, std::string path,
-           std::shared_ptr<Command> creator) :
-    _graph(graph),
-    _location(location),
-    _path(path),
-    _creator(creator) {
-  if (is_pipe) {
-    _type = db::FileType::PIPE;
-  } else {
-    _type = db::FileType::REGULAR;
-  }
-}
-
 std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
 
-  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, isPipe(), getPath(), creator);
+  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, _type, _path, creator);
   _graph.addFile(f);
   f->_version++;
   f->_prev_version = shared_from_this();
@@ -62,10 +49,10 @@ bool File::isModified() const {
   if (isCreated()) return false;
 
   // Files that do not have previous version cannot be modified
-  if (!hasPreviousVersion()) return false;
+  if (_prev_version == nullptr) return false;
 
   // The file is only modified if the previous version was not removed
-  return !getPreviousVersion()->isRemoved();
+  return !_prev_version->_removed;
 
   // This is a simplification of a previous check that I believe was wrong.
   // The check is copied below in case there is a problem in the future or some missed detail:
@@ -74,28 +61,6 @@ bool File::isModified() const {
   //                       (file->getPreviousVersion()->isCreated() ||
   //                        (file->getPreviousVersion()->getPreviousVersion() != nullptr &&
   //                         !file->getPreviousVersion()->isRemoved())));
-}
-
-// return a set of the commands which raced on this file, back to the parameter version
-std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
-  std::shared_ptr<File> cur_file = shared_from_this();
-  std::set<std::shared_ptr<Command>> conflicts;
-  while (cur_file->getVersion() != version) {
-    // add writer and all readers to conflict set
-    if (cur_file->isWritten()) {
-      conflicts.insert(cur_file->getWriter());
-    }
-    for (auto rd : cur_file->getInteractors()) {
-      conflicts.insert(rd);
-    }
-    // add all mmaps to conflicts
-    for (auto m : cur_file->_mmaps) {
-      conflicts.insert(m->getCommand());
-    }
-    // step back a version
-    cur_file = cur_file->getPreviousVersion();
-  }
-  return conflicts;
 }
 
 bool File::shouldSave() const {
@@ -109,7 +74,7 @@ bool File::shouldSave() const {
   if (isCreated()) return true;
 
   // Save files with a previous version that are not removed (CC: why?)
-  if (hasPreviousVersion() && !isRemoved()) return true;
+  if (_prev_version != nullptr && !_removed) return true;
 
   // Skip anything else
   return false;
@@ -122,6 +87,25 @@ bool File::isLocal() const {
 
   // If path is absolute, it's not local
   return _path[0] != '/';
+}
+
+void File::traceRead(std::shared_ptr<Command> c) {
+  addInteractor(c);
+  addReader(c);
+}
+
+std::shared_ptr<File> File::traceWrite(std::shared_ptr<Command> c) {
+  addInteractor(c);
+  
+  std::shared_ptr<File> fnew;
+  if ((isCreated() && !isWritten()) || getWriter() == c) {
+    // Unless we just created it, in which case it is pristine
+    fnew = shared_from_this();
+  } else {
+    fnew = createVersion();
+  }
+  fnew->_writer = c;
+  return fnew;
 }
 
 // Filter out db.dodo from the directory listing when fingerprinting directories
@@ -216,7 +200,7 @@ static std::vector<uint8_t> blake2sp_file(std::string path_string) {
 
 void File::fingerprint() {
   // We can only fingerprint regular files for now. (Do we even want to try for others?)
-  if (getType() != db::FileType::REGULAR) {
+  if (_type != db::FileType::REGULAR) {
     _fingerprint_type = db::FingerprintType::UNAVAILABLE;
     return;
   }
@@ -242,7 +226,7 @@ void File::fingerprint() {
 
   // If fingerprints are disabled, return immediately
   if (options.fingerprint == FingerprintLevel::None) return;
-  
+
   // When fingerprints are set to local, skip files that are not local and not created
   if (options.fingerprint == FingerprintLevel::Local && !isCreated() && !isLocal()) return;
 
@@ -264,10 +248,10 @@ void File::fingerprint() {
 }
 
 void File::serialize(Serializer& serializer, db::File::Builder builder) {
-  builder.setPath(getPath());
-  builder.setType(getType());
-  builder.setMode(getMode());
-  builder.setLatestVersion(isLatestVersion());
+  builder.setPath(_path);
+  builder.setType(_type);
+  builder.setMode(_mode);
+  builder.setLatestVersion(_next_version == nullptr);
 
   builder.setFingerprintType(_fingerprint_type);
 

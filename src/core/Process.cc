@@ -12,11 +12,7 @@
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-
-Process::Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
-    _pid(pid),
-    _command(command),
-    _cwd(cwd) {}
+#include "ui/log.hh"
 
 void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
                             std::shared_ptr<File> stderr) {
@@ -42,8 +38,8 @@ void Process::traceMmap(BuildGraph& graph, int fd) {
   f->addMmap(shared_from_this());
   _mmaps.insert(f);
 
-  if (desc.access_mode != O_WRONLY) getCommand()->addInput(f);
-  if (desc.access_mode != O_RDONLY) getCommand()->addOutput(f);
+  if (desc.access_mode != O_WRONLY) _command->traceRead(f);
+  if (desc.access_mode != O_RDONLY) _command->traceModify(f);
 }
 
 void Process::traceClose(int fd) {
@@ -102,14 +98,45 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
   bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
-  if (rewrite && (f->getCreator() != getCommand() || f->isWritten())) {
+  if (rewrite && (f->getCreator() != _command || f->isWritten())) {
     std::shared_ptr<File> newfile = f->createVersion(_command);
-    newfile->setWriter(nullptr);
     newfile->setMode(mode);
     _fds[fd] = FileDescriptor(f->getLocation(), newfile, access_mode, cloexec);
   } else {
     _fds[fd] = FileDescriptor(f->getLocation(), f, access_mode, cloexec);
   }
+}
+
+void Process::traceRead(std::shared_ptr<File> f) {
+  _command->traceRead(f);
+}
+
+void Process::traceRead(int fd) {
+  traceRead(_fds[fd].file->getLatestVersion());
+}
+
+void Process::traceModify(std::shared_ptr<File> f) {
+  _command->traceModify(f);
+}
+
+void Process::traceModify(int fd) {
+  traceModify(_fds[fd].file->getLatestVersion());
+}
+
+void Process::traceCreate(std::shared_ptr<File> f) {
+  _command->traceCreate(f);
+}
+
+void Process::traceCreate(int fd) {
+  traceCreate(_fds[fd].file->getLatestVersion());
+}
+
+void Process::traceRemove(std::shared_ptr<File> f) {
+  _command->traceRemove(f);
+}
+
+void Process::traceRemove(int fd) {
+  traceRemove(_fds[fd].file->getLatestVersion());
 }
 
 void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {

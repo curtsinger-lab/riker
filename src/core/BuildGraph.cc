@@ -14,17 +14,17 @@
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();
-  _stdin = std::make_shared<File>(*this, stdin_location, true, "<<stdin>>");
+  _stdin = std::make_shared<File>(*this, stdin_location, db::FileType::PIPE, "<<stdin>>");
   _files.push_front(_stdin);
   _latest_versions.push_back(_stdin);
 
   size_t stdout_location = _latest_versions.size();
-  _stdout = std::make_shared<File>(*this, stdout_location, true, "<<stdout>>");
+  _stdout = std::make_shared<File>(*this, stdout_location, db::FileType::PIPE, "<<stdout>>");
   _files.push_front(_stdout);
   _latest_versions.push_back(_stdout);
 
   size_t stderr_location = _latest_versions.size();
-  _stderr = std::make_shared<File>(*this, stderr_location, true, "<<stderr>>");
+  _stderr = std::make_shared<File>(*this, stderr_location, db::FileType::PIPE, "<<stderr>>");
   _files.push_front(_stderr);
   _latest_versions.push_back(_stderr);
 }
@@ -42,7 +42,8 @@ size_t BuildGraph::findFile(std::string path) {
     }
   }
   size_t location = _latest_versions.size();
-  std::shared_ptr<File> new_node = std::make_shared<File>(*this, location, false, path, nullptr);
+  std::shared_ptr<File> new_node =
+      std::make_shared<File>(*this, location, db::FileType::REGULAR, path, nullptr);
   addFile(new_node);
   _latest_versions.push_back(new_node);
   return location;
@@ -67,6 +68,11 @@ void BuildGraph::traceClone(pid_t pid, pid_t thread_id) {
 
 void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
   _processes[pid]->traceExec(*this, executable, args);
+  
+  auto location = findFile(executable);
+  auto f = _latest_versions[location]->getLatestVersion();
+  
+  _processes[pid]->traceRead(f);
 }
 
 void BuildGraph::traceExit(pid_t pid) {
@@ -87,7 +93,8 @@ void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
 
   size_t location = _latest_versions.size();
-  std::shared_ptr<File> f = std::make_shared<File>(*this, location, true, "", proc->getCommand());
+  std::shared_ptr<File> f =
+      std::make_shared<File>(*this, location, db::FileType::PIPE, "", proc->getCommand());
   addFile(f);
   _latest_versions.push_back(f);
 
@@ -107,81 +114,47 @@ void BuildGraph::traceMmap(pid_t pid, int fd) {
 }
 
 void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
-  } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceRead(f);
 
-  if (proc->getCommand()->canDependOn(f)) {
-    proc->getCommand()->addInput(f);
+  } else {
+    _processes[pid]->traceRead(file.fd);
   }
 }
 
 void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
-  } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceModify(f);
 
-  proc->getCommand()->addOutput(f);
+  } else {
+    _processes[pid]->traceModify(file.fd);
+  }
 }
 
 void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceCreate(f);
+
   } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
-
-  if (f->isCreated() && !f->isWritten()) {
-    bool file_exists;
-    if (f->isRemoved() || f->isPipe()) {
-      file_exists = false;
-    } else {
-      struct stat stat_info;
-      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
-    }
-
-    if (!file_exists) {
-      f->createVersion(proc->getCommand());
-      f->setRemoved(false);
-    }
+    _processes[pid]->traceCreate(file.fd);
   }
 }
 
 void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto fds = proc->getFds();
-
-  size_t file_location;
   if (file.fd == AT_FDCWD) {
-    file_location = findFile(file.path);
-  } else {
-    file_location = fds.find(file.fd)->second.location_index;
-  }
-  std::shared_ptr<File> f = _latest_versions[file_location];
+    size_t file_location = findFile(file.path);
+    std::shared_ptr<File> f = _latest_versions[file_location];
+    _processes[pid]->traceRemove(f);
 
-  proc->getCommand()->addDeletedFile(f);
-  f = f->createVersion();
-  f->setWriter(nullptr);
-  f->setRemoved();
+  } else {
+    _processes[pid]->traceRemove(file.fd);
+  }
 }
 
 void BuildGraph::serialize(Serializer& serializer) {

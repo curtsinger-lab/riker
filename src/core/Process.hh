@@ -17,8 +17,10 @@ struct File;
 
 struct Process : public std::enable_shared_from_this<Process> {
   /****** Constructors ******/
-
-  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command);
+  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
+      _pid(pid),
+      _command(command),
+      _cwd(cwd) {}
 
   // Disallow Copy
   Process(const Process&) = delete;
@@ -45,6 +47,22 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   void traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode);
 
+  void traceRead(std::shared_ptr<File> f);
+
+  void traceRead(int fd);
+
+  void traceModify(std::shared_ptr<File> f);
+
+  void traceModify(int fd);
+
+  void traceCreate(std::shared_ptr<File> f);
+
+  void traceCreate(int fd);
+
+  void traceRemove(std::shared_ptr<File> f);
+
+  void traceRemove(int fd);
+
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
 
   void traceDup(int fd, int new_fd, bool cloexec);
@@ -57,9 +75,7 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   /****** Getters and setters ******/
 
-  std::shared_ptr<Command> getCommand() { return _command; }
-
-  const std::map<int, FileDescriptor>& getFds() const { return _fds; }
+  std::shared_ptr<Command> getCommand() const { return _command; }
 
  private:
   pid_t _pid;
