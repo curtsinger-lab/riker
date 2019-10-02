@@ -108,8 +108,6 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
 }
 
 void Process::traceRead(std::shared_ptr<File> f) {
-  if (f->getPath() == "./A") LOG << "MOM";
-  
   _command->traceRead(f);
 }
 
