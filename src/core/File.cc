@@ -63,28 +63,6 @@ bool File::isModified() const {
   //                         !file->getPreviousVersion()->isRemoved())));
 }
 
-// return a set of the commands which raced on this file, back to the parameter version
-std::set<std::shared_ptr<Command>> File::collapse(unsigned int version) {
-  std::shared_ptr<File> cur_file = shared_from_this();
-  std::set<std::shared_ptr<Command>> conflicts;
-  while (cur_file->_version != version) {
-    // add writer and all readers to conflict set
-    if (cur_file->isWritten()) {
-      conflicts.insert(cur_file->getWriter());
-    }
-    for (auto rd : cur_file->getInteractors()) {
-      conflicts.insert(rd);
-    }
-    // add all mmaps to conflicts
-    for (auto m : cur_file->_mmaps) {
-      conflicts.insert(m->getCommand());
-    }
-    // step back a version
-    cur_file = cur_file->_prev_version;
-  }
-  return conflicts;
-}
-
 bool File::shouldSave() const {
   // Save files that have at least one reader
   if (isRead()) return true;

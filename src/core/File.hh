@@ -40,8 +40,6 @@ struct File : std::enable_shared_from_this<File> {
 
   /****** Non-trivial methods ******/
 
-  std::set<std::shared_ptr<Command>> collapse(unsigned int depth);
-
   std::shared_ptr<File> createVersion(std::shared_ptr<Command> creator = nullptr);
 
   void fingerprint();

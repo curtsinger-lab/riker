@@ -737,7 +737,6 @@ void trace_step(BuildGraph& graph, pid_t child, int wait_status) {
         case /* 0 */ __NR_read:
         case /* 17 */ __NR_pread64:
         case /* 19 */ __NR_readv:
-        case /* 59 */ __NR_execve:
         case /* 78 */ __NR_getdents:
         case /* 89 */ __NR_readlink:
         case /* 217 */ __NR_getdents64:
@@ -750,9 +749,17 @@ void trace_step(BuildGraph& graph, pid_t child, int wait_status) {
         case /* 195 */ __NR_llistxattr:
         case /* 196 */ __NR_flistxattr:
         case /* 267 */ __NR_readlinkat:
-        case /* 322 */ __NR_execveat:
           graph.traceRead(child, main_file);
           break;
+
+        ////// Do nothing for execve and execveat //////
+        // These were being handled as reads, but that assigned an input dependency to the
+        // wrong command. Only the command that is actually exec-ed depends on the contents
+        // of the file. That happens in Process::traceExec().
+        case /* 59 */ __NR_execve:
+        case /* 322 */ __NR_execveat:
+          break;
+
         case /* 1 */ __NR_write:
         case /* 18 */ __NR_pwrite64:
         case /* 20 */ __NR_writev:

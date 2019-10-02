@@ -12,6 +12,7 @@
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
+#include "ui/log.hh"
 
 void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
                             std::shared_ptr<File> stderr) {
@@ -107,6 +108,8 @@ void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode)
 }
 
 void Process::traceRead(std::shared_ptr<File> f) {
+  if (f->getPath() == "./A") LOG << "MOM";
+  
   _command->traceRead(f);
 }
 

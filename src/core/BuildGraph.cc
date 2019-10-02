@@ -68,6 +68,11 @@ void BuildGraph::traceClone(pid_t pid, pid_t thread_id) {
 
 void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
   _processes[pid]->traceExec(*this, executable, args);
+  
+  auto location = findFile(executable);
+  auto f = _latest_versions[location]->getLatestVersion();
+  
+  _processes[pid]->traceRead(f);
 }
 
 void BuildGraph::traceExit(pid_t pid) {

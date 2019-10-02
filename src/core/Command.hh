@@ -68,12 +68,6 @@ struct Command : public std::enable_shared_from_this<Command> {
 
   void setInitialFDs(const std::map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
-  /****** Private methods ******/
- private:
-  static void collapse(std::set<std::shared_ptr<Command>>& commands);
-
-  std::shared_ptr<Command> collapseHelper(unsigned int min_depth);
-
  private:
   std::string _cmd;
   std::list<std::string> _args;

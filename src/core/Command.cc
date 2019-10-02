@@ -69,42 +69,6 @@ uint64_t Command::numDescendants() {
   return ret;
 }
 
-void Command::collapse(std::set<std::shared_ptr<Command>>& commands) {
-  if (commands.empty()) return;
-  size_t ansc_depth = std::numeric_limits<size_t>::max();
-
-  // find the minimum common depth
-  for (auto c : commands) {
-    if (c->_depth < ansc_depth) {
-      ansc_depth = c->_depth;
-    }
-  }
-  bool fully_collapsed = false;
-  while (!fully_collapsed) {
-    // collapse all commands to this depth
-    std::shared_ptr<Command> prev_command = nullptr;
-    std::shared_ptr<Command> cur_command;
-    fully_collapsed = true;
-    for (auto c : commands) {
-      cur_command = c->collapseHelper(ansc_depth);
-      if (cur_command != prev_command && prev_command != nullptr) {
-        fully_collapsed = false;
-      }
-      prev_command = cur_command;
-    }
-    ansc_depth--;
-  }
-}
-
-std::shared_ptr<Command> Command::collapseHelper(unsigned int min_depth) {
-  if (_depth > min_depth) {
-    _collapse_with_parent = true;
-    return _parent->collapseHelper(min_depth);
-  } else {
-    return shared_from_this();
-  }
-}
-
 void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {
   builder.setExecutable(_cmd);
   builder.setOutOfDate(false);
