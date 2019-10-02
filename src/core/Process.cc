@@ -35,7 +35,7 @@ void Process::traceMmap(int fd) {
   // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
   // opened by the current process.
   std::shared_ptr<File> f = desc.file->getLatestVersion();
-  f->addMmap(shared_from_this());
+  f->addMmap(_command);
   _mmaps.insert(f);
 
   if (desc.access_mode != O_WRONLY) _command->traceRead(f);
@@ -67,7 +67,7 @@ void Process::traceExec(Tracer& tracer, BuildGraph& graph, std::string executabl
 
   // Close all mmaps, since the address space is replaced
   for (auto file : _mmaps) {
-    file->removeMmap(shared_from_this());
+    file->removeMmap(_command);
   }
 
   // Mark the initial open file descriptors
@@ -163,6 +163,6 @@ void Process::traceSetCloexec(int fd, bool cloexec) {
 
 void Process::traceExit() {
   for (auto f : _mmaps) {
-    f->removeMmap(shared_from_this());
+    f->removeMmap(_command);
   }
 }

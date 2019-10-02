@@ -69,8 +69,8 @@ class File : public std::enable_shared_from_this<File> {
 
   size_t getLocation() const { return _location; }
 
-  void addMmap(std::shared_ptr<Process> p) { _mmaps.insert(p); }
-  void removeMmap(std::shared_ptr<Process> p) { _mmaps.erase(p); }
+  void addMmap(std::shared_ptr<Command> c) { _mmaps.insert(c); }
+  void removeMmap(std::shared_ptr<Command> c) { _mmaps.erase(c); }
 
   const std::set<std::shared_ptr<Command>>& getReaders() const { return _readers; }
   void addReader(std::shared_ptr<Command> c) { _readers.insert(c); }
@@ -98,7 +98,7 @@ class File : public std::enable_shared_from_this<File> {
   uint16_t _mode;      // The file's access mode
   std::set<std::shared_ptr<Command>> _readers;      // Commands that read this file
   std::set<std::shared_ptr<Command>> _interactors;  // Commands that read OR modify this file
-  std::set<std::shared_ptr<Process>> _mmaps;  // Processes that currently have an mmap of this file
+  std::set<std::shared_ptr<Command>> _mmaps;  // Commands that currently have an mmap of this file
 
   unsigned int _version = 0;  // The version number of this file
   std::shared_ptr<File> _prev_version;

@@ -16,7 +16,7 @@ class Command;
 class File;
 class Tracer;
 
-class Process : public std::enable_shared_from_this<Process> {
+class Process {
  public:
   /****** Constructors ******/
   Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
