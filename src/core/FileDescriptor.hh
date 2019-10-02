@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-struct File;
+class File;
 
 struct FileDescriptor {
   size_t location_index;

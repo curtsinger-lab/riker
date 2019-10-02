@@ -12,7 +12,7 @@
 #include "core/File.hh"
 #include "ui/log.hh"
 
-struct Serializer {
+class Serializer {
  public:
   Serializer(std::string output_path) : _output_path(output_path) {}
 

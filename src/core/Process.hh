@@ -11,12 +11,13 @@
 
 #include "core/FileDescriptor.hh"
 
-struct BuildGraph;
-struct Command;
-struct File;
+class BuildGraph;
+class Command;
+class File;
 class Tracer;
 
-struct Process : public std::enable_shared_from_this<Process> {
+class Process : public std::enable_shared_from_this<Process> {
+ public:
   /****** Constructors ******/
   Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
       _pid(pid),

@@ -7,9 +7,9 @@
 
 #include <sys/types.h>
 
-struct BuildGraph;
-struct Command;
-struct Process;
+class BuildGraph;
+class Command;
+class Process;
 
 using std::list;
 using std::map;

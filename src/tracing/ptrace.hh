@@ -6,7 +6,7 @@
 
 #include <kj/common.h>
 
-struct Command;
+class Command;
 class Tracer;
 
 struct InitialFdEntry {

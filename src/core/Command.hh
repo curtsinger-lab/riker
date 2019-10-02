@@ -10,10 +10,10 @@
 #include "core/FileDescriptor.hh"
 #include "db/db.capnp.h"
 
-struct File;
-struct Serializer;
+class File;
+class Serializer;
 
-struct Command : public std::enable_shared_from_this<Command> {
+class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
   Command(std::string cmd, const std::list<std::string>& args, std::shared_ptr<Command> parent,

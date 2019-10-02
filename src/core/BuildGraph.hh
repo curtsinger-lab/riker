@@ -8,11 +8,12 @@
 
 #include <sys/types.h>
 
-struct Command;
-struct File;
-struct Serializer;
+class Command;
+class File;
+class Serializer;
 
-struct BuildGraph {
+class BuildGraph {
+ public:
   /****** Constructors ******/
 
   BuildGraph(std::string starting_dir);
@@ -43,11 +44,11 @@ struct BuildGraph {
   void setLatestVersion(size_t index, std::shared_ptr<File> f) { _latest_versions[index] = f; }
 
   void addFile(std::shared_ptr<File> f) { _files.emplace_front(f); }
-  
+
   std::shared_ptr<File> getFile(std::string path) { return _latest_versions[findFile(path)]; }
-  
+
   std::shared_ptr<File> getPipe(std::shared_ptr<Command> creator);
-  
+
   std::shared_ptr<File> getStdin() const { return _stdin; }
   std::shared_ptr<File> getStdout() const { return _stdout; }
   std::shared_ptr<File> getStderr() const { return _stderr; }

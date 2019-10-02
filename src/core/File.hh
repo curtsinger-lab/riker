@@ -11,17 +11,18 @@
 
 #include "db/db.capnp.h"
 
-struct BuildGraph;
-struct Command;
-struct Process;
-struct Serializer;
+class BuildGraph;
+class Command;
+class Process;
+class Serializer;
 
 // TODO: Move this into the File class.
 // Before that can happen, we'll need to update the code to inflate the loaded graph into File
 // objects.
 bool match_fingerprint(db::File::Reader file);
 
-struct File : std::enable_shared_from_this<File> {
+class File : public std::enable_shared_from_this<File> {
+ public:
   /****** Constructors ******/
   File(BuildGraph& graph, size_t location, db::FileType type, std::string path,
        std::shared_ptr<Command> creator = nullptr) :
@@ -53,9 +54,9 @@ struct File : std::enable_shared_from_this<File> {
   bool isModified() const;
 
   bool isLocal() const;
-  
+
   void traceRead(std::shared_ptr<Command> c);
-  
+
   std::shared_ptr<File> traceWrite(std::shared_ptr<Command> c);
 
   /****** Getters and setters ******/
