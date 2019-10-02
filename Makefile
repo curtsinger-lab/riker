@@ -17,7 +17,7 @@ IWYUFLAGS := -Xiwyu --mapping_file=.iwyu-mappings \
 IWYU_SKIP := $(DB)% src/fingerprint/%
 IWYU_SRCS := $(filter-out $(IWYU_SKIP), $(SRCS))
 
-TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile
+TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile ABbuild
 
 all: dodo
 	
