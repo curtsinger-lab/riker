@@ -30,6 +30,7 @@
 #include "db/Serializer.hh"
 #include "db/db.capnp.h"
 #include "tracing/ptrace.hh"
+#include "tracing/Tracer.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "ui/util.hh"
@@ -154,6 +155,7 @@ int main(int argc, char* argv[]) {
 
   // Create a managed reference to a trace state
   BuildGraph graph(cwd);
+  Tracer tracer(graph);
 
   // Clean up after getcwd
   free(cwd);
@@ -198,7 +200,7 @@ int main(int argc, char* argv[]) {
             child = wait(&wait_status);
             FAIL_IF(child == -1) << "Error waiting for child: " << ERR;
 
-            trace_step(graph, child, wait_status);
+            trace_step(tracer, child, wait_status);
             if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
               continue;
             }
@@ -316,7 +318,7 @@ int main(int argc, char* argv[]) {
         // Spawn the child
         std::shared_ptr<Command> middle_cmd(
             new Command(run_command->executable, run_command->args));
-        child_pid = start_command(graph, middle_cmd, file_actions);
+        child_pid = start_command(tracer, middle_cmd, file_actions);
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
@@ -352,7 +354,7 @@ int main(int argc, char* argv[]) {
   graph.setRootCommand(root_cmd);
 
   // TODO: set up stdio for logging?
-  start_command(graph, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
+  start_command(tracer, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
 
   while (true) {
     int wait_status;
@@ -368,7 +370,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    trace_step(graph, child, wait_status);
+    trace_step(tracer, child, wait_status);
   }
 
   Serializer serializer("db.dodo");

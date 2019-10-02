@@ -14,6 +14,7 @@
 struct BuildGraph;
 struct Command;
 struct File;
+class Tracer;
 
 struct Process : public std::enable_shared_from_this<Process> {
   /****** Constructors ******/
@@ -35,7 +36,7 @@ struct Process : public std::enable_shared_from_this<Process> {
   void setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
                      std::shared_ptr<File> stderr);
 
-  void traceMmap(BuildGraph& graph, int fd);
+  void traceMmap(int fd);
 
   void traceChdir(std::string newdir);
 
@@ -69,7 +70,8 @@ struct Process : public std::enable_shared_from_this<Process> {
 
   void traceSetCloexec(int fd, bool cloexec);
 
-  void traceExec(BuildGraph& graph, std::string executable, const std::list<std::string>& args);
+  void traceExec(Tracer& tracer, BuildGraph& graph, std::string executable,
+                 const std::list<std::string>& args);
 
   void traceExit();
 

@@ -29,12 +29,6 @@ BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   _latest_versions.push_back(_stderr);
 }
 
-void BuildGraph::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
-  Process* proc = new Process(pid, _starting_dir, cmd);
-  proc->setDefaultFds(_stdin, _stdout, _stderr);
-  _processes.emplace(pid, proc);
-}
-
 size_t BuildGraph::findFile(std::string path) {
   for (size_t index = 0; index < _latest_versions.size(); index++) {
     if (!_latest_versions[index]->isPipe() && _latest_versions[index]->getPath() == path) {
@@ -49,112 +43,14 @@ size_t BuildGraph::findFile(std::string path) {
   return location;
 }
 
-void BuildGraph::traceChdir(pid_t pid, std::string path) {
-  _processes[pid]->traceChdir(path);
-}
-
-void BuildGraph::traceChroot(pid_t pid, std::string path) {
-  _processes[pid]->traceChroot(path);
-}
-
-void BuildGraph::traceFork(pid_t pid, pid_t child_pid) {
-  _processes[child_pid] = _processes[pid]->traceFork(child_pid);
-}
-
-void BuildGraph::traceClone(pid_t pid, pid_t thread_id) {
-  // Threads in the same process just appear as pid references to the same process
-  _processes[thread_id] = _processes[pid];
-}
-
-void BuildGraph::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
-  _processes[pid]->traceExec(*this, executable, args);
-  
-  auto location = findFile(executable);
-  auto f = _latest_versions[location]->getLatestVersion();
-  
-  _processes[pid]->traceRead(f);
-}
-
-void BuildGraph::traceExit(pid_t pid) {
-  _processes[pid]->traceExit();
-}
-
-void BuildGraph::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
-  size_t file_location = findFile(path);
-  std::shared_ptr<File> f = _latest_versions[file_location];
-  _processes[pid]->traceOpen(fd, f, flags, mode);
-}
-
-void BuildGraph::traceClose(pid_t pid, int fd) {
-  _processes[pid]->traceClose(fd);
-}
-
-void BuildGraph::tracePipe(pid_t pid, int fds[2], bool cloexec) {
-  auto proc = _processes[pid];
-
+std::shared_ptr<File> BuildGraph::getPipe(std::shared_ptr<Command> creator) {
   size_t location = _latest_versions.size();
   std::shared_ptr<File> f =
-      std::make_shared<File>(*this, location, db::FileType::PIPE, "", proc->getCommand());
+      std::make_shared<File>(*this, location, db::FileType::PIPE, "", creator);
   addFile(f);
   _latest_versions.push_back(f);
-
-  proc->tracePipe(fds[0], fds[1], f, cloexec);
-}
-
-void BuildGraph::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-  _processes[pid]->traceDup(duped_fd, new_fd, cloexec);
-}
-
-void BuildGraph::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
-  _processes[pid]->traceSetCloexec(fd, cloexec);
-}
-
-void BuildGraph::traceMmap(pid_t pid, int fd) {
-  _processes[pid]->traceMmap(*this, fd);
-}
-
-void BuildGraph::traceRead(pid_t pid, struct file_reference& file) {
-  if (file.fd == AT_FDCWD) {
-    size_t file_location = findFile(file.path);
-    std::shared_ptr<File> f = _latest_versions[file_location];
-    _processes[pid]->traceRead(f);
-
-  } else {
-    _processes[pid]->traceRead(file.fd);
-  }
-}
-
-void BuildGraph::traceModify(pid_t pid, struct file_reference& file) {
-  if (file.fd == AT_FDCWD) {
-    size_t file_location = findFile(file.path);
-    std::shared_ptr<File> f = _latest_versions[file_location];
-    _processes[pid]->traceModify(f);
-
-  } else {
-    _processes[pid]->traceModify(file.fd);
-  }
-}
-
-void BuildGraph::traceCreate(pid_t pid, struct file_reference& file) {
-  if (file.fd == AT_FDCWD) {
-    size_t file_location = findFile(file.path);
-    std::shared_ptr<File> f = _latest_versions[file_location];
-    _processes[pid]->traceCreate(f);
-
-  } else {
-    _processes[pid]->traceCreate(file.fd);
-  }
-}
-
-void BuildGraph::traceRemove(pid_t pid, struct file_reference& file) {
-  if (file.fd == AT_FDCWD) {
-    size_t file_location = findFile(file.path);
-    std::shared_ptr<File> f = _latest_versions[file_location];
-    _processes[pid]->traceRemove(f);
-
-  } else {
-    _processes[pid]->traceRemove(file.fd);
-  }
+  
+  return f;
 }
 
 void BuildGraph::serialize(Serializer& serializer) {

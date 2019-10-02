@@ -12,6 +12,7 @@
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
+#include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
 void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
@@ -29,7 +30,7 @@ void Process::traceChroot(std::string newroot) {
   _root = newroot;
 }
 
-void Process::traceMmap(BuildGraph& graph, int fd) {
+void Process::traceMmap(int fd) {
   auto& desc = _fds[fd];
   // Get the latest version of this file.
   // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
@@ -52,7 +53,7 @@ std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
   return child_proc;
 }
 
-void Process::traceExec(BuildGraph& graph, std::string executable,
+void Process::traceExec(Tracer& tracer, BuildGraph& graph, std::string executable,
                         const std::list<std::string>& args) {
   _command = _command->createChild(executable, args);
 
@@ -80,10 +81,10 @@ void Process::traceExec(BuildGraph& graph, std::string executable,
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
   if (_fds.find(fileno(stdout)) != _fds.end()) {
-    graph.traceMmap(_pid, fileno(stdout));
+    tracer.traceMmap(_pid, fileno(stdout));
   }
   if (_fds.find(fileno(stderr)) != _fds.end()) {
-    graph.traceMmap(_pid, fileno(stderr));
+    tracer.traceMmap(_pid, fileno(stderr));
   }
 }
 
