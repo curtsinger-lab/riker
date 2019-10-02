@@ -14,13 +14,6 @@
 #include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
 
-void Process::setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
-                            std::shared_ptr<File> stderr) {
-  _fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);
-  _fds[1] = FileDescriptor(stdout->getLocation(), stdout, O_WRONLY, false);
-  _fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
-}
-
 void Process::traceChdir(std::string newdir) {
   _cwd = newdir;
 }
@@ -47,8 +40,7 @@ void Process::traceClose(int fd) {
 }
 
 std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
-  auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command);
-  child_proc->_fds = _fds;
+  auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command, _fds);
   return child_proc;
 }
 

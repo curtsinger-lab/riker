@@ -6,19 +6,23 @@
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();
-  _stdin = std::make_shared<File>(*this, stdin_location, db::FileType::PIPE, "<<stdin>>");
-  _files.push_front(_stdin);
-  _latest_versions.push_back(_stdin);
+  auto stdin = std::make_shared<File>(*this, stdin_location, db::FileType::PIPE, "<<stdin>>");
+  _files.push_front(stdin);
+  _latest_versions.push_back(stdin);
 
   size_t stdout_location = _latest_versions.size();
-  _stdout = std::make_shared<File>(*this, stdout_location, db::FileType::PIPE, "<<stdout>>");
-  _files.push_front(_stdout);
-  _latest_versions.push_back(_stdout);
+  auto stdout = std::make_shared<File>(*this, stdout_location, db::FileType::PIPE, "<<stdout>>");
+  _files.push_front(stdout);
+  _latest_versions.push_back(stdout);
 
   size_t stderr_location = _latest_versions.size();
-  _stderr = std::make_shared<File>(*this, stderr_location, db::FileType::PIPE, "<<stderr>>");
-  _files.push_front(_stderr);
-  _latest_versions.push_back(_stderr);
+  auto stderr = std::make_shared<File>(*this, stderr_location, db::FileType::PIPE, "<<stderr>>");
+  _files.push_front(stderr);
+  _latest_versions.push_back(stderr);
+  
+  _default_fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);
+  _default_fds[1] = FileDescriptor(stdout->getLocation(), stdout, O_WRONLY, false);
+  _default_fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
 }
 
 size_t BuildGraph::findFile(std::string path) {

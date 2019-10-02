@@ -2,11 +2,14 @@
 
 #include <cstddef>
 #include <list>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <sys/types.h>
+
+#include "core/FileDescriptor.hh"
 
 class Command;
 class File;
@@ -49,17 +52,12 @@ class BuildGraph {
 
   std::shared_ptr<File> getPipe(std::shared_ptr<Command> creator);
 
-  std::shared_ptr<File> getStdin() const { return _stdin; }
-  std::shared_ptr<File> getStdout() const { return _stdout; }
-  std::shared_ptr<File> getStderr() const { return _stderr; }
+  std::map<int, FileDescriptor> getDefaultFds() const { return _default_fds; }
 
  private:
   std::string _starting_dir;
   std::shared_ptr<Command> _root_command;
   std::vector<std::shared_ptr<File>> _latest_versions;
   std::list<std::shared_ptr<File>> _files;
-
-  std::shared_ptr<File> _stdin;
-  std::shared_ptr<File> _stdout;
-  std::shared_ptr<File> _stderr;
+  std::map<int, FileDescriptor> _default_fds;
 };

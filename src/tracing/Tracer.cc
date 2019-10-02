@@ -7,8 +7,7 @@
 #include "core/Process.hh"
 
 void Tracer::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
-  Process* proc = new Process(pid, ".", cmd);  // TODO: Fix cwd handling
-  proc->setDefaultFds(_graph.getStdin(), _graph.getStdout(), _graph.getStderr());
+  Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());  // TODO: Fix cwd handling
   _processes.emplace(pid, proc);
 }
 

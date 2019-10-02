@@ -16,13 +16,18 @@ class Command;
 class File;
 class Tracer;
 
+using std::map;
+using std::shared_ptr;
+using std::string;
+
 class Process {
  public:
   /****** Constructors ******/
-  Process(pid_t pid, std::string cwd, std::shared_ptr<Command> command) :
+  Process(pid_t pid, string cwd, shared_ptr<Command> command, map<int, FileDescriptor> fds = {}) :
       _pid(pid),
       _command(command),
-      _cwd(cwd) {}
+      _cwd(cwd),
+      _fds(fds) {}
 
   // Disallow Copy
   Process(const Process&) = delete;
@@ -33,9 +38,6 @@ class Process {
   Process& operator=(Process&&) = default;
 
   /****** Non-trivial methods ******/
-
-  void setDefaultFds(std::shared_ptr<File> stdin, std::shared_ptr<File> stdout,
-                     std::shared_ptr<File> stderr);
 
   void traceMmap(int fd);
 
