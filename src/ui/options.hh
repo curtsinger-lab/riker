@@ -3,6 +3,9 @@
 #include <set>
 #include <string>
 
+using std::set;
+using std::string;
+
 enum class LogLevel { Verbose = 0, Info = 1, Warning = 2, Fatal = 3 };
 
 enum class FingerprintLevel { None, Local, All };
@@ -11,8 +14,8 @@ enum class FingerprintLevel { None, Local, All };
  * Struct to hold command-line options for Dodo, with defaults set here
  */
 struct dodo_options {
-  std::set<std::string> explicitly_changed;
-  std::set<std::string> explicitly_unchanged;
+  set<string> explicitly_changed;
+  set<string> explicitly_unchanged;
   bool dry_run = false;
   size_t parallel_jobs = 1;
   bool visualize = false;

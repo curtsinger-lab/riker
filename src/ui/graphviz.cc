@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+using std::string;
+
 Graphviz::Graphviz() {
   this->graph.open("out.dot");
 }
@@ -10,11 +12,11 @@ void Graphviz::start_graph() {
   this->graph << "digraph {\n\tgraph [rankdir=LR]\n\tnode [fontname=Courier]\n";
 }
 
-void Graphviz::add_node(std::string id, std::string label, std::string attr) {
+void Graphviz::add_node(string id, string label, string attr) {
   this->graph << "\t\"" + id + "\" [label=\"" + label + "\" " + attr + "]\n";
 }
 
-void Graphviz::add_edge(std::string id1, std::string id2, std::string attr) {
+void Graphviz::add_edge(string id1, string id2, string attr) {
   this->graph << "\t\"" + id1 + "\" -> \"" + id2 + "\" [" + attr + "]\n";
 }
 

@@ -26,7 +26,7 @@ struct file_reference {
   // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
   // then path is relative with respect to the directory in fd.
   int fd;
-  std::string path;
+  string path;
   // Whether to follow the link if the reference points at a symlink
   bool follow_links;
 };

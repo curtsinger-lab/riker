@@ -14,11 +14,16 @@
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"
 
-void Tracer::run(std::shared_ptr<Command> cmd) {
+using std::list;
+using std::make_shared;
+using std::shared_ptr;
+using std::string;
+
+void Tracer::run(shared_ptr<Command> cmd) {
   pid_t pid = start_command(cmd, {});
 
   // TODO: Fix cwd handling
-  _processes[pid] = std::make_shared<Process>(pid, ".", cmd, _graph.getDefaultFds());
+  _processes[pid] = make_shared<Process>(pid, ".", cmd, _graph.getDefaultFds());
 
   while (true) {
     int wait_status;
@@ -38,22 +43,22 @@ void Tracer::run(std::shared_ptr<Command> cmd) {
   }
 }
 
-void Tracer::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
+void Tracer::newProcess(pid_t pid, shared_ptr<Command> cmd) {
   Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());
   _processes.emplace(pid, proc);
 }
 
-void Tracer::traceChdir(pid_t pid, std::string path) {
+void Tracer::traceChdir(pid_t pid, string path) {
   _processes[pid]->_cwd = path;
 }
 
-void Tracer::traceChroot(pid_t pid, std::string path) {
+void Tracer::traceChroot(pid_t pid, string path) {
   _processes[pid]->_root = path;
 }
 
 void Tracer::traceFork(pid_t pid, pid_t child_pid) {
   auto proc = _processes[pid];
-  auto child_proc = std::make_shared<Process>(child_pid, proc->_cwd, proc->_command, proc->_fds);
+  auto child_proc = make_shared<Process>(child_pid, proc->_cwd, proc->_command, proc->_fds);
   _processes[child_pid] = child_proc;
 }
 
@@ -62,7 +67,7 @@ void Tracer::traceClone(pid_t pid, pid_t thread_id) {
   _processes[thread_id] = _processes[pid];
 }
 
-void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
+void Tracer::traceExec(pid_t pid, string executable, const list<string>& args) {
   auto proc = _processes[pid];
 
   // Close all cloexec file descriptors
@@ -110,7 +115,7 @@ void Tracer::traceExit(pid_t pid) {
   }
 }
 
-void Tracer::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
+void Tracer::traceOpen(pid_t pid, int fd, string path, int flags, mode_t mode) {
   auto f = _graph.getFile(path);
   auto proc = _processes[pid];
 

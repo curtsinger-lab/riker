@@ -22,11 +22,16 @@
 #include "fingerprint/blake2.hh"
 #include "ui/options.hh"
 
-std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
+using std::make_shared;
+using std::shared_ptr;
+using std::string;
+using std::vector;
+
+shared_ptr<File> File::createVersion(shared_ptr<Command> creator) {
   // We are at the end of the current version, so snapshot with a fingerprint
   fingerprint();
 
-  std::shared_ptr<File> f = std::make_shared<File>(_graph, _location, _type, _path, creator);
+  shared_ptr<File> f = make_shared<File>(_graph, _location, _type, _path, creator);
   _graph.addFile(f);
   f->_version++;
   f->_prev_version = shared_from_this();
@@ -35,7 +40,7 @@ std::shared_ptr<File> File::createVersion(std::shared_ptr<Command> creator) {
   return f;
 }
 
-std::shared_ptr<File> File::getLatestVersion() {
+shared_ptr<File> File::getLatestVersion() {
   if (_next_version)
     return _next_version->getLatestVersion();
   else
@@ -87,15 +92,15 @@ bool File::isLocal() const {
   return _path[0] != '/';
 }
 
-void File::traceRead(std::shared_ptr<Command> c) {
+void File::traceRead(shared_ptr<Command> c) {
   addInteractor(c);
   addReader(c);
 }
 
-std::shared_ptr<File> File::traceWrite(std::shared_ptr<Command> c) {
+shared_ptr<File> File::traceWrite(shared_ptr<Command> c) {
   addInteractor(c);
   
-  std::shared_ptr<File> fnew;
+  shared_ptr<File> fnew;
   if ((isCreated() && !isWritten()) || getWriter() == c) {
     // Unless we just created it, in which case it is pristine
     fnew = shared_from_this();
@@ -108,7 +113,7 @@ std::shared_ptr<File> File::traceWrite(std::shared_ptr<Command> c) {
 
 // Filter out db.dodo from the directory listing when fingerprinting directories
 static int filter_default(const struct dirent* e) {
-  if (std::string(e->d_name) == "db.dodo")
+  if (string(e->d_name) == "db.dodo")
     return 0;
   else
     return 1;
@@ -116,7 +121,7 @@ static int filter_default(const struct dirent* e) {
 
 // For NFS filesystems, filter out .nfs files
 static int filter_nfs(const struct dirent* e) {
-  if (std::string(e->d_name).compare(0, 4, ".nfs") == 0)
+  if (string(e->d_name).compare(0, 4, ".nfs") == 0)
     return 0;
   else
     return filter_default(e);
@@ -124,8 +129,8 @@ static int filter_nfs(const struct dirent* e) {
 
 // Compute the blake2sp checksum of a directory's contents
 // Return true on success
-static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
-  std::vector<uint8_t> checksum;
+static vector<uint8_t> blake2sp_dir(string path_string) {
+  vector<uint8_t> checksum;
 
   // Select a directory filter based on filesystem
   auto filter = filter_default;
@@ -169,8 +174,8 @@ static std::vector<uint8_t> blake2sp_dir(std::string path_string) {
 
 // Compute the blake2sp checksum of a file's contents
 // Return true on success
-static std::vector<uint8_t> blake2sp_file(std::string path_string) {
-  std::vector<uint8_t> checksum;
+static vector<uint8_t> blake2sp_file(string path_string) {
+  vector<uint8_t> checksum;
 
   int file_fd = open(path_string.c_str(), O_RDONLY | O_CLOEXEC);
   if (file_fd < 0) {  // Error opening
@@ -313,7 +318,7 @@ bool match_fingerprint(db::File::Reader file) {
   if (file.getFingerprintType() == db::FingerprintType::BLAKE2SP) {
     // Using blake2sp
 
-    std::vector<uint8_t> checksum;
+    vector<uint8_t> checksum;
 
     // Is this a file or a directory?
     if ((stat_info.st_mode & S_IFMT) == S_IFDIR) {

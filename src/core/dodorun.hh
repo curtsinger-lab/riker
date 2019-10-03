@@ -10,13 +10,20 @@
 
 struct old_command;
 
+using std::list;
+using std::numeric_limits;
+using std::queue;
+using std::set;
+using std::string;
+using std::vector;
+
 struct old_file {
   size_t id;
   bool is_pipe;
   bool is_cached;
   size_t writer_id;
-  std::set<old_command*> readers;
-  std::string path;
+  set<old_command*> readers;
+  string path;
   int status;
 
   old_file* prev_version = nullptr;
@@ -42,11 +49,11 @@ struct old_file {
   size_t pipe_reader_references = 0;
   int pipe_reader_fd;
 
-  old_file(unsigned int id, bool is_pipe, bool is_cached, std::string path, int status) :
+  old_file(unsigned int id, bool is_pipe, bool is_cached, string path, int status) :
       id(id),
       is_pipe(is_pipe),
       is_cached(is_cached),
-      writer_id(std::numeric_limits<size_t>::max()),
+      writer_id(numeric_limits<size_t>::max()),
       path(path),
       status(status) {}
   bool is_local();
@@ -55,17 +62,17 @@ struct old_file {
 struct old_command {
   size_t id;
   size_t num_descendants;
-  std::string executable;
-  std::list<std::string> args;
-  std::set<old_file*> inputs;
-  std::set<old_file*> outputs;
-  std::set<old_file*> creations;
-  std::set<old_file*> deletions;
+  string executable;
+  list<string> args;
+  set<old_file*> inputs;
+  set<old_file*> outputs;
+  set<old_file*> creations;
+  set<old_file*> deletions;
   old_command* parent = nullptr;
 
   // The minimum number of reversed edges (through uncached temporaries) needed to reach this
   // command from the changed root.
-  size_t distance = std::numeric_limits<size_t>::max();
+  size_t distance = numeric_limits<size_t>::max();
   size_t equal_distance_references = 0;
   bool candidate_for_run = false;
   bool rerun = false;
@@ -77,9 +84,9 @@ struct old_command {
   // to a chain of pipes, we shouldn't count any of them towards our job limit; they may be
   // doing nothing, and not launching more commands could even lead to deadlock. Therefore,
   // we categorize commands into "pipe clusters" that all become unblocked simultaneously.
-  size_t pipe_cluster = std::numeric_limits<size_t>::max();
+  size_t pipe_cluster = numeric_limits<size_t>::max();
 
-  old_command(size_t id, size_t num_descendants, std::string executable) :
+  old_command(size_t id, size_t num_descendants, string executable) :
       id(id),
       num_descendants(num_descendants),
       executable(executable) {}
@@ -90,21 +97,20 @@ struct RebuildState {
   old_file** files;
   old_command** commands;
 
-  std::vector<size_t> pipe_cluster_blocked;
-  std::vector<size_t> pipe_cluster_unlaunched;
+  vector<size_t> pipe_cluster_blocked;
+  vector<size_t> pipe_cluster_unlaunched;
 
   size_t current_generation;
 
-  std::queue<old_command*> propagate_rerun_worklist;
-  std::queue<old_command*> descend_to_worklist;
-  std::queue<old_command*> run_worklist;
-  std::queue<old_command*> simulate_worklist;
+  queue<old_command*> propagate_rerun_worklist;
+  queue<old_command*> descend_to_worklist;
+  queue<old_command*> run_worklist;
+  queue<old_command*> simulate_worklist;
   size_t blocked_processes;
   size_t rerun_candidates;
 
   RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
-               std::set<std::string> const& explicitly_changed,
-               std::set<std::string> const& explicitly_unchanged);
+               set<string> const& explicitly_changed, set<string> const& explicitly_unchanged);
   old_command* rebuild(bool use_fingerprints, bool dry_run, size_t running_jobs,
                        size_t parallel_jobs);
   void mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command);

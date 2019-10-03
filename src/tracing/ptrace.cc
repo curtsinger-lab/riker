@@ -32,23 +32,31 @@
 #include "tracing/Tracer.hh"
 #include "tracing/syscalls.hh"
 
+using std::cerr;
+using std::endl;
+using std::list;
+using std::shared_ptr;
+using std::string;
+using std::unique_ptr;
+using std::vector;
+
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
-std::string get_executable(pid_t pid) {
+string get_executable(pid_t pid) {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", pid);
 
-  std::unique_ptr<char[]> buffer(nullptr);
+  unique_ptr<char[]> buffer(nullptr);
   ssize_t capacity = 0;
   ssize_t bytes_read = 0;
 
   do {
     capacity += PATH_MAX;
-    buffer = std::unique_ptr<char[]>(new char[capacity]);
+    buffer = unique_ptr<char[]>(new char[capacity]);
     bytes_read = readlink(path_buffer, buffer.get(), capacity);
   } while (bytes_read == capacity);
 
-  return std::string(buffer.get(), bytes_read);
+  return string(buffer.get(), bytes_read);
 }
 
 // Launch a program via `sh -c`, fully set up with ptrace and seccomp
@@ -56,7 +64,7 @@ std::string get_executable(pid_t pid) {
 // PID of the newly created process, which should be running (or at least
 // ready to be waited on) upon return.
 static pid_t launch_traced(char const* exec_path, char* const argv[],
-                           std::vector<InitialFdEntry> initial_fds) {
+                           vector<InitialFdEntry> initial_fds) {
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
   // We always launch the program with /bin/sh, similarly to `system`, which should
   // automatically handle resolving the correct instance of a program and supporting
@@ -244,8 +252,8 @@ enum stop_type {
   STOP_EXIT,  // Do not resume when this is returned
 };
 
-static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
-  std::string output;
+static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+  string output;
 
   // Loop to fetch words at a time until we find a null byte
   while (true) {
@@ -269,10 +277,10 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(std::shared_ptr<Command> cmd, std::vector<InitialFdEntry> initial_fds) {
-  std::string exec_path = cmd->getExecutable();
+pid_t start_command(shared_ptr<Command> cmd, vector<InitialFdEntry> initial_fds) {
+  string exec_path = cmd->getExecutable();
 
-  std::vector<char*> exec_argv;
+  vector<char*> exec_argv;
 
   // Are we running the root Dodofile?
   if (exec_path == "Dodofile") {
@@ -281,8 +289,8 @@ pid_t start_command(std::shared_ptr<Command> cmd, std::vector<InitialFdEntry> in
       // Execute would fail. Can we read it and run with sh?
       if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
         // No. Print an error.
-        std::cerr << "Unable to access Dodofile, which is required for the build." << std::endl
-                  << "See http://dodo.build for instructions." << std::endl;
+        cerr << "Unable to access Dodofile, which is required for the build." << endl
+             << "See http://dodo.build for instructions." << endl;
         exit(1);
       }
 
@@ -358,7 +366,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
         return;
       }
 
-      std::list<std::string> args;
+      list<string> args;
 
       int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, nullptr);
       for (int i = 0; i < child_argc; i++) {

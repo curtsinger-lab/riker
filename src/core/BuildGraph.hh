@@ -14,11 +14,17 @@ class File;
 class Serializer;
 class Tracer;
 
+using std::list;
+using std::map;
+using std::shared_ptr;
+using std::string;
+using std::vector;
+
 class BuildGraph {
  public:
   /****** Constructors ******/
 
-  BuildGraph(std::string starting_dir);
+  BuildGraph(string starting_dir);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;
@@ -32,31 +38,31 @@ class BuildGraph {
 
   void run(Tracer& tracer);
 
-  size_t findFile(std::string path);
+  size_t findFile(string path);
 
   void serialize(Serializer& serializer);
 
   /****** Getters and setters ******/
 
-  void setRootCommand(std::shared_ptr<Command> cmd) { _root = cmd; }
+  void setRootCommand(shared_ptr<Command> cmd) { _root = cmd; }
 
-  std::string getStartingDir() { return _starting_dir; }
+  string getStartingDir() { return _starting_dir; }
 
-  std::shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
-  void setLatestVersion(size_t index, std::shared_ptr<File> f) { _latest_versions[index] = f; }
+  shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
+  void setLatestVersion(size_t index, shared_ptr<File> f) { _latest_versions[index] = f; }
 
-  void addFile(std::shared_ptr<File> f) { _files.emplace_front(f); }
+  void addFile(shared_ptr<File> f) { _files.emplace_front(f); }
 
-  std::shared_ptr<File> getFile(std::string path) { return _latest_versions[findFile(path)]; }
+  shared_ptr<File> getFile(string path) { return _latest_versions[findFile(path)]; }
 
-  std::shared_ptr<File> getPipe(std::shared_ptr<Command> creator);
+  shared_ptr<File> getPipe(shared_ptr<Command> creator);
 
-  std::map<int, FileDescriptor> getDefaultFds() const { return _default_fds; }
+  map<int, FileDescriptor> getDefaultFds() const { return _default_fds; }
 
  private:
-  std::string _starting_dir;
-  std::shared_ptr<Command> _root;
-  std::vector<std::shared_ptr<File>> _latest_versions;
-  std::list<std::shared_ptr<File>> _files;
-  std::map<int, FileDescriptor> _default_fds;
+  string _starting_dir;
+  shared_ptr<Command> _root;
+  vector<shared_ptr<File>> _latest_versions;
+  list<shared_ptr<File>> _files;
+  map<int, FileDescriptor> _default_fds;
 };

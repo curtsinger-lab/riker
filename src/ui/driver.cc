@@ -26,14 +26,20 @@
 #include "core/dodorun.hh"
 #include "db/Serializer.hh"
 #include "db/db.capnp.h"
-#include "tracing/ptrace.hh"
 #include "tracing/Tracer.hh"
+#include "tracing/ptrace.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "ui/util.hh"
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::forward_list;
+using std::shared_ptr;
+using std::stol;
 using std::string;
+using std::vector;
 
 // Declare the global command-line options struct
 dodo_options options;
@@ -84,7 +90,7 @@ void parse_argv(forward_list<string> argv) {
         options.explicitly_changed.insert(argv.front());
         argv.pop_front();
       } else {
-        std::cerr << "Please specify a file to mark as changed.\n";
+        cerr << "Please specify a file to mark as changed.\n";
         exit(1);
       }
 
@@ -93,7 +99,7 @@ void parse_argv(forward_list<string> argv) {
         options.explicitly_unchanged.insert(argv.front());
         argv.pop_front();
       } else {
-        std::cerr << "Please specify a file to mark as unchanged.\n";
+        cerr << "Please specify a file to mark as unchanged.\n";
         exit(1);
       }
 
@@ -102,16 +108,16 @@ void parse_argv(forward_list<string> argv) {
 
     } else if (arg == "-j") {
       if (!argv.empty()) {
-        long specified_jobs = std::stol(argv.front());
+        long specified_jobs = stol(argv.front());
         argv.pop_front();
 
         if (specified_jobs < 1) {
-          std::cerr << "Invalid number of jobs: specify at least one.\n";
+          cerr << "Invalid number of jobs: specify at least one.\n";
           exit(1);
         }
         options.parallel_jobs = specified_jobs;
       } else {
-        std::cerr << "Please specify a number of jobs to use" << std::endl;
+        cerr << "Please specify a number of jobs to use" << endl;
         exit(1);
       }
 
@@ -126,7 +132,7 @@ void parse_argv(forward_list<string> argv) {
       options.show_collapsed = false;
 
     } else {
-      std::cerr << "Invalid argument " << arg << std::endl;
+      cerr << "Invalid argument " << arg << endl;
       exit(1);
     }
   }
@@ -162,22 +168,22 @@ int main(int argc, char* argv[]) {
 
   // If the database doesn't exist, run a default build
   if (db_fd == -1) {
-    std::shared_ptr<Command> root(new Command("Dodofile", {"Dodofile"}));
+    shared_ptr<Command> root(new Command("Dodofile", {"Dodofile"}));
     graph.setRootCommand(root);
-  
+
     graph.run(tracer);
 
     Serializer serializer("db.dodo");
     graph.serialize(serializer);
-    
+
     return 0;
-    
+
   } else {
     // Although the documentation recommends against this, we implicitly trust the
     // database anyway. Without this we may hit the recursion limit.
     ::capnp::ReaderOptions capnp_options;
-    capnp_options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
-    
+    capnp_options.traversalLimitInWords = numeric_limits<uint64_t>::max();
+
     ::capnp::StreamFdMessageReader message(db_fd, capnp_options);
     auto old_graph = message.getRoot<db::Graph>();
     auto old_files = old_graph.getFiles();
@@ -191,7 +197,7 @@ int main(int argc, char* argv[]) {
                                options.explicitly_unchanged);
 
     pid_t dry_run_pid = 1;
-    std::map<pid_t, old_command*> wait_worklist;
+    map<pid_t, old_command*> wait_worklist;
     while (true) {
       auto run_command = rebuild_state.rebuild(use_fingerprints, options.dry_run,
                                                wait_worklist.size(), options.parallel_jobs);
@@ -226,34 +232,34 @@ int main(int argc, char* argv[]) {
       }
 
       // Print that we will run it
-      write_shell_escaped(std::cout, run_command->executable);
+      write_shell_escaped(cout, run_command->executable);
       for (auto arg : run_command->args) {
-        std::cout << " ";
-        write_shell_escaped(std::cout, arg);
+        cout << " ";
+        write_shell_escaped(cout, arg);
       }
 
       // Print redirections
       for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
-        std::cout << " ";
+        cout << " ";
         if (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() &&
               !initial_fd_entry.getCanWrite()) &&
             !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() &&
               initial_fd_entry.getCanWrite())) {
-          std::cout << initial_fd_entry.getFd();
+          cout << initial_fd_entry.getFd();
         }
         if (initial_fd_entry.getCanRead()) {
-          std::cout << '<';
+          cout << '<';
         }
         if (initial_fd_entry.getCanWrite()) {
-          std::cout << '>';
+          cout << '>';
         }
         if (rebuild_state.files[initial_fd_entry.getFileID()]->is_pipe) {
-          std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
+          cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
         } else {
-          write_shell_escaped(std::cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
+          write_shell_escaped(cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
         }
       }
-      std::cout << std::endl;
+      cout << endl;
 
       // Run it!
       pid_t child_pid;
@@ -262,8 +268,8 @@ int main(int argc, char* argv[]) {
         dry_run_pid++;
       } else {
         // Set up initial fds
-        std::vector<InitialFdEntry> file_actions;
-        std::vector<int> opened_fds;
+        vector<InitialFdEntry> file_actions;
+        vector<int> opened_fds;
         int max_fd = 0;
         for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
           int fd = initial_fd_entry.getFd();
@@ -320,14 +326,13 @@ int main(int argc, char* argv[]) {
           if (!file->is_pipe) {
             opened_fds.push_back(*open_fd_ref);
           }
-          file_actions.push_back({ *open_fd_ref, initial_fd_entry.getFd() });
+          file_actions.push_back({*open_fd_ref, initial_fd_entry.getFd()});
         }
         // Spawn the child
-        std::shared_ptr<Command> middle_cmd(
-            new Command(run_command->executable, run_command->args));
+        shared_ptr<Command> middle_cmd(new Command(run_command->executable, run_command->args));
         child_pid = start_command(middle_cmd, file_actions);
         tracer.newProcess(child_pid, middle_cmd);
-        
+
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
