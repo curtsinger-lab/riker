@@ -14,6 +14,7 @@
 class Command;
 class File;
 class Serializer;
+class Tracer;
 
 class BuildGraph {
  public:
@@ -31,7 +32,7 @@ class BuildGraph {
 
   /****** Non-trivial methods ******/
 
-  void newProcess(pid_t pid, std::shared_ptr<Command> cmd);
+  void run(Tracer& tracer);
 
   size_t findFile(std::string path);
 
@@ -39,7 +40,7 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  void setRootCommand(std::shared_ptr<Command> cmd) { _root_command = cmd; }
+  void setRootCommand(std::shared_ptr<Command> cmd) { _root = cmd; }
 
   std::string getStartingDir() { return _starting_dir; }
 
@@ -56,7 +57,7 @@ class BuildGraph {
 
  private:
   std::string _starting_dir;
-  std::shared_ptr<Command> _root_command;
+  std::shared_ptr<Command> _root;
   std::vector<std::shared_ptr<File>> _latest_versions;
   std::list<std::shared_ptr<File>> _files;
   std::map<int, FileDescriptor> _default_fds;

@@ -3,6 +3,7 @@
 #include "core/File.hh"
 #include "db/db.capnp.h"
 #include "db/Serializer.hh"
+#include "tracing/Tracer.hh"
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   size_t stdin_location = _latest_versions.size();
@@ -23,6 +24,10 @@ BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   _default_fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);
   _default_fds[1] = FileDescriptor(stdout->getLocation(), stdout, O_WRONLY, false);
   _default_fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
+}
+
+void BuildGraph::run(Tracer& tracer) {
+  tracer.run(_root);
 }
 
 size_t BuildGraph::findFile(std::string path) {
@@ -67,7 +72,7 @@ void BuildGraph::serialize(Serializer& serializer) {
   }
 
   // Add the root command (and its descendants) to the serializer
-  serializer.addCommand(_root_command);
+  serializer.addCommand(_root);
 
   // Run the serialization
   serializer.serialize();

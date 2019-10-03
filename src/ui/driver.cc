@@ -153,23 +153,34 @@ int main(int argc, char* argv[]) {
   char* cwd = getcwd(nullptr, 0);
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
-  // Create a managed reference to a trace state
+  // Initialize build graph and a tracer instance
   BuildGraph graph(cwd);
   Tracer tracer(graph);
 
   // Clean up after getcwd
   free(cwd);
 
-  // Although the documentation recommends against this, we implicitly trust the
-  // database anyway. Without this we may hit the recursion limit.
-  ::capnp::ReaderOptions capnp_options;
-  capnp_options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
-
   // Open the database
   int db_fd = open("db.dodo", O_RDWR);
 
-  // If the database exists, read it
-  if (db_fd >= 0) {
+  // If the database doesn't exist, run a default build
+  if (db_fd == -1) {
+    std::shared_ptr<Command> root(new Command("Dodofile", {"Dodofile"}));
+    graph.setRootCommand(root);
+  
+    graph.run(tracer);
+
+    Serializer serializer("db.dodo");
+    graph.serialize(serializer);
+    
+    return 0;
+    
+  } else {
+    // Although the documentation recommends against this, we implicitly trust the
+    // database anyway. Without this we may hit the recursion limit.
+    ::capnp::ReaderOptions capnp_options;
+    capnp_options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
+    
     ::capnp::StreamFdMessageReader message(db_fd, capnp_options);
     auto old_graph = message.getRoot<db::Graph>();
     auto old_files = old_graph.getFiles();
@@ -350,13 +361,4 @@ int main(int argc, char* argv[]) {
     }
     return 0;
   }
-
-  std::shared_ptr<Command> root_cmd(new Command("Dodofile", {"Dodofile"}));
-
-  graph.setRootCommand(root_cmd);
-
-  tracer.run(root_cmd);
-
-  Serializer serializer("db.dodo");
-  graph.serialize(serializer);
 }
