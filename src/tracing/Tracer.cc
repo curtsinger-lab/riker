@@ -34,9 +34,42 @@ void Tracer::traceClone(pid_t pid, pid_t thread_id) {
 
 void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
   auto proc = _processes[pid];
-  auto f = _graph.getFile(executable);
   
-  proc->traceExec(*this, _graph, executable, args);
+  // Close all cloexec file descriptors
+  for (auto fd_entry = proc->_fds.begin(); fd_entry != proc->_fds.end();) {
+    if (fd_entry->second.cloexec) {
+      fd_entry = proc->_fds.erase(fd_entry);
+    } else {
+      ++fd_entry;
+    }
+  }
+  
+  // Close all mmaps, since the address space is replaced
+  for (auto file : proc->_mmaps) {
+    file->removeMmap(proc->_command);
+  }
+  
+  // Create the new command
+  proc->_command = proc->_command->createChild(executable, args);
+
+  // Mark the initial open file descriptors
+  for (auto iter : proc->_fds) {
+    iter.second.file = _graph.getLatestVersion(iter.second.location_index);
+  }
+  proc->_command->setInitialFDs(proc->_fds);
+  
+  // Assume that we can at any time write to stdout or stderr
+  // TODO: Instead of checking whether we know about stdout and stderr,
+  // tread the initial stdout and stderr properly as pipes
+  if (proc->_fds.find(fileno(stdout)) != proc->_fds.end()) {
+    traceMmap(pid, fileno(stdout));
+  }
+  if (proc->_fds.find(fileno(stderr)) != proc->_fds.end()) {
+    traceMmap(pid, fileno(stderr));
+  }
+  
+  // The new command depends on its executable file
+  auto f = _graph.getFile(executable);
   proc->_command->traceRead(f);
 }
 
@@ -50,7 +83,7 @@ void Tracer::traceExit(pid_t pid) {
 void Tracer::traceOpen(pid_t pid, int fd, std::string path, int flags, mode_t mode) {
   auto f = _graph.getFile(path);
   auto proc = _processes[pid];
-  
+
   int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
 
   // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
@@ -79,11 +112,19 @@ void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
 
   auto f = _graph.getPipe(proc->getCommand());
 
-  proc->tracePipe(fds[0], fds[1], f, cloexec);
+  proc->_fds[fds[0]] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
+  proc->_fds[fds[1]] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);
 }
 
 void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-  _processes[pid]->traceDup(duped_fd, new_fd, cloexec);
+  auto proc = _processes[pid];
+  auto duped_file = proc->_fds.find(duped_fd);
+  if (duped_file == proc->_fds.end()) {
+    proc->_fds.erase(new_fd);
+  } else {
+    proc->_fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.file,
+                                        duped_file->second.access_mode, cloexec);
+  }
 }
 
 void Tracer::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
@@ -95,37 +136,56 @@ void Tracer::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
 }
 
 void Tracer::traceMmap(pid_t pid, int fd) {
-  _processes[pid]->traceMmap(fd);
+  auto proc = _processes[pid];
+  
+  auto& desc = proc->_fds[fd];
+  // Get the latest version of this file.
+  // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
+  // opened by the current process.
+  auto f = desc.file->getLatestVersion();
+  f->addMmap(proc->_command);
+  proc->_mmaps.insert(f);
+
+  if (desc.access_mode != O_WRONLY) proc->_command->traceRead(f);
+  if (desc.access_mode != O_RDONLY) proc->_command->traceModify(f);
 }
 
 void Tracer::traceRead(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) f = _graph.getFile(file.path);
-  else f = proc->_fds[file.fd].file;
+  if (file.fd == AT_FDCWD)
+    f = _graph.getFile(file.path);
+  else
+    f = proc->_fds[file.fd].file;
   proc->_command->traceRead(f);
 }
 
 void Tracer::traceModify(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) f = _graph.getFile(file.path);
-  else f = proc->_fds[file.fd].file;
+  if (file.fd == AT_FDCWD)
+    f = _graph.getFile(file.path);
+  else
+    f = proc->_fds[file.fd].file;
   proc->_command->traceModify(f);
 }
 
 void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) f = _graph.getFile(file.path);
-  else f = proc->_fds[file.fd].file;
+  if (file.fd == AT_FDCWD)
+    f = _graph.getFile(file.path);
+  else
+    f = proc->_fds[file.fd].file;
   proc->_command->traceCreate(f);
 }
 
 void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) f = _graph.getFile(file.path);
-  else f = proc->_fds[file.fd].file;
+  if (file.fd == AT_FDCWD)
+    f = _graph.getFile(file.path);
+  else
+    f = proc->_fds[file.fd].file;
   proc->_command->traceRemove(f);
 }

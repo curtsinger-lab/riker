@@ -37,17 +37,6 @@ class Process {
   Process(Process&&) = default;
   Process& operator=(Process&&) = default;
 
-  /****** Non-trivial methods ******/
-
-  void traceMmap(int fd);
-
-  void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
-
-  void traceDup(int fd, int new_fd, bool cloexec);
-
-  void traceExec(Tracer& tracer, BuildGraph& graph, std::string executable,
-                 const std::list<std::string>& args);
-
   /****** Getters and setters ******/
 
   std::shared_ptr<Command> getCommand() const { return _command; }
