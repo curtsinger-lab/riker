@@ -8,7 +8,10 @@
 
 #include <sys/types.h>
 
+#include <kj/common.h>
+
 #include "core/FileDescriptor.hh"
+#include "tracing/ptrace.hh"
 
 class BuildGraph;
 class Command;
@@ -33,7 +36,8 @@ class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
-  void run(shared_ptr<Command> cmd);
+  void run(shared_ptr<Command> cmd,
+           kj::ArrayPtr<InitialFdEntry const> initial_fds = kj::ArrayPtr<InitialFdEntry const>());
 
   void newProcess(pid_t pid, shared_ptr<Command> cmd);
 

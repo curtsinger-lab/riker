@@ -2,13 +2,41 @@
 
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+
+#include <kj/common.h>
 
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/File.hh"
+#include "ui/log.hh"
+
+void Tracer::run(std::shared_ptr<Command> cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+  pid_t pid = start_command(cmd, initial_fds);
+
+  // TODO: Fix cwd handling
+  _processes[pid] = std::make_shared<Process>(pid, ".", cmd, _graph.getDefaultFds());
+
+  while (true) {
+    int wait_status;
+    pid_t child = wait(&wait_status);
+    if (child == -1) {
+      if (errno == ECHILD) {
+        // ECHILD is returned when there are no children to wait on, which
+        // is by far the simplest and most reliable signal we have for when
+        // to exit (cleanly).
+        break;
+      } else {
+        FAIL << "Error while waiting: " << ERR;
+      }
+    }
+
+    trace_step(*this, child, wait_status);
+  }
+}
 
 void Tracer::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
-  Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());  // TODO: Fix cwd handling
+  Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());
   _processes.emplace(pid, proc);
 }
 
@@ -33,7 +61,7 @@ void Tracer::traceClone(pid_t pid, pid_t thread_id) {
 
 void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::string>& args) {
   auto proc = _processes[pid];
-  
+
   // Close all cloexec file descriptors
   for (auto fd_entry = proc->_fds.begin(); fd_entry != proc->_fds.end();) {
     if (fd_entry->second.cloexec) {
@@ -42,12 +70,12 @@ void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::s
       ++fd_entry;
     }
   }
-  
+
   // Close all mmaps, since the address space is replaced
   for (auto file : proc->_mmaps) {
     file->removeMmap(proc->_command);
   }
-  
+
   // Create the new command
   proc->_command = proc->_command->createChild(executable, args);
 
@@ -56,7 +84,7 @@ void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::s
     iter.second.file = _graph.getLatestVersion(iter.second.location_index);
   }
   proc->_command->setInitialFDs(proc->_fds);
-  
+
   // Assume that we can at any time write to stdout or stderr
   // TODO: Instead of checking whether we know about stdout and stderr,
   // tread the initial stdout and stderr properly as pipes
@@ -66,7 +94,7 @@ void Tracer::traceExec(pid_t pid, std::string executable, const std::list<std::s
   if (proc->_fds.find(fileno(stderr)) != proc->_fds.end()) {
     traceMmap(pid, fileno(stderr));
   }
-  
+
   // The new command depends on its executable file
   auto f = _graph.getFile(executable);
   proc->_command->traceRead(f);
@@ -136,7 +164,7 @@ void Tracer::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
 
 void Tracer::traceMmap(pid_t pid, int fd) {
   auto proc = _processes[pid];
-  
+
   auto& desc = proc->_fds[fd];
   // Get the latest version of this file.
   // FIXME: This will do the wrong thing if a new file was placed at the same path after it was

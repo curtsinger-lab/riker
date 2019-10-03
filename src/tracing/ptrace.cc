@@ -29,8 +29,8 @@
 #include <unistd.h>
 
 #include "core/Command.hh"
-#include "tracing/syscalls.hh"
 #include "tracing/Tracer.hh"
+#include "tracing/syscalls.hh"
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
@@ -269,8 +269,7 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(Tracer& tracer, std::shared_ptr<Command> cmd,
-                    kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+pid_t start_command(std::shared_ptr<Command> cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
   std::string exec_path = cmd->getExecutable();
 
   std::vector<char*> exec_argv;
@@ -301,8 +300,6 @@ pid_t start_command(Tracer& tracer, std::shared_ptr<Command> cmd,
   }
   exec_argv.push_back(nullptr);
   pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
-
-  tracer.newProcess(pid, cmd);
 
   return pid;
 }
@@ -643,27 +640,27 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           break;
         case /* 2 */ __NR_open:
           tracer.traceOpen(child,
-                          registers.SYSCALL_RETURN,  // File descriptor
-                          main_file.path,            // File path
-                          registers.SYSCALL_ARG2,    // Flags
-                          registers.SYSCALL_ARG3);   // File mode
+                           registers.SYSCALL_RETURN,  // File descriptor
+                           main_file.path,            // File path
+                           registers.SYSCALL_ARG2,    // Flags
+                           registers.SYSCALL_ARG3);   // File mode
           break;
 
         case /* 85 */ __NR_creat:
           tracer.traceOpen(child,
-                          registers.SYSCALL_RETURN,      // File descriptor
-                          main_file.path,                // File path
-                          O_CREAT | O_WRONLY | O_TRUNC,  // Flags
-                          registers.SYSCALL_ARG2);       // File mode
+                           registers.SYSCALL_RETURN,      // File descriptor
+                           main_file.path,                // File path
+                           O_CREAT | O_WRONLY | O_TRUNC,  // Flags
+                           registers.SYSCALL_ARG2);       // File mode
 
           break;
 
         case /* 257 */ __NR_openat:
           tracer.traceOpen(child,
-                          registers.SYSCALL_RETURN,  // File descriptor
-                          main_file.path,            // File path
-                          registers.SYSCALL_ARG3,    // Flags
-                          registers.SYSCALL_ARG4);   // File mode
+                           registers.SYSCALL_RETURN,  // File descriptor
+                           main_file.path,            // File path
+                           registers.SYSCALL_ARG3,    // Flags
+                           registers.SYSCALL_ARG4);   // File mode
           break;
 
         case /* 22 */ __NR_pipe:
@@ -680,7 +677,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           break;
         case /* 292 */ __NR_dup3:
           tracer.traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
-                         (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
+                          (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
           break;
         case /* 72 */ __NR_fcntl:
           switch (registers.SYSCALL_ARG2) {
@@ -692,7 +689,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
               break;
             case F_SETFD:
               tracer.traceSetCloexec(child, registers.SYSCALL_ARG1,
-                                    (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
+                                     (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
               break;
           }
           break;

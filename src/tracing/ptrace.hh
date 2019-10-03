@@ -14,6 +14,5 @@ struct InitialFdEntry {
   int child_fd;
 };
 
-pid_t start_command(Tracer& tracer, std::shared_ptr<Command> cmd,
-                    kj::ArrayPtr<InitialFdEntry const> initial_fds);
+pid_t start_command(std::shared_ptr<Command> cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds);
 void trace_step(Tracer& tracer, pid_t child, int wait_status);

@@ -318,7 +318,9 @@ int main(int argc, char* argv[]) {
         // Spawn the child
         std::shared_ptr<Command> middle_cmd(
             new Command(run_command->executable, run_command->args));
-        child_pid = start_command(tracer, middle_cmd, file_actions);
+        child_pid = start_command(middle_cmd, file_actions);
+        tracer.newProcess(child_pid, middle_cmd);
+        
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
@@ -353,25 +355,7 @@ int main(int argc, char* argv[]) {
 
   graph.setRootCommand(root_cmd);
 
-  // TODO: set up stdio for logging?
-  start_command(tracer, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
-
-  while (true) {
-    int wait_status;
-    pid_t child = wait(&wait_status);
-    if (child == -1) {
-      if (errno == ECHILD) {
-        // ECHILD is returned when there are no children to wait on, which
-        // is by far the simplest and most reliable signal we have for when
-        // to exit (cleanly).
-        break;
-      } else {
-        FAIL << "Error while waiting: " << ERR;
-      }
-    }
-
-    trace_step(tracer, child, wait_status);
-  }
+  tracer.run(root_cmd);
 
   Serializer serializer("db.dodo");
   graph.serialize(serializer);
