@@ -1,17 +1,17 @@
 #include "Tracer.hh"
 
+#include <vector>
+
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#include <kj/common.h>
 
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "ui/log.hh"
 
-void Tracer::run(std::shared_ptr<Command> cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+void Tracer::run(std::shared_ptr<Command> cmd, std::vector<InitialFdEntry> initial_fds) {
   pid_t pid = start_command(cmd, initial_fds);
 
   // TODO: Fix cwd handling

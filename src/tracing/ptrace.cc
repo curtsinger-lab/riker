@@ -56,7 +56,7 @@ std::string get_executable(pid_t pid) {
 // PID of the newly created process, which should be running (or at least
 // ready to be waited on) upon return.
 static pid_t launch_traced(char const* exec_path, char* const argv[],
-                           kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+                           std::vector<InitialFdEntry> initial_fds) {
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
   // We always launch the program with /bin/sh, similarly to `system`, which should
   // automatically handle resolving the correct instance of a program and supporting
@@ -269,7 +269,7 @@ static std::string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(std::shared_ptr<Command> cmd, kj::ArrayPtr<InitialFdEntry const> initial_fds) {
+pid_t start_command(std::shared_ptr<Command> cmd, std::vector<InitialFdEntry> initial_fds) {
   std::string exec_path = cmd->getExecutable();
 
   std::vector<char*> exec_argv;

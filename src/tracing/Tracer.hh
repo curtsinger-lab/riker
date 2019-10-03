@@ -5,6 +5,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <sys/types.h>
 
@@ -22,6 +23,7 @@ using std::map;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 struct file_reference {
   // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
@@ -36,8 +38,7 @@ class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
-  void run(shared_ptr<Command> cmd,
-           kj::ArrayPtr<InitialFdEntry const> initial_fds = kj::ArrayPtr<InitialFdEntry const>());
+  void run(shared_ptr<Command> cmd, vector<InitialFdEntry> initial_fds = {});
 
   void newProcess(pid_t pid, shared_ptr<Command> cmd);
 

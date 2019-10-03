@@ -21,8 +21,6 @@
 #include <capnp/list.h>
 #include <capnp/message.h>
 #include <capnp/serialize.h>
-#include <kj/common.h>
-#include <kj/vector.h>
 
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
@@ -265,7 +263,7 @@ int main(int argc, char* argv[]) {
         dry_run_pid++;
       } else {
         // Set up initial fds
-        kj::Vector<InitialFdEntry> file_actions;
+        std::vector<InitialFdEntry> file_actions;
         std::vector<int> opened_fds;
         int max_fd = 0;
         for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
@@ -323,8 +321,7 @@ int main(int argc, char* argv[]) {
           if (!file->is_pipe) {
             opened_fds.push_back(*open_fd_ref);
           }
-          file_actions.add(
-              (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
+          file_actions.push_back({ *open_fd_ref, initial_fd_entry.getFd() });
         }
         // Spawn the child
         std::shared_ptr<Command> middle_cmd(
