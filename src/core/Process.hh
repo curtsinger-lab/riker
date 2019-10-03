@@ -41,48 +41,18 @@ class Process {
 
   void traceMmap(int fd);
 
-  void traceChdir(std::string newdir);
-
-  void traceChroot(std::string newroot);
-
-  void traceClose(int fd);
-
-  std::shared_ptr<Process> traceFork(pid_t child_pid);
-
-  void traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode);
-
-  void traceRead(std::shared_ptr<File> f);
-
-  void traceRead(int fd);
-
-  void traceModify(std::shared_ptr<File> f);
-
-  void traceModify(int fd);
-
-  void traceCreate(std::shared_ptr<File> f);
-
-  void traceCreate(int fd);
-
-  void traceRemove(std::shared_ptr<File> f);
-
-  void traceRemove(int fd);
-
   void tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec);
 
   void traceDup(int fd, int new_fd, bool cloexec);
 
-  void traceSetCloexec(int fd, bool cloexec);
-
   void traceExec(Tracer& tracer, BuildGraph& graph, std::string executable,
                  const std::list<std::string>& args);
-
-  void traceExit();
 
   /****** Getters and setters ******/
 
   std::shared_ptr<Command> getCommand() const { return _command; }
 
- private:
+ public:
   pid_t _pid;
   std::shared_ptr<Command> _command;
   std::string _cwd;

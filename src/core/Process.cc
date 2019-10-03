@@ -14,14 +14,6 @@
 #include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
 
-void Process::traceChdir(std::string newdir) {
-  _cwd = newdir;
-}
-
-void Process::traceChroot(std::string newroot) {
-  _root = newroot;
-}
-
 void Process::traceMmap(int fd) {
   auto& desc = _fds[fd];
   // Get the latest version of this file.
@@ -33,15 +25,6 @@ void Process::traceMmap(int fd) {
 
   if (desc.access_mode != O_WRONLY) _command->traceRead(f);
   if (desc.access_mode != O_RDONLY) _command->traceModify(f);
-}
-
-void Process::traceClose(int fd) {
-  _fds.erase(fd);
-}
-
-std::shared_ptr<Process> Process::traceFork(pid_t child_pid) {
-  auto child_proc = std::make_shared<Process>(child_pid, _cwd, _command, _fds);
-  return child_proc;
 }
 
 void Process::traceExec(Tracer& tracer, BuildGraph& graph, std::string executable,
@@ -79,58 +62,6 @@ void Process::traceExec(Tracer& tracer, BuildGraph& graph, std::string executabl
   }
 }
 
-void Process::traceOpen(int fd, std::shared_ptr<File> f, int flags, mode_t mode) {
-  int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
-
-  // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
-  /*if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
-    main_file.follow_links = false;
-  }*/
-
-  bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
-  bool cloexec = (flags & O_CLOEXEC) != 0;
-
-  if (rewrite && (f->getCreator() != _command || f->isWritten())) {
-    std::shared_ptr<File> newfile = f->createVersion(_command);
-    newfile->setMode(mode);
-    _fds[fd] = FileDescriptor(f->getLocation(), newfile, access_mode, cloexec);
-  } else {
-    _fds[fd] = FileDescriptor(f->getLocation(), f, access_mode, cloexec);
-  }
-}
-
-void Process::traceRead(std::shared_ptr<File> f) {
-  _command->traceRead(f);
-}
-
-void Process::traceRead(int fd) {
-  traceRead(_fds[fd].file->getLatestVersion());
-}
-
-void Process::traceModify(std::shared_ptr<File> f) {
-  _command->traceModify(f);
-}
-
-void Process::traceModify(int fd) {
-  traceModify(_fds[fd].file->getLatestVersion());
-}
-
-void Process::traceCreate(std::shared_ptr<File> f) {
-  _command->traceCreate(f);
-}
-
-void Process::traceCreate(int fd) {
-  traceCreate(_fds[fd].file->getLatestVersion());
-}
-
-void Process::traceRemove(std::shared_ptr<File> f) {
-  _command->traceRemove(f);
-}
-
-void Process::traceRemove(int fd) {
-  traceRemove(_fds[fd].file->getLatestVersion());
-}
-
 void Process::tracePipe(int fd1, int fd2, std::shared_ptr<File> f, bool cloexec) {
   _fds[fd1] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
   _fds[fd2] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);
@@ -143,18 +74,5 @@ void Process::traceDup(int fd, int new_fd, bool cloexec) {
   } else {
     _fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.file,
                                   duped_file->second.access_mode, cloexec);
-  }
-}
-
-void Process::traceSetCloexec(int fd, bool cloexec) {
-  auto file = _fds.find(fd);
-  if (file != _fds.end()) {
-    file->second.cloexec = cloexec;
-  }
-}
-
-void Process::traceExit() {
-  for (auto f : _mmaps) {
-    f->removeMmap(_command);
   }
 }
