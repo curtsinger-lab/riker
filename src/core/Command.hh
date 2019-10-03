@@ -23,18 +23,13 @@ using std::string;
 class Command : public enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
-  Command(string cmd, const list<string>& args, shared_ptr<Command> parent, unsigned int depth) :
+  Command(string cmd, const list<string>& args, shared_ptr<Command> parent) :
       _cmd(cmd),
       _args(args),
-      _parent(parent),
-      _depth(depth) {}
+      _parent(parent) {}
 
  public:
-  Command(string cmd, const list<string>& args) :
-      _cmd(cmd),
-      _args(args),
-      _parent(nullptr),
-      _depth(0) {}
+  Command(string cmd, const list<string>& args) : _cmd(cmd), _args(args) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -50,7 +45,7 @@ class Command : public enable_shared_from_this<Command> {
 
   size_t numDescendants();
 
-  void traceRead(shared_ptr<File> f);
+  void addInput(shared_ptr<File> f);
 
   void traceModify(shared_ptr<File> f);
 
@@ -78,11 +73,9 @@ class Command : public enable_shared_from_this<Command> {
   string _cmd;
   list<string> _args;
   shared_ptr<Command> _parent;
-  unsigned int _depth;
   list<shared_ptr<Command>> _children;
   set<shared_ptr<File>> _inputs;
   set<shared_ptr<File>> _outputs;
   set<shared_ptr<File>> _deleted_files;
-  bool _collapse_with_parent;
   map<int, FileDescriptor> _initial_fds;
 };

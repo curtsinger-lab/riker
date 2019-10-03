@@ -105,7 +105,8 @@ void Tracer::traceExec(pid_t pid, string executable, const list<string>& args) {
 
   // The new command depends on its executable file
   auto f = _graph.getFile(executable);
-  proc->_command->traceRead(f);
+  proc->_command->addInput(f);
+  f->addReader(proc->_command);
 }
 
 void Tracer::traceExit(pid_t pid) {
@@ -181,46 +182,57 @@ void Tracer::traceMmap(pid_t pid, int fd) {
   f->addMmap(proc->_command);
   proc->_mmaps.insert(f);
 
-  if (desc.access_mode != O_WRONLY) proc->_command->traceRead(f);
-  if (desc.access_mode != O_RDONLY) proc->_command->traceModify(f);
+  if (desc.access_mode != O_WRONLY) {
+    proc->_command->addInput(f);
+    f->addReader(proc->_command);
+  }
+  
+  if (desc.access_mode != O_RDONLY) {
+    proc->_command->traceModify(f);
+  }
 }
 
 void Tracer::traceRead(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD)
+  if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
-  else
+  } else {
     f = proc->_fds[file.fd].file;
-  proc->_command->traceRead(f);
+  }
+  proc->_command->addInput(f);
+  f->addReader(proc->_command);
 }
 
 void Tracer::traceModify(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD)
+  if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
-  else
+  } else {
     f = proc->_fds[file.fd].file;
+  }
   proc->_command->traceModify(f);
 }
 
 void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD)
+  if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
-  else
+  } else {
     f = proc->_fds[file.fd].file;
+  }
   proc->_command->traceCreate(f);
 }
 
 void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
   shared_ptr<File> f;
-  if (file.fd == AT_FDCWD)
+  if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
-  else
+  } else {
     f = proc->_fds[file.fd].file;
+  }
   proc->_command->traceRemove(f);
 }

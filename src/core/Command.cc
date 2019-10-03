@@ -17,15 +17,12 @@ using std::shared_ptr;
 using std::string;
 
 shared_ptr<Command> Command::createChild(string cmd, const list<string>& args) {
-  shared_ptr<Command> child(new Command(cmd, args, shared_from_this(), _depth + 1));
+  shared_ptr<Command> child(new Command(cmd, args, shared_from_this()));
   _children.push_back(child);
   return child;
 }
 
-void Command::traceRead(shared_ptr<File> f) {
-  // Record this command's dependency in the file
-  f->traceRead(shared_from_this());
-
+void Command::addInput(shared_ptr<File> f) {
   // This file is now an input, unless we've also written to it
   if (_outputs.find(f) != _outputs.end()) {
     _inputs.insert(f);
@@ -74,7 +71,6 @@ uint64_t Command::numDescendants() {
 void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {
   builder.setExecutable(_cmd);
   builder.setOutOfDate(false);
-  builder.setCollapseWithParent(_collapse_with_parent);
 
   auto args_output = builder.initArgv(_args.size());
   size_t args_index = 0;
