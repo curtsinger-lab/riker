@@ -37,24 +37,24 @@ void BuildGraph::run(Tracer& tracer) {
   tracer.run(_root);
 }
 
-size_t BuildGraph::findFile(string path) {
+shared_ptr<File> BuildGraph::getFile(string path) {
   for (size_t index = 0; index < _latest_versions.size(); index++) {
     if (!_latest_versions[index]->isPipe() && _latest_versions[index]->getPath() == path) {
-      return index;
+      return _latest_versions[index];
     }
   }
   size_t location = _latest_versions.size();
-  shared_ptr<File> new_node =
-      make_shared<File>(*this, location, db::FileType::REGULAR, path, nullptr);
-  addFile(new_node);
+  auto new_node = make_shared<File>(*this, location, db::FileType::REGULAR, path, nullptr);
+  _files.emplace_front(new_node);
   _latest_versions.push_back(new_node);
-  return location;
+
+  return _latest_versions[location];
 }
 
 shared_ptr<File> BuildGraph::getPipe(shared_ptr<Command> creator) {
   size_t location = _latest_versions.size();
-  shared_ptr<File> f = make_shared<File>(*this, location, db::FileType::PIPE, "", creator);
-  addFile(f);
+  auto f = make_shared<File>(*this, location, db::FileType::PIPE, "", creator);
+  _files.emplace_front(f);
   _latest_versions.push_back(f);
 
   return f;

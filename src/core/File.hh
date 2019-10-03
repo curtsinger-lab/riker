@@ -81,9 +81,6 @@ class File : public enable_shared_from_this<File> {
   void addReader(shared_ptr<Command> c) { _readers.insert(c); }
   bool isRead() const { return !_readers.empty(); }
 
-  const set<shared_ptr<Command>>& getInteractors() const { return _interactors; }
-  void addInteractor(shared_ptr<Command> c) { _interactors.insert(c); }
-
   shared_ptr<Command> getCreator() const { return _creator; }
   bool isCreated() const { return getCreator() != nullptr; }
 
@@ -102,7 +99,6 @@ class File : public enable_shared_from_this<File> {
   string _path;                       // The path to this file
   uint16_t _mode;                     // The file's access mode
   set<shared_ptr<Command>> _readers;  // Commands that read this file
-  set<shared_ptr<Command>> _interactors;  // Commands that read OR modify this file
   set<shared_ptr<Command>> _mmaps;        // Commands that currently have an mmap of this file
 
   unsigned int _version = 0;  // The version number of this file

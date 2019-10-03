@@ -38,8 +38,6 @@ class BuildGraph {
 
   void run(Tracer& tracer);
 
-  size_t findFile(string path);
-
   void serialize(Serializer& serializer);
 
   /****** Getters and setters ******/
@@ -53,7 +51,7 @@ class BuildGraph {
 
   void addFile(shared_ptr<File> f) { _files.emplace_front(f); }
 
-  shared_ptr<File> getFile(string path) { return _latest_versions[findFile(path)]; }
+  shared_ptr<File> getFile(string path);
 
   shared_ptr<File> getPipe(shared_ptr<Command> creator);
 

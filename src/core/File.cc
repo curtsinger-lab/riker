@@ -93,13 +93,10 @@ bool File::isLocal() const {
 }
 
 void File::traceRead(shared_ptr<Command> c) {
-  addInteractor(c);
   addReader(c);
 }
 
 shared_ptr<File> File::traceWrite(shared_ptr<Command> c) {
-  addInteractor(c);
-  
   shared_ptr<File> fnew;
   if ((isCreated() && !isWritten()) || getWriter() == c) {
     // Unless we just created it, in which case it is pristine
