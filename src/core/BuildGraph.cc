@@ -69,9 +69,8 @@ void BuildGraph::serialize(Serializer& serializer) {
 
   // Add files to the serializer
   for (shared_ptr<File> f : _files) {
-    // Files can check whether or not they should be saved
     // Also skip the phony files created for stdin, stdout, and stderr
-    if (f->shouldSave() && f->getPath() != "<<stdin>>" && f->getPath() != "<<stdout>>" &&
+    if (f->getPath() != "<<stdin>>" && f->getPath() != "<<stdout>>" &&
         f->getPath() != "<<stderr>>") {
       serializer.addFile(f);
     }

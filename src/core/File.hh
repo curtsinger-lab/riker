@@ -50,8 +50,6 @@ class File : public enable_shared_from_this<File> {
 
   void fingerprint();
 
-  bool shouldSave() const;
-
   void serialize(Serializer& serializer, db::File::Builder builder);
 
   shared_ptr<File> getLatestVersion();

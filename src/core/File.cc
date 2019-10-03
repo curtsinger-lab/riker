@@ -65,23 +65,6 @@ bool File::isModified() const {
   //                         !file->getPreviousVersion()->isRemoved())));
 }
 
-bool File::shouldSave() const {
-  // Save files that have at least one reader
-  if (isRead()) return true;
-
-  // Save files with a writer
-  if (isWritten()) return true;
-
-  // Save files with a creator
-  if (isCreated()) return true;
-
-  // Save files with a previous version that are not removed (CC: why?)
-  if (_prev_version != nullptr && !_removed) return true;
-
-  // Skip anything else
-  return false;
-}
-
 bool File::isLocal() const {
   // A future version should check if a path falls under the current working directory, not just
   // whether it's absolute. That will require remembering the cwd somewhere along the way when
