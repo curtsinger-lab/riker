@@ -34,15 +34,8 @@ void Command::traceCreate(shared_ptr<File> f) {
 
     if (!file_exists) {
       f->createVersion(shared_from_this());
-      f->setRemoved(false);
     }
   }
-}
-
-void Command::traceRemove(shared_ptr<File> f) {
-  _deleted_files.insert(f);
-  f = f->createVersion();
-  f->setRemoved();
 }
 
 uint64_t Command::numDescendants() {

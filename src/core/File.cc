@@ -103,6 +103,11 @@ shared_ptr<File> File::traceWrite(shared_ptr<Command> c) {
   return fnew;
 }
 
+shared_ptr<File> File::traceRemove(shared_ptr<Command> c) {
+  _removed = true;
+  return shared_from_this();
+}
+
 // Filter out db.dodo from the directory listing when fingerprinting directories
 static int filter_default(const struct dirent* e) {
   if (string(e->d_name) == "db.dodo")

@@ -53,7 +53,7 @@ class Command : public enable_shared_from_this<Command> {
 
   void traceCreate(shared_ptr<File> f);
 
-  void traceRemove(shared_ptr<File> f);
+  void addDeletedFile(shared_ptr<File> f) { _deleted_files.insert(f); }
 
   void serialize(const Serializer& serializer, db::Command::Builder builder);
 

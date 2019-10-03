@@ -61,6 +61,8 @@ class File : public enable_shared_from_this<File> {
   bool isLocal() const;
 
   shared_ptr<File> traceWrite(shared_ptr<Command> c);
+  
+  shared_ptr<File> traceRemove(shared_ptr<Command> c);
 
   /****** Getters and setters ******/
 
@@ -86,7 +88,6 @@ class File : public enable_shared_from_this<File> {
   bool isWritten() const { return getWriter() != nullptr; }
 
   bool isRemoved() const { return _removed; }
-  void setRemoved(bool r = true) { _removed = r; }
 
  private:
   BuildGraph& _graph;                 // A reference to the trace this file is part of

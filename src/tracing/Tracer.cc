@@ -237,5 +237,7 @@ void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
-  proc->_command->traceRemove(f);
+  
+  auto new_f = f->traceRemove(proc->_command);
+  proc->_command->addDeletedFile(new_f);
 }
