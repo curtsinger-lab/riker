@@ -6,7 +6,6 @@
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/File.hh"
-#include "core/Process.hh"
 
 void Tracer::newProcess(pid_t pid, std::shared_ptr<Command> cmd) {
   Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());  // TODO: Fix cwd handling
@@ -110,7 +109,7 @@ void Tracer::traceClose(pid_t pid, int fd) {
 void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
 
-  auto f = _graph.getPipe(proc->getCommand());
+  auto f = _graph.getPipe(proc->_command);
 
   proc->_fds[fds[0]] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
   proc->_fds[fds[1]] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);

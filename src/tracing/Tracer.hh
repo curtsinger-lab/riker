@@ -3,9 +3,12 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 #include <sys/types.h>
+
+#include "core/FileDescriptor.hh"
 
 class BuildGraph;
 class Command;
@@ -13,6 +16,7 @@ class Process;
 
 using std::list;
 using std::map;
+using std::set;
 using std::shared_ptr;
 using std::string;
 
@@ -66,6 +70,22 @@ class Tracer {
   void traceExec(pid_t pid, string executable, const list<string>& args);
 
   void traceExit(pid_t pid);
+
+ private:
+  struct Process {
+    Process(pid_t pid, string cwd, shared_ptr<Command> command, map<int, FileDescriptor> fds = {}) :
+        _pid(pid),
+        _command(command),
+        _cwd(cwd),
+        _fds(fds) {}
+
+    pid_t _pid;
+    shared_ptr<Command> _command;
+    string _cwd;
+    string _root;
+    set<shared_ptr<File>> _mmaps;
+    map<int, FileDescriptor> _fds;
+  };
 
  private:
   BuildGraph& _graph;
