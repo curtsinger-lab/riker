@@ -1,4 +1,3 @@
-#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -21,21 +20,26 @@
 #include <capnp/list.h>
 #include <capnp/message.h>
 #include <capnp/serialize.h>
-#include <kj/common.h>
-#include <kj/vector.h>
 
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/dodorun.hh"
 #include "db/Serializer.hh"
 #include "db/db.capnp.h"
+#include "tracing/Tracer.hh"
 #include "tracing/ptrace.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "ui/util.hh"
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::forward_list;
+using std::shared_ptr;
+using std::stol;
 using std::string;
+using std::vector;
 
 // Declare the global command-line options struct
 dodo_options options;
@@ -86,7 +90,7 @@ void parse_argv(forward_list<string> argv) {
         options.explicitly_changed.insert(argv.front());
         argv.pop_front();
       } else {
-        std::cerr << "Please specify a file to mark as changed.\n";
+        cerr << "Please specify a file to mark as changed.\n";
         exit(1);
       }
 
@@ -95,7 +99,7 @@ void parse_argv(forward_list<string> argv) {
         options.explicitly_unchanged.insert(argv.front());
         argv.pop_front();
       } else {
-        std::cerr << "Please specify a file to mark as unchanged.\n";
+        cerr << "Please specify a file to mark as unchanged.\n";
         exit(1);
       }
 
@@ -104,16 +108,16 @@ void parse_argv(forward_list<string> argv) {
 
     } else if (arg == "-j") {
       if (!argv.empty()) {
-        long specified_jobs = std::stol(argv.front());
+        long specified_jobs = stol(argv.front());
         argv.pop_front();
 
         if (specified_jobs < 1) {
-          std::cerr << "Invalid number of jobs: specify at least one.\n";
+          cerr << "Invalid number of jobs: specify at least one.\n";
           exit(1);
         }
         options.parallel_jobs = specified_jobs;
       } else {
-        std::cerr << "Please specify a number of jobs to use" << std::endl;
+        cerr << "Please specify a number of jobs to use" << endl;
         exit(1);
       }
 
@@ -128,7 +132,7 @@ void parse_argv(forward_list<string> argv) {
       options.show_collapsed = false;
 
     } else {
-      std::cerr << "Invalid argument " << arg << std::endl;
+      cerr << "Invalid argument " << arg << endl;
       exit(1);
     }
   }
@@ -152,22 +156,34 @@ int main(int argc, char* argv[]) {
   char* cwd = getcwd(nullptr, 0);
   FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
 
-  // Create a managed reference to a trace state
+  // Initialize build graph and a tracer instance
   BuildGraph graph(cwd);
+  Tracer tracer(graph);
 
   // Clean up after getcwd
   free(cwd);
 
-  // Although the documentation recommends against this, we implicitly trust the
-  // database anyway. Without this we may hit the recursion limit.
-  ::capnp::ReaderOptions capnp_options;
-  capnp_options.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
-
   // Open the database
   int db_fd = open("db.dodo", O_RDWR);
 
-  // If the database exists, read it
-  if (db_fd >= 0) {
+  // If the database doesn't exist, run a default build
+  if (db_fd == -1) {
+    shared_ptr<Command> root(new Command("Dodofile", {"Dodofile"}));
+    graph.setRootCommand(root);
+
+    graph.run(tracer);
+
+    Serializer serializer("db.dodo");
+    graph.serialize(serializer);
+
+    return 0;
+
+  } else {
+    // Although the documentation recommends against this, we implicitly trust the
+    // database anyway. Without this we may hit the recursion limit.
+    ::capnp::ReaderOptions capnp_options;
+    capnp_options.traversalLimitInWords = numeric_limits<uint64_t>::max();
+
     ::capnp::StreamFdMessageReader message(db_fd, capnp_options);
     auto old_graph = message.getRoot<db::Graph>();
     auto old_files = old_graph.getFiles();
@@ -181,7 +197,7 @@ int main(int argc, char* argv[]) {
                                options.explicitly_unchanged);
 
     pid_t dry_run_pid = 1;
-    std::map<pid_t, old_command*> wait_worklist;
+    map<pid_t, old_command*> wait_worklist;
     while (true) {
       auto run_command = rebuild_state.rebuild(use_fingerprints, options.dry_run,
                                                wait_worklist.size(), options.parallel_jobs);
@@ -198,7 +214,7 @@ int main(int argc, char* argv[]) {
             child = wait(&wait_status);
             FAIL_IF(child == -1) << "Error waiting for child: " << ERR;
 
-            trace_step(graph, child, wait_status);
+            trace_step(tracer, child, wait_status);
             if (!WIFEXITED(wait_status) && !WIFSIGNALED(wait_status)) {
               continue;
             }
@@ -216,34 +232,34 @@ int main(int argc, char* argv[]) {
       }
 
       // Print that we will run it
-      write_shell_escaped(std::cout, run_command->executable);
+      write_shell_escaped(cout, run_command->executable);
       for (auto arg : run_command->args) {
-        std::cout << " ";
-        write_shell_escaped(std::cout, arg);
+        cout << " ";
+        write_shell_escaped(cout, arg);
       }
 
       // Print redirections
       for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
-        std::cout << " ";
+        cout << " ";
         if (!(initial_fd_entry.getFd() == fileno(stdin) && initial_fd_entry.getCanRead() &&
               !initial_fd_entry.getCanWrite()) &&
             !(initial_fd_entry.getFd() == fileno(stdout) && !initial_fd_entry.getCanRead() &&
               initial_fd_entry.getCanWrite())) {
-          std::cout << initial_fd_entry.getFd();
+          cout << initial_fd_entry.getFd();
         }
         if (initial_fd_entry.getCanRead()) {
-          std::cout << '<';
+          cout << '<';
         }
         if (initial_fd_entry.getCanWrite()) {
-          std::cout << '>';
+          cout << '>';
         }
         if (rebuild_state.files[initial_fd_entry.getFileID()]->is_pipe) {
-          std::cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
+          cout << "/proc/dodo/pipes/" << initial_fd_entry.getFileID();
         } else {
-          write_shell_escaped(std::cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
+          write_shell_escaped(cout, rebuild_state.files[initial_fd_entry.getFileID()]->path);
         }
       }
-      std::cout << std::endl;
+      cout << endl;
 
       // Run it!
       pid_t child_pid;
@@ -252,8 +268,8 @@ int main(int argc, char* argv[]) {
         dry_run_pid++;
       } else {
         // Set up initial fds
-        kj::Vector<InitialFdEntry> file_actions;
-        std::vector<int> opened_fds;
+        vector<InitialFdEntry> file_actions;
+        vector<int> opened_fds;
         int max_fd = 0;
         for (auto initial_fd_entry : old_commands[run_command->id].getInitialFDs()) {
           int fd = initial_fd_entry.getFd();
@@ -310,13 +326,13 @@ int main(int argc, char* argv[]) {
           if (!file->is_pipe) {
             opened_fds.push_back(*open_fd_ref);
           }
-          file_actions.add(
-              (InitialFdEntry){.parent_fd = *open_fd_ref, .child_fd = initial_fd_entry.getFd()});
+          file_actions.push_back({*open_fd_ref, initial_fd_entry.getFd()});
         }
         // Spawn the child
-        std::shared_ptr<Command> middle_cmd(
-            new Command(run_command->executable, run_command->args));
-        child_pid = start_command(graph, middle_cmd, file_actions);
+        shared_ptr<Command> middle_cmd(new Command(run_command->executable, run_command->args));
+        child_pid = start_command(middle_cmd, file_actions);
+        tracer.newProcess(child_pid, middle_cmd);
+
         // Free what we can
         for (auto open_fd : opened_fds) {
           close(open_fd);
@@ -346,31 +362,4 @@ int main(int argc, char* argv[]) {
     }
     return 0;
   }
-
-  std::shared_ptr<Command> root_cmd(new Command("Dodofile", {"Dodofile"}));
-
-  graph.setRootCommand(root_cmd);
-
-  // TODO: set up stdio for logging?
-  start_command(graph, root_cmd, kj::ArrayPtr<InitialFdEntry const>());
-
-  while (true) {
-    int wait_status;
-    pid_t child = wait(&wait_status);
-    if (child == -1) {
-      if (errno == ECHILD) {
-        // ECHILD is returned when there are no children to wait on, which
-        // is by far the simplest and most reliable signal we have for when
-        // to exit (cleanly).
-        break;
-      } else {
-        FAIL << "Error while waiting: " << ERR;
-      }
-    }
-
-    trace_step(graph, child, wait_status);
-  }
-
-  Serializer serializer("db.dodo");
-  graph.serialize(serializer);
 }

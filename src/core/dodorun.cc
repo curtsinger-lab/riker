@@ -17,6 +17,16 @@
 #include "ui/graphviz.hh"
 #include "ui/util.hh"
 
+using std::cerr;
+using std::cout;
+using std::endl;
+using std::numeric_limits;
+using std::queue;
+using std::set;
+using std::string;
+using std::swap;
+using std::to_string;
+
 extern char** environ;
 
 #define UNCHANGED 0
@@ -24,9 +34,9 @@ extern char** environ;
 #define UNKNOWN 2
 
 bool old_file::is_local() {
-  if (path.find("/usr/") != std::string::npos || path.find("/lib/") != std::string::npos ||
-      path.find("/etc/") != std::string::npos || path.find("/dev/") != std::string::npos ||
-      path.find("/proc/") != std::string::npos) {
+  if (path.find("/usr/") != string::npos || path.find("/lib/") != string::npos ||
+      path.find("/etc/") != string::npos || path.find("/dev/") != string::npos ||
+      path.find("/proc/") != string::npos) {
     return false;
   } else {
     return true;
@@ -41,27 +51,27 @@ static void draw_graph_nodes(Graphviz* graph, bool show_collapsed, bool show_sys
       continue;
     }
 
-    std::string attr = "";
+    string attr = "";
     if (commands[command_id]->rerun) {
       attr = "style=filled fillcolor=gold";
     }
-    std::string label;
+    string label;
     if (commands[command_id]->args.size() > 0) {
       label = commands[command_id]->args.front();
     } else {
       label = commands[command_id]->executable;
     }
     size_t slash_loc = label.rfind('/');
-    if (slash_loc != std::string::npos) {
+    if (slash_loc != string::npos) {
       label = label.substr(slash_loc + 1);
     }
-    graph->add_node("c" + std::to_string(command_id), label, attr);
+    graph->add_node("c" + to_string(command_id), label, attr);
   }
 
   for (size_t file_id = 0; file_id < file_count; file_id++) {
     if (show_sysfiles || files[file_id]->is_local()) {
-      std::string attr;
-      std::string label;
+      string attr;
+      string label;
       if (files[file_id]->is_pipe) {
         attr = "shape=diamond";
         label = "[pipe]";
@@ -72,7 +82,7 @@ static void draw_graph_nodes(Graphviz* graph, bool show_collapsed, bool show_sys
       if (files[file_id]->status == CHANGED) {
         attr += " style=filled fillcolor=gold";
       }
-      graph->add_node("f" + std::to_string(files[file_id]->id), label, attr);
+      graph->add_node("f" + to_string(files[file_id]->id), label, attr);
     }
   }
 }
@@ -83,39 +93,39 @@ static void draw_graph_command_edges(Graphviz* graph, bool show_collapsed, bool 
   size_t id = start_id;
   while (id < end_id) {
     auto root = commands[id];
-    std::string root_node;
+    string root_node;
     if (show_collapsed) {
-      root_node = "c" + std::to_string(id);
+      root_node = "c" + to_string(id);
     } else {
-      root_node = "c" + std::to_string(root->cluster_root->id);
+      root_node = "c" + to_string(root->cluster_root->id);
     }
 
-    if (parent_id != std::numeric_limits<size_t>::max() &&
+    if (parent_id != numeric_limits<size_t>::max() &&
         (show_collapsed || !root->collapse_with_parent)) {
-      graph->add_edge("c" + std::to_string(parent_id), root_node, "style=dashed");
+      graph->add_edge("c" + to_string(parent_id), root_node, "style=dashed");
     }
 
     for (auto i : root->inputs) {
       if (show_sysfiles || i->is_local()) {
-        graph->add_edge("f" + std::to_string(i->id), root_node, "arrowhead=empty");
+        graph->add_edge("f" + to_string(i->id), root_node, "arrowhead=empty");
       }
     }
 
     for (auto o : root->outputs) {
       if (show_sysfiles || o->is_local()) {
-        graph->add_edge(root_node, "f" + std::to_string(o->id), "arrowhead=empty");
+        graph->add_edge(root_node, "f" + to_string(o->id), "arrowhead=empty");
       }
     }
 
     for (auto d : root->deletions) {
       if (show_sysfiles || d->is_local()) {
-        graph->add_edge(root_node, "f" + std::to_string(d->id), "color=red arrowhead=empty");
+        graph->add_edge(root_node, "f" + to_string(d->id), "color=red arrowhead=empty");
       }
     }
 
     for (auto c : root->creations) {
       if (show_sysfiles || c->is_local()) {
-        graph->add_edge(root_node, "f" + std::to_string(c->id), "color=blue arrowhead=empty");
+        graph->add_edge(root_node, "f" + to_string(c->id), "color=blue arrowhead=empty");
       }
     }
 
@@ -138,8 +148,8 @@ static void draw_graph_modification_edges(Graphviz* graph, bool show_sysfiles, o
                                           size_t file_count) {
   for (size_t file_id = 0; file_id < file_count; file_id++) {
     if (files[file_id]->prev_version != nullptr && (show_sysfiles || files[file_id]->is_local())) {
-      graph->add_edge("f" + std::to_string(files[file_id]->prev_version->id),
-                      "f" + std::to_string(file_id), "color=orchid arrowhead=empty");
+      graph->add_edge("f" + to_string(files[file_id]->prev_version->id), "f" + to_string(file_id),
+                      "color=orchid arrowhead=empty");
     }
   }
 }
@@ -166,9 +176,9 @@ static void mark_complete_for_deletions(old_command* command, bool dry_run) {
         continue;
       }
 
-      std::cout << "rm ";
-      write_shell_escaped(std::cout, in->path);
-      std::cout << std::endl;
+      cout << "rm ";
+      write_shell_escaped(cout, in->path);
+      cout << endl;
       if (!dry_run) {
         unlink(in->path.c_str());
       }
@@ -253,7 +263,7 @@ bool on_edge_changed(size_t distance_through_edge, old_command* destination) {
 void RebuildState::remove_edge(size_t distance_through_edge, old_command* destination) {
   if (on_edge_changed(distance_through_edge, destination)) {
     // Propagate
-    std::queue<old_command*> reevaluate_worklist;
+    queue<old_command*> reevaluate_worklist;
     reevaluate_worklist.push(destination);
 
     while (!reevaluate_worklist.empty()) {
@@ -273,7 +283,7 @@ void RebuildState::remove_edge(size_t distance_through_edge, old_command* destin
           }
         }
         for (auto in : cluster_member->inputs) {
-          if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
+          if (!in->is_cached && in->writer_id != numeric_limits<size_t>::max()) {
             auto outgoing_destination = this->commands[in->writer_id]->cluster_root;
             if (outgoing_destination != to_reevaluate &&
                 on_edge_changed(to_reevaluate->distance + 1, outgoing_destination)) {
@@ -295,7 +305,7 @@ void RebuildState::remove_edge(size_t distance_through_edge, old_command* destin
       cluster_for_each(this->commands, to_reevaluate, scan_for_changes);
 
       // Scan incoming edges to determine the new distance
-      size_t new_distance = std::numeric_limits<size_t>::max();
+      size_t new_distance = numeric_limits<size_t>::max();
       size_t new_references = 0;
       auto on_incoming_edge = [&](size_t incoming_distance) {
         if (incoming_distance < new_distance) {
@@ -307,7 +317,7 @@ void RebuildState::remove_edge(size_t distance_through_edge, old_command* destin
       };
       auto tally_inputs = [&](old_command* cluster_member, bool leaf) {
         for (auto in : cluster_member->inputs) {
-          if (in->writer_id != std::numeric_limits<size_t>::max()) {
+          if (in->writer_id != numeric_limits<size_t>::max()) {
             auto incoming_source = this->commands[in->writer_id]->cluster_root;
             if (incoming_source != to_reevaluate) {
               on_incoming_edge(incoming_source->distance);
@@ -333,8 +343,8 @@ void RebuildState::remove_edge(size_t distance_through_edge, old_command* destin
       to_reevaluate->equal_distance_references = new_references;
 
       // If this fires, we know that this will never run
-      if (new_distance == std::numeric_limits<size_t>::max() && to_reevaluate->candidate_for_run) {
-        // std::cerr << to_reevaluate->executable << " will not run" << std::endl;
+      if (new_distance == numeric_limits<size_t>::max() && to_reevaluate->candidate_for_run) {
+        // cerr << to_reevaluate->executable << " will not run" << endl;
         to_reevaluate->candidate_for_run = false;
         this->rerun_candidates -= 1;
         this->simulate_worklist.push(to_reevaluate);
@@ -357,8 +367,8 @@ void initialize_parent_edges(old_command* commands[], old_command* parent, size_
 }
 
 RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
-                           std::set<std::string> const& explicitly_changed,
-                           std::set<std::string> const& explicitly_unchanged) :
+                           set<string> const& explicitly_changed,
+                           set<string> const& explicitly_unchanged) :
     old_graph(old_graph) {
   // reconstruct the graph
   auto old_files = this->old_graph.getFiles();
@@ -369,7 +379,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
   this->files = new old_file*[files_size];
   unsigned int file_id = 0;
   for (auto file : old_files) {
-    std::string path = std::string((const char*)file.getPath().begin(), file.getPath().size());
+    string path = string((const char*)file.getPath().begin(), file.getPath().size());
     bool is_pipe = (file.getType() == db::FileType::PIPE);
     bool is_cached = file.getLatestVersion() && !is_pipe;
     this->files[file_id] = new old_file(file_id, is_pipe, is_cached, path, UNKNOWN);
@@ -380,11 +390,10 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
   this->commands = new old_command*[commands_size];
   unsigned int cmd_id = 0;
   for (auto cmd : this->old_graph.getCommands()) {
-    auto executable =
-        std::string((const char*)cmd.getExecutable().begin(), cmd.getExecutable().size());
+    auto executable = string((const char*)cmd.getExecutable().begin(), cmd.getExecutable().size());
     this->commands[cmd_id] = new old_command(cmd_id, cmd.getDescendants(), executable);
     for (auto arg : cmd.getArgv()) {
-      this->commands[cmd_id]->args.push_back(std::string((const char*)arg.begin(), arg.size()));
+      this->commands[cmd_id]->args.push_back(string((const char*)arg.begin(), arg.size()));
     }
     this->commands[cmd_id]->collapse_with_parent = cmd.getCollapseWithParent();
     cmd_id++;
@@ -415,7 +424,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
 
   // Collapsing codependencies and cycles
   // TODO: This probably wants to be part of the serialized representation, not here
-  std::queue<old_command*> collapse_worklist;
+  queue<old_command*> collapse_worklist;
   for (size_t root_id = 0; root_id < commands_size; root_id++) {
     // If this command has already been included in another cluster, then its dependencies
     // have already been considered, so move on.
@@ -468,9 +477,9 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
   }
 
   // Set up "pipe clusters" as connected components through pipes
-  std::queue<old_command*> pipe_cluster_worklist;
+  queue<old_command*> pipe_cluster_worklist;
   for (size_t command_id = 0; command_id < commands_size; command_id++) {
-    if (this->commands[command_id]->pipe_cluster != std::numeric_limits<size_t>::max()) {
+    if (this->commands[command_id]->pipe_cluster != numeric_limits<size_t>::max()) {
       // We have already assigned this to a cluster
       continue;
     }
@@ -483,11 +492,11 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
       auto to_include = pipe_cluster_worklist.front();
       pipe_cluster_worklist.pop();
 
-      if (to_include->pipe_cluster == std::numeric_limits<size_t>::max()) {
+      if (to_include->pipe_cluster == numeric_limits<size_t>::max()) {
         to_include->pipe_cluster = pipe_cluster;
         this->pipe_cluster_blocked[pipe_cluster] += 1;
         for (auto in : to_include->inputs) {
-          if (in->is_pipe && in->writer_id != std::numeric_limits<size_t>::max()) {
+          if (in->is_pipe && in->writer_id != numeric_limits<size_t>::max()) {
             pipe_cluster_worklist.push(this->commands[in->writer_id]);
           }
         }
@@ -518,8 +527,8 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
     }
 
     if (this->commands[command_id]->collapse_with_parent) {
-      // std::cerr << "Command " << this->commands[command_id]->executable << " is collapsed with
-      // parent." << std::endl;
+      // cerr << "Command " << this->commands[command_id]->executable << " is collapsed with
+      // parent." << endl;
       continue;
     }
 
@@ -534,7 +543,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
   this->rerun_candidates = 0;
 
   // Initialize the worklists
-  std::queue<old_command*> possibly_changed_worklist;  // For determining initial distances
+  queue<old_command*> possibly_changed_worklist;  // For determining initial distances
   // TODO multiple roots
   this->descend_to_worklist.push(this->commands[0]);
   for (size_t file_id = 0; file_id < files_size; file_id++) {
@@ -542,7 +551,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
       continue;
     }
 
-    if (this->files[file_id]->writer_id == std::numeric_limits<size_t>::max() &&
+    if (this->files[file_id]->writer_id == numeric_limits<size_t>::max() &&
         !this->files[file_id]->readers.empty()) {
       int flag;
 
@@ -559,9 +568,9 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
 
       this->files[file_id]->status = flag;
       if (flag == CHANGED) {
-        // std::cerr << this->files[file_id]->path << " is changed" << std::endl;
+        // cerr << this->files[file_id]->path << " is changed" << endl;
         for (auto reader : this->files[file_id]->readers) {
-          // std::cerr << "  so " << reader->executable << " will be rerun" << std::endl;
+          // cerr << "  so " << reader->executable << " will be rerun" << endl;
           this->propagate_rerun_worklist.push(reader);
           possibly_changed_worklist.push(reader);
         }
@@ -572,9 +581,9 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
     } else if (old_files[file_id].getLatestVersion()) {
       if (explicitly_changed.find(this->files[file_id]->path) != explicitly_changed.end() ||
           (use_fingerprints && !match_fingerprint(old_files[file_id]))) {
-        // std::cerr << this->files[file_id]->path << " is changed (output)" << std::endl;
-        // std::cerr << "  so " << this->commands[this->files[file_id]->writer_id]->executable << "
-        // will be rerun" << std::endl;
+        // cerr << this->files[file_id]->path << " is changed (output)" << endl;
+        // cerr << "  so " << this->commands[this->files[file_id]->writer_id]->executable << "
+        // will be rerun" << endl;
         // Rerun the commands that produce changed files
         this->propagate_rerun_worklist.push(this->commands[this->files[file_id]->writer_id]);
         possibly_changed_worklist.push(this->commands[this->files[file_id]->writer_id]);
@@ -583,7 +592,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
   }
 
   // Initialize distanes
-  std::queue<old_command*> next_distance_worklist;
+  queue<old_command*> next_distance_worklist;
   size_t current_distance = 0;
   while (!possibly_changed_worklist.empty()) {
     while (!possibly_changed_worklist.empty()) {
@@ -604,7 +613,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
             }
           }
           for (auto in : cluster_member->inputs) {
-            if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
+            if (!in->is_cached && in->writer_id != numeric_limits<size_t>::max()) {
               if (this->commands[in->writer_id]->cluster_root != reachable_command) {
                 next_distance_worklist.push(this->commands[in->writer_id]);
               }
@@ -625,7 +634,7 @@ RebuildState::RebuildState(db::Graph::Reader old_graph, bool use_fingerprints,
       }
     }
 
-    std::swap(possibly_changed_worklist, next_distance_worklist);
+    swap(possibly_changed_worklist, next_distance_worklist);
     current_distance += 1;
   }
 }
@@ -641,7 +650,7 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
     if (!this->propagate_rerun_worklist.empty()) {
       old_command* rerun_root = this->propagate_rerun_worklist.front()->cluster_root;
       this->propagate_rerun_worklist.pop();
-      // std::cerr << rerun_root->executable << " must rerun" << std::endl;
+      // cerr << rerun_root->executable << " must rerun" << endl;
 
       if (rerun_root->candidate_for_run && !rerun_root->rerun) {
         this->rerun_candidates -= 1;
@@ -659,7 +668,7 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
 
         this->commands[current_id]->rerun = true;
         for (auto in : this->commands[current_id]->inputs) {
-          if (!in->is_cached && in->writer_id != std::numeric_limits<size_t>::max()) {
+          if (!in->is_cached && in->writer_id != numeric_limits<size_t>::max()) {
             this->propagate_rerun_worklist.push(this->commands[in->writer_id]);
           }
         }
@@ -682,23 +691,23 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
       old_command* cur_command = this->descend_to_worklist.front();
       this->descend_to_worklist.pop();
 
-      // std::cerr << "Removing parent reference from " << cur_command->executable << std::endl;
+      // cerr << "Removing parent reference from " << cur_command->executable << endl;
       if (cur_command->rerun) {
-        // std::cerr << "  so rerunning" << std::endl;
+        // cerr << "  so rerunning" << endl;
         this->run_worklist.push(cur_command);
       } else {
         // We will only descend to a command if its parent will never run, so we don't need to
         // remove the edge TOOO(recognized commands): this might change
         assert(cur_command->parent == nullptr ||
                (!cur_command->parent->rerun &&
-                cur_command->parent->cluster_root->distance == std::numeric_limits<size_t>::max()));
+                cur_command->parent->cluster_root->distance == numeric_limits<size_t>::max()));
 
-        if (cur_command->distance == std::numeric_limits<size_t>::max()) {
+        if (cur_command->distance == numeric_limits<size_t>::max()) {
           this->simulate_worklist.push(cur_command);
         } else {
           // Mark the command so that if we propagate a rerun here, we will add it
           // to the run worklist
-          // std::cerr << "  Not ready yet" << std::endl;
+          // cerr << "  Not ready yet" << endl;
           cur_command->candidate_for_run = true;
           this->rerun_candidates += 1;
         }
@@ -719,14 +728,14 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
 
         // Sanity checks
         assert(!node->rerun);
-        assert(node->distance == std::numeric_limits<size_t>::max());
+        assert(node->distance == numeric_limits<size_t>::max());
 
         ready = true;
         auto check_inputs = [&](old_command* cluster_member, bool leaf) {
           for (auto in : cluster_member->inputs) {
             if (!in->is_pipe && in->status == UNKNOWN &&
                 (in->writer_id < node->id || in->writer_id > node->id + node->num_descendants)) {
-              // std::cerr << "  " << in->path << " is not ready." << std::endl;
+              // cerr << "  " << in->path << " is not ready." << endl;
               ready = false;
               break;
             }
@@ -753,7 +762,7 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
           // We don't need to remove the edges through `out` here because we already weren't
           // reachable from the changed root
           out->status = UNCHANGED;
-          // std::cerr << out->path << " will not be rebuilt" << std::endl;
+          // cerr << out->path << " will not be rebuilt" << endl;
         }
 
         // Mark files for deletion that this command would delete
@@ -817,14 +826,14 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
             if (!in->is_pipe && in->status == UNKNOWN &&
                 (in->writer_id < run_command->id ||
                  in->writer_id > run_command->id + run_command->num_descendants)) {
-              // std::cerr << "  " << in->path << " is not ready." << std::endl;
+              // cerr << "  " << in->path << " is not ready." << endl;
               ready = false;
               break;
             }
           }
           // run through outputs to check for conflicting writes
           for (auto out : test_command->outputs) {
-            // std::cerr << "Checking for conflicts to: " << out->path << std::endl;
+            // cerr << "Checking for conflicts to: " << out->path << endl;
             // check whether the file can conflict
             // if one of its conflicts are active, then this command is not ready
             if (out->is_pipe) {
@@ -875,10 +884,10 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
       if (this->pipe_cluster_unlaunched[run_command->pipe_cluster] == 0) {
         blocked_processes -= this->pipe_cluster_blocked[run_command->pipe_cluster];
       }
-      // std::cerr << "Pipe cluster " << run_command->pipe_cluster << " at " <<
+      // cerr << "Pipe cluster " << run_command->pipe_cluster << " at " <<
       // this->pipe_cluster_unlaunched[run_command->pipe_cluster] << "/" <<
-      // this->pipe_cluster_blocked[run_command->pipe_cluster] << std::endl; std::cerr << "  Blocked
-      // at " << blocked_processes << std::endl;
+      // this->pipe_cluster_blocked[run_command->pipe_cluster] << endl; cerr << "  Blocked
+      // at " << blocked_processes << endl;
 
       return run_command;
     }
@@ -889,7 +898,7 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
       bool found_fallback = false;
       for (size_t command_id = 0; command_id < commands_size; command_id++) {
         if (this->commands[command_id]->candidate_for_run && !this->commands[command_id]->rerun) {
-          // std::cerr << "Fallback: " << this->commands[command_id]->executable << std::endl;
+          // cerr << "Fallback: " << this->commands[command_id]->executable << endl;
           this->propagate_rerun_worklist.push(this->commands[command_id]);
           found_fallback = true;
           break;
@@ -899,7 +908,7 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
       if (found_fallback) {
         continue;
       } else {
-        std::cerr << "WARNING: Hit infinite loop. Ending build." << std::endl;
+        cerr << "WARNING: Hit infinite loop. Ending build." << endl;
         return nullptr;
       }
     }
@@ -911,16 +920,16 @@ old_command* RebuildState::rebuild(bool use_fingerprints, bool dry_run, size_t r
 void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_command* child_command) {
   auto old_files = this->old_graph.getFiles();
 
-  // std::cerr << child_command->executable << " has finished" << std::endl;
+  // cerr << child_command->executable << " has finished" << endl;
 
   // Finished processes were apparently not blocked
   if (this->pipe_cluster_unlaunched[child_command->pipe_cluster] > 0) {
     blocked_processes -= 1;
     this->pipe_cluster_blocked[child_command->pipe_cluster] -= 1;
-    // std::cerr << "Pipe cluster " << child_command->pipe_cluster << " at " <<
+    // cerr << "Pipe cluster " << child_command->pipe_cluster << " at " <<
     // this->pipe_cluster_unlaunched[child_command->pipe_cluster] << "/" <<
-    // this->pipe_cluster_blocked[child_command->pipe_cluster] << std::endl; std::cerr << "  Blocked
-    // at " << blocked_processes << std::endl;
+    // this->pipe_cluster_blocked[child_command->pipe_cluster] << endl; cerr << "  Blocked
+    // at " << blocked_processes << endl;
   }
 
   // Mark all outputs appropriately
@@ -934,7 +943,7 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_comman
           out->active = false;
         }
         for (auto reader : out->readers) {
-          if (reader->cluster_root->distance != std::numeric_limits<size_t>::max()) {
+          if (reader->cluster_root->distance != numeric_limits<size_t>::max()) {
             this->remove_edge(finished_command->cluster_root->distance, reader->cluster_root);
           }
         }
@@ -951,7 +960,7 @@ void RebuildState::mark_complete(bool use_fingerprints, bool dry_run, old_comman
   // if we were this file's last reader, mark it as no longer active
   for (auto in : child_command->inputs) {
     if (in->readers_complete == in->readers.size()) {
-      // std::cerr << "Finished with file: " << in->path << std::endl;
+      // cerr << "Finished with file: " << in->path << endl;
       in->active = false;
     }
   }
@@ -963,8 +972,7 @@ void RebuildState::visualize(bool show_sysfiles, bool show_collapsed) {
   draw_graph_nodes(&graph, show_collapsed, show_sysfiles, this->commands, this->files,
                    this->old_graph.getCommands().size(), this->old_graph.getFiles().size());
   draw_graph_command_edges(&graph, show_collapsed, show_sysfiles, this->commands, this->files,
-                           std::numeric_limits<size_t>::max(), 0,
-                           this->old_graph.getCommands().size());
+                           numeric_limits<size_t>::max(), 0, this->old_graph.getCommands().size());
   draw_graph_modification_edges(&graph, show_sysfiles, this->files,
                                 this->old_graph.getFiles().size());
   graph.close_graph();

@@ -7,6 +7,9 @@
 
 #include "ui/options.hh"
 
+using std::cerr;
+using std::move;
+
 #define COLOR_VERBOSE "\033[00;32m"
 #define COLOR_INFO "\033[01;34m"
 #define COLOR_WARNING "\033[01;33m"
@@ -31,20 +34,20 @@ class logger {
     if (_level >= options.log_threshold) {
       // Print source information, if enabled
       if (options.log_source_locations) {
-        if (options.color_output) std::cerr << COLOR_SOURCE;
-        std::cerr << "[" << source_file << ":" << source_line << "] ";
+        if (options.color_output) cerr << COLOR_SOURCE;
+        cerr << "[" << source_file << ":" << source_line << "] ";
       }
 
       // Set the log color
       if (options.color_output) {
         if (_level == LogLevel::Verbose) {
-          std::cerr << COLOR_VERBOSE;
+          cerr << COLOR_VERBOSE;
         } else if (_level == LogLevel::Info) {
-          std::cerr << COLOR_INFO;
+          cerr << COLOR_INFO;
         } else if (_level == LogLevel::Warning) {
-          std::cerr << COLOR_WARNING;
+          cerr << COLOR_WARNING;
         } else if (_level == LogLevel::Fatal) {
-          std::cerr << COLOR_FATAL;
+          cerr << COLOR_FATAL;
         }
       }
     }
@@ -60,8 +63,8 @@ class logger {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
       if (static_cast<int>(_level) >= static_cast<int>(options.log_threshold)) {
-        if (options.color_output) std::cerr << COLOR_END;
-        std::cerr << "\n";
+        if (options.color_output) cerr << COLOR_END;
+        cerr << "\n";
       }
 
       // If this log is a fatal
@@ -79,17 +82,17 @@ class logger {
     if (_level >= options.log_threshold) {
       for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < tab_size; j++) {
-          std::cerr << " ";
+          cerr << " ";
         }
       }
     }
-    return std::move(*this);
+    return move(*this);
   }
 
   template <typename T>
   logger&& operator<<(T t) {
-    if (_level >= options.log_threshold) std::cerr << t;
-    return std::move(*this);
+    if (_level >= options.log_threshold) cerr << t;
+    return move(*this);
   }
 };
 

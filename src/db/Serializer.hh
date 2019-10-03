@@ -12,22 +12,24 @@
 #include "core/File.hh"
 #include "ui/log.hh"
 
-struct Serializer {
+using std::map;
+using std::shared_ptr;
+using std::string;
+
+class Serializer {
  public:
-  Serializer(std::string output_path) : _output_path(output_path) {}
+  Serializer(string output_path) : _output_path(output_path) {}
 
-  bool hasFile(std::shared_ptr<File> f) const {
-    return _file_indices.find(f) != _file_indices.end();
-  }
+  bool hasFile(shared_ptr<File> f) const { return _file_indices.find(f) != _file_indices.end(); }
 
-  size_t getFileIndex(std::shared_ptr<File> f) const {
+  size_t getFileIndex(shared_ptr<File> f) const {
     auto iter = _file_indices.find(f);
     FAIL_IF(iter == _file_indices.end())
         << "Tried to serialize reference to untracked file " << f->getPath();
     return iter->second;
   }
 
-  void addFile(std::shared_ptr<File> f) {
+  void addFile(shared_ptr<File> f) {
     auto iter = _file_indices.find(f);
     if (iter == _file_indices.end()) {
       size_t index = _file_indices.size();
@@ -39,14 +41,14 @@ struct Serializer {
     }
   }
 
-  size_t getCommandIndex(std::shared_ptr<Command> c) const {
+  size_t getCommandIndex(shared_ptr<Command> c) const {
     auto iter = _command_indices.find(c);
     FAIL_IF(iter == _command_indices.end())
         << "Tried to serialize reference to untracked command " << c->getExecutable();
     return iter->second;
   }
 
-  void addCommand(std::shared_ptr<Command> c) {
+  void addCommand(shared_ptr<Command> c) {
     auto iter = _command_indices.find(c);
     if (iter == _command_indices.end()) {
       size_t index = _command_indices.size();
@@ -142,10 +144,10 @@ struct Serializer {
   }
 
  private:
-  std::string _output_path;
+  string _output_path;
 
-  std::map<std::shared_ptr<File>, size_t> _file_indices;
-  std::map<std::shared_ptr<Command>, size_t> _command_indices;
+  map<shared_ptr<File>, size_t> _file_indices;
+  map<shared_ptr<Command>, size_t> _command_indices;
 
   size_t _input_count = 0;
   size_t _output_count = 0;
