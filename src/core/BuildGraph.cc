@@ -1,8 +1,11 @@
 #include "core/BuildGraph.hh"
 
+#include <fcntl.h>
+#include <stdio.h>
+
 #include "core/File.hh"
-#include "db/db.capnp.h"
 #include "db/Serializer.hh"
+#include "db/db.capnp.h"
 #include "tracing/Tracer.hh"
 
 BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
@@ -20,7 +23,7 @@ BuildGraph::BuildGraph(std::string starting_dir) : _starting_dir(starting_dir) {
   auto stderr = std::make_shared<File>(*this, stderr_location, db::FileType::PIPE, "<<stderr>>");
   _files.push_front(stderr);
   _latest_versions.push_back(stderr);
-  
+
   _default_fds[0] = FileDescriptor(stdin->getLocation(), stdin, O_RDONLY, false);
   _default_fds[1] = FileDescriptor(stdout->getLocation(), stdout, O_WRONLY, false);
   _default_fds[2] = FileDescriptor(stderr->getLocation(), stderr, O_WRONLY, false);
@@ -50,7 +53,7 @@ std::shared_ptr<File> BuildGraph::getPipe(std::shared_ptr<Command> creator) {
       std::make_shared<File>(*this, location, db::FileType::PIPE, "", creator);
   addFile(f);
   _latest_versions.push_back(f);
-  
+
   return f;
 }
 

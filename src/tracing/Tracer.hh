@@ -9,14 +9,11 @@
 
 #include <sys/types.h>
 
-#include <kj/common.h>
-
 #include "core/FileDescriptor.hh"
-#include "tracing/ptrace.hh"
 
 class BuildGraph;
 class Command;
-class Process;
+class File;
 
 using std::list;
 using std::map;
@@ -38,7 +35,7 @@ class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
-  void run(shared_ptr<Command> cmd, vector<InitialFdEntry> initial_fds = {});
+  void run(shared_ptr<Command> cmd);
 
   void newProcess(pid_t pid, shared_ptr<Command> cmd);
 

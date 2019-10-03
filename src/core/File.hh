@@ -13,7 +13,6 @@
 
 class BuildGraph;
 class Command;
-class Process;
 class Serializer;
 
 // TODO: Move this into the File class.

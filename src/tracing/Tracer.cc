@@ -1,6 +1,8 @@
 #include "Tracer.hh"
 
-#include <vector>
+#include <cerrno>
+#include <cstdio>
+#include <utility>
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -9,10 +11,11 @@
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/File.hh"
+#include "tracing/ptrace.hh"
 #include "ui/log.hh"
 
-void Tracer::run(std::shared_ptr<Command> cmd, std::vector<InitialFdEntry> initial_fds) {
-  pid_t pid = start_command(cmd, initial_fds);
+void Tracer::run(std::shared_ptr<Command> cmd) {
+  pid_t pid = start_command(cmd, {});
 
   // TODO: Fix cwd handling
   _processes[pid] = std::make_shared<Process>(pid, ".", cmd, _graph.getDefaultFds());

@@ -7,8 +7,6 @@
 #include <string>
 #include <vector>
 
-#include <sys/types.h>
-
 #include "core/FileDescriptor.hh"
 
 class Command;
