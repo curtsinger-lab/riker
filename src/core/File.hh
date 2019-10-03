@@ -60,8 +60,6 @@ class File : public enable_shared_from_this<File> {
 
   bool isLocal() const;
 
-  void traceRead(shared_ptr<Command> c);
-
   shared_ptr<File> traceWrite(shared_ptr<Command> c);
 
   /****** Getters and setters ******/
@@ -87,8 +85,6 @@ class File : public enable_shared_from_this<File> {
   shared_ptr<Command> getWriter() const { return _writer; }
   bool isWritten() const { return getWriter() != nullptr; }
 
-  unsigned int getVersion() const { return _version; }
-
   bool isRemoved() const { return _removed; }
   void setRemoved(bool r = true) { _removed = r; }
 
@@ -99,9 +95,8 @@ class File : public enable_shared_from_this<File> {
   string _path;                       // The path to this file
   uint16_t _mode;                     // The file's access mode
   set<shared_ptr<Command>> _readers;  // Commands that read this file
-  set<shared_ptr<Command>> _mmaps;        // Commands that currently have an mmap of this file
+  set<shared_ptr<Command>> _mmaps;    // Commands that currently have an mmap of this file
 
-  unsigned int _version = 0;  // The version number of this file
   shared_ptr<File> _prev_version;
   shared_ptr<File> _next_version;
 

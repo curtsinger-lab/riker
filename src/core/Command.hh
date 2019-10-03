@@ -45,9 +45,11 @@ class Command : public enable_shared_from_this<Command> {
 
   size_t numDescendants();
 
-  void addInput(shared_ptr<File> f);
+  void addInput(shared_ptr<File> f) {
+    if (_outputs.find(f) != _outputs.end()) _inputs.insert(f);
+  }
 
-  void traceModify(shared_ptr<File> f);
+  void addOutput(shared_ptr<File> f) { _outputs.insert(f); }
 
   void traceCreate(shared_ptr<File> f);
 

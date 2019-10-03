@@ -33,7 +33,6 @@ shared_ptr<File> File::createVersion(shared_ptr<Command> creator) {
 
   shared_ptr<File> f = make_shared<File>(_graph, _location, _type, _path, creator);
   _graph.addFile(f);
-  f->_version++;
   f->_prev_version = shared_from_this();
   _next_version = f;
   _graph.setLatestVersion(_location, f);
@@ -90,10 +89,6 @@ bool File::isLocal() const {
 
   // If path is absolute, it's not local
   return _path[0] != '/';
-}
-
-void File::traceRead(shared_ptr<Command> c) {
-  addReader(c);
 }
 
 shared_ptr<File> File::traceWrite(shared_ptr<Command> c) {

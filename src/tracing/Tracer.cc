@@ -188,7 +188,8 @@ void Tracer::traceMmap(pid_t pid, int fd) {
   }
   
   if (desc.access_mode != O_RDONLY) {
-    proc->_command->traceModify(f);
+    auto new_f = f->traceWrite(proc->_command);
+    proc->_command->addOutput(new_f);
   }
 }
 
@@ -212,7 +213,9 @@ void Tracer::traceModify(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
-  proc->_command->traceModify(f);
+  
+  auto new_f = f->traceWrite(proc->_command);
+  proc->_command->addOutput(new_f);
 }
 
 void Tracer::traceCreate(pid_t pid, struct file_reference& file) {

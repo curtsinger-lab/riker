@@ -22,21 +22,6 @@ shared_ptr<Command> Command::createChild(string cmd, const list<string>& args) {
   return child;
 }
 
-void Command::addInput(shared_ptr<File> f) {
-  // This file is now an input, unless we've also written to it
-  if (_outputs.find(f) != _outputs.end()) {
-    _inputs.insert(f);
-  }
-}
-
-void Command::traceModify(shared_ptr<File> f) {
-  // Record this command's effect on the file
-  auto new_f = f->traceWrite(shared_from_this());
-
-  // This file is now an output
-  _outputs.insert(new_f);
-}
-
 void Command::traceCreate(shared_ptr<File> f) {
   if (f->isCreated() && !f->isWritten()) {
     bool file_exists;
