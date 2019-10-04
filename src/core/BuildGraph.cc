@@ -20,11 +20,11 @@ BuildGraph::BuildGraph(string exe, list<string> args) {
                                   {1, FileDescriptor(getPipe("<<stdout>>"), O_WRONLY, false)},
                                   {2, FileDescriptor(getPipe("<<stderr>>"), O_WRONLY, false)}};
   _root = make_shared<Command>(exe, args, fds);
-  INFO << "BuildGraph initialized with command " << _root;
+  INFO << "BuildGraph initialized with root " << _root;
 }
 
 void BuildGraph::run(Tracer& tracer) {
-  tracer.run(_root);
+  if (_root) tracer.run(_root);
 }
 
 shared_ptr<File> BuildGraph::getFile(string path) {

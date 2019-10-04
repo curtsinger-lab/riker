@@ -28,7 +28,7 @@ class Command {
  private:
   Command(string exe, list<string> args, map<int, FileDescriptor> fds, Command* parent) :
       _id(next_id++),
-      _depth(parent->_depth+1),
+      _depth(parent->_depth + 1),
       _exe(exe),
       _args(args),
       _initial_fds(fds) {}
@@ -50,25 +50,33 @@ class Command {
   Command& operator=(Command&&) = default;
 
   /****** Non-trivial methods ******/
-  
+
   const string getShortName() const;
 
   shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   size_t numDescendants();
 
-  void addInput(shared_ptr<File::Version> f) {
-    if (_outputs.find(f) != _outputs.end()) _inputs.insert(f);
+  /// Add an int edge from a file version to this command. Return true if this is a new edge.
+  bool addInput(shared_ptr<File::Version> f) {
+    if (_inputs.find(f) != _inputs.end()) return false;
+    _inputs.insert(f);
+    return true;
   }
 
-  void addOutput(shared_ptr<File::Version> f) { _outputs.insert(f); }
+  /// Add an output edge from this command to a file version. Return true if this is a new edge.
+  bool addOutput(shared_ptr<File::Version> f) {
+    if (_outputs.find(f) != _outputs.end()) return false;
+    _outputs.insert(f);
+    return true;
+  }
 
   void serialize(const Serializer& serializer, db::Command::Builder builder);
 
   /****** Getters and setters ******/
-  
+
   size_t getId() const { return _id; }
-  
+
   size_t getDepth() const { return _depth; }
 
   const string& getExecutable() const { return _exe; }

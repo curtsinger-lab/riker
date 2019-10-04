@@ -26,27 +26,47 @@
 #include "ui/options.hh"
 
 using std::make_shared;
+using std::ostream;
 using std::shared_ptr;
+
+size_t File::next_id = 0;
+
+ostream& operator<<(ostream& o, const File* f) {
+  string type = "File";
+  
+  if (f->getType() == File::Type::PIPE) {
+    type = "Pipe";
+  } else if (f->getType() == File::Type::DIRECTORY) {
+    type = "Dir";
+  }
+  
+  o << "[" << type;
+  if (f->getPath() != "") o << " " << f->getPath();
+  o << "]";
+  return o;
+}
+
+ostream& operator<<(ostream& o, const File::Version* v) {
+  return o << v->getFile() << "@" << v->getIndex();
+}
 
 void File::createdBy(shared_ptr<Command> c) {
   // Tag a new created version
-  auto v = Version::make_shared(Version::Action::CREATE, c);
-  _versions.push_back(v);
+  auto v = makeVersion(Version::Action::CREATE, c);
 
   // Record the output edge from the command
-  c->addOutput(v);
+  if (c->addOutput(v)) INFO << v << " created by " << c;
 }
 
 void File::readBy(shared_ptr<Command> c) {
   // If this file has no previous versions, tag a version that references an existing file
   if (_versions.size() == 0) {
     // A reference version has no creator
-    auto v = Version::make_shared(Version::Action::REFERENCE);
-    _versions.push_back(v);
+    auto v = makeVersion(Version::Action::REFERENCE);
   }
 
   // Record the dependency
-  c->addInput(_versions.back());
+  if (c->addInput(_versions.back())) INFO << c << " read " << _versions.back();
 }
 
 void File::writtenBy(shared_ptr<Command> c) {
@@ -60,29 +80,26 @@ void File::writtenBy(shared_ptr<Command> c) {
   }
 
   // Otherwise we tag a new written version
-  auto v = Version::make_shared(Version::Action::WRITE, c);
-  _versions.push_back(v);
+  auto v = makeVersion(Version::Action::WRITE, c);
 
   // Record the output edge
-  c->addOutput(v);
+  if (c->addOutput(v)) INFO << c << " wrote " << v;
 }
 
 void File::truncatedBy(shared_ptr<Command> c) {
   // Tag a truncated version
-  auto v = Version::make_shared(Version::Action::TRUNCATE, c);
-  _versions.push_back(v);
+  auto v = makeVersion(Version::Action::TRUNCATE, c);
 
   // Record the output edge
-  c->addOutput(v);
+  if (c->addOutput(v)) INFO << c << " truncated " << v;
 }
 
 void File::deletedBy(shared_ptr<Command> c) {
   // Tag a deleted version
-  auto v = Version::make_shared(Version::Action::DELETE, c);
-  _versions.push_back(v);
+  auto v = makeVersion(Version::Action::DELETE, c);
 
   // Record the output edge
-  c->addOutput(v);
+  if (c->addOutput(v)) INFO << c << " deleted " << v;
 }
 
 void File::serialize(Serializer& serializer, db::File::Builder builder) {}

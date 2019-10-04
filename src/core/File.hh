@@ -15,17 +15,14 @@ class BuildGraph;
 class Command;
 class Serializer;
 
+using std::enable_shared_from_this;
+using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
 
-// TODO: Move this into the File class.
-// Before that can happen, we'll need to update the code to inflate the loaded graph into File
-// objects.
-bool match_fingerprint(db::File::Reader file);
-
-class File {
+class File : public enable_shared_from_this<File> {
  public:
   /// Alias for file types (see src/db/db.capnp)
   using Type = db::File::Type;
@@ -54,17 +51,22 @@ class File {
     using Action = db::File::Version::Action::Which;
 
     /// Private constructor
-    Version(Action action, shared_ptr<Command> writer) : _action(action), _writer(writer) {}
+    Version(shared_ptr<File> file, size_t index, Action action, shared_ptr<Command> writer) :
+        _file(file),
+        _index(index),
+        _action(action),
+        _writer(writer) {}
 
-    /// Utility for making a shared_ptr to a Version
-    static shared_ptr<Version> make_shared(Action a, shared_ptr<Command> c = nullptr) {
-      return shared_ptr<Version>(new Version(a, c));
-    }
+   public:
+    shared_ptr<File> getFile() const { return _file; }
+    size_t getIndex() const { return _index; }
+    Action getAction() const { return _action; }
 
    private:
-    Action _action;                     //< The action that created this version
-    shared_ptr<Command> _writer;        //< The command that created this file version
-    set<shared_ptr<Command>> _readers;  //< A set of commands that read this file version
+    shared_ptr<File> _file;       //< The file this is a version of
+    size_t _index;                //< The index of this version
+    Action _action;               //< The action that created this version
+    shared_ptr<Command> _writer;  //< The command that created this file version
 
     bool _has_metadata = false;
     struct stat _metadata;
@@ -74,7 +76,7 @@ class File {
   };
 
   /****** Constructors ******/
-  File(string path, Type type = Type::UNKNOWN) : _path(path), _type(type) {}
+  File(string path, Type type = Type::UNKNOWN) : _id(next_id++), _path(path), _type(type) {}
 
   // Disallow Copy
   File(const File&) = delete;
@@ -100,12 +102,29 @@ class File {
 
   /****** Getters and setters ******/
 
+  size_t getId() const { return _id; }
+
   const string& getPath() const { return _path; }
+
+  Type getType() const { return _type; }
 
   bool isLocal() const { return _path[0] != '/'; }
 
  private:
+  shared_ptr<Version> makeVersion(Version::Action a, shared_ptr<Command> c = nullptr) {
+    auto v = shared_ptr<Version>(new Version(shared_from_this(), _versions.size(), a, c));
+    _versions.push_back(v);
+    return v;
+  }
+
+ private:
+  size_t _id;
   string _path;                           //< The absolute, normalized path to this file
   Type _type = Type::UNKNOWN;             //< The type of file being tracked
   vector<shared_ptr<Version>> _versions;  //< The sequence of versions of this file
+
+  static size_t next_id;
 };
+
+ostream& operator<<(ostream& o, const File* f);
+ostream& operator<<(ostream& o, const File::Version* v);
