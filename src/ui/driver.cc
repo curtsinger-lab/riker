@@ -166,7 +166,8 @@ int main(int argc, char* argv[]) {
 
   // If the database doesn't exist, run a default build
   if (db_fd != -1) {
-    // TODO: Deserialize the build graph
+    // TODO: Deserialize the build graph. For now, just initialize a fresh graph
+    graph = BuildGraph("Dodofile", {"Dodofile"});
 
   } else {
     graph = BuildGraph("Dodofile", {"Dodofile"});

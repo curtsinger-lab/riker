@@ -13,25 +13,31 @@
 
 class Serializer;
 
-using std::enable_shared_from_this;
 using std::list;
 using std::map;
+using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
 
-class Command : public enable_shared_from_this<Command> {
+class Command;
+ostream& operator<<(ostream& o, const Command* c);
+
+class Command {
   /****** Constructors ******/
  private:
-  Command(string cmd, list<string> args, map<int, FileDescriptor> fds, shared_ptr<Command> parent) :
-      _cmd(cmd),
+  Command(string exe, list<string> args, map<int, FileDescriptor> fds, Command* parent) :
+      _id(next_id++),
+      _depth(parent->_depth+1),
+      _exe(exe),
       _args(args),
-      _parent(parent),
       _initial_fds(fds) {}
 
  public:
-  Command(string cmd, list<string> args, map<int, FileDescriptor> fds) :
-      _cmd(cmd),
+  Command(string exe, list<string> args, map<int, FileDescriptor> fds) :
+      _id(next_id++),
+      _depth(0),
+      _exe(exe),
       _args(args),
       _initial_fds(fds) {}
 
@@ -44,8 +50,10 @@ class Command : public enable_shared_from_this<Command> {
   Command& operator=(Command&&) = default;
 
   /****** Non-trivial methods ******/
+  
+  const string getShortName() const;
 
-  shared_ptr<Command> createChild(string cmd, list<string> args, map<int, FileDescriptor> fds);
+  shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   size_t numDescendants();
 
@@ -58,8 +66,12 @@ class Command : public enable_shared_from_this<Command> {
   void serialize(const Serializer& serializer, db::Command::Builder builder);
 
   /****** Getters and setters ******/
+  
+  size_t getId() const { return _id; }
+  
+  size_t getDepth() const { return _depth; }
 
-  const string& getExecutable() const { return _cmd; }
+  const string& getExecutable() const { return _exe; }
 
   const list<string>& getArguments() const { return _args; }
 
@@ -70,11 +82,14 @@ class Command : public enable_shared_from_this<Command> {
   void setInitialFDs(const map<int, FileDescriptor>& fds) { _initial_fds = fds; }
 
  private:
-  string _cmd;
+  size_t _id;
+  size_t _depth;
+  string _exe;
   list<string> _args;
-  shared_ptr<Command> _parent;
   list<shared_ptr<Command>> _children;
   set<shared_ptr<File::Version>> _inputs;
   set<shared_ptr<File::Version>> _outputs;
   map<int, FileDescriptor> _initial_fds;
+
+  static size_t next_id;
 };
