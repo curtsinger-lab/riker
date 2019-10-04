@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 
 class Command;
@@ -23,8 +24,9 @@ using std::vector;
 class BuildGraph {
  public:
   /****** Constructors ******/
-
-  BuildGraph(string starting_dir);
+  BuildGraph() {}
+  
+  BuildGraph(string exe, list<string> args);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;
@@ -42,25 +44,11 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  void setRootCommand(shared_ptr<Command> cmd) { _root = cmd; }
-
-  string getStartingDir() { return _starting_dir; }
-
-  shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
-  void setLatestVersion(size_t index, shared_ptr<File> f) { _latest_versions[index] = f; }
-
-  void addFile(shared_ptr<File> f) { _files.emplace_front(f); }
-
   shared_ptr<File> getFile(string path);
 
-  shared_ptr<File> getPipe(shared_ptr<Command> creator);
-
-  map<int, FileDescriptor> getDefaultFds() const { return _default_fds; }
+  shared_ptr<File> getPipe(string name = "");
 
  private:
-  string _starting_dir;
   shared_ptr<Command> _root;
-  vector<shared_ptr<File>> _latest_versions;
-  list<shared_ptr<File>> _files;
-  map<int, FileDescriptor> _default_fds;
+  map<string, shared_ptr<File>> _current_files;
 };

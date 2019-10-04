@@ -44,6 +44,8 @@ class Tracer {
   void traceRead(pid_t pid, struct file_reference& file);
 
   void traceModify(pid_t pid, struct file_reference& file);
+  
+  void traceTruncate(pid_t pid, struct file_reference& file);
 
   void traceCreate(pid_t pid, struct file_reference& file);
 

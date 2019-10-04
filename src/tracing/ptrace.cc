@@ -723,8 +723,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
         case /* 76 */ __NR_truncate:
         case /* 77 */ __NR_ftruncate:
           if (registers.SYSCALL_ARG2 == 0) {
-            tracer.traceRemove(child, main_file);
-            tracer.traceCreate(child, main_file);
+            tracer.traceTruncate(child, main_file);
           } else {
             tracer.traceModify(child, main_file);
           }

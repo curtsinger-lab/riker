@@ -34,10 +34,6 @@ class Serializer {
     if (iter == _file_indices.end()) {
       size_t index = _file_indices.size();
       _file_indices[f] = index;
-
-      _input_count += f->getReaders().size();
-      if (f->isWritten()) _output_count++;
-      if (f->isCreated()) _create_count++;
     }
   }
 
@@ -81,60 +77,6 @@ class Serializer {
       entry.first->serialize(*this, commands[entry.second]);
     }
 
-    // Reserve space for dependency edges
-    auto inputs = graph.initInputs(_input_count);
-    size_t input_index = 0;
-
-    auto outputs = graph.initOutputs(_output_count);
-    size_t output_index = 0;
-
-    auto creations = graph.initCreations(_create_count);
-    size_t create_index = 0;
-
-    // Serialize dependency edges
-    for (auto iter : _file_indices) {
-      auto file = iter.first;
-      auto file_id = iter.second;
-
-      for (auto user : file->getReaders()) {
-        inputs[input_index].setInputID(file_id);
-        inputs[input_index].setOutputID(getCommandIndex(user));
-        input_index++;
-      }
-
-      if (file->isWritten()) {
-        outputs[output_index].setInputID(getCommandIndex(file->getWriter()));
-        outputs[output_index].setOutputID(file_id);
-        output_index++;
-      }
-
-      if (file->isCreated()) {
-        creations[create_index].setInputID(getCommandIndex(file->getCreator()));
-        creations[create_index].setOutputID(file_id);
-        create_index++;
-      }
-    }
-
-    // Serialize removal edges
-    size_t removal_count = 0;
-    for (auto c : _command_indices) {
-      for (auto f : c.first->getDeletedFiles()) {
-        if (hasFile(f)) removal_count++;
-      }
-    }
-
-    auto removals = graph.initRemovals(removal_count);
-    size_t removal_index = 0;
-    for (auto c : _command_indices) {
-      for (auto f : c.first->getDeletedFiles()) {
-        if (hasFile(f)) {
-          removals[removal_index].setInputID(c.second);
-          removals[removal_index].setOutputID(getFileIndex(f));
-          removal_index++;
-        }
-      }
-    }
-
     // Write the serialized message out to file
     int db_file = open(_output_path.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
                        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
@@ -148,8 +90,4 @@ class Serializer {
 
   map<shared_ptr<File>, size_t> _file_indices;
   map<shared_ptr<Command>, size_t> _command_indices;
-
-  size_t _input_count = 0;
-  size_t _output_count = 0;
-  size_t _create_count = 0;
 };

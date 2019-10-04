@@ -15,7 +15,6 @@ class BuildGraph;
 class Command;
 class Serializer;
 
-using std::enable_shared_from_this;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -26,16 +25,56 @@ using std::vector;
 // objects.
 bool match_fingerprint(db::File::Reader file);
 
-class File : public enable_shared_from_this<File> {
+class File {
  public:
+  /// Alias for file types (see src/db/db.capnp)
+  using Type = db::File::Type;
+
+  /**
+   * A Version holds information about a file in a particular state.
+   *
+   * A file may have many versions. For each version of a file, there is at most one writer, and an
+   * arbitrary number of readers. Writing a file will create a new version, as will creating or
+   * deleting a file. Creation and deletion are "special" types of writing that create new versions.
+   *
+   * While Processes will reference Files in their file descriptor tables, Commands depend on and
+   * modify specific versions of files.
+   *
+   * A command that writes to a file without replacing all of its contents will have a read
+   * dependency on the previous version, and creates a new version with updated contents. However,
+   * if the command completely replaced the contents of the file (e.g. by opening it with O_TRUNC)
+   * the command creates a new version without a read dependency on the old version.
+   */
+  class Version {
+   private:
+    // File should have access to File::Version fields
+    friend class File;
+
+    /// Track the types of actions that can create versions (see src/db/db.capnp)
+    using Action = db::File::Version::Action::Which;
+
+    /// Private constructor
+    Version(Action action, shared_ptr<Command> writer) : _action(action), _writer(writer) {}
+
+    /// Utility for making a shared_ptr to a Version
+    static shared_ptr<Version> make_shared(Action a, shared_ptr<Command> c = nullptr) {
+      return shared_ptr<Version>(new Version(a, c));
+    }
+
+   private:
+    Action _action;                     //< The action that created this version
+    shared_ptr<Command> _writer;        //< The command that created this file version
+    set<shared_ptr<Command>> _readers;  //< A set of commands that read this file version
+
+    bool _has_metadata = false;
+    struct stat _metadata;
+
+    bool _has_fingerprint = false;
+    vector<uint8_t> _fingerprint;
+  };
+
   /****** Constructors ******/
-  File(BuildGraph& graph, size_t location, db::FileType type, string path,
-       shared_ptr<Command> creator = nullptr) :
-      _graph(graph),
-      _location(location),
-      _type(type),
-      _path(path),
-      _creator(creator) {}
+  File(string path, Type type = Type::UNKNOWN) : _path(path), _type(type) {}
 
   // Disallow Copy
   File(const File&) = delete;
@@ -43,67 +82,30 @@ class File : public enable_shared_from_this<File> {
 
   // Allow Move
   File(File&&) = default;
+  File& operator=(File&&) = default;
 
   /****** Non-trivial methods ******/
 
-  shared_ptr<File> createVersion(shared_ptr<Command> creator = nullptr);
+  void createdBy(shared_ptr<Command> c);
 
-  void fingerprint();
+  void readBy(shared_ptr<Command> c);
+
+  void writtenBy(shared_ptr<Command> c);
+
+  void truncatedBy(shared_ptr<Command> c);
+
+  void deletedBy(shared_ptr<Command> c);
 
   void serialize(Serializer& serializer, db::File::Builder builder);
-
-  shared_ptr<File> getLatestVersion();
-
-  bool isModified() const;
-
-  bool isLocal() const;
-
-  shared_ptr<File> traceWrite(shared_ptr<Command> c);
-  
-  shared_ptr<File> traceRemove(shared_ptr<Command> c);
 
   /****** Getters and setters ******/
 
   const string& getPath() const { return _path; }
 
-  bool isPipe() const { return _type == db::FileType::PIPE; }
-
-  void setMode(uint16_t mode) { _mode = mode; }
-
-  size_t getLocation() const { return _location; }
-
-  void addMmap(shared_ptr<Command> c) { _mmaps.insert(c); }
-  void removeMmap(shared_ptr<Command> c) { _mmaps.erase(c); }
-
-  const set<shared_ptr<Command>>& getReaders() const { return _readers; }
-  void addReader(shared_ptr<Command> c) { _readers.insert(c); }
-  bool isRead() const { return !_readers.empty(); }
-
-  shared_ptr<Command> getCreator() const { return _creator; }
-  bool isCreated() const { return getCreator() != nullptr; }
-
-  shared_ptr<Command> getWriter() const { return _writer; }
-  bool isWritten() const { return getWriter() != nullptr; }
-
-  bool isRemoved() const { return _removed; }
+  bool isLocal() const { return _path[0] != '/'; }
 
  private:
-  BuildGraph& _graph;                 // A reference to the trace this file is part of
-  size_t _location;                   // This file's index in the BuildGraph::latest_versions map
-  db::FileType _type;                 // The type of file
-  string _path;                       // The path to this file
-  uint16_t _mode;                     // The file's access mode
-  set<shared_ptr<Command>> _readers;  // Commands that read this file
-  set<shared_ptr<Command>> _mmaps;    // Commands that currently have an mmap of this file
-
-  shared_ptr<File> _prev_version;
-  shared_ptr<File> _next_version;
-
-  bool _removed = false;
-  shared_ptr<Command> _creator;
-  shared_ptr<Command> _writer = nullptr;
-
-  db::FingerprintType _fingerprint_type = db::FingerprintType::NONEXISTENT;
-  struct stat _stat_info;
-  vector<uint8_t> _checksum;
+  string _path;                           //< The absolute, normalized path to this file
+  Type _type = Type::UNKNOWN;             //< The type of file being tracked
+  vector<shared_ptr<Version>> _versions;  //< The sequence of versions of this file
 };

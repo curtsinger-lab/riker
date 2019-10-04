@@ -23,7 +23,7 @@ void Tracer::run(shared_ptr<Command> cmd) {
   pid_t pid = start_command(cmd, {});
 
   // TODO: Fix cwd handling
-  _processes[pid] = make_shared<Process>(pid, ".", cmd, _graph.getDefaultFds());
+  _processes[pid] = make_shared<Process>(pid, ".", cmd, cmd->getInitialFDs());
 
   while (true) {
     int wait_status;
@@ -44,7 +44,7 @@ void Tracer::run(shared_ptr<Command> cmd) {
 }
 
 void Tracer::newProcess(pid_t pid, shared_ptr<Command> cmd) {
-  Process* proc = new Process(pid, ".", cmd, _graph.getDefaultFds());
+  Process* proc = new Process(pid, ".", cmd, cmd->getInitialFDs());
   _processes.emplace(pid, proc);
 }
 
@@ -79,64 +79,42 @@ void Tracer::traceExec(pid_t pid, string executable, const list<string>& args) {
     }
   }
 
-  // Close all mmaps, since the address space is replaced
-  for (auto file : proc->_mmaps) {
-    file->removeMmap(proc->_command);
-  }
-
   // Create the new command
-  proc->_command = proc->_command->createChild(executable, args);
-
-  // Mark the initial open file descriptors
-  for (auto iter : proc->_fds) {
-    iter.second.file = _graph.getLatestVersion(iter.second.location_index);
-  }
-  proc->_command->setInitialFDs(proc->_fds);
-
-  // Assume that we can at any time write to stdout or stderr
-  // TODO: Instead of checking whether we know about stdout and stderr,
-  // tread the initial stdout and stderr properly as pipes
-  if (proc->_fds.find(fileno(stdout)) != proc->_fds.end()) {
-    traceMmap(pid, fileno(stdout));
-  }
-  if (proc->_fds.find(fileno(stderr)) != proc->_fds.end()) {
-    traceMmap(pid, fileno(stderr));
-  }
+  proc->_command = proc->_command->createChild(executable, args, proc->_fds);
 
   // The new command depends on its executable file
-  auto f = _graph.getFile(executable);
-  proc->_command->addInput(f);
-  f->addReader(proc->_command);
+  _graph.getFile(executable)->readBy(proc->_command);
 }
 
-void Tracer::traceExit(pid_t pid) {
-  auto proc = _processes[pid];
-  for (auto f : proc->_mmaps) {
-    f->removeMmap(proc->_command);
-  }
-}
+void Tracer::traceExit(pid_t pid) {}
 
 void Tracer::traceOpen(pid_t pid, int fd, string path, int flags, mode_t mode) {
   auto f = _graph.getFile(path);
   auto proc = _processes[pid];
 
   int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
-
-  // Dropped this when moving out of ptrace.cc. This seems like it was wrong anyway...
-  /*if ((flags & O_EXCL) != 0 || (flags & O_NOFOLLOW) != 0) {
-    main_file.follow_links = false;
-  }*/
-
-  bool rewrite = ((flags & O_EXCL) != 0 || (flags & O_TRUNC) != 0);
   bool cloexec = (flags & O_CLOEXEC) != 0;
+  bool truncated = (flags & O_TRUNC) != 0;
+  bool created = (flags & O_CREAT) != 0;
 
-  if (rewrite && (f->getCreator() != proc->_command || f->isWritten())) {
-    auto newfile = f->createVersion(proc->_command);
-    newfile->setMode(mode);
-    proc->_fds[fd] = FileDescriptor(f->getLocation(), newfile, access_mode, cloexec);
-  } else {
-    proc->_fds[fd] = FileDescriptor(f->getLocation(), f, access_mode, cloexec);
+  // Record the file descriptor entry
+  proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
+
+  // Check if the file exists
+  struct stat info;
+  bool file_exists = (stat(path.c_str(), &info) == 0);
+
+  // Log interaction differently depending on how the open call happened.
+  if (file_exists && truncated) {
+    // Truncate existing file
+    f->truncatedBy(proc->_command);
+
+  } else if (!file_exists && created) {
+    // Create a new file
+    f->createdBy(proc->_command);
   }
+
+  // Otherwise, no interaction yet until we do something with the file
 }
 
 void Tracer::traceClose(pid_t pid, int fd) {
@@ -145,11 +123,10 @@ void Tracer::traceClose(pid_t pid, int fd) {
 
 void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
+  auto f = _graph.getPipe();
 
-  auto f = _graph.getPipe(proc->_command);
-
-  proc->_fds[fds[0]] = FileDescriptor(f->getLocation(), f, O_RDONLY, cloexec);
-  proc->_fds[fds[1]] = FileDescriptor(f->getLocation(), f, O_WRONLY, cloexec);
+  proc->_fds[fds[0]] = FileDescriptor(f, O_RDONLY, cloexec);
+  proc->_fds[fds[1]] = FileDescriptor(f, O_WRONLY, cloexec);
 }
 
 void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
@@ -158,8 +135,7 @@ void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   if (duped_file == proc->_fds.end()) {
     proc->_fds.erase(new_fd);
   } else {
-    proc->_fds[new_fd] = FileDescriptor(duped_file->second.location_index, duped_file->second.file,
-                                        duped_file->second.access_mode, cloexec);
+    proc->_fds[new_fd] = proc->_fds[duped_fd];
   }
 }
 
@@ -172,25 +148,7 @@ void Tracer::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
 }
 
 void Tracer::traceMmap(pid_t pid, int fd) {
-  auto proc = _processes[pid];
-
-  auto& desc = proc->_fds[fd];
-  // Get the latest version of this file.
-  // FIXME: This will do the wrong thing if a new file was placed at the same path after it was
-  // opened by the current process.
-  auto f = desc.file->getLatestVersion();
-  f->addMmap(proc->_command);
-  proc->_mmaps.insert(f);
-
-  if (desc.access_mode != O_WRONLY) {
-    proc->_command->addInput(f);
-    f->addReader(proc->_command);
-  }
-  
-  if (desc.access_mode != O_RDONLY) {
-    auto new_f = f->traceWrite(proc->_command);
-    proc->_command->addOutput(new_f);
-  }
+  // TODO
 }
 
 void Tracer::traceRead(pid_t pid, struct file_reference& file) {
@@ -201,8 +159,8 @@ void Tracer::traceRead(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
-  proc->_command->addInput(f);
-  f->addReader(proc->_command);
+  
+  f->readBy(proc->_command);
 }
 
 void Tracer::traceModify(pid_t pid, struct file_reference& file) {
@@ -213,9 +171,20 @@ void Tracer::traceModify(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
+
+  f->writtenBy(proc->_command);
+}
+
+void Tracer::traceTruncate(pid_t pid, struct file_reference& file) {
+  auto proc = _processes[pid];
+  shared_ptr<File> f;
+  if (file.fd == AT_FDCWD) {
+    f = _graph.getFile(file.path);
+  } else {
+    f = proc->_fds[file.fd].file;
+  }
   
-  auto new_f = f->traceWrite(proc->_command);
-  proc->_command->addOutput(new_f);
+  f->truncatedBy(proc->_command);
 }
 
 void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
@@ -226,7 +195,8 @@ void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
-  proc->_command->traceCreate(f);
+  
+  f->createdBy(proc->_command);
 }
 
 void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
@@ -237,7 +207,6 @@ void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
   } else {
     f = proc->_fds[file.fd].file;
   }
-  
-  auto new_f = f->traceRemove(proc->_command);
-  proc->_command->addDeletedFile(new_f);
+
+  f->deletedBy(proc->_command);
 }
