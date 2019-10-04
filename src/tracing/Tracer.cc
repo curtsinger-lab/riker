@@ -43,11 +43,6 @@ void Tracer::run(shared_ptr<Command> cmd) {
   }
 }
 
-void Tracer::newProcess(pid_t pid, shared_ptr<Command> cmd) {
-  Process* proc = new Process(pid, ".", cmd, cmd->getInitialFDs());
-  _processes.emplace(pid, proc);
-}
-
 void Tracer::traceChdir(pid_t pid, string path) {
   _processes[pid]->_cwd = path;
 }
@@ -115,15 +110,25 @@ void Tracer::traceOpen(pid_t pid, int fd, string path, int flags, mode_t mode) {
   }
 
   // Otherwise, no interaction yet until we do something with the file
+  
+  LOG << proc->_command << " opened " << f;
 }
 
 void Tracer::traceClose(pid_t pid, int fd) {
-  _processes[pid]->_fds.erase(fd);
+  auto proc = _processes[pid];
+  auto f = proc->_fds[fd].file;
+  
+  // Log the event if there was actually a valid file descriptor
+  if (f) LOG << proc->_command << " closed " << proc->_fds[fd].file;
+  
+  proc->_fds.erase(fd);
 }
 
 void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
   auto f = _graph.getPipe();
+  
+  f->createdBy(proc->_command);
 
   proc->_fds[fds[0]] = FileDescriptor(f, O_RDONLY, cloexec);
   proc->_fds[fds[1]] = FileDescriptor(f, O_WRONLY, cloexec);
@@ -131,6 +136,12 @@ void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
 
 void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   auto proc = _processes[pid];
+  
+  auto target_fd = proc->_fds.find(new_fd);
+  if (target_fd != proc->_fds.end()) {
+    LOG << proc->_command << " closed " << proc->_fds[new_fd].file << " via dup";
+  }
+  
   auto duped_file = proc->_fds.find(duped_fd);
   if (duped_file == proc->_fds.end()) {
     proc->_fds.erase(new_fd);
@@ -151,62 +162,60 @@ void Tracer::traceMmap(pid_t pid, int fd) {
   // TODO
 }
 
-void Tracer::traceRead(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
+shared_ptr<File> Tracer::resolveFileRef(shared_ptr<Process> proc, struct file_reference& file) {
   shared_ptr<File> f;
   if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
   } else {
     f = proc->_fds[file.fd].file;
   }
-  
-  f->readBy(proc->_command);
+
+  if (!f) {
+    WARN << "Unable to resolve file in " << proc->_command;
+    WARN << "  fd: " << file.fd;
+    WARN << "  path: " << file.path;
+    WARN << "FDs:";
+    for (auto entry : proc->_fds) {
+      int index = entry.first;
+      auto file = entry.second.file;
+      
+      if (file) {
+        WARN << "  " << index << ": " << file;
+      } else {
+        WARN << "  " << index << ": INVALID";
+      }
+    }
+  }
+
+  return f;
+}
+
+void Tracer::traceRead(pid_t pid, struct file_reference& file) {
+  auto proc = _processes[pid];
+  auto f = resolveFileRef(proc, file);
+  if (f) f->readBy(proc->_command);
 }
 
 void Tracer::traceModify(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
-  shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) {
-    f = _graph.getFile(file.path);
-  } else {
-    f = proc->_fds[file.fd].file;
-  }
-
-  f->writtenBy(proc->_command);
+  auto f = resolveFileRef(proc, file);
+  if (f) f->writtenBy(proc->_command);
 }
 
 void Tracer::traceTruncate(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
-  shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) {
-    f = _graph.getFile(file.path);
-  } else {
-    f = proc->_fds[file.fd].file;
-  }
-  
-  f->truncatedBy(proc->_command);
+  auto f = resolveFileRef(proc, file);
+  if (f) f->truncatedBy(proc->_command);
 }
 
 void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
-  shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) {
-    f = _graph.getFile(file.path);
-  } else {
-    f = proc->_fds[file.fd].file;
-  }
-  
-  f->createdBy(proc->_command);
+  auto f = resolveFileRef(proc, file);
+  if (f) f->createdBy(proc->_command);
 }
 
 void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
   auto proc = _processes[pid];
-  shared_ptr<File> f;
-  if (file.fd == AT_FDCWD) {
-    f = _graph.getFile(file.path);
-  } else {
-    f = proc->_fds[file.fd].file;
-  }
-
-  f->deletedBy(proc->_command);
+  auto f = resolveFileRef(proc, file);
+  if (f) f->deletedBy(proc->_command);
 }

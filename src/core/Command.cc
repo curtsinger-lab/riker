@@ -41,7 +41,12 @@ shared_ptr<Command> Command::createChild(string exe, list<string> args,
   _children.push_back(child);
 
   INFO << this << " starting child " << child;
-  LOG << "  " << exe << " (" << args.front() << ")";
+  if (args.size() > 0) {
+    LOG << "  " << exe << " (" << args.front() << ")";
+  } else {
+    LOG << "  " << exe;
+  }
+  
   bool first = true;
   for (auto& arg : args) {
     if (!first) LOG << "    " << arg;

@@ -37,8 +37,6 @@ class Tracer {
 
   void run(shared_ptr<Command> cmd);
 
-  void newProcess(pid_t pid, shared_ptr<Command> cmd);
-
   /****** Trace handler methods ******/
 
   void traceRead(pid_t pid, struct file_reference& file);
@@ -90,6 +88,8 @@ class Tracer {
     set<shared_ptr<File>> _mmaps;
     map<int, FileDescriptor> _fds;
   };
+  
+  shared_ptr<File> resolveFileRef(shared_ptr<Process> proc, struct file_reference& file);
 
  private:
   BuildGraph& _graph;
