@@ -53,7 +53,7 @@ class Tracer {
 
   void traceChroot(pid_t pid, string path);
 
-  void traceOpen(pid_t pid, int fd, string path, int flags, mode_t mode);
+  void traceOpen(pid_t pid, int fd, string path, bool file_created, int flags, mode_t mode);
 
   void tracePipe(pid_t pid, int fds[2], bool cloexec);
 

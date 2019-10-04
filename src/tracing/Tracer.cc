@@ -83,30 +83,20 @@ void Tracer::traceExec(pid_t pid, string executable, const list<string>& args) {
 
 void Tracer::traceExit(pid_t pid) {}
 
-void Tracer::traceOpen(pid_t pid, int fd, string path, int flags, mode_t mode) {
+void Tracer::traceOpen(pid_t pid, int fd, string path, bool file_created, int flags, mode_t mode) {
   auto f = _graph.getFile(path);
   auto proc = _processes[pid];
 
   int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
   bool cloexec = (flags & O_CLOEXEC) != 0;
-  bool truncated = (flags & O_TRUNC) != 0;
-  bool created = (flags & O_CREAT) != 0;
-
+  
   // Record the file descriptor entry
   proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
 
-  // Check if the file exists
-  struct stat info;
-  bool file_exists = (stat(path.c_str(), &info) == 0);
-
-  // Log interaction differently depending on how the open call happened.
-  if (file_exists && truncated) {
-    // Truncate existing file
-    f->truncatedBy(proc->_command);
-
-  } else if (!file_exists && created) {
-    // Create a new file
+  if (file_created) {
     f->createdBy(proc->_command);
+  } else if (flags & O_TRUNC) {
+    f->truncatedBy(proc->_command);
   }
 
   // Otherwise, no interaction yet until we do something with the file

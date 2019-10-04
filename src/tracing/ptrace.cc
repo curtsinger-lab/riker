@@ -441,6 +441,9 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           .path = "",
           .follow_links = true,
       };
+
+      bool file_created = false;
+
       switch (registers.SYSCALL_NUMBER) {
         // Many operations dealing with files take a single path as their first argument
         case /* 2 */ __NR_open:
@@ -548,16 +551,31 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           break;
       }
 
+      // For open and openat, we need to know if the call created the file.
+      if (registers.SYSCALL_NUMBER == __NR_open) {
+        int flags = registers.SYSCALL_ARG2;
+        if (flags & O_CREAT) {
+          struct stat statbuf;
+          file_created = (stat(main_file.path.c_str(), &statbuf) != 0);
+        }
+      } else if (registers.SYSCALL_NUMBER == __NR_openat) {
+        int flags = registers.SYSCALL_ARG3;
+        if (flags & O_CREAT) {
+          struct stat statbuf;
+          file_created = (stat(main_file.path.c_str(), &statbuf) != 0);
+        }
+      }
+
       // We need to know the return values of a few syscalls, specifically those that
       // allocate new fds. Therefore, use PTRACE_SYSCALL to step past just the syscall
       // and reinspect the process.
       switch (registers.SYSCALL_NUMBER) {
         case /* 2 */ __NR_open:
+        case /* 257 */ __NR_openat:
         case /* 22 */ __NR_pipe:
         case /* 32 */ __NR_dup:
         case /* 72 */ __NR_fcntl:
         case /* 85 */ __NR_creat:
-        case /* 257 */ __NR_openat:
         case /* 293 */ __NR_pipe2:
           // We've already hit the syscall-enter, so wait for the syscall-exit.
           ptrace(PTRACE_SYSCALL, child, nullptr, 0);
@@ -650,6 +668,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           tracer.traceOpen(child,
                            registers.SYSCALL_RETURN,  // File descriptor
                            main_file.path,            // File path
+                           file_created,              // Did the file exist before
                            registers.SYSCALL_ARG2,    // Flags
                            registers.SYSCALL_ARG3);   // File mode
           break;
@@ -658,6 +677,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           tracer.traceOpen(child,
                            registers.SYSCALL_RETURN,      // File descriptor
                            main_file.path,                // File path
+                           file_created,                  // Did the file exist before
                            O_CREAT | O_WRONLY | O_TRUNC,  // Flags
                            registers.SYSCALL_ARG2);       // File mode
 
@@ -667,6 +687,7 @@ void trace_step(Tracer& tracer, pid_t child, int wait_status) {
           tracer.traceOpen(child,
                            registers.SYSCALL_RETURN,  // File descriptor
                            main_file.path,            // File path
+                           file_created,              // Did the file exist before
                            registers.SYSCALL_ARG3,    // Flags
                            registers.SYSCALL_ARG4);   // File mode
           break;
