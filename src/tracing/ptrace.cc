@@ -277,7 +277,7 @@ static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
   }
 }
 
-pid_t start_command(shared_ptr<Command> cmd, vector<InitialFdEntry> initial_fds) {
+pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
   string exec_path = cmd->getExecutable();
 
   vector<char*> exec_argv;

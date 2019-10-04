@@ -35,14 +35,14 @@ class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
-  void run(shared_ptr<Command> cmd);
+  void run(Command* cmd);
 
   /****** Trace handler methods ******/
 
   void traceRead(pid_t pid, struct file_reference& file);
 
   void traceModify(pid_t pid, struct file_reference& file);
-  
+
   void traceTruncate(pid_t pid, struct file_reference& file);
 
   void traceCreate(pid_t pid, struct file_reference& file);
@@ -75,20 +75,20 @@ class Tracer {
 
  private:
   struct Process {
-    Process(pid_t pid, string cwd, shared_ptr<Command> command, map<int, FileDescriptor> fds = {}) :
+    Process(pid_t pid, string cwd, Command* command, map<int, FileDescriptor> fds = {}) :
         _pid(pid),
         _command(command),
         _cwd(cwd),
         _fds(fds) {}
 
     pid_t _pid;
-    shared_ptr<Command> _command;
+    Command* _command;
     string _cwd;
     string _root;
     set<shared_ptr<File>> _mmaps;
     map<int, FileDescriptor> _fds;
   };
-  
+
   shared_ptr<File> resolveFileRef(shared_ptr<Process> proc, struct file_reference& file);
 
  private:

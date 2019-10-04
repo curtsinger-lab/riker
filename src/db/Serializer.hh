@@ -37,14 +37,14 @@ class Serializer {
     }
   }
 
-  size_t getCommandIndex(shared_ptr<Command> c) const {
+  size_t getCommandIndex(const Command* c) const {
     auto iter = _command_indices.find(c);
     FAIL_IF(iter == _command_indices.end())
         << "Tried to serialize reference to untracked command " << c->getExecutable();
     return iter->second;
   }
 
-  void addCommand(shared_ptr<Command> c) {
+  void addCommand(const Command* c) {
     auto iter = _command_indices.find(c);
     if (iter == _command_indices.end()) {
       size_t index = _command_indices.size();
@@ -52,8 +52,8 @@ class Serializer {
     }
 
     // Add each child command to the serializer as well
-    for (auto child : c->getChildren()) {
-      addCommand(child);
+    for (auto& child : c->getChildren()) {
+      addCommand(&child);
     }
   }
 
@@ -89,5 +89,5 @@ class Serializer {
   string _output_path;
 
   map<shared_ptr<File>, size_t> _file_indices;
-  map<shared_ptr<Command>, size_t> _command_indices;
+  map<const Command*, size_t> _command_indices;
 };

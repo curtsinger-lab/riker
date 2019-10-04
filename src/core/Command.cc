@@ -35,10 +35,9 @@ const string Command::getShortName() const {
   }
 }
 
-shared_ptr<Command> Command::createChild(string exe, list<string> args,
-                                         map<int, FileDescriptor> fds) {
-  shared_ptr<Command> child(new Command(exe, args, fds, this));
-  _children.push_back(child);
+Command* Command::createChild(string exe, list<string> args, map<int, FileDescriptor> fds) {
+  _children.push_back(Command(exe, args, fds, this));
+  Command* child = &_children.back();
 
   INFO << this << " starting child " << child;
   if (args.size() > 0) {
@@ -46,7 +45,7 @@ shared_ptr<Command> Command::createChild(string exe, list<string> args,
   } else {
     LOG << "  " << exe;
   }
-  
+
   bool first = true;
   for (auto& arg : args) {
     if (!first) LOG << "    " << arg;
@@ -56,12 +55,4 @@ shared_ptr<Command> Command::createChild(string exe, list<string> args,
   return child;
 }
 
-uint64_t Command::numDescendants() {
-  uint64_t ret = 0;
-  for (auto c : getChildren()) {
-    ret += 1 + c->numDescendants();
-  }
-  return ret;
-}
-
-void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {}
+void Command::serialize(const Serializer& serializer, db::Command::Builder builder) const {}

@@ -46,11 +46,11 @@ ostream& operator<<(ostream& o, const File* f) {
   return o;
 }
 
-ostream& operator<<(ostream& o, const File::Version* v) {
-  return o << v->getFile() << "@" << v->getIndex();
+ostream& operator<<(ostream& o, const File::Version& v) {
+  return o << v.getFile() << "@" << v.getIndex();
 }
 
-void File::createdBy(shared_ptr<Command> c) {
+void File::createdBy(Command* c) {
   // Tag a new created version
   auto v = makeVersion(Version::Action::CREATE, c);
 
@@ -58,7 +58,7 @@ void File::createdBy(shared_ptr<Command> c) {
   if (c->addOutput(v)) INFO << v << " created by " << c;
 }
 
-void File::readBy(shared_ptr<Command> c) {
+void File::readBy(Command* c) {
   // If this file has no previous versions, tag a version that references an existing file
   if (_versions.size() == 0) {
     // A reference version has no creator
@@ -69,13 +69,13 @@ void File::readBy(shared_ptr<Command> c) {
   if (c->addInput(_versions.back())) INFO << c << " read " << _versions.back();
 }
 
-void File::writtenBy(shared_ptr<Command> c) {
+void File::writtenBy(Command* c) {
   // There must be a previous version if we're writing a file. If the first action performed on a
   // file is to write to it, there will be a create, reference, or truncate version already.
   FAIL_IF(_versions.size() == 0) << "Invalid write to file with no prior version: " << _path;
 
   // If the previous version was a write by this command, we don't need to tag a new version
-  if (_versions.back()->_action == Version::Action::WRITE && _versions.back()->_writer == c) {
+  if (_versions.back()._action == Version::Action::WRITE && _versions.back()._writer == c) {
     return;
   }
 
@@ -86,7 +86,7 @@ void File::writtenBy(shared_ptr<Command> c) {
   if (c->addOutput(v)) INFO << c << " wrote " << v;
 }
 
-void File::truncatedBy(shared_ptr<Command> c) {
+void File::truncatedBy(Command* c) {
   // Tag a truncated version
   auto v = makeVersion(Version::Action::TRUNCATE, c);
 
@@ -94,7 +94,7 @@ void File::truncatedBy(shared_ptr<Command> c) {
   if (c->addOutput(v)) INFO << c << " truncated " << v;
 }
 
-void File::deletedBy(shared_ptr<Command> c) {
+void File::deletedBy(Command* c) {
   // Tag a deleted version
   auto v = makeVersion(Version::Action::DELETE, c);
 

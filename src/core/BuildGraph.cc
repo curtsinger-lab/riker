@@ -11,23 +11,24 @@
 #include "tracing/Tracer.hh"
 
 using std::make_shared;
+using std::make_unique;
 using std::map;
-using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 
 BuildGraph::BuildGraph(string exe, list<string> args) {
   map<int, FileDescriptor> fds = {{0, FileDescriptor(getPipe("<<stdin>>"), O_RDONLY, false)},
                                   {1, FileDescriptor(getPipe("<<stdout>>"), O_WRONLY, false)},
                                   {2, FileDescriptor(getPipe("<<stderr>>"), O_WRONLY, false)}};
-  _root = make_shared<Command>(exe, args, fds);
-  INFO << "BuildGraph initialized with root " << _root;
-  fds[0].file->createdBy(_root);
-  fds[1].file->createdBy(_root);
-  fds[2].file->createdBy(_root);
+  _root = make_unique<Command>(exe, args, fds);
+  INFO << "BuildGraph initialized with root " << _root.get();
+  fds[0].file->createdBy(_root.get());
+  fds[1].file->createdBy(_root.get());
+  fds[2].file->createdBy(_root.get());
 }
 
 void BuildGraph::run(Tracer& tracer) {
-  if (_root) tracer.run(_root);
+  if (_root) tracer.run(_root.get());
 }
 
 shared_ptr<File> BuildGraph::getFile(string path) {
@@ -47,7 +48,7 @@ shared_ptr<File> BuildGraph::getPipe(string name) {
 
 void BuildGraph::serialize(Serializer& serializer) {
   // Add the root command (and its descendants) to the serializer
-  serializer.addCommand(_root);
+  serializer.addCommand(_root.get());
 
   // Run the serialization
   serializer.serialize();

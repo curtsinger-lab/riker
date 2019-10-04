@@ -4,8 +4,8 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
+#include <unordered_set>
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
@@ -16,9 +16,9 @@ class Serializer;
 using std::list;
 using std::map;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 using std::string;
+using std::unordered_set;
 
 class Command;
 ostream& operator<<(ostream& o, const Command* c);
@@ -53,25 +53,23 @@ class Command {
 
   const string getShortName() const;
 
-  shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
-
-  size_t numDescendants();
+  Command* createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
-  bool addInput(shared_ptr<File::Version> f) {
-    if (_inputs.find(f) != _inputs.end()) return false;
-    _inputs.insert(f);
+  bool addInput(File::Version& f) {
+    if (_inputs.find(&f) != _inputs.end()) return false;
+    _inputs.insert(&f);
     return true;
   }
 
   /// Add an output edge from this command to a file version. Return true if this is a new edge.
-  bool addOutput(shared_ptr<File::Version> f) {
-    if (_outputs.find(f) != _outputs.end()) return false;
-    _outputs.insert(f);
+  bool addOutput(File::Version& f) {
+    if (_outputs.find(&f) != _outputs.end()) return false;
+    _outputs.insert(&f);
     return true;
   }
 
-  void serialize(const Serializer& serializer, db::Command::Builder builder);
+  void serialize(const Serializer& serializer, db::Command::Builder builder) const;
 
   /****** Getters and setters ******/
 
@@ -83,7 +81,7 @@ class Command {
 
   const list<string>& getArguments() const { return _args; }
 
-  const list<shared_ptr<Command>>& getChildren() const { return _children; }
+  const vector<Command>& getChildren() const { return _children; }
 
   const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
 
@@ -94,9 +92,9 @@ class Command {
   size_t _depth;
   string _exe;
   list<string> _args;
-  list<shared_ptr<Command>> _children;
-  set<shared_ptr<File::Version>> _inputs;
-  set<shared_ptr<File::Version>> _outputs;
+  vector<Command> _children;
+  unordered_set<File::Version*> _inputs;
+  unordered_set<File::Version*> _outputs;
   map<int, FileDescriptor> _initial_fds;
 
   static size_t next_id;

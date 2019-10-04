@@ -19,7 +19,7 @@ using std::make_shared;
 using std::shared_ptr;
 using std::string;
 
-void Tracer::run(shared_ptr<Command> cmd) {
+void Tracer::run(Command* cmd) {
   pid_t pid = start_command(cmd, {});
 
   // TODO: Fix cwd handling

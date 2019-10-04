@@ -17,15 +17,15 @@ class Tracer;
 
 using std::list;
 using std::map;
-using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 class BuildGraph {
  public:
   /****** Constructors ******/
   BuildGraph() {}
-  
+
   BuildGraph(string exe, list<string> args);
 
   // Disallow Copy
@@ -49,6 +49,6 @@ class BuildGraph {
   shared_ptr<File> getPipe(string name = "");
 
  private:
-  shared_ptr<Command> _root;
+  unique_ptr<Command> _root;
   map<string, shared_ptr<File>> _current_files;
 };
