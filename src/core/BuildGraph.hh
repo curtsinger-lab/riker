@@ -44,11 +44,12 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  shared_ptr<File> getFile(string path);
+  File* getFile(string path);
 
-  shared_ptr<File> getPipe(string name = "");
+  File* getPipe(string name = "");
 
  private:
   unique_ptr<Command> _root;
-  map<string, shared_ptr<File>> _current_files;
+  list<File> _files;
+  map<string, File*> _current_files;
 };

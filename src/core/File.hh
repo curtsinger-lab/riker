@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <list>
 #include <memory>
 #include <set>
 #include <string>
@@ -15,14 +16,14 @@ class BuildGraph;
 class Command;
 class Serializer;
 
-using std::enable_shared_from_this;
+using std::list;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
 
-class File : public enable_shared_from_this<File> {
+class File {
  public:
   /// Alias for file types (see src/db/db.capnp)
   using Type = db::File::Type;
@@ -50,21 +51,21 @@ class File : public enable_shared_from_this<File> {
     /// Track the types of actions that can create versions (see src/db/db.capnp)
     using Action = db::File::Version::Action::Which;
 
-    Version(shared_ptr<File> file, size_t index, Action action, Command* writer) :
+    Version(File* file, size_t index, Action action, Command* writer) :
         _file(file),
         _index(index),
         _action(action),
         _writer(writer) {}
 
-    shared_ptr<File> getFile() const { return _file; }
+    File* getFile() const { return _file; }
     size_t getIndex() const { return _index; }
     Action getAction() const { return _action; }
 
    private:
-    shared_ptr<File> _file;  //< The file this is a version of
-    size_t _index;           //< The index of this version
-    Action _action;          //< The action that created this version
-    Command* _writer;        //< The command that created this file version
+    File* _file;       //< The file this is a version of
+    size_t _index;     //< The index of this version
+    Action _action;    //< The action that created this version
+    Command* _writer;  //< The command that created this file version
 
     bool _has_metadata = false;
     struct stat _metadata;
@@ -109,19 +110,19 @@ class File : public enable_shared_from_this<File> {
   bool isLocal() const { return _path[0] != '/'; }
 
  private:
-  Version& makeVersion(Version::Action a, Command* c = nullptr) {
-    _versions.emplace_back(shared_from_this(), _versions.size(), a, c);
-    return _versions.back();
+  Version* makeVersion(Version::Action a, Command* c = nullptr) {
+    _versions.push_back(Version(this, _versions.size(), a, c));
+    return &_versions.back();
   }
 
  private:
   size_t _id;
   string _path;                //< The absolute, normalized path to this file
   Type _type = Type::UNKNOWN;  //< The type of file being tracked
-  vector<Version> _versions;   //< The sequence of versions of this file
+  list<Version> _versions;     //< The sequence of versions of this file
 
   static size_t next_id;
 };
 
 ostream& operator<<(ostream& o, const File* f);
-ostream& operator<<(ostream& o, const File::Version& v);
+ostream& operator<<(ostream& o, const File::Version* v);

@@ -31,10 +31,11 @@ void BuildGraph::run(Tracer& tracer) {
   if (_root) tracer.run(_root.get());
 }
 
-shared_ptr<File> BuildGraph::getFile(string path) {
+File* BuildGraph::getFile(string path) {
   auto entry = _current_files.find(path);
   if (entry == _current_files.end()) {
-    auto f = make_shared<File>(path);
+    _files.push_back(File(path));
+    File* f = &_files.back();
     _current_files[path] = f;
     return f;
   } else {
@@ -42,8 +43,9 @@ shared_ptr<File> BuildGraph::getFile(string path) {
   }
 }
 
-shared_ptr<File> BuildGraph::getPipe(string name) {
-  return make_shared<File>(name, File::Type::PIPE);
+File* BuildGraph::getPipe(string name) {
+  _files.push_back(File(name, File::Type::PIPE));
+  return &_files.back();
 }
 
 void BuildGraph::serialize(Serializer& serializer) {

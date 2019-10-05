@@ -296,7 +296,7 @@ pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
 
       // Dodofile is readable but not executable. Run with sh by default.
       // Convert "Dodofile" to arg string
-      exec_argv.push_back(strdup("Dodofile"));
+      exec_argv.push_back((char*)"Dodofile");
 
       // Replace exec path with sh
       exec_path = "/bin/sh";

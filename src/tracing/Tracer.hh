@@ -89,7 +89,7 @@ class Tracer {
     map<int, FileDescriptor> _fds;
   };
 
-  shared_ptr<File> resolveFileRef(shared_ptr<Process> proc, struct file_reference& file);
+  File* resolveFileRef(shared_ptr<Process> proc, struct file_reference& file);
 
  private:
   BuildGraph& _graph;

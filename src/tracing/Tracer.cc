@@ -152,8 +152,8 @@ void Tracer::traceMmap(pid_t pid, int fd) {
   // TODO
 }
 
-shared_ptr<File> Tracer::resolveFileRef(shared_ptr<Process> proc, struct file_reference& file) {
-  shared_ptr<File> f;
+File* Tracer::resolveFileRef(shared_ptr<Process> proc, struct file_reference& file) {
+  File* f = nullptr;
   if (file.fd == AT_FDCWD) {
     f = _graph.getFile(file.path);
   } else {

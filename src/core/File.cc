@@ -46,8 +46,8 @@ ostream& operator<<(ostream& o, const File* f) {
   return o;
 }
 
-ostream& operator<<(ostream& o, const File::Version& v) {
-  return o << v.getFile() << "@" << v.getIndex();
+ostream& operator<<(ostream& o, const File::Version* v) {
+  return o << v->getFile() << "@" << v->getIndex();
 }
 
 void File::createdBy(Command* c) {
@@ -66,7 +66,7 @@ void File::readBy(Command* c) {
   }
 
   // Record the dependency
-  if (c->addInput(_versions.back())) INFO << c << " read " << _versions.back();
+  if (c->addInput(&_versions.back())) INFO << c << " read " << &_versions.back();
 }
 
 void File::writtenBy(Command* c) {
