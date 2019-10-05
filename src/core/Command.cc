@@ -11,6 +11,7 @@
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 #include "db/Serializer.hh"
+#include "ui/Graphviz.hh"
 #include "ui/log.hh"
 
 using std::list;
@@ -53,6 +54,26 @@ Command* Command::createChild(string exe, list<string> args, map<int, FileDescri
   }
 
   return child;
+}
+
+void Command::drawGraph(Graphviz& g) {
+  g.addNode(this);
+  for (auto f : _inputs) {
+    if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
+      g.addNode(f);
+      g.addEdge(f, this);
+    }
+  }
+  for (auto f : _outputs) {
+    if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
+      g.addNode(f);
+      g.addEdge(this, f);
+    }
+  }
+  for (auto& c : _children) {
+    c.drawGraph(g);
+    g.addEdge(this, &c);
+  }
 }
 
 void Command::serialize(const Serializer& serializer, db::Command::Builder builder) const {}

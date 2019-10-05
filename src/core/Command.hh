@@ -11,6 +11,7 @@
 #include "core/FileDescriptor.hh"
 #include "db/db.capnp.h"
 
+class Graphviz;
 class Serializer;
 
 using std::list;
@@ -68,6 +69,8 @@ class Command {
     _outputs.insert(f);
     return true;
   }
+  
+  void drawGraph(Graphviz& g);
 
   void serialize(const Serializer& serializer, db::Command::Builder builder) const;
 

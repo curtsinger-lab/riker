@@ -21,6 +21,7 @@ using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::to_string;
 using std::vector;
 
 class File {
@@ -60,6 +61,8 @@ class File {
     File* getFile() const { return _file; }
     size_t getIndex() const { return _index; }
     Action getAction() const { return _action; }
+
+    string getShortName() { return _file->getShortName() + " v" + to_string(_index); }
 
    private:
     File* _file;       //< The file this is a version of
@@ -105,9 +108,18 @@ class File {
 
   const string& getPath() const { return _path; }
 
+  string getShortName() { return _path; }
+
   Type getType() const { return _type; }
 
   bool isLocal() const { return _path[0] != '/'; }
+
+  bool isSystemFile() {
+    for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
+      if (_path.rfind(p, 0) != string::npos) return true;
+    }
+    return false;
+  }
 
  private:
   Version* makeVersion(Version::Action a, Command* c = nullptr) {

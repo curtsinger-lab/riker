@@ -12,6 +12,7 @@
 
 class Command;
 class File;
+class Graphviz;
 class Serializer;
 class Tracer;
 
@@ -41,6 +42,8 @@ class BuildGraph {
   void run(Tracer& tracer);
 
   void serialize(Serializer& serializer);
+  
+  void drawGraph(Graphviz& g);
 
   /****** Getters and setters ******/
 

@@ -62,7 +62,7 @@ void File::readBy(Command* c) {
   // If this file has no previous versions, tag a version that references an existing file
   if (_versions.size() == 0) {
     // A reference version has no creator
-    auto v = makeVersion(Version::Action::REFERENCE);
+    makeVersion(Version::Action::REFERENCE);
   }
 
   // Record the dependency

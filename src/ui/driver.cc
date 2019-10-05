@@ -22,11 +22,12 @@
 #include <capnp/serialize.h>
 
 #include "core/BuildGraph.hh"
-#include "core/Command.hh"  
+#include "core/Command.hh"
 #include "db/Serializer.hh"
 #include "db/db.capnp.h"
 #include "tracing/Tracer.hh"
 #include "tracing/ptrace.hh"
+#include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "ui/util.hh"
@@ -174,8 +175,13 @@ int main(int argc, char* argv[]) {
   }
 
   Tracer tracer(graph);
-
   graph.run(tracer);
+
+  // Generate graphviz output, if requested
+  if (options.visualize) {
+    Graphviz g("out.dot");
+    graph.drawGraph(g);
+  }
 
   Serializer serializer("db.dodo");
   graph.serialize(serializer);

@@ -48,6 +48,10 @@ File* BuildGraph::getPipe(string name) {
   return &_files.back();
 }
 
+void BuildGraph::drawGraph(Graphviz& g) {
+  if (_root) _root->drawGraph(g);
+}
+
 void BuildGraph::serialize(Serializer& serializer) {
   // Add the root command (and its descendants) to the serializer
   serializer.addCommand(_root.get());
