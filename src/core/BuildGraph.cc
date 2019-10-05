@@ -31,10 +31,10 @@ void BuildGraph::run(Tracer& tracer) {
   if (_root) tracer.run(_root.get());
 }
 
-File* BuildGraph::getFile(string path) {
+File* BuildGraph::getFile(string path, File::Type type) {
   auto entry = _current_files.find(path);
   if (entry == _current_files.end()) {
-    _files.push_back(File(path));
+    _files.push_back(File(path, type));
     File* f = &_files.back();
     _current_files[path] = f;
     return f;

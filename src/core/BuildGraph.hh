@@ -47,9 +47,9 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  File* getFile(string path);
+  File* getFile(string path, File::Type type = File::Type::UNKNOWN);
 
-  File* getPipe(string name = "");
+  File* getPipe(string name = "pipe");
 
  private:
   unique_ptr<Command> _root;

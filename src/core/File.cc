@@ -33,13 +33,13 @@ size_t File::next_id = 0;
 
 ostream& operator<<(ostream& o, const File* f) {
   string type = "File";
-  
+
   if (f->getType() == File::Type::PIPE) {
     type = "Pipe";
   } else if (f->getType() == File::Type::DIRECTORY) {
     type = "Dir";
   }
-  
+
   o << "[" << type;
   if (f->getPath() != "") o << " " << f->getPath();
   o << "]";
@@ -103,3 +103,44 @@ void File::deletedBy(Command* c) {
 }
 
 void File::serialize(Serializer& serializer, db::File::Builder builder) {}
+
+File::Version* File::makeVersion(Version::Action a, Command* c) {
+  if (_versions.size() > 0) _versions.back().fingerprint();
+  _versions.push_back(Version(this, _versions.size(), a, c));
+  
+  if (_versions.size() == 1) {
+    _versions.back().fingerprint();
+    if (_versions.back()._has_metadata && _type == Type::UNKNOWN) {
+      switch (_versions.back()._metadata.st_mode & S_IFMT) {
+        case S_IFDIR:
+          _type = Type::DIRECTORY;
+          break;
+
+        case S_IFIFO:
+          _type = Type::PIPE;
+          break;
+
+        case S_IFLNK:
+          _type = Type::SYMLINK;
+          break;
+
+        default:
+          _type = Type::REGULAR;
+          break;
+      }
+    }
+  }
+  
+  return &_versions.back();
+}
+
+void File::Version::fingerprint() {
+  if (_has_fingerprint) return;
+  if (_file->getType() == File::Type::PIPE) return;
+  
+  if(stat(_file->getPath().c_str(), &_metadata) == 0) {
+    _has_metadata = true;
+  } else {
+    WARN << "Unable to stat file " << _file->getPath();
+  }
+}

@@ -57,6 +57,8 @@ class File {
         _index(index),
         _action(action),
         _writer(writer) {}
+        
+    void fingerprint();
 
     File* getFile() const { return _file; }
     size_t getIndex() const { return _index; }
@@ -122,10 +124,7 @@ class File {
   }
 
  private:
-  Version* makeVersion(Version::Action a, Command* c = nullptr) {
-    _versions.push_back(Version(this, _versions.size(), a, c));
-    return &_versions.back();
-  }
+  Version* makeVersion(Version::Action a, Command* c = nullptr);
 
  private:
   size_t _id;
