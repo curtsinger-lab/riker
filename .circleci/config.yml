@@ -14,13 +14,13 @@ jobs:
       - run: git submodule update --init
       - run: make
       - run: ./dodo
-      - run: ./dodo --dry-run --visualize
-      - run: mv out.dot self-build.dot
-      - store_artifacts:
-          path: self-build.dot
-      - run: dot -Tpdf self-build.dot > self-build.pdf
-      - store_artifacts:
-          path: self-build.pdf
+      #- run: ./dodo --dry-run --visualize
+      #- run: mv out.dot self-build.dot
+      #- store_artifacts:
+      #    path: self-build.dot
+      #- run: dot -Tpdf self-build.dot > self-build.pdf
+      #- store_artifacts:
+      #    path: self-build.pdf
       - run: make test
 
 workflows:
