@@ -118,6 +118,8 @@ class File {
 
   bool isSystemFile() {
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
+      // Check if the path begins with one of our prefixes.
+      // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
       if (_path.rfind(p, 0) != string::npos) return true;
     }
     return false;
