@@ -56,6 +56,23 @@ Command* Command::createChild(string exe, list<string> args, map<int, FileDescri
   return child;
 }
 
+void Command::prune() {
+  // Remove inputs to commands that are also outputs
+  for (auto iter = _inputs.begin(); iter != _inputs.end();) {
+    auto input = *iter;
+    if (_outputs.find(input) != _outputs.end()) {
+      iter = _inputs.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
+  
+  // Prune child commands
+  for (auto& child : _children) {
+    child.prune();
+  }
+}
+
 void Command::drawGraph(Graphviz& g) {
   g.addNode(this);
   for (auto f : _inputs) {

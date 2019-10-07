@@ -31,6 +31,10 @@ void BuildGraph::run(Tracer& tracer) {
   if (_root) tracer.run(_root.get());
 }
 
+void BuildGraph::prune() {
+  if (_root) _root->prune();
+}
+
 File* BuildGraph::getFile(string path, File::Type type) {
   auto entry = _current_files.find(path);
   if (entry == _current_files.end()) {

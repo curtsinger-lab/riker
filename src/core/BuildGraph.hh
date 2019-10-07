@@ -40,6 +40,8 @@ class BuildGraph {
   /****** Non-trivial methods ******/
 
   void run(Tracer& tracer);
+  
+  void prune();
 
   void serialize(Serializer& serializer);
   

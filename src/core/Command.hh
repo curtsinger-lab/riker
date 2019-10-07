@@ -70,6 +70,8 @@ class Command {
     return true;
   }
   
+  void prune();
+  
   void drawGraph(Graphviz& g);
 
   void serialize(const Serializer& serializer, db::Command::Builder builder) const;
