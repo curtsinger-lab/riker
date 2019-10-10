@@ -77,13 +77,11 @@ void Command::drawGraph(Graphviz& g) {
   g.addNode(this);
   for (auto f : _inputs) {
     if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
-      g.addNode(f);
       g.addEdge(f, this);
     }
   }
   for (auto f : _outputs) {
     if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
-      g.addNode(f);
       g.addEdge(this, f);
     }
   }

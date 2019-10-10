@@ -14,6 +14,7 @@
 
 class BuildGraph;
 class Command;
+class Graphviz;
 class Serializer;
 
 using std::list;
@@ -57,7 +58,7 @@ class File {
         _index(index),
         _action(action),
         _writer(writer) {}
-        
+
     void fingerprint();
 
     File* getFile() const { return _file; }
@@ -124,6 +125,8 @@ class File {
     }
     return false;
   }
+
+  void drawGraph(Graphviz& g);
 
  private:
   Version* makeVersion(Version::Action a, Command* c = nullptr);

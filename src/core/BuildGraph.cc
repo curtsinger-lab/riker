@@ -53,6 +53,12 @@ File* BuildGraph::getPipe(string name) {
 }
 
 void BuildGraph::drawGraph(Graphviz& g) {
+  for (auto& f : _files) {
+    if(!f.isSystemFile() || options.show_sysfiles) {
+      f.drawGraph(g);
+    }
+  }
+  
   if (_root) _root->drawGraph(g);
 }
 

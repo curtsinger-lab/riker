@@ -29,10 +29,21 @@ class Graphviz {
     }
   }
 
-  void addNode(File::Version* f) {
+  void startSubgraph(File* f) {
     if (_file_ids.find(f) == _file_ids.end()) {
-      string id = "f" + to_string(_file_ids.size());
+      string id = "cluster_f" + to_string(_file_ids.size());
       _file_ids[f] = id;
+      _out << "  subgraph " << id << " {\n";
+      _out << "    label=\"" << f->getShortName() << "\"\n";
+    }
+  }
+
+  void finishSubgraph() { _out << "  }\n"; }
+
+  void addNode(File::Version* f) {
+    if (_file_version_ids.find(f) == _file_version_ids.end()) {
+      string id = "v" + to_string(_file_version_ids.size());
+      _file_version_ids[f] = id;
 
       string shape;
       switch (f->getFile()->getType()) {
@@ -47,7 +58,7 @@ class Graphviz {
           break;
       }
 
-      _out << "  \"" << id << "\" [label=\"" << f->getShortName() << "\" shape=" << shape << "]\n";
+      _out << "  \"" << id << "\" [label=\"v" << f->getIndex() << "\" shape=" << shape << "]\n";
     }
   }
 
@@ -64,8 +75,8 @@ class Graphviz {
   }
 
   void addEdge(File::Version* f, Command* c) {
-    auto iter1 = _file_ids.find(f);
-    if (iter1 == _file_ids.end()) return;
+    auto iter1 = _file_version_ids.find(f);
+    if (iter1 == _file_version_ids.end()) return;
     string& id1 = iter1->second;
 
     auto iter2 = _command_ids.find(c);
@@ -81,8 +92,8 @@ class Graphviz {
     if (iter1 == _command_ids.end()) return;
     string& id1 = iter1->second;
 
-    auto iter2 = _file_ids.find(f);
-    if (iter2 == _file_ids.end()) return;
+    auto iter2 = _file_version_ids.find(f);
+    if (iter2 == _file_version_ids.end()) return;
     string& id2 = iter2->second;
 
     string label;
@@ -108,8 +119,21 @@ class Graphviz {
          << "[arrowhead=empty label=\"" << label << "\"]\n";
   }
 
+  void addEdge(File::Version* f1, File::Version* f2) {
+    auto iter1 = _file_version_ids.find(f1);
+    if (iter1 == _file_version_ids.end()) return;
+    string& id1 = iter1->second;
+
+    auto iter2 = _file_version_ids.find(f2);
+    if (iter2 == _file_version_ids.end()) return;
+    string& id2 = iter2->second;
+
+    _out << "  \"" << id1 << "\" -> \"" << id2 << "\" [style=invis]\n";
+  }
+
  private:
   ofstream _out;
   map<Command*, string> _command_ids;
-  map<File::Version*, string> _file_ids;
+  map<File*, string> _file_ids;
+  map<File::Version*, string> _file_version_ids;
 };

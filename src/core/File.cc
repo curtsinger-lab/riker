@@ -22,6 +22,7 @@
 #include "core/Command.hh"
 #include "db/db.capnp.h"
 #include "fingerprint/blake2.hh"
+#include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 
@@ -107,7 +108,7 @@ void File::serialize(Serializer& serializer, db::File::Builder builder) {}
 File::Version* File::makeVersion(Version::Action a, Command* c) {
   if (_versions.size() > 0) _versions.back().fingerprint();
   _versions.push_back(Version(this, _versions.size(), a, c));
-  
+
   if (_versions.size() == 1) {
     _versions.back().fingerprint();
     if (_versions.back()._has_metadata && _type == Type::UNKNOWN) {
@@ -130,15 +131,32 @@ File::Version* File::makeVersion(Version::Action a, Command* c) {
       }
     }
   }
-  
+
   return &_versions.back();
+}
+
+void File::drawGraph(Graphviz& g) {
+  g.startSubgraph(this);
+  for (auto& v : _versions) {
+    g.addNode(&v);
+  }
+  
+  File::Version* prev = nullptr;
+  for (auto& v : _versions) {
+    if (prev != nullptr) {
+      g.addEdge(prev, &v);
+    }
+    prev = &v;
+  }
+  
+  g.finishSubgraph();
 }
 
 void File::Version::fingerprint() {
   if (_has_fingerprint) return;
   if (_file->getType() == File::Type::PIPE) return;
-  
-  if(stat(_file->getPath().c_str(), &_metadata) == 0) {
+
+  if (stat(_file->getPath().c_str(), &_metadata) == 0) {
     _has_metadata = true;
   } else {
     WARN << "Unable to stat file " << _file->getPath();
