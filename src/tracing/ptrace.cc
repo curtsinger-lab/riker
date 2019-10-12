@@ -77,38 +77,25 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
   // a useful subset. To accomplish this, we instally a seccomp-bpf filter that returns
   // SECCOMP_RET_TRACE when we want a stop.
   pid_t child_pid = fork();
-  if (child_pid == -1) {
-    perror("Failed to fork");
-    exit(2);
-  } else if (child_pid == 0) {
+  FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
+
+  if (child_pid == 0) {
     // This is the child
 
     // Set up FDs as requested. We assume that all parent FDs are marked CLOEXEC if
     // necessary and that there are no ordering constraints on duping (e.g. if the
     // child fd for one entry matches the parent fd of another).
     for (size_t fd_index = 0; fd_index < initial_fds.size(); fd_index++) {
-      if (dup2(initial_fds[fd_index].parent_fd, initial_fds[fd_index].child_fd) !=
-          initial_fds[fd_index].child_fd) {
-        perror("Failed to initialize FDs");
-        // It is generally better to exit directly within a forked child so that we
-        // don't duplicate atexit effects. (This would be strictly required if we used
-        // vfork.)
-        _exit(2);
-      }
+      int rc = dup2(initial_fds[fd_index].parent_fd, initial_fds[fd_index].child_fd);
+      FAIL_IF(rc != initial_fds[fd_index].child_fd) << "Failed to initialize fds: " << ERR;
     }
 
     // Allow ourselves to be traced by our parent
-    if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) {
-      perror("Failed to start tracing");
-      _exit(2);
-    }
+    FAIL_IF(ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) << "Failed to start tracing: " << ERR;
 
     // Lock down the process so that we are allowed to
     // use seccomp without special permissions
-    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
-      perror("Failed to allow seccomp");
-      _exit(2);
-    }
+    FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
 
     // Set up the seccomp filter. Since we are handling so
     // many syscalls, we don't want to just use a long list
@@ -178,10 +165,8 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     bpf_program.len = (unsigned short)ARRAY_COUNT(bpf_filter);
 
     // Actually enable the filter
-    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0) {
-      perror("Error enabling seccomp");
-      _exit(2);
-    }
+    FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)
+        << "Error enabling seccomp: " << ERR;
 
     // We need to stop here to give our parent a consistent time to add all the
     // options and correctly configure ptrace. Otherwise it will get a very confusing
@@ -198,9 +183,8 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     // TODO: explicitly handle the environment
     execv(exec_path, argv);
 
-    // If we reach here, we failed to exec
-    perror("Executing shell");
-    _exit(2);
+    // This is unreachable, unless execv fails
+    FAIL << "Failed to start traced program: " << ERR;
   }
 
   // In the parent. Wait for the child to reach its exec so that we
@@ -209,39 +193,36 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
   // a SIGTRAP.
   int wstatus;
   waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
-  if (!WIFSTOPPED(wstatus) || WSTOPSIG(wstatus) != SIGSTOP) {
-    fprintf(stderr, "Unexpected stop from child, expected SIGSTOP: %x\n", wstatus);
-    exit(2);
-  }
+  FAIL_IF(!WIFSTOPPED(wstatus) || WSTOPSIG(wstatus) != SIGSTOP) << "Unexpected stop from child";
 
   // Set up options to handle everything reliably. We do this before continuing
   // so that the actual running program has everything properly configured.
-  if (ptrace(PTRACE_SETOPTIONS, child_pid, nullptr,
-             PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK |  // Follow forks
-                 PTRACE_O_TRACEEXEC |     // Handle execs more reliably
-                 PTRACE_O_TRACESYSGOOD |  // When stepping through syscalls, be clear
-                 PTRACE_O_TRACESECCOMP    // Actually receive the syscall stops we requested
-             ) != 0) {
-    perror("Failed to set options");
-    exit(2);
-  }
+  int options = 0;
+  options |= PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK;  // Follow forks
+  options |= PTRACE_O_TRACEEXEC;     // Handle execs more reliably
+  options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
+  options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
+
+  FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
+      << "Failed to set ptrace options: " << ERR;
 
   // Let the child restart to reach its exec.
-  ptrace(PTRACE_CONT, child_pid, nullptr, 0);
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   // Let the child finish its exec.
   waitpid(child_pid, &wstatus, 0);  // Should correspond to SECCOMP_RET_TRACE for execve
-  if (!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
-    fprintf(stderr, "Unexpected stop from child, expected SECCOMP: %x\n", wstatus);
-    exit(2);
-  }
-  ptrace(PTRACE_CONT, child_pid, nullptr, 0);
-  waitpid(child_pid, &wstatus, 0);  // Should correspond to inside the exec
-  if (!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-    fprintf(stderr, "Unexpected stop from child, expected EXEC: %x\n", wstatus);
-    exit(2);
-  }
-  ptrace(PTRACE_CONT, child_pid, nullptr, 0);
+  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
+      << "Unexpected stop from child. Expected SECCOMP";
+
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
+  // Handle a stop from inside the exec
+  waitpid(child_pid, &wstatus, 0);
+  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
+      << "Unexpected stop from child. Expected EXEC";
+
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
   return child_pid;
 }
 
@@ -254,10 +235,7 @@ static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     // since PEEKDATA could validly return -1.
     errno = 0;
     long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), nullptr);
-    if (errno != 0) {
-      perror("Failed to read tracee string");
-      exit(2);
-    }
+    FAIL_IF(errno != 0) << "Failed to read string from traced process: " << ERR;
 
     // Copy in the data
     for (size_t i = 0; i < sizeof(long); i++) {
@@ -268,6 +246,14 @@ static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
         output.push_back(c);
     }
   }
+}
+
+static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer) {
+  // Clear errno so we can detect errors
+  errno = 0;
+  uintptr_t result = ptrace(PTRACE_PEEKDATA, process, tracee_pointer, nullptr);
+  FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
+  return result;
 }
 
 pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
@@ -282,9 +268,8 @@ pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
       // Execute would fail. Can we read it and run with sh?
       if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
         // No. Print an error.
-        cerr << "Unable to access Dodofile, which is required for the build." << endl
-             << "See http://dodo.build for instructions." << endl;
-        exit(1);
+        FAIL << "Unable to access Dodofile, which is required for the build.\n"
+             << "See http://dodo.build for instructions.";
       }
 
       // Dodofile is readable but not executable. Run with sh by default.
@@ -307,11 +292,7 @@ pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
 
 void handleSyscall(Tracer& tracer, pid_t child) {
   struct user_regs_struct registers;
-  if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
-    perror("Failed to get registers");
-    ptrace(PTRACE_CONT, child, nullptr, 0);
-    return;
-  }
+  FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers)) << "Failed to get registers: " << ERR;
 
   // Certain syscalls have cases that we just don't want to handle. Detect those
   // first and skip all the work we can. TODO: do this filtering in seccomp
@@ -505,8 +486,8 @@ void handleSyscall(Tracer& tracer, pid_t child) {
   switch (registers.SYSCALL_NUMBER) {
     case /* 22 */ __NR_pipe:
     case /* 293 */ __NR_pipe2:
-      pipe_fds[0] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1, 0);
-      pipe_fds[1] = ptrace(PTRACE_PEEKDATA, child, registers.SYSCALL_ARG1 + sizeof(int), 0);
+      pipe_fds[0] = read_tracee_data(child, registers.SYSCALL_ARG1);
+      pipe_fds[1] = read_tracee_data(child, registers.SYSCALL_ARG1 + sizeof(int));
       break;
   }
 
@@ -729,42 +710,37 @@ void handleSyscall(Tracer& tracer, pid_t child) {
       tracer.traceRemove(child, main_file);
       break;
     default:
-      fprintf(stderr, "[%d] UNHANDLED SYSCALL: %d\n", child, (int)registers.SYSCALL_NUMBER);
+      WARN << "[" << child << "] Unhandled Syscall: " << (int)registers.SYSCALL_NUMBER;
       break;
   }
 
   // FIXME: See FIXME above about why this ought to be earlier in the loop
-  ptrace(PTRACE_CONT, child, nullptr, 0);
+  FAIL_IF(ptrace(PTRACE_CONT, child, nullptr, 0)) << "Failed to resume child: " << ERR;
 }
 
 void handleFork(Tracer& tracer, pid_t child) {
   // GETEVENTMSG returns a unsigned long *always*, even though the value is
   // always a pid_t.
   unsigned long ul_new_child;
-  if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_child) != 0) {
-    perror("Unable to fetch new child from fork");
-    ptrace(PTRACE_CONT, child, nullptr, 0);
-    return;
-  }
+  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_child))
+      << "Unable to fetch new child from fork: " << ERR;
+
   pid_t new_child = (pid_t)ul_new_child;
-  ptrace(PTRACE_CONT, child, nullptr, 0);
+
+  FAIL_IF(ptrace(PTRACE_CONT, child, nullptr, 0)) << "Failed to resume child: " << ERR;
+
   tracer.traceFork(child, new_child);
 }
 
 void handleExec(Tracer& tracer, pid_t child) {
   struct user_regs_struct registers;
-  if (ptrace(PTRACE_GETREGS, child, nullptr, &registers) != 0) {
-    perror("Failed to get registers");
-    ptrace(PTRACE_CONT, child, nullptr, 0);
-    return;
-  }
+  FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers)) << "Failed to get registers: " << ERR;
 
   list<string> args;
 
-  int child_argc = ptrace(PTRACE_PEEKDATA, child, registers.rsp, nullptr);
+  int child_argc = read_tracee_data(child, registers.rsp);
   for (int i = 0; i < child_argc; i++) {
-    uintptr_t arg_ptr =
-        ptrace(PTRACE_PEEKDATA, child, registers.rsp + (1 + i) * sizeof(long), nullptr);
+    uintptr_t arg_ptr = read_tracee_data(child, registers.rsp + (1 + i) * sizeof(long));
     args.push_back(read_tracee_string(child, arg_ptr));
   }
 
@@ -775,11 +751,9 @@ void handleExec(Tracer& tracer, pid_t child) {
 
 void handleClone(Tracer& tracer, pid_t child) {
   unsigned long ul_new_thread;
-  if (ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_thread) != 0) {
-    perror("Unable to fetch new child from fork");
-    ptrace(PTRACE_CONT, child, nullptr, 0);
-    return;
-  }
+  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_thread))
+      << "Unable to fetch new child from clone: " << ERR;
+
   pid_t new_thread = (pid_t)ul_new_thread;
   ptrace(PTRACE_CONT, child, nullptr, 0);
   // TODO handling of flags -> CLONE_FILES
