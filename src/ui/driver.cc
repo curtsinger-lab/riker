@@ -26,7 +26,6 @@
 #include "db/Serializer.hh"
 #include "db/db.capnp.h"
 #include "tracing/Tracer.hh"
-#include "tracing/ptrace.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"

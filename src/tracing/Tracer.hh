@@ -31,6 +31,11 @@ struct file_reference {
   bool follow_links;
 };
 
+struct InitialFdEntry {
+  int parent_fd;
+  int child_fd;
+};
+
 class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
