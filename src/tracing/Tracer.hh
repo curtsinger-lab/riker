@@ -78,6 +78,12 @@ class Tracer {
 
   void traceExit(pid_t pid);
 
+  void handleSyscall(pid_t pid);
+  void handleFork(pid_t pid);
+  void handleExec(pid_t pid);
+  void handleClone(pid_t pid);
+  void handleExit(pid_t pid);
+
  private:
   struct Process {
     Process(pid_t pid, string cwd, Command* command, map<int, FileDescriptor> fds = {}) :
