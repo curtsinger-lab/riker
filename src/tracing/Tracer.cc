@@ -41,7 +41,7 @@ using std::string;
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
-string get_executable(pid_t pid) {
+static string get_executable(pid_t pid) {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", pid);
 
@@ -56,6 +56,36 @@ string get_executable(pid_t pid) {
   } while (bytes_read == capacity);
 
   return string(buffer.get(), bytes_read);
+}
+
+static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+  string output;
+
+  // Loop to fetch words at a time until we find a null byte
+  while (true) {
+    // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
+    // since PEEKDATA could validly return -1.
+    errno = 0;
+    long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), nullptr);
+    FAIL_IF(errno != 0) << "Failed to read string from traced process: " << ERR;
+
+    // Copy in the data
+    for (size_t i = 0; i < sizeof(long); i++) {
+      char c = ((char*)&data)[i];
+      if (c == '\0')
+        return output;
+      else
+        output.push_back(c);
+    }
+  }
+}
+
+static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer) {
+  // Clear errno so we can detect errors
+  errno = 0;
+  uintptr_t result = ptrace(PTRACE_PEEKDATA, process, tracee_pointer, nullptr);
+  FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
+  return result;
 }
 
 // Launch a program via `sh -c`, fully set up with ptrace and seccomp
@@ -222,70 +252,6 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   return child_pid;
-}
-
-static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
-  string output;
-
-  // Loop to fetch words at a time until we find a null byte
-  while (true) {
-    // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
-    // since PEEKDATA could validly return -1.
-    errno = 0;
-    long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), nullptr);
-    FAIL_IF(errno != 0) << "Failed to read string from traced process: " << ERR;
-
-    // Copy in the data
-    for (size_t i = 0; i < sizeof(long); i++) {
-      char c = ((char*)&data)[i];
-      if (c == '\0')
-        return output;
-      else
-        output.push_back(c);
-    }
-  }
-}
-
-static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer) {
-  // Clear errno so we can detect errors
-  errno = 0;
-  uintptr_t result = ptrace(PTRACE_PEEKDATA, process, tracee_pointer, nullptr);
-  FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
-  return result;
-}
-
-pid_t start_command(Command* cmd, vector<InitialFdEntry> initial_fds) {
-  string exec_path = cmd->getExecutable();
-
-  vector<char*> exec_argv;
-
-  // Are we running the root Dodofile?
-  if (exec_path == "Dodofile") {
-    // Will we be able to execute the Dodofile?
-    if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
-      // Execute would fail. Can we read it and run with sh?
-      if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
-        // No. Print an error.
-        FAIL << "Unable to access Dodofile, which is required for the build.\n"
-             << "See http://dodo.build for instructions.";
-      }
-
-      // Dodofile is readable but not executable. Run with sh by default.
-      // Convert "Dodofile" to arg string
-      exec_argv.push_back((char*)"Dodofile");
-
-      // Replace exec path with sh
-      exec_path = "/bin/sh";
-    }
-  }
-
-  for (auto& arg : cmd->getArguments()) {
-    exec_argv.push_back((char*)arg.c_str());
-  }
-  exec_argv.push_back(nullptr);
-  pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), initial_fds);
-
-  return pid;
 }
 
 void handleSyscall(Tracer& tracer, pid_t child) {
@@ -762,37 +728,36 @@ void handleExit(Tracer& tracer, pid_t child) {
   tracer.traceExit(child);
 }
 
-void trace_step(Tracer& tracer, pid_t child, int wait_status) {
-  if (WIFSTOPPED(wait_status)) {
-    switch (wait_status >> 8) {
-      case (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)):
-        handleSyscall(tracer, child);
-        break;
-      case (SIGTRAP | (PTRACE_EVENT_FORK << 8)):
-      case (SIGTRAP | (PTRACE_EVENT_VFORK << 8)):
-        handleFork(tracer, child);
-        break;
-      case (SIGTRAP | (PTRACE_EVENT_EXEC << 8)):
-        handleExec(tracer, child);
-        break;
-      case (SIGTRAP | (PTRACE_EVENT_CLONE << 8)):
-        handleClone(tracer, child);
-        break;
-      default:
-        WARN << "Unhandled stop in process " << child;
-        // We don't bother handling errors here, because any failure
-        // just means that the child is somehow broken, and we shouldn't
-        // continue processing it anyway.
-        ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
-        return;
-    }
-  } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
-    handleExit(tracer, child);
-  }
-}
-
 void Tracer::run(Command* cmd) {
-  pid_t pid = start_command(cmd, {});
+  string exec_path = cmd->getExecutable();
+
+  vector<char*> exec_argv;
+
+  // Are we running the root Dodofile?
+  if (exec_path == "Dodofile") {
+    // Will we be able to execute the Dodofile?
+    if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
+      // Execute would fail. Can we read it and run with sh?
+      if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
+        // No. Print an error.
+        FAIL << "Unable to access Dodofile, which is required for the build.\n"
+             << "See http://dodo.build for instructions.";
+      }
+
+      // Dodofile is readable but not executable. Run with sh by default.
+      // Convert "Dodofile" to arg string
+      exec_argv.push_back((char*)"Dodofile");
+
+      // Replace exec path with sh
+      exec_path = "/bin/sh";
+    }
+  }
+
+  for (auto& arg : cmd->getArguments()) {
+    exec_argv.push_back((char*)arg.c_str());
+  }
+  exec_argv.push_back(nullptr);
+  pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), {});
 
   // TODO: Fix cwd handling
   _processes[pid] = make_shared<Process>(pid, ".", cmd, cmd->getInitialFDs());
@@ -811,7 +776,33 @@ void Tracer::run(Command* cmd) {
       }
     }
 
-    trace_step(*this, child, wait_status);
+    if (WIFSTOPPED(wait_status)) {
+      int status = wait_status >> 8;
+
+      if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
+        handleSyscall(*this, child);
+      
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
+                 status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
+        handleFork(*this, child);
+      
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
+        handleExec(*this, child);
+      
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
+        handleClone(*this, child);
+      
+      } else {
+        WARN << "Unhandled stop in process " << child;
+        // We don't bother handling errors here, because any failure
+        // just means that the child is somehow broken, and we shouldn't
+        // continue processing it anyway.
+        ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+      }
+    
+    } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
+      handleExit(*this, child);
+    }
   }
 }
 
@@ -861,7 +852,7 @@ void Tracer::traceOpen(pid_t pid, int fd, string path, bool file_created, int fl
 
   int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
   bool cloexec = (flags & O_CLOEXEC) != 0;
-  
+
   // Record the file descriptor entry
   proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
 
@@ -872,24 +863,24 @@ void Tracer::traceOpen(pid_t pid, int fd, string path, bool file_created, int fl
   }
 
   // Otherwise, no interaction yet until we do something with the file
-  
+
   LOG << proc->_command << " opened " << f;
 }
 
 void Tracer::traceClose(pid_t pid, int fd) {
   auto proc = _processes[pid];
   auto f = proc->_fds[fd].file;
-  
+
   // Log the event if there was actually a valid file descriptor
   if (f) LOG << proc->_command << " closed " << proc->_fds[fd].file;
-  
+
   proc->_fds.erase(fd);
 }
 
 void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
   auto proc = _processes[pid];
   auto f = _graph.getPipe();
-  
+
   f->createdBy(proc->_command);
 
   proc->_fds[fds[0]] = FileDescriptor(f, O_RDONLY, cloexec);
@@ -898,12 +889,12 @@ void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
 
 void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
   auto proc = _processes[pid];
-  
+
   auto target_fd = proc->_fds.find(new_fd);
   if (target_fd != proc->_fds.end()) {
     LOG << proc->_command << " closed " << proc->_fds[new_fd].file << " via dup";
   }
-  
+
   auto duped_file = proc->_fds.find(duped_fd);
   if (duped_file == proc->_fds.end()) {
     proc->_fds.erase(new_fd);
@@ -940,7 +931,7 @@ File* Tracer::resolveFileRef(shared_ptr<Process> proc, struct file_reference& fi
     for (auto entry : proc->_fds) {
       int index = entry.first;
       auto file = entry.second.file;
-      
+
       if (file) {
         WARN << "  " << index << ": " << file;
       } else {
