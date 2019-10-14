@@ -520,30 +520,30 @@ void Tracer::handleSyscall(pid_t child) {
       break;
     case /* 2 */ __NR_open:
       traceOpen(child,
-                       registers.SYSCALL_RETURN,  // File descriptor
-                       main_file.path,            // File path
-                       file_created,              // Did the file exist before
-                       registers.SYSCALL_ARG2,    // Flags
-                       registers.SYSCALL_ARG3);   // File mode
+                registers.SYSCALL_RETURN,  // File descriptor
+                main_file.path,            // File path
+                file_created,              // Did the file exist before
+                registers.SYSCALL_ARG2,    // Flags
+                registers.SYSCALL_ARG3);   // File mode
       break;
 
     case /* 85 */ __NR_creat:
       traceOpen(child,
-                       registers.SYSCALL_RETURN,      // File descriptor
-                       main_file.path,                // File path
-                       file_created,                  // Did the file exist before
-                       O_CREAT | O_WRONLY | O_TRUNC,  // Flags
-                       registers.SYSCALL_ARG2);       // File mode
+                registers.SYSCALL_RETURN,      // File descriptor
+                main_file.path,                // File path
+                file_created,                  // Did the file exist before
+                O_CREAT | O_WRONLY | O_TRUNC,  // Flags
+                registers.SYSCALL_ARG2);       // File mode
 
       break;
 
     case /* 257 */ __NR_openat:
       traceOpen(child,
-                       registers.SYSCALL_RETURN,  // File descriptor
-                       main_file.path,            // File path
-                       file_created,              // Did the file exist before
-                       registers.SYSCALL_ARG3,    // Flags
-                       registers.SYSCALL_ARG4);   // File mode
+                registers.SYSCALL_RETURN,  // File descriptor
+                main_file.path,            // File path
+                file_created,              // Did the file exist before
+                registers.SYSCALL_ARG3,    // Flags
+                registers.SYSCALL_ARG4);   // File mode
       break;
 
     case /* 22 */ __NR_pipe:
@@ -560,7 +560,7 @@ void Tracer::handleSyscall(pid_t child) {
       break;
     case /* 292 */ __NR_dup3:
       traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
-                      (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
+               (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
       break;
     case /* 72 */ __NR_fcntl:
       switch (registers.SYSCALL_ARG2) {
@@ -572,7 +572,7 @@ void Tracer::handleSyscall(pid_t child) {
           break;
         case F_SETFD:
           traceSetCloexec(child, registers.SYSCALL_ARG1,
-                                 (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
+                          (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
           break;
       }
       break;
@@ -730,25 +730,24 @@ void Tracer::handleExit(pid_t child) {
 
 void Tracer::run(Command* cmd) {
   string exec_path = cmd->getExecutable();
-
   vector<char*> exec_argv;
 
-  // Are we running the root Dodofile?
-  if (exec_path == "Dodofile") {
-    // Will we be able to execute the Dodofile?
+  // Special handling for the root command
+  if (cmd->isRoot()) {
+    // By default, the root command is executed directly. However, it may not be executable.
+    // In that case, start the root command using /bin/sh by default.
+
+    // Check to see if the Dodofile is executable
     if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
       // Execute would fail. Can we read it and run with sh?
       if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
         // No. Print an error.
-        FAIL << "Unable to access Dodofile, which is required for the build.\n"
-             << "See http://dodo.build for instructions.";
+        FAIL << "Unable to access " << exec_path << ".\n"
+             << "  This file must be executable, or a readable file that can be run by /bin/sh.";
       }
 
-      // Dodofile is readable but not executable. Run with sh by default.
-      // Convert "Dodofile" to arg string
-      exec_argv.push_back((char*)"Dodofile");
-
-      // Replace exec path with sh
+      // Root command file is readable but not executable. Run with /bin/sh
+      exec_argv.push_back((char*)exec_path.c_str());
       exec_path = "/bin/sh";
     }
   }
@@ -781,17 +780,17 @@ void Tracer::run(Command* cmd) {
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         handleSyscall(child);
-      
+
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
         handleFork(child);
-      
+
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         handleExec(child);
-      
+
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         handleClone(child);
-      
+
       } else {
         WARN << "Unhandled stop in process " << child;
         // We don't bother handling errors here, because any failure
@@ -799,7 +798,7 @@ void Tracer::run(Command* cmd) {
         // continue processing it anyway.
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }
-    
+
     } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
       handleExit(child);
     }

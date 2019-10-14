@@ -81,6 +81,8 @@ class Command {
   size_t getId() const { return _id; }
 
   size_t getDepth() const { return _depth; }
+  
+  bool isRoot() const { return _depth == 0; }
 
   const string& getExecutable() const { return _exe; }
 

@@ -151,26 +151,12 @@ int main(int argc, char* argv[]) {
   // Parse command line options
   parse_argv(forward_list<string>(argv + 1, argv + argc));
 
-  // Get the current working directory
-  char* cwd = getcwd(nullptr, 0);
-  FAIL_IF(cwd == nullptr) << "Failed to get current working directory: " << ERR;
-
-  // Initialize build graph and a tracer instance
+  // Create a build graph to track our build
   BuildGraph graph;
-
-  // Clean up after getcwd
-  free(cwd);
-
-  // Open the database
-  int db_fd = open("db.dodo", O_RDWR);
-
-  // If the database doesn't exist, run a default build
-  if (db_fd != -1) {
-    // TODO: Deserialize the build graph. For now, just initialize a fresh graph
-    graph = BuildGraph("Dodofile", {"Dodofile"});
-
-  } else {
-    graph = BuildGraph("Dodofile", {"Dodofile"});
+  
+  // Attempt to deserialize the build graph. If that fails, create a new graph
+  if (!graph.load("db.dodo")) {
+    graph = BuildGraph("Dodofile");
   }
 
   Tracer tracer(graph);

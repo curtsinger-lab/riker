@@ -27,7 +27,7 @@ class BuildGraph {
   /****** Constructors ******/
   BuildGraph() {}
 
-  BuildGraph(string exe, list<string> args);
+  BuildGraph(string root_command);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;
@@ -38,6 +38,8 @@ class BuildGraph {
   BuildGraph& operator=(BuildGraph&&) = default;
 
   /****** Non-trivial methods ******/
+
+  bool load(string filename);
 
   void run(Tracer& tracer);
   
