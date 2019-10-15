@@ -143,18 +143,18 @@ class Tracer {
   //                   delete_module, get_kernel_syms, query_module, quotactl, nfsservctl, getpmsg,
   //                   putpmsg, afs_syscall, tuxcall, security, gettid, readahead
 
-  /* 188 */ void _setxattr(pid_t pid, string pathname, string name, string value);
-  /* 189 */ void _lsetxattr(pid_t pid, string pathname, string name, string value);
-  /* 190 */ void _fsetxattr(pid_t pid, int fd, string name, string value);
-  /* 191 */ void _getxattr(pid_t pid, string pathname, string name);
-  /* 192 */ void _lgetxattr(pid_t pid, string pathname, string name);
-  /* 193 */ void _fgetxattr(pid_t pid, int fd, string name);
+  /* 188 */ void _setxattr(pid_t pid, string pathname);
+  /* 189 */ void _lsetxattr(pid_t pid, string pathname);
+  /* 190 */ void _fsetxattr(pid_t pid, int fd);
+  /* 191 */ void _getxattr(pid_t pid, string pathname);
+  /* 192 */ void _lgetxattr(pid_t pid, string pathname);
+  /* 193 */ void _fgetxattr(pid_t pid, int fd);
   /* 194 */ void _listxattr(pid_t pid, string pathname);
   /* 195 */ void _llistxattr(pid_t pid, string pathname);
   /* 196 */ void _flistxattr(pid_t pid, int fd);
-  /* 197 */ void _removexattr(pid_t pid, string pathname, string name);
-  /* 198 */ void _lremovexattr(pid_t pid, string pathname, string name);
-  /* 199 */ void _fremovexattr(pid_t pid, int fd, string name);
+  /* 197 */ void _removexattr(pid_t pid, string pathname);
+  /* 198 */ void _lremovexattr(pid_t pid, string pathname);
+  /* 199 */ void _fremovexattr(pid_t pid, int fd);
 
   // Skipped syscalls: tkill, time, futex, sched_setaffinity, sched_getaffinity, set_thread_area,
   //                   io_setup, io_destroy, io_getevents, io_submit, io_cancel, get_thread_area,

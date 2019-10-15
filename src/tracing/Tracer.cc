@@ -416,32 +416,32 @@ void Tracer::_chroot(pid_t pid, string filename) {
   // TODO
 }
 
-void Tracer::_setxattr(pid_t pid, string pathname, string name, string value) {
+void Tracer::_setxattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_lsetxattr(pid_t pid, string pathname, string name, string value) {
+void Tracer::_lsetxattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_fsetxattr(pid_t pid, int fd, string name, string value) {
+void Tracer::_fsetxattr(pid_t pid, int fd) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_getxattr(pid_t pid, string pathname, string name) {
+void Tracer::_getxattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_lgetxattr(pid_t pid, string pathname, string name) {
+void Tracer::_lgetxattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_fgetxattr(pid_t pid, int fd, string name) {
+void Tracer::_fgetxattr(pid_t pid, int fd) {
   resume(pid);
   // TODO
 }
@@ -461,17 +461,17 @@ void Tracer::_flistxattr(pid_t pid, int fd) {
   // TODO
 }
 
-void Tracer::_removexattr(pid_t pid, string pathname, string name) {
+void Tracer::_removexattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_lremovexattr(pid_t pid, string pathname, string name) {
+void Tracer::_lremovexattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
-void Tracer::_fremovexattr(pid_t pid, int fd, string name) {
+void Tracer::_fremovexattr(pid_t pid, int fd) {
   resume(pid);
   // TODO
 }
@@ -700,34 +700,27 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_setxattr:
-      _setxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                read_tracee_string(pid, regs.SYSCALL_ARG2),
-                read_tracee_string(pid, regs.SYSCALL_ARG3));
+      _setxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_lsetxattr:
-      _lsetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                 read_tracee_string(pid, regs.SYSCALL_ARG2),
-                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      _lsetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_fsetxattr:
-      _fsetxattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
-                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      _fsetxattr(pid, regs.SYSCALL_ARG1);
       break;
 
     case __NR_getxattr:
-      _getxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _getxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_lgetxattr:
-      _lgetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                 read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _lgetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_fgetxattr:
-      _fgetxattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _fgetxattr(pid, regs.SYSCALL_ARG1);
       break;
 
     case __NR_listxattr:
@@ -743,17 +736,15 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_removexattr:
-      _removexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                   read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _removexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_lremovexattr:
-      _lremovexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-                    read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _lremovexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
       break;
 
     case __NR_fremovexattr:
-      _fremovexattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _fremovexattr(pid, regs.SYSCALL_ARG1);
       break;
 
     case __NR_getdents64:
