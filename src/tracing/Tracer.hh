@@ -23,15 +23,6 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-struct file_reference {
-  // fd may be AT_FDCWD and path may be NULL, but not both. If both are present,
-  // then path is relative with respect to the directory in fd.
-  int fd;
-  string path;
-  // Whether to follow the link if the reference points at a symlink
-  bool follow_links;
-};
-
 struct InitialFdEntry {
   int parent_fd;
   int child_fd;
@@ -242,8 +233,6 @@ class Tracer {
     set<shared_ptr<File>> _mmaps;
     map<int, FileDescriptor> _fds;
   };
-
-  File* resolveFileRef(shared_ptr<Process> proc, struct file_reference& file);
 
  private:
   BuildGraph& _graph;

@@ -99,8 +99,7 @@ void Tracer::run(Command* cmd) {
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        //handleSyscall(child);
-        resume(child);
+        handleSyscall(child);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
@@ -205,8 +204,8 @@ void Tracer::_close(pid_t pid, int fd) {
 }
 
 void Tracer::_mmap(pid_t pid, void* addr, size_t len, int prot, int flags, int fd, off_t off) {
-  // TODO: Handle mmaps
   resume(pid);
+  // TODO
 }
 
 void Tracer::_dup(pid_t pid, int fd) {
@@ -311,17 +310,30 @@ void Tracer::_exit(pid_t pid) {
   // Do nothing
 }
 
-void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {}
+void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_truncate(pid_t pid, string path, long length) {}
+void Tracer::_truncate(pid_t pid, string path, long length) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_ftruncate(pid_t pid, int fd, long length) {}
+void Tracer::_ftruncate(pid_t pid, int fd, long length) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_getdents(pid_t pid, int fd) {}
+void Tracer::_getdents(pid_t pid, int fd) {
+  resume(pid);
+  // TODO
+}
 
 void Tracer::_chdir(pid_t pid, string filename) {
   resume(pid);
 
+  // Update the current working directory
   auto proc = _processes[pid];
   proc->_cwd = filename;
 }
@@ -330,92 +342,219 @@ void Tracer::_fchdir(pid_t pid, int fd) {
   resume(pid);
 
   auto proc = _processes[pid];
-  proc->_cwd = proc->_fds[fd].file->getPath();
+  auto f = proc->_fds[fd].file;
+  if (f) proc->_cwd = f->getPath();
 }
 
-void Tracer::_rename(pid_t pid, string oldname, string newname) {}
+void Tracer::_rename(pid_t pid, string oldname, string newname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_mkdir(pid_t pid, string pathname, mode_t mode) {}
+void Tracer::_mkdir(pid_t pid, string pathname, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_rmdir(pid_t pid, string pathname) {}
+void Tracer::_rmdir(pid_t pid, string pathname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_creat(pid_t pid, string pathname, mode_t mode) {}
+void Tracer::_creat(pid_t pid, string pathname, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_unlink(pid_t pid, string pathname) {}
+void Tracer::_unlink(pid_t pid, string pathname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_symlink(pid_t pid, string oldname, string newname) {}
+void Tracer::_symlink(pid_t pid, string oldname, string newname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_readlink(pid_t pid, string path) {}
+void Tracer::_readlink(pid_t pid, string path) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_chmod(pid_t pid, string filename, mode_t mode) {}
+void Tracer::_chmod(pid_t pid, string filename, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fchmod(pid_t pid, int fd, mode_t mode) {}
+void Tracer::_fchmod(pid_t pid, int fd, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_chown(pid_t pid, string filename, uid_t user, gid_t group) {}
+void Tracer::_chown(pid_t pid, string filename, uid_t user, gid_t group) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fchown(pid_t pid, int fd, uid_t user, gid_t group) {}
+void Tracer::_fchown(pid_t pid, int fd, uid_t user, gid_t group) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {}
+void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_mknod(pid_t pid, string filename, mode_t mode, unsigned dev) {}
+void Tracer::_mknod(pid_t pid, string filename, mode_t mode, unsigned dev) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_chroot(pid_t pid, string filename) {}
+void Tracer::_chroot(pid_t pid, string filename) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_setxattr(pid_t pid, string pathname, string name, string value) {}
+void Tracer::_setxattr(pid_t pid, string pathname, string name, string value) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_lsetxattr(pid_t pid, string pathname, string name, string value) {}
+void Tracer::_lsetxattr(pid_t pid, string pathname, string name, string value) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fsetxattr(pid_t pid, int fd, string name, string value) {}
+void Tracer::_fsetxattr(pid_t pid, int fd, string name, string value) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_getxattr(pid_t pid, string pathname, string name) {}
+void Tracer::_getxattr(pid_t pid, string pathname, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_lgetxattr(pid_t pid, string pathname, string name) {}
+void Tracer::_lgetxattr(pid_t pid, string pathname, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fgetxattr(pid_t pid, int fd, string name) {}
+void Tracer::_fgetxattr(pid_t pid, int fd, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_listxattr(pid_t pid, string pathname) {}
+void Tracer::_listxattr(pid_t pid, string pathname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_llistxattr(pid_t pid, string pathname) {}
+void Tracer::_llistxattr(pid_t pid, string pathname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_flistxattr(pid_t pid, int fd) {}
+void Tracer::_flistxattr(pid_t pid, int fd) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_removexattr(pid_t pid, string pathname, string name) {}
+void Tracer::_removexattr(pid_t pid, string pathname, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_lremovexattr(pid_t pid, string pathname, string name) {}
+void Tracer::_lremovexattr(pid_t pid, string pathname, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fremovexattr(pid_t pid, int fd, string name) {}
+void Tracer::_fremovexattr(pid_t pid, int fd, string name) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_getdents64(pid_t pid, int fd) {}
+void Tracer::_getdents64(pid_t pid, int fd) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {}
+void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_mkdirat(pid_t pid, int dfd, string pathname, mode_t mode) {}
+void Tracer::_mkdirat(pid_t pid, int dfd, string pathname, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_mknodat(pid_t pid, int dfd, string filename, mode_t mode, unsigned dev) {}
+void Tracer::_mknodat(pid_t pid, int dfd, string filename, mode_t mode, unsigned dev) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fchownat(pid_t pid, int dfd, string filename, uid_t user, gid_t group, int flag) {}
+void Tracer::_fchownat(pid_t pid, int dfd, string filename, uid_t user, gid_t group, int flag) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_unlinkat(pid_t pid, int dfd, string pathname, int flag) {}
+void Tracer::_unlinkat(pid_t pid, int dfd, string pathname, int flag) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname) {}
+void Tracer::_renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_symlinkat(pid_t pid, string oldname, int newdfd, string newname) {}
+void Tracer::_symlinkat(pid_t pid, string oldname, int newdfd, string newname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_readlinkat(pid_t pid, int dfd, string pathname) {}
+void Tracer::_readlinkat(pid_t pid, int dfd, string pathname) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode) {}
+void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_splice(pid_t pid, int fd_in, loff_t off_in, int fd_out, loff_t off_out) {}
+void Tracer::_splice(pid_t pid, int fd_in, loff_t off_in, int fd_out, loff_t off_out) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_tee(pid_t pid, int fdin, int fdout, size_t len) {}
+void Tracer::_tee(pid_t pid, int fdin, int fdout, size_t len) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_dup3(pid_t pid, int oldfd, int newfd, int flags) {}
+void Tracer::_dup3(pid_t pid, int oldfd, int newfd, int flags) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_pipe2(pid_t pid, int* fds, int flags) {}
+void Tracer::_pipe2(pid_t pid, int* fds, int flags) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath) {}
+void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath) {
+  resume(pid);
+  // TODO
+}
 
-void Tracer::_copy_file_range(pid_t pid, int fd_in, int _, int fd_out) {}
+void Tracer::_copy_file_range(pid_t pid, int fd_in, int _, int fd_out) {
+  resume(pid);
+  // TODO
+}
 
 /////////////////
 
