@@ -127,7 +127,7 @@ void Tracer::run(Command* cmd) {
         struct user_regs_struct registers;
         FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
             << "Failed to get registers: " << ERR;
-        
+
         _clone(child, registers.SYSCALL_ARG1);
 
       } else {
@@ -184,11 +184,12 @@ void Tracer::_read(pid_t pid, int fd) {
 }
 
 void Tracer::_write(pid_t pid, int fd) {
-  resume(pid);
-
   auto proc = _processes[pid];
   auto f = proc->_fds[fd].file;
   if (f) f->writtenBy(proc->_command);
+
+  // Resume the process after logging the write so we have a chance to fingerprint if necessary
+  resume(pid);
 }
 
 void Tracer::_close(pid_t pid, int fd) {
@@ -208,7 +209,7 @@ void Tracer::_mmap(pid_t pid, void* addr, size_t len, int prot, int flags, int f
   // TODO
 }
 
-void Tracer::_dup(pid_t pid, int fd) {
+int Tracer::_dup(pid_t pid, int fd) {
   // Finish the syscall to get the new file descriptor
   int newfd = finishSyscall(pid);
 
@@ -216,11 +217,14 @@ void Tracer::_dup(pid_t pid, int fd) {
   resume(pid);
 
   // If the syscall failed, do nothing
-  if (newfd == -1) return;
+  if (newfd == -1) return newfd;
 
   // Add the new entry for the duped fd
   auto proc = _processes[pid];
   proc->_fds[newfd] = proc->_fds[fd];
+
+  // Return the new fd
+  return newfd;
 }
 
 void Tracer::_dup2(pid_t pid, int oldfd, int newfd) {
@@ -261,7 +265,7 @@ void Tracer::_clone(pid_t pid, int flags) {
   // Resume execution
   resume(pid);
 
-  // TODO: Handle flags, e.g. CLONE_FILES
+  // TODO: Handle flags
 
   // Threads in the same process just appear as pid references to the same process
   _processes[new_pid] = _processes[pid];
@@ -307,27 +311,60 @@ void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
 }
 
 void Tracer::_exit(pid_t pid) {
-  // Do nothing
+  // Remove the process. No need to resume, since the process has exited
+  _processes.erase(pid);
 }
 
 void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
-  resume(pid);
-  // TODO
+  if (cmd == F_DUPFD) {
+    // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
+    _dup(pid, fd);  // _dup will resume the process
+
+  } else if (cmd == F_DUPFD_CLOEXEC) {
+    // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
+    int newfd = _dup(pid, fd);  // _dup will resume the process
+    auto proc = _processes[pid];
+    proc->_fds[newfd].cloexec = true;
+
+  } else if (cmd == F_SETFD) {
+    resume(pid);
+    // Set the cloexec flag using the argument flags
+    auto proc = _processes[pid];
+    proc->_fds[fd].cloexec = (arg & FD_CLOEXEC) != 0;
+  
+  } else {
+    // Unhandled operation
+    // TODO: Filter these stops out with BPF/seccomp
+    resume(pid);
+  }
 }
 
 void Tracer::_truncate(pid_t pid, string path, long length) {
+  auto f = _graph.getFile(path);
+  auto proc = _processes[pid];
+  
+  if (length == 0) {
+    f->truncatedBy(proc->_command);
+  } else {
+    f->writtenBy(proc->_command);
+  }
+  
+  // Resume after logging so we have a chance to fingerprint
   resume(pid);
-  // TODO
 }
 
 void Tracer::_ftruncate(pid_t pid, int fd, long length) {
+  auto proc = _processes[pid];
+  auto f = proc->_fds[fd].file;
+  
+  if (length == 0) {
+    f->truncatedBy(proc->_command);
+  } else {
+    f->writtenBy(proc->_command);
+  }
+  
+  // Resume after logging so we have a chance to fingerprint
   resume(pid);
-  // TODO
-}
-
-void Tracer::_getdents(pid_t pid, int fd) {
-  resume(pid);
-  // TODO
 }
 
 void Tracer::_chdir(pid_t pid, string filename) {
@@ -348,7 +385,6 @@ void Tracer::_fchdir(pid_t pid, int fd) {
 
 void Tracer::_rename(pid_t pid, string oldname, string newname) {
   resume(pid);
-  // TODO
 }
 
 void Tracer::_mkdir(pid_t pid, string pathname, mode_t mode) {
@@ -482,8 +518,43 @@ void Tracer::_getdents64(pid_t pid, int fd) {
 }
 
 void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {
+  WARN_IF(dfd != AT_FDCWD) << "openat uses non-cwd directory fd";
+
+  // Stat the file so we can see if it was created by the open call
+  bool file_existed = true;
+  struct stat statbuf;
+  if (flags & O_CREAT) file_existed = (stat(filename.c_str(), &statbuf) == 0);
+
+  // Run the syscall and save the resulting fd
+  int fd = finishSyscall(pid);
+
+  // Let the process continue
   resume(pid);
-  // TODO
+
+  // If the syscall failed, bail out
+  if (fd == -1) return;
+
+  // Extract relevant flags
+  int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
+  bool cloexec = (flags & O_CLOEXEC) != 0;
+
+  // Get the process and file
+  auto proc = _processes[pid];
+  auto f = _graph.getFile(filename);
+
+  // Add the file to the file descriptor table
+  proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
+
+  // Log creation and truncation interactions
+  if (!file_existed) {
+    f->createdBy(proc->_command);
+  } else if (flags & O_TRUNC) {
+    f->truncatedBy(proc->_command);
+  }
+
+  // Read and write interactions are added later, when the process actually reads or writes
+
+  LOG << proc->_command << " opened " << f;
 }
 
 void Tracer::_mkdirat(pid_t pid, int dfd, string pathname, mode_t mode) {

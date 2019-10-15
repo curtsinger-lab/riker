@@ -40,7 +40,7 @@ class Graphviz {
 
   void finishSubgraph() { _out << "  }\n"; }
 
-  void addNode(File::Version* f) {
+  void addNode(File::Version* f, bool fullname = false) {
     if (_file_version_ids.find(f) == _file_version_ids.end()) {
       string id = "v" + to_string(_file_version_ids.size());
       _file_version_ids[f] = id;
@@ -57,8 +57,11 @@ class Graphviz {
           shape = "rectangle";
           break;
       }
+      
+      string label = "v" + to_string(f->getIndex());
+      if (fullname) label = f->getFile()->getShortName();
 
-      _out << "  \"" << id << "\" [label=\"v" << f->getIndex() << "\" shape=" << shape << "]\n";
+      _out << "  \"" << id << "\" [label=\"" << label << "\" shape=" << shape << "]\n";
     }
   }
 

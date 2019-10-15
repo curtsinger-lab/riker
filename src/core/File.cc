@@ -136,20 +136,24 @@ File::Version* File::makeVersion(Version::Action a, Command* c) {
 }
 
 void File::drawGraph(Graphviz& g) {
-  g.startSubgraph(this);
-  for (auto& v : _versions) {
-    g.addNode(&v);
-  }
-  
-  File::Version* prev = nullptr;
-  for (auto& v : _versions) {
-    if (prev != nullptr) {
-      g.addEdge(prev, &v);
+  if (_versions.size() == 1) {
+    g.addNode(&_versions.front(), true);
+  } else {
+    g.startSubgraph(this);
+    for (auto& v : _versions) {
+      g.addNode(&v);
     }
-    prev = &v;
-  }
   
-  g.finishSubgraph();
+    File::Version* prev = nullptr;
+    for (auto& v : _versions) {
+      if (prev != nullptr) {
+        g.addEdge(prev, &v);
+      }
+      prev = &v;
+    }
+  
+    g.finishSubgraph();
+  }
 }
 
 void File::Version::fingerprint() {

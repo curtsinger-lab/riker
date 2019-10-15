@@ -73,7 +73,7 @@ class Tracer {
 
   // Skipped syscalls: select, sched_yield, mremap, msync, mincore, madvise, shmget, shmat, shmctl
 
-  /* 032 */ void _dup(pid_t pid, int fd);
+  /* 032 */ int _dup(pid_t pid, int fd);
   /* 033 */ void _dup2(pid_t pid, int oldfd, int newfd);
 
   // Skipped syscalls: pause, nanosleep, getitimer, alarm, setitimer, getpid
@@ -98,7 +98,7 @@ class Tracer {
 
   /* 076 */ void _truncate(pid_t pid, string path, long length);
   /* 077 */ void _ftruncate(pid_t pid, int fd, long length);
-  /* 078 */ void _getdents(pid_t pid, int fd);
+  /* 078 */ void _getdents(pid_t pid, int fd) { _read(pid, fd); }
 
   // Skipped syscalls: getcwd
 
