@@ -41,6 +41,684 @@ using std::string;
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
+static string get_executable(pid_t pid);
+static string read_tracee_string(pid_t process, uintptr_t tracee_pointer);
+static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer);
+static pid_t launch_traced(char const* exec_path, char* const argv[],
+                           vector<InitialFdEntry> initial_fds);
+
+void Tracer::run(Command* cmd) {
+  string exec_path = cmd->getExecutable();
+  vector<char*> exec_argv;
+
+  // Special handling for the root command
+  if (cmd->isRoot()) {
+    // By default, the root command is executed directly. However, it may not be executable.
+    // In that case, start the root command using /bin/sh by default.
+
+    // Check to see if the Dodofile is executable
+    if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
+      // Execute would fail. Can we read it and run with sh?
+      if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
+        // No. Print an error.
+        FAIL << "Unable to access " << exec_path << ".\n"
+             << "  This file must be executable, or a readable file that can be run by /bin/sh.";
+      }
+
+      // Root command file is readable but not executable. Run with /bin/sh
+      exec_argv.push_back((char*)exec_path.c_str());
+      exec_path = "/bin/sh";
+    }
+  }
+
+  for (auto& arg : cmd->getArguments()) {
+    exec_argv.push_back((char*)arg.c_str());
+  }
+  exec_argv.push_back(nullptr);
+  pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), {});
+
+  // TODO: Fix cwd handling
+  _processes[pid] = make_shared<Process>(pid, ".", cmd, cmd->getInitialFDs());
+
+  while (true) {
+    int wait_status;
+    pid_t child = wait(&wait_status);
+    if (child == -1) {
+      if (errno == ECHILD) {
+        // ECHILD is returned when there are no children to wait on, which
+        // is by far the simplest and most reliable signal we have for when
+        // to exit (cleanly).
+        break;
+      } else {
+        FAIL << "Error while waiting: " << ERR;
+      }
+    }
+
+    if (WIFSTOPPED(wait_status)) {
+      int status = wait_status >> 8;
+
+      if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
+        // Stopped on entry to a syscall
+        //handleSyscall(child);
+        resume(child);
+
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
+                 status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
+        // Stopped on entry to a fork call
+        _fork(child);
+
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
+        // Stopped on entry to an exec call
+        struct user_regs_struct registers;
+        FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
+            << "Failed to get registers: " << ERR;
+
+        list<string> args;
+
+        int child_argc = read_tracee_data(child, registers.rsp);
+        for (int i = 0; i < child_argc; i++) {
+          uintptr_t arg_ptr = read_tracee_data(child, registers.rsp + (1 + i) * sizeof(long));
+          args.push_back(read_tracee_string(child, arg_ptr));
+        }
+
+        _execve(child, get_executable(child), args);
+
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
+        // Stopped on entry to a clone call
+        struct user_regs_struct registers;
+        FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
+            << "Failed to get registers: " << ERR;
+        
+        _clone(child, registers.SYSCALL_ARG1);
+
+      } else {
+        WARN << "Unhandled stop in process " << child;
+        // We don't bother handling errors here, because any failure
+        // just means that the child is somehow broken, and we shouldn't
+        // continue processing it anyway.
+        ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+      }
+
+    } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
+      // Stopped on exit
+      _exit(child);
+    }
+  }
+}
+
+void Tracer::resume(pid_t pid) {
+  FAIL_IF(ptrace(PTRACE_CONT, pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+}
+
+long Tracer::finishSyscall(pid_t pid) {
+  FAIL_IF(ptrace(PTRACE_SYSCALL, pid, nullptr, 0)) << "Failed to finish syscall: " << ERR;
+  FAIL_IF(waitpid(pid, nullptr, 0) != pid) << "Unexpected child process stop";
+
+  // Clear errno so we can check for errors
+  errno = 0;
+  long result = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
+  FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
+
+  return result;
+}
+
+unsigned long Tracer::getEventMessage(pid_t pid) {
+  // Get the id of the new process
+  unsigned long message;
+  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, pid, nullptr, &message))
+      << "Unable to read ptrace event message: " << ERR;
+  return message;
+}
+
+/****************************************************/
+/********** System call handling functions **********/
+/****************************************************/
+
+// Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
+
+void Tracer::_read(pid_t pid, int fd) {
+  resume(pid);
+
+  auto proc = _processes[pid];
+  auto f = proc->_fds[fd].file;
+  if (f) f->readBy(proc->_command);
+}
+
+void Tracer::_write(pid_t pid, int fd) {
+  resume(pid);
+
+  auto proc = _processes[pid];
+  auto f = proc->_fds[fd].file;
+  if (f) f->writtenBy(proc->_command);
+}
+
+void Tracer::_close(pid_t pid, int fd) {
+  resume(pid);
+
+  auto proc = _processes[pid];
+  auto f = proc->_fds[fd].file;
+
+  // Log the event if there was actually a valid file descriptor
+  if (f) LOG << proc->_command << " closed " << proc->_fds[fd].file;
+
+  proc->_fds.erase(fd);
+}
+
+void Tracer::_mmap(pid_t pid, void* addr, size_t len, int prot, int flags, int fd, off_t off) {
+  // TODO: Handle mmaps
+  resume(pid);
+}
+
+void Tracer::_dup(pid_t pid, int fd) {
+  // Finish the syscall to get the new file descriptor
+  int newfd = finishSyscall(pid);
+
+  // Now resume the process
+  resume(pid);
+
+  // If the syscall failed, do nothing
+  if (newfd == -1) return;
+
+  // Add the new entry for the duped fd
+  auto proc = _processes[pid];
+  proc->_fds[newfd] = proc->_fds[fd];
+}
+
+void Tracer::_dup2(pid_t pid, int oldfd, int newfd) {
+  // Finish the syscall
+  int rc = finishSyscall(pid);
+
+  // Now resume the process
+  resume(pid);
+
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+
+  // Add the entry for the duped fd
+  auto proc = _processes[pid];
+  proc->_fds[newfd] = proc->_fds[oldfd];
+}
+
+void Tracer::_sendfile(pid_t pid, int out_fd, int in_fd) {
+  // Finish the syscall
+  int rc = finishSyscall(pid);
+
+  // Resume
+  resume(pid);
+
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+
+  // Record a read from in_fd and a write to out_fd
+  auto proc = _processes[pid];
+  proc->_fds[in_fd].file->readBy(proc->_command);
+  proc->_fds[out_fd].file->writtenBy(proc->_command);
+}
+
+void Tracer::_clone(pid_t pid, int flags) {
+  // Get the new thread id
+  pid_t new_pid = getEventMessage(pid);
+
+  // Resume execution
+  resume(pid);
+
+  // TODO: Handle flags, e.g. CLONE_FILES
+
+  // Threads in the same process just appear as pid references to the same process
+  _processes[new_pid] = _processes[pid];
+}
+
+void Tracer::_fork(pid_t pid) {
+  // Get the new process' pid
+  pid_t new_pid = getEventMessage(pid);
+
+  // Resume
+  resume(pid);
+
+  // If the call failed, do nothing
+  if (new_pid == -1) return;
+
+  // Create a new process running the same command
+  auto proc = _processes[pid];
+  auto new_proc = make_shared<Process>(new_pid, proc->_cwd, proc->_command, proc->_fds);
+  _processes[new_pid] = new_proc;
+}
+
+void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
+  // Resume the child
+  resume(pid);
+
+  // Get the process that issued the exec call
+  auto proc = _processes[pid];
+
+  // Close all cloexec file descriptors
+  for (auto fd_entry = proc->_fds.begin(); fd_entry != proc->_fds.end();) {
+    if (fd_entry->second.cloexec) {
+      fd_entry = proc->_fds.erase(fd_entry);
+    } else {
+      ++fd_entry;
+    }
+  }
+
+  // Create the new command
+  proc->_command = proc->_command->createChild(filename, args, proc->_fds);
+
+  // The new command depends on its executable file
+  _graph.getFile(filename)->readBy(proc->_command);
+}
+
+void Tracer::_exit(pid_t pid) {
+  // Do nothing
+}
+
+void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {}
+
+void Tracer::_truncate(pid_t pid, string path, long length) {}
+
+void Tracer::_ftruncate(pid_t pid, int fd, long length) {}
+
+void Tracer::_getdents(pid_t pid, int fd) {}
+
+void Tracer::_chdir(pid_t pid, string filename) {
+  resume(pid);
+
+  auto proc = _processes[pid];
+  proc->_cwd = filename;
+}
+
+void Tracer::_fchdir(pid_t pid, int fd) {
+  resume(pid);
+
+  auto proc = _processes[pid];
+  proc->_cwd = proc->_fds[fd].file->getPath();
+}
+
+void Tracer::_rename(pid_t pid, string oldname, string newname) {}
+
+void Tracer::_mkdir(pid_t pid, string pathname, mode_t mode) {}
+
+void Tracer::_rmdir(pid_t pid, string pathname) {}
+
+void Tracer::_creat(pid_t pid, string pathname, mode_t mode) {}
+
+void Tracer::_unlink(pid_t pid, string pathname) {}
+
+void Tracer::_symlink(pid_t pid, string oldname, string newname) {}
+
+void Tracer::_readlink(pid_t pid, string path) {}
+
+void Tracer::_chmod(pid_t pid, string filename, mode_t mode) {}
+
+void Tracer::_fchmod(pid_t pid, int fd, mode_t mode) {}
+
+void Tracer::_chown(pid_t pid, string filename, uid_t user, gid_t group) {}
+
+void Tracer::_fchown(pid_t pid, int fd, uid_t user, gid_t group) {}
+
+void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {}
+
+void Tracer::_mknod(pid_t pid, string filename, mode_t mode, unsigned dev) {}
+
+void Tracer::_chroot(pid_t pid, string filename) {}
+
+void Tracer::_setxattr(pid_t pid, string pathname, string name, string value) {}
+
+void Tracer::_lsetxattr(pid_t pid, string pathname, string name, string value) {}
+
+void Tracer::_fsetxattr(pid_t pid, int fd, string name, string value) {}
+
+void Tracer::_getxattr(pid_t pid, string pathname, string name) {}
+
+void Tracer::_lgetxattr(pid_t pid, string pathname, string name) {}
+
+void Tracer::_fgetxattr(pid_t pid, int fd, string name) {}
+
+void Tracer::_listxattr(pid_t pid, string pathname) {}
+
+void Tracer::_llistxattr(pid_t pid, string pathname) {}
+
+void Tracer::_flistxattr(pid_t pid, int fd) {}
+
+void Tracer::_removexattr(pid_t pid, string pathname, string name) {}
+
+void Tracer::_lremovexattr(pid_t pid, string pathname, string name) {}
+
+void Tracer::_fremovexattr(pid_t pid, int fd, string name) {}
+
+void Tracer::_getdents64(pid_t pid, int fd) {}
+
+void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {}
+
+void Tracer::_mkdirat(pid_t pid, int dfd, string pathname, mode_t mode) {}
+
+void Tracer::_mknodat(pid_t pid, int dfd, string filename, mode_t mode, unsigned dev) {}
+
+void Tracer::_fchownat(pid_t pid, int dfd, string filename, uid_t user, gid_t group, int flag) {}
+
+void Tracer::_unlinkat(pid_t pid, int dfd, string pathname, int flag) {}
+
+void Tracer::_renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname) {}
+
+void Tracer::_symlinkat(pid_t pid, string oldname, int newdfd, string newname) {}
+
+void Tracer::_readlinkat(pid_t pid, int dfd, string pathname) {}
+
+void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode) {}
+
+void Tracer::_splice(pid_t pid, int fd_in, loff_t off_in, int fd_out, loff_t off_out) {}
+
+void Tracer::_tee(pid_t pid, int fdin, int fdout, size_t len) {}
+
+void Tracer::_dup3(pid_t pid, int oldfd, int newfd, int flags) {}
+
+void Tracer::_pipe2(pid_t pid, int* fds, int flags) {}
+
+void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath) {}
+
+void Tracer::_copy_file_range(pid_t pid, int fd_in, int _, int fd_out) {}
+
+/////////////////
+
+void Tracer::handleSyscall(pid_t pid) {
+  struct user_regs_struct regs;
+  FAIL_IF(ptrace(PTRACE_GETREGS, pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
+
+  switch (regs.SYSCALL_NUMBER) {
+    case __NR_read:
+      _read(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_write:
+      _write(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_open:
+      _open(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_close:
+      _close(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_mmap:
+      _mmap(pid, (void*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4,
+            regs.SYSCALL_ARG5, regs.SYSCALL_ARG6);
+      break;
+
+    case __NR_pread64:
+      _pread64(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_pwrite64:
+      _pwrite64(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_readv:
+      _readv(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_writev:
+      _writev(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_pipe:
+      _pipe(pid, (int*)regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_dup:
+      _dup(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_dup2:
+      _dup2(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_sendfile:
+      _sendfile(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_fcntl:
+      _fcntl(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_truncate:
+      _truncate(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_ftruncate:
+      _ftruncate(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_getdents:
+      _getdents(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_chdir:
+      _chdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_fchdir:
+      _fchdir(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_rename:
+      _rename(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+              read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_mkdir:
+      _mkdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_rmdir:
+      _rmdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_creat:
+      _creat(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_unlink:
+      _unlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_symlink:
+      _symlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+               read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_readlink:
+      _readlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_chmod:
+      _chmod(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_fchmod:
+      _fchmod(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_chown:
+      _chown(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_fchown:
+      _fchown(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_lchown:
+      _lchown(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
+              regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_mknod:
+      _mknod(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_chroot:
+      _chroot(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_setxattr:
+      _setxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                read_tracee_string(pid, regs.SYSCALL_ARG2),
+                read_tracee_string(pid, regs.SYSCALL_ARG3));
+      break;
+
+    case __NR_lsetxattr:
+      _lsetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                 read_tracee_string(pid, regs.SYSCALL_ARG2),
+                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      break;
+
+    case __NR_fsetxattr:
+      _fsetxattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      break;
+
+    case __NR_getxattr:
+      _getxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_lgetxattr:
+      _lgetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                 read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_fgetxattr:
+      _fgetxattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_listxattr:
+      _listxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_llistxattr:
+      _llistxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_flistxattr:
+      _flistxattr(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_removexattr:
+      _removexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                   read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_lremovexattr:
+      _lremovexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
+                    read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_fremovexattr:
+      _fremovexattr(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_getdents64:
+      _getdents64(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_openat:
+      _openat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+              regs.SYSCALL_ARG4);
+      break;
+
+    case __NR_mkdirat:
+      _mkdirat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+               regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_mknodat:
+      _mknodat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+               regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
+      break;
+
+    case __NR_fchownat:
+      _fchownat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                regs.SYSCALL_ARG3, regs.SYSCALL_ARG4, regs.SYSCALL_ARG5);
+      break;
+
+    case __NR_unlinkat:
+      _unlinkat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_renameat:
+      _renameat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4));
+      break;
+
+    case __NR_symlinkat:
+      _symlinkat(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
+                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      break;
+
+    case __NR_readlinkat:
+      _readlinkat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_fchmodat:
+      _fchmodat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_splice:
+      _splice(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
+      break;
+
+    case __NR_tee:
+      _tee(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_vmsplice:
+      _vmsplice(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_dup3:
+      _dup3(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_pipe2:
+      _pipe2(pid, (int*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_preadv:
+      _preadv(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_pwritev:
+      _pwritev(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_renameat2:
+      _renameat2(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+                 regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4));
+      break;
+
+    case __NR_copy_file_range:
+      _copy_file_range(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_preadv2:
+      _preadv2(pid, regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_pwritev2:
+      _pwritev2(pid, regs.SYSCALL_ARG1);
+      break;
+
+    default:
+      FAIL << "Unhandled system call " << regs.SYSCALL_NUMBER;
+  }
+}
+
+/*******************************************/
+/********** Utilities for tracing **********/
+/*******************************************/
+
 static string get_executable(pid_t pid) {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", pid);
@@ -237,13 +915,6 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
   // Let the child restart to reach its exec.
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  // Let the child finish its exec.
-  waitpid(child_pid, &wstatus, 0);  // Should correspond to SECCOMP_RET_TRACE for execve
-  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
-      << "Unexpected stop from child. Expected SECCOMP";
-
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
-
   // Handle a stop from inside the exec
   waitpid(child_pid, &wstatus, 0);
   FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
@@ -252,722 +923,4 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   return child_pid;
-}
-
-void Tracer::handleSyscall(pid_t child) {
-  struct user_regs_struct registers;
-  FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers)) << "Failed to get registers: " << ERR;
-
-  // Certain syscalls have cases that we just don't want to handle. Detect those
-  // first and skip all the work we can. TODO: do this filtering in seccomp
-  switch (registers.SYSCALL_NUMBER) {
-    case /* 9 */ __NR_mmap:
-      if ((registers.SYSCALL_ARG4 & MAP_ANONYMOUS) != 0) {
-        ptrace(PTRACE_CONT, child, nullptr, 0);
-        return;
-      }
-      break;
-    case /* 72 */ __NR_fcntl:
-      switch (registers.SYSCALL_ARG2) {
-        case F_DUPFD:
-        case F_DUPFD_CLOEXEC:
-        case F_SETFD:
-          break;
-        default:
-          ptrace(PTRACE_CONT, child, nullptr, 0);
-          return;
-      }
-      break;
-  }
-
-  // We need to extract any relevant arguments like paths or file names
-  // before we tell the process to continue. However, we want to do minimal
-  // work so that we can exploit the most parallelism, so we just read the
-  // path(s) and nothing else.
-  struct file_reference main_file = {
-      .fd = AT_FDCWD,
-      .path = "",
-      .follow_links = true,
-  };
-  struct file_reference extra_file = {
-      .fd = AT_FDCWD,
-      .path = "",
-      .follow_links = true,
-  };
-
-  bool file_created = false;
-
-  switch (registers.SYSCALL_NUMBER) {
-    // Many operations dealing with files take a single path as their first argument
-    case /* 2 */ __NR_open:
-    case /* 59 */ __NR_execve:
-    case /* 76 */ __NR_truncate:
-    case /* 80 */ __NR_chdir:
-    case /* 83 */ __NR_mkdir:
-    case /* 84 */ __NR_rmdir:
-    case /* 85 */ __NR_creat:
-    case /* 87 */ __NR_unlink:
-    case /* 89 */ __NR_readlink:
-    case /* 133 */ __NR_mknod:
-    case /* 161 */ __NR_chroot:
-    case /* 90 */ __NR_chmod:
-    case /* 92 */ __NR_chown:
-    case /* 94 */ __NR_lchown:
-    case /* 188 */ __NR_setxattr:
-    case /* 189 */ __NR_lsetxattr:
-    case /* 191 */ __NR_getxattr:
-    case /* 192 */ __NR_lgetxattr:
-    case /* 194 */ __NR_listxattr:
-    case /* 195 */ __NR_llistxattr:
-    case /* 197 */ __NR_removexattr:
-    case /* 198 */ __NR_lremovexattr:
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG1);
-      break;
-    // The *at class of syscalls take a directory fd in their first argument, so the
-    // path is given in the second argument
-    case /* 257 */ __NR_openat:
-    case /* 258 */ __NR_mkdirat:
-    case /* 259 */ __NR_mknodat:
-    case /* 263 */ __NR_unlinkat:
-    case /* 260 */ __NR_fchownat:
-    case /* 267 */ __NR_readlinkat:
-    case /* 268 */ __NR_fchmodat:
-    case /* 322 */ __NR_execveat:
-      main_file.fd = registers.SYSCALL_ARG1;
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG2);
-      break;
-    // Some more complicated data transfer operations require two paths for a source
-    // and a destination file, broadly interpreted
-    case /* 82 */ __NR_rename:
-    case /* 155 */ __NR_pivot_root:
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG1);
-      extra_file.path = read_tracee_string(child, registers.SYSCALL_ARG2);
-      break;
-    // The multi-file operations also have *at forms, with directory fds before both
-    // of the paths
-    case /* 264 */ __NR_renameat:
-    case /* 316 */ __NR_renameat2:
-      main_file.fd = registers.SYSCALL_ARG1;
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG2);
-      extra_file.fd = registers.SYSCALL_ARG3;
-      extra_file.path = read_tracee_string(child, registers.SYSCALL_ARG4);
-      break;
-    // Symlinks are a bit odd because they don't actually read what is being referenced
-    // and in fact the reference doesn't have to exist. We just ignore that argument.
-    case /* 88 */ __NR_symlink:
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG2);
-      break;
-    case /* 266 */ __NR_symlinkat:
-      main_file.fd = registers.SYSCALL_ARG2;
-      main_file.path = read_tracee_string(child, registers.SYSCALL_ARG3);
-      break;
-    // The following syscalls deal only in already-open file descriptors,
-    // so record those.
-    case /* 0 */ __NR_read:
-    case /* 1 */ __NR_write:
-    case /* 17 */ __NR_pread64:
-    case /* 18 */ __NR_pwrite64:
-    case /* 19 */ __NR_readv:
-    case /* 20 */ __NR_writev:
-    case /* 72 */ __NR_fcntl:
-    case /* 77 */ __NR_ftruncate:
-    case /* 78 */ __NR_getdents:
-    case /* 217 */ __NR_getdents64:
-    case /* 278 */ __NR_vmsplice:
-    case /* 295 */ __NR_preadv:
-    case /* 296 */ __NR_pwritev:
-    case /* 327 */ __NR_preadv2:
-    case /* 328 */ __NR_pwritev2:
-    case /* 91 */ __NR_fchmod:
-    case /* 93 */ __NR_fchown:
-    case /* 190 */ __NR_fsetxattr:
-    case /* 193 */ __NR_fgetxattr:
-    case /* 196 */ __NR_flistxattr:
-    case /* 199 */ __NR_fremovexattr:
-      main_file.fd = registers.SYSCALL_ARG1;
-      break;
-    case /* 9 */ __NR_mmap:
-      main_file.fd = registers.SYSCALL_ARG5;
-      break;
-    case /* 40 */ __NR_sendfile:
-      main_file.fd = registers.SYSCALL_ARG2;
-      extra_file.fd = registers.SYSCALL_ARG1;
-      break;
-    case /* 275 */ __NR_splice:
-    case /* 326 */ __NR_copy_file_range:
-      main_file.fd = registers.SYSCALL_ARG1;
-      extra_file.fd = registers.SYSCALL_ARG3;
-      break;
-    case /* 276 */ __NR_tee:
-      main_file.fd = registers.SYSCALL_ARG1;
-      extra_file.fd = registers.SYSCALL_ARG2;
-      break;
-  }
-
-  // For open and openat, we need to know if the call created the file.
-  if (registers.SYSCALL_NUMBER == __NR_open) {
-    int flags = registers.SYSCALL_ARG2;
-    if (flags & O_CREAT) {
-      struct stat statbuf;
-      file_created = (stat(main_file.path.c_str(), &statbuf) != 0);
-    }
-  } else if (registers.SYSCALL_NUMBER == __NR_openat) {
-    int flags = registers.SYSCALL_ARG3;
-    if (flags & O_CREAT) {
-      struct stat statbuf;
-      file_created = (stat(main_file.path.c_str(), &statbuf) != 0);
-    }
-  }
-
-  // We need to know the return values of a few syscalls, specifically those that
-  // allocate new fds. Therefore, use PTRACE_SYSCALL to step past just the syscall
-  // and reinspect the process.
-  switch (registers.SYSCALL_NUMBER) {
-    case /* 2 */ __NR_open:
-    case /* 257 */ __NR_openat:
-    case /* 22 */ __NR_pipe:
-    case /* 32 */ __NR_dup:
-    case /* 72 */ __NR_fcntl:
-    case /* 85 */ __NR_creat:
-    case /* 293 */ __NR_pipe2:
-      // We've already hit the syscall-enter, so wait for the syscall-exit.
-      ptrace(PTRACE_SYSCALL, child, nullptr, 0);
-      waitpid(child, nullptr, 0);  // FIXME: handle errors
-      // PEEKUSER should hopefully be more efficient than GETREGS here because
-      // we only care about a single register
-      registers.SYSCALL_RETURN =
-          ptrace(PTRACE_PEEKUSER, child, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
-      if ((long long)registers.SYSCALL_RETURN < 0) {  // The call errored, so skip it
-        ptrace(PTRACE_CONT, child, nullptr, 0);
-        return;
-      }
-      break;
-  }
-
-  // The pipe and pipe2 syscalls return their new file descriptors through a user array,
-  // so read that data.
-  int pipe_fds[2];
-  switch (registers.SYSCALL_NUMBER) {
-    case /* 22 */ __NR_pipe:
-    case /* 293 */ __NR_pipe2:
-      pipe_fds[0] = read_tracee_data(child, registers.SYSCALL_ARG1);
-      pipe_fds[1] = read_tracee_data(child, registers.SYSCALL_ARG1 + sizeof(int));
-      break;
-  }
-
-  // Relaunch the child. After this point, we can no longer access the child's memory,
-  // but we are allowed to do slightly more expensive things.
-  // FIXME: We previously continued here, but this broke instances where we
-  // needed a fingerprint. Contnuing at the end of the loop doesn't allow us to run
-  // in parallel, so we want to continue as soon as possible. Therefore, once we have
-  // any fingerprints we need, call continue immediately.
-
-  // Handle fake-relative syscalls by ignoring the fd when the path is absolute
-  if (main_file.path[0] == '/') {
-    main_file.fd = AT_FDCWD;
-  }
-  if (extra_file.path[0] == '/') {
-    extra_file.fd = AT_FDCWD;
-  }
-
-  // Any syscall that references a path can implicitly dereference symlinks while
-  // traversing the path. This is true even of the l-prefixed syscalls designed to not
-  // dereference symlinks, since that change only applies to the final symlink;
-  // directories along the way are still dereferenced.
-  //
-  // Instead of expensively implementing user-space path resolution and depending on
-  // every symlink individually, we just assume that symlinks won't change over the
-  // course of the build and only keep track of the distinction for the final file.
-  switch (registers.SYSCALL_NUMBER) {
-    case /* 83 */ __NR_mkdir:
-    case /* 84 */ __NR_rmdir:
-    case /* 87 */ __NR_unlink:
-    case /* 88 */ __NR_symlink:
-    case /* 89 */ __NR_readlink:
-    case /* 94 */ __NR_lchown:
-    case /* 133 */ __NR_mknod:
-    case /* 189 */ __NR_lsetxattr:
-    case /* 192 */ __NR_lgetxattr:
-    case /* 195 */ __NR_llistxattr:
-    case /* 198 */ __NR_lremovexattr:
-    case /* 258 */ __NR_mkdirat:
-    case /* 259 */ __NR_mknodat:
-    case /* 263 */ __NR_unlinkat:
-    case /* 266 */ __NR_symlinkat:
-    case /* 267 */ __NR_readlinkat:
-      main_file.follow_links = false;
-      break;
-  }
-
-  // If this syscall only deals with something in /proc/self, then assume that it is messing
-  // with process-internal state and we can safely ignore it.
-  // FIXME: There are paths through /proc/self that lead out of procfs, such as
-  // referencing a something in a directory linked by /proc/self (i.e.
-  // /proc/self/fd/10/foo/bar)
-  if (!main_file.follow_links && main_file.fd == AT_FDCWD && main_file.path.size() >= 11 &&
-      main_file.path.substr(0, 11) == "/proc/self/") {
-    ptrace(PTRACE_CONT, child, nullptr, 0);
-    return;
-  }
-
-  // This is the giant switch statement where we handle what every syscall means. Note
-  // that we don't handle execve and execveat, since the actual processing there is done
-  // on STOP_EXEC (i.e. PTRACE_EVENT_EXEC).
-  switch (registers.SYSCALL_NUMBER) {
-    ////// Fiddling with file descriptors //////
-    case /* 3 */ __NR_close:
-      traceClose(child, registers.SYSCALL_ARG1);
-      break;
-    case /* 2 */ __NR_open:
-      traceOpen(child,
-                registers.SYSCALL_RETURN,  // File descriptor
-                main_file.path,            // File path
-                file_created,              // Did the file exist before
-                registers.SYSCALL_ARG2,    // Flags
-                registers.SYSCALL_ARG3);   // File mode
-      break;
-
-    case /* 85 */ __NR_creat:
-      traceOpen(child,
-                registers.SYSCALL_RETURN,      // File descriptor
-                main_file.path,                // File path
-                file_created,                  // Did the file exist before
-                O_CREAT | O_WRONLY | O_TRUNC,  // Flags
-                registers.SYSCALL_ARG2);       // File mode
-
-      break;
-
-    case /* 257 */ __NR_openat:
-      traceOpen(child,
-                registers.SYSCALL_RETURN,  // File descriptor
-                main_file.path,            // File path
-                file_created,              // Did the file exist before
-                registers.SYSCALL_ARG3,    // Flags
-                registers.SYSCALL_ARG4);   // File mode
-      break;
-
-    case /* 22 */ __NR_pipe:
-      tracePipe(child, pipe_fds, false);
-      break;
-    case /* 293 */ __NR_pipe2:
-      tracePipe(child, pipe_fds, (registers.SYSCALL_ARG2 & O_CLOEXEC) != 0);
-      break;
-    case /* 32 */ __NR_dup:
-      traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
-      break;
-    case /* 33 */ __NR_dup2:
-      traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2, false);
-      break;
-    case /* 292 */ __NR_dup3:
-      traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_ARG2,
-               (registers.SYSCALL_ARG3 & O_CLOEXEC) != 0);
-      break;
-    case /* 72 */ __NR_fcntl:
-      switch (registers.SYSCALL_ARG2) {
-        case F_DUPFD:
-          traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, false);
-          break;
-        case F_DUPFD_CLOEXEC:
-          traceDup(child, registers.SYSCALL_ARG1, registers.SYSCALL_RETURN, true);
-          break;
-        case F_SETFD:
-          traceSetCloexec(child, registers.SYSCALL_ARG1,
-                          (registers.SYSCALL_ARG3 & FD_CLOEXEC) != 0);
-          break;
-      }
-      break;
-    ////// Changing process state //////
-    case /* 80 */ __NR_chdir:
-    case /* 81 */ __NR_fchdir:
-      traceChdir(child, main_file.path);
-      break;
-    case /* 161 */ __NR_chroot:
-      traceChroot(child, main_file.path);
-      break;
-    ////// Complex operations /////
-    case /* 9 */ __NR_mmap:
-      traceMmap(child, main_file.fd);
-      break;
-    case /* 40 */ __NR_sendfile:
-    case /* 275 */ __NR_splice:
-    case /* 276 */ __NR_tee:
-    case /* 326 */ __NR_copy_file_range:
-      traceRead(child, main_file);
-      traceModify(child, extra_file);
-      break;
-    case /* 76 */ __NR_truncate:
-    case /* 77 */ __NR_ftruncate:
-      if (registers.SYSCALL_ARG2 == 0) {
-        traceTruncate(child, main_file);
-      } else {
-        traceModify(child, main_file);
-      }
-      break;
-    case /* 82 */ __NR_rename:
-    case /* 264 */ __NR_renameat:
-    case /* 316 */ __NR_renameat2:  // TODO: Handle the flags
-      traceRead(child, main_file);
-      traceRemove(child, main_file);
-      traceRemove(child, extra_file);
-      traceCreate(child, extra_file);
-      traceModify(child, extra_file);
-      break;
-    ////// Simple reads and writes //////
-    case /* 0 */ __NR_read:
-    case /* 17 */ __NR_pread64:
-    case /* 19 */ __NR_readv:
-    case /* 78 */ __NR_getdents:
-    case /* 89 */ __NR_readlink:
-    case /* 217 */ __NR_getdents64:
-    case /* 295 */ __NR_preadv:
-    case /* 327 */ __NR_preadv2:
-    case /* 191 */ __NR_getxattr:
-    case /* 192 */ __NR_lgetxattr:
-    case /* 193 */ __NR_fgetxattr:
-    case /* 194 */ __NR_listxattr:
-    case /* 195 */ __NR_llistxattr:
-    case /* 196 */ __NR_flistxattr:
-    case /* 267 */ __NR_readlinkat:
-      traceRead(child, main_file);
-      break;
-
-    ////// Do nothing for execve and execveat //////
-    // These were being handled as reads, but that assigned an input dependency to the
-    // wrong command. Only the command that is actually exec-ed depends on the contents
-    // of the file. That happens in Process::traceExec().
-    case /* 59 */ __NR_execve:
-    case /* 322 */ __NR_execveat:
-      break;
-
-    case /* 1 */ __NR_write:
-    case /* 18 */ __NR_pwrite64:
-    case /* 20 */ __NR_writev:
-    case /* 278 */ __NR_vmsplice:
-    case /* 296 */ __NR_pwritev:
-    case /* 328 */ __NR_pwritev2:
-    case /* 90 */ __NR_chmod:
-    case /* 91 */ __NR_fchmod:
-    case /* 92 */ __NR_chown:
-    case /* 93 */ __NR_fchown:
-    case /* 94 */ __NR_lchown:
-    case /* 188 */ __NR_setxattr:
-    case /* 189 */ __NR_lsetxattr:
-    case /* 190 */ __NR_fsetxattr:
-    case /* 197 */ __NR_removexattr:
-    case /* 198 */ __NR_lremovexattr:
-    case /* 199 */ __NR_fremovexattr:
-    case /* 260 */ __NR_fchownat:
-    case /* 268 */ __NR_fchmodat:
-      traceModify(child, main_file);
-      break;
-    case /* 83 */ __NR_mkdir:
-    case /* 88 */ __NR_symlink:
-    case /* 133 */ __NR_mknod:
-    case /* 258 */ __NR_mkdirat:
-    case /* 259 */ __NR_mknodat:
-    case /* 266 */ __NR_symlinkat:
-      traceCreate(child, main_file);
-      break;
-    case /* 84 */ __NR_rmdir:
-    case /* 87 */ __NR_unlink:
-    case /* 263 */ __NR_unlinkat:
-      traceRemove(child, main_file);
-      break;
-    default:
-      WARN << "[" << child << "] Unhandled Syscall: " << (int)registers.SYSCALL_NUMBER;
-      break;
-  }
-
-  // FIXME: See FIXME above about why this ought to be earlier in the loop
-  FAIL_IF(ptrace(PTRACE_CONT, child, nullptr, 0)) << "Failed to resume child: " << ERR;
-}
-
-void Tracer::handleFork(pid_t child) {
-  // GETEVENTMSG returns a unsigned long *always*, even though the value is
-  // always a pid_t.
-  unsigned long ul_new_child;
-  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_child))
-      << "Unable to fetch new child from fork: " << ERR;
-
-  pid_t new_child = (pid_t)ul_new_child;
-
-  FAIL_IF(ptrace(PTRACE_CONT, child, nullptr, 0)) << "Failed to resume child: " << ERR;
-
-  traceFork(child, new_child);
-}
-
-void Tracer::handleExec(pid_t child) {
-  struct user_regs_struct registers;
-  FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers)) << "Failed to get registers: " << ERR;
-
-  list<string> args;
-
-  int child_argc = read_tracee_data(child, registers.rsp);
-  for (int i = 0; i < child_argc; i++) {
-    uintptr_t arg_ptr = read_tracee_data(child, registers.rsp + (1 + i) * sizeof(long));
-    args.push_back(read_tracee_string(child, arg_ptr));
-  }
-
-  traceExec(child, get_executable(child), args);
-
-  ptrace(PTRACE_CONT, child, nullptr, 0);
-}
-
-void Tracer::handleClone(pid_t child) {
-  unsigned long ul_new_thread;
-  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, child, nullptr, &ul_new_thread))
-      << "Unable to fetch new child from clone: " << ERR;
-
-  pid_t new_thread = (pid_t)ul_new_thread;
-  ptrace(PTRACE_CONT, child, nullptr, 0);
-  // TODO handling of flags -> CLONE_FILES
-  traceClone(child, new_thread);
-}
-
-void Tracer::handleExit(pid_t child) {
-  traceExit(child);
-}
-
-void Tracer::run(Command* cmd) {
-  string exec_path = cmd->getExecutable();
-  vector<char*> exec_argv;
-
-  // Special handling for the root command
-  if (cmd->isRoot()) {
-    // By default, the root command is executed directly. However, it may not be executable.
-    // In that case, start the root command using /bin/sh by default.
-
-    // Check to see if the Dodofile is executable
-    if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
-      // Execute would fail. Can we read it and run with sh?
-      if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
-        // No. Print an error.
-        FAIL << "Unable to access " << exec_path << ".\n"
-             << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-      }
-
-      // Root command file is readable but not executable. Run with /bin/sh
-      exec_argv.push_back((char*)exec_path.c_str());
-      exec_path = "/bin/sh";
-    }
-  }
-
-  for (auto& arg : cmd->getArguments()) {
-    exec_argv.push_back((char*)arg.c_str());
-  }
-  exec_argv.push_back(nullptr);
-  pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), {});
-
-  // TODO: Fix cwd handling
-  _processes[pid] = make_shared<Process>(pid, ".", cmd, cmd->getInitialFDs());
-
-  while (true) {
-    int wait_status;
-    pid_t child = wait(&wait_status);
-    if (child == -1) {
-      if (errno == ECHILD) {
-        // ECHILD is returned when there are no children to wait on, which
-        // is by far the simplest and most reliable signal we have for when
-        // to exit (cleanly).
-        break;
-      } else {
-        FAIL << "Error while waiting: " << ERR;
-      }
-    }
-
-    if (WIFSTOPPED(wait_status)) {
-      int status = wait_status >> 8;
-
-      if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
-        handleSyscall(child);
-
-      } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
-                 status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
-        handleFork(child);
-
-      } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-        handleExec(child);
-
-      } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
-        handleClone(child);
-
-      } else {
-        WARN << "Unhandled stop in process " << child;
-        // We don't bother handling errors here, because any failure
-        // just means that the child is somehow broken, and we shouldn't
-        // continue processing it anyway.
-        ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
-      }
-
-    } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
-      handleExit(child);
-    }
-  }
-}
-
-void Tracer::traceChdir(pid_t pid, string path) {
-  _processes[pid]->_cwd = path;
-}
-
-void Tracer::traceChroot(pid_t pid, string path) {
-  _processes[pid]->_root = path;
-}
-
-void Tracer::traceFork(pid_t pid, pid_t child_pid) {
-  auto proc = _processes[pid];
-  auto child_proc = make_shared<Process>(child_pid, proc->_cwd, proc->_command, proc->_fds);
-  _processes[child_pid] = child_proc;
-}
-
-void Tracer::traceClone(pid_t pid, pid_t thread_id) {
-  // Threads in the same process just appear as pid references to the same process
-  _processes[thread_id] = _processes[pid];
-}
-
-void Tracer::traceExec(pid_t pid, string executable, const list<string>& args) {
-  auto proc = _processes[pid];
-
-  // Close all cloexec file descriptors
-  for (auto fd_entry = proc->_fds.begin(); fd_entry != proc->_fds.end();) {
-    if (fd_entry->second.cloexec) {
-      fd_entry = proc->_fds.erase(fd_entry);
-    } else {
-      ++fd_entry;
-    }
-  }
-
-  // Create the new command
-  proc->_command = proc->_command->createChild(executable, args, proc->_fds);
-
-  // The new command depends on its executable file
-  _graph.getFile(executable)->readBy(proc->_command);
-}
-
-void Tracer::traceExit(pid_t pid) {}
-
-void Tracer::traceOpen(pid_t pid, int fd, string path, bool file_created, int flags, mode_t mode) {
-  auto f = _graph.getFile(path);
-  auto proc = _processes[pid];
-
-  int access_mode = flags & (O_RDONLY | O_WRONLY | O_RDWR);
-  bool cloexec = (flags & O_CLOEXEC) != 0;
-
-  // Record the file descriptor entry
-  proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
-
-  if (file_created) {
-    f->createdBy(proc->_command);
-  } else if (flags & O_TRUNC) {
-    f->truncatedBy(proc->_command);
-  }
-
-  // Otherwise, no interaction yet until we do something with the file
-
-  LOG << proc->_command << " opened " << f;
-}
-
-void Tracer::traceClose(pid_t pid, int fd) {
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
-
-  // Log the event if there was actually a valid file descriptor
-  if (f) LOG << proc->_command << " closed " << proc->_fds[fd].file;
-
-  proc->_fds.erase(fd);
-}
-
-void Tracer::tracePipe(pid_t pid, int fds[2], bool cloexec) {
-  auto proc = _processes[pid];
-  auto f = _graph.getPipe();
-
-  f->createdBy(proc->_command);
-
-  proc->_fds[fds[0]] = FileDescriptor(f, O_RDONLY, cloexec);
-  proc->_fds[fds[1]] = FileDescriptor(f, O_WRONLY, cloexec);
-}
-
-void Tracer::traceDup(pid_t pid, int duped_fd, int new_fd, bool cloexec) {
-  auto proc = _processes[pid];
-
-  auto target_fd = proc->_fds.find(new_fd);
-  if (target_fd != proc->_fds.end()) {
-    LOG << proc->_command << " closed " << proc->_fds[new_fd].file << " via dup";
-  }
-
-  auto duped_file = proc->_fds.find(duped_fd);
-  if (duped_file == proc->_fds.end()) {
-    proc->_fds.erase(new_fd);
-  } else {
-    proc->_fds[new_fd] = proc->_fds[duped_fd];
-  }
-}
-
-void Tracer::traceSetCloexec(pid_t pid, int fd, bool cloexec) {
-  auto proc = _processes[pid];
-  auto file = proc->_fds.find(fd);
-  if (file != proc->_fds.end()) {
-    file->second.cloexec = cloexec;
-  }
-}
-
-void Tracer::traceMmap(pid_t pid, int fd) {
-  // TODO
-}
-
-File* Tracer::resolveFileRef(shared_ptr<Process> proc, struct file_reference& file) {
-  File* f = nullptr;
-  if (file.fd == AT_FDCWD) {
-    f = _graph.getFile(file.path);
-  } else {
-    f = proc->_fds[file.fd].file;
-  }
-
-  if (!f) {
-    WARN << "Unable to resolve file in " << proc->_command;
-    WARN << "  fd: " << file.fd;
-    WARN << "  path: " << file.path;
-    WARN << "FDs:";
-    for (auto entry : proc->_fds) {
-      int index = entry.first;
-      auto file = entry.second.file;
-
-      if (file) {
-        WARN << "  " << index << ": " << file;
-      } else {
-        WARN << "  " << index << ": INVALID";
-      }
-    }
-  }
-
-  return f;
-}
-
-void Tracer::traceRead(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto f = resolveFileRef(proc, file);
-  if (f) f->readBy(proc->_command);
-}
-
-void Tracer::traceModify(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto f = resolveFileRef(proc, file);
-  if (f) f->writtenBy(proc->_command);
-}
-
-void Tracer::traceTruncate(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto f = resolveFileRef(proc, file);
-  if (f) f->truncatedBy(proc->_command);
-}
-
-void Tracer::traceCreate(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto f = resolveFileRef(proc, file);
-  if (f) f->createdBy(proc->_command);
-}
-
-void Tracer::traceRemove(pid_t pid, struct file_reference& file) {
-  auto proc = _processes[pid];
-  auto f = resolveFileRef(proc, file);
-  if (f) f->deletedBy(proc->_command);
 }

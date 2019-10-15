@@ -37,6 +37,7 @@ static const uint16_t syscalls[] = {
     /* 83 */ __NR_mkdir,
     /* 84 */ __NR_rmdir,
     /* 85 */ __NR_creat,
+    /* 86 */ __NR_link,
     /* 87 */ __NR_unlink,
     /* 88 */ __NR_symlink,
     /* 89 */ __NR_readlink,
@@ -83,14 +84,14 @@ static const uint16_t syscalls[] = {
     /* 199 */ __NR_fremovexattr,
     /* 260 */ __NR_fchownat,
     /* 268 */ __NR_fchmodat,
-    // --------------- Process ops, mostly tracked via ptrace, not seccomp ----------------
+    // --------------- Process ops, tracked via ptrace, not seccomp ----------------
     //    /* 56 */ __NR_clone,
     //    /* 57 */ __NR_fork,
     //    /* 58 */ __NR_vfork,
-    /* 59 */ __NR_execve,
+    //    /* 59 */ __NR_execve,
     //    /* 60 */ __NR_exit,
     //    /* 231 */ __NR_exit_group,
-    /* 322 */ __NR_execveat,
+    //    /* 322 */ __NR_execveat,
     // --------------- Things we probably should handle but don't -------
     // Asynchronous IO (io_setup, io_destroy, io_getevents, io_submit, io_cancel)
     //    /* 303 */ __NR_name_to_handle_at,
