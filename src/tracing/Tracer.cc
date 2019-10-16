@@ -176,23 +176,53 @@ unsigned long Tracer::getEventMessage(pid_t pid) {
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
 void Tracer::_read(pid_t pid, int fd) {
-  resume(pid);
-
+  // Get the process and file
   auto proc = _processes[pid];
   auto f = proc->_fds[fd].file;
-  if (f) f->readBy(proc->_command);
+  
+  // If there's no matching file descriptor, just resume and return
+  if (!f) {
+    resume(pid);
+    return;
+  }
+  
+  // Finish the syscall to find out if it succeeded, then resume the process
+  int rc = finishSyscall(pid);
+  resume(pid);
+
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+
+  // Log the read
+  f->readBy(proc->_command);
 }
 
 void Tracer::_write(pid_t pid, int fd) {
+  // Get the process and file
   auto proc = _processes[pid];
   auto f = proc->_fds[fd].file;
-  if (f) f->writtenBy(proc->_command);
 
-  // Resume the process after logging the write so we have a chance to fingerprint if necessary
+  // If there was no matching file, resume the process and bail out
+  if (!f) {
+    resume(pid);
+    return;
+  }
+
+  // There may be a write from this command (we might save a copy or take a fingerprint)
+  f->mayWrite(proc->_command);
+
+  // Finish the syscall and resume the process
+  int rc = finishSyscall(pid);
   resume(pid);
+
+  // If the syscall succeeded, record a write
+  if (rc != -1) f->writtenBy(proc->_command);
 }
 
 void Tracer::_close(pid_t pid, int fd) {
+  // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is harmless
+
+  // Resume the process
   resume(pid);
 
   auto proc = _processes[pid];
@@ -210,10 +240,8 @@ void Tracer::_mmap(pid_t pid, void* addr, size_t len, int prot, int flags, int f
 }
 
 int Tracer::_dup(pid_t pid, int fd) {
-  // Finish the syscall to get the new file descriptor
+  // Finish the syscall to get the new file descriptor, then resume the process
   int newfd = finishSyscall(pid);
-
-  // Now resume the process
   resume(pid);
 
   // If the syscall failed, do nothing
@@ -223,15 +251,13 @@ int Tracer::_dup(pid_t pid, int fd) {
   auto proc = _processes[pid];
   proc->_fds[newfd] = proc->_fds[fd];
 
-  // Return the new fd
+  // Return the new fd. This is helpful for handling some of the fcntl variants
   return newfd;
 }
 
 void Tracer::_dup2(pid_t pid, int oldfd, int newfd) {
-  // Finish the syscall
+  // Finish the syscall to get the return value, then resume
   int rc = finishSyscall(pid);
-
-  // Now resume the process
   resume(pid);
 
   // If the syscall failed, do nothing
@@ -243,26 +269,32 @@ void Tracer::_dup2(pid_t pid, int oldfd, int newfd) {
 }
 
 void Tracer::_sendfile(pid_t pid, int out_fd, int in_fd) {
-  // Finish the syscall
-  int rc = finishSyscall(pid);
+  // As with _write above, we may have to fingerprint the output file, although we won't know until
+  // after the syscall (it could fail).
+  auto proc = _processes[pid];
+  auto in_f = proc->_fds[in_fd].file;
+  auto out_f = proc->_fds[out_fd].file;
 
-  // Resume
+  // Take a fingerprint if we need one
+  out_f->mayWrite(proc->_command);
+
+  // Finish the system call and resume
+  int rc = finishSyscall(pid);
   resume(pid);
 
   // If the syscall failed, do nothing
   if (rc == -1) return;
 
-  // Record a read from in_fd and a write to out_fd
-  auto proc = _processes[pid];
-  proc->_fds[in_fd].file->readBy(proc->_command);
-  proc->_fds[out_fd].file->writtenBy(proc->_command);
+  in_f->readBy(proc->_command);
+  out_f->writtenBy(proc->_command);
 }
 
 void Tracer::_clone(pid_t pid, int flags) {
-  // Get the new thread id
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+  
+  // Get the new thread id and then resume execution
   pid_t new_pid = getEventMessage(pid);
-
-  // Resume execution
   resume(pid);
 
   // TODO: Handle flags
@@ -272,10 +304,11 @@ void Tracer::_clone(pid_t pid, int flags) {
 }
 
 void Tracer::_fork(pid_t pid) {
-  // Get the new process' pid
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+  
+  // Get the new process id and resume execution
   pid_t new_pid = getEventMessage(pid);
-
-  // Resume
   resume(pid);
 
   // If the call failed, do nothing
@@ -288,6 +321,9 @@ void Tracer::_fork(pid_t pid) {
 }
 
 void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+  
   // Resume the child
   resume(pid);
 
@@ -311,6 +347,9 @@ void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
 }
 
 void Tracer::_exit(pid_t pid) {
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+  
   // Remove the process. No need to resume, since the process has exited
   _processes.erase(pid);
 }
@@ -331,7 +370,7 @@ void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
     // Set the cloexec flag using the argument flags
     auto proc = _processes[pid];
     proc->_fds[fd].cloexec = (arg & FD_CLOEXEC) != 0;
-  
+
   } else {
     // Unhandled operation
     // TODO: Filter these stops out with BPF/seccomp
@@ -340,29 +379,42 @@ void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
 }
 
 void Tracer::_truncate(pid_t pid, string path, long length) {
-  auto f = _graph.getFile(path);
+  // Get the process and file
   auto proc = _processes[pid];
+  auto f = _graph.getFile(path);
+
+  // Notify the file of an upcoming change
+  if (length == 0) {
+    f->mayTruncate(proc->_command);
+  } else {
+    f->mayWrite(proc->_command);
+  }
   
+  // Finish the system call and resume
+  int rc = finishSyscall(pid);
+  resume(pid);
+
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+  
+  // Record the write or truncate
   if (length == 0) {
     f->truncatedBy(proc->_command);
   } else {
     f->writtenBy(proc->_command);
   }
-  
-  // Resume after logging so we have a chance to fingerprint
-  resume(pid);
 }
 
 void Tracer::_ftruncate(pid_t pid, int fd, long length) {
   auto proc = _processes[pid];
   auto f = proc->_fds[fd].file;
-  
+
   if (length == 0) {
     f->truncatedBy(proc->_command);
   } else {
     f->writtenBy(proc->_command);
   }
-  
+
   // Resume after logging so we have a chance to fingerprint
   resume(pid);
 }
@@ -383,15 +435,6 @@ void Tracer::_fchdir(pid_t pid, int fd) {
   if (f) proc->_cwd = f->getPath();
 }
 
-void Tracer::_rename(pid_t pid, string oldname, string newname) {
-  resume(pid);
-}
-
-void Tracer::_mkdir(pid_t pid, string pathname, mode_t mode) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_rmdir(pid_t pid, string pathname) {
   resume(pid);
   // TODO
@@ -402,32 +445,7 @@ void Tracer::_creat(pid_t pid, string pathname, mode_t mode) {
   // TODO
 }
 
-void Tracer::_unlink(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_symlink(pid_t pid, string oldname, string newname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_readlink(pid_t pid, string path) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_chmod(pid_t pid, string filename, mode_t mode) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_fchmod(pid_t pid, int fd, mode_t mode) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_chown(pid_t pid, string filename, uid_t user, gid_t group) {
   resume(pid);
   // TODO
 }
@@ -438,11 +456,6 @@ void Tracer::_fchown(pid_t pid, int fd, uid_t user, gid_t group) {
 }
 
 void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_mknod(pid_t pid, string filename, mode_t mode, unsigned dev) {
   resume(pid);
   // TODO
 }
@@ -462,22 +475,12 @@ void Tracer::_lsetxattr(pid_t pid, string pathname) {
   // TODO
 }
 
-void Tracer::_fsetxattr(pid_t pid, int fd) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_getxattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
 void Tracer::_lgetxattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_fgetxattr(pid_t pid, int fd) {
   resume(pid);
   // TODO
 }
@@ -492,27 +495,12 @@ void Tracer::_llistxattr(pid_t pid, string pathname) {
   // TODO
 }
 
-void Tracer::_flistxattr(pid_t pid, int fd) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_removexattr(pid_t pid, string pathname) {
   resume(pid);
   // TODO
 }
 
 void Tracer::_lremovexattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_fremovexattr(pid_t pid, int fd) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_getdents64(pid_t pid, int fd) {
   resume(pid);
   // TODO
 }
@@ -577,11 +565,6 @@ void Tracer::_unlinkat(pid_t pid, int dfd, string pathname, int flag) {
   // TODO
 }
 
-void Tracer::_renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_symlinkat(pid_t pid, string oldname, int newdfd, string newname) {
   resume(pid);
   // TODO
@@ -592,7 +575,7 @@ void Tracer::_readlinkat(pid_t pid, int dfd, string pathname) {
   // TODO
 }
 
-void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode) {
+void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode, int flags) {
   resume(pid);
   // TODO
 }
@@ -617,7 +600,8 @@ void Tracer::_pipe2(pid_t pid, int* fds, int flags) {
   // TODO
 }
 
-void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath) {
+void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath,
+                        int flags) {
   resume(pid);
   // TODO
 }
@@ -863,7 +847,7 @@ void Tracer::handleSyscall(pid_t pid) {
 
     case __NR_fchmodat:
       _fchmodat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3);
+                regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
       break;
 
     case __NR_splice:
@@ -896,7 +880,7 @@ void Tracer::handleSyscall(pid_t pid) {
 
     case __NR_renameat2:
       _renameat2(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
-                 regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4));
+                 regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4), regs.SYSCALL_ARG5);
       break;
 
     case __NR_copy_file_range:

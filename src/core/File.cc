@@ -70,6 +70,10 @@ void File::readBy(Command* c) {
   if (c->addInput(&_versions.back())) INFO << c << " read " << &_versions.back();
 }
 
+void File::mayWrite(Command* c) {
+  // TODO
+}
+
 void File::writtenBy(Command* c) {
   // There must be a previous version if we're writing a file. If the first action performed on a
   // file is to write to it, there will be a create, reference, or truncate version already.
@@ -87,12 +91,20 @@ void File::writtenBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " wrote " << v;
 }
 
+void File::mayTruncate(Command* c) {
+  // TODO
+}
+
 void File::truncatedBy(Command* c) {
   // Tag a truncated version
   auto v = makeVersion(Version::Action::TRUNCATE, c);
 
   // Record the output edge
   if (c->addOutput(v)) INFO << c << " truncated " << v;
+}
+
+void File::mayDelete(Command* c) {
+  // TODO
 }
 
 void File::deletedBy(Command* c) {

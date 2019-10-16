@@ -93,13 +93,24 @@ class File {
 
   /****** Non-trivial methods ******/
 
+  void fingerprintIfNeeded(Command* modifier);
+
   void createdBy(Command* c);
 
   void readBy(Command* c);
+  
+  /// Called just before allowing command c to write this file. May cache or fingerprint.
+  void mayWrite(Command* c);
 
   void writtenBy(Command* c);
+  
+  /// Called just before allowing command c to truncate this file. May cache or fingerprint.
+  void mayTruncate(Command* c);
 
   void truncatedBy(Command* c);
+  
+  /// Called just before allowing command c to delete this file. May cache or fingerprint.
+  void mayDelete(Command* c);
 
   void deletedBy(Command* c);
 

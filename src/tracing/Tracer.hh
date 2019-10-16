@@ -39,7 +39,7 @@ class Tracer {
   void resume(pid_t pid);
 
   long finishSyscall(pid_t pid);
-  
+
   unsigned long getEventMessage(pid_t pid);
 
   void handleSyscall(pid_t pid);
@@ -104,19 +104,29 @@ class Tracer {
 
   /* 080 */ void _chdir(pid_t pid, string filename);
   /* 081 */ void _fchdir(pid_t pid, int fd);
-  /* 082 */ void _rename(pid_t pid, string oldname, string newname);
-  /* 083 */ void _mkdir(pid_t pid, string pathname, mode_t mode);
+  /* 082 */ void _rename(pid_t pid, string oldname, string newname) {
+    _renameat(pid, AT_FDCWD, oldname, AT_FDCWD, newname);
+  }
+  /* 083 */ void _mkdir(pid_t pid, string pathname, mode_t mode) {
+    _mkdirat(pid, AT_FDCWD, pathname, mode);
+  }
   /* 084 */ void _rmdir(pid_t pid, string pathname);
   /* 085 */ void _creat(pid_t pid, string pathname, mode_t mode);
 
   // Skipped syscalls: link (TODO!)
 
-  /* 087 */ void _unlink(pid_t pid, string pathname);
-  /* 088 */ void _symlink(pid_t pid, string oldname, string newname);
-  /* 089 */ void _readlink(pid_t pid, string path);
-  /* 090 */ void _chmod(pid_t pid, string filename, mode_t mode);
+  /* 087 */ void _unlink(pid_t pid, string pathname) { _unlinkat(pid, AT_FDCWD, pathname, 0); }
+  /* 088 */ void _symlink(pid_t pid, string oldname, string newname) {
+    _symlinkat(pid, oldname, AT_FDCWD, newname);
+  }
+  /* 089 */ void _readlink(pid_t pid, string path) { _readlinkat(pid, AT_FDCWD, path); }
+  /* 090 */ void _chmod(pid_t pid, string filename, mode_t mode) {
+    _fchmodat(pid, AT_FDCWD, filename, mode, 0);
+  }
   /* 091 */ void _fchmod(pid_t pid, int fd, mode_t mode);
-  /* 092 */ void _chown(pid_t pid, string filename, uid_t user, gid_t group);
+  /* 092 */ void _chown(pid_t pid, string filename, uid_t user, gid_t group) {
+    _fchownat(pid, AT_FDCWD, filename, user, group, 0);
+  }
   /* 093 */ void _fchown(pid_t pid, int fd, uid_t user, gid_t group);
   /* 094 */ void _lchown(pid_t pid, string filename, uid_t user, gid_t group);
 
@@ -127,7 +137,9 @@ class Tracer {
   //                   rt_sigpending, rt_sigtimedwait, rt_sigqueueinfo, rt_sigsuspend, sigaltstack
   //                   utime
 
-  /* 133 */ void _mknod(pid_t pid, string filename, mode_t mode, unsigned dev);
+  /* 133 */ void _mknod(pid_t pid, string filename, mode_t mode, unsigned dev) {
+    _mknodat(pid, AT_FDCWD, filename, mode, dev);
+  }
 
   // Skipped syscalls: uselib, personality, ustat, statfs, fstatfs, sysfs, getpriority, setpriority,
   //                   sched_setparam, sched_getparam, sched_setscheduler, sched_getscheduler,
@@ -145,22 +157,22 @@ class Tracer {
 
   /* 188 */ void _setxattr(pid_t pid, string pathname);
   /* 189 */ void _lsetxattr(pid_t pid, string pathname);
-  /* 190 */ void _fsetxattr(pid_t pid, int fd);
+  /* 190 */ void _fsetxattr(pid_t pid, int fd) { _write(pid, fd); }
   /* 191 */ void _getxattr(pid_t pid, string pathname);
   /* 192 */ void _lgetxattr(pid_t pid, string pathname);
-  /* 193 */ void _fgetxattr(pid_t pid, int fd);
+  /* 193 */ void _fgetxattr(pid_t pid, int fd) { _read(pid, fd); }
   /* 194 */ void _listxattr(pid_t pid, string pathname);
   /* 195 */ void _llistxattr(pid_t pid, string pathname);
-  /* 196 */ void _flistxattr(pid_t pid, int fd);
+  /* 196 */ void _flistxattr(pid_t pid, int fd) { _read(pid, fd); }
   /* 197 */ void _removexattr(pid_t pid, string pathname);
   /* 198 */ void _lremovexattr(pid_t pid, string pathname);
-  /* 199 */ void _fremovexattr(pid_t pid, int fd);
+  /* 199 */ void _fremovexattr(pid_t pid, int fd) { _write(pid, fd); }
 
   // Skipped syscalls: tkill, time, futex, sched_setaffinity, sched_getaffinity, set_thread_area,
   //                   io_setup, io_destroy, io_getevents, io_submit, io_cancel, get_thread_area,
   //                   lookup_dcookie, epoll_create, epoll_ctl_old, epoll_wait_old, remap_file_pages
 
-  /* 217 */ void _getdents64(pid_t pid, int fd);
+  /* 217 */ void _getdents64(pid_t pid, int fd) { _read(pid, fd); }
 
   // Skipped syscalls: set_tid_address, restart_syscall, semtimedop, fadvise64, timer_create,
   //                   timer_settime, timer_gettime, timer_getoverrun, timer_delete, clock_settime,
@@ -178,13 +190,15 @@ class Tracer {
   // Skipped syscalls: futimesat, newfstatat
 
   /* 263 */ void _unlinkat(pid_t pid, int dfd, string pathname, int flag);
-  /* 264 */ void _renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname);
+  /* 264 */ void _renameat(pid_t pid, int dfd, string oldname, int newdfd, string newname) {
+    _renameat2(pid, dfd, oldname, newdfd, newname, 0);
+  }
 
   // Skipped syscalls: linkat (TODO!)
 
   /* 266 */ void _symlinkat(pid_t pid, string oldname, int newdfd, string newname);
   /* 267 */ void _readlinkat(pid_t pid, int dfd, string pathname);
-  /* 268 */ void _fchmodat(pid_t pid, int dfd, string filename, mode_t mode);
+  /* 268 */ void _fchmodat(pid_t pid, int dfd, string filename, mode_t mode, int flags);
 
   // Skipped syscalls: faccessat (TODO!), pselect6, ppoll, unshare (TODO!), set_robust_list,
   //                   get_robust_list
@@ -212,7 +226,8 @@ class Tracer {
   // prlimit64, name_to_handle_at (TODO!), open_by_handle_at (TODO!), clock_adjtime, syncfs,
   // sendmmsg, setns, getcpu, process_vm_readv, kcmp, finit_module, ... unknown
 
-  /* 316 */ void _renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath);
+  /* 316 */ void _renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath,
+                            int flags);
 
   /* 326 */ void _copy_file_range(pid_t pid, int fd_in, int _, int fd_out);
   /* 327 */ void _preadv2(pid_t pid, int fd) { _read(pid, fd); }
