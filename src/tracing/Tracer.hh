@@ -40,85 +40,17 @@ class Tracer {
   void run(Command* cmd);
 
  private:
-  /****** Handling for ptrace events ******/
+  /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Process> p);
 
-  // Skipped syscalls: stat, fstat, lstat, poll, lseek
-
-  // Skipped syscalls: mprotect, munmap, brk rt_sigaction, rt_sigprocmask, rt_sigreturn, ioctl
-
+  /// Called after a traced process issues a clone system call
   void handleClone(shared_ptr<Process> p, int flags);
+
+  /// Called after a traced process issues a fork system call
   void handleFork(shared_ptr<Process> p);
-  void handleExec(shared_ptr<Process> p, string filename, const list<string>& args);
+
+  /// Called when a traced process exits
   void handleExit(shared_ptr<Process> p);
-
-  // Skipped syscalls: access (TODO!)
-
-  // Skipped syscalls: select, sched_yield, mremap, msync, mincore, madvise, shmget, shmat, shmctl
-
-  // Skipped syscalls: pause, nanosleep, getitimer, alarm, setitimer, getpid
-
-  // Skipped syscalls: socket, connect, accept, sendto, recvfrom, sendmsg, recvmsg, shutdown, bind
-  //                   listen, getsockname, getpeername, socketpair, setsockopt, getsockopt
-
-  // Skipped syscalls: wait4, kill, uname, semget, semop, semctl, shmdt, msgget, msgsnd, msgrcv,
-  //                   msgctl
-
-  // Skipped syscalls: flock, fsync, fdatasync
-
-  // Skipped syscalls: getcwd
-
-  // Skipped syscalls: link (TODO!)
-
-  // Skipped syscalls: umask, gettimeofday, getrlimit, getrusage, sysinfo, times, ptrace, getuid,
-  //                   syslog, getgid, setuid, setgid, geteuid, getegid, setpgid, getppid, getpgrp
-  //                   setsid, setreuid, setregid, getgroups, setroups, setresuid, getresuid
-  //                   setresgid, getresgid, getpgid, setfsuid, setfsgid, getsid, capget, capset
-  //                   rt_sigpending, rt_sigtimedwait, rt_sigqueueinfo, rt_sigsuspend, sigaltstack
-  //                   utime
-
-  // Skipped syscalls: uselib, personality, ustat, statfs, fstatfs, sysfs, getpriority, setpriority,
-  //                   sched_setparam, sched_getparam, sched_setscheduler, sched_getscheduler,
-  //                   sched_get_priority_max, sched_get_priority_min, sched_rr_get_interval, mlock
-  //                   munlock, mlockall, munlockall, vhangup, modify_ldt
-
-  // Skipped syscalls: pivot_root, _sysctl, prctl, arch_prctl, adjtimex, setrlimit
-
-  // Skipped syscalls: sync, acct, settimeofday, mount, umount2, swapon, swapoff, reboot,
-  //                   sethostname, setdomainname, iopl, ioperm, create_module, init_module,
-  //                   delete_module, get_kernel_syms, query_module, quotactl, nfsservctl, getpmsg,
-  //                   putpmsg, afs_syscall, tuxcall, security, gettid, readahead
-
-  // Skipped syscalls: tkill, time, futex, sched_setaffinity, sched_getaffinity, set_thread_area,
-  //                   io_setup, io_destroy, io_getevents, io_submit, io_cancel, get_thread_area,
-  //                   lookup_dcookie, epoll_create, epoll_ctl_old, epoll_wait_old, remap_file_pages
-
-  // Skipped syscalls: set_tid_address, restart_syscall, semtimedop, fadvise64, timer_create,
-  //                   timer_settime, timer_gettime, timer_getoverrun, timer_delete, clock_settime,
-  //                   clock_gettime, clock_getres, clock_nanosleep, exit_group, epoll_wait,
-  //                   epoll_ctl, tgkill, utimes, vserver, mbind, set_mempolicy, get_mempolicy,
-  //                   mq_open, mq_unlink, mq_timedsend, mq_timedreceive, mq_notify, mq_getsetattr,
-  //                   kexec_load, waitid, add_key, request_key, keyctl, ioprio_set, ioprio_get,
-  //                   inotify_init, inotify_add_watch, inotify_rm_watch, migrate_pages
-
-  // Skipped syscalls: futimesat, newfstatat
-
-  // Skipped syscalls: linkat (TODO!)
-
-  // Skipped syscalls: faccessat (TODO!), pselect6, ppoll, unshare (TODO!), set_robust_list,
-  //                   get_robust_list
-
-  // Skipped syscalls: sync_file_range
-
-  // Skipped syscalls: move_pages, utimensat, epoll_pwait, signalfd, timerfd_create, eventfd,
-  //                   fallocate, timerfd_settime, timerfd_gettime, accept4, signalfd4, eventfd2,
-  //                   epoll_create1
-
-  // Skipped syscalls: inotify_init1
-
-  // Skipped syscalls: rt_tgsigqueueinfo, perf_event_open, recvmmsg, fanotify_init, fanotify_mark,
-  // prlimit64, name_to_handle_at (TODO!), open_by_handle_at (TODO!), clock_adjtime, syncfs,
-  // sendmmsg, setns, getcpu, process_vm_readv, kcmp, finit_module, ... unknown
 
  private:
   class Process {
@@ -131,21 +63,29 @@ class Tracer {
         _cwd(cwd),
         _fds(fds) {}
 
+    /// Resume a traced process that is currently stopped
     void resume();
 
+    /// Resume a traced process so it can execute a system call, then stop it and return
     long finishSyscall();
 
+    /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
     unsigned long getEventMessage();
 
-    string resolvePath(string path, int at = AT_FDCWD, bool follow_links = true);
-
+    /// Get the filename of this process' executable
     string getExecutable();
 
+    /// Get the current register state for this process
     user_regs_struct getRegisters();
 
+    /// Read a string from this process' memory
     string readString(uintptr_t tracee_pointer);
 
+    /// Read an 8-byte data value from this process' memory
     uintptr_t readData(uintptr_t tracee_pointer);
+
+    /// Resolve and normalize a path accessed by this process
+    string resolvePath(string path, int at = AT_FDCWD, bool follow_links = true);
 
     /****** Handling for specific system calls ******/
 
@@ -245,3 +185,75 @@ class Tracer {
   BuildGraph& _graph;
   map<pid_t, shared_ptr<Process>> _processes;
 };
+
+// Skipped syscalls: stat, fstat, lstat, poll, lseek
+
+// Skipped syscalls: mprotect, munmap, brk rt_sigaction, rt_sigprocmask, rt_sigreturn, ioctl
+
+// Skipped syscalls: access (TODO!)
+
+// Skipped syscalls: select, sched_yield, mremap, msync, mincore, madvise, shmget, shmat, shmctl
+
+// Skipped syscalls: pause, nanosleep, getitimer, alarm, setitimer, getpid
+
+// Skipped syscalls: socket, connect, accept, sendto, recvfrom, sendmsg, recvmsg, shutdown, bind
+//                   listen, getsockname, getpeername, socketpair, setsockopt, getsockopt
+
+// Skipped syscalls: wait4, kill, uname, semget, semop, semctl, shmdt, msgget, msgsnd, msgrcv,
+//                   msgctl
+
+// Skipped syscalls: flock, fsync, fdatasync
+
+// Skipped syscalls: getcwd
+
+// Skipped syscalls: link (TODO!)
+
+// Skipped syscalls: umask, gettimeofday, getrlimit, getrusage, sysinfo, times, ptrace, getuid,
+//                   syslog, getgid, setuid, setgid, geteuid, getegid, setpgid, getppid, getpgrp
+//                   setsid, setreuid, setregid, getgroups, setroups, setresuid, getresuid
+//                   setresgid, getresgid, getpgid, setfsuid, setfsgid, getsid, capget, capset
+//                   rt_sigpending, rt_sigtimedwait, rt_sigqueueinfo, rt_sigsuspend, sigaltstack
+//                   utime
+
+// Skipped syscalls: uselib, personality, ustat, statfs, fstatfs, sysfs, getpriority, setpriority,
+//                   sched_setparam, sched_getparam, sched_setscheduler, sched_getscheduler,
+//                   sched_get_priority_max, sched_get_priority_min, sched_rr_get_interval, mlock
+//                   munlock, mlockall, munlockall, vhangup, modify_ldt
+
+// Skipped syscalls: pivot_root, _sysctl, prctl, arch_prctl, adjtimex, setrlimit
+
+// Skipped syscalls: sync, acct, settimeofday, mount, umount2, swapon, swapoff, reboot,
+//                   sethostname, setdomainname, iopl, ioperm, create_module, init_module,
+//                   delete_module, get_kernel_syms, query_module, quotactl, nfsservctl, getpmsg,
+//                   putpmsg, afs_syscall, tuxcall, security, gettid, readahead
+
+// Skipped syscalls: tkill, time, futex, sched_setaffinity, sched_getaffinity, set_thread_area,
+//                   io_setup, io_destroy, io_getevents, io_submit, io_cancel, get_thread_area,
+//                   lookup_dcookie, epoll_create, epoll_ctl_old, epoll_wait_old, remap_file_pages
+
+// Skipped syscalls: set_tid_address, restart_syscall, semtimedop, fadvise64, timer_create,
+//                   timer_settime, timer_gettime, timer_getoverrun, timer_delete, clock_settime,
+//                   clock_gettime, clock_getres, clock_nanosleep, exit_group, epoll_wait,
+//                   epoll_ctl, tgkill, utimes, vserver, mbind, set_mempolicy, get_mempolicy,
+//                   mq_open, mq_unlink, mq_timedsend, mq_timedreceive, mq_notify, mq_getsetattr,
+//                   kexec_load, waitid, add_key, request_key, keyctl, ioprio_set, ioprio_get,
+//                   inotify_init, inotify_add_watch, inotify_rm_watch, migrate_pages
+
+// Skipped syscalls: futimesat, newfstatat
+
+// Skipped syscalls: linkat (TODO!)
+
+// Skipped syscalls: faccessat (TODO!), pselect6, ppoll, unshare (TODO!), set_robust_list,
+//                   get_robust_list
+
+// Skipped syscalls: sync_file_range
+
+// Skipped syscalls: move_pages, utimensat, epoll_pwait, signalfd, timerfd_create, eventfd,
+//                   fallocate, timerfd_settime, timerfd_gettime, accept4, signalfd4, eventfd2,
+//                   epoll_create1
+
+// Skipped syscalls: inotify_init1
+
+// Skipped syscalls: rt_tgsigqueueinfo, perf_event_open, recvmmsg, fanotify_init, fanotify_mark,
+// prlimit64, name_to_handle_at (TODO!), open_by_handle_at (TODO!), clock_adjtime, syncfs,
+// sendmmsg, setns, getcpu, process_vm_readv, kcmp, finit_module, ... unknown
