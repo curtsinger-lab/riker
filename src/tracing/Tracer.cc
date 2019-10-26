@@ -169,6 +169,20 @@ unsigned long Tracer::getEventMessage(pid_t pid) {
   return message;
 }
 
+string Tracer::resolvePath(pid_t pid, string path, int at, bool follow_links) {
+  // TODO: Properly normalize paths
+  // TODO: Handle chroot-ed processes correctly
+  // TODO: Handle links (followed or unfollowed)
+  if (path[0] == '/') {
+    return path;
+  } else if (at == AT_FDCWD) {
+    return _processes[pid]->_cwd + '/' + path;
+  } else {
+    string base = _processes[pid]->_fds[at].file->getPath();
+    return base + '/' + path;
+  }
+}
+
 /****************************************************/
 /********** System call handling functions **********/
 /****************************************************/
@@ -343,7 +357,7 @@ void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
   proc->_command = proc->_command->createChild(filename, args, proc->_fds);
 
   // The new command depends on its executable file
-  _graph.getFile(filename)->readBy(proc->_command);
+  _graph.getFile(resolvePath(pid, filename))->readBy(proc->_command);
 }
 
 void Tracer::_exit(pid_t pid) {
@@ -372,7 +386,7 @@ void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
     proc->_fds[fd].cloexec = (arg & FD_CLOEXEC) != 0;
 
   } else {
-    // Unhandled operation
+    // Some other operation we do not need to handle
     // TODO: Filter these stops out with BPF/seccomp
     resume(pid);
   }
@@ -381,7 +395,7 @@ void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
 void Tracer::_truncate(pid_t pid, string path, long length) {
   // Get the process and file
   auto proc = _processes[pid];
-  auto f = _graph.getFile(path);
+  auto f = _graph.getFile(resolvePath(pid, path));
 
   // Notify the file of an upcoming change
   if (length == 0) {
@@ -424,7 +438,7 @@ void Tracer::_chdir(pid_t pid, string filename) {
 
   // Update the current working directory
   auto proc = _processes[pid];
-  proc->_cwd = filename;
+  proc->_cwd = resolvePath(pid, filename);
 }
 
 void Tracer::_fchdir(pid_t pid, int fd) {
@@ -435,83 +449,92 @@ void Tracer::_fchdir(pid_t pid, int fd) {
   if (f) proc->_cwd = f->getPath();
 }
 
-void Tracer::_rmdir(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_creat(pid_t pid, string pathname, mode_t mode) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_fchmod(pid_t pid, int fd, mode_t mode) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_fchown(pid_t pid, int fd, uid_t user, gid_t group) {
-  resume(pid);
-  // TODO
-}
-
 void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {
   resume(pid);
   // TODO
 }
 
 void Tracer::_chroot(pid_t pid, string filename) {
+  auto proc = _processes[pid];
+  string newroot = resolvePath(pid, filename);
+  auto f = _graph.getFile(newroot);
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall(pid);
   resume(pid);
-  // TODO
+  
+  if (rc != -1) {
+    // Update the process root
+    proc->_root = newroot;
+    
+    // A directory must exist to 
+    f->readBy(proc->_command);
+  }
 }
 
 void Tracer::_setxattr(pid_t pid, string pathname) {
+  // Get the process and file
+  auto proc = _processes[pid];
+  auto f = _graph.getFile(resolvePath(pid, pathname));
+  
+  // Notify the file that it may be written
+  f->mayWrite(proc->_command);
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall(pid);
   resume(pid);
-  // TODO
+  
+  if (rc != -1) f->writtenBy(proc->_command);
 }
 
 void Tracer::_lsetxattr(pid_t pid, string pathname) {
+  // Get the process and file
+  auto proc = _processes[pid];
+  // Same as setxattr, except we do not follow links
+  auto f = _graph.getFile(resolvePath(pid, pathname, AT_FDCWD, false));
+  
+  // Notify the file that it may be written
+  f->mayWrite(proc->_command);
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall(pid);
   resume(pid);
-  // TODO
+  
+  if (rc != -1) f->writtenBy(proc->_command);
 }
 
 void Tracer::_getxattr(pid_t pid, string pathname) {
+  // Get the process and file
+  auto proc = _processes[pid];
+  auto f = _graph.getFile(resolvePath(pid, pathname));
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall(pid);
   resume(pid);
-  // TODO
+  
+  if (rc != -1) f->readBy(proc->_command);
 }
 
 void Tracer::_lgetxattr(pid_t pid, string pathname) {
+  // Get the process and file
+  auto proc = _processes[pid];
+  // Same as getxattr, except we don't follow links
+  auto f = _graph.getFile(resolvePath(pid, pathname, AT_FDCWD, false));
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall(pid);
   resume(pid);
-  // TODO
-}
-
-void Tracer::_listxattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_llistxattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_removexattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
-}
-
-void Tracer::_lremovexattr(pid_t pid, string pathname) {
-  resume(pid);
-  // TODO
+  
+  if (rc != -1) f->readBy(proc->_command);
 }
 
 void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {
-  WARN_IF(dfd != AT_FDCWD) << "openat uses non-cwd directory fd";
-
+  string path = resolvePath(pid, filename, dfd);
+  
   // Stat the file so we can see if it was created by the open call
   bool file_existed = true;
   struct stat statbuf;
-  if (flags & O_CREAT) file_existed = (stat(filename.c_str(), &statbuf) == 0);
+  if (flags & O_CREAT) file_existed = (stat(path.c_str(), &statbuf) == 0);
 
   // Run the syscall and save the resulting fd
   int fd = finishSyscall(pid);
@@ -528,7 +551,7 @@ void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode
 
   // Get the process and file
   auto proc = _processes[pid];
-  auto f = _graph.getFile(filename);
+  auto f = _graph.getFile(path);
 
   // Add the file to the file descriptor table
   proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);

@@ -43,6 +43,8 @@ class Tracer {
   unsigned long getEventMessage(pid_t pid);
 
   void handleSyscall(pid_t pid);
+  
+  string resolvePath(pid_t pid, string path, int at=AT_FDCWD, bool follow_links=true);
 
   /****** Handling for specific system calls ******/
 
@@ -110,8 +112,10 @@ class Tracer {
   /* 083 */ void _mkdir(pid_t pid, string pathname, mode_t mode) {
     _mkdirat(pid, AT_FDCWD, pathname, mode);
   }
-  /* 084 */ void _rmdir(pid_t pid, string pathname);
-  /* 085 */ void _creat(pid_t pid, string pathname, mode_t mode);
+  /* 084 */ void _rmdir(pid_t pid, string pathname) { _unlink(pid, pathname); }
+  /* 085 */ void _creat(pid_t pid, string pathname, mode_t mode) {
+    _open(pid, pathname, O_CREAT|O_WRONLY|O_TRUNC, mode);
+  }
 
   // Skipped syscalls: link (TODO!)
 
@@ -123,11 +127,11 @@ class Tracer {
   /* 090 */ void _chmod(pid_t pid, string filename, mode_t mode) {
     _fchmodat(pid, AT_FDCWD, filename, mode, 0);
   }
-  /* 091 */ void _fchmod(pid_t pid, int fd, mode_t mode);
+  /* 091 */ void _fchmod(pid_t pid, int fd, mode_t mode) { _write(pid, fd); }
   /* 092 */ void _chown(pid_t pid, string filename, uid_t user, gid_t group) {
     _fchownat(pid, AT_FDCWD, filename, user, group, 0);
   }
-  /* 093 */ void _fchown(pid_t pid, int fd, uid_t user, gid_t group);
+  /* 093 */ void _fchown(pid_t pid, int fd, uid_t user, gid_t group) { _write(pid, fd); }
   /* 094 */ void _lchown(pid_t pid, string filename, uid_t user, gid_t group);
 
   // Skipped syscalls: umask, gettimeofday, getrlimit, getrusage, sysinfo, times, ptrace, getuid,
@@ -161,11 +165,11 @@ class Tracer {
   /* 191 */ void _getxattr(pid_t pid, string pathname);
   /* 192 */ void _lgetxattr(pid_t pid, string pathname);
   /* 193 */ void _fgetxattr(pid_t pid, int fd) { _read(pid, fd); }
-  /* 194 */ void _listxattr(pid_t pid, string pathname);
-  /* 195 */ void _llistxattr(pid_t pid, string pathname);
+  /* 194 */ void _listxattr(pid_t pid, string pathname) { _getxattr(pid, pathname); }
+  /* 195 */ void _llistxattr(pid_t pid, string pathname) { _lgetxattr(pid, pathname); }
   /* 196 */ void _flistxattr(pid_t pid, int fd) { _read(pid, fd); }
-  /* 197 */ void _removexattr(pid_t pid, string pathname);
-  /* 198 */ void _lremovexattr(pid_t pid, string pathname);
+  /* 197 */ void _removexattr(pid_t pid, string pathname) { _setxattr(pid, pathname); }
+  /* 198 */ void _lremovexattr(pid_t pid, string pathname) { _lsetxattr(pid, pathname); }
   /* 199 */ void _fremovexattr(pid_t pid, int fd) { _write(pid, fd); }
 
   // Skipped syscalls: tkill, time, futex, sched_setaffinity, sched_getaffinity, set_thread_area,
