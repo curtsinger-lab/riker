@@ -578,8 +578,18 @@ void Tracer::Process::_tee(int fdin, int fdout, size_t len) {
 }
 
 void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
+  // Finish the syscall to get the return value, then resume
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+
+  // Add the entry for the duped fd
+  _fds[newfd] = _fds[oldfd];
+  
+  // Set the cloexec flag if specified in the flags
+  if (flags & O_CLOEXEC) _fds[newfd].cloexec = true;
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
