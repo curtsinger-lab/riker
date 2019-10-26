@@ -1,30 +1,17 @@
-#include "core/File.hh"
+#include "File.hh"
 
-#include <cerrno>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
 #include <memory>
+#include <ostream>
 #include <string>
-#include <vector>
 
-#include <dirent.h>
 #include <fcntl.h>
-#include <linux/magic.h>
 #include <sys/stat.h>
-#include <sys/statfs.h>
-#include <unistd.h>
 
-#include <capnp/blob.h>
-#include <kj/string.h>
-
-#include "core/BuildGraph.hh"
 #include "core/Command.hh"
+#include "core/File.hh"
 #include "db/db.capnp.h"
-#include "fingerprint/blake2.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
-#include "ui/options.hh"
 
 using std::make_shared;
 using std::ostream;
@@ -155,7 +142,7 @@ void File::drawGraph(Graphviz& g) {
     for (auto& v : _versions) {
       g.addNode(&v);
     }
-  
+
     File::Version* prev = nullptr;
     for (auto& v : _versions) {
       if (prev != nullptr) {
@@ -163,7 +150,7 @@ void File::drawGraph(Graphviz& g) {
       }
       prev = &v;
     }
-  
+
     g.finishSubgraph();
   }
 }

@@ -1,14 +1,16 @@
 #include "core/BuildGraph.hh"
 
 #include <map>
+#include <utility>
 
 #include <fcntl.h>
-#include <stdio.h>
 
 #include "core/File.hh"
+#include "core/FileDescriptor.hh"
 #include "db/Serializer.hh"
-#include "db/db.capnp.h"
 #include "tracing/Tracer.hh"
+#include "ui/log.hh"
+#include "ui/options.hh"
 
 using std::make_shared;
 using std::make_unique;
@@ -59,11 +61,11 @@ File* BuildGraph::getPipe(string name) {
 
 void BuildGraph::drawGraph(Graphviz& g) {
   for (auto& f : _files) {
-    if(!f.isSystemFile() || options.show_sysfiles) {
+    if (!f.isSystemFile() || options.show_sysfiles) {
       f.drawGraph(g);
     }
   }
-  
+
   if (_root) _root->drawGraph(g);
 }
 

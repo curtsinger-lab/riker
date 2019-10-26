@@ -1,35 +1,20 @@
-#include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <forward_list>
 #include <iostream>
-#include <limits>
-#include <list>
-#include <map>
 #include <memory>
 #include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
-#include <capnp/list.h>
-#include <capnp/message.h>
-#include <capnp/serialize.h>
-
 #include "core/BuildGraph.hh"
-#include "core/Command.hh"
+#include "core/File.hh"
 #include "db/Serializer.hh"
-#include "db/db.capnp.h"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
-#include "ui/util.hh"
 
 using std::cerr;
 using std::cout;
@@ -153,7 +138,7 @@ int main(int argc, char* argv[]) {
 
   // Create a build graph to track our build
   BuildGraph graph;
-  
+
   // Attempt to deserialize the build graph. If that fails, create a new graph
   if (!graph.load("db.dodo")) {
     graph = BuildGraph("Dodofile");
@@ -161,7 +146,7 @@ int main(int argc, char* argv[]) {
 
   Tracer tracer(graph);
   graph.run(tracer);
-  
+
   // Run the standard graph post-processing to prune cycles
   // Currently just drops inputs that are also outputs from the same command
   graph.prune();

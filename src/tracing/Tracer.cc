@@ -5,11 +5,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <iostream>
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <fcntl.h>
@@ -19,9 +18,9 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <signal.h>
-#include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/wait.h>

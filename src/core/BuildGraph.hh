@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <list>
 #include <map>
 #include <memory>
@@ -8,10 +7,8 @@
 #include <vector>
 
 #include "core/Command.hh"
-#include "core/FileDescriptor.hh"
+#include "core/File.hh"
 
-class Command;
-class File;
 class Graphviz;
 class Serializer;
 class Tracer;
@@ -42,11 +39,11 @@ class BuildGraph {
   bool load(string filename);
 
   void run(Tracer& tracer);
-  
+
   void prune();
 
   void serialize(Serializer& serializer);
-  
+
   void drawGraph(Graphviz& g);
 
   /****** Getters and setters ******/

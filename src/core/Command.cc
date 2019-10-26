@@ -1,18 +1,13 @@
 #include "core/Command.hh"
 
-#include <cstdint>
-#include <utility>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-
-#include <capnp/list.h>
+#include <iostream>
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
 #include "db/Serializer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
+#include "ui/options.hh"
 
 using std::list;
 using std::shared_ptr;
@@ -66,7 +61,7 @@ void Command::prune() {
       ++iter;
     }
   }
-  
+
   // Prune child commands
   for (auto& child : _children) {
     child.prune();

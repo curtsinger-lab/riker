@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
+#include <iosfwd>
 #include <list>
 #include <memory>
 #include <set>
@@ -12,7 +14,6 @@
 
 #include "db/db.capnp.h"
 
-class BuildGraph;
 class Command;
 class Graphviz;
 class Serializer;
@@ -98,17 +99,17 @@ class File {
   void createdBy(Command* c);
 
   void readBy(Command* c);
-  
+
   /// Called just before allowing command c to write this file. May cache or fingerprint.
   void mayWrite(Command* c);
 
   void writtenBy(Command* c);
-  
+
   /// Called just before allowing command c to truncate this file. May cache or fingerprint.
   void mayTruncate(Command* c);
 
   void truncatedBy(Command* c);
-  
+
   /// Called just before allowing command c to delete this file. May cache or fingerprint.
   void mayDelete(Command* c);
 

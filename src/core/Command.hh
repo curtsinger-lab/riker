@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
