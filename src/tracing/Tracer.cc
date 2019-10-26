@@ -38,8 +38,6 @@ using std::make_shared;
 using std::shared_ptr;
 using std::string;
 
-#define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
-
 static pid_t launch_traced(char const* exec_path, char* const argv[],
                            vector<InitialFdEntry> initial_fds);
 
@@ -606,12 +604,14 @@ void Tracer::handleExit(shared_ptr<Process> p) {
   // the syscall has done most of the work
 
   // Remove the process. No need to resume, since the process has exited
-  //_processes.erase(pid);
+  _processes.erase(p->_pid);
 }
 
 void Tracer::handleSyscall(shared_ptr<Process> p) {
   auto regs = p->getRegisters();
 
+  // This giant switch statement invokes the appropriate system call handler on a traced
+  // process after decoding the syscall arguments.
   switch (regs.SYSCALL_NUMBER) {
     case __NR_read:
       p->_read(regs.SYSCALL_ARG1);
@@ -947,16 +947,12 @@ uintptr_t Tracer::Process::readData(uintptr_t tracee_pointer) {
   return result;
 }
 
-// Launch a program via `sh -c`, fully set up with ptrace and seccomp
-// to be traced by the current process. launch_traced will return the
-// PID of the newly created process, which should be running (or at least
-// ready to be waited on) upon return.
+// Launch a program fully set up with ptrace and seccomp to be traced by the current process.
+// launch_traced will return the PID of the newly created process, which should be running (or at
+// least ready to be waited on) upon return.
 static pid_t launch_traced(char const* exec_path, char* const argv[],
                            vector<InitialFdEntry> initial_fds) {
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
-  // We always launch the program with /bin/sh, similarly to `system`, which should
-  // automatically handle resolving the correct instance of a program and supporting
-  // features like redirection.
   //
   // The bulk of the complexity here is setting up tracing. Instead of just attaching
   // ptrace and asking our caller to repeatedly use PTRACE_SYSCALL to step through
@@ -990,7 +986,7 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     // the syscall number to decide which block of 32 we are in,
     // then look up the result in a bitset.
     uint32_t bitset[11] = {0};
-    for (size_t i = 0; i < ARRAY_COUNT(syscalls); i++) {
+    for (size_t i = 0; i < sizeof(syscalls) / sizeof(syscalls[0]); i++) {
       bitset[syscalls[i] >> 5] |= 1 << (syscalls[i] & 0x1F);
     }
 
@@ -1049,7 +1045,7 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
 
     struct sock_fprog bpf_program;
     bpf_program.filter = bpf_filter;
-    bpf_program.len = (unsigned short)ARRAY_COUNT(bpf_filter);
+    bpf_program.len = (unsigned short)sizeof(bpf_filter) / sizeof(bpf_filter[0]);
 
     // Actually enable the filter
     FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)
