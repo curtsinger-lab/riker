@@ -42,7 +42,6 @@ using std::string;
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
 static string get_executable(pid_t pid);
-static string read_tracee_string(pid_t process, uintptr_t tracee_pointer);
 static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer);
 static pid_t launch_traced(char const* exec_path, char* const argv[],
                            vector<InitialFdEntry> initial_fds);
@@ -104,7 +103,7 @@ void Tracer::run(Command* cmd) {
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
         // Stopped on entry to a fork call
-        _fork(child);
+        _fork(_processes[child]);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // Stopped on entry to an exec call
@@ -113,14 +112,16 @@ void Tracer::run(Command* cmd) {
             << "Failed to get registers: " << ERR;
 
         list<string> args;
+        
+        auto p = _processes[child];
 
         int child_argc = read_tracee_data(child, registers.rsp);
         for (int i = 0; i < child_argc; i++) {
           uintptr_t arg_ptr = read_tracee_data(child, registers.rsp + (1 + i) * sizeof(long));
-          args.push_back(read_tracee_string(child, arg_ptr));
+          args.push_back(p->readString(arg_ptr));
         }
 
-        _execve(child, get_executable(child), args);
+        _execve(_processes[child], get_executable(child), args);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // Stopped on entry to a clone call
@@ -128,7 +129,7 @@ void Tracer::run(Command* cmd) {
         FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
             << "Failed to get registers: " << ERR;
 
-        _clone(child, registers.SYSCALL_ARG1);
+        _clone(_processes[child], registers.SYSCALL_ARG1);
 
       } else {
         WARN << "Unhandled stop in process " << child;
@@ -140,45 +141,45 @@ void Tracer::run(Command* cmd) {
 
     } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
       // Stopped on exit
-      _exit(child);
+      _exit(_processes[child]);
     }
   }
 }
 
-void Tracer::resume(pid_t pid) {
-  FAIL_IF(ptrace(PTRACE_CONT, pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+void Tracer::Process::resume() {
+  FAIL_IF(ptrace(PTRACE_CONT, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 }
 
-long Tracer::finishSyscall(pid_t pid) {
-  FAIL_IF(ptrace(PTRACE_SYSCALL, pid, nullptr, 0)) << "Failed to finish syscall: " << ERR;
-  FAIL_IF(waitpid(pid, nullptr, 0) != pid) << "Unexpected child process stop";
+long Tracer::Process::finishSyscall() {
+  FAIL_IF(ptrace(PTRACE_SYSCALL, _pid, nullptr, 0)) << "Failed to finish syscall: " << ERR;
+  FAIL_IF(waitpid(_pid, nullptr, 0) != _pid) << "Unexpected child process stop";
 
   // Clear errno so we can check for errors
   errno = 0;
-  long result = ptrace(PTRACE_PEEKUSER, pid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
+  long result = ptrace(PTRACE_PEEKUSER, _pid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
   FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
 
   return result;
 }
 
-unsigned long Tracer::getEventMessage(pid_t pid) {
+unsigned long Tracer::Process::getEventMessage() {
   // Get the id of the new process
   unsigned long message;
-  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, pid, nullptr, &message))
+  FAIL_IF(ptrace(PTRACE_GETEVENTMSG, _pid, nullptr, &message))
       << "Unable to read ptrace event message: " << ERR;
   return message;
 }
 
-string Tracer::resolvePath(pid_t pid, string path, int at, bool follow_links) {
+string Tracer::Process::resolvePath(string path, int at, bool follow_links) {
   // TODO: Properly normalize paths
   // TODO: Handle chroot-ed processes correctly
   // TODO: Handle links (followed or unfollowed)
   if (path[0] == '/') {
     return path;
   } else if (at == AT_FDCWD) {
-    return _processes[pid]->_cwd + '/' + path;
+    return _cwd + '/' + path;
   } else {
-    string base = _processes[pid]->_fds[at].file->getPath();
+    string base = _fds[at].file->getPath();
     return base + '/' + path;
   }
 }
@@ -189,358 +190,340 @@ string Tracer::resolvePath(pid_t pid, string path, int at, bool follow_links) {
 
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
-void Tracer::_read(pid_t pid, int fd) {
+void Tracer::_read(shared_ptr<Process> p, int fd) {
   // Get the process and file
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
-  
+  auto f = p->_fds[fd].file;
+
   // If there's no matching file descriptor, just resume and return
   if (!f) {
-    resume(pid);
+    p->resume();
     return;
   }
-  
+
   // Finish the syscall to find out if it succeeded, then resume the process
-  int rc = finishSyscall(pid);
-  resume(pid);
+  int rc = p->finishSyscall();
+  p->resume();
 
   // If the syscall failed, do nothing
   if (rc == -1) return;
 
   // Log the read
-  f->readBy(proc->_command);
+  f->readBy(p->_command);
 }
 
-void Tracer::_write(pid_t pid, int fd) {
+void Tracer::_write(shared_ptr<Process> p, int fd) {
   // Get the process and file
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
+  auto f = p->_fds[fd].file;
 
   // If there was no matching file, resume the process and bail out
   if (!f) {
-    resume(pid);
+    p->resume();
     return;
   }
 
   // There may be a write from this command (we might save a copy or take a fingerprint)
-  f->mayWrite(proc->_command);
+  f->mayWrite(p->_command);
 
   // Finish the syscall and resume the process
-  int rc = finishSyscall(pid);
-  resume(pid);
+  int rc = p->finishSyscall();
+  p->resume();
 
   // If the syscall succeeded, record a write
-  if (rc != -1) f->writtenBy(proc->_command);
+  if (rc != -1) f->writtenBy(p->_command);
 }
 
-void Tracer::_close(pid_t pid, int fd) {
+void Tracer::_close(shared_ptr<Process> p, int fd) {
   // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is harmless
 
   // Resume the process
-  resume(pid);
+  p->resume();
 
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
+  auto f = p->_fds[fd].file;
 
   // Log the event if there was actually a valid file descriptor
-  if (f) LOG << proc->_command << " closed " << proc->_fds[fd].file;
+  if (f) LOG << p->_command << " closed " << p->_fds[fd].file;
 
-  proc->_fds.erase(fd);
+  p->_fds.erase(fd);
 }
 
-void Tracer::_mmap(pid_t pid, void* addr, size_t len, int prot, int flags, int fd, off_t off) {
-  resume(pid);
+void Tracer::_mmap(shared_ptr<Process> p, void* addr, size_t len, int prot, int flags, int fd,
+                   off_t off) {
+  p->resume();
   // TODO
 }
 
-int Tracer::_dup(pid_t pid, int fd) {
+int Tracer::_dup(shared_ptr<Process> p, int fd) {
   // Finish the syscall to get the new file descriptor, then resume the process
-  int newfd = finishSyscall(pid);
-  resume(pid);
+  int newfd = p->finishSyscall();
+  p->resume();
 
   // If the syscall failed, do nothing
   if (newfd == -1) return newfd;
 
   // Add the new entry for the duped fd
-  auto proc = _processes[pid];
-  proc->_fds[newfd] = proc->_fds[fd];
+  p->_fds[newfd] = p->_fds[fd];
 
   // Return the new fd. This is helpful for handling some of the fcntl variants
   return newfd;
 }
 
-void Tracer::_dup2(pid_t pid, int oldfd, int newfd) {
+void Tracer::_dup2(shared_ptr<Process> p, int oldfd, int newfd) {
   // Finish the syscall to get the return value, then resume
-  int rc = finishSyscall(pid);
-  resume(pid);
+  int rc = p->finishSyscall();
+  p->resume();
 
   // If the syscall failed, do nothing
   if (rc == -1) return;
 
   // Add the entry for the duped fd
-  auto proc = _processes[pid];
-  proc->_fds[newfd] = proc->_fds[oldfd];
+  p->_fds[newfd] = p->_fds[oldfd];
 }
 
-void Tracer::_sendfile(pid_t pid, int out_fd, int in_fd) {
+void Tracer::_sendfile(shared_ptr<Process> p, int out_fd, int in_fd) {
   // As with _write above, we may have to fingerprint the output file, although we won't know until
   // after the syscall (it could fail).
-  auto proc = _processes[pid];
-  auto in_f = proc->_fds[in_fd].file;
-  auto out_f = proc->_fds[out_fd].file;
+  auto in_f = p->_fds[in_fd].file;
+  auto out_f = p->_fds[out_fd].file;
 
   // Take a fingerprint if we need one
-  out_f->mayWrite(proc->_command);
+  out_f->mayWrite(p->_command);
 
   // Finish the system call and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
+  int rc = p->finishSyscall();
+  p->resume();
 
   // If the syscall failed, do nothing
   if (rc == -1) return;
 
-  in_f->readBy(proc->_command);
-  out_f->writtenBy(proc->_command);
+  in_f->readBy(p->_command);
+  out_f->writtenBy(p->_command);
 }
 
-void Tracer::_clone(pid_t pid, int flags) {
+void Tracer::_clone(shared_ptr<Process> p, int flags) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
-  
+
   // Get the new thread id and then resume execution
-  pid_t new_pid = getEventMessage(pid);
-  resume(pid);
+  pid_t new_pid = p->getEventMessage();
+  p->resume();
 
   // TODO: Handle flags
 
   // Threads in the same process just appear as pid references to the same process
-  _processes[new_pid] = _processes[pid];
+  _processes[new_pid] = _processes[p->_pid];
 }
 
-void Tracer::_fork(pid_t pid) {
+void Tracer::_fork(shared_ptr<Process> p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
-  
+
   // Get the new process id and resume execution
-  pid_t new_pid = getEventMessage(pid);
-  resume(pid);
+  pid_t new_pid = p->getEventMessage();
+  p->resume();
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
 
   // Create a new process running the same command
-  auto proc = _processes[pid];
-  auto new_proc = make_shared<Process>(new_pid, proc->_cwd, proc->_command, proc->_fds);
+  auto new_proc = make_shared<Process>(new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
 }
 
-void Tracer::_execve(pid_t pid, string filename, const list<string>& args) {
+void Tracer::_execve(shared_ptr<Process> p, string filename, const list<string>& args) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
-  
+
   // Resume the child
-  resume(pid);
+  p->resume();
 
   // Get the process that issued the exec call
-  auto proc = _processes[pid];
 
   // Close all cloexec file descriptors
-  for (auto fd_entry = proc->_fds.begin(); fd_entry != proc->_fds.end();) {
+  for (auto fd_entry = p->_fds.begin(); fd_entry != p->_fds.end();) {
     if (fd_entry->second.cloexec) {
-      fd_entry = proc->_fds.erase(fd_entry);
+      fd_entry = p->_fds.erase(fd_entry);
     } else {
       ++fd_entry;
     }
   }
 
   // Create the new command
-  proc->_command = proc->_command->createChild(filename, args, proc->_fds);
+  p->_command = p->_command->createChild(filename, args, p->_fds);
 
   // The new command depends on its executable file
-  _graph.getFile(resolvePath(pid, filename))->readBy(proc->_command);
+  _graph.getFile(p->resolvePath(filename))->readBy(p->_command);
 }
 
-void Tracer::_exit(pid_t pid) {
+void Tracer::_exit(shared_ptr<Process> p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
-  
+
   // Remove the process. No need to resume, since the process has exited
-  _processes.erase(pid);
+  //_processes.erase(pid);
 }
 
-void Tracer::_fcntl(pid_t pid, int fd, int cmd, unsigned long arg) {
+void Tracer::_fcntl(shared_ptr<Process> p, int fd, int cmd, unsigned long arg) {
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
-    _dup(pid, fd);  // _dup will resume the process
+    _dup(p, fd);  // _dup will resume the process
 
   } else if (cmd == F_DUPFD_CLOEXEC) {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
-    int newfd = _dup(pid, fd);  // _dup will resume the process
-    auto proc = _processes[pid];
-    proc->_fds[newfd].cloexec = true;
+    int newfd = _dup(p, fd);  // _dup will resume the process
+    p->_fds[newfd].cloexec = true;
 
   } else if (cmd == F_SETFD) {
-    resume(pid);
+    p->resume();
     // Set the cloexec flag using the argument flags
-    auto proc = _processes[pid];
-    proc->_fds[fd].cloexec = (arg & FD_CLOEXEC) != 0;
+    p->_fds[fd].cloexec = (arg & FD_CLOEXEC) != 0;
 
   } else {
     // Some other operation we do not need to handle
     // TODO: Filter these stops out with BPF/seccomp
-    resume(pid);
+    p->resume();
   }
 }
 
-void Tracer::_truncate(pid_t pid, string path, long length) {
+void Tracer::_truncate(shared_ptr<Process> p, string path, long length) {
   // Get the process and file
-  auto proc = _processes[pid];
-  auto f = _graph.getFile(resolvePath(pid, path));
+  auto f = _graph.getFile(p->resolvePath(path));
 
   // Notify the file of an upcoming change
   if (length == 0) {
-    f->mayTruncate(proc->_command);
+    f->mayTruncate(p->_command);
   } else {
-    f->mayWrite(proc->_command);
+    f->mayWrite(p->_command);
   }
-  
+
   // Finish the system call and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
+  int rc = p->finishSyscall();
+  p->resume();
 
   // If the syscall failed, do nothing
   if (rc == -1) return;
-  
+
   // Record the write or truncate
   if (length == 0) {
-    f->truncatedBy(proc->_command);
+    f->truncatedBy(p->_command);
   } else {
-    f->writtenBy(proc->_command);
+    f->writtenBy(p->_command);
   }
 }
 
-void Tracer::_ftruncate(pid_t pid, int fd, long length) {
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
+void Tracer::_ftruncate(shared_ptr<Process> p, int fd, long length) {
+  auto f = p->_fds[fd].file;
 
   if (length == 0) {
-    f->truncatedBy(proc->_command);
+    f->truncatedBy(p->_command);
   } else {
-    f->writtenBy(proc->_command);
+    f->writtenBy(p->_command);
   }
 
   // Resume after logging so we have a chance to fingerprint
-  resume(pid);
+  p->resume();
 }
 
-void Tracer::_chdir(pid_t pid, string filename) {
-  resume(pid);
+void Tracer::_chdir(shared_ptr<Process> p, string filename) {
+  p->resume();
 
   // Update the current working directory
-  auto proc = _processes[pid];
-  proc->_cwd = resolvePath(pid, filename);
+  p->_cwd = p->resolvePath(filename);
 }
 
-void Tracer::_fchdir(pid_t pid, int fd) {
-  resume(pid);
+void Tracer::_fchdir(shared_ptr<Process> p, int fd) {
+  p->resume();
 
-  auto proc = _processes[pid];
-  auto f = proc->_fds[fd].file;
-  if (f) proc->_cwd = f->getPath();
+  auto f = p->_fds[fd].file;
+  if (f) p->_cwd = f->getPath();
 }
 
-void Tracer::_lchown(pid_t pid, string filename, uid_t user, gid_t group) {
-  resume(pid);
+void Tracer::_lchown(shared_ptr<Process> p, string filename, uid_t user, gid_t group) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_chroot(pid_t pid, string filename) {
-  auto proc = _processes[pid];
-  string newroot = resolvePath(pid, filename);
+void Tracer::_chroot(shared_ptr<Process> p, string filename) {
+  string newroot = p->resolvePath(filename);
   auto f = _graph.getFile(newroot);
-  
+
   // Finish the syscall and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
-  
+  int rc = p->finishSyscall();
+  p->resume();
+
   if (rc != -1) {
     // Update the process root
-    proc->_root = newroot;
-    
-    // A directory must exist to 
-    f->readBy(proc->_command);
+    p->_root = newroot;
+
+    // A directory must exist to
+    f->readBy(p->_command);
   }
 }
 
-void Tracer::_setxattr(pid_t pid, string pathname) {
+void Tracer::_setxattr(shared_ptr<Process> p, string pathname) {
   // Get the process and file
-  auto proc = _processes[pid];
-  auto f = _graph.getFile(resolvePath(pid, pathname));
-  
+  auto f = _graph.getFile(p->resolvePath(pathname));
+
   // Notify the file that it may be written
-  f->mayWrite(proc->_command);
-  
+  f->mayWrite(p->_command);
+
   // Finish the syscall and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
-  
-  if (rc != -1) f->writtenBy(proc->_command);
+  int rc = p->finishSyscall();
+  p->resume();
+
+  if (rc != -1) f->writtenBy(p->_command);
 }
 
-void Tracer::_lsetxattr(pid_t pid, string pathname) {
+void Tracer::_lsetxattr(shared_ptr<Process> p, string pathname) {
   // Get the process and file
-  auto proc = _processes[pid];
   // Same as setxattr, except we do not follow links
-  auto f = _graph.getFile(resolvePath(pid, pathname, AT_FDCWD, false));
-  
+  auto f = _graph.getFile(p->resolvePath(pathname, AT_FDCWD, false));
+
   // Notify the file that it may be written
-  f->mayWrite(proc->_command);
-  
+  f->mayWrite(p->_command);
+
   // Finish the syscall and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
-  
-  if (rc != -1) f->writtenBy(proc->_command);
+  int rc = p->finishSyscall();
+  p->resume();
+
+  if (rc != -1) f->writtenBy(p->_command);
 }
 
-void Tracer::_getxattr(pid_t pid, string pathname) {
+void Tracer::_getxattr(shared_ptr<Process> p, string pathname) {
   // Get the process and file
-  auto proc = _processes[pid];
-  auto f = _graph.getFile(resolvePath(pid, pathname));
-  
+  auto f = _graph.getFile(p->resolvePath(pathname));
+
   // Finish the syscall and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
-  
-  if (rc != -1) f->readBy(proc->_command);
+  int rc = p->finishSyscall();
+  p->resume();
+
+  if (rc != -1) f->readBy(p->_command);
 }
 
-void Tracer::_lgetxattr(pid_t pid, string pathname) {
+void Tracer::_lgetxattr(shared_ptr<Process> p, string pathname) {
   // Get the process and file
-  auto proc = _processes[pid];
   // Same as getxattr, except we don't follow links
-  auto f = _graph.getFile(resolvePath(pid, pathname, AT_FDCWD, false));
-  
+  auto f = _graph.getFile(p->resolvePath(pathname, AT_FDCWD, false));
+
   // Finish the syscall and resume
-  int rc = finishSyscall(pid);
-  resume(pid);
-  
-  if (rc != -1) f->readBy(proc->_command);
+  int rc = p->finishSyscall();
+  p->resume();
+
+  if (rc != -1) f->readBy(p->_command);
 }
 
-void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode) {
-  string path = resolvePath(pid, filename, dfd);
-  
+void Tracer::_openat(shared_ptr<Process> p, int dfd, string filename, int flags, mode_t mode) {
+  string path = p->resolvePath(filename, dfd);
+
   // Stat the file so we can see if it was created by the open call
   bool file_existed = true;
   struct stat statbuf;
   if (flags & O_CREAT) file_existed = (stat(path.c_str(), &statbuf) == 0);
 
   // Run the syscall and save the resulting fd
-  int fd = finishSyscall(pid);
+  int fd = p->finishSyscall();
 
   // Let the process continue
-  resume(pid);
+  p->resume();
 
   // If the syscall failed, bail out
   if (fd == -1) return;
@@ -550,372 +533,374 @@ void Tracer::_openat(pid_t pid, int dfd, string filename, int flags, mode_t mode
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
   // Get the process and file
-  auto proc = _processes[pid];
   auto f = _graph.getFile(path);
 
   // Add the file to the file descriptor table
-  proc->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
+  p->_fds[fd] = FileDescriptor(f, access_mode, cloexec);
 
   // Log creation and truncation interactions
   if (!file_existed) {
-    f->createdBy(proc->_command);
+    f->createdBy(p->_command);
   } else if (flags & O_TRUNC) {
-    f->truncatedBy(proc->_command);
+    f->truncatedBy(p->_command);
   }
 
   // Read and write interactions are added later, when the process actually reads or writes
 
-  LOG << proc->_command << " opened " << f;
+  LOG << p->_command << " opened " << f;
 }
 
-void Tracer::_mkdirat(pid_t pid, int dfd, string pathname, mode_t mode) {
-  resume(pid);
+void Tracer::_mkdirat(shared_ptr<Process> p, int dfd, string pathname, mode_t mode) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_mknodat(pid_t pid, int dfd, string filename, mode_t mode, unsigned dev) {
-  resume(pid);
+void Tracer::_mknodat(shared_ptr<Process> p, int dfd, string filename, mode_t mode, unsigned dev) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_fchownat(pid_t pid, int dfd, string filename, uid_t user, gid_t group, int flag) {
-  resume(pid);
+void Tracer::_fchownat(shared_ptr<Process> p, int dfd, string filename, uid_t user, gid_t group,
+                       int flag) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_unlinkat(pid_t pid, int dfd, string pathname, int flag) {
-  resume(pid);
+void Tracer::_unlinkat(shared_ptr<Process> p, int dfd, string pathname, int flag) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_symlinkat(pid_t pid, string oldname, int newdfd, string newname) {
-  resume(pid);
+void Tracer::_symlinkat(shared_ptr<Process> p, string oldname, int newdfd, string newname) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_readlinkat(pid_t pid, int dfd, string pathname) {
-  resume(pid);
+void Tracer::_readlinkat(shared_ptr<Process> p, int dfd, string pathname) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_fchmodat(pid_t pid, int dfd, string filename, mode_t mode, int flags) {
-  resume(pid);
+void Tracer::_fchmodat(shared_ptr<Process> p, int dfd, string filename, mode_t mode, int flags) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_splice(pid_t pid, int fd_in, loff_t off_in, int fd_out, loff_t off_out) {
-  resume(pid);
+void Tracer::_splice(shared_ptr<Process> p, int fd_in, loff_t off_in, int fd_out, loff_t off_out) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_tee(pid_t pid, int fdin, int fdout, size_t len) {
-  resume(pid);
+void Tracer::_tee(shared_ptr<Process> p, int fdin, int fdout, size_t len) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_dup3(pid_t pid, int oldfd, int newfd, int flags) {
-  resume(pid);
+void Tracer::_dup3(shared_ptr<Process> p, int oldfd, int newfd, int flags) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_pipe2(pid_t pid, int* fds, int flags) {
-  resume(pid);
+void Tracer::_pipe2(shared_ptr<Process> p, int* fds, int flags) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_renameat2(pid_t pid, int old_dfd, string oldpath, int new_dfd, string newpath,
-                        int flags) {
-  resume(pid);
+void Tracer::_renameat2(shared_ptr<Process> p, int old_dfd, string oldpath, int new_dfd,
+                        string newpath, int flags) {
+  p->resume();
   // TODO
 }
 
-void Tracer::_copy_file_range(pid_t pid, int fd_in, int _, int fd_out) {
-  resume(pid);
+void Tracer::_copy_file_range(shared_ptr<Process> p, int fd_in, int _, int fd_out) {
+  p->resume();
   // TODO
 }
 
 /////////////////
 
 void Tracer::handleSyscall(pid_t pid) {
+  auto p = _processes[pid];
   struct user_regs_struct regs;
   FAIL_IF(ptrace(PTRACE_GETREGS, pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
 
   switch (regs.SYSCALL_NUMBER) {
     case __NR_read:
-      _read(pid, regs.SYSCALL_ARG1);
+      _read(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_write:
-      _write(pid, regs.SYSCALL_ARG1);
+      _write(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_open:
-      _open(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _open(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_close:
-      _close(pid, regs.SYSCALL_ARG1);
+      _close(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_mmap:
-      _mmap(pid, (void*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4,
+      _mmap(p, (void*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4,
             regs.SYSCALL_ARG5, regs.SYSCALL_ARG6);
       break;
 
     case __NR_pread64:
-      _pread64(pid, regs.SYSCALL_ARG1);
+      _pread64(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_pwrite64:
-      _pwrite64(pid, regs.SYSCALL_ARG1);
+      _pwrite64(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_readv:
-      _readv(pid, regs.SYSCALL_ARG1);
+      _readv(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_writev:
-      _writev(pid, regs.SYSCALL_ARG1);
+      _writev(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_pipe:
-      _pipe(pid, (int*)regs.SYSCALL_ARG1);
+      _pipe(p, (int*)regs.SYSCALL_ARG1);
       break;
 
     case __NR_dup:
-      _dup(pid, regs.SYSCALL_ARG1);
+      _dup(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_dup2:
-      _dup2(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      _dup2(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
       break;
 
     case __NR_sendfile:
-      _sendfile(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      _sendfile(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
       break;
 
     case __NR_fcntl:
-      _fcntl(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _fcntl(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_truncate:
-      _truncate(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      _truncate(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
       break;
 
     case __NR_ftruncate:
-      _ftruncate(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      _ftruncate(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
       break;
 
     case __NR_getdents:
-      _getdents(pid, regs.SYSCALL_ARG1);
+      _getdents(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_chdir:
-      _chdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _chdir(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_fchdir:
-      _fchdir(pid, regs.SYSCALL_ARG1);
+      _fchdir(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_rename:
-      _rename(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-              read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _rename(p, p->readString(regs.SYSCALL_ARG1),
+              p->readString(regs.SYSCALL_ARG2));
       break;
 
     case __NR_mkdir:
-      _mkdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      _mkdir(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
       break;
 
     case __NR_rmdir:
-      _rmdir(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _rmdir(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_creat:
-      _creat(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      _creat(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
       break;
 
     case __NR_unlink:
-      _unlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _unlink(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_symlink:
-      _symlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1),
-               read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _symlink(p, p->readString(regs.SYSCALL_ARG1),
+               p->readString(regs.SYSCALL_ARG2));
       break;
 
     case __NR_readlink:
-      _readlink(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _readlink(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_chmod:
-      _chmod(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      _chmod(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
       break;
 
     case __NR_fchmod:
-      _fchmod(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      _fchmod(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
       break;
 
     case __NR_chown:
-      _chown(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _chown(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_fchown:
-      _fchown(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _fchown(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_lchown:
-      _lchown(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
+      _lchown(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
               regs.SYSCALL_ARG3);
       break;
 
     case __NR_mknod:
-      _mknod(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _mknod(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_chroot:
-      _chroot(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _chroot(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_setxattr:
-      _setxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _setxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_lsetxattr:
-      _lsetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _lsetxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_fsetxattr:
-      _fsetxattr(pid, regs.SYSCALL_ARG1);
+      _fsetxattr(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_getxattr:
-      _getxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _getxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_lgetxattr:
-      _lgetxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _lgetxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_fgetxattr:
-      _fgetxattr(pid, regs.SYSCALL_ARG1);
+      _fgetxattr(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_listxattr:
-      _listxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _listxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_llistxattr:
-      _llistxattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _llistxattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_flistxattr:
-      _flistxattr(pid, regs.SYSCALL_ARG1);
+      _flistxattr(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_removexattr:
-      _removexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _removexattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_lremovexattr:
-      _lremovexattr(pid, read_tracee_string(pid, regs.SYSCALL_ARG1));
+      _lremovexattr(p, p->readString(regs.SYSCALL_ARG1));
       break;
 
     case __NR_fremovexattr:
-      _fremovexattr(pid, regs.SYSCALL_ARG1);
+      _fremovexattr(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_getdents64:
-      _getdents64(pid, regs.SYSCALL_ARG1);
+      _getdents64(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_openat:
-      _openat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+      _openat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
               regs.SYSCALL_ARG4);
       break;
 
     case __NR_mkdirat:
-      _mkdirat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+      _mkdirat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                regs.SYSCALL_ARG3);
       break;
 
     case __NR_mknodat:
-      _mknodat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+      _mknodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
       break;
 
     case __NR_fchownat:
-      _fchownat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+      _fchownat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                 regs.SYSCALL_ARG3, regs.SYSCALL_ARG4, regs.SYSCALL_ARG5);
       break;
 
     case __NR_unlinkat:
-      _unlinkat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+      _unlinkat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                 regs.SYSCALL_ARG3);
       break;
 
     case __NR_renameat:
-      _renameat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4));
+      _renameat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
+                regs.SYSCALL_ARG3, p->readString(regs.SYSCALL_ARG4));
       break;
 
     case __NR_symlinkat:
-      _symlinkat(pid, read_tracee_string(pid, regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
-                 read_tracee_string(pid, regs.SYSCALL_ARG3));
+      _symlinkat(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
+                 p->readString(regs.SYSCALL_ARG3));
       break;
 
     case __NR_readlinkat:
-      _readlinkat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2));
+      _readlinkat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2));
       break;
 
     case __NR_fchmodat:
-      _fchmodat(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
+      _fchmodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                 regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
       break;
 
     case __NR_splice:
-      _splice(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
+      _splice(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
       break;
 
     case __NR_tee:
-      _tee(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _tee(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_vmsplice:
-      _vmsplice(pid, regs.SYSCALL_ARG1);
+      _vmsplice(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_dup3:
-      _dup3(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _dup3(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_pipe2:
-      _pipe2(pid, (int*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
+      _pipe2(p, (int*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
       break;
 
     case __NR_preadv:
-      _preadv(pid, regs.SYSCALL_ARG1);
+      _preadv(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_pwritev:
-      _pwritev(pid, regs.SYSCALL_ARG1);
+      _pwritev(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_renameat2:
-      _renameat2(pid, regs.SYSCALL_ARG1, read_tracee_string(pid, regs.SYSCALL_ARG2),
-                 regs.SYSCALL_ARG3, read_tracee_string(pid, regs.SYSCALL_ARG4), regs.SYSCALL_ARG5);
+      _renameat2(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
+                 regs.SYSCALL_ARG3, p->readString(regs.SYSCALL_ARG4),
+                 regs.SYSCALL_ARG5);
       break;
 
     case __NR_copy_file_range:
-      _copy_file_range(pid, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      _copy_file_range(p, regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_preadv2:
-      _preadv2(pid, regs.SYSCALL_ARG1);
+      _preadv2(p, regs.SYSCALL_ARG1);
       break;
 
     case __NR_pwritev2:
-      _pwritev2(pid, regs.SYSCALL_ARG1);
+      _pwritev2(p, regs.SYSCALL_ARG1);
       break;
 
     default:
@@ -944,7 +929,7 @@ static string get_executable(pid_t pid) {
   return string(buffer.get(), bytes_read);
 }
 
-static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
+string Tracer::Process::readString(uintptr_t tracee_pointer) {
   string output;
 
   // Loop to fetch words at a time until we find a null byte
@@ -952,7 +937,7 @@ static string read_tracee_string(pid_t process, uintptr_t tracee_pointer) {
     // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
     // since PEEKDATA could validly return -1.
     errno = 0;
-    long data = ptrace(PTRACE_PEEKDATA, process, tracee_pointer + output.size(), nullptr);
+    long data = ptrace(PTRACE_PEEKDATA, _pid, tracee_pointer + output.size(), nullptr);
     FAIL_IF(errno != 0) << "Failed to read string from traced process: " << ERR;
 
     // Copy in the data
