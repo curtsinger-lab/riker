@@ -256,18 +256,6 @@ int Tracer::Process::_dup(int fd) {
   return newfd;
 }
 
-void Tracer::Process::_dup2(int oldfd, int newfd) {
-  // Finish the syscall to get the return value, then resume
-  int rc = finishSyscall();
-  resume();
-
-  // If the syscall failed, do nothing
-  if (rc == -1) return;
-
-  // Add the entry for the duped fd
-  _fds[newfd] = _fds[oldfd];
-}
-
 void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   // As with _write above, we may have to fingerprint the output file, although we won't know until
   // after the syscall (it could fail).

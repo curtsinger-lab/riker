@@ -105,7 +105,7 @@ class Tracer {
     void _writev(int fd) { _write(fd); }
     void _pipe(int* fds) { _pipe2(fds, 0); }
     int _dup(int fd);
-    void _dup2(int oldfd, int newfd);
+    void _dup2(int oldfd, int newfd) { _dup3(oldfd, newfd, 0); }
     void _sendfile(int out_fd, int in_fd);
     void _exec(string filename, const list<string>& args);
     void _fcntl(int fd, int cmd, unsigned long arg);
