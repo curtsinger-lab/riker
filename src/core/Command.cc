@@ -51,7 +51,7 @@ Command* Command::createChild(string exe, list<string> args, map<int, FileDescri
   return child;
 }
 
-void Command::prune() {
+bool Command::prune() {
   // Remove inputs to commands that are also outputs
   for (auto iter = _inputs.begin(); iter != _inputs.end();) {
     auto input = *iter;
@@ -61,11 +61,19 @@ void Command::prune() {
       ++iter;
     }
   }
-
-  // Prune child commands
-  for (auto& child : _children) {
-    child.prune();
+  
+  // Recursively prune in child commands, potentially removing the whole command
+  for (auto iter = _children.begin(); iter != _children.end();) {
+    auto& child = *iter;
+    if (child.prune()) {
+      iter = _children.erase(iter);
+    } else {
+      ++iter;
+    }
   }
+  
+  // If this command has no childrena and no outputs, we can prune it
+  return _outputs.size() == 0 && _children.size() == 0;
 }
 
 void Command::drawGraph(Graphviz& g) {

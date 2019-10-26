@@ -71,7 +71,9 @@ class Command {
     return true;
   }
   
-  void prune();
+  /// Clean up the graph by pruning unneeded edges and nodes
+  /// If this returns true, the parent command can prune this command entirely
+  bool prune();
   
   void drawGraph(Graphviz& g);
 

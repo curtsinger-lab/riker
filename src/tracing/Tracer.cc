@@ -502,8 +502,32 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
+  string path = resolvePath(pathname, dfd);
+  
+  // Stat the directory so we can see if it was created by the mkdirat call
+  bool dir_existed = true;
+  struct stat statbuf;
+  dir_existed = (stat(path.c_str(), &statbuf) == 0);
+  
+  // Run the syscall
+  int rc = finishSyscall();
   resume();
-  // TODO
+  
+  // If the call failed, do nothing
+  if (rc) return;
+  
+  if (!dir_existed) {
+    auto f = _graph.getFile(path, File::Type::DIRECTORY);
+    f->createdBy(_command);
+    
+    auto pos = path.rfind('/');
+    string parent_path = path.substr(0, pos);
+    auto parent_dir = _graph.getFile(parent_path, File::Type::DIRECTORY);
+    parent_dir->readBy(_command);
+  }
+  
+  // TODO: if creation failed, does this command now depend on the directory that already exists?
+  // TODO: creating any file or directory should depend on its parent directory
 }
 
 void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
@@ -517,8 +541,15 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 }
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
+  string path = resolvePath(pathname, dfd);
+  auto f = _graph.getFile(path);
+  
+  f->mayDelete(_command);
+  
+  int rc = finishSyscall();
   resume();
-  // TODO
+  
+  if (rc == 0) f->deletedBy(_command);
 }
 
 void Tracer::Process::_symlinkat(string oldname, int newdfd, string newname) {
