@@ -165,6 +165,7 @@ class Tracer {
     int _dup(int fd);
     void _dup2(int oldfd, int newfd);
     void _sendfile(int out_fd, int in_fd);
+    void _exec(string filename, const list<string>& args);
     void _fcntl(int fd, int cmd, unsigned long arg);
     void _truncate(string path, long length);
     void _ftruncate(int fd, long length);

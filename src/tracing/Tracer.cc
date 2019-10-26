@@ -117,7 +117,7 @@ void Tracer::run(Command* cmd) {
           args.push_back(p->readString(arg_ptr));
         }
 
-        handleExec(p, p->getExecutable(), args);
+        p->_exec(p->getExecutable(), args);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // Stopped on entry to a clone call
@@ -289,6 +289,31 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
 
   in_f->readBy(_command);
   out_f->writtenBy(_command);
+}
+
+void Tracer::Process::_exec(string filename, const list<string>& args) {
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+
+  // Resume the child
+  resume();
+
+  // Get the process that issued the exec call
+
+  // Close all cloexec file descriptors
+  for (auto fd_entry = _fds.begin(); fd_entry != _fds.end();) {
+    if (fd_entry->second.cloexec) {
+      fd_entry = _fds.erase(fd_entry);
+    } else {
+      ++fd_entry;
+    }
+  }
+
+  // Create the new command
+  _command = _command->createChild(filename, args, _fds);
+
+  // The new command depends on its executable file
+  _graph.getFile(resolvePath(filename))->readBy(_command);
 }
 
 void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
@@ -575,31 +600,6 @@ void Tracer::handleFork(shared_ptr<Process> p) {
   // Create a new process running the same command
   auto new_proc = make_shared<Process>(_graph, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
-}
-
-void Tracer::handleExec(shared_ptr<Process> p, string filename, const list<string>& args) {
-  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
-  // the syscall has done most of the work
-
-  // Resume the child
-  p->resume();
-
-  // Get the process that issued the exec call
-
-  // Close all cloexec file descriptors
-  for (auto fd_entry = p->_fds.begin(); fd_entry != p->_fds.end();) {
-    if (fd_entry->second.cloexec) {
-      fd_entry = p->_fds.erase(fd_entry);
-    } else {
-      ++fd_entry;
-    }
-  }
-
-  // Create the new command
-  p->_command = p->_command->createChild(filename, args, p->_fds);
-
-  // The new command depends on its executable file
-  _graph.getFile(p->resolvePath(filename))->readBy(p->_command);
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) {
