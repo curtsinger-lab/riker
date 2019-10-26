@@ -41,8 +41,6 @@ using std::string;
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
-static string get_executable(pid_t pid);
-static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer);
 static pid_t launch_traced(char const* exec_path, char* const argv[],
                            vector<InitialFdEntry> initial_fds);
 
@@ -93,43 +91,38 @@ void Tracer::run(Command* cmd) {
       }
     }
 
+    auto p = _processes[child];
+
     if (WIFSTOPPED(wait_status)) {
       int status = wait_status >> 8;
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        handleSyscall(child);
+        handleSyscall(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
         // Stopped on entry to a fork call
-        _fork(_processes[child]);
+        _fork(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // Stopped on entry to an exec call
-        struct user_regs_struct registers;
-        FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
-            << "Failed to get registers: " << ERR;
+        auto regs = p->getRegisters();
 
         list<string> args;
-        
-        auto p = _processes[child];
 
-        int child_argc = read_tracee_data(child, registers.rsp);
+        int child_argc = p->readData(regs.rsp);
         for (int i = 0; i < child_argc; i++) {
-          uintptr_t arg_ptr = read_tracee_data(child, registers.rsp + (1 + i) * sizeof(long));
+          uintptr_t arg_ptr = p->readData(regs.rsp + (1 + i) * sizeof(long));
           args.push_back(p->readString(arg_ptr));
         }
 
-        _execve(_processes[child], get_executable(child), args);
+        _execve(p, p->getExecutable(), args);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // Stopped on entry to a clone call
-        struct user_regs_struct registers;
-        FAIL_IF(ptrace(PTRACE_GETREGS, child, nullptr, &registers))
-            << "Failed to get registers: " << ERR;
-
-        _clone(_processes[child], registers.SYSCALL_ARG1);
+        auto regs = p->getRegisters();
+        _clone(p, regs.SYSCALL_ARG1);
 
       } else {
         WARN << "Unhandled stop in process " << child;
@@ -141,7 +134,7 @@ void Tracer::run(Command* cmd) {
 
     } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
       // Stopped on exit
-      _exit(_processes[child]);
+      _exit(p);
     }
   }
 }
@@ -619,10 +612,8 @@ void Tracer::_copy_file_range(shared_ptr<Process> p, int fd_in, int _, int fd_ou
 
 /////////////////
 
-void Tracer::handleSyscall(pid_t pid) {
-  auto p = _processes[pid];
-  struct user_regs_struct regs;
-  FAIL_IF(ptrace(PTRACE_GETREGS, pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
+void Tracer::handleSyscall(shared_ptr<Process> p) {
+  auto regs = p->getRegisters();
 
   switch (regs.SYSCALL_NUMBER) {
     case __NR_read:
@@ -703,8 +694,7 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_rename:
-      _rename(p, p->readString(regs.SYSCALL_ARG1),
-              p->readString(regs.SYSCALL_ARG2));
+      _rename(p, p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
       break;
 
     case __NR_mkdir:
@@ -724,8 +714,7 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_symlink:
-      _symlink(p, p->readString(regs.SYSCALL_ARG1),
-               p->readString(regs.SYSCALL_ARG2));
+      _symlink(p, p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
       break;
 
     case __NR_readlink:
@@ -749,8 +738,7 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_lchown:
-      _lchown(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
-              regs.SYSCALL_ARG3);
+      _lchown(p, p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     case __NR_mknod:
@@ -819,28 +807,26 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_mkdirat:
-      _mkdirat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-               regs.SYSCALL_ARG3);
+      _mkdirat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
       break;
 
     case __NR_mknodat:
-      _mknodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-               regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
+      _mknodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+               regs.SYSCALL_ARG4);
       break;
 
     case __NR_fchownat:
-      _fchownat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3, regs.SYSCALL_ARG4, regs.SYSCALL_ARG5);
+      _fchownat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+                regs.SYSCALL_ARG4, regs.SYSCALL_ARG5);
       break;
 
     case __NR_unlinkat:
-      _unlinkat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3);
+      _unlinkat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
       break;
 
     case __NR_renameat:
-      _renameat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3, p->readString(regs.SYSCALL_ARG4));
+      _renameat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+                p->readString(regs.SYSCALL_ARG4));
       break;
 
     case __NR_symlinkat:
@@ -853,8 +839,8 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_fchmodat:
-      _fchmodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
+      _fchmodat(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+                regs.SYSCALL_ARG4);
       break;
 
     case __NR_splice:
@@ -886,9 +872,8 @@ void Tracer::handleSyscall(pid_t pid) {
       break;
 
     case __NR_renameat2:
-      _renameat2(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                 regs.SYSCALL_ARG3, p->readString(regs.SYSCALL_ARG4),
-                 regs.SYSCALL_ARG5);
+      _renameat2(p, regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+                 p->readString(regs.SYSCALL_ARG4), regs.SYSCALL_ARG5);
       break;
 
     case __NR_copy_file_range:
@@ -912,9 +897,9 @@ void Tracer::handleSyscall(pid_t pid) {
 /********** Utilities for tracing **********/
 /*******************************************/
 
-static string get_executable(pid_t pid) {
+string Tracer::Process::getExecutable() {
   char path_buffer[24];  // 24 is long enough for any integer PID
-  sprintf(path_buffer, "/proc/%d/exe", pid);
+  sprintf(path_buffer, "/proc/%d/exe", _pid);
 
   unique_ptr<char[]> buffer(nullptr);
   ssize_t capacity = 0;
@@ -927,6 +912,12 @@ static string get_executable(pid_t pid) {
   } while (bytes_read == capacity);
 
   return string(buffer.get(), bytes_read);
+}
+
+user_regs_struct Tracer::Process::getRegisters() {
+  struct user_regs_struct regs;
+  FAIL_IF(ptrace(PTRACE_GETREGS, _pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
+  return regs;
 }
 
 string Tracer::Process::readString(uintptr_t tracee_pointer) {
@@ -951,10 +942,10 @@ string Tracer::Process::readString(uintptr_t tracee_pointer) {
   }
 }
 
-static uintptr_t read_tracee_data(pid_t process, uintptr_t tracee_pointer) {
+uintptr_t Tracer::Process::readData(uintptr_t tracee_pointer) {
   // Clear errno so we can detect errors
   errno = 0;
-  uintptr_t result = ptrace(PTRACE_PEEKDATA, process, tracee_pointer, nullptr);
+  uintptr_t result = ptrace(PTRACE_PEEKDATA, _pid, tracee_pointer, nullptr);
   FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
   return result;
 }

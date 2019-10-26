@@ -9,6 +9,7 @@
 
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/user.h>
 
 #include "core/FileDescriptor.hh"
 
@@ -38,7 +39,7 @@ class Tracer {
 
  private:
   /****** Handling for ptrace events ******/
-  void handleSyscall(pid_t pid);
+  void handleSyscall(shared_ptr<Process> p);
 
   /****** Handling for specific system calls ******/
 
@@ -260,7 +261,13 @@ class Tracer {
     
     string resolvePath(string path, int at = AT_FDCWD, bool follow_links = true);
     
+    string getExecutable();
+    
+    user_regs_struct getRegisters();
+    
     string readString(uintptr_t tracee_pointer);
+    
+    uintptr_t readData(uintptr_t tracee_pointer);
 
     pid_t _pid;
     Command* _command;
