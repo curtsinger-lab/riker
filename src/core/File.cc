@@ -53,8 +53,12 @@ void File::readBy(Command* c) {
     makeVersion(Version::Action::REFERENCE);
   }
 
-  // Record the dependency
-  if (c->addInput(&_versions.back())) INFO << c << " read " << &_versions.back();
+  // Create a dependency if the latest version was not written by the same command that's reading
+  auto latest = &_versions.back();
+  if (latest->getAction() == Version::Action::REFERENCE || latest->getWriter() != c) {
+    // Record the dependency
+    if (c->addInput(&_versions.back())) INFO << c << " read " << &_versions.back();
+  }
 }
 
 void File::mayWrite(Command* c) {

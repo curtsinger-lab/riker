@@ -65,6 +65,7 @@ class File {
     File* getFile() const { return _file; }
     size_t getIndex() const { return _index; }
     Action getAction() const { return _action; }
+    Command* getWriter() const { return _writer; }
 
     string getShortName() { return _file->getShortName() + " v" + to_string(_index); }
 

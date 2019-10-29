@@ -52,16 +52,6 @@ Command* Command::createChild(string exe, list<string> args, map<int, FileDescri
 }
 
 bool Command::prune() {
-  // Remove inputs to commands that are also outputs
-  for (auto iter = _inputs.begin(); iter != _inputs.end();) {
-    auto input = *iter;
-    if (_outputs.find(input) != _outputs.end()) {
-      iter = _inputs.erase(iter);
-    } else {
-      ++iter;
-    }
-  }
-  
   // Recursively prune in child commands, potentially removing the whole command
   for (auto iter = _children.begin(); iter != _children.end();) {
     auto& child = *iter;
@@ -72,7 +62,7 @@ bool Command::prune() {
     }
   }
   
-  // If this command has no childrena and no outputs, we can prune it
+  // If this command has no children and no outputs, we can prune it
   return _outputs.size() == 0 && _children.size() == 0;
 }
 

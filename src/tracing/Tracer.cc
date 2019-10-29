@@ -18,6 +18,7 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <signal.h>
+#include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/stat.h>
@@ -191,11 +192,11 @@ void Tracer::Process::_read(int fd) {
   }
 
   // Finish the syscall to find out if it succeeded, then resume the process
-  int rc = finishSyscall();
+  // int rc = finishSyscall();
   resume();
 
   // If the syscall failed, do nothing
-  if (rc == -1) return;
+  // if (rc == -1) return;
 
   // Log the read
   f->readBy(_command);
@@ -363,17 +364,22 @@ void Tracer::Process::_ftruncate(int fd, long length) {
 }
 
 void Tracer::Process::_chdir(string filename) {
+  int rc = finishSyscall();
   resume();
 
-  // Update the current working directory
-  _cwd = resolvePath(filename);
+  // Update the current working directory if the chdir call succeeded
+  if (rc == 0) _cwd = resolvePath(filename);
 }
 
 void Tracer::Process::_fchdir(int fd) {
+  int rc = finishSyscall();
   resume();
 
-  auto f = _fds[fd].file;
-  if (f) _cwd = f->getPath();
+  if (rc == 0) {
+    auto f = _fds[fd].file;
+    WARN_IF(!f) << "Unable to locate file used in fchdir";
+    _cwd = f->getPath();
+  }
 }
 
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
@@ -491,36 +497,46 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   string path = resolvePath(pathname, dfd);
-  
+
   // Stat the directory so we can see if it was created by the mkdirat call
   bool dir_existed = true;
   struct stat statbuf;
   dir_existed = (stat(path.c_str(), &statbuf) == 0);
-  
+
   // Run the syscall
   int rc = finishSyscall();
   resume();
-  
+
   // If the call failed, do nothing
   if (rc) return;
-  
+
   if (!dir_existed) {
     auto f = _graph.getFile(path, File::Type::DIRECTORY);
     f->createdBy(_command);
-    
+
     auto pos = path.rfind('/');
     string parent_path = path.substr(0, pos);
     auto parent_dir = _graph.getFile(parent_path, File::Type::DIRECTORY);
     parent_dir->readBy(_command);
   }
-  
+
   // TODO: if creation failed, does this command now depend on the directory that already exists?
   // TODO: creating any file or directory should depend on its parent directory
 }
 
 void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
+  // TODO: Handle or skip device nodes. FIFOs may need special handling?
+
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // Give up if the syscall fails
+  if (rc != 0) return;
+
+  string path = resolvePath(filename, dfd);
+  auto f = _graph.getFile(path);
+
+  f->createdBy(_command);
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) {
@@ -531,12 +547,12 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
   string path = resolvePath(pathname, dfd);
   auto f = _graph.getFile(path);
-  
+
   f->mayDelete(_command);
-  
+
   int rc = finishSyscall();
   resume();
-  
+
   if (rc == 0) f->deletedBy(_command);
 }
 
@@ -575,14 +591,34 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
 
   // Add the entry for the duped fd
   _fds[newfd] = _fds[oldfd];
-  
+
   // Set the cloexec flag if specified in the flags
   if (flags & O_CLOEXEC) _fds[newfd].cloexec = true;
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
+  int rc = finishSyscall();
+
+  // Bail out if the syscall failed
+  if (rc) return;
+
+  // Read the file descriptors
+  int read_pipefd = readData((uintptr_t)fds);
+  int write_pipefd = readData((uintptr_t)fds + sizeof(int));
+
   resume();
-  // TODO
+
+  // Create a pipe
+  auto p = _graph.getPipe();
+
+  // Will these pipe file descriptors be closed on exec?
+  bool cloexec = (flags & O_CLOEXEC) != 0;
+
+  // Create the FD records
+  _fds[read_pipefd] = FileDescriptor(p, O_RDONLY, cloexec);
+  _fds[write_pipefd] = FileDescriptor(p, O_WRONLY, cloexec);
+
+  p->createdBy(_command);
 }
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,

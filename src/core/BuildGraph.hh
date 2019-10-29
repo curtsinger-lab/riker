@@ -50,7 +50,7 @@ class BuildGraph {
 
   File* getFile(string path, File::Type type = File::Type::UNKNOWN);
 
-  File* getPipe(string name = "pipe");
+  File* getPipe(string name="");
 
  private:
   unique_ptr<Command> _root;
