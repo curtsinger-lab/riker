@@ -193,6 +193,13 @@ void Tracer::Process::_read(int fd) {
 
   // Finish the syscall to find out if it succeeded, then resume the process
   // int rc = finishSyscall();
+  // We can't wait for the syscall to finish here because of this scenario:
+  //  fd may be the read end of a pipe that is currently empty. The process that will write to the
+  //  pipe is also blocked, but we're not handling it now. In that case, the syscall will not
+  //  finish until we resume the *other* process. To handle this case correctly we'd need to place
+  //  a wait for any child after resuming the blocked process. pre_ and post_ hooks for syscalls
+  //  would work, but we don't always need them. Threads would also work, btu that creates other
+  //  problems.
   resume();
 
   // If the syscall failed, do nothing
