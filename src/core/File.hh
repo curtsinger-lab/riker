@@ -55,10 +55,7 @@ class File {
     using Action = db::File::Version::Action::Which;
 
     Version(File* file, size_t index, Action action, Command* writer) :
-        _file(file),
-        _index(index),
-        _action(action),
-        _writer(writer) {}
+        _file(file), _index(index), _action(action), _writer(writer) {}
 
     void fingerprint();
 
@@ -97,24 +94,38 @@ class File {
 
   void fingerprintIfNeeded(Command* modifier);
 
+  /// Called during or after a command's creation of this file
   void createdBy(Command* c);
 
+  /// Called during or after a command's read from this file
   void readBy(Command* c);
 
   /// Called just before allowing command c to write this file. May cache or fingerprint.
   void mayWrite(Command* c);
 
+  /// Called after a command writes to this file
   void writtenBy(Command* c);
 
   /// Called just before allowing command c to truncate this file. May cache or fingerprint.
   void mayTruncate(Command* c);
 
+  /// Called after a command truncates this file to zero length
   void truncatedBy(Command* c);
 
   /// Called just before allowing command c to delete this file. May cache or fingerprint.
   void mayDelete(Command* c);
 
+  /// Called after a command unlinks this file
   void deletedBy(Command* c);
+
+  /// Called just before allowing command c to mmap this file. May cache or fingerprint.
+  void mayMap(Command* c, bool writable);
+
+  /// Called after a command mmaps this file
+  void mappedBy(Command* c, bool writable);
+
+  /// Called after a command unmaps this file (partial unmaps should not call this function)
+  void unmappedBy(Command* c, bool writable);
 
   void serialize(Serializer& serializer, db::File::Builder builder);
 
@@ -146,9 +157,11 @@ class File {
 
  private:
   size_t _id;
-  string _path;                //< The absolute, normalized path to this file
-  Type _type = Type::UNKNOWN;  //< The type of file being tracked
-  list<Version> _versions;     //< The sequence of versions of this file
+  string _path;                      //< The absolute, normalized path to this file
+  Type _type = Type::UNKNOWN;        //< The type of file being tracked
+  list<Version> _versions;           //< The sequence of versions of this file
+  set<Command*> _writable_mappers;   //< A set of commands with a writable mapping of this file
+  set<Command*> _read_only_mappers;  //< A set of commands with a read-only mapping of this file
 
   static size_t next_id;
 };
