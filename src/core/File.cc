@@ -66,21 +66,20 @@ void File::mayWrite(Command* c) {
 }
 
 void File::writtenBy(Command* c) {
-  // There must be a previous version if we're writing a file. If the first action performed on a
-  // file is to write to it, there will be a create, reference, or truncate version already.
-  FAIL_IF(_versions.size() == 0) << "Invalid write to file with no prior version: " << _path;
+  // If this file has previous versions, we may not need to tag a new version
+  if (_versions.size() > 0) {
+    // Peek at the most recent version of the file
+    File::Version* prev_version = &_versions.back();
 
-  // Peek at the most recent version of the file
-  File::Version* prev_version = &_versions.back();
-
-  // If the previous version was a write by this command, we don't need to tag a new version
-  if (prev_version->_action == Version::Action::WRITE && prev_version->_writer == c) {
-    return;
+    // If the previous version was a write by this command, we don't need to tag a new version
+    if (prev_version->_action == Version::Action::WRITE && prev_version->_writer == c) {
+      return;
+    }
   }
   
   // The state of this file depends on its previous version, so we create a read edge from the
   // previous version to the writing command. This is true even if the command cannot read the file.
-  if (c->addInput(prev_version)) INFO << c << " read " << prev_version;
+  readBy(c);
 
   // Now tag a new version written by this command
   auto v = makeVersion(Version::Action::WRITE, c);
