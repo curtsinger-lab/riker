@@ -112,6 +112,28 @@ void File::deletedBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " deleted " << v;
 }
 
+void File::mayMap(Command* c, bool writable) {
+  // TODO
+}
+
+void File::mappedBy(Command* c, bool writable) {
+  if (writable) {
+    writtenBy(c);
+    _writable_mappers.insert(c);
+  } else {
+    readBy(c);
+    _read_only_mappers.insert(c);
+  }
+}
+
+void File::unmappedBy(Command* c, bool writable) {
+  if (writable) {
+    _writable_mappers.erase(c);
+  } else {
+    _read_only_mappers.erase(c);
+  }
+}
+
 void File::serialize(Serializer& serializer, db::File::Builder builder) {}
 
 File::Version* File::makeVersion(Version::Action a, Command* c) {

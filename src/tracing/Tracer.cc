@@ -245,8 +245,29 @@ void Tracer::Process::_close(int fd) {
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
+  // Skip anonymous mappings for now
+  // TODO: Handle shared anonymous mappings
+  if (fd == -1) {
+    resume();
+    return;
+  }
+  
+  auto descriptor = _fds[fd];
+  auto f = descriptor.file;
+  bool writable = prot & PROT_WRITE;
+  // The mapping is only writable if the file was also open in writable mode
+  writable &= (descriptor.access_mode & O_WRONLY) || (descriptor.access_mode & O_RDWR);
+  
+  f->mayMap(_command, writable);
+  
+  void* rc = (void*)finishSyscall();
   resume();
-  // TODO
+  
+  // If the map failed there's nothing to log
+  if (rc == MAP_FAILED) return;
+  
+  // Record the mmap
+  f->mappedBy(_command, writable);
 }
 
 int Tracer::Process::_dup(int fd) {
