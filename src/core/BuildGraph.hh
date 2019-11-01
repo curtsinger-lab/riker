@@ -49,6 +49,9 @@ class BuildGraph {
   /****** Getters and setters ******/
 
   File* getFile(string path, File::Type type = File::Type::UNKNOWN);
+  
+  void linkFile(string path, File* f) { _current_files[path] = f; }
+  void unlinkFile(string path) { _current_files.erase(path); }
 
   File* getPipe(string name="");
 

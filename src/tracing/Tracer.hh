@@ -160,15 +160,15 @@ class Tracer {
     void _symlinkat(string oldname, int newdfd, string newname);
     void _readlinkat(int dfd, string pathname);
     void _fchmodat(int dfd, string filename, mode_t mode, int flags);
-    void _splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out);
-    void _tee(int fdin, int fdout, size_t len);
+    void _splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out) { _tee(fd_in, fd_out); }
+    void _tee(int fd_in, int fd_out);
     void _vmsplice(int fd) { _write(fd); }
     void _dup3(int oldfd, int newfd, int flags);
     void _pipe2(int* fds, int flags);
     void _preadv(int fd) { _read(fd); }
     void _pwritev(int fd) { _write(fd); }
     void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags);
-    void _copy_file_range(int fd_in, int _, int fd_out);
+    void _copy_file_range(int fd_in, int _, int fd_out) { _tee(fd_in, fd_out); }
     void _preadv2(int fd) { _read(fd); }
     void _pwritev2(int fd) { _write(fd); }
 
@@ -177,7 +177,7 @@ class Tracer {
     Command* _command;
     string _cwd;
     string _root;
-    set<shared_ptr<File>> _mmaps;
+    set<File*> _mmaps;
     map<int, FileDescriptor> _fds;
   };
 

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <list>
 #include <memory>
 #include <string>
@@ -165,14 +166,18 @@ string Tracer::Process::resolvePath(string path, int at, bool follow_links) {
   // TODO: Properly normalize paths
   // TODO: Handle chroot-ed processes correctly
   // TODO: Handle links (followed or unfollowed)
+  string fullpath;
+  
   if (path[0] == '/') {
-    return path;
+    fullpath = path;
   } else if (at == AT_FDCWD) {
-    return _cwd + '/' + path;
+    fullpath = _cwd + '/' + path;
   } else {
     string base = _fds[at].file->getPath();
-    return base + '/' + path;
+    fullpath = base + '/' + path;
   }
+  
+  return std::filesystem::path(fullpath).lexically_normal();
 }
 
 /****************************************************/
@@ -191,8 +196,6 @@ void Tracer::Process::_read(int fd) {
     return;
   }
 
-  // Finish the syscall to find out if it succeeded, then resume the process
-  // int rc = finishSyscall();
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
   //  pipe is also blocked, but we're not handling it now. In that case, the syscall will not
@@ -201,9 +204,6 @@ void Tracer::Process::_read(int fd) {
   //  would work, but we don't always need them. Threads would also work, btu that creates other
   //  problems.
   resume();
-
-  // If the syscall failed, do nothing
-  // if (rc == -1) return;
 
   // Log the read
   f->readBy(_command);
@@ -245,29 +245,32 @@ void Tracer::Process::_close(int fd) {
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
-  // Skip anonymous mappings for now
-  // TODO: Handle shared anonymous mappings
+  // Skip anonymous mappings. We never need to handle these because they only allow communication
+  // within a single command.
   if (fd == -1) {
     resume();
     return;
   }
-  
+
   auto descriptor = _fds[fd];
   auto f = descriptor.file;
   bool writable = prot & PROT_WRITE;
   // The mapping is only writable if the file was also open in writable mode
   writable &= (descriptor.access_mode & O_WRONLY) || (descriptor.access_mode & O_RDWR);
-  
+
   f->mayMap(_command, writable);
-  
+
   void* rc = (void*)finishSyscall();
   resume();
-  
+
   // If the map failed there's nothing to log
   if (rc == MAP_FAILED) return;
-  
+
   // Record the mmap
   f->mappedBy(_command, writable);
+
+  // Also track the mmap in the process so we can notify the file of an unmap later
+  _mmaps.insert(f);
 }
 
 int Tracer::Process::_dup(int fd) {
@@ -312,8 +315,6 @@ void Tracer::Process::_exec(string filename, const list<string>& args) {
   // Resume the child
   resume();
 
-  // Get the process that issued the exec call
-
   // Close all cloexec file descriptors
   for (auto fd_entry = _fds.begin(); fd_entry != _fds.end();) {
     if (fd_entry->second.cloexec) {
@@ -328,6 +329,10 @@ void Tracer::Process::_exec(string filename, const list<string>& args) {
 
   // The new command depends on its executable file
   _graph.getFile(resolvePath(filename))->readBy(_command);
+
+  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
+  // participate in that command. This will require some extra bookkeeping. For now, we
+  // over-approximate the set of commands that have a file mmapped.
 }
 
 void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
@@ -411,8 +416,21 @@ void Tracer::Process::_fchdir(int fd) {
 }
 
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
+  // Resolve the path without following links, then get the file tracking object
+  auto f = _graph.getFile(resolvePath(filename, AT_FDCWD, false));
+
+  // Indicate that we may write this file
+  f->mayWrite(_command);
+
+  // Finish the syscall and resume
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // If the syscall failed, bail out
+  if (rc == -1) return;
+
+  // Record a write
+  f->writtenBy(_command);
 }
 
 void Tracer::Process::_chroot(string filename) {
@@ -568,8 +586,31 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) {
+  File* f;
+
+  // An empty path means just use dfd as the file
+  if (flag & AT_EMPTY_PATH) {
+    f = _fds[dfd].file;
+  } else {
+    // Are we following links or not?
+    bool follow_links = (flag & AT_SYMLINK_NOFOLLOW) == 0;
+
+    // Resolve the path, then get the file tracking object
+    f = _graph.getFile(resolvePath(filename, dfd, follow_links));
+  }
+
+  // Indicate that we may write this file
+  f->mayWrite(_command);
+
+  // Finish the syscall and resume
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // If the syscall failed, bail out
+  if (rc == -1) return;
+
+  // Record a write
+  f->writtenBy(_command);
 }
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
@@ -595,18 +636,49 @@ void Tracer::Process::_readlinkat(int dfd, string pathname) {
 }
 
 void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
+  // Are we following links or not? Depends on the flags.
+  bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
+
+  // Find the file object
+  auto f = _graph.getFile(resolvePath(filename, dfd, follow_links));
+
+  // Indicate that we may write this file
+  f->mayWrite(_command);
+
+  // Finish the syscall and resume
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // If the syscall failed, bail out
+  if (rc != 0) return;
+
+  // Record the write
+  f->writtenBy(_command);
 }
 
-void Tracer::Process::_splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out) {
-  resume();
-  // TODO
-}
+void Tracer::Process::_tee(int fd_in, int fd_out) {
+  auto input_f = _fds[fd_in].file;
+  auto output_f = _fds[fd_out].file;
 
-void Tracer::Process::_tee(int fdin, int fdout, size_t len) {
+  // If either file doesn't exist, bail out
+  if (!input_f || !output_f) {
+    resume();
+    return;
+  }
+
+  // Indicate that we may write the file
+  output_f->mayWrite(_command);
+
+  // Finish the syscall and resume
+  int rc = finishSyscall();
   resume();
-  // TODO
+
+  // If the syscall failed, bail
+  if (rc == -1) return;
+
+  // Record the read and write operations
+  input_f->readBy(_command);
+  output_f->writtenBy(_command);
 }
 
 void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
@@ -651,13 +723,38 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
                                  int flags) {
+  auto old_f = _graph.getFile(resolvePath(oldpath, old_dfd));
+  string new_path = resolvePath(newpath, new_dfd);
+  auto new_f = _graph.getFile(new_path);
+  
+  // We may delete the input file
+  old_f->mayDelete(_command);
+  
+  // Unless the noreplace flag was set, we may delete the output file
+  if ((flags & RENAME_NOREPLACE) == 0) {
+    new_f->mayDelete(_command);
+  }
+  
+  // Finish the syscall and resume
+  int rc = finishSyscall();
   resume();
-  // TODO
-}
-
-void Tracer::Process::_copy_file_range(int fd_in, int _, int fd_out) {
-  resume();
-  // TODO
+  
+  // If the syscall failed, do nothing
+  if (rc == -1) return;
+  
+  // We effectively read the old file
+  old_f->readBy(_command);
+  
+  // We deleted the new file
+  new_f->deletedBy(_command);
+  _graph.unlinkFile(new_path);
+  
+  // Then link the old file into place
+  _graph.linkFile(new_path, old_f);
+  old_f->updatePath(new_path);
+  
+  // And we've written that file
+  old_f->writtenBy(_command);
 }
 
 /////////////////
@@ -938,7 +1035,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
       break;
 
     case __NR_tee:
-      p->_tee(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      p->_tee(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2 /*, regs.SYSCALL_ARG3*/);  // Omitting length
       break;
 
     case __NR_vmsplice:

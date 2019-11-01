@@ -2,7 +2,7 @@ CC  = clang
 CXX = clang++
 COMMON_CFLAGS = -Isrc -Wall -g -flto -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -lcapnp -lkj -flto
+LDFLAGS = -lcapnp -lkj -flto -lstdc++fs
 
 DB := src/db/db.capnp
 SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")

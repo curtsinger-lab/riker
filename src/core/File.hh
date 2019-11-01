@@ -134,6 +134,8 @@ class File {
   size_t getId() const { return _id; }
 
   const string& getPath() const { return _path; }
+  
+  void updatePath(string path) { _path = path; }
 
   string getShortName() { return _path; }
 
