@@ -10,7 +10,6 @@
 #include "core/Command.hh"
 #include "core/File.hh"
 #include "db/db.capnp.h"
-#include "ui/Graphviz.hh"
 #include "ui/log.hh"
 
 using std::make_shared;

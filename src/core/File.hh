@@ -15,7 +15,6 @@
 #include "db/db.capnp.h"
 
 class Command;
-class Graphviz;
 class Serializer;
 
 using std::list;

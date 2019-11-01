@@ -10,7 +10,6 @@
 #include "db/Serializer.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
-#include "ui/options.hh"
 
 using std::make_shared;
 using std::make_unique;
