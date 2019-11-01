@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: circleci/buildpack-deps:disco
 jobs:
   all:
     executor: default
