@@ -67,20 +67,20 @@ bool Command::prune() {
 }
 
 void Command::drawGraph(Graphviz& g) {
-  g.addNode(this);
+  g.addCommand(this);
   for (auto f : _inputs) {
     if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
-      g.addEdge(f, this);
+      g.addInputEdge(f, this);
     }
   }
   for (auto f : _outputs) {
     if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
-      g.addEdge(this, f);
+      g.addOutputEdge(this, f);
     }
   }
   for (auto& c : _children) {
     c.drawGraph(g);
-    g.addEdge(this, &c);
+    g.addCommandEdge(this, &c);
   }
 }
 

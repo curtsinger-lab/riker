@@ -16,56 +16,69 @@ class Graphviz {
   Graphviz(string filename) : _out(filename) {
     _out << "digraph {\n";
     _out << "  graph [rankdir=LR]\n";
-    _out << "  node [fontname=Courier]\n";
   }
 
   ~Graphviz() { _out << "}\n"; }
 
-  void addNode(Command* c) {
+  void addCommand(Command* c) {
     if (_command_ids.find(c) == _command_ids.end()) {
       string id = "c" + to_string(_command_ids.size());
       _command_ids[c] = id;
-      _out << "  \"" << id << "\" [label=\"" << c->getShortName() << "\"]\n";
+      _out << "  " << id << " [label=\"" << c->getShortName() << "\" fontname=Courier]\n";
     }
   }
 
-  void startSubgraph(File* f) {
+  void addFile(File* f) {
     if (_file_ids.find(f) == _file_ids.end()) {
-      string id = "cluster_f" + to_string(_file_ids.size());
+      string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
-      _out << "  subgraph " << id << " {\n";
-      _out << "    label=\"" << f->getShortName() << "\"\n";
-    }
-  }
 
-  void finishSubgraph() { _out << "  }\n"; }
+      string parts = f->getShortName();
+      for (auto& v : f->getVersions()) {
+        string version_id = "v" + to_string(v.getIndex());
+        _file_version_ids[&v] = id + ":" + version_id;
+        
+        string desc;
+        switch (v.getAction()) {
+          case File::Version::Action::CREATE:
+            desc = "create";
+            break;
+          case File::Version::Action::REFERENCE:
+            desc = "ref";
+            break;
+          case File::Version::Action::WRITE:
+            desc = "write";
+            break;
+          case File::Version::Action::TRUNCATE:
+            desc = "truncate";
+            break;
+          case File::Version::Action::DELETE:
+            desc = "delete";
+            break;
+        }
+        
+        if (parts != "") parts += " | ";
+        parts += "<" + version_id + "> " + version_id + ": " + desc;
+      }
 
-  void addNode(File::Version* f, bool fullname = false) {
-    if (_file_version_ids.find(f) == _file_version_ids.end()) {
-      string id = "v" + to_string(_file_version_ids.size());
-      _file_version_ids[f] = id;
-
-      string shape;
-      switch (f->getFile()->getType()) {
+      string style;
+      switch (f->getType()) {
         case File::Type::DIRECTORY:
-          shape = "folder";
+          style = "dashed";
           break;
         case File::Type::PIPE:
-          shape = "diamond";
+          style = "rounded";
           break;
         default:
-          shape = "rectangle";
+          style = "solid";
           break;
       }
-      
-      string label = "v" + to_string(f->getIndex());
-      if (fullname) label = f->getFile()->getShortName();
 
-      _out << "  \"" << id << "\" [label=\"" << label << "\" shape=" << shape << "]\n";
+      _out << "  " << id << " [label=\"" << parts << "\" shape=record style=\"" + style + "\"]\n";
     }
   }
 
-  void addEdge(Command* c1, Command* c2) {
+  void addCommandEdge(Command* c1, Command* c2) {
     auto iter1 = _command_ids.find(c1);
     if (iter1 == _command_ids.end()) return;
     string& id1 = iter1->second;
@@ -74,69 +87,30 @@ class Graphviz {
     if (iter2 == _command_ids.end()) return;
     string& id2 = iter2->second;
 
-    _out << "  \"" << id1 << "\" -> \"" << id2 << "\" [style=dashed]\n";
+    _out << "  " << id1 << " -> " << id2 << " [style=dashed weight=1]\n";
   }
 
-  void addEdge(File::Version* f, Command* c) {
-    auto iter1 = _file_version_ids.find(f);
-    if (iter1 == _file_version_ids.end()) return;
-    string& id1 = iter1->second;
+  void addInputEdge(File::Version* f, Command* c) {
+    addFile(f->getFile());
 
-    auto iter2 = _command_ids.find(c);
-    if (iter2 == _command_ids.end()) return;
-    string& id2 = iter2->second;
+    string& id1 = _file_version_ids[f];
+    string& id2 = _command_ids[c];
 
-    _out << "  \"" << id1 << "\" -> \"" << id2 << "\" "
-         << "[arrowhead=empty]\n";
+    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
-  void addEdge(Command* c, File::Version* f) {
-    auto iter1 = _command_ids.find(c);
-    if (iter1 == _command_ids.end()) return;
-    string& id1 = iter1->second;
+  void addOutputEdge(Command* c, File::Version* f) {
+    addFile(f->getFile());
 
-    auto iter2 = _file_version_ids.find(f);
-    if (iter2 == _file_version_ids.end()) return;
-    string& id2 = iter2->second;
+    string& id1 = _command_ids[c];
+    string& id2 = _file_version_ids[f];
 
-    string label;
-    switch (f->getAction()) {
-      case File::Version::Action::CREATE:
-        label = "create";
-        break;
-      case File::Version::Action::REFERENCE:
-        label = "reference";
-        break;
-      case File::Version::Action::WRITE:
-        label = "write";
-        break;
-      case File::Version::Action::TRUNCATE:
-        label = "truncate";
-        break;
-      case File::Version::Action::DELETE:
-        label = "delete";
-        break;
-    }
-
-    _out << "  \"" << id1 << "\" -> \"" << id2 << "\" "
-         << "[arrowhead=empty label=\"" << label << "\"]\n";
-  }
-
-  void addEdge(File::Version* f1, File::Version* f2) {
-    auto iter1 = _file_version_ids.find(f1);
-    if (iter1 == _file_version_ids.end()) return;
-    string& id1 = iter1->second;
-
-    auto iter2 = _file_version_ids.find(f2);
-    if (iter2 == _file_version_ids.end()) return;
-    string& id2 = iter2->second;
-
-    _out << "  \"" << id1 << "\" -> \"" << id2 << "\" [style=invis]\n";
+    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
  private:
   ofstream _out;
-  map<Command*, string> _command_ids;
-  map<File*, string> _file_ids;
-  map<File::Version*, string> _file_version_ids;
+  map<const Command*, string> _command_ids;
+  map<const File*, string> _file_ids;
+  map<const File::Version*, string> _file_version_ids;
 };

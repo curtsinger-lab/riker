@@ -151,8 +151,8 @@ class File {
     }
     return false;
   }
-
-  void drawGraph(Graphviz& g);
+  
+  const list<Version>& getVersions() const { return _versions; }
 
  private:
   Version* makeVersion(Version::Action a, Command* c = nullptr);

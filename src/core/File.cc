@@ -166,27 +166,6 @@ File::Version* File::makeVersion(Version::Action a, Command* c) {
   return &_versions.back();
 }
 
-void File::drawGraph(Graphviz& g) {
-  if (_versions.size() == 1) {
-    g.addNode(&_versions.front(), true);
-  } else {
-    g.startSubgraph(this);
-    for (auto& v : _versions) {
-      g.addNode(&v);
-    }
-
-    File::Version* prev = nullptr;
-    for (auto& v : _versions) {
-      if (prev != nullptr) {
-        g.addEdge(prev, &v);
-      }
-      prev = &v;
-    }
-
-    g.finishSubgraph();
-  }
-}
-
 void File::Version::fingerprint() {
   if (_has_fingerprint) return;
   if (_file->getType() == File::Type::PIPE) return;
