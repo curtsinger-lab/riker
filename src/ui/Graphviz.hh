@@ -33,11 +33,38 @@ class Graphviz {
       string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
 
-      string parts = f->getShortName();
+      string parts = "";
+
+      parts += "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\" style=\"rounded\">";
+      
+      string type;
+      switch (f->getType()) {
+        case File::Type::UNKNOWN:
+          type = "unknown";
+          break;
+        case File::Type::REGULAR:
+          type = "file";
+          break;
+        case File::Type::DIRECTORY:
+          type = "dir";
+          break;
+        case File::Type::SYMLINK:
+          type = "symlink";
+          break;
+        case File::Type::PIPE:
+          type = "pipe";
+          break;
+      }
+      parts += "<tr><td border=\"0\"><sub>" + type + "</sub></td></tr>";
+      
+      if (f->getShortName() != "") {
+        parts += "<tr><td>" + f->getShortName() + "</td></tr>";
+      }
+
       for (auto& v : f->getVersions()) {
         string version_id = "v" + to_string(v.getIndex());
         _file_version_ids[&v] = id + ":" + version_id;
-        
+
         string desc;
         switch (v.getAction()) {
           case File::Version::Action::CREATE:
@@ -56,25 +83,13 @@ class Graphviz {
             desc = "delete";
             break;
         }
-        
-        if (parts != "") parts += " | ";
-        parts += "<" + version_id + "> " + version_id + ": " + desc;
+
+        parts += "<tr><td port=\"" + version_id + "\">" + desc + "</td></tr>";
       }
 
-      string style;
-      switch (f->getType()) {
-        case File::Type::DIRECTORY:
-          style = "dashed";
-          break;
-        case File::Type::PIPE:
-          style = "rounded";
-          break;
-        default:
-          style = "solid";
-          break;
-      }
+      parts += "</table>";
 
-      _out << "  " << id << " [label=\"" << parts << "\" shape=record style=\"" + style + "\"]\n";
+      _out << "  " << id << " [label=<" << parts << "> shape=plain]\n";
     }
   }
 
