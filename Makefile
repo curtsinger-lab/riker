@@ -1,6 +1,6 @@
 CC  = clang
 CXX = clang++
-COMMON_CFLAGS = -Isrc -Wall -g -flto -Wfatal-errors
+COMMON_CFLAGS = -Isrc -Icereal/include -Wall -g -flto -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -lcapnp -lkj -flto -lstdc++fs
 
