@@ -1,13 +1,13 @@
 CC  = clang
 CXX = clang++
+
 COMMON_CFLAGS = -Isrc -Icereal/include -Wall -g -flto -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -lcapnp -lkj -flto -lstdc++fs
+LDFLAGS = -flto -lstdc++fs
 
-DB := src/db/db.capnp
-SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
+SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
-HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
+HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
 IWYU := iwyu 
 IWYUFLAGS := -Xiwyu --mapping_file=.iwyu-mappings \
@@ -30,12 +30,8 @@ clean:
 
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
-
-src/%.capnp.cc src/%.capnp.h: src/%.capnp
-	capnpc --output=c++ $<
-	mv $(addsuffix .c++, $<) $(addsuffix .cc, $<)
-
-$(OBJS): objs/%.o: src/%.cc $(HEADERS) $(wildcard src/*.capnp)
+	
+$(OBJS): objs/%.o: src/%.cc $(HEADERS)
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 

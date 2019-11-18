@@ -10,7 +10,6 @@
 
 #include "core/BuildGraph.hh"
 #include "core/File.hh"
-#include "db/Serializer.hh"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
@@ -156,9 +155,6 @@ int main(int argc, char* argv[]) {
     Graphviz g("out.dot");
     graph.drawGraph(g);
   }
-
-  Serializer serializer("db.dodo");
-  graph.serialize(serializer);
 
   return 0;
 }

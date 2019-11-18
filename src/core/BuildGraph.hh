@@ -42,8 +42,6 @@ class BuildGraph {
 
   void prune();
 
-  void serialize(Serializer& serializer);
-
   void drawGraph(Graphviz& g);
 
   /****** Getters and setters ******/

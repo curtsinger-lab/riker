@@ -10,10 +10,8 @@
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-#include "db/db.capnp.h"
 
 class Graphviz;
-class Serializer;
 
 using std::list;
 using std::map;
@@ -76,8 +74,6 @@ class Command {
   bool prune();
   
   void drawGraph(Graphviz& g);
-
-  void serialize(const Serializer& serializer, db::Command::Builder builder) const;
 
   /****** Getters and setters ******/
 

@@ -9,7 +9,6 @@
 
 #include "core/Command.hh"
 #include "core/File.hh"
-#include "db/db.capnp.h"
 #include "ui/log.hh"
 
 using std::make_shared;
@@ -132,8 +131,6 @@ void File::unmappedBy(Command* c, bool writable) {
     _read_only_mappers.erase(c);
   }
 }
-
-void File::serialize(Serializer& serializer, db::File::Builder builder) {}
 
 File::Version* File::makeVersion(Version::Action a, Command* c) {
   if (_versions.size() > 0) _versions.back().fingerprint();

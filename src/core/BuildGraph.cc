@@ -7,7 +7,6 @@
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-#include "db/Serializer.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
@@ -57,12 +56,4 @@ File* BuildGraph::getPipe(string name) {
 
 void BuildGraph::drawGraph(Graphviz& g) {
   if (_root) _root->drawGraph(g);
-}
-
-void BuildGraph::serialize(Serializer& serializer) {
-  // Add the root command (and its descendants) to the serializer
-  serializer.addCommand(_root.get());
-
-  // Run the serialization
-  serializer.serialize();
 }

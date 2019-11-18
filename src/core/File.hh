@@ -12,10 +12,7 @@
 
 #include <sys/stat.h>
 
-#include "db/db.capnp.h"
-
 class Command;
-class Serializer;
 
 using std::list;
 using std::ostream;
@@ -27,8 +24,14 @@ using std::vector;
 
 class File {
  public:
-  /// Alias for file types (see src/db/db.capnp)
-  using Type = db::File::Type;
+  /// Types of files we track
+  enum class Type {
+    UNKNOWN,
+    REGULAR,
+    DIRECTORY,
+    SYMLINK,
+    PIPE
+  };
 
   /**
    * A Version holds information about a file in a particular state.
@@ -50,8 +53,14 @@ class File {
     // File should have access to File::Version fields
     friend class File;
 
-    /// Track the types of actions that can create versions (see src/db/db.capnp)
-    using Action = db::File::Version::Action::Which;
+    /// Track the types of actions that can create versions
+    enum class Action {
+      CREATE,
+      REFERENCE,
+      WRITE,
+      TRUNCATE,
+      DELETE
+    };
 
     Version(File* file, size_t index, Action action, Command* writer) :
         _file(file), _index(index), _action(action), _writer(writer) {}
@@ -125,8 +134,6 @@ class File {
 
   /// Called after a command unmaps this file (partial unmaps should not call this function)
   void unmappedBy(Command* c, bool writable);
-
-  void serialize(Serializer& serializer, db::File::Builder builder);
 
   /****** Getters and setters ******/
 

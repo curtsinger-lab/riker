@@ -4,7 +4,6 @@
 
 #include "core/File.hh"
 #include "core/FileDescriptor.hh"
-#include "db/Serializer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -83,5 +82,3 @@ void Command::drawGraph(Graphviz& g) {
     g.addCommandEdge(this, &c);
   }
 }
-
-void Command::serialize(const Serializer& serializer, db::Command::Builder builder) const {}
