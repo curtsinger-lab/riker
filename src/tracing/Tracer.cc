@@ -1179,20 +1179,20 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     vector<struct sock_filter> filter;
 
     // Load the syscall number
-    filter.push_back(BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)));
+    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 
     // Loop over syscalls
     for (auto& entry : syscalls) {
       uint32_t syscall_nr = entry.first;
       // Check if the syscall matches the current entry
-      filter.push_back(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, syscall_nr, 0, 1));
+      filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_nr, 0, 1));
 
       // On a match, return trace
-      filter.push_back(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRACE));
+      filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
     }
 
     // Default case allows the syscall
-    filter.push_back(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW));
+    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
 
     struct sock_fprog bpf_program;
     bpf_program.filter = filter.data();
