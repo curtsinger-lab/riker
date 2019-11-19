@@ -167,7 +167,7 @@ string Tracer::Process::resolvePath(string path, int at, bool follow_links) {
   // TODO: Handle chroot-ed processes correctly
   // TODO: Handle links (followed or unfollowed)
   string fullpath;
-  
+
   if (path[0] == '/') {
     fullpath = path;
   } else if (at == AT_FDCWD) {
@@ -176,7 +176,7 @@ string Tracer::Process::resolvePath(string path, int at, bool follow_links) {
     string base = _fds[at].file->getPath();
     fullpath = base + '/' + path;
   }
-  
+
   return std::filesystem::path(fullpath).lexically_normal();
 }
 
@@ -726,33 +726,33 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
   auto old_f = _graph.getFile(resolvePath(oldpath, old_dfd));
   string new_path = resolvePath(newpath, new_dfd);
   auto new_f = _graph.getFile(new_path);
-  
+
   // We may delete the input file
   old_f->mayDelete(_command);
-  
+
   // Unless the noreplace flag was set, we may delete the output file
   if ((flags & RENAME_NOREPLACE) == 0) {
     new_f->mayDelete(_command);
   }
-  
+
   // Finish the syscall and resume
   int rc = finishSyscall();
   resume();
-  
+
   // If the syscall failed, do nothing
   if (rc == -1) return;
-  
+
   // We effectively read the old file
   old_f->readBy(_command);
-  
+
   // We deleted the new file
   new_f->deletedBy(_command);
   _graph.unlinkFile(new_path);
-  
+
   // Then link the old file into place
   _graph.linkFile(new_path, old_f);
   old_f->updatePath(new_path);
-  
+
   // And we've written that file
   old_f->writtenBy(_command);
 }
@@ -1076,7 +1076,13 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
       break;
 
     default:
-      FAIL << "Unhandled system call " << regs.SYSCALL_NUMBER;
+      auto iter = syscalls.find(regs.SYSCALL_NUMBER);
+      if (iter == syscalls.end()) {
+        FAIL << "Unexpected system call number: " << regs.SYSCALL_NUMBER;
+      } else {
+        WARN << "Missing case for syscall: " << syscalls[regs.SYSCALL_NUMBER];
+        p->resume();
+      }
   }
 }
 
@@ -1170,72 +1176,27 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     // use seccomp without special permissions
     FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
 
-    // Set up the seccomp filter. Since we are handling so
-    // many syscalls, we don't want to just use a long list
-    // of chained comparisons. Therefore, we first search
-    // the syscall number to decide which block of 32 we are in,
-    // then look up the result in a bitset.
-    uint32_t bitset[11] = {0};
-    for (size_t i = 0; i < sizeof(syscalls) / sizeof(syscalls[0]); i++) {
-      bitset[syscalls[i] >> 5] |= 1 << (syscalls[i] & 0x1F);
+    vector<struct sock_filter> filter;
+
+    // Load the syscall number
+    filter.push_back(BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)));
+
+    // Loop over syscalls
+    for (auto& entry : syscalls) {
+      uint32_t syscall_nr = entry.first;
+      // Check if the syscall matches the current entry
+      filter.push_back(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, syscall_nr, 0, 1));
+
+      // On a match, return trace
+      filter.push_back(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRACE));
     }
 
-    // The actual binary BPF code
-    struct sock_filter bpf_filter[] = {
-        // Ensure that we are using the x86_64 syscall interface.
-        // TODO: support other architectures
-        BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, arch)),
-        BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, AUDIT_ARCH_X86_64, 1, 0),  // Check that this is x86_64
-        BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_KILL),
-        BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)),
-        BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, __X32_SYSCALL_BIT, 0,
-                 1),  // And we are actually running a 64-bit program
-        BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_KILL),
-
-        // We stash the low bits of the syscall number for when we use it to look up
-        // in a 32-bit set
-        BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)),
-        BPF_STMT(BPF_ALU + BPF_AND + BPF_K, 0x1F),
-        BPF_STMT(BPF_MISC + BPF_TAX, 0),
-
-        // Look for the correct 32-bit block.
-        BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)),
-
-#define BITSET_BLOCK(index, total)                                                                 \
-  /* For each block, test if we are in the block */                                                \
-  BPF_JUMP(BPF_JMP + BPF_JGE + BPF_K, 32 * (index + 1), 2,                                         \
-           0), /* then load the appropriate bitset into the register */                            \
-      BPF_STMT(BPF_LD + BPF_W + BPF_IMM,                                                           \
-               bitset[index]), /* then jump to the testing code, past the catch-all instruction */ \
-      BPF_JUMP(BPF_JMP + BPF_JA, (total - 1 - index) * 3 + 1, 0, 0)
-
-        BITSET_BLOCK(0, 11),
-        BITSET_BLOCK(1, 11),
-        BITSET_BLOCK(2, 11),
-        BITSET_BLOCK(3, 11),
-        BITSET_BLOCK(4, 11),
-        BITSET_BLOCK(5, 11),
-        BITSET_BLOCK(6, 11),
-        BITSET_BLOCK(7, 11),
-        BITSET_BLOCK(8, 11),
-        BITSET_BLOCK(9, 11),
-        BITSET_BLOCK(10, 11),
-        // The catch-all instruction will say not to trace any super-high syscall number
-        // that we don't recognize
-        BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
-
-        // Shift our bitset and extract the low bit to test the correct bit
-        BPF_STMT(BPF_ALU + BPF_RSH + BPF_X, 0),
-        BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, 1, 1 /* trace */, 0 /* allow */),
-        BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
-        // TODO: Do more filtering here: for example, we don't care about private,
-        // anonymous memory mappings or likely about interactions with stdin/stdout/stderr.
-        BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRACE),
-    };
+    // Default case allows the syscall
+    filter.push_back(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW));
 
     struct sock_fprog bpf_program;
-    bpf_program.filter = bpf_filter;
-    bpf_program.len = (unsigned short)sizeof(bpf_filter) / sizeof(bpf_filter[0]);
+    bpf_program.filter = filter.data();
+    bpf_program.len = filter.size();
 
     // Actually enable the filter
     FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)

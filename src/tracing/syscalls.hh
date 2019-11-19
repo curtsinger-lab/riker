@@ -1,8 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
+#include <string>
 
 #include <syscall.h>
+
+using std::map;
+using std::string;
 
 #define SYSCALL_NUMBER orig_rax
 #define SYSCALL_RETURN rax
@@ -13,77 +18,83 @@
 #define SYSCALL_ARG5 r8
 #define SYSCALL_ARG6 r9
 
-static const uint16_t syscalls[] = {
-    /* 0 */ __NR_read,
-    /* 1 */ __NR_write,
-    /* 2 */ __NR_open,
-    /* 3 */ __NR_close,
-    /* 9 */ __NR_mmap,
-    /* 17 */ __NR_pread64,
-    /* 18 */ __NR_pwrite64,
-    /* 19 */ __NR_readv,
-    /* 20 */ __NR_writev,
-    /* 22 */ __NR_pipe,
-    /* 32 */ __NR_dup,
-    /* 33 */ __NR_dup2,
-    /* 40 */ __NR_sendfile,
-    /* 72 */ __NR_fcntl,
-    /* 76 */ __NR_truncate,
-    /* 77 */ __NR_ftruncate,
-    /* 78 */ __NR_getdents,
-    /* 80 */ __NR_chdir,
-    /* 81 */ __NR_fchdir,
-    /* 82 */ __NR_rename,
-    /* 83 */ __NR_mkdir,
-    /* 84 */ __NR_rmdir,
-    /* 85 */ __NR_creat,
-    /* 86 */ __NR_link,
-    /* 87 */ __NR_unlink,
-    /* 88 */ __NR_symlink,
-    /* 89 */ __NR_readlink,
-    /* 133 */ __NR_mknod,
-    /* 155 */ __NR_pivot_root,  // ????
-    /* 161 */ __NR_chroot,
-    /* 217 */ __NR_getdents64,
-    /* 257 */ __NR_openat,
-    /* 258 */ __NR_mkdirat,
-    /* 259 */ __NR_mknodat,
-    /* 263 */ __NR_unlinkat,
-    /* 264 */ __NR_renameat,
-    /* 266 */ __NR_symlinkat,
-    /* 267 */ __NR_readlinkat,
-    /* 275 */ __NR_splice,
-    /* 276 */ __NR_tee,
-    /* 278 */ __NR_vmsplice,
-    /* 292 */ __NR_dup3,
-    /* 293 */ __NR_pipe2,
-    /* 295 */ __NR_preadv,
-    /* 296 */ __NR_pwritev,
-    /* 316 */ __NR_renameat2,
-    /* 326 */ __NR_copy_file_range,
-    /* 327 */ __NR_preadv2,
-    /* 328 */ __NR_pwritev2,
+#define SYSCALL_ENTRY(name) { __NR_##name, #name }
+
+map<uint32_t, string> syscalls = {
+    SYSCALL_ENTRY(read),
+    SYSCALL_ENTRY(write),
+    SYSCALL_ENTRY(open),
+    SYSCALL_ENTRY(close),
+    SYSCALL_ENTRY(stat),
+    SYSCALL_ENTRY(fstat),
+    SYSCALL_ENTRY(lstat),
+    SYSCALL_ENTRY(mmap),
+    SYSCALL_ENTRY(pread64),
+    SYSCALL_ENTRY(pwrite64),
+    SYSCALL_ENTRY(readv),
+    SYSCALL_ENTRY(writev),
+    SYSCALL_ENTRY(access),
+    SYSCALL_ENTRY(pipe),
+    SYSCALL_ENTRY(dup),
+    SYSCALL_ENTRY(dup2),
+    SYSCALL_ENTRY(sendfile),
+    SYSCALL_ENTRY(fcntl),
+    SYSCALL_ENTRY(truncate),
+    SYSCALL_ENTRY(ftruncate),
+    SYSCALL_ENTRY(getdents),
+    SYSCALL_ENTRY(chdir),
+    SYSCALL_ENTRY(fchdir),
+    SYSCALL_ENTRY(rename),
+    SYSCALL_ENTRY(mkdir),
+    SYSCALL_ENTRY(rmdir),
+    SYSCALL_ENTRY(creat),
+    SYSCALL_ENTRY(link),
+    SYSCALL_ENTRY(unlink),
+    SYSCALL_ENTRY(symlink),
+    SYSCALL_ENTRY(readlink),
+    SYSCALL_ENTRY(mknod),
+    SYSCALL_ENTRY(pivot_root),
+    SYSCALL_ENTRY(chroot),
+    SYSCALL_ENTRY(getdents64),
+    SYSCALL_ENTRY(openat),
+    SYSCALL_ENTRY(mkdirat),
+    SYSCALL_ENTRY(mknodat),
+    SYSCALL_ENTRY(unlinkat),
+    SYSCALL_ENTRY(renameat),
+    SYSCALL_ENTRY(symlinkat),
+    SYSCALL_ENTRY(readlinkat),
+    SYSCALL_ENTRY(splice),
+    SYSCALL_ENTRY(tee),
+    SYSCALL_ENTRY(vmsplice),
+    SYSCALL_ENTRY(dup3),
+    SYSCALL_ENTRY(pipe2),
+    SYSCALL_ENTRY(preadv),
+    SYSCALL_ENTRY(pwritev),
+    SYSCALL_ENTRY(renameat2),
+    SYSCALL_ENTRY(copy_file_range),
+    SYSCALL_ENTRY(preadv2),
+    SYSCALL_ENTRY(pwritev2),
     //--------------- Metadata ops ----------------
-    /* 90 */ __NR_chmod,
-    /* 91 */ __NR_fchmod,
-    /* 92 */ __NR_chown,
-    /* 93 */ __NR_fchown,
-    /* 94 */ __NR_lchown,
-    /* 188 */ __NR_setxattr,
-    /* 189 */ __NR_lsetxattr,
-    /* 190 */ __NR_fsetxattr,
-    // TODO: Do we want to care about read accesses on metadata?
-    /* 191 */ __NR_getxattr,
-    /* 192 */ __NR_lgetxattr,
-    /* 193 */ __NR_fgetxattr,
-    /* 194 */ __NR_listxattr,
-    /* 195 */ __NR_llistxattr,
-    /* 196 */ __NR_flistxattr,
-    /* 197 */ __NR_removexattr,
-    /* 198 */ __NR_lremovexattr,
-    /* 199 */ __NR_fremovexattr,
-    /* 260 */ __NR_fchownat,
-    /* 268 */ __NR_fchmodat,
+    SYSCALL_ENTRY(chmod),
+    SYSCALL_ENTRY(fchmod),
+    SYSCALL_ENTRY(chown),
+    SYSCALL_ENTRY(fchown),
+    SYSCALL_ENTRY(lchown),
+    SYSCALL_ENTRY(setxattr),
+    SYSCALL_ENTRY(lsetxattr),
+    SYSCALL_ENTRY(fsetxattr),
+    SYSCALL_ENTRY(getxattr),
+    SYSCALL_ENTRY(lgetxattr),
+    SYSCALL_ENTRY(fgetxattr),
+    SYSCALL_ENTRY(listxattr),
+    SYSCALL_ENTRY(llistxattr),
+    SYSCALL_ENTRY(flistxattr),
+    SYSCALL_ENTRY(removexattr),
+    SYSCALL_ENTRY(lremovexattr),
+    SYSCALL_ENTRY(fremovexattr),
+    SYSCALL_ENTRY(fchownat),
+    SYSCALL_ENTRY(fchmodat),
+    SYSCALL_ENTRY(faccessat),
     // --------------- Process ops, tracked via ptrace, not seccomp ----------------
     //    /* 56 */ __NR_clone,
     //    /* 57 */ __NR_fork,
@@ -114,10 +125,6 @@ static const uint16_t syscalls[] = {
     // (eventfd, eventfd2) Perf (perf_event_open) Process memory transfers (process_vm_readv,
     // process_vm_writev) Process limits (...lots...)
     // -------------- File access methods we hope we can ignore ----------------
-    // stat
-    // fstat
-    // lstat
-    // access
     // flock
     // fsync
     // fdatasync
@@ -135,7 +142,6 @@ static const uint16_t syscalls[] = {
     // utimes
     // futimesat
     // newfstatat
-    // faccessat
     // sync_file_range
     // utimensat
     // fallocate
