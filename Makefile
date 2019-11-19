@@ -14,7 +14,7 @@ IWYUFLAGS := -Xiwyu --mapping_file=.iwyu-mappings \
              -Isrc \
              -isystem /usr/include/c++/8/ \
              -isystem /usr/lib/llvm-8/lib/clang/8.0.0/include/
-IWYU_SKIP := $(DB)% src/fingerprint/%
+IWYU_SKIP := src/fingerprint/%
 IWYU_SRCS := $(filter-out $(IWYU_SKIP), $(SRCS))
 
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile ABbuild
@@ -22,7 +22,7 @@ TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofi
 all: dodo
 	
 clean:
-	rm -rf dodo objs db.dodo $(DB).cc $(DB).h
+	rm -rf dodo objs db.dodo
 
 .PHONY: all clean iwyu test selftest
 
