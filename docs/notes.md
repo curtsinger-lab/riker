@@ -50,25 +50,25 @@ In addition to the references set up through regular interactions with files, co
 
 References are chained together so we can reconstruct them when deciding whether a command's input has changed. These chains are slightly different for the two types of references:
 
-Path References:
-  The path string, e.g. "a/b.txt"
-  The base directory, either cwd or a base given to a syscall like openat. This is a reference.
-  The root directory, which is another reference.
+**Path References:**  
+The path string, e.g. "a/b.txt"  
+The base directory, either cwd or a base given to a syscall like openat. This is a reference.  
+The root directory, which is another reference.
 
-Descriptor References:
-  The descriptor number, e.g. 1
-  The path used to open this file in another command.
+**Descriptor References:**  
+The descriptor number, e.g. 1  
+The path used to open this file in another command.
 
 In addition to the naming information tracked in each reference, we also need to know a bit more about references:
 
-Artifact:
-  The artifact this reference resolved to, or nothing if the reference did not successfully resolve (e.g. a failed `open` call).
+**Artifact:**  
+The artifact this reference resolved to, or nothing if the reference did not successfully resolve (e.g. a failed `open` call).
 
-Versions:
-  The artifact versions read and written through this reference.
+**Versions:**  
+The artifact versions read and written through this reference.
 
-Permissions:
-  The permissions the command used when setting up the reference. These roughly mirror mode and flags to the `open` syscall: read, write, and execute, as well as cloexec, create, truncate, exclusive, and nofollow. The full set of permissions only apply to path references; file descriptor references only have information about read/write permissions.
+**Permissions:**  
+The permissions the command used when setting up the reference. These roughly mirror mode and flags to the `open` syscall: read, write, and execute, as well as cloexec, create, truncate, exclusive, and nofollow. The full set of permissions only apply to path references; file descriptor references only have information about read/write permissions.
 
 ## Tracing
 
