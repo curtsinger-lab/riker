@@ -18,15 +18,15 @@
 
 class BuildGraph;
 class Command;
-class File;
+class Artifact;
 
-using std::filesystem::path;
 using std::list;
 using std::map;
 using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using std::filesystem::path;
 
 struct InitialFdEntry {
   int parent_fd;
@@ -59,11 +59,7 @@ class Tracer {
    public:
     Process(BuildGraph& graph, pid_t pid, path cwd, Command* command,
             map<int, FileDescriptor> fds = {}) :
-        _graph(graph),
-        _pid(pid),
-        _command(command),
-        _cwd(cwd),
-        _fds(fds) {}
+        _graph(graph), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
     void resume();
@@ -179,7 +175,7 @@ class Tracer {
     Command* _command;
     string _cwd;
     string _root;
-    set<File*> _mmaps;
+    set<Artifact*> _mmaps;
     map<int, FileDescriptor> _fds;
   };
 

@@ -5,7 +5,7 @@
 
 #include <fcntl.h>
 
-#include "core/File.hh"
+#include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
@@ -37,11 +37,11 @@ void BuildGraph::prune() {
   if (_root) _root->prune();
 }
 
-File* BuildGraph::getFile(string path, File::Type type) {
+Artifact* BuildGraph::getArtifact(string path, Artifact::Type type) {
   auto entry = _current_files.find(path);
   if (entry == _current_files.end()) {
-    _files.push_back(File(path, type));
-    File* f = &_files.back();
+    _files.push_back(Artifact(path, type));
+    Artifact* f = &_files.back();
     _current_files[path] = f;
     return f;
   } else {
@@ -49,8 +49,8 @@ File* BuildGraph::getFile(string path, File::Type type) {
   }
 }
 
-File* BuildGraph::getPipe(string name) {
-  _files.push_back(File(name, File::Type::PIPE));
+Artifact* BuildGraph::getPipe(string name) {
+  _files.push_back(Artifact(name, Artifact::Type::PIPE));
   return &_files.back();
 }
 

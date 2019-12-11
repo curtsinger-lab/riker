@@ -1,4 +1,4 @@
-#include "File.hh"
+#include "Artifact.hh"
 
 #include <memory>
 #include <ostream>
@@ -7,22 +7,22 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "core/File.hh"
 #include "ui/log.hh"
 
 using std::make_shared;
 using std::ostream;
 using std::shared_ptr;
 
-size_t File::next_id = 0;
+size_t Artifact::next_id = 0;
 
-ostream& operator<<(ostream& o, const File* f) {
-  string type = "File";
+ostream& operator<<(ostream& o, const Artifact* f) {
+  string type = "Artifact";
 
-  if (f->getType() == File::Type::PIPE) {
+  if (f->getType() == Artifact::Type::PIPE) {
     type = "Pipe";
-  } else if (f->getType() == File::Type::DIRECTORY) {
+  } else if (f->getType() == Artifact::Type::DIRECTORY) {
     type = "Dir";
   }
 
@@ -32,11 +32,11 @@ ostream& operator<<(ostream& o, const File* f) {
   return o;
 }
 
-ostream& operator<<(ostream& o, const File::Version* v) {
-  return o << v->getFile() << "@" << v->getIndex();
+ostream& operator<<(ostream& o, const Artifact::Version* v) {
+  return o << v->getArtifact() << "@" << v->getIndex();
 }
 
-void File::createdBy(Command* c) {
+void Artifact::createdBy(Command* c) {
   // Tag a new created version
   auto v = makeVersion(Version::Action::CREATE, c);
 
@@ -44,8 +44,8 @@ void File::createdBy(Command* c) {
   if (c->addOutput(v)) INFO << v << " created by " << c;
 }
 
-void File::readBy(Command* c) {
-  // If this file has no previous versions, tag a version that references an existing file
+void Artifact::readBy(Command* c) {
+  // If this artifact has no previous versions, tag a version that references an existing artifact
   if (_versions.size() == 0) {
     // A reference version has no creator
     makeVersion(Version::Action::REFERENCE);
@@ -59,24 +59,25 @@ void File::readBy(Command* c) {
   }
 }
 
-void File::mayWrite(Command* c) {
+void Artifact::mayWrite(Command* c) {
   // TODO
 }
 
-void File::writtenBy(Command* c) {
-  // If this file has previous versions, we may not need to tag a new version
+void Artifact::writtenBy(Command* c) {
+  // If this artifact has previous versions, we may not need to tag a new version
   if (_versions.size() > 0) {
-    // Peek at the most recent version of the file
-    File::Version* prev_version = &_versions.back();
+    // Peek at the most recent version of the artifact
+    Artifact::Version* prev_version = &_versions.back();
 
     // If the previous version was a write by this command, we don't need to tag a new version
     if (prev_version->_action == Version::Action::WRITE && prev_version->_writer == c) {
       return;
     }
   }
-  
-  // The state of this file depends on its previous version, so we create a read edge from the
-  // previous version to the writing command. This is true even if the command cannot read the file.
+
+  // The state of this artifact depends on its previous version, so we create a read edge from the
+  // previous version to the writing command. This is true even if the command cannot read the
+  // artifact.
   readBy(c);
 
   // Now tag a new version written by this command
@@ -86,11 +87,11 @@ void File::writtenBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " wrote " << v;
 }
 
-void File::mayTruncate(Command* c) {
+void Artifact::mayTruncate(Command* c) {
   // TODO
 }
 
-void File::truncatedBy(Command* c) {
+void Artifact::truncatedBy(Command* c) {
   // Tag a truncated version
   auto v = makeVersion(Version::Action::TRUNCATE, c);
 
@@ -98,11 +99,11 @@ void File::truncatedBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " truncated " << v;
 }
 
-void File::mayDelete(Command* c) {
+void Artifact::mayDelete(Command* c) {
   // TODO
 }
 
-void File::deletedBy(Command* c) {
+void Artifact::deletedBy(Command* c) {
   // Tag a deleted version
   auto v = makeVersion(Version::Action::DELETE, c);
 
@@ -110,11 +111,11 @@ void File::deletedBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " deleted " << v;
 }
 
-void File::mayMap(Command* c, bool writable) {
+void Artifact::mayMap(Command* c, bool writable) {
   // TODO
 }
 
-void File::mappedBy(Command* c, bool writable) {
+void Artifact::mappedBy(Command* c, bool writable) {
   if (writable) {
     writtenBy(c);
     _writable_mappers.insert(c);
@@ -124,7 +125,7 @@ void File::mappedBy(Command* c, bool writable) {
   }
 }
 
-void File::unmappedBy(Command* c, bool writable) {
+void Artifact::unmappedBy(Command* c, bool writable) {
   if (writable) {
     _writable_mappers.erase(c);
   } else {
@@ -132,7 +133,7 @@ void File::unmappedBy(Command* c, bool writable) {
   }
 }
 
-File::Version* File::makeVersion(Version::Action a, Command* c) {
+Artifact::Version* Artifact::makeVersion(Version::Action a, Command* c) {
   if (_versions.size() > 0) _versions.back().fingerprint();
   _versions.push_back(Version(this, _versions.size(), a, c));
 
@@ -162,13 +163,13 @@ File::Version* File::makeVersion(Version::Action a, Command* c) {
   return &_versions.back();
 }
 
-void File::Version::fingerprint() {
+void Artifact::Version::fingerprint() {
   if (_has_fingerprint) return;
-  if (_file->getType() == File::Type::PIPE) return;
+  if (_artifact->getType() == Artifact::Type::PIPE) return;
 
-  if (stat(_file->getPath().c_str(), &_metadata) == 0) {
+  if (stat(_artifact->getPath().c_str(), &_metadata) == 0) {
     _has_metadata = true;
   } else {
-    WARN << "Unable to stat file " << _file->getPath();
+    WARN << "Unable to stat artifact " << _artifact->getPath();
   }
 }

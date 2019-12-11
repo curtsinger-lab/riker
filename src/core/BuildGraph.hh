@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "core/File.hh"
 
 class Graphviz;
 class Serializer;
@@ -46,15 +46,15 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  File* getFile(string path, File::Type type = File::Type::UNKNOWN);
-  
-  void linkFile(string path, File* f) { _current_files[path] = f; }
-  void unlinkFile(string path) { _current_files.erase(path); }
+  Artifact* getArtifact(string path, Artifact::Type type = Artifact::Type::UNKNOWN);
 
-  File* getPipe(string name="");
+  void linkArtifact(string path, Artifact* f) { _current_files[path] = f; }
+  void unlinkArtifact(string path) { _current_files.erase(path); }
+
+  Artifact* getPipe(string name = "");
 
  private:
   unique_ptr<Command> _root;
-  list<File> _files;
-  map<string, File*> _current_files;
+  list<Artifact> _files;
+  map<string, Artifact*> _current_files;
 };

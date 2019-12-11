@@ -8,8 +8,8 @@
 
 #include <unistd.h>
 
+#include "core/Artifact.hh"
 #include "core/BuildGraph.hh"
-#include "core/File.hh"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"

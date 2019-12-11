@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "core/File.hh"
+#include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 
 class Graphviz;
@@ -27,19 +27,11 @@ class Command {
   /****** Constructors ******/
  private:
   Command(string exe, list<string> args, map<int, FileDescriptor> fds, Command* parent) :
-      _id(next_id++),
-      _depth(parent->_depth + 1),
-      _exe(exe),
-      _args(args),
-      _initial_fds(fds) {}
+      _id(next_id++), _depth(parent->_depth + 1), _exe(exe), _args(args), _initial_fds(fds) {}
 
  public:
   Command(string exe, list<string> args, map<int, FileDescriptor> fds) :
-      _id(next_id++),
-      _depth(0),
-      _exe(exe),
-      _args(args),
-      _initial_fds(fds) {}
+      _id(next_id++), _depth(0), _exe(exe), _args(args), _initial_fds(fds) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -56,23 +48,23 @@ class Command {
   Command* createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
-  bool addInput(File::Version* f) {
+  bool addInput(Artifact::Version* f) {
     if (_inputs.find(f) != _inputs.end()) return false;
     _inputs.insert(f);
     return true;
   }
 
   /// Add an output edge from this command to a file version. Return true if this is a new edge.
-  bool addOutput(File::Version* f) {
+  bool addOutput(Artifact::Version* f) {
     if (_outputs.find(f) != _outputs.end()) return false;
     _outputs.insert(f);
     return true;
   }
-  
+
   /// Clean up the graph by pruning unneeded edges and nodes
   /// If this returns true, the parent command can prune this command entirely
   bool prune();
-  
+
   void drawGraph(Graphviz& g);
 
   /****** Getters and setters ******/
@@ -80,7 +72,7 @@ class Command {
   size_t getId() const { return _id; }
 
   size_t getDepth() const { return _depth; }
-  
+
   bool isRoot() const { return _depth == 0; }
 
   const string& getExecutable() const { return _exe; }
@@ -99,8 +91,8 @@ class Command {
   string _exe;
   list<string> _args;
   list<Command> _children;
-  unordered_set<File::Version*> _inputs;
-  unordered_set<File::Version*> _outputs;
+  unordered_set<Artifact::Version*> _inputs;
+  unordered_set<Artifact::Version*> _outputs;
   map<int, FileDescriptor> _initial_fds;
 
   static size_t next_id;

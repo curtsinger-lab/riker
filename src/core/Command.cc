@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "core/File.hh"
+#include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
@@ -60,7 +60,7 @@ bool Command::prune() {
       ++iter;
     }
   }
-  
+
   // If this command has no children and no outputs, we can prune it
   return _outputs.size() == 0 && _children.size() == 0;
 }
@@ -68,12 +68,12 @@ bool Command::prune() {
 void Command::drawGraph(Graphviz& g) {
   g.addCommand(this);
   for (auto f : _inputs) {
-    if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
+    if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
       g.addInputEdge(f, this);
     }
   }
   for (auto f : _outputs) {
-    if (!f->getFile()->isSystemFile() || options.show_sysfiles) {
+    if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
       g.addOutputEdge(this, f);
     }
   }

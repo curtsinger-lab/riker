@@ -29,9 +29,9 @@
 #include <syscall.h>
 #include <unistd.h>
 
+#include "core/Artifact.hh"
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
-#include "core/File.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
@@ -165,17 +165,17 @@ unsigned long Tracer::Process::getEventMessage() {
 path Tracer::Process::resolvePath(path p, int at, bool follow_links) {
   // TODO: Handle chroot-ed processes correctly
   // TODO: Handle links (followed or unfollowed)
-  
+
   // Just normalize absolute paths
   if (p.is_absolute()) return p.lexically_normal();
-  
+
   // Otherwise the path is relative somehow. We need to find out what it's relative to.
   // By default, use the current directory
   path base = _cwd;
-  
+
   // But if the file is not relative to cwd, get the path for the specified base
-  if (at != AT_FDCWD) base = _fds[at].file->getPath();
-  
+  if (at != AT_FDCWD) base = _fds[at].artifact->getPath();
+
   return (base / p).lexically_normal();
 }
 
@@ -187,7 +187,7 @@ path Tracer::Process::resolvePath(path p, int at, bool follow_links) {
 
 void Tracer::Process::_read(int fd) {
   // Get the process and file
-  auto f = _fds[fd].file;
+  auto f = _fds[fd].artifact;
 
   // If there's no matching file descriptor, just resume and return
   if (!f) {
@@ -210,7 +210,7 @@ void Tracer::Process::_read(int fd) {
 
 void Tracer::Process::_write(int fd) {
   // Get the process and file
-  auto f = _fds[fd].file;
+  auto f = _fds[fd].artifact;
 
   // If there was no matching file, resume the process and bail out
   if (!f) {
@@ -235,10 +235,10 @@ void Tracer::Process::_close(int fd) {
   // Resume the process
   resume();
 
-  auto f = _fds[fd].file;
+  auto f = _fds[fd].artifact;
 
   // Log the event if there was actually a valid file descriptor
-  if (f) LOG << _command << " closed " << _fds[fd].file;
+  if (f) LOG << _command << " closed " << _fds[fd].artifact;
 
   _fds.erase(fd);
 }
@@ -252,7 +252,7 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
   }
 
   auto descriptor = _fds[fd];
-  auto f = descriptor.file;
+  auto f = descriptor.artifact;
   bool writable = prot & PROT_WRITE;
   // The mapping is only writable if the file was also open in writable mode
   writable &= (descriptor.access_mode & O_WRONLY) || (descriptor.access_mode & O_RDWR);
@@ -290,8 +290,8 @@ int Tracer::Process::_dup(int fd) {
 void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   // As with _write above, we may have to fingerprint the output file, although we won't know until
   // after the syscall (it could fail).
-  auto in_f = _fds[in_fd].file;
-  auto out_f = _fds[out_fd].file;
+  auto in_f = _fds[in_fd].artifact;
+  auto out_f = _fds[out_fd].artifact;
 
   // Take a fingerprint if we need one
   out_f->mayWrite(_command);
@@ -327,7 +327,7 @@ void Tracer::Process::_exec(string filename, const list<string>& args) {
   _command = _command->createChild(filename, args, _fds);
 
   // The new command depends on its executable file
-  _graph.getFile(resolvePath(filename))->readBy(_command);
+  _graph.getArtifact(resolvePath(filename))->readBy(_command);
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
@@ -358,7 +358,7 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
 
 void Tracer::Process::_truncate(string pathname, long length) {
   // Get the process and file
-  auto f = _graph.getFile(resolvePath(pathname));
+  auto f = _graph.getArtifact(resolvePath(pathname));
 
   // Notify the file of an upcoming change
   if (length == 0) {
@@ -383,7 +383,7 @@ void Tracer::Process::_truncate(string pathname, long length) {
 }
 
 void Tracer::Process::_ftruncate(int fd, long length) {
-  auto f = _fds[fd].file;
+  auto f = _fds[fd].artifact;
 
   if (length == 0) {
     f->truncatedBy(_command);
@@ -408,7 +408,7 @@ void Tracer::Process::_fchdir(int fd) {
   resume();
 
   if (rc == 0) {
-    auto f = _fds[fd].file;
+    auto f = _fds[fd].artifact;
     WARN_IF(!f) << "Unable to locate file used in fchdir";
     _cwd = f->getPath();
   }
@@ -416,7 +416,7 @@ void Tracer::Process::_fchdir(int fd) {
 
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   // Resolve the path without following links, then get the file tracking object
-  auto f = _graph.getFile(resolvePath(filename, AT_FDCWD, false));
+  auto f = _graph.getArtifact(resolvePath(filename, AT_FDCWD, false));
 
   // Indicate that we may write this file
   f->mayWrite(_command);
@@ -434,7 +434,7 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
 
 void Tracer::Process::_chroot(string filename) {
   string newroot = resolvePath(filename);
-  auto f = _graph.getFile(newroot);
+  auto f = _graph.getArtifact(newroot);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -451,7 +451,7 @@ void Tracer::Process::_chroot(string filename) {
 
 void Tracer::Process::_setxattr(string pathname) {
   // Get the process and file
-  auto f = _graph.getFile(resolvePath(pathname));
+  auto f = _graph.getArtifact(resolvePath(pathname));
 
   // Notify the file that it may be written
   f->mayWrite(_command);
@@ -466,7 +466,7 @@ void Tracer::Process::_setxattr(string pathname) {
 void Tracer::Process::_lsetxattr(string pathname) {
   // Get the process and file
   // Same as setxattr, except we do not follow links
-  auto f = _graph.getFile(resolvePath(pathname, AT_FDCWD, false));
+  auto f = _graph.getArtifact(resolvePath(pathname, AT_FDCWD, false));
 
   // Notify the file that it may be written
   f->mayWrite(_command);
@@ -480,7 +480,7 @@ void Tracer::Process::_lsetxattr(string pathname) {
 
 void Tracer::Process::_getxattr(string pathname) {
   // Get the process and file
-  auto f = _graph.getFile(resolvePath(pathname));
+  auto f = _graph.getArtifact(resolvePath(pathname));
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -492,7 +492,7 @@ void Tracer::Process::_getxattr(string pathname) {
 void Tracer::Process::_lgetxattr(string pathname) {
   // Get the process and file
   // Same as getxattr, except we don't follow links
-  auto f = _graph.getFile(resolvePath(pathname, AT_FDCWD, false));
+  auto f = _graph.getArtifact(resolvePath(pathname, AT_FDCWD, false));
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -523,7 +523,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
   // Get the process and file
-  auto f = _graph.getFile(p);
+  auto f = _graph.getArtifact(p);
 
   // Add the file to the file descriptor table
   _fds[fd] = FileDescriptor(f, access_mode, cloexec);
@@ -556,10 +556,10 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   if (rc) return;
 
   if (!dir_existed) {
-    auto f = _graph.getFile(p, File::Type::DIRECTORY);
+    auto f = _graph.getArtifact(p, Artifact::Type::DIRECTORY);
     f->createdBy(_command);
-    
-    auto parent_dir = _graph.getFile(p.parent_path(), File::Type::DIRECTORY);
+
+    auto parent_dir = _graph.getArtifact(p.parent_path(), Artifact::Type::DIRECTORY);
     parent_dir->readBy(_command);
   }
 
@@ -577,23 +577,23 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
   if (rc != 0) return;
 
   string p = resolvePath(filename, dfd);
-  auto f = _graph.getFile(p);
+  auto f = _graph.getArtifact(p);
 
   f->createdBy(_command);
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) {
-  File* f;
+  Artifact* f;
 
   // An empty path means just use dfd as the file
   if (flag & AT_EMPTY_PATH) {
-    f = _fds[dfd].file;
+    f = _fds[dfd].artifact;
   } else {
     // Are we following links or not?
     bool follow_links = (flag & AT_SYMLINK_NOFOLLOW) == 0;
 
     // Resolve the path, then get the file tracking object
-    f = _graph.getFile(resolvePath(filename, dfd, follow_links));
+    f = _graph.getArtifact(resolvePath(filename, dfd, follow_links));
   }
 
   // Indicate that we may write this file
@@ -612,7 +612,7 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
   string p = resolvePath(pathname, dfd);
-  auto f = _graph.getFile(p);
+  auto f = _graph.getArtifact(p);
 
   f->mayDelete(_command);
 
@@ -637,7 +637,7 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
   bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
 
   // Find the file object
-  auto f = _graph.getFile(resolvePath(filename, dfd, follow_links));
+  auto f = _graph.getArtifact(resolvePath(filename, dfd, follow_links));
 
   // Indicate that we may write this file
   f->mayWrite(_command);
@@ -654,8 +654,8 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
 }
 
 void Tracer::Process::_tee(int fd_in, int fd_out) {
-  auto input_f = _fds[fd_in].file;
-  auto output_f = _fds[fd_out].file;
+  auto input_f = _fds[fd_in].artifact;
+  auto output_f = _fds[fd_out].artifact;
 
   // If either file doesn't exist, bail out
   if (!input_f || !output_f) {
@@ -720,9 +720,9 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
                                  int flags) {
-  auto old_f = _graph.getFile(resolvePath(oldpath, old_dfd));
+  auto old_f = _graph.getArtifact(resolvePath(oldpath, old_dfd));
   string new_path = resolvePath(newpath, new_dfd);
-  auto new_f = _graph.getFile(new_path);
+  auto new_f = _graph.getArtifact(new_path);
 
   // We may delete the input file
   old_f->mayDelete(_command);
@@ -744,10 +744,10 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
 
   // We deleted the new file
   new_f->deletedBy(_command);
-  _graph.unlinkFile(new_path);
+  _graph.unlinkArtifact(new_path);
 
   // Then link the old file into place
-  _graph.linkFile(new_path, old_f);
+  _graph.linkArtifact(new_path, old_f);
   old_f->updatePath(new_path);
 
   // And we've written that file

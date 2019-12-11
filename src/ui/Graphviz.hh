@@ -4,8 +4,8 @@
 #include <map>
 #include <string>
 
+#include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "core/File.hh"
 
 using std::map;
 using std::ofstream;
@@ -28,35 +28,37 @@ class Graphviz {
     }
   }
 
-  void addFile(File* f) {
+  void addArtifact(Artifact* f) {
     if (_file_ids.find(f) == _file_ids.end()) {
       string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
 
       string parts = "";
 
-      parts += "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\" style=\"rounded\">";
-      
+      parts +=
+          "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\" "
+          "style=\"rounded\">";
+
       string type;
       switch (f->getType()) {
-        case File::Type::UNKNOWN:
+        case Artifact::Type::UNKNOWN:
           type = "unknown";
           break;
-        case File::Type::REGULAR:
+        case Artifact::Type::REGULAR:
           type = "file";
           break;
-        case File::Type::DIRECTORY:
+        case Artifact::Type::DIRECTORY:
           type = "dir";
           break;
-        case File::Type::SYMLINK:
+        case Artifact::Type::SYMLINK:
           type = "symlink";
           break;
-        case File::Type::PIPE:
+        case Artifact::Type::PIPE:
           type = "pipe";
           break;
       }
       parts += "<tr><td border=\"0\"><sub>" + type + "</sub></td></tr>";
-      
+
       if (f->getShortName() != "") {
         parts += "<tr><td>" + f->getShortName() + "</td></tr>";
       }
@@ -67,19 +69,19 @@ class Graphviz {
 
         string desc;
         switch (v.getAction()) {
-          case File::Version::Action::CREATE:
+          case Artifact::Version::Action::CREATE:
             desc = "create";
             break;
-          case File::Version::Action::REFERENCE:
+          case Artifact::Version::Action::REFERENCE:
             desc = "ref";
             break;
-          case File::Version::Action::WRITE:
+          case Artifact::Version::Action::WRITE:
             desc = "write";
             break;
-          case File::Version::Action::TRUNCATE:
+          case Artifact::Version::Action::TRUNCATE:
             desc = "truncate";
             break;
-          case File::Version::Action::DELETE:
+          case Artifact::Version::Action::DELETE:
             desc = "delete";
             break;
         }
@@ -105,8 +107,8 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [style=dashed weight=1]\n";
   }
 
-  void addInputEdge(File::Version* f, Command* c) {
-    addFile(f->getFile());
+  void addInputEdge(Artifact::Version* f, Command* c) {
+    addArtifact(f->getArtifact());
 
     string& id1 = _file_version_ids[f];
     string& id2 = _command_ids[c];
@@ -114,8 +116,8 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
-  void addOutputEdge(Command* c, File::Version* f) {
-    addFile(f->getFile());
+  void addOutputEdge(Command* c, Artifact::Version* f) {
+    addArtifact(f->getArtifact());
 
     string& id1 = _command_ids[c];
     string& id2 = _file_version_ids[f];
@@ -126,6 +128,6 @@ class Graphviz {
  private:
   ofstream _out;
   map<const Command*, string> _command_ids;
-  map<const File*, string> _file_ids;
-  map<const File::Version*, string> _file_version_ids;
+  map<const Artifact*, string> _file_ids;
+  map<const Artifact::Version*, string> _file_version_ids;
 };
