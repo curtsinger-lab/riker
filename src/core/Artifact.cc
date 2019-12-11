@@ -111,10 +111,6 @@ void Artifact::deletedBy(shared_ptr<Command> c) {
   if (c->addOutput(v)) INFO << c << " deleted " << v;
 }
 
-void Artifact::mayMap(shared_ptr<Command> c, bool writable) {
-  // TODO
-}
-
 void Artifact::mappedBy(shared_ptr<Command> c, bool writable) {
   if (writable) {
     writtenBy(c);

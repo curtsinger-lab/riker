@@ -115,9 +115,6 @@ class Artifact {
   /// Called after a command unlinks this artifact
   void deletedBy(shared_ptr<Command> c);
 
-  /// Called just before allowing command c to mmap this artifact. May cache or fingerprint.
-  void mayMap(shared_ptr<Command> c, bool writable);
-
   /// Called after a command mmaps this artifact
   void mappedBy(shared_ptr<Command> c, bool writable);
 

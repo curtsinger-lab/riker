@@ -251,19 +251,17 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
     return;
   }
 
+  void* rc = (void*)finishSyscall();
+  resume();
+  
+  // If the map failed there's nothing to log
+  if (rc == MAP_FAILED) return;
+  
   auto descriptor = _fds[fd];
   auto f = descriptor.artifact;
   bool writable = prot & PROT_WRITE;
   // The mapping is only writable if the file was also open in writable mode
   writable &= (descriptor.access_mode & O_WRONLY) || (descriptor.access_mode & O_RDWR);
-
-  f->mayMap(_command, writable);
-
-  void* rc = (void*)finishSyscall();
-  resume();
-
-  // If the map failed there's nothing to log
-  if (rc == MAP_FAILED) return;
 
   // Record the mmap
   f->mappedBy(_command, writable);
