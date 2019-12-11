@@ -30,7 +30,7 @@ bool BuildGraph::load(string filename) {
 }
 
 void BuildGraph::run(Tracer& tracer) {
-  if (_root) tracer.run(_root);
+  if (_root) _root->run(tracer);
 }
 
 void BuildGraph::prune() {

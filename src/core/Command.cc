@@ -4,6 +4,7 @@
 
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
+#include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -50,6 +51,10 @@ shared_ptr<Command> Command::createChild(string exe, list<string> args,
   }
 
   return child;
+}
+
+void Command::run(Tracer& tracer) {
+  tracer.run(shared_from_this());
 }
 
 bool Command::prune() {

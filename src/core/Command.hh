@@ -12,6 +12,7 @@
 #include "core/FileDescriptor.hh"
 
 class Graphviz;
+class Tracer;
 
 using std::list;
 using std::map;
@@ -60,6 +61,9 @@ class Command : public std::enable_shared_from_this<Command> {
     _outputs.insert(f);
     return true;
   }
+  
+  /// Run this command, or skip it and descend to its children if a run is unnecessary
+  void run(Tracer& tracer);
 
   /// Clean up the graph by pruning unneeded edges and nodes
   /// If this returns true, the parent command can prune this command entirely
