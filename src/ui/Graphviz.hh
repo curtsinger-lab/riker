@@ -20,7 +20,7 @@ class Graphviz {
 
   ~Graphviz() { _out << "}\n"; }
 
-  void addCommand(Command* c) {
+  void addCommand(shared_ptr<Command> c) {
     if (_command_ids.find(c) == _command_ids.end()) {
       string id = "c" + to_string(_command_ids.size());
       _command_ids[c] = id;
@@ -95,7 +95,7 @@ class Graphviz {
     }
   }
 
-  void addCommandEdge(Command* c1, Command* c2) {
+  void addCommandEdge(shared_ptr<Command> c1, shared_ptr<Command> c2) {
     auto iter1 = _command_ids.find(c1);
     if (iter1 == _command_ids.end()) return;
     string& id1 = iter1->second;
@@ -107,7 +107,7 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [style=dashed weight=1]\n";
   }
 
-  void addInputEdge(Artifact::Version* f, Command* c) {
+  void addInputEdge(Artifact::Version* f, shared_ptr<Command> c) {
     addArtifact(f->getArtifact());
 
     string& id1 = _file_version_ids[f];
@@ -116,7 +116,7 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
-  void addOutputEdge(Command* c, Artifact::Version* f) {
+  void addOutputEdge(shared_ptr<Command> c, Artifact::Version* f) {
     addArtifact(f->getArtifact());
 
     string& id1 = _command_ids[c];
@@ -127,7 +127,7 @@ class Graphviz {
 
  private:
   ofstream _out;
-  map<const Command*, string> _command_ids;
+  map<shared_ptr<Command>, string> _command_ids;
   map<const Artifact*, string> _file_ids;
   map<const Artifact::Version*, string> _file_version_ids;
 };

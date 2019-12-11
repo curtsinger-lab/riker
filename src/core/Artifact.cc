@@ -36,7 +36,7 @@ ostream& operator<<(ostream& o, const Artifact::Version* v) {
   return o << v->getArtifact() << "@" << v->getIndex();
 }
 
-void Artifact::createdBy(Command* c) {
+void Artifact::createdBy(shared_ptr<Command> c) {
   // Tag a new created version
   auto v = makeVersion(Version::Action::CREATE, c);
 
@@ -44,7 +44,7 @@ void Artifact::createdBy(Command* c) {
   if (c->addOutput(v)) INFO << v << " created by " << c;
 }
 
-void Artifact::readBy(Command* c) {
+void Artifact::readBy(shared_ptr<Command> c) {
   // If this artifact has no previous versions, tag a version that references an existing artifact
   if (_versions.size() == 0) {
     // A reference version has no creator
@@ -59,11 +59,11 @@ void Artifact::readBy(Command* c) {
   }
 }
 
-void Artifact::mayWrite(Command* c) {
+void Artifact::mayWrite(shared_ptr<Command> c) {
   // TODO
 }
 
-void Artifact::writtenBy(Command* c) {
+void Artifact::writtenBy(shared_ptr<Command> c) {
   // If this artifact has previous versions, we may not need to tag a new version
   if (_versions.size() > 0) {
     // Peek at the most recent version of the artifact
@@ -87,11 +87,11 @@ void Artifact::writtenBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " wrote " << v;
 }
 
-void Artifact::mayTruncate(Command* c) {
+void Artifact::mayTruncate(shared_ptr<Command> c) {
   // TODO
 }
 
-void Artifact::truncatedBy(Command* c) {
+void Artifact::truncatedBy(shared_ptr<Command> c) {
   // Tag a truncated version
   auto v = makeVersion(Version::Action::TRUNCATE, c);
 
@@ -99,11 +99,11 @@ void Artifact::truncatedBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " truncated " << v;
 }
 
-void Artifact::mayDelete(Command* c) {
+void Artifact::mayDelete(shared_ptr<Command> c) {
   // TODO
 }
 
-void Artifact::deletedBy(Command* c) {
+void Artifact::deletedBy(shared_ptr<Command> c) {
   // Tag a deleted version
   auto v = makeVersion(Version::Action::DELETE, c);
 
@@ -111,11 +111,11 @@ void Artifact::deletedBy(Command* c) {
   if (c->addOutput(v)) INFO << c << " deleted " << v;
 }
 
-void Artifact::mayMap(Command* c, bool writable) {
+void Artifact::mayMap(shared_ptr<Command> c, bool writable) {
   // TODO
 }
 
-void Artifact::mappedBy(Command* c, bool writable) {
+void Artifact::mappedBy(shared_ptr<Command> c, bool writable) {
   if (writable) {
     writtenBy(c);
     _writable_mappers.insert(c);
@@ -125,7 +125,7 @@ void Artifact::mappedBy(Command* c, bool writable) {
   }
 }
 
-void Artifact::unmappedBy(Command* c, bool writable) {
+void Artifact::unmappedBy(shared_ptr<Command> c, bool writable) {
   if (writable) {
     _writable_mappers.erase(c);
   } else {
@@ -133,7 +133,7 @@ void Artifact::unmappedBy(Command* c, bool writable) {
   }
 }
 
-Artifact::Version* Artifact::makeVersion(Version::Action a, Command* c) {
+Artifact::Version* Artifact::makeVersion(Version::Action a, shared_ptr<Command> c) {
   if (_versions.size() > 0) _versions.back().fingerprint();
   _versions.push_back(Version(this, _versions.size(), a, c));
 

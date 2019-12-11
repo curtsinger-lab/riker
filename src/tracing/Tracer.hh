@@ -39,7 +39,7 @@ class Tracer {
  public:
   Tracer(BuildGraph& graph) : _graph(graph) {}
 
-  void run(Command* cmd);
+  void run(shared_ptr<Command> cmd);
 
  private:
   /// Called when we catch a system call in the traced process
@@ -57,7 +57,7 @@ class Tracer {
  private:
   class Process {
    public:
-    Process(BuildGraph& graph, pid_t pid, path cwd, Command* command,
+    Process(BuildGraph& graph, pid_t pid, path cwd, shared_ptr<Command> command,
             map<int, FileDescriptor> fds = {}) :
         _graph(graph), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
@@ -172,7 +172,7 @@ class Tracer {
 
     BuildGraph& _graph;
     pid_t _pid;
-    Command* _command;
+    shared_ptr<Command> _command;
     string _cwd;
     string _root;
     set<Artifact*> _mmaps;

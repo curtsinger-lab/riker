@@ -20,7 +20,7 @@ BuildGraph::BuildGraph(string exe) {
   map<int, FileDescriptor> fds = {{0, FileDescriptor(getPipe("stdin"), O_RDONLY, false)},
                                   {1, FileDescriptor(getPipe("stdout"), O_WRONLY, false)},
                                   {2, FileDescriptor(getPipe("stderr"), O_WRONLY, false)}};
-  _root = unique_ptr<Command>(new Command(exe, {exe}, fds));
+  _root = shared_ptr<Command>(new Command(exe, {exe}, fds));
   INFO << "BuildGraph initialized with root " << _root.get();
 }
 
@@ -30,7 +30,7 @@ bool BuildGraph::load(string filename) {
 }
 
 void BuildGraph::run(Tracer& tracer) {
-  if (_root) tracer.run(_root.get());
+  if (_root) tracer.run(_root);
 }
 
 void BuildGraph::prune() {

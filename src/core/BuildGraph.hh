@@ -54,7 +54,7 @@ class BuildGraph {
   Artifact* getPipe(string name = "");
 
  private:
-  unique_ptr<Command> _root;
+  shared_ptr<Command> _root;
   list<Artifact> _files;
   map<string, Artifact*> _current_files;
 };

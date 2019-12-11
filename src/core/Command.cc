@@ -9,6 +9,7 @@
 #include "ui/options.hh"
 
 using std::list;
+using std::make_shared;
 using std::shared_ptr;
 using std::string;
 
@@ -30,9 +31,10 @@ const string Command::getShortName() const {
   }
 }
 
-Command* Command::createChild(string exe, list<string> args, map<int, FileDescriptor> fds) {
-  _children.push_back(Command(exe, args, fds, this));
-  Command* child = &_children.back();
+shared_ptr<Command> Command::createChild(string exe, list<string> args,
+                                         map<int, FileDescriptor> fds) {
+  _children.emplace_back(new Command(exe, args, fds, shared_from_this()));
+  auto child = _children.back();
 
   INFO << this << " starting child " << child;
   if (args.size() > 0) {
@@ -54,7 +56,7 @@ bool Command::prune() {
   // Recursively prune in child commands, potentially removing the whole command
   for (auto iter = _children.begin(); iter != _children.end();) {
     auto& child = *iter;
-    if (child.prune()) {
+    if (child->prune()) {
       iter = _children.erase(iter);
     } else {
       ++iter;
@@ -66,19 +68,19 @@ bool Command::prune() {
 }
 
 void Command::drawGraph(Graphviz& g) {
-  g.addCommand(this);
+  g.addCommand(shared_from_this());
   for (auto f : _inputs) {
     if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
-      g.addInputEdge(f, this);
+      g.addInputEdge(f, shared_from_this());
     }
   }
   for (auto f : _outputs) {
     if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
-      g.addOutputEdge(this, f);
+      g.addOutputEdge(shared_from_this(), f);
     }
   }
   for (auto& c : _children) {
-    c.drawGraph(g);
-    g.addCommandEdge(this, &c);
+    c->drawGraph(g);
+    g.addCommandEdge(shared_from_this(), c);
   }
 }

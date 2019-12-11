@@ -51,7 +51,7 @@ class Artifact {
     /// Track the types of actions that can create versions
     enum class Action { CREATE, REFERENCE, WRITE, TRUNCATE, DELETE };
 
-    Version(Artifact* artifact, size_t index, Action action, Command* writer) :
+    Version(Artifact* artifact, size_t index, Action action, shared_ptr<Command> writer) :
         _artifact(artifact), _index(index), _action(action), _writer(writer) {}
 
     void fingerprint();
@@ -59,15 +59,15 @@ class Artifact {
     Artifact* getArtifact() const { return _artifact; }
     size_t getIndex() const { return _index; }
     Action getAction() const { return _action; }
-    Command* getWriter() const { return _writer; }
+    shared_ptr<Command> getWriter() const { return _writer; }
 
     string getShortName() { return _artifact->getShortName() + " v" + to_string(_index); }
 
    private:
-    Artifact* _artifact;  //< The artifact this is a version of
-    size_t _index;        //< The index of this version
-    Action _action;       //< The action that created this version
-    Command* _writer;     //< The command that created this artifact version
+    Artifact* _artifact;          //< The artifact this is a version of
+    size_t _index;                //< The index of this version
+    Action _action;               //< The action that created this version
+    shared_ptr<Command> _writer;  //< The command that created this artifact version
 
     bool _has_metadata = false;
     struct stat _metadata;
@@ -89,40 +89,40 @@ class Artifact {
 
   /****** Non-trivial methods ******/
 
-  void fingerprintIfNeeded(Command* modifier);
+  void fingerprintIfNeeded(shared_ptr<Command> modifier);
 
   /// Called during or after a command's creation of this artifact
-  void createdBy(Command* c);
+  void createdBy(shared_ptr<Command> c);
 
   /// Called during or after a command's read from this artifact
-  void readBy(Command* c);
+  void readBy(shared_ptr<Command> c);
 
   /// Called just before allowing command c to write this artifact. May cache or fingerprint.
-  void mayWrite(Command* c);
+  void mayWrite(shared_ptr<Command> c);
 
   /// Called after a command writes to this artifact
-  void writtenBy(Command* c);
+  void writtenBy(shared_ptr<Command> c);
 
   /// Called just before allowing command c to truncate this artifact. May cache or fingerprint.
-  void mayTruncate(Command* c);
+  void mayTruncate(shared_ptr<Command> c);
 
   /// Called after a command truncates this artifact to zero length
-  void truncatedBy(Command* c);
+  void truncatedBy(shared_ptr<Command> c);
 
   /// Called just before allowing command c to delete this artifact. May cache or fingerprint.
-  void mayDelete(Command* c);
+  void mayDelete(shared_ptr<Command> c);
 
   /// Called after a command unlinks this artifact
-  void deletedBy(Command* c);
+  void deletedBy(shared_ptr<Command> c);
 
   /// Called just before allowing command c to mmap this artifact. May cache or fingerprint.
-  void mayMap(Command* c, bool writable);
+  void mayMap(shared_ptr<Command> c, bool writable);
 
   /// Called after a command mmaps this artifact
-  void mappedBy(Command* c, bool writable);
+  void mappedBy(shared_ptr<Command> c, bool writable);
 
   /// Called after a command unmaps this artifact (partial unmaps should not call this function)
-  void unmappedBy(Command* c, bool writable);
+  void unmappedBy(shared_ptr<Command> c, bool writable);
 
   /****** Getters and setters ******/
 
@@ -150,15 +150,15 @@ class Artifact {
   const list<Version>& getVersions() const { return _versions; }
 
  private:
-  Version* makeVersion(Version::Action a, Command* c = nullptr);
+  Version* makeVersion(Version::Action a, shared_ptr<Command> c = nullptr);
 
  private:
   size_t _id;
-  string _path;                      //< The absolute, normalized path to this artifact
-  Type _type = Type::UNKNOWN;        //< The type of artifact being tracked
-  list<Version> _versions;           //< The sequence of versions of this artifact
-  set<Command*> _writable_mappers;   //< A set of commands with a writable mapping of this artifact
-  set<Command*> _read_only_mappers;  //< A set of commands with a read-only mapping of this artifact
+  string _path;                                 //< The absolute, normalized path to this artifact
+  Type _type = Type::UNKNOWN;                   //< The type of artifact being tracked
+  list<Version> _versions;                      //< The sequence of versions of this artifact
+  set<shared_ptr<Command>> _writable_mappers;   //< Commands that map this artifact writable
+  set<shared_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
   static size_t next_id;
 };

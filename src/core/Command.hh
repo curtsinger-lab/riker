@@ -23,10 +23,10 @@ using std::unordered_set;
 class Command;
 ostream& operator<<(ostream& o, const Command* c);
 
-class Command {
+class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
-  Command(string exe, list<string> args, map<int, FileDescriptor> fds, Command* parent) :
+  Command(string exe, list<string> args, map<int, FileDescriptor> fds, shared_ptr<Command> parent) :
       _id(next_id++), _depth(parent->_depth + 1), _exe(exe), _args(args), _initial_fds(fds) {}
 
  public:
@@ -45,7 +45,7 @@ class Command {
 
   const string getShortName() const;
 
-  Command* createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
+  shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::Version* f) {
@@ -79,7 +79,7 @@ class Command {
 
   const list<string>& getArguments() const { return _args; }
 
-  const list<Command>& getChildren() const { return _children; }
+  const vector<shared_ptr<Command>>& getChildren() const { return _children; }
 
   const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
 
@@ -90,7 +90,7 @@ class Command {
   size_t _depth;
   string _exe;
   list<string> _args;
-  list<Command> _children;
+  vector<shared_ptr<Command>> _children;
   unordered_set<Artifact::Version*> _inputs;
   unordered_set<Artifact::Version*> _outputs;
   map<int, FileDescriptor> _initial_fds;

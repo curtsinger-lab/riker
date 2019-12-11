@@ -43,7 +43,7 @@ using std::string;
 static pid_t launch_traced(char const* exec_path, char* const argv[],
                            vector<InitialFdEntry> initial_fds);
 
-void Tracer::run(Command* cmd) {
+void Tracer::run(shared_ptr<Command> cmd) {
   string exec_path = cmd->getExecutable();
   vector<char*> exec_argv;
 
