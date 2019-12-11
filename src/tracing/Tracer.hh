@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <list>
 #include <map>
 #include <memory>
@@ -19,6 +20,7 @@ class BuildGraph;
 class Command;
 class File;
 
+using std::filesystem::path;
 using std::list;
 using std::map;
 using std::set;
@@ -55,7 +57,7 @@ class Tracer {
  private:
   class Process {
    public:
-    Process(BuildGraph& graph, pid_t pid, string cwd, Command* command,
+    Process(BuildGraph& graph, pid_t pid, path cwd, Command* command,
             map<int, FileDescriptor> fds = {}) :
         _graph(graph),
         _pid(pid),
@@ -73,7 +75,7 @@ class Tracer {
     unsigned long getEventMessage();
 
     /// Get the filename of this process' executable
-    string getExecutable();
+    path getExecutable();
 
     /// Get the current register state for this process
     user_regs_struct getRegisters();
@@ -85,7 +87,7 @@ class Tracer {
     uintptr_t readData(uintptr_t tracee_pointer);
 
     /// Resolve and normalize a path accessed by this process
-    string resolvePath(string path, int at = AT_FDCWD, bool follow_links = true);
+    path resolvePath(path p, int at = AT_FDCWD, bool follow_links = true);
 
     /****** Handling for specific system calls ******/
 

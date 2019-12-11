@@ -162,22 +162,21 @@ unsigned long Tracer::Process::getEventMessage() {
   return message;
 }
 
-string Tracer::Process::resolvePath(string path, int at, bool follow_links) {
-  // TODO: Properly normalize paths
+path Tracer::Process::resolvePath(path p, int at, bool follow_links) {
   // TODO: Handle chroot-ed processes correctly
   // TODO: Handle links (followed or unfollowed)
-  string fullpath;
-
-  if (path[0] == '/') {
-    fullpath = path;
-  } else if (at == AT_FDCWD) {
-    fullpath = _cwd + '/' + path;
-  } else {
-    string base = _fds[at].file->getPath();
-    fullpath = base + '/' + path;
-  }
-
-  return std::filesystem::path(fullpath).lexically_normal();
+  
+  // Just normalize absolute paths
+  if (p.is_absolute()) return p.lexically_normal();
+  
+  // Otherwise the path is relative somehow. We need to find out what it's relative to.
+  // By default, use the current directory
+  path base = _cwd;
+  
+  // But if the file is not relative to cwd, get the path for the specified base
+  if (at != AT_FDCWD) base = _fds[at].file->getPath();
+  
+  return (base / p).lexically_normal();
 }
 
 /****************************************************/
@@ -357,9 +356,9 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
   }
 }
 
-void Tracer::Process::_truncate(string path, long length) {
+void Tracer::Process::_truncate(string pathname, long length) {
   // Get the process and file
-  auto f = _graph.getFile(resolvePath(path));
+  auto f = _graph.getFile(resolvePath(pathname));
 
   // Notify the file of an upcoming change
   if (length == 0) {
@@ -503,12 +502,12 @@ void Tracer::Process::_lgetxattr(string pathname) {
 }
 
 void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) {
-  string path = resolvePath(filename, dfd);
+  path p = resolvePath(filename, dfd);
 
   // Stat the file so we can see if it was created by the open call
   bool file_existed = true;
   struct stat statbuf;
-  if (flags & O_CREAT) file_existed = (stat(path.c_str(), &statbuf) == 0);
+  if (flags & O_CREAT) file_existed = (stat(p.c_str(), &statbuf) == 0);
 
   // Run the syscall and save the resulting fd
   int fd = finishSyscall();
@@ -524,7 +523,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   bool cloexec = (flags & O_CLOEXEC) != 0;
 
   // Get the process and file
-  auto f = _graph.getFile(path);
+  auto f = _graph.getFile(p);
 
   // Add the file to the file descriptor table
   _fds[fd] = FileDescriptor(f, access_mode, cloexec);
@@ -542,12 +541,12 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
-  string path = resolvePath(pathname, dfd);
+  path p = resolvePath(pathname, dfd);
 
   // Stat the directory so we can see if it was created by the mkdirat call
   bool dir_existed = true;
   struct stat statbuf;
-  dir_existed = (stat(path.c_str(), &statbuf) == 0);
+  dir_existed = (stat(p.c_str(), &statbuf) == 0);
 
   // Run the syscall
   int rc = finishSyscall();
@@ -557,12 +556,10 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   if (rc) return;
 
   if (!dir_existed) {
-    auto f = _graph.getFile(path, File::Type::DIRECTORY);
+    auto f = _graph.getFile(p, File::Type::DIRECTORY);
     f->createdBy(_command);
-
-    auto pos = path.rfind('/');
-    string parent_path = path.substr(0, pos);
-    auto parent_dir = _graph.getFile(parent_path, File::Type::DIRECTORY);
+    
+    auto parent_dir = _graph.getFile(p.parent_path(), File::Type::DIRECTORY);
     parent_dir->readBy(_command);
   }
 
@@ -579,8 +576,8 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
   // Give up if the syscall fails
   if (rc != 0) return;
 
-  string path = resolvePath(filename, dfd);
-  auto f = _graph.getFile(path);
+  string p = resolvePath(filename, dfd);
+  auto f = _graph.getFile(p);
 
   f->createdBy(_command);
 }
@@ -614,8 +611,8 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 }
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
-  string path = resolvePath(pathname, dfd);
-  auto f = _graph.getFile(path);
+  string p = resolvePath(pathname, dfd);
+  auto f = _graph.getFile(p);
 
   f->mayDelete(_command);
 
@@ -1090,7 +1087,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
 /********** Utilities for tracing **********/
 /*******************************************/
 
-string Tracer::Process::getExecutable() {
+path Tracer::Process::getExecutable() {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", _pid);
 
