@@ -117,8 +117,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
     vector<uint8_t> fingerprint;   //< The fingerprint
   };
 
+  /// Tag a new version of this artifact and return a reference to that version
   VersionRef makeVersion(Action action, shared_ptr<Command> writer = nullptr);
 
+  /// Fingerprint this artifact and save the fingerprint with the latest version of the artifact
   void fingerprint();
 
  public:
@@ -145,8 +147,11 @@ class Artifact : public enable_shared_from_this<Artifact> {
     size_t _index;
   };
 
+  /// Get a reference to the latest version of this artifact
   VersionRef getLatestVersion() { return VersionRef(shared_from_this(), _versions.size() - 1); }
 
+  /// Construct a list of references to the versions of this artifact. This isn't particularly
+  /// efficient, but it's only used in the GraphViz output.
   const list<VersionRef> getVersions() {
     list<VersionRef> result;
     for (size_t i = 0; i < _versions.size(); i++) {
