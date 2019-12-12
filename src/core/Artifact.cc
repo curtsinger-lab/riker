@@ -112,20 +112,35 @@ void Artifact::deletedBy(shared_ptr<Command> c) {
 }
 
 void Artifact::mappedBy(shared_ptr<Command> c, bool writable) {
-  if (writable) {
-    writtenBy(c);
-    _writable_mappers.insert(c);
-  } else {
-    readBy(c);
-    _read_only_mappers.insert(c);
+  // We're going to insert this command into the reader or writer mapper list
+  auto& mapper_list = writable ? _writable_mappers : _read_only_mappers;
+  
+  // Record a read or write
+  if (writable) writtenBy(c);
+  else readBy(c);
+  
+  // Now scan the mapper list to see if this command is already in it
+  for (auto d : mapper_list) {
+    // Promote the weak pointer to a shared_ptr and check if it matches the new mapper command
+    // If we find a match, this command is already in the list so we can return
+    if (d.lock() == c) return;
   }
+  
+  // If we hit this point, the command c is a new mapper. Add it to the list
+  mapper_list.push_back(c);
 }
 
 void Artifact::unmappedBy(shared_ptr<Command> c, bool writable) {
-  if (writable) {
-    _writable_mappers.erase(c);
-  } else {
-    _read_only_mappers.erase(c);
+  // We'll remove this command from either the writable or read-only mapper list
+  auto& mapper_list = writable ? _writable_mappers : _read_only_mappers;
+  
+  // Loop through the list to find a match
+  for (auto iter = mapper_list.begin(); iter != mapper_list.end(); iter++) {
+    // If we find a match, remove the command from the list and return
+    if (iter->lock() == c) {
+      mapper_list.erase(iter);
+      return;
+    }
   }
 }
 

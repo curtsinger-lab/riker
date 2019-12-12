@@ -118,7 +118,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   };
 
   VersionRef makeVersion(Action action, shared_ptr<Command> writer = nullptr);
-  
+
   void fingerprint();
 
  public:
@@ -127,8 +127,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
     friend class Artifact;
 
    private:
-    VersionRef(shared_ptr<Artifact> artifact, size_t index) :
-        _artifact(artifact), _index(index) {}
+    VersionRef(shared_ptr<Artifact> artifact, size_t index) : _artifact(artifact), _index(index) {}
 
    public:
     shared_ptr<Artifact> getArtifact() const { return _artifact; }
@@ -140,14 +139,18 @@ class Artifact : public enable_shared_from_this<Artifact> {
     bool operator<(const VersionRef& other) const {
       return _artifact < other._artifact || _index < other._index;
     }
+    
+    bool operator==(const VersionRef& other) const {
+      return _artifact == other._artifact && _index == other._index;
+    }
 
    private:
     shared_ptr<Artifact> _artifact;
     size_t _index;
   };
-  
-  VersionRef getLatestVersion() { return VersionRef(shared_from_this(), _versions.size()-1); }
-  
+
+  VersionRef getLatestVersion() { return VersionRef(shared_from_this(), _versions.size() - 1); }
+
   const list<VersionRef> getVersions() {
     list<VersionRef> result;
     for (size_t i = 0; i < _versions.size(); i++) {
@@ -158,11 +161,11 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
  private:
   size_t _id;
-  string _path;                                 //< The absolute, normalized path to this artifact
-  Type _type = Type::UNKNOWN;                   //< The type of artifact being tracked
-  vector<VersionRecord> _versions;              //< The sequence of versions of this artifact
-  set<shared_ptr<Command>> _writable_mappers;   //< Commands that map this artifact writable
-  set<shared_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
+  string _path;                                //< The absolute, normalized path to this artifact
+  Type _type = Type::UNKNOWN;                  //< The type of artifact being tracked
+  vector<VersionRecord> _versions;             //< The sequence of versions of this artifact
+  list<weak_ptr<Command>> _writable_mappers;   //< Commands that map this artifact writable
+  list<weak_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
   static size_t next_id;
 };
