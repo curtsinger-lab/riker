@@ -137,11 +137,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
     string getShortName() const { return _artifact->getShortName() + "v" + to_string(_index); }
 
     bool operator<(const VersionRef& other) const {
-      return _artifact < other._artifact || _index < other._index;
-    }
-    
-    bool operator==(const VersionRef& other) const {
-      return _artifact == other._artifact && _index == other._index;
+      return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
     }
 
    private:
