@@ -6,10 +6,12 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
+#include "ui/log.hh"
 
 using std::map;
 using std::ofstream;
 using std::string;
+using std::to_string;
 
 class Graphviz {
  public:
@@ -65,7 +67,6 @@ class Graphviz {
 
       for (auto v : f->getVersions()) {
         string version_id = "v" + to_string(v.getIndex());
-        _file_version_ids[v] = id + ":" + version_id;
 
         string desc;
         switch (v.getAction()) {
@@ -104,14 +105,17 @@ class Graphviz {
     if (iter2 == _command_ids.end()) return;
     string& id2 = iter2->second;
 
-    _out << "  " << id1 << " -> " << id2 << " [style=dashed weight=1]\n";
+    _out << "  " << id1 << " -> " << id2 << " [style=dotted weight=1]\n";
   }
 
   void addInputEdge(Artifact::VersionRef f, shared_ptr<Command> c) {
     addArtifact(f.getArtifact());
 
-    string& id1 = _file_version_ids[f];
+    string file_id = _file_ids[f.getArtifact()];
+    string id1 = file_id + ":v" + to_string(f.getIndex());
     string& id2 = _command_ids[c];
+    
+     WARN << "Input edge for " << f << " from node " << id1;
 
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
@@ -120,7 +124,8 @@ class Graphviz {
     addArtifact(f.getArtifact());
 
     string& id1 = _command_ids[c];
-    string& id2 = _file_version_ids[f];
+    string file_id = _file_ids[f.getArtifact()];
+    string id2 = file_id + ":v" + to_string(f.getIndex());
 
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
@@ -129,5 +134,4 @@ class Graphviz {
   ofstream _out;
   map<shared_ptr<Command>, string> _command_ids;
   map<shared_ptr<Artifact>, string> _file_ids;
-  map<Artifact::VersionRef, string> _file_version_ids;
 };
