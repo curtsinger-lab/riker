@@ -32,13 +32,13 @@ ostream& operator<<(ostream& o, const Artifact* f) {
   return o;
 }
 
-ostream& operator<<(ostream& o, const Artifact::Version* v) {
-  return o << v->getArtifact() << "@" << v->getIndex();
+ostream& operator<<(ostream& o, const Artifact::VersionRef v) {
+  return o << v.getArtifact() << "@" << v.getIndex();
 }
 
 void Artifact::createdBy(shared_ptr<Command> c) {
   // Tag a new created version
-  auto v = makeVersion(Version::Action::CREATE, c);
+  auto v = makeVersion(Action::CREATE, c);
 
   // Record the output edge from the command
   if (c->addOutput(v)) INFO << v << " created by " << c;
@@ -48,14 +48,14 @@ void Artifact::readBy(shared_ptr<Command> c) {
   // If this artifact has no previous versions, tag a version that references an existing artifact
   if (_versions.size() == 0) {
     // A reference version has no creator
-    makeVersion(Version::Action::REFERENCE);
+    makeVersion(Action::REFERENCE);
   }
 
   // Create a dependency if the latest version was not written by the same command that's reading
-  auto latest = &_versions.back();
-  if (latest->getAction() == Version::Action::REFERENCE || latest->getWriter() != c) {
+  auto latest = getLatestVersion();
+  if (latest.getAction() == Action::REFERENCE || latest.getWriter() != c) {
     // Record the dependency
-    if (c->addInput(&_versions.back())) INFO << c << " read " << &_versions.back();
+    if (c->addInput(latest)) INFO << c << " read " << latest;
   }
 }
 
@@ -67,10 +67,10 @@ void Artifact::writtenBy(shared_ptr<Command> c) {
   // If this artifact has previous versions, we may not need to tag a new version
   if (_versions.size() > 0) {
     // Peek at the most recent version of the artifact
-    Artifact::Version* prev_version = &_versions.back();
+    auto latest = getLatestVersion();
 
     // If the previous version was a write by this command, we don't need to tag a new version
-    if (prev_version->_action == Version::Action::WRITE && prev_version->_writer == c) {
+    if (latest.getAction() == Action::WRITE && latest.getWriter() == c) {
       return;
     }
   }
@@ -81,7 +81,7 @@ void Artifact::writtenBy(shared_ptr<Command> c) {
   readBy(c);
 
   // Now tag a new version written by this command
-  auto v = makeVersion(Version::Action::WRITE, c);
+  auto v = makeVersion(Action::WRITE, c);
 
   // Record the output edge
   if (c->addOutput(v)) INFO << c << " wrote " << v;
@@ -93,7 +93,7 @@ void Artifact::mayTruncate(shared_ptr<Command> c) {
 
 void Artifact::truncatedBy(shared_ptr<Command> c) {
   // Tag a truncated version
-  auto v = makeVersion(Version::Action::TRUNCATE, c);
+  auto v = makeVersion(Action::TRUNCATE, c);
 
   // Record the output edge
   if (c->addOutput(v)) INFO << c << " truncated " << v;
@@ -105,7 +105,7 @@ void Artifact::mayDelete(shared_ptr<Command> c) {
 
 void Artifact::deletedBy(shared_ptr<Command> c) {
   // Tag a deleted version
-  auto v = makeVersion(Version::Action::DELETE, c);
+  auto v = makeVersion(Action::DELETE, c);
 
   // Record the output edge
   if (c->addOutput(v)) INFO << c << " deleted " << v;
@@ -129,14 +129,15 @@ void Artifact::unmappedBy(shared_ptr<Command> c, bool writable) {
   }
 }
 
-Artifact::Version* Artifact::makeVersion(Version::Action a, shared_ptr<Command> c) {
-  if (_versions.size() > 0) _versions.back().fingerprint();
-  _versions.push_back(Version(this, _versions.size(), a, c));
+Artifact::VersionRef Artifact::makeVersion(Action a, shared_ptr<Command> c) {
+  // Take a fingerprint before creating a new version
+  fingerprint();
+  
+  _versions.push_back(VersionRecord(a, c));
 
   if (_versions.size() == 1) {
-    _versions.back().fingerprint();
-    if (_versions.back()._has_metadata && _type == Type::UNKNOWN) {
-      switch (_versions.back()._metadata.st_mode & S_IFMT) {
+    if (_versions.back().has_metadata && _type == Type::UNKNOWN) {
+      switch (_versions.back().metadata.st_mode & S_IFMT) {
         case S_IFDIR:
           _type = Type::DIRECTORY;
           break;
@@ -156,16 +157,26 @@ Artifact::Version* Artifact::makeVersion(Version::Action a, shared_ptr<Command> 
     }
   }
 
-  return &_versions.back();
+  return VersionRef(shared_from_this(), _versions.size() - 1);
 }
 
-void Artifact::Version::fingerprint() {
-  if (_has_fingerprint) return;
-  if (_artifact->getType() == Artifact::Type::PIPE) return;
+void Artifact::fingerprint() {
+  // If there are no references to this file, there's no need to fingerprint
+  if (_versions.size() == 0) return;
+  
+  // Get the record for the latest version
+  VersionRecord& r = _versions.back();
+  
+  // If we already have a fingerprint, bail out
+  if (r.has_fingerprint) return;
+  
+  // We can't fingerprint pipes
+  if (_type == Artifact::Type::PIPE) return;
 
-  if (stat(_artifact->getPath().c_str(), &_metadata) == 0) {
-    _has_metadata = true;
+  // Stat the file
+  if (stat(_path.c_str(), &r.metadata) == 0) {
+    r.has_metadata = true;
   } else {
-    WARN << "Unable to stat artifact " << _artifact->getPath();
+    WARN << "Unable to stat artifact " << _path;
   }
 }

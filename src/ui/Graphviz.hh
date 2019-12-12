@@ -28,7 +28,7 @@ class Graphviz {
     }
   }
 
-  void addArtifact(Artifact* f) {
+  void addArtifact(shared_ptr<Artifact> f) {
     if (_file_ids.find(f) == _file_ids.end()) {
       string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
@@ -63,25 +63,25 @@ class Graphviz {
         parts += "<tr><td>" + f->getShortName() + "</td></tr>";
       }
 
-      for (auto& v : f->getVersions()) {
+      for (auto v : f->getVersions()) {
         string version_id = "v" + to_string(v.getIndex());
-        _file_version_ids[&v] = id + ":" + version_id;
+        _file_version_ids[v] = id + ":" + version_id;
 
         string desc;
         switch (v.getAction()) {
-          case Artifact::Version::Action::CREATE:
+          case Artifact::Action::CREATE:
             desc = "create";
             break;
-          case Artifact::Version::Action::REFERENCE:
+          case Artifact::Action::REFERENCE:
             desc = "ref";
             break;
-          case Artifact::Version::Action::WRITE:
+          case Artifact::Action::WRITE:
             desc = "write";
             break;
-          case Artifact::Version::Action::TRUNCATE:
+          case Artifact::Action::TRUNCATE:
             desc = "truncate";
             break;
-          case Artifact::Version::Action::DELETE:
+          case Artifact::Action::DELETE:
             desc = "delete";
             break;
         }
@@ -107,8 +107,8 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [style=dashed weight=1]\n";
   }
 
-  void addInputEdge(Artifact::Version* f, shared_ptr<Command> c) {
-    addArtifact(f->getArtifact());
+  void addInputEdge(Artifact::VersionRef f, shared_ptr<Command> c) {
+    addArtifact(f.getArtifact());
 
     string& id1 = _file_version_ids[f];
     string& id2 = _command_ids[c];
@@ -116,8 +116,8 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
-  void addOutputEdge(shared_ptr<Command> c, Artifact::Version* f) {
-    addArtifact(f->getArtifact());
+  void addOutputEdge(shared_ptr<Command> c, Artifact::VersionRef f) {
+    addArtifact(f.getArtifact());
 
     string& id1 = _command_ids[c];
     string& id2 = _file_version_ids[f];
@@ -128,6 +128,6 @@ class Graphviz {
  private:
   ofstream _out;
   map<shared_ptr<Command>, string> _command_ids;
-  map<const Artifact*, string> _file_ids;
-  map<const Artifact::Version*, string> _file_version_ids;
+  map<shared_ptr<Artifact>, string> _file_ids;
+  map<Artifact::VersionRef, string> _file_version_ids;
 };

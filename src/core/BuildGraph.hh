@@ -46,15 +46,14 @@ class BuildGraph {
 
   /****** Getters and setters ******/
 
-  Artifact* getArtifact(string path, Artifact::Type type = Artifact::Type::UNKNOWN);
+  shared_ptr<Artifact> getArtifact(string path, Artifact::Type type = Artifact::Type::UNKNOWN);
 
-  void linkArtifact(string path, Artifact* f) { _current_files[path] = f; }
+  void linkArtifact(string path, shared_ptr<Artifact> f) { _current_files[path] = f; }
   void unlinkArtifact(string path) { _current_files.erase(path); }
 
-  Artifact* getPipe(string name = "");
+  shared_ptr<Artifact> getPipe(string name = "");
 
  private:
   shared_ptr<Command> _root;
-  list<Artifact> _files;
-  map<string, Artifact*> _current_files;
+  map<string, shared_ptr<Artifact>> _current_files;
 };

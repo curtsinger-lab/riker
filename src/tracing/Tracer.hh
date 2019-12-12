@@ -175,7 +175,7 @@ class Tracer {
     shared_ptr<Command> _command;
     string _cwd;
     string _root;
-    set<Artifact*> _mmaps;
+    set<shared_ptr<Artifact>> _mmaps;
     map<int, FileDescriptor> _fds;
   };
 

@@ -14,6 +14,7 @@
 
 class Command;
 
+using std::enable_shared_from_this;
 using std::list;
 using std::ostream;
 using std::set;
@@ -21,60 +22,18 @@ using std::shared_ptr;
 using std::string;
 using std::to_string;
 using std::vector;
+using std::weak_ptr;
 
-class Artifact {
+class Artifact : public enable_shared_from_this<Artifact> {
  public:
+  class VersionRef;
+  friend class VersionRef;
+
   /// Types of artifacts we track
   enum class Type { UNKNOWN, REGULAR, DIRECTORY, SYMLINK, PIPE };
 
-  /**
-   * A Version holds information about an artifact in a particular state.
-   *
-   * An artifact may have many versions. For each version of an artifact, there is at most one
-   * writer, and an arbitrary number of readers. Writing an artifact will create a new version, as
-   * will creating or deleting an artifact. Creation and deletion are "special" types of writing
-   * that create new versions.
-   *
-   * While Processes will reference Artifacts in their descriptor tables, Commands depend on
-   * and modify specific versions of artifacts.
-   *
-   * A command that writes to an artifact without replacing all of its contents will have a read
-   * dependency on the previous version, and creates a new version with updated contents. However,
-   * if the command completely replaced the contents of the artifact (e.g. by opening it with
-   * O_TRUNC) the command creates a new version without a read dependency on the old version.
-   */
-  class Version {
-   public:
-    // Artifact should have access to Artifact::Version fields
-    friend class Artifact;
-
-    /// Track the types of actions that can create versions
-    enum class Action { CREATE, REFERENCE, WRITE, TRUNCATE, DELETE };
-
-    Version(Artifact* artifact, size_t index, Action action, shared_ptr<Command> writer) :
-        _artifact(artifact), _index(index), _action(action), _writer(writer) {}
-
-    void fingerprint();
-
-    Artifact* getArtifact() const { return _artifact; }
-    size_t getIndex() const { return _index; }
-    Action getAction() const { return _action; }
-    shared_ptr<Command> getWriter() const { return _writer; }
-
-    string getShortName() { return _artifact->getShortName() + " v" + to_string(_index); }
-
-   private:
-    Artifact* _artifact;          //< The artifact this is a version of
-    size_t _index;                //< The index of this version
-    Action _action;               //< The action that created this version
-    shared_ptr<Command> _writer;  //< The command that created this artifact version
-
-    bool _has_metadata = false;
-    struct stat _metadata;
-
-    bool _has_fingerprint = false;
-    vector<uint8_t> _fingerprint;
-  };
+  /// Actions that can create new versions of an artifact
+  enum class Action { CREATE, REFERENCE, WRITE, TRUNCATE, DELETE };
 
   /****** Constructors ******/
   Artifact(string path, Type type = Type::UNKNOWN) : _id(next_id++), _path(path), _type(type) {}
@@ -88,8 +47,6 @@ class Artifact {
   Artifact& operator=(Artifact&&) = default;
 
   /****** Non-trivial methods ******/
-
-  void fingerprintIfNeeded(shared_ptr<Command> modifier);
 
   /// Called during or after a command's creation of this artifact
   void createdBy(shared_ptr<Command> c);
@@ -129,7 +86,7 @@ class Artifact {
 
   void updatePath(string path) { _path = path; }
 
-  string getShortName() { return _path; }
+  string getShortName() const { return _path; }
 
   Type getType() const { return _type; }
 
@@ -144,16 +101,66 @@ class Artifact {
     return false;
   }
 
-  const list<Version>& getVersions() const { return _versions; }
-
  private:
-  Version* makeVersion(Version::Action a, shared_ptr<Command> c = nullptr);
+  /// Data about a specific version of this artifact
+  struct VersionRecord {
+    VersionRecord(Action action) : action(action) {}
+    VersionRecord(Action action, shared_ptr<Command> writer) : action(action), writer(writer) {}
+
+    Action action;             //< The action that created this version
+    weak_ptr<Command> writer;  //< The command that created this artifact version
+
+    bool has_metadata = false;  //< Do we have file metadata for this version?
+    struct stat metadata;       //< If we have it, the metadata is stored here
+
+    bool has_fingerprint = false;  //< Do we have a fingerprint of the file contents?
+    vector<uint8_t> fingerprint;   //< The fingerprint
+  };
+
+  VersionRef makeVersion(Action action, shared_ptr<Command> writer = nullptr);
+  
+  void fingerprint();
+
+ public:
+  /// A reference to a specific version of this artifact
+  class VersionRef {
+    friend class Artifact;
+
+   private:
+    VersionRef(shared_ptr<Artifact> artifact, size_t index) :
+        _artifact(artifact), _index(index) {}
+
+   public:
+    shared_ptr<Artifact> getArtifact() const { return _artifact; }
+    size_t getIndex() const { return _index; }
+    Action getAction() const { return _artifact->_versions[_index].action; }
+    shared_ptr<Command> getWriter() const { return _artifact->_versions[_index].writer.lock(); }
+    string getShortName() const { return _artifact->getShortName() + "v" + to_string(_index); }
+
+    bool operator<(const VersionRef& other) const {
+      return _artifact < other._artifact || _index < other._index;
+    }
+
+   private:
+    shared_ptr<Artifact> _artifact;
+    size_t _index;
+  };
+  
+  VersionRef getLatestVersion() { return VersionRef(shared_from_this(), _versions.size()-1); }
+  
+  const list<VersionRef> getVersions() {
+    list<VersionRef> result;
+    for (size_t i = 0; i < _versions.size(); i++) {
+      result.push_back(VersionRef(shared_from_this(), i));
+    }
+    return result;
+  }
 
  private:
   size_t _id;
   string _path;                                 //< The absolute, normalized path to this artifact
   Type _type = Type::UNKNOWN;                   //< The type of artifact being tracked
-  list<Version> _versions;                      //< The sequence of versions of this artifact
+  vector<VersionRecord> _versions;              //< The sequence of versions of this artifact
   set<shared_ptr<Command>> _writable_mappers;   //< Commands that map this artifact writable
   set<shared_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
@@ -161,4 +168,4 @@ class Artifact {
 };
 
 ostream& operator<<(ostream& o, const Artifact* f);
-ostream& operator<<(ostream& o, const Artifact::Version* v);
+ostream& operator<<(ostream& o, const Artifact::VersionRef v);

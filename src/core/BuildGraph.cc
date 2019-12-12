@@ -37,11 +37,10 @@ void BuildGraph::prune() {
   if (_root) _root->prune();
 }
 
-Artifact* BuildGraph::getArtifact(string path, Artifact::Type type) {
+shared_ptr<Artifact> BuildGraph::getArtifact(string path, Artifact::Type type) {
   auto entry = _current_files.find(path);
   if (entry == _current_files.end()) {
-    _files.push_back(Artifact(path, type));
-    Artifact* f = &_files.back();
+    shared_ptr<Artifact> f = make_shared<Artifact>(path, type);
     _current_files[path] = f;
     return f;
   } else {
@@ -49,9 +48,8 @@ Artifact* BuildGraph::getArtifact(string path, Artifact::Type type) {
   }
 }
 
-Artifact* BuildGraph::getPipe(string name) {
-  _files.push_back(Artifact(name, Artifact::Type::PIPE));
-  return &_files.back();
+shared_ptr<Artifact> BuildGraph::getPipe(string name) {
+  return make_shared<Artifact>(name, Artifact::Type::PIPE);
 }
 
 void BuildGraph::drawGraph(Graphviz& g) {

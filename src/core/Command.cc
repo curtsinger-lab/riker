@@ -75,12 +75,12 @@ bool Command::prune() {
 void Command::drawGraph(Graphviz& g) {
   g.addCommand(shared_from_this());
   for (auto f : _inputs) {
-    if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
+    if (!f.getArtifact()->isSystemFile() || options.show_sysfiles) {
       g.addInputEdge(f, shared_from_this());
     }
   }
   for (auto f : _outputs) {
-    if (!f->getArtifact()->isSystemFile() || options.show_sysfiles) {
+    if (!f.getArtifact()->isSystemFile() || options.show_sysfiles) {
       g.addOutputEdge(shared_from_this(), f);
     }
   }

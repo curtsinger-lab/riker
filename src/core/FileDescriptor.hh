@@ -7,12 +7,12 @@ class Artifact;
 using std::shared_ptr;
 
 struct FileDescriptor {
-  Artifact* artifact = nullptr;
+  shared_ptr<Artifact> artifact;
   int access_mode;
   bool cloexec;
 
   FileDescriptor() {}
 
-  FileDescriptor(Artifact* artifact, int access_mode, bool cloexec) :
+  FileDescriptor(shared_ptr<Artifact> artifact, int access_mode, bool cloexec) :
       artifact(artifact), access_mode(access_mode), cloexec(cloexec) {}
 };

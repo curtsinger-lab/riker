@@ -20,6 +20,7 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::unordered_set;
+using std::weak_ptr;
 
 class Command;
 ostream& operator<<(ostream& o, const Command* c);
@@ -28,7 +29,12 @@ class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
   Command(string exe, list<string> args, map<int, FileDescriptor> fds, shared_ptr<Command> parent) :
-      _id(next_id++), _depth(parent->_depth + 1), _exe(exe), _args(args), _initial_fds(fds) {}
+      _id(next_id++),
+      _depth(parent->_depth + 1),
+      _exe(exe),
+      _args(args),
+      _initial_fds(fds),
+      _parent(parent) {}
 
  public:
   Command(string exe, list<string> args, map<int, FileDescriptor> fds) :
@@ -49,19 +55,19 @@ class Command : public std::enable_shared_from_this<Command> {
   shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
-  bool addInput(Artifact::Version* f) {
+  bool addInput(Artifact::VersionRef f) {
     if (_inputs.find(f) != _inputs.end()) return false;
     _inputs.insert(f);
     return true;
   }
 
   /// Add an output edge from this command to a file version. Return true if this is a new edge.
-  bool addOutput(Artifact::Version* f) {
+  bool addOutput(Artifact::VersionRef f) {
     if (_outputs.find(f) != _outputs.end()) return false;
     _outputs.insert(f);
     return true;
   }
-  
+
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(Tracer& tracer);
 
@@ -94,10 +100,11 @@ class Command : public std::enable_shared_from_this<Command> {
   size_t _depth;
   string _exe;
   list<string> _args;
-  vector<shared_ptr<Command>> _children;
-  unordered_set<Artifact::Version*> _inputs;
-  unordered_set<Artifact::Version*> _outputs;
+  set<Artifact::VersionRef> _inputs;
+  set<Artifact::VersionRef> _outputs;
   map<int, FileDescriptor> _initial_fds;
+  weak_ptr<Command> _parent;
+  vector<shared_ptr<Command>> _children;
 
   static size_t next_id;
 };

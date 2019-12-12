@@ -581,7 +581,7 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) {
-  Artifact* f;
+  shared_ptr<Artifact> f;
 
   // An empty path means just use dfd as the file
   if (flag & AT_EMPTY_PATH) {
