@@ -520,14 +520,14 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   resume();
 
   // If the syscall failed, bail out
-  if (fd == -1) return;
+  if (fd < 0) return;
 
   // Get the process and file
   auto f = _graph.getArtifact(p);
 
   // Add the file to the file descriptor table
   _fds.erase(fd);
-  _fds.emplace(fd, Artifact::Ref(f, flags, false));
+  _fds.emplace(fd, Artifact::Ref(f, flags, false, p));
 
   // Log creation and truncation interactions
   if (!file_existed) {
@@ -785,10 +785,14 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
+  
+  WARN << p;
 
   // Create a new process running the same command
   auto new_proc = make_shared<Process>(_graph, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
+  
+  WARN << new_proc;
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) {

@@ -122,7 +122,8 @@ class Artifact : public enable_shared_from_this<Artifact> {
   }
   
   friend ostream& operator<<(ostream& o, const Artifact& f) {
-    return o << "[" << f.getTypeName() << " " << f.getPath() << "]";
+    if (f.getPath() != "") return o << "[" << f.getTypeName() << " " << f.getPath() << "]";
+    else return o << "[" << f.getTypeName() << " " << f.getId() << "]";
   }
   
   friend ostream& operator<<(ostream& o, const Artifact* f) {
