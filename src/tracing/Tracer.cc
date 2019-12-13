@@ -192,10 +192,7 @@ void Tracer::Process::_read(int fd) {
   auto f = _fds.at(fd).getArtifact();
 
   // If there's no matching file descriptor, just resume and return
-  if (!f) {
-    resume();
-    return;
-  }
+  FAIL_IF(!f) << "Read from unknown file descriptor";
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -215,10 +212,7 @@ void Tracer::Process::_write(int fd) {
   auto f = _fds.at(fd).getArtifact();
 
   // If there was no matching file, resume the process and bail out
-  if (!f) {
-    resume();
-    return;
-  }
+  FAIL_IF(!f) << "Write to unknown file descriptor";
 
   // There may be a write from this command (we might save a copy or take a fingerprint)
   f->mayWrite(_command);

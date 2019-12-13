@@ -22,11 +22,20 @@ class Graphviz {
 
   ~Graphviz() { _out << "}\n"; }
 
+  string escape(string s) {
+    auto pos = s.find('"');
+    if (pos == string::npos)
+      return s;
+    else
+      return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
+  }
+
   void addCommand(shared_ptr<Command> c) {
     if (_command_ids.find(c) == _command_ids.end()) {
       string id = "c" + to_string(_command_ids.size());
       _command_ids[c] = id;
-      _out << "  " << id << " [label=\"" << c->getShortName() << "\" fontname=Courier]\n";
+      _out << "  " << id << " [label=\"" << c->getShortName() << "\" tooltip=\""
+           << escape(c->getFullName()) << "\" fontname=Courier]\n";
     }
   }
 
@@ -40,7 +49,7 @@ class Graphviz {
       parts +=
           "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\" "
           "style=\"rounded\">";
-      
+
       parts += "<tr><td border=\"0\"><sub>" + f->getTypeName() + "</sub></td></tr>";
 
       if (f->getShortName() != "") {

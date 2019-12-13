@@ -48,6 +48,14 @@ class Command : public std::enable_shared_from_this<Command> {
   /****** Non-trivial methods ******/
 
   const string getShortName() const;
+  
+  string getFullName() const {
+    string result;
+    for(const string& arg : _args) {
+      result += arg + " ";
+    }
+    return result;
+  }
 
   shared_ptr<Command> createChild(string exe, list<string> args, map<int, Artifact::Ref> fds);
 
