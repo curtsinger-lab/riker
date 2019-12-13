@@ -38,7 +38,7 @@ void parse_argv(forward_list<string> argv) {
     argv.pop_front();
 
     if (arg == "--debug") {
-      options.log_source_locations = true;
+      options.debug = true;
       options.log_threshold = LogLevel::Info;
 
     } else if (arg == "--no-color") {
