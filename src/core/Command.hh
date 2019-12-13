@@ -21,9 +21,6 @@ using std::string;
 using std::unordered_set;
 using std::weak_ptr;
 
-class Command;
-ostream& operator<<(ostream& o, const Command* c);
-
 class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
@@ -94,6 +91,14 @@ class Command : public std::enable_shared_from_this<Command> {
   const map<int, Artifact::Ref>& getInitialFDs() const { return _initial_fds; }
 
   void setInitialFDs(const map<int, Artifact::Ref>& fds) { _initial_fds = fds; }
+  
+  friend ostream& operator<<(ostream& o, const Command& c) {
+    return o << "[Command " << c._id << " " << c.getShortName() << "]";
+  }
+  
+  friend ostream& operator<<(ostream& o, const Command* c) {
+    return o << *c;
+  }
 
  private:
   size_t _id;

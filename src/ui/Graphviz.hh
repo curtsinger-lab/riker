@@ -40,26 +40,8 @@ class Graphviz {
       parts +=
           "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\" "
           "style=\"rounded\">";
-
-      string type;
-      switch (f->getType()) {
-        case Artifact::Type::UNKNOWN:
-          type = "unknown";
-          break;
-        case Artifact::Type::REGULAR:
-          type = "file";
-          break;
-        case Artifact::Type::DIRECTORY:
-          type = "dir";
-          break;
-        case Artifact::Type::SYMLINK:
-          type = "symlink";
-          break;
-        case Artifact::Type::PIPE:
-          type = "pipe";
-          break;
-      }
-      parts += "<tr><td border=\"0\"><sub>" + type + "</sub></td></tr>";
+      
+      parts += "<tr><td border=\"0\"><sub>" + f->getTypeName() + "</sub></td></tr>";
 
       if (f->getShortName() != "") {
         parts += "<tr><td>" + f->getShortName() + "</td></tr>";
@@ -68,26 +50,7 @@ class Graphviz {
       for (auto v : f->getVersions()) {
         string version_id = "v" + to_string(v.getIndex());
 
-        string desc;
-        switch (v.getAction()) {
-          case Artifact::Action::CREATE:
-            desc = "create";
-            break;
-          case Artifact::Action::REFERENCE:
-            desc = "ref";
-            break;
-          case Artifact::Action::WRITE:
-            desc = "write";
-            break;
-          case Artifact::Action::TRUNCATE:
-            desc = "truncate";
-            break;
-          case Artifact::Action::DELETE:
-            desc = "delete";
-            break;
-        }
-
-        parts += "<tr><td port=\"" + version_id + "\">" + desc + "</td></tr>";
+        parts += "<tr><td port=\"" + version_id + "\">" + v.getActionName() + "</td></tr>";
       }
 
       parts += "</table>";
@@ -114,8 +77,6 @@ class Graphviz {
     string file_id = _file_ids[f.getArtifact()];
     string id1 = file_id + ":v" + to_string(f.getIndex());
     string& id2 = _command_ids[c];
-    
-     WARN << "Input edge for " << f << " from node " << id1;
 
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }

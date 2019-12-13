@@ -112,6 +112,22 @@ class Artifact : public enable_shared_from_this<Artifact> {
     }
     return false;
   }
+  
+  string getTypeName() const {
+    if (_type == Type::REGULAR) return "File";
+    if (_type == Type::DIRECTORY) return "Directory";
+    if (_type == Type::SYMLINK) return "Symlink";
+    if (_type == Type::PIPE) return "Pipe";
+    return "Artifact";
+  }
+  
+  friend ostream& operator<<(ostream& o, const Artifact& f) {
+    return o << "[" << f.getTypeName() << " " << f.getPath() << "]";
+  }
+  
+  friend ostream& operator<<(ostream& o, const Artifact* f) {
+    return o << *f;
+  }
 
   /// A reference to this artifact
   class Ref {
@@ -172,6 +188,16 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
     /// Get the path for this reference
     string getPath() const { return _path.value(); }
+    
+    friend ostream& operator<<(ostream& o, const Artifact::Ref& ref) {
+      string p = ref.hasPath() ? ref.getPath() + " " : "";
+      string r = ref.isReadable() ? "r" : "-";
+      string w = ref.isWritable() ? "w" : "-";
+      string x = ref.isExecutable() ? "x" : "-";
+      string c = ref.isCloexec() ? " cloexec" : "";
+  
+      return o << p << r << w << x << c << " -> " << ref.getArtifact();
+    }
 
    private:
     /// The actual artifact reached through this reference. If unset, the reference did not
@@ -214,6 +240,21 @@ class Artifact : public enable_shared_from_this<Artifact> {
     shared_ptr<Command> getWriter() const { return _artifact->_versions[_index].writer.lock(); }
     string getShortName() const { return _artifact->getShortName() + "v" + to_string(_index); }
 
+    string getActionName() const {
+      switch (getAction()) {
+        case Action::CREATE:
+          return "create";
+        case Artifact::Action::REFERENCE:
+          return "ref";
+        case Artifact::Action::WRITE:
+          return "write";
+        case Artifact::Action::TRUNCATE:
+          return "truncate";
+        case Artifact::Action::DELETE:
+          return "delete";
+      }
+    }
+
     bool operator<(const VersionRef& other) const {
       return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
     }
@@ -234,6 +275,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
       result.push_back(VersionRef(shared_from_this(), i));
     }
     return result;
+  }
+  
+  friend ostream& operator<<(ostream& o, const Artifact::VersionRef& v) {
+    return o << v.getArtifact() << "@" << v.getIndex();
   }
 
  private:
@@ -269,7 +314,3 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   static size_t next_id;
 };
-
-ostream& operator<<(ostream& o, const Artifact* f);
-ostream& operator<<(ostream& o, const Artifact::Ref r);
-ostream& operator<<(ostream& o, const Artifact::VersionRef v);

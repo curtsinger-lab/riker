@@ -15,10 +15,6 @@ using std::string;
 
 size_t Command::next_id = 0;
 
-ostream& operator<<(ostream& o, const Command* c) {
-  return o << "[Command " << c->getId() << " " << c->getShortName() << "]";
-}
-
 const string Command::getShortName() const {
   auto base = _exe;
   if (_args.size() > 0) base = _args.front();

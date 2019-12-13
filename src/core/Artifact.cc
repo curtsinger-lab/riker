@@ -17,35 +17,6 @@ using std::shared_ptr;
 
 size_t Artifact::next_id = 0;
 
-ostream& operator<<(ostream& o, const Artifact* f) {
-  string type = "Artifact";
-
-  if (f->getType() == Artifact::Type::PIPE) {
-    type = "Pipe";
-  } else if (f->getType() == Artifact::Type::DIRECTORY) {
-    type = "Dir";
-  }
-
-  o << "[" << type;
-  if (f->getPath() != "") o << " " << f->getPath();
-  o << " " << f->getId() << "]";
-  return o;
-}
-
-ostream& operator<<(ostream& o, const Artifact::Ref ref) {
-  string p = ref.hasPath() ? ref.getPath() + " " : "";
-  string r = ref.isReadable() ? "r" : "-";
-  string w = ref.isWritable() ? "w" : "-";
-  string x = ref.isExecutable() ? "x" : "-";
-  string c = ref.isCloexec() ? " cloexec" : "";
-  
-  return o << p << r << w << x << c << " -> " << ref.getArtifact();
-}
-
-ostream& operator<<(ostream& o, const Artifact::VersionRef v) {
-  return o << v.getArtifact() << "@" << v.getIndex();
-}
-
 void Artifact::createdBy(shared_ptr<Command> c) {
   // Tag a new created version
   auto v = makeVersion(Action::CREATE, c);
