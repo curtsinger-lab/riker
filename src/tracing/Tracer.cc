@@ -37,6 +37,7 @@
 
 using std::list;
 using std::make_shared;
+using std::pair;
 using std::shared_ptr;
 using std::string;
 
@@ -76,17 +77,53 @@ void Tracer::run(shared_ptr<Command> cmd) {
   // TODO: Fix cwd handling
   _processes[pid] = make_shared<Process>(_graph, pid, ".", cmd, cmd->getInitialFDs());
 
+  // Sometime we get tracing events before we can process them. This queue holds that list
+  list<pair<pid_t, int>> event_queue;
+
   while (true) {
     int wait_status;
-    pid_t child = wait(&wait_status);
-    if (child == -1) {
-      if (errno == ECHILD) {
-        // ECHILD is returned when there are no children to wait on, which
-        // is by far the simplest and most reliable signal we have for when
-        // to exit (cleanly).
+    pid_t child;
+
+    // Do we have an event to process?
+    bool have_event = false;
+
+    // Check if any queued events are ready to be processed
+    for (auto iter = event_queue.begin(); iter != event_queue.end(); iter++) {
+      // If the current entry's pid is now a known process, process it
+      if (_processes.find(iter->first) != _processes.end()) {
+        // Pull out the child and status values
+        child = iter->first;
+        wait_status = iter->second;
+
+        // Drop the event from the queue
+        event_queue.erase(iter);
+
+        // We have an event now
+        have_event = true;
         break;
+      }
+    }
+
+    // If we didn't pull an event from the queue, wait for one
+    while (!have_event) {
+      child = wait(&wait_status);
+
+      // Handle errors
+      if (child == -1) {
+        // If errno is ECHILD, we're done and can return
+        if (errno == ECHILD)
+          return;
+        else
+          FAIL << "Error while waiting: " << ERR;
+      }
+
+      // Does this event refer to a process we don't know about yet?
+      if (_processes.find(child) == _processes.end()) {
+        // Yes. Queue the event so we can try another one.
+        event_queue.emplace_back(child, wait_status);
       } else {
-        FAIL << "Error while waiting: " << ERR;
+        // No. The event is for a known process, so we'll deal with it right now
+        have_event = true;
       }
     }
 
@@ -277,7 +314,7 @@ int Tracer::Process::_dup(int fd) {
   // Add the new entry for the duped fd
   _fds.erase(newfd);
   _fds.emplace(newfd, _fds.at(fd));
-  
+
   // Duped fds do not inherit the cloexec flag
   _fds.at(newfd).setCloexec(false);
 
@@ -684,7 +721,7 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
   // Add the entry for the duped fd
   _fds.erase(newfd);
   _fds.emplace(newfd, _fds.at(oldfd));
-  
+
   // Duped FDs do not inherit the cloexec flag
   _fds.at(newfd).setCloexec(false);
 
@@ -779,13 +816,13 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
-  
+
   WARN << p;
 
   // Create a new process running the same command
   auto new_proc = make_shared<Process>(_graph, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
-  
+
   WARN << new_proc;
 }
 
