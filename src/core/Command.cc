@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "core/Artifact.hh"
-#include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
@@ -33,8 +32,8 @@ const string Command::getShortName() const {
 }
 
 shared_ptr<Command> Command::createChild(string exe, list<string> args,
-                                         map<int, FileDescriptor> fds) {
-  _children.emplace_back(new Command(exe, args, fds, shared_from_this()));
+                                         map<int, Artifact::Ref> initial_fds) {
+  _children.emplace_back(new Command(exe, args, initial_fds, shared_from_this()));
   auto child = _children.back();
 
   INFO << this << " starting child " << child;

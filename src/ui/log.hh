@@ -69,7 +69,7 @@ class logger {
       }
 
       // If this log is a fatal
-      if (_level == LogLevel::Fatal) exit(2);
+      if (_level == LogLevel::Fatal) abort();
     }
   }
 

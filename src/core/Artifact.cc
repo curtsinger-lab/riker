@@ -28,8 +28,18 @@ ostream& operator<<(ostream& o, const Artifact* f) {
 
   o << "[" << type;
   if (f->getPath() != "") o << " " << f->getPath();
-  o << "]";
+  o << " " << f->getId() << "]";
   return o;
+}
+
+ostream& operator<<(ostream& o, const Artifact::Ref ref) {
+  string p = ref.hasPath() ? ref.getPath() + " " : "";
+  string r = ref.isReadable() ? "r" : "-";
+  string w = ref.isWritable() ? "w" : "-";
+  string x = ref.isExecutable() ? "x" : "-";
+  string c = ref.isCloexec() ? " cloexec" : "";
+  
+  return o << p << r << w << x << c << " -> " << ref.getArtifact();
 }
 
 ostream& operator<<(ostream& o, const Artifact::VersionRef v) {
@@ -114,18 +124,20 @@ void Artifact::deletedBy(shared_ptr<Command> c) {
 void Artifact::mappedBy(shared_ptr<Command> c, bool writable) {
   // We're going to insert this command into the reader or writer mapper list
   auto& mapper_list = writable ? _writable_mappers : _read_only_mappers;
-  
+
   // Record a read or write
-  if (writable) writtenBy(c);
-  else readBy(c);
-  
+  if (writable)
+    writtenBy(c);
+  else
+    readBy(c);
+
   // Now scan the mapper list to see if this command is already in it
   for (auto d : mapper_list) {
     // Promote the weak pointer to a shared_ptr and check if it matches the new mapper command
     // If we find a match, this command is already in the list so we can return
     if (d.lock() == c) return;
   }
-  
+
   // If we hit this point, the command c is a new mapper. Add it to the list
   mapper_list.push_back(c);
 }
@@ -133,7 +145,7 @@ void Artifact::mappedBy(shared_ptr<Command> c, bool writable) {
 void Artifact::unmappedBy(shared_ptr<Command> c, bool writable) {
   // We'll remove this command from either the writable or read-only mapper list
   auto& mapper_list = writable ? _writable_mappers : _read_only_mappers;
-  
+
   // Loop through the list to find a match
   for (auto iter = mapper_list.begin(); iter != mapper_list.end(); iter++) {
     // If we find a match, remove the command from the list and return
@@ -147,8 +159,8 @@ void Artifact::unmappedBy(shared_ptr<Command> c, bool writable) {
 Artifact::VersionRef Artifact::makeVersion(Action a, shared_ptr<Command> c) {
   // Take a fingerprint before creating a new version
   fingerprint();
-  
-  _versions.push_back(VersionRecord(a, c));
+
+  _versions.push_back(Version(a, c));
 
   if (_versions.size() == 1) {
     if (_versions.back().has_metadata && _type == Type::UNKNOWN) {
@@ -178,13 +190,13 @@ Artifact::VersionRef Artifact::makeVersion(Action a, shared_ptr<Command> c) {
 void Artifact::fingerprint() {
   // If there are no references to this file, there's no need to fingerprint
   if (_versions.size() == 0) return;
-  
+
   // Get the record for the latest version
-  VersionRecord& r = _versions.back();
-  
+  Version& r = _versions.back();
+
   // If we already have a fingerprint, bail out
   if (r.has_fingerprint) return;
-  
+
   // We can't fingerprint pipes
   if (_type == Artifact::Type::PIPE) return;
 

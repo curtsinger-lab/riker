@@ -9,7 +9,6 @@
 #include <unordered_set>
 
 #include "core/Artifact.hh"
-#include "core/FileDescriptor.hh"
 
 class Graphviz;
 class Tracer;
@@ -28,17 +27,18 @@ ostream& operator<<(ostream& o, const Command* c);
 class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
-  Command(string exe, list<string> args, map<int, FileDescriptor> fds, shared_ptr<Command> parent) :
+  Command(string exe, list<string> args, map<int, Artifact::Ref> initial_fds,
+          shared_ptr<Command> parent) :
       _id(next_id++),
       _depth(parent->_depth + 1),
       _exe(exe),
       _args(args),
-      _initial_fds(fds),
+      _initial_fds(initial_fds),
       _parent(parent) {}
 
  public:
-  Command(string exe, list<string> args, map<int, FileDescriptor> fds) :
-      _id(next_id++), _depth(0), _exe(exe), _args(args), _initial_fds(fds) {}
+  Command(string exe, list<string> args, map<int, Artifact::Ref> initial_fds) :
+      _id(next_id++), _depth(0), _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -52,7 +52,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   const string getShortName() const;
 
-  shared_ptr<Command> createChild(string exe, list<string> args, map<int, FileDescriptor> fds);
+  shared_ptr<Command> createChild(string exe, list<string> args, map<int, Artifact::Ref> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::VersionRef f) {
@@ -91,9 +91,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   const vector<shared_ptr<Command>>& getChildren() const { return _children; }
 
-  const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
+  const map<int, Artifact::Ref>& getInitialFDs() const { return _initial_fds; }
 
-  void setInitialFDs(const map<int, FileDescriptor>& fds) { _initial_fds = fds; }
+  void setInitialFDs(const map<int, Artifact::Ref>& fds) { _initial_fds = fds; }
 
  private:
   size_t _id;
@@ -102,7 +102,7 @@ class Command : public std::enable_shared_from_this<Command> {
   list<string> _args;
   set<Artifact::VersionRef> _inputs;
   set<Artifact::VersionRef> _outputs;
-  map<int, FileDescriptor> _initial_fds;
+  map<int, Artifact::Ref> _initial_fds;
   weak_ptr<Command> _parent;
   vector<shared_ptr<Command>> _children;
 

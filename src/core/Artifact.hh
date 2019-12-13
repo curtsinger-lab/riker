@@ -6,16 +6,22 @@
 #include <iosfwd>
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+#include "ui/log.hh"
 
 class Command;
 
 using std::enable_shared_from_this;
 using std::list;
+using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
@@ -26,6 +32,12 @@ using std::weak_ptr;
 
 class Artifact : public enable_shared_from_this<Artifact> {
  public:
+  // Forward declaration for Ref class, which stores a reference to an artifact.
+  class Ref;
+  friend class Ref;
+
+  // Forward declaration for VerionRef class, which stores a reference to a specific version of an
+  // artifact.
   class VersionRef;
   friend class VersionRef;
 
@@ -101,29 +113,93 @@ class Artifact : public enable_shared_from_this<Artifact> {
     return false;
   }
 
- private:
-  /// Data about a specific version of this artifact
-  struct VersionRecord {
-    VersionRecord(Action action) : action(action) {}
-    VersionRecord(Action action, shared_ptr<Command> writer) : action(action), writer(writer) {}
+  /// A reference to this artifact
+  class Ref {
+    friend class Artifact;
 
-    Action action;             //< The action that created this version
-    weak_ptr<Command> writer;  //< The command that created this artifact version
+   public:
+    /// Create a reference without a path
+    Ref(shared_ptr<Artifact> artifact, int flags, bool executable) :
+        _artifact(artifact), _flags(flags), _executable(executable) {}
 
-    bool has_metadata = false;  //< Do we have file metadata for this version?
-    struct stat metadata;       //< If we have it, the metadata is stored here
+    /// Create a reference with a path
+    Ref(shared_ptr<Artifact> artifact, int flags, bool executable, string path) :
+        _artifact(artifact), _flags(flags), _executable(executable), _path(path) {}
 
-    bool has_fingerprint = false;  //< Do we have a fingerprint of the file contents?
-    vector<uint8_t> fingerprint;   //< The fingerprint
+    /// What artifact does this reference resolve to?
+    shared_ptr<Artifact> getArtifact() const { return _artifact; }
+
+    /// Is this reference readable?
+    bool isReadable() const {
+      return (_flags & O_RDONLY) == O_RDONLY || (_flags & O_RDWR) == O_RDWR;
+    }
+
+    /// Is this reference writable?
+    bool isWritable() const {
+      return (_flags & O_WRONLY) == O_WRONLY || (_flags & O_RDWR) == O_RDWR;
+    }
+
+    /// Is this reference executable?
+    bool isExecutable() const { return _executable; }
+
+    /// Is this reference closed on exec?
+    bool isCloexec() const {
+      return (_flags & O_CLOEXEC) == O_CLOEXEC;
+    }
+    
+    /// Set the reference's cloexec status
+    void setCloexec(bool c) {
+      if (c) _flags |= O_CLOEXEC;
+      else _flags &= ~O_CLOEXEC;
+    }
+
+    /// Is this reference set up to create the artifact?
+    bool canCreate() const { return (_flags & O_CREAT) == O_CREAT; }
+    
+    bool isExclusive() const { return (_flags & O_EXCL) == O_EXCL; }
+
+    /// Is this reference required to create the artifact?
+    bool mustCreate() const { return canCreate() && isExclusive(); }
+
+    /// Does this reference not follow links?
+    bool isNoFollow() const { return (_flags & O_NOFOLLOW) == O_NOFOLLOW; }
+
+    /// Get the open() flags for this reference
+    int getFlags() const { return _flags; }
+
+    /// Does this reference have a path?
+    bool hasPath() const { return _path.has_value(); }
+
+    /// Get the path for this reference
+    string getPath() const { return _path.value(); }
+
+   private:
+    /// The actual artifact reached through this reference. If unset, the reference did not
+    /// resolve.
+    shared_ptr<Artifact> _artifact;
+
+    /// Flags from the open syscall. This captures a few things we care about:
+    ///  is the reference readable?
+    ///  is the reference writable?
+    ///  is the reference closed on an exec call? (O_CLOEXEC)
+    ///  is the reference set up to create the file? (O_CREAT)
+    ///  is the reference required to create the file? (O_EXCL)
+    ///  is the reference opened without following links? (O_NOFOLLOW)
+    /// We need to track these flags because they allow us to determine whether this reference will
+    /// resolve differently on some future run of the command that makes the reference.
+    int _flags;
+
+    /// Is the reference made in a way that requires execute permissions?
+    bool _executable;
+
+    /// The path used to reach the artifact. If not set, the reference was not established via path.
+    /// This will happen for pipes, but we should know the path for any entity on the filesystem.
+    /// That's true even when a command establishes a reference through a sequence of accesses like
+    /// openat() or fchdir(). The file descriptors those calls use to reference locations are known
+    /// and their paths can be accessed and composed to generate full paths for any reference.
+    optional<string> _path;
   };
 
-  /// Tag a new version of this artifact and return a reference to that version
-  VersionRef makeVersion(Action action, shared_ptr<Command> writer = nullptr);
-
-  /// Fingerprint this artifact and save the fingerprint with the latest version of the artifact
-  void fingerprint();
-
- public:
   /// A reference to a specific version of this artifact
   class VersionRef {
     friend class Artifact;
@@ -161,10 +237,33 @@ class Artifact : public enable_shared_from_this<Artifact> {
   }
 
  private:
+  /// Data about a specific version of this artifact. This struct is hidden from outside users.
+  /// Outside code should use Artifact::VersionRef to refer to a specific version of an artifact.
+  struct Version {
+    Version(Action action) : action(action) {}
+    Version(Action action, shared_ptr<Command> writer) : action(action), writer(writer) {}
+
+    Action action;             //< The action that created this version
+    weak_ptr<Command> writer;  //< The command that created this artifact version
+
+    bool has_metadata = false;  //< Do we have file metadata for this version?
+    struct stat metadata;       //< If we have it, the metadata is stored here
+
+    bool has_fingerprint = false;  //< Do we have a fingerprint of the file contents?
+    vector<uint8_t> fingerprint;   //< The fingerprint
+  };
+
+  /// Tag a new version of this artifact and return a reference to that version
+  VersionRef makeVersion(Action action, shared_ptr<Command> writer = nullptr);
+
+  /// Fingerprint this artifact and save the fingerprint with the latest version of the artifact
+  void fingerprint();
+
+ private:
   size_t _id;
   string _path;                                //< The absolute, normalized path to this artifact
   Type _type = Type::UNKNOWN;                  //< The type of artifact being tracked
-  vector<VersionRecord> _versions;             //< The sequence of versions of this artifact
+  vector<Version> _versions;                   //< The sequence of versions of this artifact
   list<weak_ptr<Command>> _writable_mappers;   //< Commands that map this artifact writable
   list<weak_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
@@ -172,4 +271,5 @@ class Artifact : public enable_shared_from_this<Artifact> {
 };
 
 ostream& operator<<(ostream& o, const Artifact* f);
+ostream& operator<<(ostream& o, const Artifact::Ref r);
 ostream& operator<<(ostream& o, const Artifact::VersionRef v);

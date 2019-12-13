@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/user.h>
 
-#include "core/FileDescriptor.hh"
+#include "core/Artifact.hh"
 
 class BuildGraph;
 class Command;
@@ -58,7 +58,7 @@ class Tracer {
   class Process {
    public:
     Process(BuildGraph& graph, pid_t pid, path cwd, shared_ptr<Command> command,
-            map<int, FileDescriptor> fds = {}) :
+            map<int, Artifact::Ref> fds = {}) :
         _graph(graph), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
@@ -84,6 +84,20 @@ class Tracer {
 
     /// Resolve and normalize a path accessed by this process
     path resolvePath(path p, int at = AT_FDCWD, bool follow_links = true);
+    
+    /// Print a process to an output stream
+    friend ostream& operator<<(ostream& o, const Process& p) {
+      o << p._pid << ": " << p._command << "\n";
+      for (auto e : p._fds) {
+        o << "  " << e.first << ": " << e.second << "\n";
+      }
+      return o;
+    }
+    
+    /// Print a process pointer
+    friend ostream& operator<<(ostream& o, const Process* p) {
+      return o << *p;
+    }
 
     /****** Handling for specific system calls ******/
 
@@ -176,7 +190,7 @@ class Tracer {
     string _cwd;
     string _root;
     set<shared_ptr<Artifact>> _mmaps;
-    map<int, FileDescriptor> _fds;
+    map<int, Artifact::Ref> _fds;
   };
 
  private:

@@ -6,7 +6,6 @@
 #include <fcntl.h>
 
 #include "core/Artifact.hh"
-#include "core/FileDescriptor.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
@@ -17,9 +16,9 @@ using std::string;
 using std::unique_ptr;
 
 BuildGraph::BuildGraph(string exe) {
-  map<int, FileDescriptor> fds = {{0, FileDescriptor(getPipe("stdin"), O_RDONLY, false)},
-                                  {1, FileDescriptor(getPipe("stdout"), O_WRONLY, false)},
-                                  {2, FileDescriptor(getPipe("stderr"), O_WRONLY, false)}};
+  map<int, Artifact::Ref> fds = {{0, Artifact::Ref(getPipe("stdin"), O_RDONLY, false)},
+                                 {1, Artifact::Ref(getPipe("stdout"), O_WRONLY, false)},
+                                 {2, Artifact::Ref(getPipe("stderr"), O_WRONLY, false)}};
   _root = shared_ptr<Command>(new Command(exe, {exe}, fds));
   INFO << "BuildGraph initialized with root " << _root.get();
 }
