@@ -21,6 +21,9 @@ jobs:
       - run: dot -Tpdf self-build.dot > self-build.pdf
       - store_artifacts:
           path: self-build.pdf
+      - run: dot -Tsvg self-build.dot > self-build.svg
+      - store_artifacts:
+          path: self-build.svg
       - run: make test
 
 workflows:
