@@ -14,7 +14,6 @@
 
 #include <fcntl.h>
 #include <limits.h>
-#include <linux/audit.h>
 #include <linux/bpf_common.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>

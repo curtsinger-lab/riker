@@ -1,14 +1,16 @@
 #pragma once
 
 #include <cstddef>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
+#include <ostream>
+#include <set>
 #include <string>
-#include <unordered_set>
+#include <vector>
 
 #include "core/Artifact.hh"
+#include "ui/options.hh"
 
 class Graphviz;
 class Tracer;
@@ -16,9 +18,10 @@ class Tracer;
 using std::list;
 using std::map;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 using std::string;
-using std::unordered_set;
+using std::vector;
 using std::weak_ptr;
 
 class Command : public std::enable_shared_from_this<Command> {
@@ -48,10 +51,10 @@ class Command : public std::enable_shared_from_this<Command> {
   /****** Non-trivial methods ******/
 
   const string getShortName() const;
-  
+
   string getFullName() const {
     string result;
-    for(const string& arg : _args) {
+    for (const string& arg : _args) {
       result += arg + " ";
     }
     return result;
@@ -99,14 +102,12 @@ class Command : public std::enable_shared_from_this<Command> {
   const map<int, Artifact::Ref>& getInitialFDs() const { return _initial_fds; }
 
   void setInitialFDs(const map<int, Artifact::Ref>& fds) { _initial_fds = fds; }
-  
+
   friend ostream& operator<<(ostream& o, const Command& c) {
     return o << "[Command " << c._id << " " << c.getShortName() << "]";
   }
-  
-  friend ostream& operator<<(ostream& o, const Command* c) {
-    return o << *c;
-  }
+
+  friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
 
  private:
   size_t _id;

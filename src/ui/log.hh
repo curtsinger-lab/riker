@@ -71,8 +71,10 @@ class logger {
       // If this log is a fatal
       if (_level == LogLevel::Fatal) {
         // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
-        if (options.debug) abort();
-        else exit(2);
+        if (options.debug)
+          abort();
+        else
+          exit(2);
       }
     }
   }

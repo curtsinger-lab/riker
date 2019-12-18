@@ -2,20 +2,16 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <initializer_list>
-#include <iosfwd>
 #include <list>
 #include <memory>
 #include <optional>
-#include <set>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
-#include "ui/log.hh"
+#include "ui/options.hh"
 
 class Command;
 
@@ -23,7 +19,6 @@ using std::enable_shared_from_this;
 using std::list;
 using std::optional;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::to_string;
@@ -33,12 +28,10 @@ using std::weak_ptr;
 class Artifact : public enable_shared_from_this<Artifact> {
  public:
   // Forward declaration for Ref class, which stores a reference to an artifact.
-  class Ref;
   friend class Ref;
 
   // Forward declaration for VerionRef class, which stores a reference to a specific version of an
   // artifact.
-  class VersionRef;
   friend class VersionRef;
 
   /// Types of artifacts we track
@@ -92,18 +85,22 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /****** Getters and setters ******/
 
+  /// Get the unique ID assigned to this artifact
   size_t getId() const { return _id; }
 
+  /// Get the path used to refer to this artifact
   const string& getPath() const { return _path; }
 
+  /// Update the path used to refer to this artifact
   void updatePath(string path) { _path = path; }
 
+  /// Get a short, printable name for this artifact
   string getShortName() const { return _path; }
 
+  /// Get the type of this artifact
   Type getType() const { return _type; }
 
-  bool isLocal() const { return _path[0] != '/'; }
-
+  /// Check if this artifact corresponds to a system file
   bool isSystemFile() {
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
       // Check if the path begins with one of our prefixes.
@@ -112,7 +109,8 @@ class Artifact : public enable_shared_from_this<Artifact> {
     }
     return false;
   }
-  
+
+  /// Get a string representation of this artifact's type
   string getTypeName() const {
     if (_type == Type::REGULAR) return "File";
     if (_type == Type::DIRECTORY) return "Directory";
@@ -120,15 +118,17 @@ class Artifact : public enable_shared_from_this<Artifact> {
     if (_type == Type::PIPE) return "Pipe";
     return "Artifact";
   }
-  
+
+  /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& f) {
-    if (f.getPath() != "") return o << "[" << f.getTypeName() << " " << f.getPath() << "]";
-    else return o << "[" << f.getTypeName() << " " << f.getId() << "]";
+    if (f.getPath() != "")
+      return o << "[" << f.getTypeName() << " " << f.getPath() << "]";
+    else
+      return o << "[" << f.getTypeName() << " " << f.getId() << "]";
   }
-  
-  friend ostream& operator<<(ostream& o, const Artifact* f) {
-    return o << *f;
-  }
+
+  /// Print a pointer to an artifact
+  friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }
 
   /// A reference to this artifact
   class Ref {
@@ -160,19 +160,19 @@ class Artifact : public enable_shared_from_this<Artifact> {
     bool isExecutable() const { return _executable; }
 
     /// Is this reference closed on exec?
-    bool isCloexec() const {
-      return (_flags & O_CLOEXEC) == O_CLOEXEC;
-    }
-    
+    bool isCloexec() const { return (_flags & O_CLOEXEC) == O_CLOEXEC; }
+
     /// Set the reference's cloexec status
     void setCloexec(bool c) {
-      if (c) _flags |= O_CLOEXEC;
-      else _flags &= ~O_CLOEXEC;
+      if (c)
+        _flags |= O_CLOEXEC;
+      else
+        _flags &= ~O_CLOEXEC;
     }
 
     /// Is this reference set up to create the artifact?
     bool canCreate() const { return (_flags & O_CREAT) == O_CREAT; }
-    
+
     bool isExclusive() const { return (_flags & O_EXCL) == O_EXCL; }
 
     /// Is this reference required to create the artifact?
@@ -189,14 +189,15 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
     /// Get the path for this reference
     string getPath() const { return _path.value(); }
-    
+
+    /// Print this artifact reference
     friend ostream& operator<<(ostream& o, const Artifact::Ref& ref) {
       string p = ref.hasPath() ? ref.getPath() + " " : "";
       string r = ref.isReadable() ? "r" : "-";
       string w = ref.isWritable() ? "w" : "-";
       string x = ref.isExecutable() ? "x" : "-";
       string c = ref.isCloexec() ? " cloexec" : "";
-  
+
       return o << p << r << w << x << c << " -> " << ref.getArtifact();
     }
 
@@ -277,7 +278,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
     }
     return result;
   }
-  
+
   friend ostream& operator<<(ostream& o, const Artifact::VersionRef& v) {
     return o << v.getArtifact() << "@" << v.getIndex();
   }

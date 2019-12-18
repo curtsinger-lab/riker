@@ -1,6 +1,9 @@
 #include "core/Command.hh"
 
-#include <iostream>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
 
 #include "core/Artifact.hh"
 #include "tracing/Tracer.hh"
@@ -9,7 +12,7 @@
 #include "ui/options.hh"
 
 using std::list;
-using std::make_shared;
+using std::map;
 using std::shared_ptr;
 using std::string;
 

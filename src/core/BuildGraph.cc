@@ -1,19 +1,19 @@
 #include "core/BuildGraph.hh"
 
 #include <map>
-#include <utility>
+#include <memory>
+#include <string>
 
 #include <fcntl.h>
 
 #include "core/Artifact.hh"
-#include "tracing/Tracer.hh"
+#include "core/Command.hh"
 #include "ui/log.hh"
+#include "ui/options.hh"
 
 using std::make_shared;
-using std::make_unique;
 using std::map;
 using std::string;
-using std::unique_ptr;
 
 BuildGraph::BuildGraph(string exe) {
   map<int, Artifact::Ref> fds = {{0, Artifact::Ref(getPipe("stdin"), O_RDONLY, false)},

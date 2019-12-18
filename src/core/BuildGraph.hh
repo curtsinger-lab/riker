@@ -1,23 +1,19 @@
 #pragma once
 
-#include <list>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "core/Artifact.hh"
-#include "core/Command.hh"
+#include "ui/options.hh"
 
+class Command;
 class Graphviz;
-class Serializer;
 class Tracer;
 
-using std::list;
 using std::map;
 using std::string;
 using std::unique_ptr;
-using std::vector;
 
 class BuildGraph {
  public:

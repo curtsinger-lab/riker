@@ -1,8 +1,6 @@
 #include "Artifact.hh"
 
 #include <memory>
-#include <ostream>
-#include <string>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -11,8 +9,6 @@
 #include "core/Command.hh"
 #include "ui/log.hh"
 
-using std::make_shared;
-using std::ostream;
 using std::shared_ptr;
 
 size_t Artifact::next_id = 0;

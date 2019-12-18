@@ -6,7 +6,6 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "ui/log.hh"
 
 using std::map;
 using std::ofstream;

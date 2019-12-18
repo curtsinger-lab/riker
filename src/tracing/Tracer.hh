@@ -6,8 +6,10 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <fcntl.h>
@@ -15,10 +17,10 @@
 #include <sys/user.h>
 
 #include "core/Artifact.hh"
+#include "core/Command.hh"
+#include "ui/options.hh"
 
 class BuildGraph;
-class Command;
-class Artifact;
 
 using std::list;
 using std::map;
@@ -84,7 +86,7 @@ class Tracer {
 
     /// Resolve and normalize a path accessed by this process
     path resolvePath(path p, int at = AT_FDCWD, bool follow_links = true);
-    
+
     /// Print a process to an output stream
     friend ostream& operator<<(ostream& o, const Process& p) {
       o << p._pid << ": " << p._command << "\n";
@@ -93,11 +95,9 @@ class Tracer {
       }
       return o;
     }
-    
+
     /// Print a process pointer
-    friend ostream& operator<<(ostream& o, const Process* p) {
-      return o << *p;
-    }
+    friend ostream& operator<<(ostream& o, const Process* p) { return o << *p; }
 
     /****** Handling for specific system calls ******/
 
