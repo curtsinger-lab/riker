@@ -22,7 +22,7 @@ class BuildGraph {
   /****** Constructors ******/
   BuildGraph() {}
 
-  BuildGraph(string executable, list<string> arguments);
+  BuildGraph(string executable, vector<string> arguments);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;

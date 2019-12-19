@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -15,7 +14,6 @@
 class Graphviz;
 class Tracer;
 
-using std::list;
 using std::map;
 using std::ostream;
 using std::set;
@@ -27,7 +25,7 @@ using std::weak_ptr;
 class Command : public std::enable_shared_from_this<Command> {
   /****** Constructors ******/
  private:
-  Command(string exe, list<string> args, map<int, Artifact::Ref> initial_fds,
+  Command(string exe, vector<string> args, map<int, Artifact::Ref> initial_fds,
           shared_ptr<Command> parent) :
       _id(next_id++),
       _depth(parent->_depth + 1),
@@ -37,7 +35,7 @@ class Command : public std::enable_shared_from_this<Command> {
       _parent(parent) {}
 
  public:
-  Command(string exe, list<string> args, map<int, Artifact::Ref> initial_fds) :
+  Command(string exe, vector<string> args, map<int, Artifact::Ref> initial_fds) :
       _id(next_id++), _depth(0), _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
@@ -60,7 +58,7 @@ class Command : public std::enable_shared_from_this<Command> {
     return result;
   }
 
-  shared_ptr<Command> createChild(string exe, list<string> args, map<int, Artifact::Ref> fds);
+  shared_ptr<Command> createChild(string exe, vector<string> args, map<int, Artifact::Ref> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::VersionRef f) {
@@ -95,7 +93,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   const string& getExecutable() const { return _exe; }
 
-  const list<string>& getArguments() const { return _args; }
+  const vector<string>& getArguments() const { return _args; }
 
   const vector<shared_ptr<Command>>& getChildren() const { return _children; }
 
@@ -113,7 +111,7 @@ class Command : public std::enable_shared_from_this<Command> {
   size_t _id;
   size_t _depth;
   string _exe;
-  list<string> _args;
+  vector<string> _args;
   set<Artifact::VersionRef> _inputs;
   set<Artifact::VersionRef> _outputs;
   map<int, Artifact::Ref> _initial_fds;

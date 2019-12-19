@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -22,7 +21,6 @@
 
 class BuildGraph;
 
-using std::list;
 using std::map;
 using std::set;
 using std::shared_ptr;
@@ -120,11 +118,12 @@ class Tracer {
     int _dup(int fd);
     void _dup2(int oldfd, int newfd) { _dup3(oldfd, newfd, 0); }
     void _sendfile(int out_fd, int in_fd);
-    void _exec(string filename, const list<string>& args);
+    void _exec(string filename, const vector<string>& args);
     void _fcntl(int fd, int cmd, unsigned long arg);
     void _truncate(string path, long length);
     void _ftruncate(int fd, long length);
     void _getdents(int fd) { _read(fd); }
+    void _getcwd();
     void _chdir(string filename);
     void _fchdir(int fd);
     void _rename(string oldname, string newname) {

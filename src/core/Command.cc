@@ -1,9 +1,9 @@
 #include "core/Command.hh"
 
-#include <list>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "core/Artifact.hh"
 #include "tracing/Tracer.hh"
@@ -11,10 +11,10 @@
 #include "ui/log.hh"
 #include "ui/options.hh"
 
-using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 size_t Command::next_id = 0;
 
@@ -30,7 +30,7 @@ const string Command::getShortName() const {
   }
 }
 
-shared_ptr<Command> Command::createChild(string exe, list<string> args,
+shared_ptr<Command> Command::createChild(string exe, vector<string> args,
                                          map<int, Artifact::Ref> initial_fds) {
   _children.emplace_back(new Command(exe, args, initial_fds, shared_from_this()));
   auto child = _children.back();

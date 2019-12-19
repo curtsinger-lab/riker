@@ -42,6 +42,7 @@ map<uint32_t, string> syscalls = {
     SYSCALL_ENTRY(truncate),
     SYSCALL_ENTRY(ftruncate),
     SYSCALL_ENTRY(getdents),
+    SYSCALL_ENTRY(getcwd),
     SYSCALL_ENTRY(chdir),
     SYSCALL_ENTRY(fchdir),
     SYSCALL_ENTRY(rename),

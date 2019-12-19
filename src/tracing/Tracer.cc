@@ -40,20 +40,11 @@ using std::pair;
 using std::shared_ptr;
 using std::string;
 
-static pid_t launch_traced(char const* exec_path, char* const argv[],
-                           vector<InitialFdEntry> initial_fds);
+static pid_t launch_traced(shared_ptr<Command> cmd);
 
 void Tracer::run(shared_ptr<Command> cmd) {
-  string exec_path = cmd->getExecutable();
-  vector<char*> exec_argv;
+  pid_t pid = launch_traced(cmd);
 
-  for (auto& arg : cmd->getArguments()) {
-    exec_argv.push_back((char*)arg.c_str());
-  }
-  exec_argv.push_back(nullptr);
-  pid_t pid = launch_traced(exec_path.c_str(), exec_argv.data(), {});
-
-  // TODO: Fix cwd handling
   _processes[pid] = make_shared<Process>(*this, pid, ".", cmd, cmd->getInitialFDs());
 
   // Sometime we get tracing events before we can process them. This queue holds that list
@@ -124,7 +115,7 @@ void Tracer::run(shared_ptr<Command> cmd) {
         // Stopped on entry to an exec call
         auto regs = p->getRegisters();
 
-        list<string> args;
+        vector<string> args;
 
         int child_argc = p->readData(regs.rsp);
         for (int i = 0; i < child_argc; i++) {
@@ -297,12 +288,10 @@ void Tracer::Process::_close(int fd) {
   // Resume the process
   resume();
 
-  auto f = _fds.at(fd).getArtifact();
-
-  // Log the event if there was actually a valid file descriptor
-  if (f) LOG << _command << " closed " << _fds.at(fd).getArtifact();
-
-  _fds.erase(fd);
+  auto iter = _fds.find(fd);
+  if (iter != _fds.end()) {
+    LOG << _command << " closed " << iter->second;
+  }
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
@@ -371,7 +360,7 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   out_f->writtenBy(_command);
 }
 
-void Tracer::Process::_exec(string filename, const list<string>& args) {
+void Tracer::Process::_exec(string filename, const vector<string>& args) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -462,12 +451,20 @@ void Tracer::Process::_ftruncate(int fd, long length) {
   resume();
 }
 
+void Tracer::Process::_getcwd() {
+  WARN << _pid << " calls getcwd";
+  resume();
+}
+
 void Tracer::Process::_chdir(string filename) {
   int rc = finishSyscall();
   resume();
 
   // Update the current working directory if the chdir call succeeded
-  if (rc == 0) _cwd = resolvePath(filename);
+  if (rc == 0) {
+    _cwd = resolvePath(filename);
+    INFO << "chdir to " << filename << " resolved to " << _cwd;
+  }
 }
 
 void Tracer::Process::_fchdir(int fd) {
@@ -604,7 +601,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // Read and write interactions are added later, when the process actually reads or writes
 
-  LOG << _command << " opened " << f;
+  LOG << _command << " opened " << f << " with path " << filename << ", which resolved to " << p;
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
@@ -939,6 +936,10 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
       p->_getdents(regs.SYSCALL_ARG1);
       break;
 
+    case __NR_getcwd:
+      p->_getcwd();
+      break;
+
     case __NR_chdir:
       p->_chdir(p->readString(regs.SYSCALL_ARG1));
       break;
@@ -1213,8 +1214,10 @@ uintptr_t Tracer::Process::readData(uintptr_t tracee_pointer) {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-static pid_t launch_traced(char const* exec_path, char* const argv[],
-                           vector<InitialFdEntry> initial_fds) {
+static pid_t launch_traced(shared_ptr<Command> cmd) {
+  // TODO: Fill these in
+  vector<InitialFdEntry> initial_fds;
+
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
   //
   // The bulk of the complexity here is setting up tracing. Instead of just attaching
@@ -1281,8 +1284,13 @@ static pid_t launch_traced(char const* exec_path, char* const argv[],
     // to handle.
     raise(SIGSTOP);
 
+    vector<const char*> args;
+    for (auto& s : cmd->getArguments()) {
+      args.push_back(s.c_str());
+    }
+
     // TODO: explicitly handle the environment
-    execv(exec_path, argv);
+    execv(cmd->getExecutable().c_str(), (char* const*)args.data());
 
     // This is unreachable, unless execv fails
     FAIL << "Failed to start traced program: " << ERR;

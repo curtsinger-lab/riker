@@ -17,7 +17,7 @@ using std::make_shared;
 using std::map;
 using std::string;
 
-BuildGraph::BuildGraph(string executable, list<string> arguments) {
+BuildGraph::BuildGraph(string executable, vector<string> arguments) {
   map<int, Artifact::Ref> fds = {
       {0, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_RDONLY, false)},
       {1, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_WRONLY, false)},
