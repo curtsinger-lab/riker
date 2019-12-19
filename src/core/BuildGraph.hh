@@ -40,16 +40,6 @@ class BuildGraph {
 
   void drawGraph(Graphviz& g);
 
-  /****** Getters and setters ******/
-
-  shared_ptr<Artifact> getArtifact(string path, Artifact::Type type = Artifact::Type::UNKNOWN);
-
-  void linkArtifact(string path, shared_ptr<Artifact> f) { _current_files[path] = f; }
-  void unlinkArtifact(string path) { _current_files.erase(path); }
-
-  shared_ptr<Artifact> getPipe(string name = "");
-
  private:
   shared_ptr<Command> _root;
-  map<string, shared_ptr<Artifact>> _current_files;
 };

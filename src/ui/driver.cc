@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
     graph = BuildGraph("Dodofile");
   }
 
-  Tracer tracer(graph);
+  Tracer tracer;
   graph.run(tracer);
 
   // Run the standard graph post-processing to prune cycles

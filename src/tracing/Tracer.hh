@@ -39,8 +39,6 @@ class Tracer {
   class Process;
 
  public:
-  Tracer(BuildGraph& graph) : _graph(graph) {}
-
   void run(shared_ptr<Command> cmd);
 
  private:
@@ -55,13 +53,16 @@ class Tracer {
 
   /// Called when a traced process exits
   void handleExit(shared_ptr<Process> p);
+  
+  /// Get an artifact at a particular path
+  shared_ptr<Artifact> getArtifact(path p, bool follow_links = true);
 
  private:
   class Process {
    public:
-    Process(BuildGraph& graph, pid_t pid, path cwd, shared_ptr<Command> command,
+    Process(Tracer& tracer, pid_t pid, path cwd, shared_ptr<Command> command,
             map<int, Artifact::Ref> fds = {}) :
-        _graph(graph), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
+        _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
     void resume();
@@ -83,9 +84,9 @@ class Tracer {
 
     /// Read an 8-byte data value from this process' memory
     uintptr_t readData(uintptr_t tracee_pointer);
-
-    /// Resolve and normalize a path accessed by this process
-    path resolvePath(path p, int at = AT_FDCWD, bool follow_links = true);
+    
+    /// Resolve and normalize a path
+    path resolvePath(path p, int at = AT_FDCWD);
 
     /// Print a process to an output stream
     friend ostream& operator<<(ostream& o, const Process& p) {
@@ -184,7 +185,7 @@ class Tracer {
     void _preadv2(int fd) { _read(fd); }
     void _pwritev2(int fd) { _write(fd); }
 
-    BuildGraph& _graph;
+    Tracer& _tracer;
     pid_t _pid;
     shared_ptr<Command> _command;
     string _cwd;
@@ -194,8 +195,8 @@ class Tracer {
   };
 
  private:
-  BuildGraph& _graph;
   map<pid_t, shared_ptr<Process>> _processes;
+  map<ino_t, shared_ptr<Artifact>> _artifacts;
 };
 
 // Skipped syscalls: stat, fstat, lstat, poll, lseek
