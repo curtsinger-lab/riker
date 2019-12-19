@@ -140,7 +140,24 @@ int main(int argc, char* argv[]) {
 
   // Attempt to deserialize the build graph. If that fails, create a new graph
   if (!graph.load("db.dodo")) {
-    graph = BuildGraph("Dodofile");
+    // We're going to set up a new build graph to run the build. There are three cases to handle:
+    //  1. We can just run ./Dodofile
+    //  2. Dodofile is not executable. We'll run it with /bin/sh
+    //  3. Dodofile is not accessible. This is an error
+
+    if (faccessat(AT_FDCWD, "Dodofile", X_OK, AT_EACCESS) == 0) {
+      // Dodofile is directly executable. Initialize graph with a command to run it directly
+      graph = BuildGraph("Dodofile", {"Dodofile"});
+
+    } else if (faccessat(AT_FDCWD, "Dodofile", R_OK, AT_EACCESS) == 0) {
+      // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
+      graph = BuildGraph("/bin/sh", {"Dodofile", "Dodofile"});
+
+    } else {
+      // Dodofile is neither executable nor readable. This won't work.
+      FAIL << "Unable to access Dodofile.\n"
+           << "  This file must be executable, or a readable file that can be run by /bin/sh.";
+    }
   }
 
   Tracer tracer;

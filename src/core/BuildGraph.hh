@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -11,6 +12,7 @@ class Command;
 class Graphviz;
 class Tracer;
 
+using std::list;
 using std::map;
 using std::string;
 using std::unique_ptr;
@@ -20,7 +22,7 @@ class BuildGraph {
   /****** Constructors ******/
   BuildGraph() {}
 
-  BuildGraph(string root_command);
+  BuildGraph(string executable, list<string> arguments);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;

@@ -1,5 +1,6 @@
 #include "core/BuildGraph.hh"
 
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -11,16 +12,19 @@
 #include "ui/log.hh"
 #include "ui/options.hh"
 
+using std::list;
 using std::make_shared;
 using std::map;
 using std::string;
 
-BuildGraph::BuildGraph(string exe) {
+BuildGraph::BuildGraph(string executable, list<string> arguments) {
   map<int, Artifact::Ref> fds = {
       {0, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_RDONLY, false)},
       {1, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_WRONLY, false)},
       {2, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_WRONLY, false)}};
-  _root = shared_ptr<Command>(new Command(exe, {exe}, fds));
+  
+  _root = make_shared<Command>(executable, arguments, fds);
+  
   INFO << "BuildGraph initialized with root " << _root.get();
 }
 

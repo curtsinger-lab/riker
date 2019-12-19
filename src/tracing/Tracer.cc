@@ -47,26 +47,6 @@ void Tracer::run(shared_ptr<Command> cmd) {
   string exec_path = cmd->getExecutable();
   vector<char*> exec_argv;
 
-  // Special handling for the root command
-  if (cmd->isRoot()) {
-    // By default, the root command is executed directly. However, it may not be executable.
-    // In that case, start the root command using /bin/sh by default.
-
-    // Check to see if the Dodofile is executable
-    if (faccessat(AT_FDCWD, exec_path.c_str(), X_OK, AT_EACCESS)) {
-      // Execute would fail. Can we read it and run with sh?
-      if (faccessat(AT_FDCWD, exec_path.c_str(), R_OK, AT_EACCESS)) {
-        // No. Print an error.
-        FAIL << "Unable to access " << exec_path << ".\n"
-             << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-      }
-
-      // Root command file is readable but not executable. Run with /bin/sh
-      exec_argv.push_back((char*)exec_path.c_str());
-      exec_path = "/bin/sh";
-    }
-  }
-
   for (auto& arg : cmd->getArguments()) {
     exec_argv.push_back((char*)arg.c_str());
   }
@@ -197,10 +177,10 @@ unsigned long Tracer::Process::getEventMessage() {
 
 path Tracer::Process::resolvePath(path p, int at) {
   // TODO: Handle chroot-ed processes correctly
-  
+
   // We're going to build a full path from the reference. Simplest case is an absolute path.
   path full_path = p;
-  
+
   // Relative paths have to be relative to something
   if (p.is_relative()) {
     // By default, paths are relative to the current directory
@@ -210,10 +190,10 @@ path Tracer::Process::resolvePath(path p, int at) {
     if (at != AT_FDCWD) {
       base = _fds.at(at).getArtifact()->getPath();
     }
-    
+
     full_path = base / p;
   }
-  
+
   // Normalize path
   return full_path.lexically_normal();
 }
@@ -222,19 +202,21 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
   // Now that we have a path, we can stat it
   struct stat statbuf;
   int rc;
-  if (follow_links) rc = stat(p.c_str(), &statbuf);
-  else rc = lstat(p.c_str(), &statbuf);
-  
+  if (follow_links)
+    rc = stat(p.c_str(), &statbuf);
+  else
+    rc = lstat(p.c_str(), &statbuf);
+
   // If stat failed, there is no artifact to resolve to. Return a null pointer
   if (rc) return shared_ptr<Artifact>();
-  
+
   // Check for an existing inode entry
   auto iter = _artifacts.find(statbuf.st_ino);
   if (iter != _artifacts.end()) {
     // Found. Return it.
     return iter->second;
   }
-  
+
   // Get the type of the artifact from the stat buffer
   Artifact::Type type;
   switch (statbuf.st_mode & S_IFMT) {
@@ -254,13 +236,13 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
       type = Artifact::Type::REGULAR;
       break;
   }
-  
+
   // No existing artifact found. Create a new one.
   shared_ptr<Artifact> result = make_shared<Artifact>(p, type);
-  
+
   // Add the artifact to the map
   _artifacts.emplace(statbuf.st_ino, result);
-  
+
   // All done
   return result;
 }
@@ -502,7 +484,7 @@ void Tracer::Process::_fchdir(int fd) {
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   // Resolve the path without following links, then get the file tracking object
   auto p = resolvePath(filename);
-  auto f = _tracer.getArtifact(p, false); // Do not follow links
+  auto f = _tracer.getArtifact(p, false);  // Do not follow links
 
   // Indicate that we may write this file
   f->mayWrite(_command);
@@ -555,7 +537,7 @@ void Tracer::Process::_lsetxattr(string pathname) {
   // Get the process and file
   // Same as setxattr, except we do not follow links
   auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(pathname, false); // Do not follow links
+  auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
   // Notify the file that it may be written
   f->mayWrite(_command);
@@ -583,7 +565,7 @@ void Tracer::Process::_lgetxattr(string pathname) {
   // Get the process and file
   // Same as getxattr, except we don't follow links
   auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(pathname, false); // Do not follow links
+  auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -629,7 +611,7 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   auto p = resolvePath(pathname, dfd);
   auto f = _tracer.getArtifact(p);
   bool dir_existed = f != nullptr;
-  
+
   // Run the syscall
   int rc = finishSyscall();
   resume();
@@ -806,7 +788,7 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
                                  int flags) {
   string old_path = resolvePath(oldpath, old_dfd);
   auto old_f = _tracer.getArtifact(old_path);
-  
+
   string new_path = resolvePath(newpath, new_dfd);
   auto new_f = _tracer.getArtifact(new_path);
 
