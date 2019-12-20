@@ -19,11 +19,7 @@ using std::map;
 using std::string;
 
 BuildGraph::BuildGraph(string executable, vector<string> arguments) {
-  map<int, Ref> fds = {{0, Ref(O_RDONLY, false).resolvesTo(Artifact::stdin)},
-                       {1, Ref(O_WRONLY, false).resolvesTo(Artifact::stdout)},
-                       {2, Ref(O_WRONLY, false).resolvesTo(Artifact::stderr)}};
-
-  _root = make_shared<Command>(executable, arguments, fds);
+  _root = make_shared<Command>(executable, arguments);
 
   INFO << "BuildGraph initialized with root " << _root.get();
 }

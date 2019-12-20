@@ -10,7 +10,7 @@ using std::optional;
 using std::shared_ptr;
 
 /// A reference to an artifact
-class Ref {
+class Ref : public std::enable_shared_from_this<Ref> {
  public:
   /// Create a reference without a path
   Ref(int flags, bool executable) : _flags(flags), _executable(executable) {}
@@ -19,13 +19,21 @@ class Ref {
   Ref(string path, int flags, bool executable) :
       _path(path), _flags(flags), _executable(executable) {}
 
+  // Disallow copy
+  Ref(const Ref&) = delete;
+  Ref& operator=(const Ref&) = delete;
+
+  // Allow move
+  Ref(Ref&&) = default;
+  Ref& operator=(Ref&&) = default;
+
   /// Record the artifact this reference resolves to
-  Ref& resolvesTo(shared_ptr<Artifact> p) { 
+  shared_ptr<Ref> resolvesTo(shared_ptr<Artifact> p) {
     _artifact = p;
     // TODO: Switch to shared_ptr
-    return *this;
+    return shared_from_this();
   }
-  
+
   /// Has this reference been resolved?
   bool isResolved() const { return _artifact.has_value(); }
 

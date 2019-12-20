@@ -40,7 +40,7 @@ string Command::getFullName() const {
 }
 
 shared_ptr<Command> Command::createChild(string exe, vector<string> args,
-                                         map<int, Ref> initial_fds) {
+                                         map<int, shared_ptr<Ref>> initial_fds) {
   _children.emplace_back(new Command(exe, args, initial_fds, shared_from_this()));
   auto child = _children.back();
 

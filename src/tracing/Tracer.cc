@@ -180,7 +180,7 @@ path Tracer::Process::resolvePath(path p, int at) {
 
     // But if the file is not relative to cwd, get the path for the specified base
     if (at != AT_FDCWD) {
-      base = _fds.at(at).getArtifact()->getPath();
+      base = _fds.at(at)->getArtifact()->getPath();
     }
 
     full_path = base / p;
@@ -247,7 +247,7 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
 
 void Tracer::Process::_read(int fd) {
   // Get the process and file
-  auto f = _fds.at(fd).getArtifact();
+  auto f = _fds.at(fd)->getArtifact();
 
   // If there's no matching file descriptor, just resume and return
   FAIL_IF(!f) << "Read from unknown file descriptor";
@@ -267,7 +267,7 @@ void Tracer::Process::_read(int fd) {
 
 void Tracer::Process::_write(int fd) {
   // Get the process and file
-  auto f = _fds.at(fd).getArtifact();
+  auto f = _fds.at(fd)->getArtifact();
 
   // If there was no matching file, resume the process and bail out
   FAIL_IF(!f) << "Write to unknown file descriptor";
@@ -310,10 +310,10 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
   if (rc == MAP_FAILED) return;
 
   auto descriptor = _fds.at(fd);
-  auto f = descriptor.getArtifact();
+  auto f = descriptor->getArtifact();
   bool writable = prot & PROT_WRITE;
   // The mapping is only writable if the file was also open in writable mode
-  writable &= descriptor.isWritable();
+  writable &= descriptor->isWritable();
 
   // Record the mmap
   f->mappedBy(_command, writable);
@@ -335,7 +335,7 @@ int Tracer::Process::_dup(int fd) {
   _fds.emplace(newfd, _fds.at(fd));
 
   // Duped fds do not inherit the cloexec flag
-  _fds.at(newfd).setCloexec(false);
+  _fds.at(newfd)->setCloexec(false);
 
   // Return the new fd. This is helpful for handling some of the fcntl variants
   return newfd;
@@ -344,8 +344,8 @@ int Tracer::Process::_dup(int fd) {
 void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   // As with _write above, we may have to fingerprint the output file, although we won't know until
   // after the syscall (it could fail).
-  auto in_f = _fds.at(in_fd).getArtifact();
-  auto out_f = _fds.at(out_fd).getArtifact();
+  auto in_f = _fds.at(in_fd)->getArtifact();
+  auto out_f = _fds.at(out_fd)->getArtifact();
 
   // Take a fingerprint if we need one
   out_f->mayWrite(_command);
@@ -394,7 +394,7 @@ void Tracer::Process::_exec(string filename, const vector<string>& args) {
 
   // Close all cloexec file descriptors
   for (auto fd_entry = _fds.begin(); fd_entry != _fds.end();) {
-    if (fd_entry->second.isCloexec()) {
+    if (fd_entry->second->isCloexec()) {
       fd_entry = _fds.erase(fd_entry);
     } else {
       ++fd_entry;
@@ -431,12 +431,12 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
   } else if (cmd == F_DUPFD_CLOEXEC) {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
     int newfd = _dup(fd);  // _dup will resume the process
-    _fds.at(newfd).setCloexec(true);
+    _fds.at(newfd)->setCloexec(true);
 
   } else if (cmd == F_SETFD) {
     resume();
     // Set the cloexec flag using the argument flags
-    _fds.at(fd).setCloexec(arg & FD_CLOEXEC);
+    _fds.at(fd)->setCloexec(arg & FD_CLOEXEC);
 
   } else {
     // Some other operation we do not need to handle
@@ -476,7 +476,7 @@ void Tracer::Process::_truncate(string pathname, long length) {
 }
 
 void Tracer::Process::_ftruncate(int fd, long length) {
-  auto f = _fds.at(fd).getArtifact();
+  auto f = _fds.at(fd)->getArtifact();
 
   if (length == 0) {
     f->truncatedBy(_command);
@@ -515,7 +515,7 @@ void Tracer::Process::_fchdir(int fd) {
   resume();
 
   if (rc == 0) {
-    auto f = _fds.at(fd).getArtifact();
+    auto f = _fds.at(fd)->getArtifact();
     WARN_IF(!f) << "Unable to locate file used in fchdir";
     _cwd = f->getPath();
   }
@@ -654,7 +654,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // Add the file to the file descriptor table
   _fds.erase(fd);
-  _fds.emplace(fd, Ref(f->getPath(), flags, false).resolvesTo(f));
+  _fds.emplace(fd, make_shared<Ref>(f->getPath(), flags, false)->resolvesTo(f));
 
   // Log creation and truncation interactions
   if (!file_existed) {
@@ -714,7 +714,7 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 
   // An empty path means just use dfd as the file
   if (flag & AT_EMPTY_PATH) {
-    f = _fds.at(dfd).getArtifact();
+    f = _fds.at(dfd)->getArtifact();
   } else {
     // Are we following links or not?
     bool follow_links = (flag & AT_SYMLINK_NOFOLLOW) == 0;
@@ -792,8 +792,8 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
 }
 
 void Tracer::Process::_tee(int fd_in, int fd_out) {
-  auto input_f = _fds.at(fd_in).getArtifact();
-  auto output_f = _fds.at(fd_out).getArtifact();
+  auto input_f = _fds.at(fd_in)->getArtifact();
+  auto output_f = _fds.at(fd_out)->getArtifact();
 
   // If either file doesn't exist, bail out
   if (!input_f || !output_f) {
@@ -829,10 +829,10 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
   _fds.emplace(newfd, _fds.at(oldfd));
 
   // Duped FDs do not inherit the cloexec flag
-  _fds.at(newfd).setCloexec(false);
+  _fds.at(newfd)->setCloexec(false);
 
   // Set the cloexec flag if specified in the flags
-  if (flags & O_CLOEXEC) _fds.at(newfd).setCloexec(true);
+  if (flags & O_CLOEXEC) _fds.at(newfd)->setCloexec(true);
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
@@ -852,10 +852,10 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
   // Create the FD records
   _fds.erase(read_pipefd);
-  _fds.emplace(read_pipefd, Ref(flags | O_RDONLY, false).resolvesTo(p));
+  _fds.emplace(read_pipefd, make_shared<Ref>(flags | O_RDONLY, false)->resolvesTo(p));
 
   _fds.erase(write_pipefd);
-  _fds.emplace(write_pipefd, Ref(flags | O_WRONLY, false).resolvesTo(p));
+  _fds.emplace(write_pipefd, make_shared<Ref>(flags | O_WRONLY, false)->resolvesTo(p));
 
   p->createdBy(_command);
 }

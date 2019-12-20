@@ -60,7 +60,7 @@ class Tracer {
   class Process {
    public:
     Process(Tracer& tracer, pid_t pid, path cwd, shared_ptr<Command> command,
-            map<int, Ref> fds = {}) :
+            map<int, shared_ptr<Ref>> fds = {}) :
         _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
@@ -90,7 +90,7 @@ class Tracer {
     /// Print a process to an output stream
     friend ostream& operator<<(ostream& o, const Process& p) {
       o << p._pid << ": " << p._command << "\n";
-      for (auto e : p._fds) {
+      for (auto& e : p._fds) {
         o << "  " << e.first << ": " << e.second << "\n";
       }
       return o;
@@ -199,7 +199,7 @@ class Tracer {
     string _cwd;
     string _root;
     set<shared_ptr<Artifact>> _mmaps;
-    map<int, Ref> _fds;
+    map<int, shared_ptr<Ref>> _fds;
   };
 
  private:
