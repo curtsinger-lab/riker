@@ -15,6 +15,7 @@
 class Graphviz;
 class Tracer;
 
+using std::make_shared;
 using std::map;
 using std::ostream;
 using std::set;
@@ -186,36 +187,88 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Print a Command* to an output stream
   friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
 
+  /// Track the interactions this command
   class Interactions {
-    
+    friend class Command;
+
+   private:
+    /// Create a new set of interactions for a given command
+    Interactions(shared_ptr<Command> command) : _command(command) {}
+
+   public:
+    /// Print Interactions to an output stream
+    friend ostream& operator<<(ostream& o, const Interactions& i) {
+      return o << "    [Interactions]";
+    }
+
+    /// Print Interactions* to an output stream
+    friend ostream& operator<<(ostream& o, const Interactions* i) { return o << *i; }
+
+   private:
+    /// The Command that contains this Interactions tracking object
+    weak_ptr<Command> _command;
   };
-  
-  /// 
-  shared_ptr<Interactions> references(string p, bool follow_links = true) {
-    return _references[Path(p, follow_links)];
+
+  /// Record a reference this command makes to a particular path
+  /// This returns an Interactions object, which the tracer can use to record this command's
+  /// interactions with artifacts through that path.
+  shared_ptr<Interactions> references(string path, bool follow_links = true) {
+    Path p(path, follow_links);
+
+    // Do we already have a reference for this path?
+    auto iter = _references.find(p);
+    if (iter == _references.end()) {
+      // If not, add an entry and return it
+      shared_ptr<Interactions> result(new Interactions(shared_from_this()));
+      _references.emplace_hint(iter, p, result);
+      return result;
+    }
+
+    // Return the existing interactions object
+    return iter->second;
   }
-  
+
   void show() const {
     WARN << this;
     for (auto& r : _references) {
       WARN << "  " << r.first;
+      WARN << r.second;
     }
   }
 
   ~Command() { show(); }
 
  private:
+  /// A unique ID assigned to this command for log readability
   size_t _id;
+
+  /// The depth of this command in the command tree
   size_t _depth;
+
+  /// The executable file this command runs
   string _exe;
+
+  /// The arguments passed to this command on startup
   vector<string> _args;
-  set<Artifact::VersionRef> _inputs;
-  set<Artifact::VersionRef> _outputs;
+
+  /// The file descriptors that should be opened prior to running this command
   map<int, Artifact::Ref> _initial_fds;
+
+  /// Artifact versions read by this command
+  set<Artifact::VersionRef> _inputs;
+
+  /// Artifact versions written by this command
+  set<Artifact::VersionRef> _outputs;
+
+  /// This command's parent
   weak_ptr<Command> _parent;
+
+  /// A list of this command's children
   vector<shared_ptr<Command>> _children;
 
+  /// The set of paths this command references, and the interactions with each
   map<Path, shared_ptr<Interactions>> _references;
 
+  /// A static counter used to assign command IDs
   static size_t next_id;
 };
