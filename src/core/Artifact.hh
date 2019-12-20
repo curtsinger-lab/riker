@@ -100,6 +100,11 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /// Get the type of this artifact
   Type getType() const { return _type; }
 
+  /// Check if this artifact is only ever referenced
+  bool onlyReferenced() const {
+    return _versions.size() == 1 && _versions[0].action == Action::REFERENCE;
+  }
+
   /// Check if this artifact corresponds to a system file
   bool isSystemFile() {
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
@@ -129,7 +134,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }
-  
+
   /// A reference to a specific version of this artifact
   class VersionRef {
     friend class Artifact;
@@ -217,8 +222,8 @@ class Artifact : public enable_shared_from_this<Artifact> {
   list<weak_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
   static size_t next_id;
-  
-public:
+
+ public:
   const static shared_ptr<Artifact> stdin;
   const static shared_ptr<Artifact> stdout;
   const static shared_ptr<Artifact> stderr;

@@ -51,14 +51,19 @@ class Graphviz {
 
       parts += "<tr><td border=\"0\"><sub>" + f->getTypeName() + "</sub></td></tr>";
 
-      if (f->getShortName() != "") {
-        parts += "<tr><td>" + f->getShortName() + "</td></tr>";
-      }
+      if (f->onlyReferenced()) {
+        parts += "<tr><td port=\"v0\">" + f->getShortName() + "</td></tr>";
+        
+      } else {
+        if (f->getShortName() != "") {
+          parts += "<tr><td>" + f->getShortName() + "</td></tr>";
+        }
 
-      for (auto v : f->getVersions()) {
-        string version_id = "v" + to_string(v.getIndex());
+        for (auto v : f->getVersions()) {
+          string version_id = "v" + to_string(v.getIndex());
 
-        parts += "<tr><td port=\"" + version_id + "\">" + v.getActionName() + "</td></tr>";
+          parts += "<tr><td port=\"" + version_id + "\">" + v.getActionName() + "</td></tr>";
+        }
       }
 
       parts += "</table>";
