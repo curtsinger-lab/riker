@@ -18,7 +18,7 @@ using std::vector;
 
 size_t Command::next_id = 0;
 
-const string Command::getShortName() const {
+string Command::getShortName() const {
   auto base = _exe;
   if (_args.size() > 0) base = _args.front();
 
@@ -28,6 +28,14 @@ const string Command::getShortName() const {
   } else {
     return base.substr(pos + 1);
   }
+}
+
+string Command::getFullName() const {
+  string result;
+  for (const string& arg : _args) {
+    result += arg + " ";
+  }
+  return result;
 }
 
 shared_ptr<Command> Command::createChild(string exe, vector<string> args,
@@ -49,6 +57,18 @@ shared_ptr<Command> Command::createChild(string exe, vector<string> args,
   }
 
   return child;
+}
+
+bool Command::addInput(Artifact::VersionRef f) {
+  if (_inputs.find(f) != _inputs.end()) return false;
+  _inputs.insert(f);
+  return true;
+}
+
+bool Command::addOutput(Artifact::VersionRef f) {
+  if (_outputs.find(f) != _outputs.end()) return false;
+  _outputs.insert(f);
+  return true;
 }
 
 void Command::run(Tracer& tracer) {

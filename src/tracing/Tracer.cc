@@ -360,6 +360,30 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   out_f->writtenBy(_command);
 }
 
+void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
+  auto p = resolvePath(pathname, dirfd);
+  _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
+  
+  resume();
+}
+
+void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
+  // Statting an existing file descriptor doesn't create a new reference
+  if ((flags & AT_EMPTY_PATH) == 0) {
+    auto p = resolvePath(pathname, dirfd);
+    _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
+  }
+  
+  resume();
+}
+
+void Tracer::Process::_execveat(int dfd, string filename) {
+  auto p = resolvePath(filename, dfd);
+  _command->references(p);
+
+  resume();
+}
+
 void Tracer::Process::_exec(string filename, const vector<string>& args) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
@@ -376,8 +400,17 @@ void Tracer::Process::_exec(string filename, const vector<string>& args) {
     }
   }
 
+  // TODO: does exec search in the current directory, or is filename always absolute?
+  // TODO: trace exec system call before run so we can catch failed attempts
+
+  // Record the reference by the parent
+  _command->references(filename);
+
   // Create the new command
   _command = _command->createChild(filename, args, _fds);
+
+  // Record the reference by the child
+  _command->references(filename);
 
   // The new command depends on its executable file
   auto p = resolvePath(filename);
@@ -423,6 +456,9 @@ void Tracer::Process::_truncate(string pathname, long length) {
     f->mayWrite(_command);
   }
 
+  // Record the reference
+  _command->references(p);
+
   // Finish the system call and resume
   int rc = finishSyscall();
   resume();
@@ -460,6 +496,12 @@ void Tracer::Process::_chdir(string filename) {
   int rc = finishSyscall();
   resume();
 
+  // Resolve the path
+  string p = resolvePath(filename);
+
+  // Record the reference
+  _command->references(p);
+
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
     _cwd = resolvePath(filename);
@@ -486,6 +528,9 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   // Indicate that we may write this file
   f->mayWrite(_command);
 
+  // Record the reference
+  _command->references(p, false);
+
   // Finish the syscall and resume
   int rc = finishSyscall();
   resume();
@@ -501,6 +546,9 @@ void Tracer::Process::_chroot(string filename) {
   auto p = resolvePath(filename);
   auto f = _tracer.getArtifact(p);
   string newroot = p;
+
+  // Record the reference
+  _command->references(p);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -523,6 +571,9 @@ void Tracer::Process::_setxattr(string pathname) {
   // Notify the file that it may be written
   f->mayWrite(_command);
 
+  // Record the reference
+  _command->references(p);
+
   // Finish the syscall and resume
   int rc = finishSyscall();
   resume();
@@ -539,6 +590,9 @@ void Tracer::Process::_lsetxattr(string pathname) {
   // Notify the file that it may be written
   f->mayWrite(_command);
 
+  // Record the reference
+  _command->references(p);
+
   // Finish the syscall and resume
   int rc = finishSyscall();
   resume();
@@ -550,6 +604,9 @@ void Tracer::Process::_getxattr(string pathname) {
   // Get the process and file
   auto p = resolvePath(pathname);
   auto f = _tracer.getArtifact(p);
+
+  // Record the reference
+  _command->references(p);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -564,6 +621,9 @@ void Tracer::Process::_lgetxattr(string pathname) {
   auto p = resolvePath(pathname);
   auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
+  // Record the reference
+  _command->references(p);
+
   // Finish the syscall and resume
   int rc = finishSyscall();
   resume();
@@ -575,6 +635,9 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   auto p = resolvePath(filename, dfd);
   auto f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
   bool file_existed = f != nullptr;
+
+  // Record the reference
+  _command->references(p, (flags & O_NOFOLLOW) != O_NOFOLLOW);
 
   // Run the syscall and save the resulting fd
   int fd = finishSyscall();
@@ -609,6 +672,9 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   auto f = _tracer.getArtifact(p);
   bool dir_existed = f != nullptr;
 
+  // Record the reference
+  _command->references(p);
+
   // Run the syscall
   int rc = finishSyscall();
   resume();
@@ -636,6 +702,9 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
   auto p = resolvePath(filename, dfd);
   auto f = _tracer.getArtifact(p);
 
+  // Record the reference
+  _command->references(filename);
+
   f->createdBy(_command);
 }
 
@@ -652,6 +721,9 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
     // Resolve the path, then get the file tracking object
     auto p = resolvePath(filename, dfd);
     f = _tracer.getArtifact(p, follow_links);
+
+    // Record the reference
+    _command->references(p, follow_links);
   }
 
   // Indicate that we may write this file
@@ -671,6 +743,9 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
   auto p = resolvePath(pathname, dfd);
   auto f = _tracer.getArtifact(p);
+
+  // Record the reference
+  _command->references(p);
 
   f->mayDelete(_command);
 
@@ -697,6 +772,9 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
   // Find the file object
   auto p = resolvePath(filename, dfd);
   auto f = _tracer.getArtifact(p, follow_links);
+
+  // Record the reference
+  _command->references(p, follow_links);
 
   // Indicate that we may write this file
   f->mayWrite(_command);
@@ -786,8 +864,14 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
   string old_path = resolvePath(oldpath, old_dfd);
   auto old_f = _tracer.getArtifact(old_path);
 
+  // Record the reference to the old file
+  _command->references(old_path);
+
   string new_path = resolvePath(newpath, new_dfd);
   auto new_f = _tracer.getArtifact(new_path);
+
+  // Record the reference to the new file
+  _command->references(new_path);
 
   // We may delete the input file
   if (old_f) old_f->mayDelete(_command);
@@ -867,6 +951,39 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
   // This giant switch statement invokes the appropriate system call handler on a traced
   // process after decoding the syscall arguments.
   switch (regs.SYSCALL_NUMBER) {
+    case __NR_execve:
+      p->_execve(p->readString(regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_execveat:
+      p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2));
+      break;
+
+    case __NR_stat:
+      p->_stat(p->readString(regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_newfstatat:
+      p->_fstatat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG4);
+      break;
+
+    case __NR_fstat:
+      p->_fstat(regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_lstat:
+      p->_lstat(p->readString(regs.SYSCALL_ARG1));
+      break;
+
+    case __NR_access:
+      p->_access(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
+      break;
+
+    case __NR_faccessat:
+      p->_faccessat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
+                    regs.SYSCALL_ARG4);
+      break;
+
     case __NR_read:
       p->_read(regs.SYSCALL_ARG1);
       break;
@@ -1316,6 +1433,14 @@ static pid_t launch_traced(shared_ptr<Command> cmd) {
       << "Failed to set ptrace options: " << ERR;
 
   // Let the child restart to reach its exec.
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
+  // Handle a stop on entry to the exec
+  waitpid(child_pid, &wstatus, 0);
+  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
+      << "Unexpected stop from child. Expected SECCOMP";
+
+  // Let the child continue with its exec
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   // Handle a stop from inside the exec

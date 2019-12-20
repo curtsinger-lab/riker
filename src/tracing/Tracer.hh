@@ -118,6 +118,8 @@ class Tracer {
     int _dup(int fd);
     void _dup2(int oldfd, int newfd) { _dup3(oldfd, newfd, 0); }
     void _sendfile(int out_fd, int in_fd);
+    void _execve(string filename) { _execveat(AT_FDCWD, filename); }
+    void _execveat(int dfd, string filename);
     void _exec(string filename, const vector<string>& args);
     void _fcntl(int fd, int cmd, unsigned long arg);
     void _truncate(string path, long length);
@@ -183,6 +185,12 @@ class Tracer {
     void _copy_file_range(int fd_in, int _, int fd_out) { _tee(fd_in, fd_out); }
     void _preadv2(int fd) { _read(fd); }
     void _pwritev2(int fd) { _write(fd); }
+    void _access(string pathname, int mode) { _faccessat(AT_FDCWD, pathname, mode, 0); }
+    void _faccessat(int dirfd, string pathname, int mode, int flags);
+    void _stat(string pathname) { _fstatat(AT_FDCWD, pathname, 0); }
+    void _fstatat(int dirfd, string pathname, int flags);
+    void _fstat(int fd) { _fstatat(fd, "", AT_EMPTY_PATH); }
+    void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
     Tracer& _tracer;
     pid_t _pid;
