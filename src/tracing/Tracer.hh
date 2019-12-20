@@ -17,6 +17,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
+#include "core/Ref.hh"
 #include "ui/options.hh"
 
 class BuildGraph;
@@ -51,7 +52,7 @@ class Tracer {
 
   /// Called when a traced process exits
   void handleExit(shared_ptr<Process> p);
-  
+
   /// Get an artifact at a particular path
   shared_ptr<Artifact> getArtifact(path p, bool follow_links = true);
 
@@ -59,7 +60,7 @@ class Tracer {
   class Process {
    public:
     Process(Tracer& tracer, pid_t pid, path cwd, shared_ptr<Command> command,
-            map<int, Artifact::Ref> fds = {}) :
+            map<int, Ref> fds = {}) :
         _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
@@ -82,7 +83,7 @@ class Tracer {
 
     /// Read an 8-byte data value from this process' memory
     uintptr_t readData(uintptr_t tracee_pointer);
-    
+
     /// Resolve and normalize a path
     path resolvePath(path p, int at = AT_FDCWD);
 
@@ -198,7 +199,7 @@ class Tracer {
     string _cwd;
     string _root;
     set<shared_ptr<Artifact>> _mmaps;
-    map<int, Artifact::Ref> _fds;
+    map<int, Ref> _fds;
   };
 
  private:

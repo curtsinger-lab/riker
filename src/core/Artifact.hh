@@ -129,105 +129,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }
-
-  /// A reference to this artifact
-  class Ref {
-    friend class Artifact;
-
-   public:
-    /// Create a reference without a path
-    Ref(shared_ptr<Artifact> artifact, int flags, bool executable) :
-        _artifact(artifact), _flags(flags), _executable(executable) {}
-
-    /// Create a reference with a path
-    Ref(shared_ptr<Artifact> artifact, int flags, bool executable, string path) :
-        _artifact(artifact), _flags(flags), _executable(executable), _path(path) {}
-
-    /// What artifact does this reference resolve to?
-    shared_ptr<Artifact> getArtifact() const { return _artifact; }
-
-    /// Is this reference readable?
-    bool isReadable() const {
-      return (_flags & O_RDONLY) == O_RDONLY || (_flags & O_RDWR) == O_RDWR;
-    }
-
-    /// Is this reference writable?
-    bool isWritable() const {
-      return (_flags & O_WRONLY) == O_WRONLY || (_flags & O_RDWR) == O_RDWR;
-    }
-
-    /// Is this reference executable?
-    bool isExecutable() const { return _executable; }
-
-    /// Is this reference closed on exec?
-    bool isCloexec() const { return (_flags & O_CLOEXEC) == O_CLOEXEC; }
-
-    /// Set the reference's cloexec status
-    void setCloexec(bool c) {
-      if (c)
-        _flags |= O_CLOEXEC;
-      else
-        _flags &= ~O_CLOEXEC;
-    }
-
-    /// Is this reference set up to create the artifact?
-    bool canCreate() const { return (_flags & O_CREAT) == O_CREAT; }
-
-    bool isExclusive() const { return (_flags & O_EXCL) == O_EXCL; }
-
-    /// Is this reference required to create the artifact?
-    bool mustCreate() const { return canCreate() && isExclusive(); }
-
-    /// Does this reference not follow links?
-    bool isNoFollow() const { return (_flags & O_NOFOLLOW) == O_NOFOLLOW; }
-
-    /// Get the open() flags for this reference
-    int getFlags() const { return _flags; }
-
-    /// Does this reference have a path?
-    bool hasPath() const { return _path.has_value(); }
-
-    /// Get the path for this reference
-    string getPath() const { return _path.value(); }
-
-    /// Print this artifact reference
-    friend ostream& operator<<(ostream& o, const Artifact::Ref& ref) {
-      string p = ref.hasPath() ? ref.getPath() + " " : "";
-      string r = ref.isReadable() ? "r" : "-";
-      string w = ref.isWritable() ? "w" : "-";
-      string x = ref.isExecutable() ? "x" : "-";
-      string c = ref.isCloexec() ? " cloexec" : "";
-
-      return o << p << r << w << x << c << " -> " << ref.getArtifact();
-    }
-
-   private:
-    /// The actual artifact reached through this reference. If unset, the reference did not
-    /// resolve.
-    shared_ptr<Artifact> _artifact;
-
-    /// Flags from the open syscall. This captures a few things we care about:
-    ///  is the reference readable?
-    ///  is the reference writable?
-    ///  is the reference closed on an exec call? (O_CLOEXEC)
-    ///  is the reference set up to create the file? (O_CREAT)
-    ///  is the reference required to create the file? (O_EXCL)
-    ///  is the reference opened without following links? (O_NOFOLLOW)
-    /// We need to track these flags because they allow us to determine whether this reference will
-    /// resolve differently on some future run of the command that makes the reference.
-    int _flags;
-
-    /// Is the reference made in a way that requires execute permissions?
-    bool _executable;
-
-    /// The path used to reach the artifact. If not set, the reference was not established via path.
-    /// This will happen for pipes, but we should know the path for any entity on the filesystem.
-    /// That's true even when a command establishes a reference through a sequence of accesses like
-    /// openat() or fchdir(). The file descriptors those calls use to reference locations are known
-    /// and their paths can be accessed and composed to generate full paths for any reference.
-    optional<string> _path;
-  };
-
+  
   /// A reference to a specific version of this artifact
   class VersionRef {
     friend class Artifact;
@@ -315,4 +217,9 @@ class Artifact : public enable_shared_from_this<Artifact> {
   list<weak_ptr<Command>> _read_only_mappers;  //< Commands that map this artifact read-only
 
   static size_t next_id;
+  
+public:
+  const static shared_ptr<Artifact> stdin;
+  const static shared_ptr<Artifact> stdout;
+  const static shared_ptr<Artifact> stderr;
 };

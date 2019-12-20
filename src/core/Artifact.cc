@@ -13,6 +13,10 @@ using std::shared_ptr;
 
 size_t Artifact::next_id = 0;
 
+const shared_ptr<Artifact> Artifact::stdin = make_shared<Artifact>("stdin", Artifact::Type::PIPE);
+const shared_ptr<Artifact> Artifact::stdout = make_shared<Artifact>("stdout", Artifact::Type::PIPE);
+const shared_ptr<Artifact> Artifact::stderr = make_shared<Artifact>("stderr", Artifact::Type::PIPE);
+
 void Artifact::createdBy(shared_ptr<Command> c) {
   // Tag a new created version
   auto v = makeVersion(Action::CREATE, c);

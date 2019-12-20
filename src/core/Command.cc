@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/Artifact.hh"
+#include "core/Ref.hh"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
@@ -39,7 +40,7 @@ string Command::getFullName() const {
 }
 
 shared_ptr<Command> Command::createChild(string exe, vector<string> args,
-                                         map<int, Artifact::Ref> initial_fds) {
+                                         map<int, Ref> initial_fds) {
   _children.emplace_back(new Command(exe, args, initial_fds, shared_from_this()));
   auto child = _children.back();
 

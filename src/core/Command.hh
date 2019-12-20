@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core/Artifact.hh"
+#include "core/Ref.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 
@@ -120,8 +121,7 @@ class Command : public std::enable_shared_from_this<Command> {
    * Create a new command with a specified parent. This constructor is private, and is used only by
    * the createChild() method below.
    */
-  Command(string exe, vector<string> args, map<int, Artifact::Ref> initial_fds,
-          shared_ptr<Command> parent) :
+  Command(string exe, vector<string> args, map<int, Ref> initial_fds, shared_ptr<Command> parent) :
       _id(next_id++),
       _depth(parent->_depth + 1),
       _exe(exe),
@@ -131,7 +131,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a new root command, which has no parent.
-  Command(string exe, vector<string> args, map<int, Artifact::Ref> initial_fds) :
+  Command(string exe, vector<string> args, map<int, Ref> initial_fds) :
       _id(next_id++), _depth(0), _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
@@ -149,7 +149,7 @@ class Command : public std::enable_shared_from_this<Command> {
   string getFullName() const;
 
   /// Create a child of this command
-  shared_ptr<Command> createChild(string exe, vector<string> args, map<int, Artifact::Ref> fds);
+  shared_ptr<Command> createChild(string exe, vector<string> args, map<int, Ref> fds);
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::VersionRef f);
@@ -177,7 +177,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const vector<shared_ptr<Command>>& getChildren() const { return _children; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, Artifact::Ref>& getInitialFDs() const { return _initial_fds; }
+  const map<int, Ref>& getInitialFDs() const { return _initial_fds; }
 
   /// Print a Command to an output stream
   friend ostream& operator<<(ostream& o, const Command& c) {
@@ -252,7 +252,7 @@ class Command : public std::enable_shared_from_this<Command> {
   vector<string> _args;
 
   /// The file descriptors that should be opened prior to running this command
-  map<int, Artifact::Ref> _initial_fds;
+  map<int, Ref> _initial_fds;
 
   /// Artifact versions read by this command
   set<Artifact::VersionRef> _inputs;

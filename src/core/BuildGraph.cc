@@ -9,6 +9,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
+#include "core/Ref.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 
@@ -18,13 +19,12 @@ using std::map;
 using std::string;
 
 BuildGraph::BuildGraph(string executable, vector<string> arguments) {
-  map<int, Artifact::Ref> fds = {
-      {0, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_RDONLY, false)},
-      {1, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_WRONLY, false)},
-      {2, Artifact::Ref(make_shared<Artifact>("stdin", Artifact::Type::PIPE), O_WRONLY, false)}};
-  
+  map<int, Ref> fds = {{0, Ref(O_RDONLY, false).resolvesTo(Artifact::stdin)},
+                       {1, Ref(O_WRONLY, false).resolvesTo(Artifact::stdout)},
+                       {2, Ref(O_WRONLY, false).resolvesTo(Artifact::stderr)}};
+
   _root = make_shared<Command>(executable, arguments, fds);
-  
+
   INFO << "BuildGraph initialized with root " << _root.get();
 }
 

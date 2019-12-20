@@ -31,6 +31,7 @@
 #include "core/Artifact.hh"
 #include "core/BuildGraph.hh"
 #include "core/Command.hh"
+#include "core/Ref.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
@@ -363,7 +364,7 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
 void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
   auto p = resolvePath(pathname, dirfd);
   _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
-  
+
   resume();
 }
 
@@ -373,7 +374,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
     auto p = resolvePath(pathname, dirfd);
     _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
   }
-  
+
   resume();
 }
 
@@ -653,7 +654,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // Add the file to the file descriptor table
   _fds.erase(fd);
-  _fds.emplace(fd, Artifact::Ref(f, flags, false, f->getPath()));
+  _fds.emplace(fd, Ref(f->getPath(), flags, false).resolvesTo(f));
 
   // Log creation and truncation interactions
   if (!file_existed) {
@@ -851,10 +852,10 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
   // Create the FD records
   _fds.erase(read_pipefd);
-  _fds.emplace(read_pipefd, Artifact::Ref(p, flags | O_RDONLY, false));
+  _fds.emplace(read_pipefd, Ref(flags | O_RDONLY, false).resolvesTo(p));
 
   _fds.erase(write_pipefd);
-  _fds.emplace(write_pipefd, Artifact::Ref(p, flags | O_WRONLY, false));
+  _fds.emplace(write_pipefd, Ref(flags | O_WRONLY, false).resolvesTo(p));
 
   p->createdBy(_command);
 }
