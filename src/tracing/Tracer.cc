@@ -353,7 +353,7 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
 
 void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
   auto p = resolvePath(pathname, dirfd);
-  _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
+  _command->addReference(p, Ref::Flags::fromAccess(mode, flags));
 
   resume();
 }
@@ -362,7 +362,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
   // Statting an existing file descriptor doesn't create a new reference
   if ((flags & AT_EMPTY_PATH) == 0) {
     auto p = resolvePath(pathname, dirfd);
-    _command->references(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
+    _command->addReference(p, Ref::Flags::fromStat(flags));
   }
 
   resume();
@@ -373,7 +373,7 @@ void Tracer::Process::_execveat(int dfd, string filename) {
   // Unlike other system call functions, we should not call finishSyscall() here.
   // Post-exec handling is in Tracer::Process::handleExec()
   auto p = resolvePath(filename, dfd);
-  _command->references(p);
+  _command->addReference(p, {.x = true});
 
   resume();
 }
@@ -413,7 +413,7 @@ void Tracer::Process::_truncate(string pathname, long length) {
   }
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p);
 
   // Finish the system call and resume
   int rc = finishSyscall();
@@ -456,7 +456,7 @@ void Tracer::Process::_chdir(string filename) {
   string p = resolvePath(filename);
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p);
 
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
@@ -485,7 +485,7 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   f->mayWrite(_command);
 
   // Record the reference
-  _command->references(p, false);
+  _command->addReference(p, {.nofollow = true});
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -499,12 +499,14 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
 }
 
 void Tracer::Process::_chroot(string filename) {
+  FAIL << "chroot is not supported";
+
   auto p = resolvePath(filename);
   auto f = _tracer.getArtifact(p);
   string newroot = p;
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -528,7 +530,7 @@ void Tracer::Process::_setxattr(string pathname) {
   f->mayWrite(_command);
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -547,7 +549,7 @@ void Tracer::Process::_lsetxattr(string pathname) {
   f->mayWrite(_command);
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p, {.nofollow = true});
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -562,7 +564,7 @@ void Tracer::Process::_getxattr(string pathname) {
   auto f = _tracer.getArtifact(p);
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p);
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -578,7 +580,7 @@ void Tracer::Process::_lgetxattr(string pathname) {
   auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p, {.nofollow = true});
 
   // Finish the syscall and resume
   int rc = finishSyscall();
@@ -593,7 +595,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   bool file_existed = f != nullptr;
 
   // Record the reference
-  _command->references(p, (flags & O_NOFOLLOW) != O_NOFOLLOW);
+  auto ref = _command->addReference(p, Ref::Flags::fromOpen(flags));
 
   // Run the syscall and save the resulting fd
   int fd = finishSyscall();
@@ -607,9 +609,12 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   // Get the process and file
   if (!file_existed) f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
 
+  // Resolve the reference
+  ref->resolvesTo(f);
+
   // Add the file to the file descriptor table
   _fds.erase(fd);
-  _fds.emplace(fd, make_shared<Ref>(_command, f->getPath(), flags, false)->resolvesTo(f));
+  _fds.emplace(fd, ref);
 
   // Log creation and truncation interactions
   if (!file_existed) {
@@ -629,7 +634,8 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   bool dir_existed = f != nullptr;
 
   // Record the reference
-  _command->references(p);
+  // TODO: is this a creat or excl reference? Need to look at result of syscall
+  _command->addReference(p);
 
   // Run the syscall
   int rc = finishSyscall();
@@ -647,7 +653,8 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
 }
 
 void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
-  // TODO: Handle or skip device nodes. FIFOs may need special handling?
+  // TODO: What kind of node is this? Need to handle device, files, FIFOs, etc.
+  // TODO: Probably also need to set creat/excl flags in reference
 
   int rc = finishSyscall();
   resume();
@@ -659,27 +666,27 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
   auto f = _tracer.getArtifact(p);
 
   // Record the reference
-  _command->references(filename);
+  _command->addReference(filename);
 
   f->createdBy(_command);
 }
 
-void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) {
+void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) {
   shared_ptr<Artifact> f;
 
   // An empty path means just use dfd as the file
-  if (flag & AT_EMPTY_PATH) {
+  if (flags & AT_EMPTY_PATH) {
     f = _fds.at(dfd)->getArtifact();
   } else {
     // Are we following links or not?
-    bool follow_links = (flag & AT_SYMLINK_NOFOLLOW) == 0;
+    bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
 
     // Resolve the path, then get the file tracking object
     auto p = resolvePath(filename, dfd);
     f = _tracer.getArtifact(p, follow_links);
 
     // Record the reference
-    _command->references(p, follow_links);
+    _command->addReference(p, Ref::Flags::fromChown(flags));
   }
 
   // Indicate that we may write this file
@@ -696,12 +703,12 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
   f->writtenBy(_command);
 }
 
-void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
+void Tracer::Process::_unlinkat(int dfd, string pathname, int flags) {
   auto p = resolvePath(pathname, dfd);
   auto f = _tracer.getArtifact(p);
 
   // Record the reference
-  _command->references(p);
+  _command->addReference(p, Ref::Flags::fromUnlink(flags));
 
   f->mayDelete(_command);
 
@@ -712,25 +719,32 @@ void Tracer::Process::_unlinkat(int dfd, string pathname, int flag) {
 }
 
 void Tracer::Process::_symlinkat(string oldname, int newdfd, string newname) {
+  // Creating a symlink doesn't actually do anything with the target (oldname)
+  auto newp = resolvePath(newname, newdfd);
+
+  // TODO: Set creat/excl for new link if this syscall succeeds? No, maybe we always set them, then
+  // record reference failure if the syscall fails.
+  _command->addReference(newp);
+
   resume();
   // TODO
 }
 
 void Tracer::Process::_readlinkat(int dfd, string pathname) {
+  auto p = resolvePath(pathname, dfd);
+  _command->addReference(p, {.nofollow = true});
+
   resume();
   // TODO
 }
 
 void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
-  // Are we following links or not? Depends on the flags.
-  bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
-
   // Find the file object
   auto p = resolvePath(filename, dfd);
-  auto f = _tracer.getArtifact(p, follow_links);
+  auto f = _tracer.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
 
   // Record the reference
-  _command->references(p, follow_links);
+  _command->addReference(p, Ref::Flags::fromChmod(flags));
 
   // Indicate that we may write this file
   f->mayWrite(_command);
@@ -804,13 +818,17 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
   // Create a pipe
   auto p = make_shared<Artifact>("", Artifact::Type::PIPE);
+  
+  // Create references
+  auto read_ref = _command->addReference({.r = true})->resolvesTo(p);
+  auto write_ref = _command->addReference({.w = true})->resolvesTo(p);
 
   // Create the FD records
   _fds.erase(read_pipefd);
-  _fds.emplace(read_pipefd, make_shared<Ref>(_command, flags | O_RDONLY, false)->resolvesTo(p));
+  _fds.emplace(read_pipefd, read_ref);
 
   _fds.erase(write_pipefd);
-  _fds.emplace(write_pipefd, make_shared<Ref>(_command, flags | O_WRONLY, false)->resolvesTo(p));
+  _fds.emplace(write_pipefd, write_ref);
 
   p->createdBy(_command);
 }
@@ -821,13 +839,15 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
   auto old_f = _tracer.getArtifact(old_path);
 
   // Record the reference to the old file
-  _command->references(old_path);
+  // TODO: Deal with flags
+  _command->addReference(old_path);
 
   string new_path = resolvePath(newpath, new_dfd);
   auto new_f = _tracer.getArtifact(new_path);
 
   // Record the reference to the new file
-  _command->references(new_path);
+  // TODO: Deal with flags
+  _command->addReference(new_path);
 
   // We may delete the input file
   if (old_f) old_f->mayDelete(_command);
@@ -879,7 +899,7 @@ void Tracer::Process::handleExec() {
 
   // TODO: does exec search in the current directory, or is filename always absolute?
   // Record the reference by the parent
-  _command->references(exe);
+  _command->addReference(exe, {.x = true});
 
   // Create the new command
   _command = _command->createChild(exe, args);
@@ -891,19 +911,16 @@ void Tracer::Process::handleExec() {
   // Pull over references that are inherited by the new command
   for (auto& entry : old_fds) {
     if (entry.second->isInherited()) {
-      // Get the new reference that is usable by the new command
-      auto ref = entry.second->getInheritedRef(_command);
-
-      // Put this reference in the process file descriptor table
+      // Create a new reference inherited from the parent, saving it in Command's initial fds
+      auto ref = _command->inheritReference(entry.first, entry.second);
+      
+      // Add this reference to the file descriptor table
       _fds.emplace(entry.first, ref);
-
-      // Add this reference to the command's initial FDs
-      _command->addInitialFD(entry.first, ref);
     }
   }
 
   // Record the reference by the child
-  _command->references(exe);
+  _command->addReference(exe, {.r = true});
 
   // The new command depends on its executable file
   auto p = resolvePath(exe);

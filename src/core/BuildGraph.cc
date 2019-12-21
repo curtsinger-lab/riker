@@ -20,10 +20,8 @@ using std::string;
 
 BuildGraph::BuildGraph(string executable, vector<string> arguments) {
   _root = make_shared<Command>(executable, arguments);
-  _root->addInitialFD(0, make_shared<Ref>(_root, O_RDONLY, false)->resolvesTo(Artifact::stdin));
-  _root->addInitialFD(1, make_shared<Ref>(_root, O_WRONLY, false)->resolvesTo(Artifact::stdout));
-  _root->addInitialFD(2, make_shared<Ref>(_root, O_WRONLY, false)->resolvesTo(Artifact::stderr));
-  
+  _root->addStandardReferences();
+
   INFO << "BuildGraph initialized with root " << _root.get();
 }
 

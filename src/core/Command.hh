@@ -62,9 +62,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Create a child of this command
   shared_ptr<Command> createChild(string exe, vector<string> args);
 
-  /// Record a file descriptor available on startup for this child
-  void addInitialFD(int fd, shared_ptr<Ref> ref) { _initial_fds.emplace(fd, ref); }
-
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::VersionRef f);
 
@@ -101,9 +98,37 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Print a Command* to an output stream
   friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
 
-  /// Record a reference this command makes to a particular path
-  void references(string path, bool follow_links = true) {
-    _references.push_back(Path(path, follow_links));
+  shared_ptr<Ref> addReference(Ref::Flags flags = {}) {
+    shared_ptr<Ref> r(new Ref(shared_from_this(), flags));
+    _references.push_back(r);
+    return r;
+  }
+
+  shared_ptr<Ref> addReference(string path, Ref::Flags flags = {}) {
+    shared_ptr<Ref> r(new Ref(shared_from_this(), path, flags));
+    _references.push_back(r);
+    return r;
+  }
+
+  /// Record a file descriptor available on startup for this child
+  shared_ptr<Ref> inheritReference(int fd, shared_ptr<Ref> ref) {
+    // Create a new anonymous reference from the existing reference
+    shared_ptr<Ref> new_ref(new Ref(shared_from_this(), ref));
+
+    // Record the initial fd
+    _initial_fds.emplace(fd, new_ref);
+
+    // Record the reference itself
+    _references.push_back(new_ref);
+
+    return new_ref;
+  }
+  
+  /// Set up the stdin, stdout, stderr references
+  void addStandardReferences() {
+    _initial_fds.emplace(0, addReference({.r = true})->resolvesTo(Artifact::stdin));
+    _initial_fds.emplace(1, addReference({.w = true})->resolvesTo(Artifact::stdout));
+    _initial_fds.emplace(2, addReference({.w = true})->resolvesTo(Artifact::stderr));
   }
 
   void show() const {
@@ -144,7 +169,7 @@ class Command : public std::enable_shared_from_this<Command> {
   vector<shared_ptr<Command>> _children;
 
   /// All of this command's references
-  list<Path> _references;
+  list<shared_ptr<Ref>> _references;
 
   /// A static counter used to assign command IDs
   static size_t next_id;
