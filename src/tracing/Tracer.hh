@@ -63,6 +63,9 @@ class Tracer {
             map<int, shared_ptr<Ref>> fds = {}) :
         _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
+    /// Called after this process finishes an exec call
+    void handleExec();
+
     /// Resume a traced process that is currently stopped
     void resume();
 
@@ -121,7 +124,6 @@ class Tracer {
     void _sendfile(int out_fd, int in_fd);
     void _execve(string filename) { _execveat(AT_FDCWD, filename); }
     void _execveat(int dfd, string filename);
-    void _exec(string filename, const vector<string>& args);
     void _fcntl(int fd, int cmd, unsigned long arg);
     void _truncate(string path, long length);
     void _ftruncate(int fd, long length);

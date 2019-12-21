@@ -121,13 +121,11 @@ class Command : public std::enable_shared_from_this<Command> {
    * Create a new command with a specified parent. This constructor is private, and is used only by
    * the createChild() method below.
    */
-  Command(string exe, vector<string> args, map<int, shared_ptr<Ref>> initial_fds,
-          shared_ptr<Command> parent) :
+  Command(string exe, vector<string> args, shared_ptr<Command> parent) :
       _id(next_id++),
       _depth(parent->_depth + 1),
       _exe(exe),
       _args(args),
-      _initial_fds(initial_fds),
       _parent(parent) {}
 
  public:
@@ -156,7 +154,10 @@ class Command : public std::enable_shared_from_this<Command> {
   string getFullName() const;
 
   /// Create a child of this command
-  shared_ptr<Command> createChild(string exe, vector<string> args, map<int, shared_ptr<Ref>> fds);
+  shared_ptr<Command> createChild(string exe, vector<string> args);
+
+  /// Record a file descriptor available on startup for this child
+  void addInitialFD(int fd, shared_ptr<Ref> ref) { _initial_fds.emplace(fd, ref); }
 
   /// Add an int edge from a file version to this command. Return true if this is a new edge.
   bool addInput(Artifact::VersionRef f);

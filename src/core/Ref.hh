@@ -5,22 +5,31 @@
 
 #include <fcntl.h>
 
+using std::make_shared;
 using std::nullopt;
 using std::optional;
 using std::shared_ptr;
 
 /// A reference to an artifact
 class Ref : public std::enable_shared_from_this<Ref> {
+ private:
+  /// Create an anonymous copy of this reference
+  Ref(const Ref* other) :
+      _artifact(other->_artifact),
+      _path(other->_path),
+      _flags(other->_flags),
+      _executable(other->_executable),
+      _anonymous(true) {}
+
  public:
   /// Create a reference without a path
-  Ref(int flags, bool executable) : _flags(flags), _executable(executable) {}
+  Ref(int flags, bool executable) : _flags(flags), _executable(executable), _anonymous(true) {}
 
   /// Create a reference with a path
   Ref(string path, int flags, bool executable) :
-      _path(path), _flags(flags), _executable(executable) {}
+      _path(path), _flags(flags), _executable(executable), _anonymous(false) {}
 
   // Disallow copy
-  Ref(const Ref&) = delete;
   Ref& operator=(const Ref&) = delete;
 
   // Allow move
@@ -30,9 +39,19 @@ class Ref : public std::enable_shared_from_this<Ref> {
   /// Record the artifact this reference resolves to
   shared_ptr<Ref> resolvesTo(shared_ptr<Artifact> p) {
     _artifact = p;
-    // TODO: Switch to shared_ptr
     return shared_from_this();
   }
+
+  /// Is this reference inherited by child commands?
+  bool isInherited() const { return (_flags & O_CLOEXEC) == 0; }
+
+  /// Is this reference anonymous? True only if the command that made the reference did not use a
+  /// path. This is the case for pipes, and for references inherited from parent commands.
+  bool isAnonymous() const { return _anonymous; }
+
+  /// Get the anonymous, inherited version of this reference. This is used by commands that
+  /// reference an artifact that was opened by the parent command prior to calling exec.
+  shared_ptr<Ref> getInheritedRef() const { return shared_ptr<Ref>(new Ref(this)); }
 
   /// Has this reference been resolved?
   bool isResolved() const { return _artifact.has_value(); }
@@ -117,4 +136,8 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Is the reference made in a way that requires execute permissions?
   bool _executable;
+
+  /// Is this reference made without naming the path to the artifact?
+  /// This will be true for pipes, and for reference inherited from parent commands.
+  bool _anonymous;
 };

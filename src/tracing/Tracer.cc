@@ -113,18 +113,8 @@ void Tracer::run(shared_ptr<Command> cmd) {
         handleFork(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-        // Stopped on entry to an exec call
-        auto regs = p->getRegisters();
-
-        vector<string> args;
-
-        int child_argc = p->readData(regs.rsp);
-        for (int i = 0; i < child_argc; i++) {
-          uintptr_t arg_ptr = p->readData(regs.rsp + (1 + i) * sizeof(long));
-          args.push_back(p->readString(arg_ptr));
-        }
-
-        p->_exec(p->getExecutable(), args);
+        // Stopped on completion of an exec call
+        p->handleExec();
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // Stopped on entry to a clone call
@@ -379,48 +369,13 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
 }
 
 void Tracer::Process::_execveat(int dfd, string filename) {
+  // This corresponds to entry to the execve system call
+  // Unlike other system call functions, we should not call finishSyscall() here.
+  // Post-exec handling is in Tracer::Process::handleExec()
   auto p = resolvePath(filename, dfd);
   _command->references(p);
-
+  
   resume();
-}
-
-void Tracer::Process::_exec(string filename, const vector<string>& args) {
-  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
-  // the syscall has done most of the work
-
-  // Resume the child
-  resume();
-
-  // Close all cloexec file descriptors
-  for (auto fd_entry = _fds.begin(); fd_entry != _fds.end();) {
-    if (fd_entry->second->isCloexec()) {
-      fd_entry = _fds.erase(fd_entry);
-    } else {
-      ++fd_entry;
-    }
-  }
-
-  // TODO: does exec search in the current directory, or is filename always absolute?
-  // TODO: trace exec system call before run so we can catch failed attempts
-
-  // Record the reference by the parent
-  _command->references(filename);
-
-  // Create the new command
-  _command = _command->createChild(filename, args, _fds);
-
-  // Record the reference by the child
-  _command->references(filename);
-
-  // The new command depends on its executable file
-  auto p = resolvePath(filename);
-  auto f = _tracer.getArtifact(p);
-  f->readBy(_command);
-
-  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
-  // participate in that command. This will require some extra bookkeeping. For now, we
-  // over-approximate the set of commands that have a file mmapped.
 }
 
 void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
@@ -904,6 +859,62 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
 
 /////////////////
 
+void Tracer::Process::handleExec() {
+  // Get the registers so we can read exec arguments
+  auto regs = getRegisters();
+
+  // Read the args array
+  vector<string> args;
+  int child_argc = readData(regs.rsp);
+  for (int i = 0; i < child_argc; i++) {
+    uintptr_t arg_ptr = readData(regs.rsp + (1 + i) * sizeof(long));
+    args.push_back(readString(arg_ptr));
+  }
+  
+  // Get the executable file
+  string exe = getExecutable();
+
+  // Resume the child
+  resume();
+  
+  // TODO: does exec search in the current directory, or is filename always absolute?
+  // Record the reference by the parent
+  _command->references(exe);
+
+  // Create the new command
+  _command = _command->createChild(exe, args);
+  
+  // Handle file descriptors. First, make a copy of the old descriptors and clear the map.
+  map<int, shared_ptr<Ref>> old_fds = _fds;
+  _fds.clear();
+  
+  // Pull over references that are inherited by the new command
+  for (auto& entry : old_fds) {
+    if (entry.second->isInherited()) {
+      // Get the new reference that is usable by the new command
+      auto ref = entry.second->getInheritedRef();
+      
+      // Put this reference in the process file descriptor table
+      _fds.emplace(entry.first, ref);
+      
+      // Add this reference to the command's initial FDs
+      _command->addInitialFD(entry.first, ref);
+    }
+  }
+
+  // Record the reference by the child
+  _command->references(exe);
+
+  // The new command depends on its executable file
+  auto p = resolvePath(exe);
+  auto f = _tracer.getArtifact(p);
+  f->readBy(_command);
+
+  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
+  // participate in that command. This will require some extra bookkeeping. For now, we
+  // over-approximate the set of commands that have a file mmapped.
+}
+
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
@@ -928,14 +939,14 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
-
-  WARN << p;
+  
+  LOG << "fork called in " << p;
 
   // Create a new process running the same command
   auto new_proc = make_shared<Process>(*this, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
-
-  WARN << new_proc;
+  
+  LOG << "new process " << new_proc;
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) {
