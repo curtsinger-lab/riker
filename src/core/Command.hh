@@ -39,22 +39,11 @@ class Command : public std::enable_shared_from_this<Command> {
    * the createChild() method below.
    */
   Command(string exe, vector<string> args, shared_ptr<Command> parent) :
-      _id(next_id++),
-      _depth(parent->_depth + 1),
-      _exe(exe),
-      _args(args),
-      _parent(parent) {}
+      _id(next_id++), _depth(parent->_depth + 1), _exe(exe), _args(args), _parent(parent) {}
 
  public:
   /// Create a new root command, which has no parent.
-  Command(string exe, vector<string> args) :
-      _id(next_id++),
-      _depth(0),
-      _exe(exe),
-      _args(args),
-      _initial_fds({{0, make_shared<Ref>(O_RDONLY, false)->resolvesTo(Artifact::stdin)},
-                    {1, make_shared<Ref>(O_WRONLY, false)->resolvesTo(Artifact::stdout)},
-                    {2, make_shared<Ref>(O_WRONLY, false)->resolvesTo(Artifact::stderr)}}) {}
+  Command(string exe, vector<string> args) : _id(next_id++), _depth(0), _exe(exe), _args(args) {}
 
   // Disallow Copy
   Command(const Command&) = delete;

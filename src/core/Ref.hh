@@ -13,8 +13,9 @@ using std::shared_ptr;
 /// A reference to an artifact
 class Ref : public std::enable_shared_from_this<Ref> {
  private:
-  /// Create an anonymous copy of this reference
-  Ref(const Ref* other) :
+  /// Create an anonymous copy of this reference for use by a new command
+  Ref(shared_ptr<Command> command, const Ref* other) :
+      _command(command),
       _artifact(other->_artifact),
       _path(other->_path),
       _flags(other->_flags),
@@ -23,11 +24,12 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
  public:
   /// Create a reference without a path
-  Ref(int flags, bool executable) : _flags(flags), _executable(executable), _anonymous(true) {}
+  Ref(shared_ptr<Command> command, int flags, bool executable) :
+      _command(command), _flags(flags), _executable(executable), _anonymous(true) {}
 
   /// Create a reference with a path
-  Ref(string path, int flags, bool executable) :
-      _path(path), _flags(flags), _executable(executable), _anonymous(false) {}
+  Ref(shared_ptr<Command> command, string path, int flags, bool executable) :
+      _command(command), _path(path), _flags(flags), _executable(executable), _anonymous(false) {}
 
   // Disallow copy
   Ref& operator=(const Ref&) = delete;
@@ -51,7 +53,9 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Get the anonymous, inherited version of this reference. This is used by commands that
   /// reference an artifact that was opened by the parent command prior to calling exec.
-  shared_ptr<Ref> getInheritedRef() const { return shared_ptr<Ref>(new Ref(this)); }
+  shared_ptr<Ref> getInheritedRef(shared_ptr<Command> command) const {
+    return shared_ptr<Ref>(new Ref(command, this));
+  }
 
   /// Has this reference been resolved?
   bool isResolved() const { return _artifact.has_value(); }
@@ -111,6 +115,9 @@ class Ref : public std::enable_shared_from_this<Ref> {
   }
 
  private:
+  /// The command that made this reference
+  weak_ptr<Command> _command;
+
   /// The artifact this reference resolves to. This is optional because some references are
   /// path-only, and no attempt is made to resolve them. If there is an artifact pointer but it is
   /// not set, that means the reference failed to resolve.

@@ -374,7 +374,7 @@ void Tracer::Process::_execveat(int dfd, string filename) {
   // Post-exec handling is in Tracer::Process::handleExec()
   auto p = resolvePath(filename, dfd);
   _command->references(p);
-  
+
   resume();
 }
 
@@ -609,7 +609,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // Add the file to the file descriptor table
   _fds.erase(fd);
-  _fds.emplace(fd, make_shared<Ref>(f->getPath(), flags, false)->resolvesTo(f));
+  _fds.emplace(fd, make_shared<Ref>(_command, f->getPath(), flags, false)->resolvesTo(f));
 
   // Log creation and truncation interactions
   if (!file_existed) {
@@ -807,10 +807,10 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
   // Create the FD records
   _fds.erase(read_pipefd);
-  _fds.emplace(read_pipefd, make_shared<Ref>(flags | O_RDONLY, false)->resolvesTo(p));
+  _fds.emplace(read_pipefd, make_shared<Ref>(_command, flags | O_RDONLY, false)->resolvesTo(p));
 
   _fds.erase(write_pipefd);
-  _fds.emplace(write_pipefd, make_shared<Ref>(flags | O_WRONLY, false)->resolvesTo(p));
+  _fds.emplace(write_pipefd, make_shared<Ref>(_command, flags | O_WRONLY, false)->resolvesTo(p));
 
   p->createdBy(_command);
 }
@@ -870,33 +870,33 @@ void Tracer::Process::handleExec() {
     uintptr_t arg_ptr = readData(regs.rsp + (1 + i) * sizeof(long));
     args.push_back(readString(arg_ptr));
   }
-  
+
   // Get the executable file
   string exe = getExecutable();
 
   // Resume the child
   resume();
-  
+
   // TODO: does exec search in the current directory, or is filename always absolute?
   // Record the reference by the parent
   _command->references(exe);
 
   // Create the new command
   _command = _command->createChild(exe, args);
-  
+
   // Handle file descriptors. First, make a copy of the old descriptors and clear the map.
   map<int, shared_ptr<Ref>> old_fds = _fds;
   _fds.clear();
-  
+
   // Pull over references that are inherited by the new command
   for (auto& entry : old_fds) {
     if (entry.second->isInherited()) {
       // Get the new reference that is usable by the new command
-      auto ref = entry.second->getInheritedRef();
-      
+      auto ref = entry.second->getInheritedRef(_command);
+
       // Put this reference in the process file descriptor table
       _fds.emplace(entry.first, ref);
-      
+
       // Add this reference to the command's initial FDs
       _command->addInitialFD(entry.first, ref);
     }
@@ -939,13 +939,13 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
-  
+
   LOG << "fork called in " << p;
 
   // Create a new process running the same command
   auto new_proc = make_shared<Process>(*this, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
-  
+
   LOG << "new process " << new_proc;
 }
 
