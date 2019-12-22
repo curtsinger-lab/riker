@@ -20,7 +20,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
     static Flags fromOpen(int flags) {
       return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
               .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
-              .cloexec = (flags & O_CLOEXEC) == O_CLOEXEC,
               .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
               .truncate = (flags & O_TRUNC) == O_TRUNC,
               .create = (flags & O_CREAT) == O_CREAT,
@@ -44,7 +43,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
     friend ostream& operator<<(ostream& o, const Flags& f) {
       o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-');
-      if (f.cloexec) o << " cloexec";
       if (f.nofollow) o << " nofollow";
       return o;
     }
@@ -52,7 +50,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
     bool r = false;
     bool w = false;
     bool x = false;
-    bool cloexec = false;
     bool nofollow = false;
     bool truncate = false;
     bool create = false;
@@ -90,9 +87,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
     return shared_from_this();
   }
 
-  /// Is this reference inherited by child commands?
-  bool isInherited() const { return !_flags.cloexec; }
-
   /// Is this reference anonymous? True only if the command that made the reference did not use a
   /// path. This is the case for pipes, and for references inherited from parent commands.
   bool isAnonymous() const { return _anonymous; }
@@ -111,12 +105,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Is this reference executable?
   bool isExecutable() const { return _flags.x; }
-
-  /// Is this reference closed on exec?
-  bool isCloexec() const { return _flags.cloexec; }
-
-  /// Set the reference's cloexec status
-  void setCloexec(bool c) { _flags.cloexec = c; }
 
   /// Is this reference set up to create the artifact?
   bool canCreate() const { return _flags.create; }

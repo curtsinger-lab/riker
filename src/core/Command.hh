@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "core/Artifact.hh"
-#include "core/Path.hh"
 #include "core/Ref.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"

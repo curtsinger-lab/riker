@@ -57,10 +57,40 @@ class Tracer {
   shared_ptr<Artifact> getArtifact(path p, bool follow_links = true);
 
  private:
+  class FileDescriptor {
+   public:
+    /// Default constructor
+    FileDescriptor() = default;
+
+    /// Create an object to track a file descriptor
+    FileDescriptor(shared_ptr<Ref> ref, bool cloexec) : _ref(ref), _cloexec(cloexec) {}
+
+    /// Get the artifact reference this file descriptor holds
+    const shared_ptr<Ref>& getRef() { return _ref; }
+
+    /// Check if this file descriptor is closed on exec
+    bool isCloexec() const { return _cloexec; }
+
+    /// Change the cloexec flag for this descriptor
+    void setCloexec(bool c) { _cloexec = c; }
+
+    /// Print a file descriptor
+    friend ostream& operator<<(ostream& o, const FileDescriptor& fd) {
+      return o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
+    }
+
+   private:
+    /// The artifact reference used to create this file descriptor
+    shared_ptr<Ref> _ref;
+
+    /// Should this descriptor be closed on an exec call?
+    bool _cloexec;
+  };
+
   class Process {
    public:
     Process(Tracer& tracer, pid_t pid, path cwd, shared_ptr<Command> command,
-            map<int, shared_ptr<Ref>> fds = {}) :
+            map<int, FileDescriptor> fds = {}) :
         _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
     /// Called after this process finishes an exec call
@@ -201,7 +231,7 @@ class Tracer {
     string _cwd;
     string _root;
     set<shared_ptr<Artifact>> _mmaps;
-    map<int, shared_ptr<Ref>> _fds;
+    map<int, FileDescriptor> _fds;
   };
 
  private:
