@@ -128,8 +128,9 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Print this artifact reference
   friend ostream& operator<<(ostream& o, const Ref& ref) {
-    if (ref.hasPath()) o << ref.getPath() << (ref._anonymous ? " (anonymous) " : " ");
     o << ref._flags;
+    if (ref._anonymous) o << " (anon)";
+    if (ref.hasPath()) o << " " << ref.getPath();
     if (ref.isResolved()) o << " -> " << ref.getArtifact();
     return o;
   }

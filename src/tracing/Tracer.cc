@@ -284,10 +284,7 @@ void Tracer::Process::_close(int fd) {
   // Resume the process
   resume();
 
-  auto iter = _fds.find(fd);
-  if (iter != _fds.end()) {
-    LOG << _command << " closed " << iter->second;
-  }
+  _fds.erase(fd);
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
