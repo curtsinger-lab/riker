@@ -284,6 +284,7 @@ void Tracer::Process::_close(int fd) {
   // Resume the process
   resume();
 
+  // Remove the file descriptor
   _fds.erase(fd);
 }
 

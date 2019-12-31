@@ -5,14 +5,13 @@
 
 #include <fcntl.h>
 
-using std::make_shared;
-using std::nullopt;
 using std::optional;
 using std::shared_ptr;
+using std::weak_ptr;
 
 /// A reference to an artifact
 class Ref : public std::enable_shared_from_this<Ref> {
-  /// Only Commands can create Ref instances
+  // Only Commands can create Ref instances
   friend class Command;
 
  public:
@@ -38,16 +37,26 @@ class Ref : public std::enable_shared_from_this<Ref> {
     }
 
     /// Create a Flags instance from the flags parameter to the stat syscall
-    static Flags fromStat(int flags) { return fromAccess(0, flags); }
+    static Flags fromStat(int flags) {
+      return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
+    }
 
     /// Create a Flags instance from the flags parameter to the chown syscall
-    static Flags fromChown(int flags) { return fromAccess(0, flags); }
+    static Flags fromChown(int flags) {
+      return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
+    }
 
     /// Create a Flags instance from the flags parameter to the chmod syscall
-    static Flags fromChmod(int flags) { return fromAccess(0, flags); }
+    static Flags fromChmod(int flags) {
+      return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
+    }
 
     /// Create a Flags instance from the flags parameter to the unlink syscall
-    static Flags fromUnlink(int flags) { return fromAccess(0, flags); }
+    static Flags fromUnlink(int flags) {
+      return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW,
+              .unlink = true,
+              .exclusive = true};
+    }
 
     /// Print a Flags instance
     friend ostream& operator<<(ostream& o, const Flags& f) {
@@ -71,10 +80,13 @@ class Ref : public std::enable_shared_from_this<Ref> {
     /// Does the reference truncate the file when resolved?
     bool truncate = false;
 
-    /// Does the reference create the file when resolved? May be as-needed, or required (see below)
+    /// Does the reference create an artifact?
     bool create = false;
 
-    /// Is the reference *required* to create the file when resolved?
+    /// Does the reference unlink an artifact?
+    bool unlink = false;
+
+    /// Does this reference require creation/deletion?
     bool exclusive = false;
   };
 
@@ -166,7 +178,7 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// The artifact this reference resolves to, if it has been resolved.
   optional<shared_ptr<Artifact>> _artifact;
-  
+
   /// The path to the artifact. This will be set for any artifact that has a path, even if it is an
   /// anonymous reference (e.g. a file opened before an exec call).
   optional<string> _path;
