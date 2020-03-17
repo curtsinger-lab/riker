@@ -31,8 +31,8 @@ struct dodo_options {
   // Color log output by defaulz
   bool color_output = true;
 
-  // Do not display source locations with log messages
-  bool log_source_locations = false;
+  // Should we display extra debug information on errors?
+  bool debug = false;
 };
 
 // A single opts struct is defined and populated in driver.cc

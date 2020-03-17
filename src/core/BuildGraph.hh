@@ -1,30 +1,28 @@
 #pragma once
 
-#include <cstddef>
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
-#include "core/FileDescriptor.hh"
+#include "core/Artifact.hh"
+#include "ui/options.hh"
 
 class Command;
-class File;
-class Serializer;
+class Graphviz;
 class Tracer;
 
 using std::list;
 using std::map;
-using std::shared_ptr;
 using std::string;
-using std::vector;
+using std::unique_ptr;
 
 class BuildGraph {
  public:
   /****** Constructors ******/
+  BuildGraph() {}
 
-  BuildGraph(string starting_dir);
+  BuildGraph(string executable, vector<string> arguments);
 
   // Disallow Copy
   BuildGraph(const BuildGraph&) = delete;
@@ -36,31 +34,14 @@ class BuildGraph {
 
   /****** Non-trivial methods ******/
 
+  bool load(string filename);
+
   void run(Tracer& tracer);
 
-  void serialize(Serializer& serializer);
+  void prune();
 
-  /****** Getters and setters ******/
-
-  void setRootCommand(shared_ptr<Command> cmd) { _root = cmd; }
-
-  string getStartingDir() { return _starting_dir; }
-
-  shared_ptr<File> getLatestVersion(size_t index) const { return _latest_versions[index]; }
-  void setLatestVersion(size_t index, shared_ptr<File> f) { _latest_versions[index] = f; }
-
-  void addFile(shared_ptr<File> f) { _files.emplace_front(f); }
-
-  shared_ptr<File> getFile(string path);
-
-  shared_ptr<File> getPipe(shared_ptr<Command> creator);
-
-  map<int, FileDescriptor> getDefaultFds() const { return _default_fds; }
+  void drawGraph(Graphviz& g);
 
  private:
-  string _starting_dir;
   shared_ptr<Command> _root;
-  vector<shared_ptr<File>> _latest_versions;
-  list<shared_ptr<File>> _files;
-  map<int, FileDescriptor> _default_fds;
 };

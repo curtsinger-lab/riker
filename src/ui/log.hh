@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <utility>
 
@@ -33,7 +34,7 @@ class logger {
     // Only log things if they're at or above our log threshold
     if (_level >= options.log_threshold) {
       // Print source information, if enabled
-      if (options.log_source_locations) {
+      if (options.debug) {
         if (options.color_output) cerr << COLOR_SOURCE;
         cerr << "[" << source_file << ":" << source_line << "] ";
       }
@@ -68,7 +69,13 @@ class logger {
       }
 
       // If this log is a fatal
-      if (_level == LogLevel::Fatal) exit(2);
+      if (_level == LogLevel::Fatal) {
+        // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
+        if (options.debug)
+          abort();
+        else
+          exit(2);
+      }
     }
   }
 

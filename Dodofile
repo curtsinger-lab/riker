@@ -1,2 +1,2 @@
 #!/bin/sh
-make --always-make
+make -j --always-make

@@ -1,20 +1,20 @@
 CC  = clang
 CXX = clang++
-COMMON_CFLAGS = -Isrc -Wall -g -flto -Wfatal-errors
-CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -lcapnp -lkj -flto
 
-DB := src/db/db.capnp
-SRCS := $(DB).cc $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
+COMMON_CFLAGS = -Isrc -Icereal/include -Wall -g -flto -Wfatal-errors
+CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
+LDFLAGS = -flto -lstdc++fs
+
+SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
-HEADERS := $(DB).h $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
+HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
 IWYU := iwyu 
 IWYUFLAGS := -Xiwyu --mapping_file=.iwyu-mappings \
              -Isrc \
              -isystem /usr/include/c++/8/ \
              -isystem /usr/lib/llvm-8/lib/clang/8.0.0/include/
-IWYU_SKIP := $(DB)% src/fingerprint/%
+IWYU_SKIP := src/fingerprint/%
 IWYU_SRCS := $(filter-out $(IWYU_SKIP), $(SRCS))
 
 TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile ABbuild
@@ -22,7 +22,7 @@ TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofi
 all: dodo
 	
 clean:
-	rm -rf dodo objs db.dodo $(DB).cc $(DB).h
+	rm -rf dodo objs db.dodo
 
 .PHONY: all clean iwyu test selftest
 
@@ -30,12 +30,8 @@ clean:
 
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
-
-src/%.capnp.cc src/%.capnp.h: src/%.capnp
-	capnpc --output=c++ $<
-	mv $(addsuffix .c++, $<) $(addsuffix .cc, $<)
-
-$(OBJS): objs/%.o: src/%.cc $(HEADERS) $(wildcard src/*.capnp)
+	
+$(OBJS): objs/%.o: src/%.cc $(HEADERS)
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 

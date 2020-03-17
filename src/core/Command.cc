@@ -1,87 +1,109 @@
 #include "core/Command.hh"
 
-#include <cstdint>
-#include <utility>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <fcntl.h>
-#include <sys/stat.h>
+#include "core/Artifact.hh"
+#include "core/Ref.hh"
+#include "tracing/Tracer.hh"
+#include "ui/Graphviz.hh"
+#include "ui/log.hh"
+#include "ui/options.hh"
 
-#include <capnp/list.h>
-
-#include "core/File.hh"
-#include "core/FileDescriptor.hh"
-#include "db/Serializer.hh"
-
-using std::list;
+using std::map;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
-shared_ptr<Command> Command::createChild(string cmd, const list<string>& args) {
-  shared_ptr<Command> child(new Command(cmd, args, shared_from_this()));
-  _children.push_back(child);
+size_t Command::next_id = 0;
+
+string Command::getShortName() const {
+  auto base = _exe;
+  if (_args.size() > 0) base = _args.front();
+
+  auto pos = base.rfind('/');
+  if (pos == string::npos) {
+    return base;
+  } else {
+    return base.substr(pos + 1);
+  }
+}
+
+string Command::getFullName() const {
+  string result;
+  for (const string& arg : _args) {
+    result += arg + " ";
+  }
+  return result;
+}
+
+shared_ptr<Command> Command::createChild(string exe, vector<string> args) {
+  _children.emplace_back(new Command(exe, args, shared_from_this()));
+  auto child = _children.back();
+
+  INFO << this << " starting child " << child;
+  if (args.size() > 0) {
+    LOG << "  " << exe << " (" << args.front() << ")";
+  } else {
+    LOG << "  " << exe;
+  }
+
+  bool first = true;
+  for (auto& arg : args) {
+    if (!first) LOG << "    " << arg;
+    first = false;
+  }
+
   return child;
 }
 
-void Command::traceCreate(shared_ptr<File> f) {
-  if (f->isCreated() && !f->isWritten()) {
-    bool file_exists;
-    if (f->isRemoved() || f->isPipe()) {
-      file_exists = false;
+bool Command::addInput(Artifact::VersionRef f) {
+  if (_inputs.find(f) != _inputs.end()) return false;
+  _inputs.insert(f);
+  return true;
+}
+
+bool Command::addOutput(Artifact::VersionRef f) {
+  if (_outputs.find(f) != _outputs.end()) return false;
+  _outputs.insert(f);
+  return true;
+}
+
+void Command::run(Tracer& tracer) {
+  tracer.run(shared_from_this());
+}
+
+bool Command::prune() {
+  // Recursively prune in child commands, potentially removing the whole command
+  for (auto iter = _children.begin(); iter != _children.end();) {
+    auto& child = *iter;
+    if (child->prune()) {
+      iter = _children.erase(iter);
     } else {
-      struct stat stat_info;
-      file_exists = (lstat(f->getPath().c_str(), &stat_info) == 0);
-    }
-
-    if (!file_exists) {
-      f->createVersion(shared_from_this());
+      ++iter;
     }
   }
+
+  // If this command has no children and no outputs, we can prune it
+  return _outputs.size() == 0 && _children.size() == 0;
 }
 
-uint64_t Command::numDescendants() {
-  uint64_t ret = 0;
-  for (auto c : getChildren()) {
-    ret += 1 + c->numDescendants();
-  }
-  return ret;
-}
-
-void Command::serialize(const Serializer& serializer, db::Command::Builder builder) {
-  builder.setExecutable(_cmd);
-  builder.setOutOfDate(false);
-
-  auto args_output = builder.initArgv(_args.size());
-  size_t args_index = 0;
-  for (auto arg : _args) {
-    args_output.set(args_index, arg);
-    args_index++;
-  }
-
-  size_t initial_fd_count = 0;
-  for (auto iter : _initial_fds) {
-    if (serializer.hasFile(iter.second.file)) {
-      initial_fd_count++;
+void Command::drawGraph(Graphviz& g) {
+  g.addCommand(shared_from_this());
+  for (auto f : _inputs) {
+    if (!f.getArtifact()->isSystemFile() || options.show_sysfiles) {
+      g.addInputEdge(f, shared_from_this());
     }
   }
-
-  auto initial_fds_output = builder.initInitialFDs(initial_fd_count);
-
-  size_t initial_fd_index = 0;
-  for (auto iter : _initial_fds) {
-    if (serializer.hasFile(iter.second.file)) {
-      auto output = initial_fds_output[initial_fd_index];
-      initial_fd_index++;
-
-      output.setFd(iter.first);
-      output.setFileID(serializer.getFileIndex(iter.second.file));
-      output.setCanRead(iter.second.access_mode != O_WRONLY);
-      output.setCanWrite(iter.second.access_mode != O_RDONLY);
+  for (auto f : _outputs) {
+    if (!f.getArtifact()->isSystemFile() || options.show_sysfiles) {
+      g.addOutputEdge(shared_from_this(), f);
     }
   }
-
-  // This relies on the order of commands within the graph file.
-  // Every command must be followed by all of its descendants.
-  // This is true because of the implementation of Serializer::addCommand, but splitting the logic
-  // up across these two files seems risky.
-  builder.setDescendants(numDescendants());
+  for (auto& c : _children) {
+    c->drawGraph(g);
+    g.addCommandEdge(shared_from_this(), c);
+  }
 }

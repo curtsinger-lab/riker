@@ -10,6 +10,3 @@ Update the build
 Verify the output is correct
   $ cat myfile
   hello frodo
-
-SKIP! This test does not work.
-  $ exit 80
