@@ -306,7 +306,7 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
   auto f = descriptor->getArtifact();
   bool writable = prot & PROT_WRITE;
   // The mapping is only writable if the file was also open in writable mode
-  writable &= descriptor->isWritable();
+  writable &= descriptor->getFlags().w;
 
   // Record the mmap
   f->mappedBy(_command, writable);

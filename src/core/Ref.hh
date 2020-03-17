@@ -101,10 +101,11 @@ class Ref : public std::enable_shared_from_this<Ref> {
   /// Create an anonymous copy of this reference for use by a new command
   Ref(shared_ptr<Command> command, shared_ptr<Ref> other) :
       _command(command),
-      _artifact(other->_artifact),
       _path(other->_path),
       _flags(other->_flags),
-      _anonymous(true) {}
+      _anonymous(true),
+      _artifact(other->_artifact),
+      _failed(other->_failed) {}
 
  public:
   // Disallow copy
@@ -120,36 +121,19 @@ class Ref : public std::enable_shared_from_this<Ref> {
     _artifact = p;
     return shared_from_this();
   }
+  
+  /// Record that this reference failed
+  void failed() { _failed = false; }
 
   /// Is this reference anonymous? True only if the command that made the reference did not use a
   /// path. This is the case for pipes, and for references inherited from parent commands.
   bool isAnonymous() const { return _anonymous; }
 
   /// Has this reference been resolved?
-  bool isResolved() const { return _artifact.has_value(); }
+  bool isResolved() const { return _artifact != nullptr; }
 
   /// What artifact does this reference resolve to?
-  shared_ptr<Artifact> getArtifact() const { return _artifact.value(); }
-
-  /// Is this reference readable?
-  bool isReadable() const { return _flags.r; }
-
-  /// Is this reference writable?
-  bool isWritable() const { return _flags.w; }
-
-  /// Is this reference executable?
-  bool isExecutable() const { return _flags.x; }
-
-  /// Is this reference set up to create the artifact?
-  bool canCreate() const { return _flags.create; }
-
-  bool isExclusive() const { return _flags.exclusive; }
-
-  /// Is this reference required to create the artifact?
-  bool mustCreate() const { return canCreate() && isExclusive(); }
-
-  /// Does this reference not follow links?
-  bool isNoFollow() const { return _flags.nofollow; }
+  shared_ptr<Artifact> getArtifact() const { return _artifact; }
 
   /// Get the open() flags for this reference
   const Flags& getFlags() const { return _flags; }
@@ -176,9 +160,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
   /// The command that made this reference
   weak_ptr<Command> _command;
 
-  /// The artifact this reference resolves to, if it has been resolved.
-  optional<shared_ptr<Artifact>> _artifact;
-
   /// The path to the artifact. This will be set for any artifact that has a path, even if it is an
   /// anonymous reference (e.g. a file opened before an exec call).
   optional<string> _path;
@@ -189,4 +170,13 @@ class Ref : public std::enable_shared_from_this<Ref> {
   /// Is this reference made without naming the path to the artifact?
   /// This will be true for pipes, and for reference inherited from parent commands.
   bool _anonymous;
+  
+  /// The artifact this reference resolves to. May be null if the reference is unresolved or fails.
+  shared_ptr<Artifact> _artifact;
+  
+  /// When the command made this reference, did it fail?
+  bool _failed = false;
+  
+  /// Artifact versions that were read through this reference
+  
 };
