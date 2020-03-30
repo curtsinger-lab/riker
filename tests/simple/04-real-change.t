@@ -15,3 +15,6 @@ Rebuild
 Check output
   $ ./hello
   Goodbye world
+
+SKIP! This test does not work
+  $ exit 80

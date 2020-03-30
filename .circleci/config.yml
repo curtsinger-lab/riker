@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: circleci/buildpack-deps:disco
 jobs:
   all:
     executor: default
@@ -21,6 +21,9 @@ jobs:
       - run: dot -Tpdf self-build.dot > self-build.pdf
       - store_artifacts:
           path: self-build.pdf
+      - run: dot -Tsvg self-build.dot > self-build.svg
+      - store_artifacts:
+          path: self-build.svg
       - run: make test
 
 workflows:
