@@ -143,6 +143,18 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Get the path for this reference
   string getPath() const { return _path.value(); }
+  
+  /// Check if this is a reference to a system file
+  bool isSystemPath() {
+    if (!_path.has_value()) return false;
+    string path = _path.value();
+    for (auto p : {"/usr", "/lib", "/etc", "/dev", "/proc", "/bin"}) {
+      // Check if the path begins with one of our prefixes.
+      // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
+      if (path.rfind(p, 0) != string::npos) return true;
+    }
+    return false;
+  }
 
   /// Print this artifact reference
   friend ostream& operator<<(ostream& o, const Ref& ref) {

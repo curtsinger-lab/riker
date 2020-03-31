@@ -133,7 +133,9 @@ class Command : public std::enable_shared_from_this<Command> {
   void show() const {
     WARN << this;
     for (auto& r : _references) {
-      WARN << "  " << r;
+      if (!r->isSystemPath()) {
+        WARN << "  " << r;
+      }
     }
   }
 
