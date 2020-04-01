@@ -1077,10 +1077,6 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
       p->_getdents(regs.SYSCALL_ARG1);
       break;
 
-    case __NR_getcwd:
-      p->_getcwd();
-      break;
-
     case __NR_chdir:
       p->_chdir(p->readString(regs.SYSCALL_ARG1));
       break;
