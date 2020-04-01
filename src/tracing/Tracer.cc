@@ -446,11 +446,6 @@ void Tracer::Process::_ftruncate(int fd, long length) {
   resume();
 }
 
-void Tracer::Process::_getcwd() {
-  WARN << _pid << " calls getcwd";
-  resume();
-}
-
 void Tracer::Process::_chdir(string filename) {
   int rc = finishSyscall();
   resume();
