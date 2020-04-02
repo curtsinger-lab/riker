@@ -1,0 +1,9 @@
+{
+  "C_Cpp.intelliSenseEngineFallback": "Enabled",
+  "files.associations": {
+    "memory": "cpp",
+    "vector": "cpp",
+    "filesystem": "cpp",
+    "iosfwd": "cpp"
+  }
+}
