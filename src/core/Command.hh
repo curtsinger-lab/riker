@@ -6,9 +6,12 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "core/Action.hh"
 #include "core/Artifact.hh"
+#include "core/Predicate.hh"
 #include "core/Ref.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -22,6 +25,7 @@ using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::variant;
 using std::vector;
 using std::weak_ptr;
 
@@ -32,6 +36,8 @@ using std::weak_ptr;
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
+  using Step = variant<shared_ptr<Ref>, shared_ptr<Predicate>, shared_ptr<Action>>;
+
  private:
   /**
    * Create a new command with a specified parent. This constructor is private, and is used only by
@@ -132,14 +138,45 @@ class Command : public std::enable_shared_from_this<Command> {
 
   void show() const {
     WARN << this;
-    for (auto& r : _references) {
-      if (!r->isSystemPath()) {
-        WARN << "  " << r;
+    for (auto& s : _steps) {
+      if (std::holds_alternative<shared_ptr<Ref>>(s)) {
+        WARN << "  " << std::get<shared_ptr<Ref>>(s);
+      } else if (std::holds_alternative<shared_ptr<Predicate>>(s)) {
+        WARN << "  " << std::get<shared_ptr<Predicate>>(s);
+      } else if (std::holds_alternative<shared_ptr<Action>>(s)) {
+        WARN << "  " << std::get<shared_ptr<Action>>(s);
       }
     }
   }
 
   ~Command() { show(); }
+
+  /********* New methods and types for command tracking **********/
+
+  /// The command accesses an artifact by path.
+  /// This function returns a shared_ptr<Ref>, 
+  /// Most access() calls will *not* have side-effects, but some will:
+  ///  - O_CREAT was specified, and the file did not exist before this call
+  ///  - O_TRUNC was specified, and the file existed before this call
+  shared_ptr<Ref> access(string path, Ref::Flags flags, shared_ptr<Artifact> f = shared_ptr<Artifact>()) {
+    shared_ptr<Ref> r(new Ref(shared_from_this(), path, flags));
+    r->resolvesTo(f);
+    
+    // TODO: if f exists and O_TRUNC is set in flags, this access creates a new version of the file
+
+    _steps.push_back(r);
+    return r;
+  }
+
+  /// This command requires that a reference resolves to an artifact without failure
+  void isOK(shared_ptr<Ref> ref) {
+    _steps.push_back(make_shared<Predicate::IsOK>(ref));
+  }
+
+  /// This command requires that a reference fails to resolve with a specific error
+  void isError(shared_ptr<Ref> ref, int err) {
+    _steps.push_back(make_shared<Predicate::IsError>(ref, err));
+  }
 
  private:
   /// A unique ID assigned to this command for log readability
@@ -171,6 +208,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// All of this command's references
   list<shared_ptr<Ref>> _references;
+
+  /// The steps performed by this command
+  list<Step> _steps;
 
   /// A static counter used to assign command IDs
   static size_t next_id;

@@ -19,6 +19,9 @@ using std::vector;
 
 size_t Command::next_id = 0;
 
+// TODO: This is gross. Move it somewhere better or get rid of it.
+size_t Ref::next_id = 0;
+
 string Command::getShortName() const {
   auto base = _exe;
   if (_args.size() > 0) base = _args.front();

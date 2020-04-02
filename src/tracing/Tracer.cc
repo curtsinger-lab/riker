@@ -114,15 +114,15 @@ void Tracer::run(shared_ptr<Command> cmd) {
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
-        // Stopped on entry to a fork call
+        // TODO: Is this called in the child just after fork()?
         handleFork(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-        // Stopped on completion of an exec call
+        // TODO: Is this called before or after exec?
         p->handleExec();
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
-        // Stopped on entry to a clone call
+        // TODO: Is this called in the child just after clone()?
         auto regs = p->getRegisters();
         handleClone(p, regs.SYSCALL_ARG1);
 
@@ -367,12 +367,24 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
 }
 
 void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
-  WARN << "faccessat syscall is not updated";
-  
+  // Generate a normalized absolute path from pathname and dirfd
   auto p = resolvePath(pathname, dirfd);
-  _command->addReference(p, Ref::Flags::fromAccess(mode, flags));
 
+  // Record the command's access to this path with the given flags
+  auto ref = _command->access(p, Ref::Flags::fromAccess(mode, flags));
+
+  // Finish the syscall so we can see its result
+  int rc = finishSyscall();
+
+  // Resume the process' execution
   resume();
+
+  // Did the access() call succeed?
+  if (rc == 0) {
+    _command->isOK(ref);
+  } else {
+    _command->isError(ref, rc);
+  }
 }
 
 void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
@@ -626,41 +638,43 @@ void Tracer::Process::_lgetxattr(string pathname) {
 }
 
 void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) {
-  WARN << "openat syscall is not updated";
-  
+  // Convert the path to an absolute, normalized lexical form
   auto p = resolvePath(filename, dfd);
+
+  // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
+  // modify the artifact directly. Try to resolve the path now.
   auto f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
-  bool file_existed = f != nullptr;
 
-  // Record the reference
-  auto ref = _command->addReference(p, Ref::Flags::fromOpen(flags));
+  // The command makes a reference to a path, possibly modifying artifact f
+  auto ref = _command->access(p, Ref::Flags::fromOpen(flags), f);
 
-  // Run the syscall and save the resulting fd
+  // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
 
   // Let the process continue
   resume();
 
-  // If the syscall failed, bail out
-  if (fd < 0) return;
+  // Check whether the openat call succeeded or failed
+  if (fd >= 0) {
+    // If the artifact did not already exist, but the syscall succeeded, there is now an artifact
+    // we can resolve to. Get it.
+    if (!f) {
+      f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
 
-  // Get the process and file
-  if (!file_existed) f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
+      // Record that this reference resolved to f
+      ref->resolvesTo(f);
+    }
 
-  // Resolve the reference
-  ref->resolvesTo(f);
+    // The command observed a successful openat, so add this predicate to the command log
+    _command->isOK(ref);
 
-  // Add the file to the file descriptor table
-  _fds[fd] = FileDescriptor(ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+    // Record the reference in the correct location in this process' file descriptor table
+    _fds[fd] = FileDescriptor(ref, (flags & O_CLOEXEC) == O_CLOEXEC);
 
-  // Log creation and truncation interactions
-  if (!file_existed) {
-    f->createdBy(_command);
-  } else if (flags & O_TRUNC) {
-    f->truncatedBy(_command);
+  } else {
+    // The command observed a failed openat, so add the error predicate to the command log
+    _command->isError(ref, fd);
   }
-
-  // Read and write interactions are added later, when the process actually reads or writes
 
   LOG << _command << " opened " << f << " with path " << filename << ", which resolved to " << p;
 }

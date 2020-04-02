@@ -118,6 +118,7 @@ class Tracer {
     uintptr_t readData(uintptr_t tracee_pointer);
 
     /// Resolve and normalize a path
+    /// Returns an absolute path
     path resolvePath(path p, int at = AT_FDCWD);
 
     /// Print a process to an output stream

@@ -92,11 +92,12 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
  private:
   /// Create a reference without a path
-  Ref(shared_ptr<Command> cmd, Flags flags) : _command(cmd), _flags(flags), _anonymous(true) {}
+  Ref(shared_ptr<Command> cmd, Flags flags) : 
+      _id(next_id++), _command(cmd), _flags(flags), _anonymous(true) {}
 
   /// Create a reference with a path
   Ref(shared_ptr<Command> cmd, string path, Flags flags) :
-      _command(cmd), _path(path), _flags(flags), _anonymous(false) {}
+      _id(next_id++), _command(cmd), _path(path), _flags(flags), _anonymous(false) {}
 
   /// Create an anonymous copy of this reference for use by a new command
   Ref(shared_ptr<Command> command, shared_ptr<Ref> other) :
@@ -156,19 +157,25 @@ class Ref : public std::enable_shared_from_this<Ref> {
     return false;
   }
 
+  int getID() const { return _id; }
+
   /// Print this artifact reference
   friend ostream& operator<<(ostream& o, const Ref& ref) {
-    o << ref._flags;
+    return o << "r" << ref._id << " = ACCESS(" << ref._path.value_or("(anon)") << ", " << ref._flags << ")";
+    /*o << ref._flags;
     if (ref._anonymous) o << " (anon)";
     if (ref.hasPath()) o << " " << ref.getPath();
     if (ref.isResolved()) o << " -> " << ref.getArtifact();
-    return o;
+    return o;*/
   }
 
   // Print a Ref*
   friend ostream& operator<<(ostream& o, const Ref* ref) { return o << *ref; }
 
  private:
+  /// A unique identifier to improve readability when displaying this reference
+  size_t _id;
+
   /// The command that made this reference
   weak_ptr<Command> _command;
 
@@ -191,4 +198,6 @@ class Ref : public std::enable_shared_from_this<Ref> {
   
   /// Artifact versions that were read through this reference
   
+  /// A static global for tracking unique IDs for references
+  static size_t next_id;
 };
