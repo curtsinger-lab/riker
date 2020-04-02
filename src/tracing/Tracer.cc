@@ -241,7 +241,7 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
 void Tracer::Process::_read(int fd) {
-  FAIL << "read syscall is not updated";
+  WARN << "read syscall is not updated";
   
   // Get the process and file
   auto f = _fds[fd].getRef()->getArtifact();
@@ -263,7 +263,7 @@ void Tracer::Process::_read(int fd) {
 }
 
 void Tracer::Process::_write(int fd) {
-  FAIL << "write syscall is not updated";
+  WARN << "write syscall is not updated";
   
   // Get the process and file
   auto f = _fds[fd].getRef()->getArtifact();
@@ -283,7 +283,7 @@ void Tracer::Process::_write(int fd) {
 }
 
 void Tracer::Process::_close(int fd) {
-  FAIL << "close syscall is not updated";
+  WARN << "close syscall is not updated";
   
   // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is harmless
 
@@ -295,7 +295,7 @@ void Tracer::Process::_close(int fd) {
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
-  FAIL << "mmap syscall is not updated";
+  WARN << "mmap syscall is not updated";
   
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
@@ -324,7 +324,7 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
 }
 
 int Tracer::Process::_dup(int fd) {
-  FAIL << "dup syscall is not updated";
+  WARN << "dup syscall is not updated";
   
   // Finish the syscall to get the new file descriptor, then resume the process
   int newfd = finishSyscall();
@@ -345,7 +345,7 @@ int Tracer::Process::_dup(int fd) {
 }
 
 void Tracer::Process::_sendfile(int out_fd, int in_fd) {
-  FAIL << "sendfile syscall is not updated";
+  WARN << "sendfile syscall is not updated";
   
   // As with _write above, we may have to fingerprint the output file, although we won't know until
   // after the syscall (it could fail).
@@ -367,7 +367,7 @@ void Tracer::Process::_sendfile(int out_fd, int in_fd) {
 }
 
 void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
-  FAIL << "faccessat syscall is not updated";
+  WARN << "faccessat syscall is not updated";
   
   auto p = resolvePath(pathname, dirfd);
   _command->addReference(p, Ref::Flags::fromAccess(mode, flags));
@@ -376,7 +376,7 @@ void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags
 }
 
 void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
-  FAIL << "fstatat syscall is not updated";
+  WARN << "fstatat syscall is not updated";
   
   // Statting an existing file descriptor doesn't create a new reference
   if ((flags & AT_EMPTY_PATH) == 0) {
@@ -388,7 +388,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
 }
 
 void Tracer::Process::_execveat(int dfd, string filename) {
-  FAIL << "execveat syscall is not updated";
+  WARN << "execveat syscall is not updated";
   
   // This corresponds to entry to the execve system call
   // Unlike other system call functions, we should not call finishSyscall() here.
@@ -400,7 +400,7 @@ void Tracer::Process::_execveat(int dfd, string filename) {
 }
 
 void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
-  FAIL << "fcntl syscall is not updated";
+  WARN << "fcntl syscall is not updated";
   
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
@@ -424,7 +424,7 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
 }
 
 void Tracer::Process::_truncate(string pathname, long length) {
-  FAIL << "truncate syscall is not updated";
+  WARN << "truncate syscall is not updated";
   
   // Get the file
   auto p = resolvePath(pathname);
@@ -456,7 +456,7 @@ void Tracer::Process::_truncate(string pathname, long length) {
 }
 
 void Tracer::Process::_ftruncate(int fd, long length) {
-  FAIL << "ftruncate syscall is not updated";
+  WARN << "ftruncate syscall is not updated";
   
   auto f = _fds[fd].getRef()->getArtifact();
 
@@ -471,7 +471,7 @@ void Tracer::Process::_ftruncate(int fd, long length) {
 }
 
 void Tracer::Process::_chdir(string filename) {
-  FAIL << "chdir syscall is not updated";
+  WARN << "chdir syscall is not updated";
   
   int rc = finishSyscall();
   resume();
@@ -490,7 +490,7 @@ void Tracer::Process::_chdir(string filename) {
 }
 
 void Tracer::Process::_fchdir(int fd) {
-  FAIL << "fchdir syscall is not updated";
+  WARN << "fchdir syscall is not updated";
   
   int rc = finishSyscall();
   resume();
@@ -503,7 +503,7 @@ void Tracer::Process::_fchdir(int fd) {
 }
 
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
-  FAIL << "lchown syscall is not updated";
+  WARN << "lchown syscall is not updated";
   
   // Resolve the path without following links, then get the file tracking object
   auto p = resolvePath(filename);
@@ -527,7 +527,7 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
 }
 
 void Tracer::Process::_chroot(string filename) {
-  FAIL << "chroot is not updated";
+  WARN << "chroot is not updated";
 
   auto p = resolvePath(filename);
   auto f = _tracer.getArtifact(p);
@@ -550,7 +550,7 @@ void Tracer::Process::_chroot(string filename) {
 }
 
 void Tracer::Process::_setxattr(string pathname) {
-  FAIL << "setxattr syscall is not updated";
+  WARN << "setxattr syscall is not updated";
   
   // Get the process and file
   auto p = resolvePath(pathname);
@@ -570,7 +570,7 @@ void Tracer::Process::_setxattr(string pathname) {
 }
 
 void Tracer::Process::_lsetxattr(string pathname) {
-  FAIL << "lsetxattr syscall is not updated";
+  WARN << "lsetxattr syscall is not updated";
   
   // Get the process and file
   // Same as setxattr, except we do not follow links
@@ -591,7 +591,7 @@ void Tracer::Process::_lsetxattr(string pathname) {
 }
 
 void Tracer::Process::_getxattr(string pathname) {
-  FAIL << "getxattr syscall is not updated";
+  WARN << "getxattr syscall is not updated";
   
   // Get the process and file
   auto p = resolvePath(pathname);
@@ -608,7 +608,7 @@ void Tracer::Process::_getxattr(string pathname) {
 }
 
 void Tracer::Process::_lgetxattr(string pathname) {
-  FAIL << "lgetxattr syscall is not updated";
+  WARN << "lgetxattr syscall is not updated";
   
   // Get the process and file
   // Same as getxattr, except we don't follow links
@@ -626,7 +626,7 @@ void Tracer::Process::_lgetxattr(string pathname) {
 }
 
 void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) {
-  FAIL << "openat syscall is not updated";
+  WARN << "openat syscall is not updated";
   
   auto p = resolvePath(filename, dfd);
   auto f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
@@ -666,7 +666,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
-  FAIL << "mkdirat syscall is not updated";
+  WARN << "mkdirat syscall is not updated";
   
   auto p = resolvePath(pathname, dfd);
   auto f = _tracer.getArtifact(p);
@@ -692,7 +692,7 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
 }
 
 void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
-  FAIL << "mknodat syscall is not updated";
+  WARN << "mknodat syscall is not updated";
   
   // TODO: What kind of node is this? Need to handle device, files, FIFOs, etc.
   // TODO: Probably also need to set creat/excl flags in reference
@@ -713,7 +713,7 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) {
-  FAIL << "fchownat syscall is not updated";
+  WARN << "fchownat syscall is not updated";
   
   shared_ptr<Artifact> f;
 
@@ -747,7 +747,7 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 }
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flags) {
-  FAIL << "unlinkat syscall is not updated";
+  WARN << "unlinkat syscall is not updated";
   
   auto p = resolvePath(pathname, dfd);
   auto f = _tracer.getArtifact(p);
@@ -764,7 +764,7 @@ void Tracer::Process::_unlinkat(int dfd, string pathname, int flags) {
 }
 
 void Tracer::Process::_symlinkat(string oldname, int newdfd, string newname) {
-  FAIL << "symlinkat syscall is not updated";
+  WARN << "symlinkat syscall is not updated";
   
   // Creating a symlink doesn't actually do anything with the target (oldname)
   auto newp = resolvePath(newname, newdfd);
@@ -778,7 +778,7 @@ void Tracer::Process::_symlinkat(string oldname, int newdfd, string newname) {
 }
 
 void Tracer::Process::_readlinkat(int dfd, string pathname) {
-  FAIL << "readlinkat syscall is not updated";
+  WARN << "readlinkat syscall is not updated";
   
   auto p = resolvePath(pathname, dfd);
   _command->addReference(p, {.nofollow = true});
@@ -788,7 +788,7 @@ void Tracer::Process::_readlinkat(int dfd, string pathname) {
 }
 
 void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
-  FAIL << "fchmodat syscall is not updated";
+  WARN << "fchmodat syscall is not updated";
   
   // Find the file object
   auto p = resolvePath(filename, dfd);
@@ -812,7 +812,7 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
 }
 
 void Tracer::Process::_tee(int fd_in, int fd_out) {
-  FAIL << "tee syscall is not updated";
+  WARN << "tee syscall is not updated";
   
   auto input_f = _fds[fd_in].getRef()->getArtifact();
   auto output_f = _fds[fd_out].getRef()->getArtifact();
@@ -839,7 +839,7 @@ void Tracer::Process::_tee(int fd_in, int fd_out) {
 }
 
 void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
-  FAIL << "dup3 syscall is not updated";
+  WARN << "dup3 syscall is not updated";
   
   // Finish the syscall to get the return value, then resume
   int rc = finishSyscall();
@@ -856,7 +856,7 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
-  FAIL << "pipe2 syscall is not updated";
+  WARN << "pipe2 syscall is not updated";
   
   int rc = finishSyscall();
 
@@ -885,7 +885,7 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
                                  int flags) {
-  FAIL << "renameat2 syscall is not updated";
+  WARN << "renameat2 syscall is not updated";
   
   string old_path = resolvePath(oldpath, old_dfd);
   auto old_f = _tracer.getArtifact(old_path);
@@ -932,7 +932,7 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
 /////////////////
 
 void Tracer::Process::handleExec() {
-  FAIL << "handleExec is not updated";
+  WARN << "handleExec is not updated";
   
   // Get the registers so we can read exec arguments
   auto regs = getRegisters();
@@ -987,7 +987,7 @@ void Tracer::Process::handleExec() {
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
-  FAIL << "handleClone is not updated";
+  WARN << "handleClone is not updated";
   
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
@@ -1003,7 +1003,7 @@ void Tracer::handleClone(shared_ptr<Process> p, int flags) {
 }
 
 void Tracer::handleFork(shared_ptr<Process> p) {
-  FAIL << "handleFork is not updated";
+  WARN << "handleFork is not updated";
   
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
@@ -1025,7 +1025,7 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) {
-  FAIL << "handleExit is not updated";
+  WARN << "handleExit is not updated";
   
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
