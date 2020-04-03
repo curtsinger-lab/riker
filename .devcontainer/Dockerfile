@@ -9,7 +9,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     # 
     # Install git, compilers, and other dev tools
-    && apt-get -y install git gcc clang build-essential \
+    && apt-get -y install git gcc clang build-essential graphviz \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \

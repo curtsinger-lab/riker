@@ -4,8 +4,7 @@
   "runArgs": [
     "--hostname=dev",
     "--cap-add=SYS_PTRACE",
-    "--security-opt",
-    "seccomp=unconfined"
+    "--security-opt", "seccomp=unconfined"
   ],
   "settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash"
