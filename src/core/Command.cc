@@ -92,6 +92,15 @@ bool Command::addOutput(Artifact::VersionRef f) {
 }
 
 void Command::run(Tracer& tracer) {
+  // TODO: checking logic goes here
+  // simulate all of the steps:
+  //   references: check that access remains the same
+  //   predicates: still hold
+  //   action: simulate effect of actions
+  //     two things to check:
+  //     1. whether the action had the same effect as before
+  //     2. if the action had the same effect, what the effect actually is
+  //     NOTE: use recursive state environment
   tracer.run(shared_from_this());
 }
 
