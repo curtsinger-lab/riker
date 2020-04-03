@@ -4,6 +4,7 @@
 #include <memory>
 #include <ostream>
 
+#include "core/Artifact.hh"
 #include "core/Ref.hh"
 
 using std::map;
@@ -28,12 +29,12 @@ class Predicate {
   virtual ostream& print(ostream&) const = 0;
   
   /// Print a Predicate to an output stream
-  friend ostream& operator<<(ostream& o, const Predicate& c) {
-    return c.print(o);
+  friend ostream& operator<<(ostream& o, const Predicate& p) {
+    return p.print(o);
   }
 
   /// Print a Command* to an output stream
-  friend ostream& operator<<(ostream& o, const Predicate* c) { return o << *c; }
+  friend ostream& operator<<(ostream& o, const Predicate* p) { return o << *p; }
 };
 
 class Predicate::IsOK : public Predicate {
@@ -82,6 +83,34 @@ class Predicate::IsError : public Predicate {
   int _err;
 };
 
-class Predicate::MetadataMatch : public Predicate {};
+class Predicate::MetadataMatch : public Predicate {
+ public:
+  MetadataMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) :
+    _ref(ref), _version(version) {}
+  
+  virtual ~MetadataMatch() = default;
 
-class Predicate::ContentsMatch : public Predicate {};
+  virtual ostream& print(ostream& o) const {
+    return o << "METADATA_MATCH(r" << _ref->getID() << ", " << _version << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;
+  Artifact::VersionRef _version;
+};
+
+class Predicate::ContentsMatch : public Predicate {
+ public:
+  ContentsMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) :
+    _ref(ref), _version(version) {}
+
+  virtual ~ContentsMatch() = default;
+
+  virtual ostream& print(ostream& o) const {
+    return o << "CONTENTS_MATCH(r" << _ref->getID() << ", " << _version << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;
+  Artifact::VersionRef _version;
+};

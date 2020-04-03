@@ -93,9 +93,6 @@ class Tracer {
             map<int, FileDescriptor> fds = {}) :
         _tracer(tracer), _pid(pid), _command(command), _cwd(cwd), _fds(fds) {}
 
-    /// Called after this process finishes an exec call
-    void handleExec();
-
     /// Resume a traced process that is currently stopped
     void resume();
 

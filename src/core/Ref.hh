@@ -101,6 +101,7 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Create an anonymous copy of this reference for use by a new command
   Ref(shared_ptr<Command> command, shared_ptr<Ref> other) :
+      _id(other->_id),
       _command(command),
       _path(other->_path),
       _flags(other->_flags),

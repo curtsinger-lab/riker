@@ -17,21 +17,38 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+enum : size_t {
+  MaxPrintedArgs = 3
+};
+
 size_t Command::next_id = 0;
 
 // TODO: This is gross. Move it somewhere better or get rid of it.
 size_t Ref::next_id = 0;
 
 string Command::getShortName() const {
-  auto base = _exe;
+  /*auto base = _exe;
   if (_args.size() > 0) base = _args.front();
+
+  string result;
 
   auto pos = base.rfind('/');
   if (pos == string::npos) {
-    return base;
+    result = base;
   } else {
-    return base.substr(pos + 1);
+    result = base.substr(pos + 1);
+  }*/
+
+  string result = _args[0];
+  for (int i=1; i<_args.size() && i<MaxPrintedArgs; i++) {
+    result += " " + _args[i];
   }
+
+  if (_args.size() > MaxPrintedArgs) {
+    result += " ...";
+  }
+
+  return result;
 }
 
 string Command::getFullName() const {

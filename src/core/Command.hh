@@ -178,6 +178,42 @@ class Command : public std::enable_shared_from_this<Command> {
     _steps.push_back(make_shared<Predicate::IsError>(ref, err));
   }
 
+  /// This command accesses the metadata for an artifact
+  void metadataMatch(shared_ptr<Ref> ref) {
+    // Log a read to the artifact first, which triggers the creation of a version if needed
+    // TODO: remove this once versioning is updated
+    auto a = ref->getArtifact();
+    a->readBy(shared_from_this());
+
+    // Record the dependency on metadata
+    _steps.push_back(make_shared<Predicate::MetadataMatch>(ref, a->getLatestVersion()));
+  }
+
+  /// This command accesses the contents of an artifact
+  void contentsMatch(shared_ptr<Ref> ref) {
+    // Log a read to the artifact first, which triggers the creation of a version if needed
+    // TODO: remove this once versioning is updated
+    auto a = ref->getArtifact();
+    a->readBy(shared_from_this());
+
+    _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, a->getLatestVersion()));
+  }
+
+  /// This command sets the contents of an artifact
+  void setContents(shared_ptr<Ref> ref) {
+    // Log a write to the artifact first, which triggers the creation of a version if needed
+    // TODO: remove this once versioning is updated
+    auto a = ref->getArtifact();
+    a->writtenBy(shared_from_this());
+
+    _steps.push_back(make_shared<Action::SetContents>(ref, a->getLatestVersion()));
+  }
+
+  /// This command starts another command
+  void launch(shared_ptr<Command> cmd) {
+    _steps.push_back(make_shared<Action::Launch>(cmd));
+  }
+
  private:
   /// A unique ID assigned to this command for log readability
   size_t _id;

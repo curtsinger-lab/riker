@@ -119,7 +119,7 @@ void Tracer::run(shared_ptr<Command> cmd) {
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // TODO: Is this called before or after exec?
-        p->handleExec();
+        FAIL << "handleExec is gone. I thought we wouldn't need it?";
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // TODO: Is this called in the child just after clone()?
@@ -241,13 +241,11 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
 void Tracer::Process::_read(int fd) {
-  WARN << "read syscall is not updated";
-  
-  // Get the process and file
-  auto f = _fds[fd].getRef()->getArtifact();
+  // Get the reference used to read
+  auto ref = _fds[fd].getRef();
 
-  // If there's no matching file descriptor, just resume and return
-  FAIL_IF(!f) << "Read from unknown file descriptor";
+  // The current command depends on the contents of this file
+  _command->contentsMatch(ref);
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -257,34 +255,27 @@ void Tracer::Process::_read(int fd) {
   //  would work, but we don't always need them. Threads would also work, btu that creates other
   //  problems.
   resume();
-
-  // Log the read
-  f->readBy(_command);
 }
 
 void Tracer::Process::_write(int fd) {
-  WARN << "write syscall is not updated";
-  
-  // Get the process and file
-  auto f = _fds[fd].getRef()->getArtifact();
+  // Get the reference used to write
+  auto ref = _fds[fd].getRef();
 
-  // If there was no matching file, resume the process and bail out
-  FAIL_IF(!f) << "Write to unknown file descriptor";
-
-  // There may be a write from this command (we might save a copy or take a fingerprint)
-  f->mayWrite(_command);
+  // Record our dependency on the old contents of the artifact
+  _command->contentsMatch(ref);
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
   resume();
 
-  // If the syscall succeeded, record a write
-  if (rc != -1) f->writtenBy(_command);
+  // If the write syscall failed, there's no need to log a write
+  if (rc == -1) return;
+
+  // Record the update to the artifact contents
+  _command->setContents(ref);
 }
 
 void Tracer::Process::_close(int fd) {
-  WARN << "close syscall is not updated";
-  
   // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is harmless
 
   // Resume the process
@@ -295,8 +286,6 @@ void Tracer::Process::_close(int fd) {
 }
 
 void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
-  WARN << "mmap syscall is not updated";
-  
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
   if (fd == -1) {
@@ -304,28 +293,44 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
     return;
   }
 
+  // Run the syscall to find out if the mmap succeeded
   void* rc = (void*)finishSyscall();
-  resume();
 
   // If the map failed there's nothing to log
-  if (rc == MAP_FAILED) return;
+  if (rc == MAP_FAILED) {
+    resume();
+    return;
+  }
 
-  auto descriptor = _fds[fd].getRef();
-  auto f = descriptor->getArtifact();
-  bool writable = prot & PROT_WRITE;
-  // The mapping is only writable if the file was also open in writable mode
-  writable &= descriptor->getFlags().w;
+  // Get the reference for the file we just mapped
+  auto ref = _fds[fd].getRef();
 
-  // Record the mmap
-  f->mappedBy(_command, writable);
+  // By mmapping a file, the command implicitly depends on its contents at the time of
+  // mapping.
+  _command->contentsMatch(ref);
 
-  // Also track the mmap in the process so we can notify the file of an unmap later
-  _mmaps.insert(f);
+  // If the mapping is writable, and the file was opened in write mode, the command
+  // is also effectively setting the contents of the file.
+  bool writable = (prot & PROT_WRITE) && ref->getFlags().w;
+  if (writable) {
+    _command->setContents(ref);
+  }
+
+  // TODO: we need to track which commands have a given artifact mapped.
+  // Any time that artifact is modified, all commands that have it mapped will get an
+  // implicit CONTENTS_MATCH line added because they could see the new version.
+  // Also, any commands with writable mappings of a file could be setting the contents
+  // of the file at any time.
+  // Any artifact with multiple mappers, at least one of whom has a writable mapping,
+  // creates a cycle. All commands involved in that cycle must be collapsed.
+
+  // Resume the process here, because the command *could* immediately write to the file.
+  // We may have needed to take a fingerprint of the old, unwritten version, so we can't
+  // resume immediately after a writable mapping.
+  resume();
 }
 
 int Tracer::Process::_dup(int fd) {
-  WARN << "dup syscall is not updated";
-  
   // Finish the syscall to get the new file descriptor, then resume the process
   int newfd = finishSyscall();
   resume();
@@ -388,39 +393,125 @@ void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags
 }
 
 void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
-  WARN << "fstatat syscall is not updated";
-  
-  // Statting an existing file descriptor doesn't create a new reference
-  if ((flags & AT_EMPTY_PATH) == 0) {
+  // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
+  // Otherwise, this is just a normal stat call
+  if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
+    // This is essentially an fstat call
+    auto ref = _fds[dirfd].getRef();
+
+    // Record the dependency on metadata
+    _command->metadataMatch(ref);
+
+  } else {
+    // This is a regular stat call (with an optional base directory descriptor)
     auto p = resolvePath(pathname, dirfd);
-    _command->addReference(p, Ref::Flags::fromStat(flags));
+
+    // Create the reference
+    auto ref = _command->access(p, {});
+
+    // Finish the syscall to see if the reference succeeds
+    int rc = finishSyscall();
+
+    // Log the success or failure
+    if (rc == 0) {
+      _command->isOK(ref);
+      ref->resolvesTo(_tracer.getArtifact(p));
+      _command->metadataMatch(ref);
+    } else {
+      _command->isError(ref, rc);
+    }
   }
 
   resume();
 }
 
 void Tracer::Process::_execveat(int dfd, string filename) {
-  WARN << "execveat syscall is not updated";
-  
-  // This corresponds to entry to the execve system call
-  // Unlike other system call functions, we should not call finishSyscall() here.
-  // Post-exec handling is in Tracer::Process::handleExec()
-  auto p = resolvePath(filename, dfd);
-  _command->addReference(p, {.x = true});
+  // Get the path to the executable we will exec
+  auto exe_path = resolvePath(filename, dfd);
 
+  // The command accesses this path with execute permissions
+  auto exe_ref = _command->access(exe_path, {.x = true});
+
+  // Finish the exec syscall
+  int rc = finishSyscall();
+
+  // Not sure why, but exec returns -38 on success.
+  // If we see something else, handle the error
+  if (rc != -38) {
+    // Failure! Record a failed reference
+    _command->isError(exe_ref, rc);
+
+    // Resume the process and stop handling
+    resume();
+    return;
+  }
+
+  // If we reached this point, the executable reference was okay
+  _command->isOK(exe_ref);
+
+  // Get the registers so we can read exec arguments
+  auto regs = getRegisters();
+
+  // Read the args array
+  vector<string> args;
+  int child_argc = readData(regs.rsp);
+  for (int i = 0; i < child_argc; i++) {
+    uintptr_t arg_ptr = readData(regs.rsp + (1 + i) * sizeof(long));
+    args.push_back(readString(arg_ptr));
+  }
+
+  // Resume the child
   resume();
+
+  // Save the parent command
+  auto parent_command = _command;
+
+  // This process is running a new command
+  _command = _command->createChild(exe_path, args);
+
+  // The parent command launches the child command
+  parent_command->launch(_command);
+
+  // Handle file descriptors. First, make a copy of the old descriptors and clear the map.
+  map<int, FileDescriptor> old_fds = _fds;
+  _fds.clear();
+
+  // Pull over references that are inherited by the new command
+  for (auto& entry : old_fds) {
+    if (!entry.second.isCloexec()) {
+      // Create a new reference inherited from the parent, saving it in Command's initial fds
+      auto ref = _command->inheritReference(entry.first, entry.second.getRef());
+      
+      // Add this reference to the file descriptor table
+      _fds.emplace(entry.first, FileDescriptor(ref, false));
+    }
+  }
+
+  // Get the executable file artifact
+  auto exe_artifact = _tracer.getArtifact(exe_path, true);
+
+  // The child command reads the contents of the executable file
+  auto child_exe_ref = _command->access(exe_path, {.r = true}, exe_artifact);
+
+  // The reference to the executable file must succeed
+  _command->isOK(child_exe_ref);
+
+  // We also depend on the contents of the executable file at this point
+  _command->contentsMatch(child_exe_ref);
+
+  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
+  // participate in that command. This will require some extra bookkeeping. For now, we
+  // over-approximate the set of commands that have a file mmapped.
 }
 
 void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
-  WARN << "fcntl syscall is not updated";
-  
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
-    _dup(fd);  // _dup will resume the process
+    _dup(fd);  // _dup will resume the process and return the new fd to us
 
   } else if (cmd == F_DUPFD_CLOEXEC) {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
-    int newfd = _dup(fd);  // _dup will resume the process
+    int newfd = _dup(fd);  // _dup will resume the process and return the new fd to us
     _fds[newfd].setCloexec(true);
 
   } else if (cmd == F_SETFD) {
@@ -853,20 +944,22 @@ void Tracer::Process::_tee(int fd_in, int fd_out) {
 }
 
 void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
-  WARN << "dup3 syscall is not updated";
-  
-  // Finish the syscall to get the return value, then resume
+  // dup3 returns the new file descriptor, or error
+  // Finish the syscall so we know what file descriptor to add to our table
   int rc = finishSyscall();
   resume();
 
-  // If the syscall failed, do nothing
+  // If the syscall failed, we have nothing more to do
+  // Note: this is different than a failed file access. This failure should not be affected
+  //       by the state of the filesystem, so we don't have to log it.
   if (rc == -1) return;
 
   // Add the entry for the duped fd
-  _fds[newfd] = _fds[oldfd];
+  _fds[rc] = _fds[oldfd];
 
-  // Set the cloexec flag if specified in the flags, otherwise it is cleared for the new fd
-  _fds[newfd].setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
+  // If the flags include O_CLOEXEC, we have to set that property on the new file descriptor
+  // If O_CLOEXEC is not set, any dup-ed fd is NOT cloexec
+  _fds[rc].setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
@@ -945,64 +1038,7 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
 
 /////////////////
 
-void Tracer::Process::handleExec() {
-  WARN << "handleExec is not updated";
-  
-  // Get the registers so we can read exec arguments
-  auto regs = getRegisters();
-
-  // Read the args array
-  vector<string> args;
-  int child_argc = readData(regs.rsp);
-  for (int i = 0; i < child_argc; i++) {
-    uintptr_t arg_ptr = readData(regs.rsp + (1 + i) * sizeof(long));
-    args.push_back(readString(arg_ptr));
-  }
-
-  // Get the executable file
-  string exe = getExecutable();
-
-  // Resume the child
-  resume();
-
-  // TODO: does exec search in the current directory, or is filename always absolute?
-  // Record the reference by the parent
-  _command->addReference(exe, {.x = true});
-
-  // Create the new command
-  _command = _command->createChild(exe, args);
-
-  // Handle file descriptors. First, make a copy of the old descriptors and clear the map.
-  map<int, FileDescriptor> old_fds = _fds;
-  _fds.clear();
-
-  // Pull over references that are inherited by the new command
-  for (auto& entry : old_fds) {
-    if (!entry.second.isCloexec()) {
-      // Create a new reference inherited from the parent, saving it in Command's initial fds
-      auto ref = _command->inheritReference(entry.first, entry.second.getRef());
-      
-      // Add this reference to the file descriptor table
-      _fds.emplace(entry.first, FileDescriptor(ref, false));
-    }
-  }
-
-  // Record the reference by the child
-  _command->addReference(exe, {.r = true});
-
-  // The new command depends on its executable file
-  auto p = resolvePath(exe);
-  auto f = _tracer.getArtifact(p);
-  f->readBy(_command);
-
-  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
-  // participate in that command. This will require some extra bookkeeping. For now, we
-  // over-approximate the set of commands that have a file mmapped.
-}
-
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
-  WARN << "handleClone is not updated";
-  
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -1017,8 +1053,6 @@ void Tracer::handleClone(shared_ptr<Process> p, int flags) {
 }
 
 void Tracer::handleFork(shared_ptr<Process> p) {
-  WARN << "handleFork is not updated";
-  
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -1039,8 +1073,6 @@ void Tracer::handleFork(shared_ptr<Process> p) {
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) {
-  WARN << "handleExit is not updated";
-  
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
