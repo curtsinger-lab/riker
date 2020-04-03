@@ -44,9 +44,9 @@ If you are running macOS or Windows, install [Docker Desktop](https://www.docker
 
 Next, install the [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) for Visual Studio Code.
 
-Open the command palette in VS Code (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> in macOS). Launch the "Remote-Containers: Open Repository in Container" command by typing in enough of its name to find it in the command palette. This command will build a new container for Dodo development using the container configuration in this repository. At the prompt, enter in the path to this repository (`curtsinger-lab/dodo` if you are not working in a fork).
+Open the command palette in VS Code (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> in macOS). Launch the *Remote-Containers: Open Repository in Container* command by typing in enough of its name to find it in the command palette. This command will build a new container for Dodo development using the container configuration in this repository. At the prompt, enter in the path to this repository (`curtsinger-lab/dodo` if you are not working in a fork).
 
-You should see a prompt asking what volume you want to clone the repository to. Unless you have a compelling reason to use some existing volume, choose "Create New Volume".
+You should see a prompt asking what volume you want to clone the repository to. Unless you have a compelling reason to use some existing volume, choose *Create New Volume*.
 
 Next, type the name of the directory you want the cloned repository to live in. This directory is inside the new container, so there should be no conflicts.
 
@@ -74,6 +74,6 @@ To set up this development environment, start by cloning the repository to your 
 $ git clone --recursive git@github.com:curtsinger-lab/dodo
 ```
 
-Now, Open the cloned directory in VSCode. Ppen the command palette (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and launch the *Remote-Containers: Open Folder in Container* command. When a file browser window pops up, select the root of the cloned Dodo repository (this should be the default).
+Now, Open the cloned directory in VSCode. Open the command palette (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and launch the *Remote-Containers: Open Folder in Container* command. When a file browser window pops up, select the root of the cloned Dodo repository (this should be the default).
 
 After a few minutes, the container should be built and ready to use. Keep in mind, building and running Dodo will be quite slow in this environment because file I/O is much slower when sharing files with the host system. It takes about twice as long to build Dodo in this configuration compared to the recommended Docker configuration (24 seconds vs. 12 seconds) on a 2015 MacBook Pro.
