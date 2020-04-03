@@ -163,6 +163,7 @@ class Tracer {
     void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags);
     void _faccessat(int dirfd, string pathname, int mode, int flags);
     void _fstatat(int dirfd, string pathname, int flags);
+    void _lseek(int fd, off_t offset, int whence);
     
     /*** Syscalls that should be handled directly, but are currently aliases ***/
     void _rmdir(string p) { _unlink(p); }

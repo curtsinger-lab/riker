@@ -1036,6 +1036,11 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
   old_f->writtenBy(_command);
 }
 
+void Tracer::Process::_lseek(int fd, off_t offset, int whence) {
+  // TODO: track file descriptor offsets
+  resume();
+}
+
 /////////////////
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
@@ -1389,6 +1394,10 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
 
     case __NR_pwritev2:
       p->_pwritev2(regs.SYSCALL_ARG1);
+      break;
+    
+    case __NR_lseek:
+      p->_lseek(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     default:
