@@ -5,11 +5,14 @@ ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
+# Stop warnings from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     # 
     # Install git, compilers, and other dev tools
-    && apt-get -y install git gcc clang build-essential graphviz \
+    && apt-get -y install git gcc clang build-essential python-cram graphviz \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -23,3 +26,6 @@ RUN apt-get update \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+
+# Go back to default apt frontend
+ENV DEBIAN_FRONTEND=dialog
