@@ -20,8 +20,6 @@
 #include "core/Ref.hh"
 #include "ui/options.hh"
 
-class BuildGraph;
-
 using std::map;
 using std::set;
 using std::shared_ptr;

@@ -1,6 +1,12 @@
 #include "Action.hh"
 
+#include <map>
+#include <ostream>
+#include <utility>
+
 #include "core/Command.hh"
+
+using std::ostream;
 
 ostream& Action::Launch::print(ostream& o) const {
   o << "LAUNCH(" << _cmd << ", [";

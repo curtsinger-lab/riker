@@ -1,9 +1,9 @@
 #pragma once
 
-#include <list>
-#include <map>
 #include <memory>
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include "core/Artifact.hh"
 #include "ui/options.hh"
@@ -12,10 +12,8 @@ class Command;
 class Graphviz;
 class Tracer;
 
-using std::list;
-using std::map;
 using std::string;
-using std::unique_ptr;
+using std::vector;
 
 class BuildGraph {
  public:

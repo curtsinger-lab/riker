@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdio>
+#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -13,7 +14,6 @@
 #include "core/Artifact.hh"
 #include "core/Predicate.hh"
 #include "core/Ref.hh"
-#include "ui/log.hh"
 #include "ui/options.hh"
 
 class Graphviz;

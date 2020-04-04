@@ -9,6 +9,8 @@
 using std::ostream;
 using std::shared_ptr;
 
+class Command;
+
 // Action cases:
 //  LAUNCH(c : Command, file descriptors)
 //  SET_METADATA(r : Ref, v : Artifact::VersionRef)

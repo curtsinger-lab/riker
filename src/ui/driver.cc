@@ -1,11 +1,10 @@
 #include <cstdlib>
 #include <forward_list>
 #include <iostream>
-#include <memory>
-#include <set>
+#include <optional>
 #include <string>
-#include <vector>
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "core/Artifact.hh"
@@ -19,10 +18,8 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::forward_list;
-using std::shared_ptr;
 using std::stol;
 using std::string;
-using std::vector;
 
 // Declare the global command-line options struct
 dodo_options options;

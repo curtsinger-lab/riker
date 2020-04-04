@@ -5,11 +5,8 @@
 #include <memory>
 #include <string>
 
-#include <fcntl.h>
-
 #include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "core/Ref.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 

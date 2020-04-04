@@ -6,8 +6,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <iterator>
 #include <list>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -29,7 +31,6 @@
 #include <unistd.h>
 
 #include "core/Artifact.hh"
-#include "core/BuildGraph.hh"
 #include "core/Command.hh"
 #include "core/Ref.hh"
 #include "tracing/syscalls.hh"
@@ -40,6 +41,7 @@ using std::make_shared;
 using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 
 static pid_t launch_traced(shared_ptr<Command> cmd);
 

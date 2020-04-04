@@ -1,12 +1,14 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <initializer_list>
 #include <list>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <fcntl.h>
