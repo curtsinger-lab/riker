@@ -27,28 +27,15 @@ size_t Command::next_id = 0;
 size_t Ref::next_id = 0;
 
 string Command::getShortName() const {
-  /*auto base = _exe;
+  auto base = _exe;
   if (_args.size() > 0) base = _args.front();
-
-  string result;
 
   auto pos = base.rfind('/');
   if (pos == string::npos) {
-    result = base;
+    return base;
   } else {
-    result = base.substr(pos + 1);
-  }*/
-
-  string result = _args[0];
-  for (int i=1; i<_args.size() && i<MaxPrintedArgs; i++) {
-    result += " " + _args[i];
+    return base.substr(pos + 1);
   }
-
-  if (_args.size() > MaxPrintedArgs) {
-    result += " ...";
-  }
-
-  return result;
 }
 
 string Command::getFullName() const {
