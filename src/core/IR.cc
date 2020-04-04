@@ -1,4 +1,4 @@
-#include "Action.hh"
+#include "IR.hh"
 
 #include <map>
 #include <ostream>
@@ -14,7 +14,7 @@ ostream& Action::Launch::print(ostream& o) const {
   for (auto& entry : _cmd->getInitialFDs()) {
     if (!first) o << ", ";
     first = false;
-    o << "r" << entry.second->getID();
+    o << entry.second.getReference()->getName();
   }
   return o << "])";
 }

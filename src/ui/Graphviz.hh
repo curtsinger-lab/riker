@@ -30,16 +30,16 @@ class Graphviz {
   }
 
   void addCommand(shared_ptr<Command> c) {
-    if (_command_ids.find(c) == _command_ids.end()) {
+    /*if (_command_ids.find(c) == _command_ids.end()) {
       string id = "c" + to_string(_command_ids.size());
       _command_ids[c] = id;
       _out << "  " << id << " [label=\"" << c->getShortName() << "\" tooltip=\""
            << escape(c->getFullName()) << "\" fontname=Courier]\n";
-    }
+    }*/
   }
 
   void addArtifact(shared_ptr<Artifact> f) {
-    if (_file_ids.find(f) == _file_ids.end()) {
+    /*if (_file_ids.find(f) == _file_ids.end()) {
       string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
 
@@ -69,11 +69,11 @@ class Graphviz {
       parts += "</table>";
 
       _out << "  " << id << " [label=<" << parts << "> shape=plain]\n";
-    }
+    }*/
   }
 
   void addCommandEdge(shared_ptr<Command> c1, shared_ptr<Command> c2) {
-    auto iter1 = _command_ids.find(c1);
+    /*auto iter1 = _command_ids.find(c1);
     if (iter1 == _command_ids.end()) return;
     string& id1 = iter1->second;
 
@@ -81,27 +81,27 @@ class Graphviz {
     if (iter2 == _command_ids.end()) return;
     string& id2 = iter2->second;
 
-    _out << "  " << id1 << " -> " << id2 << " [style=dotted weight=1]\n";
+    _out << "  " << id1 << " -> " << id2 << " [style=dotted weight=1]\n";*/
   }
 
   void addInputEdge(Artifact::VersionRef f, shared_ptr<Command> c) {
-    addArtifact(f.getArtifact());
+    /*addArtifact(f.getArtifact());
 
     string file_id = _file_ids[f.getArtifact()];
     string id1 = file_id + ":v" + to_string(f.getIndex());
     string& id2 = _command_ids[c];
 
-    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
+    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";*/
   }
 
   void addOutputEdge(shared_ptr<Command> c, Artifact::VersionRef f) {
-    addArtifact(f.getArtifact());
+    /*addArtifact(f.getArtifact());
 
     string& id1 = _command_ids[c];
     string file_id = _file_ids[f.getArtifact()];
     string id2 = file_id + ":v" + to_string(f.getIndex());
 
-    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
+    _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";*/
   }
 
  private:

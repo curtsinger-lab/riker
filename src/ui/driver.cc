@@ -180,10 +180,6 @@ int main(int argc, char* argv[]) {
   Tracer tracer;
   graph.run(tracer);
 
-  // Run the standard graph post-processing to prune cycles
-  // Currently just drops inputs that are also outputs from the same command
-  graph.prune();
-
   // Generate graphviz output, if requested
   if (options.visualize) {
     Graphviz g("out.dot");

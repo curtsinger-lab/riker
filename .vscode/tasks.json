@@ -14,8 +14,9 @@
       ],
       "presentation": {
         "reveal": "always",
-        "panel":  "new",
-        "focus": true
+        "panel": "shared",
+        "focus": true,
+        "clear": true
       }
     },
     {
@@ -28,8 +29,9 @@
       },
       "presentation": {
         "reveal": "always",
-        "panel": "new",
-        "focus": true
+        "panel": "shared",
+        "focus": true,
+        "clear": true
       }
     }
   ]

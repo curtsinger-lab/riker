@@ -12,6 +12,7 @@ class Command;
 class Graphviz;
 class Tracer;
 
+using std::make_shared;
 using std::string;
 using std::vector;
 
@@ -36,12 +37,13 @@ class BuildGraph {
 
   void run(Tracer& tracer);
 
-  void prune();
-
   void drawGraph(Graphviz& g);
 
   void printTrace(ostream& o);
 
  private:
   shared_ptr<Command> _root;
+  shared_ptr<Artifact> _stdin = make_shared<Artifact>("<<stdin>>");
+  shared_ptr<Artifact> _stdout = make_shared<Artifact>("<<stdout>>");
+  shared_ptr<Artifact> _stderr = make_shared<Artifact>("<<stderr>>");
 };

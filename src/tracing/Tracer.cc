@@ -32,7 +32,8 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
-#include "core/Ref.hh"
+#include "core/FileDescriptor.hh"
+#include "core/IR.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
@@ -48,12 +49,7 @@ static pid_t launch_traced(shared_ptr<Command> cmd);
 void Tracer::run(shared_ptr<Command> cmd) {
   pid_t pid = launch_traced(cmd);
 
-  map<int, FileDescriptor> fds;
-  for (auto& entry : cmd->getInitialFDs()) {
-    fds.emplace(entry.first, FileDescriptor(entry.second, false));
-  }
-
-  _processes[pid] = make_shared<Process>(*this, pid, ".", cmd, fds);
+  _processes[pid] = make_shared<Process>(*this, pid, ".", cmd, cmd->getInitialFDs());
 
   // Sometime we get tracing events before we can process them. This queue holds that list
   list<pair<pid_t, int>> event_queue;
@@ -177,7 +173,7 @@ path Tracer::Process::resolvePath(path p, int at) {
 
     // But if the file is not relative to cwd, get the path for the specified base
     if (at != AT_FDCWD) {
-      base = _fds[at].getRef()->getArtifact()->getPath();
+      base = _fds.at(at).getArtifact()->getPath();
     }
 
     full_path = base / p;
@@ -206,28 +202,8 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
     return iter->second;
   }
 
-  // Get the type of the artifact from the stat buffer
-  Artifact::Type type;
-  switch (statbuf.st_mode & S_IFMT) {
-    case S_IFDIR:
-      type = Artifact::Type::DIRECTORY;
-      break;
-
-    case S_IFIFO:
-      type = Artifact::Type::PIPE;
-      break;
-
-    case S_IFLNK:
-      type = Artifact::Type::SYMLINK;
-      break;
-
-    default:
-      type = Artifact::Type::REGULAR;
-      break;
-  }
-
   // No existing artifact found. Create a new one.
-  shared_ptr<Artifact> result = make_shared<Artifact>(p, type);
+  shared_ptr<Artifact> result = make_shared<Artifact>(p);
 
   // Add the artifact to the map
   _artifacts.emplace(statbuf.st_ino, result);
@@ -243,11 +219,17 @@ shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
 void Tracer::Process::_read(int fd) {
+  // Get the descriptor
+  auto& descriptor = _fds.at(fd);
+
   // Get the reference used to read
-  auto ref = _fds[fd].getRef();
+  auto ref = descriptor.getReference();
+
+  // Get the artifact being read
+  auto artifact = descriptor.getArtifact();
 
   // The current command depends on the contents of this file
-  _command->contentsMatch(ref);
+  _command->contentsMatch(ref, descriptor.getArtifact()->getLatestVersion());
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -260,11 +242,17 @@ void Tracer::Process::_read(int fd) {
 }
 
 void Tracer::Process::_write(int fd) {
+  // Get the descriptor
+  auto descriptor = _fds.at(fd);
+
   // Get the reference used to write
-  auto ref = _fds[fd].getRef();
+  auto ref = descriptor.getReference();
+
+  // Get the artifact being written
+  auto artifact = descriptor.getArtifact();
 
   // Record our dependency on the old contents of the artifact
-  _command->contentsMatch(ref);
+  _command->contentsMatch(ref, artifact->getLatestVersion());
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -274,7 +262,7 @@ void Tracer::Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _command->setContents(ref);
+  _command->setContents(ref, artifact->tagNewVersion());
 }
 
 void Tracer::Process::_close(int fd) {
@@ -304,18 +292,24 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
     return;
   }
 
+  // Get the descriptor from the fd number
+  auto descriptor = _fds.at(fd);
+
   // Get the reference for the file we just mapped
-  auto ref = _fds[fd].getRef();
+  auto ref = descriptor.getReference();
+
+  // And get the artifact referenced
+  auto artifact = descriptor.getArtifact();
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _command->contentsMatch(ref);
+  _command->contentsMatch(ref, artifact->getLatestVersion());
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
-  bool writable = (prot & PROT_WRITE) && ref->getFlags().w;
+  bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _command->setContents(ref);
+    _command->setContents(ref, artifact->tagNewVersion());
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -345,7 +339,7 @@ int Tracer::Process::_dup(int fd) {
   _fds.emplace(newfd, _fds.at(fd));
 
   // Duped fds do not inherit the cloexec flag
-  _fds[newfd].setCloexec(false);
+  _fds.at(newfd).setCloexec(false);
 
   // Return the new fd. This is helpful for handling some of the fcntl variants
   return newfd;
@@ -353,24 +347,26 @@ int Tracer::Process::_dup(int fd) {
 
 void Tracer::Process::_sendfile(int out_fd, int in_fd) {
   WARN << "sendfile syscall is not updated";
-
-  // As with _write above, we may have to fingerprint the output file, although we won't know until
-  // after the syscall (it could fail).
-  auto in_f = _fds[in_fd].getRef()->getArtifact();
-  auto out_f = _fds[out_fd].getRef()->getArtifact();
-
-  // Take a fingerprint if we need one
-  out_f->mayWrite(_command);
-
-  // Finish the system call and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // As with _write above, we may have to fingerprint the output file, although we won't know
+    until
+    // after the syscall (it could fail).
+    auto in_f = _fds[in_fd].getRef()->getArtifact();
+    auto out_f = _fds[out_fd].getRef()->getArtifact();
 
-  // If the syscall failed, do nothing
-  if (rc == -1) return;
+    // Take a fingerprint if we need one
+    out_f->mayWrite(_command);
 
-  in_f->readBy(_command);
-  out_f->writtenBy(_command);
+    // Finish the system call and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, do nothing
+    if (rc == -1) return;
+
+    in_f->readBy(_command);
+    out_f->writtenBy(_command);*/
 }
 
 void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
@@ -378,7 +374,7 @@ void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags
   auto p = resolvePath(pathname, dirfd);
 
   // Record the command's access to this path with the given flags
-  auto ref = _command->access(p, Ref::Flags::fromAccess(mode, flags));
+  auto ref = _command->access(p, Reference::Access::Flags::fromAccess(mode, flags));
 
   // Finish the syscall so we can see its result
   int rc = finishSyscall();
@@ -399,10 +395,12 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
     // This is essentially an fstat call
-    auto ref = _fds[dirfd].getRef();
+    auto descriptor = _fds.at(dirfd);
+    auto ref = descriptor.getReference();
+    auto artifact = descriptor.getArtifact();
 
     // Record the dependency on metadata
-    _command->metadataMatch(ref);
+    _command->metadataMatch(ref, artifact->getLatestVersion());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -417,8 +415,12 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
     // Log the success or failure
     if (rc == 0) {
       _command->isOK(ref);
-      ref->resolvesTo(_tracer.getArtifact(p));
-      _command->metadataMatch(ref);
+
+      // Get the artifact that was stat-ed
+      auto artifact = _tracer.getArtifact(p);
+
+      // Record the dependence on the artifact's metadata
+      _command->metadataMatch(ref, artifact->getLatestVersion());
     } else {
       _command->isError(ref, rc);
     }
@@ -465,41 +467,37 @@ void Tracer::Process::_execveat(int dfd, string filename) {
   // Resume the child
   resume();
 
-  // Save the parent command
-  auto parent_command = _command;
-
-  // This process is running a new command
-  _command = _command->createChild(exe_path, args);
-
-  // The parent command launches the child command
-  parent_command->launch(_command);
-
-  // Handle file descriptors. First, make a copy of the old descriptors and clear the map.
-  map<int, FileDescriptor> old_fds = _fds;
-  _fds.clear();
-
-  // Pull over references that are inherited by the new command
-  for (auto& entry : old_fds) {
-    if (!entry.second.isCloexec()) {
-      // Create a new reference inherited from the parent, saving it in Command's initial fds
-      auto ref = _command->inheritReference(entry.first, entry.second.getRef());
-
-      // Add this reference to the file descriptor table
-      _fds.emplace(entry.first, FileDescriptor(ref, false));
+  // Erase any cloexec fds from the process file descriptor table
+  list<int> to_erase;
+  for (auto& entry : _fds) {
+    if (entry.second.isCloexec()) {
+      to_erase.push_back(entry.first);
     }
   }
+  for (int index : to_erase) {
+    _fds.erase(index);
+  }
+
+  // Create the child command
+  auto child_command = make_shared<Command>(exe_path, args, _fds);
+
+  // The parent command launches the child command
+  _command->launch(child_command);
+
+  // This process is now running the child command
+  _command = child_command;
 
   // Get the executable file artifact
   auto exe_artifact = _tracer.getArtifact(exe_path, true);
 
   // The child command reads the contents of the executable file
-  auto child_exe_ref = _command->access(exe_path, {.r = true}, exe_artifact);
+  auto child_exe_ref = _command->access(exe_path, {.r = true});
 
   // The reference to the executable file must succeed
   _command->isOK(child_exe_ref);
 
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(child_exe_ref);
+  _command->contentsMatch(child_exe_ref, exe_artifact->getLatestVersion());
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
@@ -514,12 +512,12 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
   } else if (cmd == F_DUPFD_CLOEXEC) {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
     int newfd = _dup(fd);  // _dup will resume the process and return the new fd to us
-    _fds[newfd].setCloexec(true);
+    _fds.at(newfd).setCloexec(true);
 
   } else if (cmd == F_SETFD) {
     resume();
     // Set the cloexec flag using the argument flags
-    _fds[fd].setCloexec(arg & FD_CLOEXEC);
+    _fds.at(fd).setCloexec(arg & FD_CLOEXEC);
 
   } else {
     // Some other operation we do not need to handle
@@ -530,204 +528,221 @@ void Tracer::Process::_fcntl(int fd, int cmd, unsigned long arg) {
 
 void Tracer::Process::_truncate(string pathname, long length) {
   WARN << "truncate syscall is not updated";
-
-  // Get the file
-  auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(p);
-
-  // Notify the file of an upcoming change
-  if (length == 0) {
-    f->mayTruncate(_command);
-  } else {
-    f->mayWrite(_command);
-  }
-
-  // Record the reference
-  _command->addReference(p);
-
-  // Finish the system call and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Get the file
+    auto p = resolvePath(pathname);
+    auto f = _tracer.getArtifact(p);
 
-  // If the syscall failed, do nothing
-  if (rc == -1) return;
+    // Notify the file of an upcoming change
+    if (length == 0) {
+      f->mayTruncate(_command);
+    } else {
+      f->mayWrite(_command);
+    }
 
-  // Record the write or truncate
-  if (length == 0) {
-    f->truncatedBy(_command);
-  } else {
-    f->writtenBy(_command);
-  }
+    // Record the reference
+    _command->addReference(p);
+
+    // Finish the system call and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, do nothing
+    if (rc == -1) return;
+
+    // Record the write or truncate
+    if (length == 0) {
+      f->truncatedBy(_command);
+    } else {
+      f->writtenBy(_command);
+    }*/
 }
 
 void Tracer::Process::_ftruncate(int fd, long length) {
   WARN << "ftruncate syscall is not updated";
-
-  auto f = _fds[fd].getRef()->getArtifact();
-
-  if (length == 0) {
-    f->truncatedBy(_command);
-  } else {
-    f->writtenBy(_command);
-  }
-
-  // Resume after logging so we have a chance to fingerprint
   resume();
+  /*
+    auto f = _fds[fd].getRef()->getArtifact();
+
+    if (length == 0) {
+      f->truncatedBy(_command);
+    } else {
+      f->writtenBy(_command);
+    }
+
+    // Resume after logging so we have a chance to fingerprint
+    resume();*/
 }
 
 void Tracer::Process::_chdir(string filename) {
   WARN << "chdir syscall is not updated";
-
-  int rc = finishSyscall();
   resume();
+  /*
+    int rc = finishSyscall();
+    resume();
 
-  // Resolve the path
-  string p = resolvePath(filename);
+    // Resolve the path
+    string p = resolvePath(filename);
 
-  // Record the reference
-  _command->addReference(p);
+    // Record the reference
+    _command->addReference(p);
 
-  // Update the current working directory if the chdir call succeeded
-  if (rc == 0) {
-    _cwd = resolvePath(filename);
-    INFO << "chdir to " << filename << " resolved to " << _cwd;
-  }
+    // Update the current working directory if the chdir call succeeded
+    if (rc == 0) {
+      _cwd = resolvePath(filename);
+      INFO << "chdir to " << filename << " resolved to " << _cwd;
+    }*/
 }
 
 void Tracer::Process::_fchdir(int fd) {
   WARN << "fchdir syscall is not updated";
-
-  int rc = finishSyscall();
   resume();
+  /*
+    int rc = finishSyscall();
+    resume();
 
-  if (rc == 0) {
-    auto f = _fds[fd].getRef()->getArtifact();
-    WARN_IF(!f) << "Unable to locate file used in fchdir";
-    _cwd = f->getPath();
-  }
+    if (rc == 0) {
+      auto f = _fds[fd].getRef()->getArtifact();
+      WARN_IF(!f) << "Unable to locate file used in fchdir";
+      _cwd = f->getPath();
+    }
+  */
 }
 
 void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   WARN << "lchown syscall is not updated";
-
-  // Resolve the path without following links, then get the file tracking object
-  auto p = resolvePath(filename);
-  auto f = _tracer.getArtifact(p, false);  // Do not follow links
-
-  // Indicate that we may write this file
-  f->mayWrite(_command);
-
-  // Record the reference
-  _command->addReference(p, {.nofollow = true});
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Resolve the path without following links, then get the file tracking object
+    auto p = resolvePath(filename);
+    auto f = _tracer.getArtifact(p, false);  // Do not follow links
 
-  // If the syscall failed, bail out
-  if (rc == -1) return;
+    // Indicate that we may write this file
+    f->mayWrite(_command);
 
-  // Record a write
-  f->writtenBy(_command);
+    // Record the reference
+    _command->addReference(p, {.nofollow = true});
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, bail out
+    if (rc == -1) return;
+
+    // Record a write
+    f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_chroot(string filename) {
   WARN << "chroot is not updated";
-
-  auto p = resolvePath(filename);
-  auto f = _tracer.getArtifact(p);
-  string newroot = p;
-
-  // Record the reference
-  _command->addReference(p);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    auto p = resolvePath(filename);
+    auto f = _tracer.getArtifact(p);
+    string newroot = p;
 
-  if (rc != -1) {
-    // Update the process root
-    _root = newroot;
+    // Record the reference
+    _command->addReference(p);
 
-    // A directory must exist to
-    f->readBy(_command);
-  }
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    if (rc != -1) {
+      // Update the process root
+      _root = newroot;
+
+      // A directory must exist to
+      f->readBy(_command);
+    }
+  */
 }
 
 void Tracer::Process::_setxattr(string pathname) {
   WARN << "setxattr syscall is not updated";
-
-  // Get the process and file
-  auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(p);
-
-  // Notify the file that it may be written
-  f->mayWrite(_command);
-
-  // Record the reference
-  _command->addReference(p);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Get the process and file
+    auto p = resolvePath(pathname);
+    auto f = _tracer.getArtifact(p);
 
-  if (rc != -1) f->writtenBy(_command);
+    // Notify the file that it may be written
+    f->mayWrite(_command);
+
+    // Record the reference
+    _command->addReference(p);
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    if (rc != -1) f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_lsetxattr(string pathname) {
   WARN << "lsetxattr syscall is not updated";
-
-  // Get the process and file
-  // Same as setxattr, except we do not follow links
-  auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
-
-  // Notify the file that it may be written
-  f->mayWrite(_command);
-
-  // Record the reference
-  _command->addReference(p, {.nofollow = true});
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Get the process and file
+    // Same as setxattr, except we do not follow links
+    auto p = resolvePath(pathname);
+    auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
-  if (rc != -1) f->writtenBy(_command);
+    // Notify the file that it may be written
+    f->mayWrite(_command);
+
+    // Record the reference
+    _command->addReference(p, {.nofollow = true});
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    if (rc != -1) f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_getxattr(string pathname) {
   WARN << "getxattr syscall is not updated";
-
-  // Get the process and file
-  auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(p);
-
-  // Record the reference
-  _command->addReference(p);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Get the process and file
+    auto p = resolvePath(pathname);
+    auto f = _tracer.getArtifact(p);
 
-  if (rc != -1) f->readBy(_command);
+    // Record the reference
+    _command->addReference(p);
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    if (rc != -1) f->readBy(_command);
+  */
 }
 
 void Tracer::Process::_lgetxattr(string pathname) {
   WARN << "lgetxattr syscall is not updated";
-
-  // Get the process and file
-  // Same as getxattr, except we don't follow links
-  auto p = resolvePath(pathname);
-  auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
-
-  // Record the reference
-  _command->addReference(p, {.nofollow = true});
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Get the process and file
+    // Same as getxattr, except we don't follow links
+    auto p = resolvePath(pathname);
+    auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
 
-  if (rc != -1) f->readBy(_command);
+    // Record the reference
+    _command->addReference(p, {.nofollow = true});
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    if (rc != -1) f->readBy(_command);
+  */
 }
 
 void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) {
@@ -736,10 +751,11 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
   // modify the artifact directly. Try to resolve the path now.
-  auto f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
+  auto artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
 
   // The command makes a reference to a path, possibly modifying artifact f
-  auto ref = _command->access(p, Ref::Flags::fromOpen(flags), f);
+  auto ref_flags = Reference::Access::Flags::fromOpen(flags);
+  auto ref = _command->access(p, ref_flags);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -751,198 +767,215 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   if (fd >= 0) {
     // If the artifact did not already exist, but the syscall succeeded, there is now an artifact
     // we can resolve to. Get it.
-    if (!f) {
-      f = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
-
-      // Record that this reference resolved to f
-      ref->resolvesTo(f);
+    if (!artifact) {
+      artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
     }
 
     // The command observed a successful openat, so add this predicate to the command log
     _command->isOK(ref);
 
+    // Is this new descriptor closed on exec?
+    bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
+
     // Record the reference in the correct location in this process' file descriptor table
-    _fds[fd] = FileDescriptor(ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+    _fds.emplace(fd, FileDescriptor(ref, artifact, ref_flags.w, cloexec));
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
     _command->isError(ref, fd);
   }
 
-  LOG << _command << " opened " << f << " with path " << filename << ", which resolved to " << p;
+  LOG << _command << " opened " << artifact;
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   WARN << "mkdirat syscall is not updated";
-
-  auto p = resolvePath(pathname, dfd);
-  auto f = _tracer.getArtifact(p);
-  bool dir_existed = f != nullptr;
-
-  // Record the reference
-  // TODO: is this a creat or excl reference? Need to look at result of syscall
-  _command->addReference(p);
-
-  // Run the syscall
-  int rc = finishSyscall();
   resume();
+  /*
+    auto p = resolvePath(pathname, dfd);
+    auto f = _tracer.getArtifact(p);
+    bool dir_existed = f != nullptr;
 
-  // If the call failed, do nothing
-  if (rc) return;
+    // Record the reference
+    // TODO: is this a creat or excl reference? Need to look at result of syscall
+    _command->addReference(p);
 
-  if (!dir_existed) {
-    f = _tracer.getArtifact(p);
-    f->createdBy(_command);
-  }
+    // Run the syscall
+    int rc = finishSyscall();
+    resume();
+
+    // If the call failed, do nothing
+    if (rc) return;
+
+    if (!dir_existed) {
+      f = _tracer.getArtifact(p);
+      f->createdBy(_command);
+    }
+  */
 
   // TODO: if creation failed, does this command now depend on the directory that already exists?
 }
 
 void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
   WARN << "mknodat syscall is not updated";
-
-  // TODO: What kind of node is this? Need to handle device, files, FIFOs, etc.
-  // TODO: Probably also need to set creat/excl flags in reference
-
-  int rc = finishSyscall();
   resume();
+  /*
+    // TODO: What kind of node is this? Need to handle device, files, FIFOs, etc.
+    // TODO: Probably also need to set creat/excl flags in reference
 
-  // Give up if the syscall fails
-  if (rc != 0) return;
+    int rc = finishSyscall();
+    resume();
 
-  auto p = resolvePath(filename, dfd);
-  auto f = _tracer.getArtifact(p);
+    // Give up if the syscall fails
+    if (rc != 0) return;
 
-  // Record the reference
-  _command->addReference(filename);
+    auto p = resolvePath(filename, dfd);
+    auto f = _tracer.getArtifact(p);
 
-  f->createdBy(_command);
+    // Record the reference
+    _command->addReference(filename);
+
+    f->createdBy(_command);
+  */
 }
 
 void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) {
   WARN << "fchownat syscall is not updated";
-
-  shared_ptr<Artifact> f;
-
-  // An empty path means just use dfd as the file
-  if (flags & AT_EMPTY_PATH) {
-    f = _fds[dfd].getRef()->getArtifact();
-  } else {
-    // Are we following links or not?
-    bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
-
-    // Resolve the path, then get the file tracking object
-    auto p = resolvePath(filename, dfd);
-    f = _tracer.getArtifact(p, follow_links);
-
-    // Record the reference
-    _command->addReference(p, Ref::Flags::fromChown(flags));
-  }
-
-  // Indicate that we may write this file
-  f->mayWrite(_command);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    shared_ptr<Artifact> f;
 
-  // If the syscall failed, bail out
-  if (rc == -1) return;
+    // An empty path means just use dfd as the file
+    if (flags & AT_EMPTY_PATH) {
+      f = _fds[dfd].getRef()->getArtifact();
+    } else {
+      // Are we following links or not?
+      bool follow_links = (flags & AT_SYMLINK_NOFOLLOW) == 0;
 
-  // Record a write
-  f->writtenBy(_command);
+      // Resolve the path, then get the file tracking object
+      auto p = resolvePath(filename, dfd);
+      f = _tracer.getArtifact(p, follow_links);
+
+      // Record the reference
+      _command->addReference(p, Ref::Flags::fromChown(flags));
+    }
+
+    // Indicate that we may write this file
+    f->mayWrite(_command);
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, bail out
+    if (rc == -1) return;
+
+    // Record a write
+    f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_unlinkat(int dfd, string pathname, int flags) {
   WARN << "unlinkat syscall is not updated";
-
-  auto p = resolvePath(pathname, dfd);
-  auto f = _tracer.getArtifact(p);
-
-  // Record the reference
-  _command->addReference(p, Ref::Flags::fromUnlink(flags));
-
-  f->mayDelete(_command);
-
-  int rc = finishSyscall();
   resume();
+  /*
+    auto p = resolvePath(pathname, dfd);
+    auto f = _tracer.getArtifact(p);
 
-  if (rc == 0) f->deletedBy(_command);
+    // Record the reference
+    _command->addReference(p, Ref::Flags::fromUnlink(flags));
+
+    f->mayDelete(_command);
+
+    int rc = finishSyscall();
+    resume();
+
+    if (rc == 0) f->deletedBy(_command);
+  */
 }
 
 void Tracer::Process::_symlinkat(string oldname, int newdfd, string newname) {
   WARN << "symlinkat syscall is not updated";
-
-  // Creating a symlink doesn't actually do anything with the target (oldname)
-  auto newp = resolvePath(newname, newdfd);
-
-  // TODO: Set creat/excl for new link if this syscall succeeds? No, maybe we always set them, then
-  // record reference failure if the syscall fails.
-  _command->addReference(newp);
-
   resume();
-  // TODO
+  /*
+    // Creating a symlink doesn't actually do anything with the target (oldname)
+    auto newp = resolvePath(newname, newdfd);
+
+    // TODO: Set creat/excl for new link if this syscall succeeds? No, maybe we always set them,
+    then
+    // record reference failure if the syscall fails.
+    _command->addReference(newp);
+
+    resume();
+    // TODO
+  */
 }
 
 void Tracer::Process::_readlinkat(int dfd, string pathname) {
   WARN << "readlinkat syscall is not updated";
-
-  auto p = resolvePath(pathname, dfd);
-  _command->addReference(p, {.nofollow = true});
-
   resume();
-  // TODO
+  /*
+    auto p = resolvePath(pathname, dfd);
+    _command->addReference(p, {.nofollow = true});
+
+    resume();
+    // TODO
+  */
 }
 
 void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   WARN << "fchmodat syscall is not updated";
-
-  // Find the file object
-  auto p = resolvePath(filename, dfd);
-  auto f = _tracer.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
-
-  // Record the reference
-  _command->addReference(p, Ref::Flags::fromChmod(flags));
-
-  // Indicate that we may write this file
-  f->mayWrite(_command);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    // Find the file object
+    auto p = resolvePath(filename, dfd);
+    auto f = _tracer.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
 
-  // If the syscall failed, bail out
-  if (rc != 0) return;
+    // Record the reference
+    _command->addReference(p, Ref::Flags::fromChmod(flags));
 
-  // Record the write
-  f->writtenBy(_command);
+    // Indicate that we may write this file
+    f->mayWrite(_command);
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, bail out
+    if (rc != 0) return;
+
+    // Record the write
+    f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_tee(int fd_in, int fd_out) {
   WARN << "tee syscall is not updated";
-
-  auto input_f = _fds[fd_in].getRef()->getArtifact();
-  auto output_f = _fds[fd_out].getRef()->getArtifact();
-
-  // If either file doesn't exist, bail out
-  if (!input_f || !output_f) {
-    resume();
-    return;
-  }
-
-  // Indicate that we may write the file
-  output_f->mayWrite(_command);
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    auto input_f = _fds[fd_in].getRef()->getArtifact();
+    auto output_f = _fds[fd_out].getRef()->getArtifact();
 
-  // If the syscall failed, bail
-  if (rc == -1) return;
+    // If either file doesn't exist, bail out
+    if (!input_f || !output_f) {
+      resume();
+      return;
+    }
 
-  // Record the read and write operations
-  input_f->readBy(_command);
-  output_f->writtenBy(_command);
+    // Indicate that we may write the file
+    output_f->mayWrite(_command);
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, bail
+    if (rc == -1) return;
+
+    // Record the read and write operations
+    input_f->readBy(_command);
+    output_f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
@@ -957,85 +990,89 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
   if (rc == -1) return;
 
   // Add the entry for the duped fd
-  _fds[rc] = _fds[oldfd];
+  _fds.emplace(rc, _fds.at(oldfd));
 
   // If the flags include O_CLOEXEC, we have to set that property on the new file descriptor
   // If O_CLOEXEC is not set, any dup-ed fd is NOT cloexec
-  _fds[rc].setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
+  _fds.at(rc).setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
   WARN << "pipe2 syscall is not updated";
-
-  int rc = finishSyscall();
-
-  // Bail out if the syscall failed
-  if (rc) return;
-
-  // Read the file descriptors
-  int read_pipefd = readData((uintptr_t)fds);
-  int write_pipefd = readData((uintptr_t)fds + sizeof(int));
-
   resume();
+  /*
+    int rc = finishSyscall();
 
-  // Create a pipe
-  auto p = make_shared<Artifact>("", Artifact::Type::PIPE);
+    // Bail out if the syscall failed
+    if (rc) return;
 
-  // Create references
-  auto read_ref = _command->addReference({.r = true})->resolvesTo(p);
-  auto write_ref = _command->addReference({.w = true})->resolvesTo(p);
+    // Read the file descriptors
+    int read_pipefd = readData((uintptr_t)fds);
+    int write_pipefd = readData((uintptr_t)fds + sizeof(int));
 
-  // Create the FD records
-  _fds[read_pipefd] = FileDescriptor(read_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
-  _fds[write_pipefd] = FileDescriptor(write_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+    resume();
 
-  p->createdBy(_command);
+    // Create a pipe
+    auto p = make_shared<Artifact>("", Artifact::Type::PIPE);
+
+    // Create references
+    auto read_ref = _command->addReference({.r = true})->resolvesTo(p);
+    auto write_ref = _command->addReference({.w = true})->resolvesTo(p);
+
+    // Create the FD records
+    _fds[read_pipefd] = FileDescriptor(read_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+    _fds[write_pipefd] = FileDescriptor(write_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+
+    p->createdBy(_command);
+  */
 }
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
                                  int flags) {
   WARN << "renameat2 syscall is not updated";
-
-  string old_path = resolvePath(oldpath, old_dfd);
-  auto old_f = _tracer.getArtifact(old_path);
-
-  // Record the reference to the old file
-  // TODO: Deal with flags
-  _command->addReference(old_path);
-
-  string new_path = resolvePath(newpath, new_dfd);
-  auto new_f = _tracer.getArtifact(new_path);
-
-  // Record the reference to the new file
-  // TODO: Deal with flags
-  _command->addReference(new_path);
-
-  // We may delete the input file
-  if (old_f) old_f->mayDelete(_command);
-
-  // Unless the noreplace flag was set, we may delete the output file
-  if (new_f && (flags & RENAME_NOREPLACE) == 0) {
-    new_f->mayDelete(_command);
-  }
-
-  // Finish the syscall and resume
-  int rc = finishSyscall();
   resume();
+  /*
+    string old_path = resolvePath(oldpath, old_dfd);
+    auto old_f = _tracer.getArtifact(old_path);
 
-  // If the syscall failed, do nothing
-  if (rc == -1) return;
+    // Record the reference to the old file
+    // TODO: Deal with flags
+    _command->addReference(old_path);
 
-  // We effectively read the old file
-  old_f->readBy(_command);
+    string new_path = resolvePath(newpath, new_dfd);
+    auto new_f = _tracer.getArtifact(new_path);
 
-  // We deleted the new file
-  if (new_f) new_f->deletedBy(_command);
+    // Record the reference to the new file
+    // TODO: Deal with flags
+    _command->addReference(new_path);
 
-  // Then link the old file into place
-  old_f->updatePath(new_path);
+    // We may delete the input file
+    if (old_f) old_f->mayDelete(_command);
 
-  // And we've written that file
-  old_f->writtenBy(_command);
+    // Unless the noreplace flag was set, we may delete the output file
+    if (new_f && (flags & RENAME_NOREPLACE) == 0) {
+      new_f->mayDelete(_command);
+    }
+
+    // Finish the syscall and resume
+    int rc = finishSyscall();
+    resume();
+
+    // If the syscall failed, do nothing
+    if (rc == -1) return;
+
+    // We effectively read the old file
+    old_f->readBy(_command);
+
+    // We deleted the new file
+    if (new_f) new_f->deletedBy(_command);
+
+    // Then link the old file into place
+    old_f->updatePath(new_path);
+
+    // And we've written that file
+    old_f->writtenBy(_command);
+  */
 }
 
 void Tracer::Process::_lseek(int fd, off_t offset, int whence) {
