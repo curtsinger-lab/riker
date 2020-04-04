@@ -118,7 +118,7 @@ void parse_argv(string cmd, forward_list<string> argv) {
     } else if (arg == "--visualize-all") {
       options.visualize = true;
       options.show_sysfiles = true;
-    
+
     } else if (arg == "--trace") {
       if (!argv.empty()) {
         options.trace_output = argv.front();

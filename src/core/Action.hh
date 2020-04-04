@@ -23,11 +23,9 @@ class Action {
   virtual ~Action() = default;
 
   virtual ostream& print(ostream&) const = 0;
-  
+
   /// Print an Action to an output stream
-  friend ostream& operator<<(ostream& o, const Action& a) {
-    return a.print(o);
-  }
+  friend ostream& operator<<(ostream& o, const Action& a) { return a.print(o); }
 
   /// Print an Action* to an output stream
   friend ostream& operator<<(ostream& o, const Action* a) { return o << *a; }
@@ -49,8 +47,7 @@ class Action::SetMetadata : public Action {};
 
 class Action::SetContents : public Action {
  public:
-  SetContents(shared_ptr<Ref> ref, Artifact::VersionRef version) :
-    _ref(ref), _version(version) {}
+  SetContents(shared_ptr<Ref> ref, Artifact::VersionRef version) : _ref(ref), _version(version) {}
 
   virtual ~SetContents() = default;
 

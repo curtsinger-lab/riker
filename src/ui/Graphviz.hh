@@ -53,7 +53,7 @@ class Graphviz {
 
       if (f->onlyReferenced()) {
         parts += "<tr><td port=\"v0\">" + f->getShortName() + "</td></tr>";
-        
+
       } else {
         if (f->getShortName() != "") {
           parts += "<tr><td>" + f->getShortName() + "</td></tr>";

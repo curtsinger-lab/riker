@@ -135,7 +135,7 @@ class Tracer {
     void _write(int fd);
     void _close(int fd);
     void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off);
-    int  _dup(int fd);
+    int _dup(int fd);
     void _sendfile(int out_fd, int in_fd);
     void _execveat(int dfd, string filename);
     void _fcntl(int fd, int cmd, unsigned long arg);
@@ -164,7 +164,7 @@ class Tracer {
     void _faccessat(int dirfd, string pathname, int mode, int flags);
     void _fstatat(int dirfd, string pathname, int flags);
     void _lseek(int fd, off_t offset, int whence);
-    
+
     /*** Syscalls that should be handled directly, but are currently aliases ***/
     void _rmdir(string p) { _unlink(p); }
     void _fchmod(int fd, mode_t mode) { _write(fd); }

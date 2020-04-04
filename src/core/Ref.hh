@@ -92,7 +92,7 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
  private:
   /// Create a reference without a path
-  Ref(shared_ptr<Command> cmd, Flags flags) : 
+  Ref(shared_ptr<Command> cmd, Flags flags) :
       _id(next_id++), _command(cmd), _flags(flags), _anonymous(true) {}
 
   /// Create a reference with a path
@@ -123,7 +123,7 @@ class Ref : public std::enable_shared_from_this<Ref> {
     _artifact = p;
     return shared_from_this();
   }
-  
+
   /// Record that this reference failed
   void failed() { _failed = false; }
 
@@ -145,7 +145,7 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Get the path for this reference
   string getPath() const { return _path.value(); }
-  
+
   /// Check if this is a reference to a system file
   bool isSystemPath() {
     if (!_path.has_value()) return false;
@@ -162,7 +162,8 @@ class Ref : public std::enable_shared_from_this<Ref> {
 
   /// Print this artifact reference
   friend ostream& operator<<(ostream& o, const Ref& ref) {
-    return o << "r" << ref._id << " = ACCESS(" << ref._path.value_or("(anon)") << ", " << ref._flags << ")";
+    return o << "r" << ref._id << " = ACCESS(" << ref._path.value_or("(anon)") << ", " << ref._flags
+             << ")";
     /*o << ref._flags;
     if (ref._anonymous) o << " (anon)";
     if (ref.hasPath()) o << " " << ref.getPath();
@@ -190,15 +191,15 @@ class Ref : public std::enable_shared_from_this<Ref> {
   /// Is this reference made without naming the path to the artifact?
   /// This will be true for pipes, and for reference inherited from parent commands.
   bool _anonymous;
-  
+
   /// The artifact this reference resolves to. May be null if the reference is unresolved or fails.
   shared_ptr<Artifact> _artifact;
-  
+
   /// When the command made this reference, did it fail?
   bool _failed = false;
-  
+
   /// Artifact versions that were read through this reference
-  
+
   /// A static global for tracking unique IDs for references
   static size_t next_id;
 };

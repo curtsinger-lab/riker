@@ -27,11 +27,9 @@ class Predicate {
   virtual ~Predicate() = default;
 
   virtual ostream& print(ostream&) const = 0;
-  
+
   /// Print a Predicate to an output stream
-  friend ostream& operator<<(ostream& o, const Predicate& p) {
-    return p.print(o);
-  }
+  friend ostream& operator<<(ostream& o, const Predicate& p) { return p.print(o); }
 
   /// Print a Command* to an output stream
   friend ostream& operator<<(ostream& o, const Predicate* p) { return o << *p; }
@@ -43,9 +41,7 @@ class Predicate::IsOK : public Predicate {
 
   virtual ~IsOK() = default;
 
-  virtual ostream& print(ostream& o) const {
-    return o << "IS_OK(r" << _ref->getID() << ")";
-  }
+  virtual ostream& print(ostream& o) const { return o << "IS_OK(r" << _ref->getID() << ")"; }
 
  private:
   shared_ptr<Ref> _ref;
@@ -58,15 +54,9 @@ class Predicate::IsError : public Predicate {
   virtual ~IsError() = default;
 
   virtual ostream& print(ostream& o) const {
-    static map<int, string> errors = {
-      {EACCES, "EACCES"},
-      {EDQUOT, "EDQUOT"},
-      {EEXIST, "EEXIST"},
-      {EINVAL, "EINVAL"},
-      {EISDIR, "EISDIR"},
-      {ELOOP, "ELOOP"},
-      {ENOENT, "ENOENT"}
-    };
+    static map<int, string> errors = {{EACCES, "EACCES"}, {EDQUOT, "EDQUOT"}, {EEXIST, "EEXIST"},
+                                      {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"}, {ELOOP, "ELOOP"},
+                                      {ENOENT, "ENOENT"}};
 
     string errname = "EMYSTERY";
 
@@ -85,9 +75,8 @@ class Predicate::IsError : public Predicate {
 
 class Predicate::MetadataMatch : public Predicate {
  public:
-  MetadataMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) :
-    _ref(ref), _version(version) {}
-  
+  MetadataMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) : _ref(ref), _version(version) {}
+
   virtual ~MetadataMatch() = default;
 
   virtual ostream& print(ostream& o) const {
@@ -101,8 +90,7 @@ class Predicate::MetadataMatch : public Predicate {
 
 class Predicate::ContentsMatch : public Predicate {
  public:
-  ContentsMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) :
-    _ref(ref), _version(version) {}
+  ContentsMatch(shared_ptr<Ref> ref, Artifact::VersionRef version) : _ref(ref), _version(version) {}
 
   virtual ~ContentsMatch() = default;
 

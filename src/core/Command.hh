@@ -129,7 +129,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
     return new_ref;
   }
-  
+
   /// Set up the stdin, stdout, stderr references
   void addStandardReferences() {
     _initial_fds.emplace(0, addReference({.r = true})->resolvesTo(Artifact::stdin));
@@ -140,14 +140,15 @@ class Command : public std::enable_shared_from_this<Command> {
   /********* New methods and types for command tracking **********/
 
   /// The command accesses an artifact by path.
-  /// This function returns a shared_ptr<Ref>, 
+  /// This function returns a shared_ptr<Ref>,
   /// Most access() calls will *not* have side-effects, but some will:
   ///  - O_CREAT was specified, and the file did not exist before this call
   ///  - O_TRUNC was specified, and the file existed before this call
-  shared_ptr<Ref> access(string path, Ref::Flags flags, shared_ptr<Artifact> f = shared_ptr<Artifact>()) {
+  shared_ptr<Ref> access(string path, Ref::Flags flags,
+                         shared_ptr<Artifact> f = shared_ptr<Artifact>()) {
     shared_ptr<Ref> r(new Ref(shared_from_this(), path, flags));
     r->resolvesTo(f);
-    
+
     // TODO: if f exists and O_TRUNC is set in flags, this access creates a new version of the file
 
     _steps.push_back(r);
@@ -155,9 +156,7 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// This command requires that a reference resolves to an artifact without failure
-  void isOK(shared_ptr<Ref> ref) {
-    _steps.push_back(make_shared<Predicate::IsOK>(ref));
-  }
+  void isOK(shared_ptr<Ref> ref) { _steps.push_back(make_shared<Predicate::IsOK>(ref)); }
 
   /// This command requires that a reference fails to resolve with a specific error
   void isError(shared_ptr<Ref> ref, int err) {
@@ -196,9 +195,7 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// This command starts another command
-  void launch(shared_ptr<Command> cmd) {
-    _steps.push_back(make_shared<Action::Launch>(cmd));
-  }
+  void launch(shared_ptr<Command> cmd) { _steps.push_back(make_shared<Action::Launch>(cmd)); }
 
   /// Print the abstract trace of this command (and its children) to an output stream
   void printTrace(ostream& o) const {

@@ -174,9 +174,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   };
 
   /// Get a reference to the latest version of this artifact
-  VersionRef getLatestVersion() { 
-    return VersionRef(shared_from_this(), _versions.size() - 1);
-  }
+  VersionRef getLatestVersion() { return VersionRef(shared_from_this(), _versions.size() - 1); }
 
   /// Construct a list of references to the versions of this artifact. This isn't particularly
   /// efficient, but it's only used in the GraphViz output.
