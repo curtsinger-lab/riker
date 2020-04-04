@@ -28,9 +28,31 @@ using std::vector;
 dodo_options options;
 
 /**
+ * Show command line usage information
+ */
+void show_usage(string cmd) {
+  cout << "Usage: " << cmd << " [options]" << endl;
+  cout << "Build Options:" << endl;
+  cout << "  -n, --dry-run      Don't run any build commands; just print actions." << endl;
+  cout << "  --fingerprint <all|local|none>" << endl;
+  cout << "                     Choose which files are fingerprinted to detect changes." << endl;
+  cout << "  -j <N>             Allow N jobs to run at once." << endl;
+  cout << endl;
+  cout << "Debug Output Options:" << endl;
+  cout << "  --trace <file>     Write the build trace IR to this file. Pass - for stdout." << endl;
+  cout << "  --visualize        Generate graphviz output in file out.dot." << endl;
+  cout << "  --visualize-all    Generate graphviz output, including for system files." << endl;
+  cout << "  -v                 Print warning-level log information." << endl;
+  cout << "  -vv                Print info-level log information." << endl;
+  cout << "  -vvv               Print all log information." << endl;
+  cout << "  --debug            Include source locations in log messages." << endl;
+  cout << "  --no-color         Disable color terminal output." << endl;
+}
+
+/**
  * Parse command line options and return a dodo_options struct.
  */
-void parse_argv(forward_list<string> argv) {
+void parse_argv(string cmd, forward_list<string> argv) {
   // Loop until we've consumed all command line arguments
   while (!argv.empty()) {
     // Take the first argument off the list
@@ -62,31 +84,15 @@ void parse_argv(forward_list<string> argv) {
         } else if (argv.front() == "all") {
           options.fingerprint = FingerprintLevel::All;
         } else {
-          FAIL << "Please specifiy a fingerprint level: none, local, or all.";
+          cerr << "Please specifiy a fingerprint level: none, local, or all" << endl;
+          show_usage(cmd);
+          exit(1);
         }
 
         argv.pop_front();
       }
 
-    } else if (arg == "--changed") {
-      if (!argv.empty()) {
-        options.explicitly_changed.insert(argv.front());
-        argv.pop_front();
-      } else {
-        cerr << "Please specify a file to mark as changed.\n";
-        exit(1);
-      }
-
-    } else if (arg == "--unchanged") {
-      if (!argv.empty()) {
-        options.explicitly_unchanged.insert(argv.front());
-        argv.pop_front();
-      } else {
-        cerr << "Please specify a file to mark as unchanged.\n";
-        exit(1);
-      }
-
-    } else if (arg == "--dry-run") {
+    } else if (arg == "-n" || arg == "--dry-run") {
       options.dry_run = true;
 
     } else if (arg == "-j") {
@@ -95,12 +101,14 @@ void parse_argv(forward_list<string> argv) {
         argv.pop_front();
 
         if (specified_jobs < 1) {
-          cerr << "Invalid number of jobs: specify at least one.\n";
+          cerr << "Invalid number of jobs: specify at least one." << endl;
+          show_usage(cmd);
           exit(1);
         }
         options.parallel_jobs = specified_jobs;
       } else {
-        cerr << "Please specify a number of jobs to use" << endl;
+        cerr << "Please specify a number of jobs to use." << endl;
+        show_usage(cmd);
         exit(1);
       }
 
@@ -110,17 +118,29 @@ void parse_argv(forward_list<string> argv) {
     } else if (arg == "--visualize-all") {
       options.visualize = true;
       options.show_sysfiles = true;
+    
+    } else if (arg == "--trace") {
+      if (!argv.empty()) {
+        options.trace_output = argv.front();
+        argv.pop_front();
+      } else {
+        cerr << "Please specify an output file for the build trace." << endl;
+      }
 
-    } else if (arg == "--hide-collapsed") {
-      options.show_collapsed = false;
-
+    } else if (arg == "-h" || arg == "--help") {
+      show_usage(cmd);
+      exit(1);
     } else {
-      cerr << "Invalid argument " << arg << endl;
+      cerr << "Unrecognized argument " << arg << endl;
+      show_usage(cmd);
       exit(1);
     }
   }
 }
 
+/**
+ * Check if the current terminal supports color output.
+ */
 static bool stderr_supports_colors() {
   return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
 }
@@ -133,7 +153,7 @@ int main(int argc, char* argv[]) {
   if (!stderr_supports_colors()) options.color_output = false;
 
   // Parse command line options
-  parse_argv(forward_list<string>(argv + 1, argv + argc));
+  parse_argv(argv[0], forward_list<string>(argv + 1, argv + argc));
 
   // Create a build graph to track our build
   BuildGraph graph;
@@ -171,6 +191,17 @@ int main(int argc, char* argv[]) {
   if (options.visualize) {
     Graphviz g("out.dot");
     graph.drawGraph(g);
+  }
+
+  // Generate trace output if requested
+  if (options.trace_output.has_value()) {
+    string filename = options.trace_output.value();
+    if (filename == "-") {
+      graph.printTrace(cout);
+    } else {
+      ofstream f(filename);
+      graph.printTrace(f);
+    }
   }
 
   return 0;

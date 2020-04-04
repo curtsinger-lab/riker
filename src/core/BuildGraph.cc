@@ -41,3 +41,7 @@ void BuildGraph::prune() {
 void BuildGraph::drawGraph(Graphviz& g) {
   if (_root) _root->drawGraph(g);
 }
+
+void BuildGraph::printTrace(ostream& o) {
+  if (_root) _root->printTrace(o);
+}

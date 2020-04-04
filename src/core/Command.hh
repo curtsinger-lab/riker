@@ -19,6 +19,7 @@
 class Graphviz;
 class Tracer;
 
+using std::endl;
 using std::make_shared;
 using std::map;
 using std::ostream;
@@ -136,21 +137,6 @@ class Command : public std::enable_shared_from_this<Command> {
     _initial_fds.emplace(2, addReference({.w = true})->resolvesTo(Artifact::stderr));
   }
 
-  void show() const {
-    WARN << this;
-    for (auto& s : _steps) {
-      if (std::holds_alternative<shared_ptr<Ref>>(s)) {
-        WARN << "  " << std::get<shared_ptr<Ref>>(s);
-      } else if (std::holds_alternative<shared_ptr<Predicate>>(s)) {
-        WARN << "  " << std::get<shared_ptr<Predicate>>(s);
-      } else if (std::holds_alternative<shared_ptr<Action>>(s)) {
-        WARN << "  " << std::get<shared_ptr<Action>>(s);
-      }
-    }
-  }
-
-  ~Command() { show(); }
-
   /********* New methods and types for command tracking **********/
 
   /// The command accesses an artifact by path.
@@ -212,6 +198,28 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command starts another command
   void launch(shared_ptr<Command> cmd) {
     _steps.push_back(make_shared<Action::Launch>(cmd));
+  }
+
+  /// Print the abstract trace of this command (and its children) to an output stream
+  void printTrace(ostream& o) const {
+    // Print this command's name
+    o << this << endl;
+
+    // Print the trace for this command
+    for (auto& s : _steps) {
+      if (std::holds_alternative<shared_ptr<Ref>>(s)) {
+        o << "  " << std::get<shared_ptr<Ref>>(s) << endl;
+      } else if (std::holds_alternative<shared_ptr<Predicate>>(s)) {
+        o << "  " << std::get<shared_ptr<Predicate>>(s) << endl;
+      } else if (std::holds_alternative<shared_ptr<Action>>(s)) {
+        o << "  " << std::get<shared_ptr<Action>>(s) << endl;
+      }
+    }
+
+    // Print traces for all child commands
+    for (auto& child : _children) {
+      child->printTrace(o);
+    }
   }
 
  private:

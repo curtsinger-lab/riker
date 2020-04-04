@@ -42,6 +42,8 @@ class BuildGraph {
 
   void drawGraph(Graphviz& g);
 
+  void printTrace(ostream& o);
+
  private:
   shared_ptr<Command> _root;
 };
