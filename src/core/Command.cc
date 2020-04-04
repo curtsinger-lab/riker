@@ -1,4 +1,4 @@
-#include "core/Command.hh"
+#include "Command.hh"
 
 #include <map>
 #include <memory>

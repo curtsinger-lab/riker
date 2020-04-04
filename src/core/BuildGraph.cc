@@ -1,4 +1,4 @@
-#include "core/BuildGraph.hh"
+#include "BuildGraph.hh"
 
 #include <list>
 #include <map>
