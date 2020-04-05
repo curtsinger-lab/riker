@@ -576,23 +576,14 @@ void Tracer::Process::_ftruncate(int fd, long length) {
 }
 
 void Tracer::Process::_chdir(string filename) {
-  WARN << "chdir syscall is not updated";
+  int rc = finishSyscall();
+
+  // Update the current working directory if the chdir call succeeded
+  if (rc == 0) {
+    _cwd = resolvePath(filename);
+  }
+
   resume();
-  /*
-    int rc = finishSyscall();
-    resume();
-
-    // Resolve the path
-    string p = resolvePath(filename);
-
-    // Record the reference
-    _command->addReference(p);
-
-    // Update the current working directory if the chdir call succeeded
-    if (rc == 0) {
-      _cwd = resolvePath(filename);
-      INFO << "chdir to " << filename << " resolved to " << _cwd;
-    }*/
 }
 
 void Tracer::Process::_fchdir(int fd) {
@@ -998,33 +989,33 @@ void Tracer::Process::_dup3(int oldfd, int newfd, int flags) {
 }
 
 void Tracer::Process::_pipe2(int* fds, int flags) {
-  WARN << "pipe2 syscall is not updated";
-  resume();
-  /*
-    int rc = finishSyscall();
+  int rc = finishSyscall();
 
-    // Bail out if the syscall failed
-    if (rc) return;
-
-    // Read the file descriptors
-    int read_pipefd = readData((uintptr_t)fds);
-    int write_pipefd = readData((uintptr_t)fds + sizeof(int));
-
+  // There is nothing to do if the syscall fails, but why would that ever happen?
+  if (rc) {
     resume();
+    return;
+  }
 
-    // Create a pipe
-    auto p = make_shared<Artifact>("", Artifact::Type::PIPE);
+  // Create a reference to the pipe
+  auto ref = _command->pipe();
 
-    // Create references
-    auto read_ref = _command->addReference({.r = true})->resolvesTo(p);
-    auto write_ref = _command->addReference({.w = true})->resolvesTo(p);
+  // Read the file descriptors
+  int read_pipefd = readData((uintptr_t)fds);
+  int write_pipefd = readData((uintptr_t)fds + sizeof(int));
 
-    // Create the FD records
-    _fds[read_pipefd] = FileDescriptor(read_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
-    _fds[write_pipefd] = FileDescriptor(write_ref, (flags & O_CLOEXEC) == O_CLOEXEC);
+  // The command can continue
+  resume();
 
-    p->createdBy(_command);
-  */
+  // Create a pipe artifact
+  auto artifact = make_shared<Artifact>("<pipe>");
+
+  // Check if this pipe is closed on exec
+  bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
+
+  // Fill in the file descriptor entries
+  _fds.emplace(read_pipefd, FileDescriptor(ref, artifact, false, cloexec));
+  _fds.emplace(write_pipefd, FileDescriptor(ref, artifact, true, cloexec));
 }
 
 void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,

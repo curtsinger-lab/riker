@@ -94,6 +94,13 @@ class Command : public std::enable_shared_from_this<Command> {
     return ref;
   }
 
+  /// This command creates a reference to a new pipe
+  shared_ptr<Reference> pipe() {
+    auto ref = make_shared<Reference::Pipe>();
+    _steps.push_back(ref);
+    return ref;
+  }
+
   /// This command requires that a reference resolves to an artifact without failure
   void isOK(shared_ptr<Reference> ref) { _steps.push_back(make_shared<Predicate::IsOK>(ref)); }
 
