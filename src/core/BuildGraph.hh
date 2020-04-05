@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/Artifact.hh"
+#include "core/IR.hh"
 #include "ui/options.hh"
 
 class Command;
@@ -43,7 +44,13 @@ class BuildGraph {
 
  private:
   shared_ptr<Command> _root;
-  shared_ptr<Artifact> _stdin = make_shared<Artifact>("<<stdin>>");
-  shared_ptr<Artifact> _stdout = make_shared<Artifact>("<<stdout>>");
-  shared_ptr<Artifact> _stderr = make_shared<Artifact>("<<stderr>>");
+
+  shared_ptr<Reference> _stdin_ref;
+  shared_ptr<Artifact> _stdin;
+
+  shared_ptr<Reference> _stdout_ref;
+  shared_ptr<Artifact> _stdout;
+
+  shared_ptr<Reference> _stderr_ref;
+  shared_ptr<Artifact> _stderr;
 };

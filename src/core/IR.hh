@@ -71,7 +71,7 @@ class Reference : public Step {
 /// Create a reference to a new pipe
 class Reference::Pipe : public Reference {
  public:
-  virtual ostream& print(ostream& o) const { return o << "PIPE()"; }
+  virtual ostream& print(ostream& o) const { return o << getName() << " = PIPE()"; }
 };
 
 /// Access a filesystem path with a given set of flags
@@ -126,7 +126,7 @@ class Reference::Access : public Reference {
 
   /// Print an access reference
   virtual ostream& print(ostream& o) const {
-    return o << getName() << " = ACCESS(" << _path << ", " << getFlags() << ")";
+    return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
   }
 
  private:
