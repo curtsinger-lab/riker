@@ -178,8 +178,10 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  Tracer tracer;
-  graph.run(tracer);
+  if (!options.dry_run) {
+    Tracer tracer;
+    graph.run(tracer);
+  }
 
   // Generate graphviz output, if requested
   if (options.visualize) {

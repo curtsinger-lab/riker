@@ -65,7 +65,7 @@ class Reference : public Step {
   friend void serialize(Archive& archive, Reference& r);
 
  private:
-  size_t _id;
+  size_t _id;  //< Unique ID for printing references (not serialized)
 
   /// Get a unique identifier for a reference
   static size_t getNextID() {
@@ -148,8 +148,8 @@ class Reference::Access : public Reference {
   friend void serialize(Archive& archive, Access& a);
 
  private:
-  string _path;
-  Flags _flags;
+  string _path;  //< The filesystem path that was accessed
+  Flags _flags;  //< The relevant flags for the access
 };
 
 /**
@@ -191,7 +191,7 @@ class Predicate::IsOK : public Predicate {
   friend void serialize(Archive& archive, IsOK& p);
 
  private:
-  shared_ptr<Reference> _ref;
+  shared_ptr<Reference> _ref;  //< The reference that must have been made successfully
 };
 
 /**
@@ -230,8 +230,8 @@ class Predicate::IsError : public Predicate {
   friend void serialize(Archive& archive, IsError& p);
 
  private:
-  shared_ptr<Reference> _ref;
-  int _err;
+  shared_ptr<Reference> _ref;  //< The reference that must have resulted in an error
+  int _err;                    //< The error code returned from the reference
 };
 
 /**
@@ -257,8 +257,8 @@ class Predicate::MetadataMatch : public Predicate {
   friend void serialize(Archive& archive, MetadataMatch& p);
 
  private:
-  shared_ptr<Reference> _ref;
-  Artifact::VersionRef _version;
+  shared_ptr<Reference> _ref;     //< The reference being examined
+  Artifact::VersionRef _version;  //< The artifact version whose metadata the reference must match
 };
 
 /**
@@ -284,8 +284,8 @@ class Predicate::ContentsMatch : public Predicate {
   friend void serialize(Archive& archive, ContentsMatch& p);
 
  private:
-  shared_ptr<Reference> _ref;
-  Artifact::VersionRef _version;
+  shared_ptr<Reference> _ref;     //< The reference being examined
+  Artifact::VersionRef _version;  //< The artifact version whose contents the reference must match
 };
 
 /**
@@ -329,7 +329,7 @@ class Action::Launch : public Action {
   friend void serialize(Archive& archive, Launch& a);
 
  private:
-  shared_ptr<Command> _cmd;
+  shared_ptr<Command> _cmd;  //< The command that is being launched
 };
 
 /**
@@ -355,8 +355,8 @@ class Action::SetMetadata : public Action {
   friend void serialize(Archive& archive, SetMetadata& a);
 
  private:
-  shared_ptr<Reference> _ref;
-  Artifact::VersionRef _version;
+  shared_ptr<Reference> _ref;     //< The reference used for this action
+  Artifact::VersionRef _version;  //< The artifact version with the metadata written by this action
 };
 
 /**
@@ -382,6 +382,6 @@ class Action::SetContents : public Action {
   friend void serialize(Archive& archive, SetContents& a);
 
  private:
-  shared_ptr<Reference> _ref;
-  Artifact::VersionRef _version;
+  shared_ptr<Reference> _ref;     //< The reference used for this action
+  Artifact::VersionRef _version;  //< The artifact version with the contents written by this action
 };

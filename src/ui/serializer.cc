@@ -20,23 +20,47 @@ using std::ifstream;
 using std::ofstream;
 using std::string;
 
-void save_build(string filename, BuildGraph& graph) {
-  ofstream f(filename, std::ios::binary);
-  cereal::BinaryOutputArchive archive(f);
-  archive(graph);
-}
-
+// Load a saved build from a file
 bool load_build(string filename, BuildGraph& graph) {
+  // Open the file for reading. Must pass std::ios::binary!
   ifstream f(filename, std::ios::binary);
+
+  // Initialize cereal's binary archive reader
   cereal::BinaryInputArchive archive(f);
 
   try {
+    // Attempt to load the build
     archive(graph);
     return true;
   } catch (cereal::Exception e) {
+    // Return false on failure
     return false;
   }
 }
+
+// Save a build to a file
+void save_build(string filename, const BuildGraph& graph) {
+  // Open the file for writing. Must pass std::ios::binary!
+  ofstream f(filename, std::ios::binary);
+
+  // Initialize cereal's binary archive writer
+  cereal::BinaryOutputArchive archive(f);
+
+  // Store the build
+  archive(graph);
+}
+
+/*
+ * Serialization Functions
+ * Each template function specifies the fields of a given class or struct that should be serialized.
+ * These template functions are friends of the types they serialize, so they can access private
+ * fields as needed. Friend declarations also give these functions access to private member types.
+ *
+ * In addition to the serialization functions themselves, IR types are registered with cereal, which
+ * is required for polymorphic types. All serialized types must be registered with
+ * CEREAL_REGISTER_TYPE. Parent classes that are *not* serialized must be reported with the
+ * CEREAL_REGISTER_POLYMORPHIC_RELATION macro.
+ */
 
 template <class Archive>
 void serialize(Archive& ar, BuildGraph& g) {
@@ -73,23 +97,21 @@ void serialize(Archive& ar, Artifact::VersionRef& v) {
   ar(v._artifact, v._index);
 }
 
-CEREAL_REGISTER_TYPE(Reference)
+// Polymorphic relations with non-serialized parent types must be registered as well
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Step, Reference)
-template <class Archive>
-void serialize(Archive& ar, Reference& r) {
-  ar(r._id);
-}
 
 CEREAL_REGISTER_TYPE(Reference::Pipe)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Reference::Pipe)
 template <class Archive>
 void serialize(Archive& ar, Reference::Pipe& p) {
-  ar(cereal::base_class<Reference>(&p));
+  // No fields to serialize here
 }
 
 CEREAL_REGISTER_TYPE(Reference::Access)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Reference::Access)
 template <class Archive>
 void serialize(Archive& ar, Reference::Access& a) {
-  ar(cereal::base_class<Reference>(&a), a._path, a._flags);
+  ar(a._path, a._flags);
 }
 
 template <class Archive>
