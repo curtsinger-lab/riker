@@ -38,12 +38,12 @@ using std::weak_ptr;
 class Command : public std::enable_shared_from_this<Command> {
   // Default constructor for deserialization
   friend class cereal::access;
-  Command() = default;
+  Command() : _id(getNextID()) {}
 
  public:
   /// Create a new root command, which has no parent.
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
-      _id(next_id++), _exe(exe), _args(args), _initial_fds(initial_fds) {}
+      _id(getNextID()), _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -52,6 +52,9 @@ class Command : public std::enable_shared_from_this<Command> {
   // Allow Move
   Command(Command&&) = default;
   Command& operator=(Command&&) = default;
+
+  /// Get a command's unique ID
+  size_t getID() const { return _id; }
 
   /// Get a short, printable name for this command
   string getShortName() const;
@@ -76,7 +79,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Print a Command to an output stream
   friend ostream& operator<<(ostream& o, const Command& c) {
-    return o << "[Command " << c._id << " " << c.getShortName() << "]";
+    return o << "[Command " << c.getID() << " " << c.getShortName() << "]";
   }
 
   /// Print a Command* to an output stream
@@ -178,6 +181,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
 
-  /// A static counter used to assign command IDs
-  static size_t next_id;
+  /// Generate a unique ID for a command
+  static size_t getNextID() {
+    static size_t next_id = 0;
+    return next_id++;
+  }
 };

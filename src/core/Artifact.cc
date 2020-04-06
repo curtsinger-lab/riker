@@ -6,8 +6,6 @@
 #include "core/Command.hh"
 #include "ui/log.hh"
 
-size_t Artifact::next_id = 0;
-
 void Artifact::fingerprint() {
   // If there are no references to this file, there's no need to fingerprint
   if (_versions.size() == 0) return;

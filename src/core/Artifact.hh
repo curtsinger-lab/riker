@@ -37,10 +37,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   // Default constructor for deserialization
   friend class cereal::access;
-  Artifact() = default;
+  Artifact() : _id(getNextID()) {}
 
   /****** Constructors ******/
-  Artifact(string path) : _id(next_id++), _path(path) {}
+  Artifact(string path) : _id(getNextID()), _path(path) {}
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
@@ -53,7 +53,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /****** Getters and setters ******/
 
   /// Get the unique ID assigned to this artifact
-  size_t getId() const { return _id; }
+  size_t getID() const { return _id; }
 
   /// Get the path used to refer to this artifact
   const string& getPath() const { return _path; }
@@ -79,7 +79,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
     if (f.getPath() != "")
       return o << "[Artifact " << f.getPath() << "]";
     else
-      return o << "[Artifact " << f.getId() << "]";
+      return o << "[Artifact " << f.getID() << "]";
   }
 
   /// Print a pointer to an artifact
@@ -164,9 +164,13 @@ class Artifact : public enable_shared_from_this<Artifact> {
   void fingerprint();
 
  private:
-  size_t _id;
+  size_t _id;                 //< A unique ID for printing
   string _path;               //< The absolute, normalized path to this artifact
   vector<Version> _versions;  //< The sequence of versions of this artifact
 
-  static size_t next_id;
+  /// Generate a unique ID for an artifact
+  static size_t getNextID() {
+    static size_t next_id = 0;
+    return next_id++;
+  }
 };

@@ -17,10 +17,6 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
-enum : size_t { MaxPrintedArgs = 3 };
-
-size_t Command::next_id = 0;
-
 string Command::getShortName() const {
   auto base = _exe;
   if (_args.size() > 0) base = _args.front();

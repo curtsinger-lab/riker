@@ -69,7 +69,7 @@ void serialize(Archive& ar, BuildGraph& g) {
 
 template <class Archive>
 void serialize(Archive& ar, Command& c) {
-  ar(c._id, c._exe, c._args, c._initial_fds, c._steps);
+  ar(c._exe, c._args, c._initial_fds, c._steps);
 }
 
 template <class Archive>
@@ -79,7 +79,7 @@ void serialize(Archive& ar, FileDescriptor& fd) {
 
 template <class Archive>
 void serialize(Archive& ar, Artifact& a) {
-  ar(a._id, a._path, a._versions);
+  ar(a._path, a._versions);
 }
 
 template <class Archive>
