@@ -19,7 +19,7 @@ IncludeCategories:
     Priority: 2
   
   # Capnproto files
-  - Regex: '^<(capnp)|(kj)/[[:alnum:]._]+>'
+  - Regex: '^<(cereal)/[[:alnum:]._/]+>'
     Priority: 4
   
   # C include files
