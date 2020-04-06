@@ -8,4 +8,4 @@ Remove output file
   $ rm -f myfile
 
 Remove a leftover Dodo database
-  $ rm -f db.dodo
+  $ rm -f .dodo.db

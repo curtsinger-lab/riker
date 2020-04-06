@@ -22,7 +22,7 @@ TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofi
 all: dodo
 	
 clean:
-	rm -rf dodo objs db.dodo
+	rm -rf dodo objs .dodo.db
 
 .PHONY: all clean iwyu test selftest
 
@@ -45,7 +45,7 @@ test: dodo
 
 selftest: dodo
 	@echo "Running self test"
-	@rm -f db.dodo
+	@rm -f .dodo.db
 	./dodo
 
 iwyu:

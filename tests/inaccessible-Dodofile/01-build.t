@@ -2,7 +2,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean build
-  $ rm -f db.dodo hello
+  $ rm -f .dodo.db hello
 
 Make sure the Dodofile is not readable (required for this test)
   $ chmod a-r Dodofile

@@ -1,9 +1,7 @@
-.mypy_cache
-dev
 #*
 *~
 ._*
-db.dodo
+.dodo.db
 out.dot
 out.pdf
 out.svg
