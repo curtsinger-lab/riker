@@ -3,6 +3,8 @@
 #include <memory>
 #include <ostream>
 
+#include <cereal/access.hpp>
+
 using std::ostream;
 using std::shared_ptr;
 
@@ -11,6 +13,9 @@ class Artifact;
 
 class FileDescriptor {
  public:
+  // Default constructor for deserialization
+  FileDescriptor() = default;
+
   /// Create an object to track a file descriptor
   FileDescriptor(shared_ptr<Reference> ref, shared_ptr<Artifact> artifact, bool writable,
                  bool cloexec = false) :
@@ -35,6 +40,10 @@ class FileDescriptor {
   friend ostream& operator<<(ostream& o, const FileDescriptor& fd) {
     return o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
   }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, FileDescriptor& fd);
 
  private:
   shared_ptr<Reference> _ref;      //< The reference used to construct this file descriptor

@@ -1,5 +1,6 @@
 #include "BuildGraph.hh"
 
+#include <fstream>
 #include <list>
 #include <map>
 #include <memory>
@@ -15,6 +16,7 @@
 using std::list;
 using std::make_shared;
 using std::map;
+using std::ofstream;
 using std::string;
 
 BuildGraph::BuildGraph(string executable, vector<string> arguments) {

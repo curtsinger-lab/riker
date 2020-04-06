@@ -13,6 +13,8 @@
 
 #include <fcntl.h>
 
+#include <cereal/access.hpp>
+
 #include "ui/options.hh"
 
 class Command;
@@ -32,6 +34,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
   // Forward declaration for VerionRef class, which stores a reference to a specific version of an
   // artifact.
   friend class VersionRef;
+
+  // Default constructor for deserialization
+  friend class cereal::access;
+  Artifact() = default;
 
   /****** Constructors ******/
   Artifact(string path) : _id(next_id++), _path(path) {}
@@ -87,6 +93,9 @@ class Artifact : public enable_shared_from_this<Artifact> {
     VersionRef(shared_ptr<Artifact> artifact, size_t index) : _artifact(artifact), _index(index) {}
 
    public:
+    // Default constructor for deserialization only
+    VersionRef() = default;
+
     shared_ptr<Artifact> getArtifact() const { return _artifact; }
     size_t getIndex() const { return _index; }
     string getShortName() const { return _artifact->getShortName() + "v" + to_string(_index); }
@@ -94,6 +103,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
     bool operator<(const VersionRef& other) const {
       return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
     }
+
+    /// Friend method for serialization
+    template <class Archive>
+    friend void serialize(Archive& archive, VersionRef& v);
 
    private:
     shared_ptr<Artifact> _artifact;
@@ -138,6 +151,15 @@ class Artifact : public enable_shared_from_this<Artifact> {
     vector<uint8_t> fingerprint;   //< The fingerprint
   };
 
+  /// Friend method for serializing Artifacts
+  template <class Archive>
+  friend void serialize(Archive& archive, Artifact& a);
+
+  /// Friend method for serializing Artifact::Versions
+  template <class Archive>
+  friend void serialize(Archive& archive, Artifact::Version& v);
+
+ private:
   /// Fingerprint this artifact and save the fingerprint with the latest version of the artifact
   void fingerprint();
 
@@ -147,9 +169,4 @@ class Artifact : public enable_shared_from_this<Artifact> {
   vector<Version> _versions;  //< The sequence of versions of this artifact
 
   static size_t next_id;
-
- public:
-  const static shared_ptr<Artifact> stdin;
-  const static shared_ptr<Artifact> stdout;
-  const static shared_ptr<Artifact> stderr;
 };

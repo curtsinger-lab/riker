@@ -42,6 +42,9 @@ class BuildGraph {
 
   void printTrace(ostream& o);
 
+  template <class Archive>
+  friend void serialize(Archive& archive, BuildGraph& g);
+
  private:
   shared_ptr<Command> _root;
 

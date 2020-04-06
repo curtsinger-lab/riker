@@ -7,6 +7,8 @@
 
 #include <fcntl.h>
 
+#include <cereal/access.hpp>
+
 #include "core/Artifact.hh"
 
 using std::map;
@@ -44,7 +46,7 @@ class Step {
  * files, but other cases (like creating pipes) will also need to be tracked.
  *
  * The types of references are:
- *  - PIPE()
+ * - PIPE()
  * - ACCESS(<path>, <mode>)
  */
 class Reference : public Step {
@@ -57,6 +59,10 @@ class Reference : public Step {
 
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(_id); }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, Reference& r);
 
  private:
   size_t _id;
@@ -72,10 +78,18 @@ class Reference : public Step {
 class Reference::Pipe : public Reference {
  public:
   virtual ostream& print(ostream& o) const { return o << getName() << " = PIPE()"; }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, Pipe& p);
 };
 
 /// Access a filesystem path with a given set of flags
 class Reference::Access : public Reference {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  Access() = default;
+
  public:
   /// This struct encodes the flags specified when making an access to a particular reference
   struct Flags {
@@ -129,6 +143,10 @@ class Reference::Access : public Reference {
     return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
   }
 
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, Access& a);
+
  private:
   string _path;
   Flags _flags;
@@ -157,12 +175,20 @@ class Predicate : public Step {
  * Require that a reference was successful (e.g. it did not return an error code)
  */
 class Predicate::IsOK : public Predicate {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  IsOK() = default;
+
  public:
   /// Create an IS_OK predicate
   IsOK(shared_ptr<Reference> ref) : _ref(ref) {}
 
   /// Print an IS_OK predicate to an output stream
   virtual ostream& print(ostream& o) const { return o << "IS_OK(" << _ref->getName() << ")"; }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, IsOK& p);
 
  private:
   shared_ptr<Reference> _ref;
@@ -172,6 +198,10 @@ class Predicate::IsOK : public Predicate {
  * Require that a reference resulted in a specific error code
  */
 class Predicate::IsError : public Predicate {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  IsError() = default;
+
  public:
   /// Create an IS_ERROR predicate
   IsError(shared_ptr<Reference> ref, int err) : _ref(ref), _err(err) {}
@@ -195,6 +225,10 @@ class Predicate::IsError : public Predicate {
     return o << "IS_ERROR(" << _ref->getName() << ", " << errname << ")";
   }
 
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, IsError& p);
+
  private:
   shared_ptr<Reference> _ref;
   int _err;
@@ -204,6 +238,10 @@ class Predicate::IsError : public Predicate {
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
 class Predicate::MetadataMatch : public Predicate {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  MetadataMatch() = default;
+
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(shared_ptr<Reference> ref, Artifact::VersionRef version) :
@@ -214,6 +252,10 @@ class Predicate::MetadataMatch : public Predicate {
     return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
   }
 
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, MetadataMatch& p);
+
  private:
   shared_ptr<Reference> _ref;
   Artifact::VersionRef _version;
@@ -223,6 +265,10 @@ class Predicate::MetadataMatch : public Predicate {
  * Require that the contents accessed through a reference match that of an artifact version
  */
 class Predicate::ContentsMatch : public Predicate {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  ContentsMatch() = default;
+
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, Artifact::VersionRef version) :
@@ -232,6 +278,10 @@ class Predicate::ContentsMatch : public Predicate {
   virtual ostream& print(ostream& o) const {
     return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
   }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, ContentsMatch& p);
 
  private:
   shared_ptr<Reference> _ref;
@@ -260,6 +310,10 @@ class Action : public Step {
  * set of references from its parent.
  */
 class Action::Launch : public Action {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  Launch() = default;
+
  public:
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) : _cmd(cmd) {}
@@ -270,6 +324,10 @@ class Action::Launch : public Action {
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const;
 
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, Launch& a);
+
  private:
   shared_ptr<Command> _cmd;
 };
@@ -278,6 +336,10 @@ class Action::Launch : public Action {
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
 class Action::SetMetadata : public Action {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  SetMetadata() = default;
+
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Reference> ref, Artifact::VersionRef version) :
@@ -288,6 +350,10 @@ class Action::SetMetadata : public Action {
     return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
   }
 
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, SetMetadata& a);
+
  private:
   shared_ptr<Reference> _ref;
   Artifact::VersionRef _version;
@@ -297,6 +363,10 @@ class Action::SetMetadata : public Action {
  * A SetContents action records that a command set the contents of an artifact.
  */
 class Action::SetContents : public Action {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  SetContents() = default;
+
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, Artifact::VersionRef version) :
@@ -306,6 +376,10 @@ class Action::SetContents : public Action {
   virtual ostream& print(ostream& o) const {
     return o << "SET_CONTENTS(" << _ref->getName() << ", " << _version << ")";
   }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, SetContents& a);
 
  private:
   shared_ptr<Reference> _ref;

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include <cereal/access.hpp>
+
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
@@ -34,6 +36,10 @@ using std::weak_ptr;
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
+  // Default constructor for deserialization
+  friend class cereal::access;
+  Command() = default;
+
  public:
   /// Create a new root command, which has no parent.
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
@@ -151,6 +157,10 @@ class Command : public std::enable_shared_from_this<Command> {
       child->printTrace(o);
     }
   }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, Command& c);
 
  private:
   /// A unique ID assigned to this command for log readability

@@ -13,6 +13,7 @@
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
+#include "ui/serializer.hh"
 
 using std::cerr;
 using std::cout;
@@ -156,7 +157,7 @@ int main(int argc, char* argv[]) {
   BuildGraph graph;
 
   // Attempt to deserialize the build graph. If that fails, create a new graph
-  if (!graph.load("db.dodo")) {
+  if (!load_build(".dodo.db", graph)) {
     // We're going to set up a new build graph to run the build. There are three cases to handle:
     //  1. We can just run ./Dodofile
     //  2. Dodofile is not executable. We'll run it with /bin/sh
@@ -197,5 +198,13 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // Serialize the build
+  save_build(".dodo.db", graph);
+
   return 0;
+}
+
+template <class Archive>
+void serialize(Archive& archive, BuildGraph& g) {
+  archive(g._root);
 }
