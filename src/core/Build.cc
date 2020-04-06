@@ -1,4 +1,4 @@
-#include "BuildGraph.hh"
+#include "Build.hh"
 
 #include <fstream>
 #include <list>
@@ -19,7 +19,7 @@ using std::map;
 using std::ofstream;
 using std::string;
 
-BuildGraph::BuildGraph(string executable, vector<string> arguments) {
+Build::Build(string executable, vector<string> arguments) {
   // Create a reference and artifact for each of the standard pipes
   _stdin_ref = make_shared<Reference::Pipe>();
   _stdin = make_shared<Artifact>("<stdin>");
@@ -40,23 +40,23 @@ BuildGraph::BuildGraph(string executable, vector<string> arguments) {
   // Create the root command for the build
   _root = make_shared<Command>(executable, arguments, fds);
 
-  INFO << "BuildGraph initialized with root " << _root.get();
+  INFO << "Build initialized with root " << _root.get();
 }
 
-bool BuildGraph::load(string filename) {
+bool Build::load(string filename) {
   // No loading yet. Just return failure
   return false;
 }
 
-void BuildGraph::run(Tracer& tracer) {
+void Build::run(Tracer& tracer) {
   if (_root) _root->run(tracer);
 }
 
-void BuildGraph::drawGraph(Graphviz& g) {
+void Build::drawGraph(Graphviz& g) {
   if (_root) _root->drawGraph(g);
 }
 
-void BuildGraph::printTrace(ostream& o) {
+void Build::printTrace(ostream& o) {
   if (_root) {
     o << _stdin_ref << endl;
     o << _stdout_ref << endl;

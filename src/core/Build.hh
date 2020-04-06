@@ -17,20 +17,20 @@ using std::make_shared;
 using std::string;
 using std::vector;
 
-class BuildGraph {
+class Build {
  public:
   /****** Constructors ******/
-  BuildGraph() {}
+  Build() {}
 
-  BuildGraph(string executable, vector<string> arguments);
+  Build(string executable, vector<string> arguments);
 
   // Disallow Copy
-  BuildGraph(const BuildGraph&) = delete;
-  BuildGraph& operator=(const BuildGraph&) = delete;
+  Build(const Build&) = delete;
+  Build& operator=(const Build&) = delete;
 
   // Allow Move
-  BuildGraph(BuildGraph&&) = default;
-  BuildGraph& operator=(BuildGraph&&) = default;
+  Build(Build&&) = default;
+  Build& operator=(Build&&) = default;
 
   /****** Non-trivial methods ******/
 
@@ -43,7 +43,7 @@ class BuildGraph {
   void printTrace(ostream& o);
 
   template <class Archive>
-  friend void serialize(Archive& archive, BuildGraph& g);
+  friend void serialize(Archive& archive, Build& g);
 
  private:
   shared_ptr<Command> _root;

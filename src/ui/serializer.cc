@@ -11,7 +11,7 @@
 #include <cereal/types/vector.hpp>
 
 #include "core/Artifact.hh"
-#include "core/BuildGraph.hh"
+#include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
@@ -21,7 +21,7 @@ using std::ofstream;
 using std::string;
 
 // Load a saved build from a file
-bool load_build(string filename, BuildGraph& graph) {
+bool load_build(string filename, Build& b) {
   // Open the file for reading. Must pass std::ios::binary!
   ifstream f(filename, std::ios::binary);
 
@@ -30,7 +30,7 @@ bool load_build(string filename, BuildGraph& graph) {
 
   try {
     // Attempt to load the build
-    archive(graph);
+    archive(b);
     return true;
   } catch (cereal::Exception e) {
     // Return false on failure
@@ -39,7 +39,7 @@ bool load_build(string filename, BuildGraph& graph) {
 }
 
 // Save a build to a file
-void save_build(string filename, const BuildGraph& graph) {
+void save_build(string filename, const Build& b) {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 
@@ -47,7 +47,7 @@ void save_build(string filename, const BuildGraph& graph) {
   cereal::BinaryOutputArchive archive(f);
 
   // Store the build
-  archive(graph);
+  archive(b);
 }
 
 /*
@@ -63,8 +63,8 @@ void save_build(string filename, const BuildGraph& graph) {
  */
 
 template <class Archive>
-void serialize(Archive& ar, BuildGraph& g) {
-  ar(g._root, g._stdin_ref, g._stdin, g._stdout_ref, g._stdout, g._stderr_ref, g._stderr);
+void serialize(Archive& ar, Build& b) {
+  ar(b._root, b._stdin_ref, b._stdin, b._stdout_ref, b._stdout, b._stderr_ref, b._stderr);
 }
 
 template <class Archive>

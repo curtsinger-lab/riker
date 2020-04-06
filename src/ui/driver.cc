@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #include "core/Artifact.hh"
-#include "core/BuildGraph.hh"
+#include "core/Build.hh"
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
@@ -153,11 +153,11 @@ int main(int argc, char* argv[]) {
   // Parse command line options
   parse_argv(argv[0], forward_list<string>(argv + 1, argv + argc));
 
-  // Create a build graph to track our build
-  BuildGraph graph;
+  // Create a build object
+  Build b;
 
-  // Attempt to deserialize the build graph. If that fails, create a new graph
-  if (!load_build(".dodo.db", graph)) {
+  // Attempt to load a saved build. If that fails, create a new build object
+  if (!load_build(".dodo.db", b)) {
     // We're going to set up a new build graph to run the build. There are three cases to handle:
     //  1. We can just run ./Dodofile
     //  2. Dodofile is not executable. We'll run it with /bin/sh
@@ -165,11 +165,11 @@ int main(int argc, char* argv[]) {
 
     if (faccessat(AT_FDCWD, "Dodofile", X_OK, AT_EACCESS) == 0) {
       // Dodofile is directly executable. Initialize graph with a command to run it directly
-      graph = BuildGraph("Dodofile", {"Dodofile"});
+      b = Build("Dodofile", {"Dodofile"});
 
     } else if (faccessat(AT_FDCWD, "Dodofile", R_OK, AT_EACCESS) == 0) {
       // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-      graph = BuildGraph("/bin/sh", {"Dodofile", "Dodofile"});
+      b = Build("/bin/sh", {"Dodofile", "Dodofile"});
 
     } else {
       // Dodofile is neither executable nor readable. This won't work.
@@ -180,33 +180,28 @@ int main(int argc, char* argv[]) {
 
   if (!options.dry_run) {
     Tracer tracer;
-    graph.run(tracer);
+    b.run(tracer);
   }
 
   // Generate graphviz output, if requested
   if (options.visualize) {
     Graphviz g("out.dot");
-    graph.drawGraph(g);
+    b.drawGraph(g);
   }
 
   // Generate trace output if requested
   if (options.trace_output.has_value()) {
     string filename = options.trace_output.value();
     if (filename == "-") {
-      graph.printTrace(cout);
+      b.printTrace(cout);
     } else {
       ofstream f(filename);
-      graph.printTrace(f);
+      b.printTrace(f);
     }
   }
 
   // Serialize the build
-  save_build(".dodo.db", graph);
+  save_build(".dodo.db", b);
 
   return 0;
-}
-
-template <class Archive>
-void serialize(Archive& archive, BuildGraph& g) {
-  archive(g._root);
 }
