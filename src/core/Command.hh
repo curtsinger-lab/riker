@@ -14,6 +14,7 @@
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "core/UniqueID.hh"
 #include "ui/options.hh"
 
 class Graphviz;
@@ -38,12 +39,12 @@ using std::weak_ptr;
 class Command : public std::enable_shared_from_this<Command> {
   // Default constructor for deserialization
   friend class cereal::access;
-  Command() : _id(getNextID()) {}
+  Command() = default;
 
  public:
   /// Create a new root command, which has no parent.
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
-      _id(getNextID()), _exe(exe), _args(args), _initial_fds(initial_fds) {}
+      _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -54,7 +55,7 @@ class Command : public std::enable_shared_from_this<Command> {
   Command& operator=(Command&&) = default;
 
   /// Get a command's unique ID
-  size_t getID() const { return _id; }
+  int getID() const { return _id; }
 
   /// Get a short, printable name for this command
   string getShortName() const;
@@ -146,7 +147,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// A unique ID assigned to this command for log readability
-  size_t _id;
+  UniqueID<Command> _id;
 
   /// The executable file this command runs
   string _exe;
@@ -159,10 +160,4 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
-
-  /// Generate a unique ID for a command
-  static size_t getNextID() {
-    static size_t next_id = 0;
-    return next_id++;
-  }
 };

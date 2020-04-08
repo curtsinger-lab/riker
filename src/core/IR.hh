@@ -10,6 +10,7 @@
 #include <cereal/access.hpp>
 
 #include "core/Artifact.hh"
+#include "core/UniqueID.hh"
 
 using std::map;
 using std::ostream;
@@ -31,6 +32,9 @@ class Step {
   /// Use a default virtual destructor
   virtual ~Step() = default;
 
+  /// Get the unique ID for this IR node
+  size_t getID() const { return _id; }
+
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
 
@@ -39,6 +43,9 @@ class Step {
 
   /// Stream print wrapper for Step pointers
   friend ostream& operator<<(ostream& o, const Step* s) { return o << *s; }
+
+ private:
+  UniqueID<Step> _id;
 };
 
 /**
@@ -54,24 +61,8 @@ class Reference : public Step {
   class Pipe;
   class Access;
 
-  /// Create a new reference
-  Reference() : _id(getNextID()) {}
-
   /// Get the short name for this reference
-  string getName() const { return "r" + std::to_string(_id); }
-
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Reference& r);
-
- private:
-  size_t _id;  //< Unique ID for printing references (not serialized)
-
-  /// Get a unique identifier for a reference
-  static size_t getNextID() {
-    static size_t next_id = 0;
-    return next_id++;
-  }
+  string getName() const { return "r" + std::to_string(getID()); }
 };
 
 /// Create a reference to a new pipe

@@ -15,6 +15,7 @@
 
 #include <cereal/access.hpp>
 
+#include "core/UniqueID.hh"
 #include "ui/options.hh"
 
 class Command;
@@ -37,10 +38,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   // Default constructor for deserialization
   friend class cereal::access;
-  Artifact() : _id(getNextID()) {}
+  Artifact() = default;
 
   /****** Constructors ******/
-  Artifact(string path) : _id(getNextID()), _path(path) {}
+  Artifact(string path) : _path(path) {}
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
@@ -164,13 +165,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   void fingerprint();
 
  private:
-  size_t _id;                 //< A unique ID for printing
+  UniqueID<Artifact> _id;     //< A unique ID for printing
   string _path;               //< The absolute, normalized path to this artifact
   vector<Version> _versions;  //< The sequence of versions of this artifact
-
-  /// Generate a unique ID for an artifact
-  static size_t getNextID() {
-    static size_t next_id = 0;
-    return next_id++;
-  }
 };
