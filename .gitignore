@@ -5,6 +5,7 @@
 out.dot
 out.pdf
 out.svg
+out.png
 objs/
 dodo
 *.capnp.cc
