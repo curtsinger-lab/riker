@@ -247,6 +247,12 @@ class Predicate::MetadataMatch : public Predicate {
   MetadataMatch(shared_ptr<Reference> ref, Artifact::VersionRef version) :
       _ref(ref), _version(version) {}
 
+  /// Get the reference used for this predicate
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// Get the expected artifact version
+  Artifact::VersionRef getVersion() const { return _version; }
+
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const {
     return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
@@ -273,6 +279,12 @@ class Predicate::ContentsMatch : public Predicate {
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, Artifact::VersionRef version) :
       _ref(ref), _version(version) {}
+
+  /// Get the reference used for this predicate
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// Get the expected artifact version
+  Artifact::VersionRef getVersion() const { return _version; }
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const {
@@ -345,6 +357,12 @@ class Action::SetMetadata : public Action {
   SetMetadata(shared_ptr<Reference> ref, Artifact::VersionRef version) :
       _ref(ref), _version(version) {}
 
+  /// Get the reference used for this action
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// Get the artifact version that is put in place
+  Artifact::VersionRef getVersion() const { return _version; }
+
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const {
     return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
@@ -371,6 +389,12 @@ class Action::SetContents : public Action {
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, Artifact::VersionRef version) :
       _ref(ref), _version(version) {}
+
+  /// Get the reference used for this action
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// Get the artifact version that is put in place
+  Artifact::VersionRef getVersion() const { return _version; }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const {
