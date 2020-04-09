@@ -1008,7 +1008,7 @@ void Tracer::Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Create a pipe artifact
-  auto artifact = make_shared<Artifact>("<pipe>");
+  auto artifact = make_shared<Artifact>("pipe");
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;

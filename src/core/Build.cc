@@ -22,13 +22,13 @@ using std::string;
 Build::Build(string executable, vector<string> arguments) {
   // Create a reference and artifact for each of the standard pipes
   _stdin_ref = make_shared<Reference::Pipe>();
-  _stdin = make_shared<Artifact>("<stdin>");
+  _stdin = make_shared<Artifact>("stdin");
 
   _stdout_ref = make_shared<Reference::Pipe>();
-  _stdout = make_shared<Artifact>("<stdout>");
+  _stdout = make_shared<Artifact>("stdout");
 
   _stderr_ref = make_shared<Reference::Pipe>();
-  _stderr = make_shared<Artifact>("<stderr>");
+  _stderr = make_shared<Artifact>("stderr");
 
   // Build the map of initial file descriptors
   map<int, FileDescriptor> fds = {
