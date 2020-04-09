@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <CLI/CLI.hpp>
+
 #include "core/Artifact.hh"
 #include "core/Build.hh"
 #include "tracing/Tracer.hh"
@@ -33,134 +35,7 @@ const fs::path DatabaseFilename = ".dodo/db";
 // Declare the global command-line options struct
 dodo_options options;
 
-/**
- * Show command line usage information
- */
-void show_usage(string cmd) {
-  cout << "Usage: " << cmd << " [options]" << endl;
-  cout << "Build Options:" << endl;
-  cout << "  -n, --dry-run      Don't run any build commands; just print actions." << endl;
-  cout << "  --fingerprint <all|local|none>" << endl;
-  cout << "                     Choose which files are fingerprinted to detect changes." << endl;
-  cout << "  -j <N>             Allow N jobs to run at once." << endl;
-  cout << endl;
-  cout << "Debug Output Options:" << endl;
-  cout << "  --trace <file>     Write the build trace IR to this file. Pass - for stdout." << endl;
-  cout << "  --visualize        Generate graphviz output in file out.dot." << endl;
-  cout << "  --visualize-all    Generate graphviz output, including for system files." << endl;
-  cout << "  -v                 Print warning-level log information." << endl;
-  cout << "  -vv                Print info-level log information." << endl;
-  cout << "  -vvv               Print all log information." << endl;
-  cout << "  --debug            Include source locations in log messages." << endl;
-  cout << "  --no-color         Disable color terminal output." << endl;
-}
-
-/**
- * Parse command line options and return a dodo_options struct.
- */
-void parse_argv(string cmd, forward_list<string> argv) {
-  // Loop until we've consumed all command line arguments
-  while (!argv.empty()) {
-    // Take the first argument off the list
-    string arg = argv.front();
-    argv.pop_front();
-
-    if (arg == "--debug") {
-      options.debug = true;
-      options.log_threshold = LogLevel::Info;
-
-    } else if (arg == "--no-color") {
-      options.color_output = false;
-
-    } else if (arg == "-v") {
-      options.log_threshold = LogLevel::Warning;
-
-    } else if (arg == "-vv") {
-      options.log_threshold = LogLevel::Info;
-
-    } else if (arg == "-vvv") {
-      options.log_threshold = LogLevel::Verbose;
-
-    } else if (arg == "--fingerprint") {
-      if (!argv.empty()) {
-        if (argv.front() == "none") {
-          options.fingerprint = FingerprintLevel::None;
-        } else if (argv.front() == "local") {
-          options.fingerprint = FingerprintLevel::Local;
-        } else if (argv.front() == "all") {
-          options.fingerprint = FingerprintLevel::All;
-        } else {
-          cerr << "Please specifiy a fingerprint level: none, local, or all" << endl;
-          show_usage(cmd);
-          exit(1);
-        }
-
-        argv.pop_front();
-      }
-
-    } else if (arg == "-n" || arg == "--dry-run") {
-      options.dry_run = true;
-
-    } else if (arg == "-j") {
-      if (!argv.empty()) {
-        long specified_jobs = stol(argv.front());
-        argv.pop_front();
-
-        if (specified_jobs < 1) {
-          cerr << "Invalid number of jobs: specify at least one." << endl;
-          show_usage(cmd);
-          exit(1);
-        }
-        options.parallel_jobs = specified_jobs;
-      } else {
-        cerr << "Please specify a number of jobs to use." << endl;
-        show_usage(cmd);
-        exit(1);
-      }
-
-    } else if (arg == "--visualize") {
-      options.visualize = true;
-
-    } else if (arg == "--visualize-all") {
-      options.visualize = true;
-      options.show_sysfiles = true;
-
-    } else if (arg == "--trace") {
-      if (!argv.empty()) {
-        options.trace_output = argv.front();
-        argv.pop_front();
-      } else {
-        cerr << "Please specify an output file for the build trace." << endl;
-      }
-
-    } else if (arg == "-h" || arg == "--help") {
-      show_usage(cmd);
-      exit(1);
-    } else {
-      cerr << "Unrecognized argument " << arg << endl;
-      show_usage(cmd);
-      exit(1);
-    }
-  }
-}
-
-/**
- * Check if the current terminal supports color output.
- */
-static bool stderr_supports_colors() {
-  return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
-}
-
-/**
- * This is the entry point for the dodo command line tool
- */
-int main(int argc, char* argv[]) {
-  // Set color output based on TERM setting (can be overridden with command line option)
-  if (!stderr_supports_colors()) options.color_output = false;
-
-  // Parse command line options
-  parse_argv(argv[0], forward_list<string>(argv + 1, argv + argc));
-
+void do_build(bool dry_run, int jobs, string fingerprint) {
   // Create a build object
   Build b;
 
@@ -186,26 +61,9 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  if (!options.dry_run) {
+  if (!dry_run) {
     Tracer tracer;
     b.run(tracer);
-  }
-
-  // Generate graphviz output, if requested
-  if (options.visualize) {
-    Graphviz g("out.dot");
-    b.drawGraph(g);
-  }
-
-  // Generate trace output if requested
-  if (options.trace_output.has_value()) {
-    string filename = options.trace_output.value();
-    if (filename == "-") {
-      b.printTrace(cout);
-    } else {
-      ofstream f(filename);
-      b.printTrace(f);
-    }
   }
 
   // Make sure the output directory exists
@@ -213,6 +71,152 @@ int main(int argc, char* argv[]) {
 
   // Serialize the build
   save_build(DatabaseFilename, b);
+}
+
+void do_trace(string output) {
+  Build b;
+  if (!load_build(DatabaseFilename, b)) {
+    FAIL << "Failed to load a build. You must run a build before printing a trace.";
+  }
+
+  if (output == "-") {
+    b.printTrace(cout);
+  } else {
+    ofstream f(output);
+    b.printTrace(f);
+  }
+}
+
+void do_graph(string output, bool show_sysfiles) {
+  Build b;
+  if (!load_build(DatabaseFilename, b)) {
+    FAIL << "Failed to load a build. You must run a build before generating a build graph.";
+  }
+
+  if (output == "-") {
+    FAIL << "Terminal output for graphviz is not implemented.";
+  } else {
+    Graphviz g(output, show_sysfiles);
+    b.drawGraph(g);
+  }
+}
+
+/**
+ * Check if the current terminal supports color output.
+ */
+static bool stderr_supports_colors() {
+  return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
+}
+
+/**
+ * This is the entry point for the dodo command line tool
+ */
+int main(int argc, char* argv[]) {
+  // Set color output based on TERM setting (can be overridden with command line option)
+  if (!stderr_supports_colors()) options.disable_color = true;
+
+  // Set up a CLI app for command line parsing
+  CLI::App app;
+
+  // We require at least one subcommand
+  app.require_subcommand();
+
+  // Option fallthrough allows users to specify global options after a subcommand
+  app.fallthrough();
+
+  /************* Global Options *************/
+  app.add_flag("--debug", options.debug, "Print source locations with log messages");
+  app.add_flag("--no-color", options.disable_color, "Disable color terminal output");
+  app.add_flag(
+      "-v",
+      [](int count) {
+        if (count == 0) {
+          options.log_threshold = LogLevel::Fatal;
+        } else if (count == 1) {
+          options.log_threshold = LogLevel::Warning;
+        } else if (count == 2) {
+          options.log_threshold = LogLevel::Info;
+        } else {
+          options.log_threshold = LogLevel::Verbose;
+        }
+      },
+      "Increase logging verbosity.");
+
+  /************* Build Subcommand *************/
+  bool dry_run = false;
+  int jobs = 0;
+  string fingerprint = "local";
+
+  auto build = app.add_subcommand("build", "Perform a build (default)");
+
+  build->add_flag("-n,--dry-run", dry_run, "Do not run any build commands");
+
+  build->add_option("-j,--jobs", jobs, "Max concurrent jobs (0 is unlimited)")
+      ->check(CLI::NonNegativeNumber);
+
+  build->add_option("-f,--fingerprint", fingerprint, "Set the fingerprint level (default=local)")
+      ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
+
+  // Set the callback for the build subcommand
+  // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
+  // every argument in std::ref to pass values by reference.
+  build->final_callback([&] { do_build(dry_run, jobs, fingerprint); });
+
+  /************* Trace Subcommand *************/
+  string trace_output = "-";
+
+  auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
+  trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
+
+  // Set the callback fo the trace subcommand
+  trace->final_callback([&] { do_trace(trace_output); });
+
+  /************* Graph Subcommand *************/
+  string graph_output = "out.dot";
+  bool show_sysfiles = false;
+
+  auto graph = app.add_subcommand("graph", "Generate a build graph");
+  graph->add_option("-o,--output", graph_output, "Output file for the graph (default: out.dot)");
+  graph->add_flag("-a,--all", show_sysfiles, "Include system files in graph output");
+
+  // Set the callback fo the trace subcommand
+  graph->final_callback([&] { do_graph(graph_output, show_sysfiles); });
+
+  /************* Argument Parsing *************/
+
+  try {
+    // Try to parse the arguments as-is
+    app.parse(argc, argv);
+  } catch (const CLI::CallForHelp& e) {
+    // When the options requested help, just print it and exit
+    return app.exit(e);
+  } catch (const CLI::ParseError& e) {
+    // If the option parse failed, we may need to retry with the build subcommand set by default
+    // Only do this if we did NOT receive a subcommand already
+    if (app.get_subcommands().size() == 0) {
+      // Reset the command line parse
+      app.clear();
+
+      // Build a new argv with the default subcommand inserted
+      vector<const char*> new_argv;
+      new_argv.push_back(argv[0]);
+      new_argv.push_back("build");
+      for (int i = 1; i < argc; i++) {
+        new_argv.push_back(argv[i]);
+      }
+
+      try {
+        // We can pass a vector to CLI11, but it expects the values to be reversed
+        // Instead, pass the count and data pointers from our new_argv vector
+        app.parse(new_argv.size(), new_argv.data());
+      } catch (const CLI::ParseError& e) {
+        return app.exit(e);
+      }
+    } else {
+      // An error occurred with a subcommand specified. Handle the error in the normal way.
+      return app.exit(e);
+    }
+  }
 
   return 0;
 }

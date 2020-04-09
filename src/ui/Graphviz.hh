@@ -14,7 +14,7 @@ using std::to_string;
 
 class Graphviz {
  public:
-  Graphviz(string filename) : _out(filename) {
+  Graphviz(string filename, bool show_sysfiles) : _out(filename), _show_sysfiles(show_sysfiles) {
     _out << "digraph {\n";
     _out << "  graph [rankdir=LR]\n";
   }
@@ -39,6 +39,8 @@ class Graphviz {
   }
 
   void addArtifact(shared_ptr<Artifact> f) {
+    if (!_show_sysfiles && f->isSystemFile()) return;
+
     if (_file_ids.find(f) == _file_ids.end()) {
       string id = "f" + to_string(_file_ids.size());
       _file_ids[f] = id;
@@ -80,6 +82,8 @@ class Graphviz {
   }
 
   void addInputEdge(Artifact::VersionRef f, shared_ptr<Command> c) {
+    if (!_show_sysfiles && f.getArtifact()->isSystemFile()) return;
+
     addArtifact(f.getArtifact());
 
     string file_id = _file_ids[f.getArtifact()];
@@ -90,6 +94,8 @@ class Graphviz {
   }
 
   void addOutputEdge(shared_ptr<Command> c, Artifact::VersionRef f) {
+    if (!_show_sysfiles && f.getArtifact()->isSystemFile()) return;
+
     addArtifact(f.getArtifact());
 
     string& id1 = _command_ids[c];
@@ -101,6 +107,7 @@ class Graphviz {
 
  private:
   ofstream _out;
+  bool _show_sysfiles;
   map<shared_ptr<Command>, string> _command_ids;
   map<shared_ptr<Artifact>, string> _file_ids;
 };

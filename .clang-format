@@ -18,9 +18,13 @@ IncludeCategories:
   - Regex: '<experimental/[[:alnum:]_]+>'
     Priority: 2
   
-  # Capnproto files
+  # Cereal files
   - Regex: '^<(cereal)/[[:alnum:]._/]+>'
     Priority: 4
+    
+  # CLI11 files
+  - Regex: '^<(CLI)/[[:alnum:]._/]+>'
+    Priority: 5
   
   # C include files
   - Regex: '^<[[:alnum:]./_]+\.h>'
@@ -28,5 +32,5 @@ IncludeCategories:
   
   # Everything else
   - Regex: '.*'
-    Priority: 5
+    Priority: 6
   

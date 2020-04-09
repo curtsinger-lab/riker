@@ -35,12 +35,12 @@ class logger {
     if (_level >= options.log_threshold) {
       // Print source information, if enabled
       if (options.debug) {
-        if (options.color_output) cerr << COLOR_SOURCE;
+        if (!options.disable_color) cerr << COLOR_SOURCE;
         cerr << "[" << source_file << ":" << source_line << "] ";
       }
 
       // Set the log color
-      if (options.color_output) {
+      if (!options.disable_color) {
         if (_level == LogLevel::Verbose) {
           cerr << COLOR_VERBOSE;
         } else if (_level == LogLevel::Info) {
@@ -64,7 +64,7 @@ class logger {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
       if (static_cast<int>(_level) >= static_cast<int>(options.log_threshold)) {
-        if (options.color_output) cerr << COLOR_END;
+        if (!options.disable_color) cerr << COLOR_END;
         cerr << "\n";
       }
 

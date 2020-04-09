@@ -91,17 +91,11 @@ void Command::drawGraph(Graphviz& g) {
 
     if ((metadata_match = dynamic_pointer_cast<Predicate::MetadataMatch>(s))) {
       auto version = metadata_match->getVersion();
-      // Should we display the artifact referenced here?
-      if (!version.getArtifact()->isSystemFile() || options.show_sysfiles) {
-        g.addInputEdge(version, shared_from_this());
-      }
+      g.addInputEdge(version, shared_from_this());
 
     } else if ((contents_match = dynamic_pointer_cast<Predicate::ContentsMatch>(s))) {
       auto version = contents_match->getVersion();
-      // Should we display the artifact referenced here?
-      if (!version.getArtifact()->isSystemFile() || options.show_sysfiles) {
-        g.addInputEdge(version, shared_from_this());
-      }
+      g.addInputEdge(version, shared_from_this());
 
     } else if ((launch = dynamic_pointer_cast<Action::Launch>(s))) {
       // Recursively draw the child command
@@ -111,17 +105,11 @@ void Command::drawGraph(Graphviz& g) {
 
     } else if ((set_metadata = dynamic_pointer_cast<Action::SetMetadata>(s))) {
       auto version = set_metadata->getVersion();
-      // Should we display the artifact referenced here?
-      if (!version.getArtifact()->isSystemFile() || options.show_sysfiles) {
-        g.addOutputEdge(shared_from_this(), version);
-      }
+      g.addOutputEdge(shared_from_this(), version);
 
     } else if ((set_contents = dynamic_pointer_cast<Action::SetContents>(s))) {
       auto version = set_contents->getVersion();
-      // Should we display the artifact referenced here?
-      if (!version.getArtifact()->isSystemFile() || options.show_sysfiles) {
-        g.addOutputEdge(shared_from_this(), version);
-      }
+      g.addOutputEdge(shared_from_this(), version);
     }
   }
 }
