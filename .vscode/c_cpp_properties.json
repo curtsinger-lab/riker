@@ -3,7 +3,8 @@
     {
       "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/cereal/include"
       ],
       "intelliSenseMode": "clang-x64",
       "compilerPath": "/usr/bin/clang",
