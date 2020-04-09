@@ -229,7 +229,7 @@ void Tracer::Process::_read(int fd) {
   auto artifact = descriptor.getArtifact();
 
   // The current command depends on the contents of this file
-  _command->contentsMatch(ref, descriptor.getArtifact()->getLatestVersion());
+  _command->contentsMatch(ref, descriptor.getArtifact());
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -252,7 +252,7 @@ void Tracer::Process::_write(int fd) {
   auto artifact = descriptor.getArtifact();
 
   // Record our dependency on the old contents of the artifact
-  _command->contentsMatch(ref, artifact->getLatestVersion());
+  _command->contentsMatch(ref, artifact);
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -262,7 +262,7 @@ void Tracer::Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _command->setContents(ref, artifact->tagNewVersion());
+  _command->setContents(ref, artifact);
 }
 
 void Tracer::Process::_close(int fd) {
@@ -303,13 +303,13 @@ void Tracer::Process::_mmap(void* addr, size_t len, int prot, int flags, int fd,
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _command->contentsMatch(ref, artifact->getLatestVersion());
+  _command->contentsMatch(ref, artifact);
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
   bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _command->setContents(ref, artifact->tagNewVersion());
+    _command->setContents(ref, artifact);
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -400,7 +400,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
     auto artifact = descriptor.getArtifact();
 
     // Record the dependency on metadata
-    _command->metadataMatch(ref, artifact->getLatestVersion());
+    _command->metadataMatch(ref, artifact);
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -420,7 +420,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
       auto artifact = _tracer.getArtifact(p);
 
       // Record the dependence on the artifact's metadata
-      _command->metadataMatch(ref, artifact->getLatestVersion());
+      _command->metadataMatch(ref, artifact);
     } else {
       _command->isError(ref, rc);
     }
@@ -497,7 +497,7 @@ void Tracer::Process::_execveat(int dfd, string filename) {
   _command->isOK(child_exe_ref);
 
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(child_exe_ref, exe_artifact->getLatestVersion());
+  _command->contentsMatch(child_exe_ref, exe_artifact);
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we

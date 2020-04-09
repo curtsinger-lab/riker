@@ -56,6 +56,61 @@ void Command::run(Tracer& tracer) {
   tracer.run(shared_from_this());
 }
 
+/// The command accesses an artifact by path.
+shared_ptr<Reference> Command::access(string path, Reference::Access::Flags flags) {
+  auto ref = make_shared<Reference::Access>(path, flags);
+  _steps.push_back(ref);
+
+  // TODO: if f exists and O_TRUNC is set in flags, this access creates a new version of the file
+  // TODO: if f does not exist and O_CREAT is set, this access adds an entry to the containing
+  // directory
+
+  return ref;
+}
+
+/// This command creates a reference to a new pipe
+shared_ptr<Reference> Command::pipe() {
+  auto ref = make_shared<Reference::Pipe>();
+  _steps.push_back(ref);
+  return ref;
+}
+
+/// This command requires that a reference resolves to an artifact without failure
+void Command::isOK(shared_ptr<Reference> ref) {
+  _steps.push_back(make_shared<Predicate::IsOK>(ref));
+}
+
+/// This command requires that a reference fails to resolve with a specific error
+void Command::isError(shared_ptr<Reference> ref, int err) {
+  _steps.push_back(make_shared<Predicate::IsError>(ref, err));
+}
+
+/// This command accesses the metadata for an artifact
+void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  // Record the dependency on metadata
+  _steps.push_back(make_shared<Predicate::MetadataMatch>(ref, a->getLatestVersion()));
+}
+
+/// This command accesses the contents of an artifact
+void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, a->getLatestVersion()));
+}
+
+/// This command sets the metadata for an artifact
+void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  _steps.push_back(make_shared<Action::SetContents>(ref, a->tagNewVersion()));
+}
+
+/// This command sets the contents of an artifact
+void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  _steps.push_back(make_shared<Action::SetContents>(ref, a->tagNewVersion()));
+}
+
+/// This command launches a child command
+void Command::launch(shared_ptr<Command> cmd) {
+  _steps.push_back(make_shared<Action::Launch>(cmd));
+}
+
 /// Print the abstract trace of this command (and its children) to an output stream
 void Command::printTrace(ostream& o) const {
   // Print this command's name

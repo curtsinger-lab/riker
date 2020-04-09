@@ -93,50 +93,31 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Most access() calls will *not* have side-effects, but some will:
   ///  - O_CREAT was specified, and the file did not exist before this call
   ///  - O_TRUNC was specified, and the file existed before this call
-  shared_ptr<Reference> access(string path, Reference::Access::Flags flags) {
-    auto ref = make_shared<Reference::Access>(path, flags);
-    _steps.push_back(ref);
-
-    // TODO: if f exists and O_TRUNC is set in flags, this access creates a new version of the file
-    // TODO: if f does not exist and O_CREAT is set, this access adds an entry to the containing
-    // directory
-
-    return ref;
-  }
+  shared_ptr<Reference> access(string path, Reference::Access::Flags flags);
 
   /// This command creates a reference to a new pipe
-  shared_ptr<Reference> pipe() {
-    auto ref = make_shared<Reference::Pipe>();
-    _steps.push_back(ref);
-    return ref;
-  }
+  shared_ptr<Reference> pipe();
 
   /// This command requires that a reference resolves to an artifact without failure
-  void isOK(shared_ptr<Reference> ref) { _steps.push_back(make_shared<Predicate::IsOK>(ref)); }
+  void isOK(shared_ptr<Reference> ref);
 
   /// This command requires that a reference fails to resolve with a specific error
-  void isError(shared_ptr<Reference> ref, int err) {
-    _steps.push_back(make_shared<Predicate::IsError>(ref, err));
-  }
+  void isError(shared_ptr<Reference> ref, int err);
 
   /// This command accesses the metadata for an artifact
-  void metadataMatch(shared_ptr<Reference> ref, Artifact::VersionRef v) {
-    // Record the dependency on metadata
-    _steps.push_back(make_shared<Predicate::MetadataMatch>(ref, v));
-  }
+  void metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command accesses the contents of an artifact
-  void contentsMatch(shared_ptr<Reference> ref, Artifact::VersionRef v) {
-    _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, v));
-  }
+  void contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+
+  /// This command sets the metadata for an artifact
+  void setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command sets the contents of an artifact
-  void setContents(shared_ptr<Reference> ref, Artifact::VersionRef v) {
-    _steps.push_back(make_shared<Action::SetContents>(ref, v));
-  }
+  void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command starts another command
-  void launch(shared_ptr<Command> cmd) { _steps.push_back(make_shared<Action::Launch>(cmd)); }
+  void launch(shared_ptr<Command> cmd);
 
   /// Print the abstract trace of this command (and its children) to an output stream
   void printTrace(ostream& o) const;
