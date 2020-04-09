@@ -1,7 +1,7 @@
 Move to test directory
   $ cd $TESTDIR
 
-Run the build with Dodo
+Run the build
   $ ../../dodo
 
 Verify the output is correct

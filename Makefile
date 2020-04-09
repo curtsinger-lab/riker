@@ -39,7 +39,7 @@ test: dodo
 	@echo "Running test cases"
 	@for test in $(TESTS); do \
 		echo "[$$test]"; \
-		cram  tests/$$test/*.t; \
+		cram tests/$$test/*.t; \
 		echo; \
 	done
 

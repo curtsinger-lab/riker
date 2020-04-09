@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <filesystem>
 #include <forward_list>
 #include <iostream>
 #include <optional>
@@ -21,6 +22,13 @@ using std::endl;
 using std::forward_list;
 using std::stol;
 using std::string;
+
+namespace fs = std::filesystem;
+
+// Constant names for files and paths
+const fs::path RootBuildCommand = "Dodofile";
+const fs::path OutputDir = ".dodo";
+const fs::path DatabaseFilename = ".dodo/db";
 
 // Declare the global command-line options struct
 dodo_options options;
@@ -157,23 +165,23 @@ int main(int argc, char* argv[]) {
   Build b;
 
   // Attempt to load a saved build. If that fails, create a new build object
-  if (!load_build(".dodo.db", b)) {
+  if (!load_build(DatabaseFilename, b)) {
     // We're going to set up a new build graph to run the build. There are three cases to handle:
     //  1. We can just run ./Dodofile
     //  2. Dodofile is not executable. We'll run it with /bin/sh
     //  3. Dodofile is not accessible. This is an error
 
-    if (faccessat(AT_FDCWD, "Dodofile", X_OK, AT_EACCESS) == 0) {
+    if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
       // Dodofile is directly executable. Initialize graph with a command to run it directly
-      b = Build("Dodofile", {"Dodofile"});
+      b = Build(RootBuildCommand, {RootBuildCommand});
 
-    } else if (faccessat(AT_FDCWD, "Dodofile", R_OK, AT_EACCESS) == 0) {
+    } else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
       // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-      b = Build("/bin/sh", {"Dodofile", "Dodofile"});
+      b = Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
 
     } else {
       // Dodofile is neither executable nor readable. This won't work.
-      FAIL << "Unable to access Dodofile.\n"
+      FAIL << "Unable to access " << RootBuildCommand << ".\n"
            << "  This file must be executable, or a readable file that can be run by /bin/sh.";
     }
   }
@@ -200,8 +208,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // Make sure the output directory exists
+  fs::create_directories(OutputDir);
+
   // Serialize the build
-  save_build(".dodo.db", b);
+  save_build(DatabaseFilename, b);
 
   return 0;
 }

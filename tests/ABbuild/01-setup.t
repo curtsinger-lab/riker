@@ -7,5 +7,5 @@ Restore inputB file
 Remove output file
   $ rm -f myfile
 
-Remove a leftover Dodo database
-  $ rm -f .dodo.db
+Remove any leftover build database
+  $ rm -rf .dodo
