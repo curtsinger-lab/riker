@@ -13,9 +13,7 @@ jobs:
       - run: sudo apt-get install git make clang capnproto libcapnp-dev graphviz python-cram
       - run: git submodule update --init
       - run: make
-      - run: ./dodo
-      - run: ./dodo --dry-run --visualize
-      - run: mv out.dot self-build.dot
+      - run: ./dodo build graph -o self-build.dot
       - store_artifacts:
           path: self-build.dot
       - run: dot -Tpdf self-build.dot > self-build.pdf
