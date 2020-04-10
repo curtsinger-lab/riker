@@ -10,7 +10,7 @@
 #include <cereal/access.hpp>
 
 #include "core/Artifact.hh"
-#include "core/UniqueID.hh"
+#include "util/UniqueID.hh"
 
 using std::map;
 using std::ostream;

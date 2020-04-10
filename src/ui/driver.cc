@@ -15,9 +15,8 @@
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
-#include "ui/options.hh"
-#include "ui/serializer.hh"
 #include "util/StatsVisitor.hh"
+#include "util/serializer.hh"
 
 using std::cerr;
 using std::cout;
@@ -32,9 +31,6 @@ namespace fs = std::filesystem;
 const fs::path RootBuildCommand = "Dodofile";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
-
-// Declare the global command-line options struct
-dodo_options options;
 
 void do_build(bool dry_run, int jobs, string fingerprint) {
   // Create a build object
@@ -123,7 +119,7 @@ static bool stderr_supports_colors() {
  */
 int main(int argc, char* argv[]) {
   // Set color output based on TERM setting (can be overridden with command line option)
-  if (!stderr_supports_colors()) options.disable_color = true;
+  if (!stderr_supports_colors()) logger::disable_color = true;
 
   // Set up a CLI app for command line parsing
   CLI::App app;
@@ -135,19 +131,19 @@ int main(int argc, char* argv[]) {
   app.fallthrough();
 
   /************* Global Options *************/
-  app.add_flag("--debug", options.debug, "Print source locations with log messages");
-  app.add_flag("--no-color", options.disable_color, "Disable color terminal output");
+  app.add_flag("--debug", logger::debug, "Print source locations with log messages");
+  app.add_flag("--no-color", logger::disable_color, "Disable color terminal output");
   app.add_flag(
       "-v",
       [](int count) {
         if (count == 0) {
-          options.log_threshold = LogLevel::Fatal;
+          logger::log_level = LogLevel::Fatal;
         } else if (count == 1) {
-          options.log_threshold = LogLevel::Warning;
+          logger::log_level = LogLevel::Warning;
         } else if (count == 2) {
-          options.log_threshold = LogLevel::Info;
+          logger::log_level = LogLevel::Info;
         } else {
-          options.log_threshold = LogLevel::Verbose;
+          logger::log_level = LogLevel::Verbose;
         }
       },
       "Increase logging verbosity.");

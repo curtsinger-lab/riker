@@ -7,7 +7,6 @@
 
 #include "core/Artifact.hh"
 #include "core/IR.hh"
-#include "ui/options.hh"
 
 class Command;
 class Graphviz;
@@ -16,6 +15,8 @@ class Tracer;
 using std::make_shared;
 using std::string;
 using std::vector;
+
+enum class FingerprintLevel { None, Local, All };
 
 class Build {
  public:

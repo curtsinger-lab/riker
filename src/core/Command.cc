@@ -10,7 +10,6 @@
 #include "tracing/Tracer.hh"
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
-#include "ui/options.hh"
 
 using std::dynamic_pointer_cast;
 using std::map;

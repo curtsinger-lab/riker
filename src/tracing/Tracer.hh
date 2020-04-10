@@ -18,7 +18,6 @@
 #include "core/Artifact.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "ui/options.hh"
 
 using std::map;
 using std::set;

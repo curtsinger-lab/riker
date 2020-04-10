@@ -15,8 +15,7 @@
 
 #include <cereal/access.hpp>
 
-#include "core/UniqueID.hh"
-#include "ui/options.hh"
+#include "util/UniqueID.hh"
 
 class Command;
 
@@ -137,7 +136,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& f) {
-    if (f.getPath() != "")
+    if (!f.getPath().empty())
       return o << "[Artifact " << f.getPath() << "]";
     else
       return o << "[Artifact " << f.getID() << "]";

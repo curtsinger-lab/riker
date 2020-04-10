@@ -775,8 +775,6 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
     // The command observed a failed openat, so add the error predicate to the command log
     _command->isError(ref, fd);
   }
-
-  LOG << _command << " opened " << artifact;
 }
 
 void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {

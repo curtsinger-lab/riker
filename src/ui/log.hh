@@ -6,8 +6,6 @@
 #include <iostream>
 #include <utility>
 
-#include "ui/options.hh"
-
 using std::cerr;
 using std::move;
 
@@ -18,6 +16,8 @@ using std::move;
 #define COLOR_SOURCE "\033[34m"
 #define COLOR_END "\033[0m"
 
+enum class LogLevel { Fatal = 0, Warning = 1, Info = 2, Verbose = 3 };
+
 /**
  * This class is used for logging to the console. The macros defined below return an instance of
  * this class, which they can then print through using the << operator. The logger will
@@ -25,6 +25,16 @@ using std::move;
  * logger aborts the program when output is finished.
  */
 class logger {
+ public:
+  /// When set, disable color terminal output
+  inline static bool disable_color = false;
+
+  /// When set, include source locations in log messages
+  inline static bool debug = false;
+
+  /// The threshold for log message output
+  inline static LogLevel log_level = LogLevel::Fatal;
+
  private:
   LogLevel _level;  // Should the program abort when the log message is finished?
   bool _done;       // Is this the final command in the log output?
@@ -32,15 +42,15 @@ class logger {
  public:
   logger(const char* source_file, int source_line, LogLevel level) : _level(level), _done(true) {
     // Only log things if they're at or above our log threshold
-    if (_level >= options.log_threshold) {
+    if (_level <= log_level) {
       // Print source information, if enabled
-      if (options.debug) {
-        if (!options.disable_color) cerr << COLOR_SOURCE;
+      if (debug) {
+        if (!disable_color) cerr << COLOR_SOURCE;
         cerr << "[" << source_file << ":" << source_line << "] ";
       }
 
       // Set the log color
-      if (!options.disable_color) {
+      if (!disable_color) {
         if (_level == LogLevel::Verbose) {
           cerr << COLOR_VERBOSE;
         } else if (_level == LogLevel::Info) {
@@ -63,15 +73,15 @@ class logger {
   ~logger() {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
-      if (static_cast<int>(_level) >= static_cast<int>(options.log_threshold)) {
-        if (!options.disable_color) cerr << COLOR_END;
+      if (static_cast<int>(_level) <= static_cast<int>(log_level)) {
+        if (!disable_color) cerr << COLOR_END;
         cerr << "\n";
       }
 
       // If this log is a fatal
       if (_level == LogLevel::Fatal) {
         // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
-        if (options.debug)
+        if (debug)
           abort();
         else
           exit(2);
@@ -86,7 +96,7 @@ class logger {
   }
 
   logger&& indent(size_t n, size_t tab_size = 2) {
-    if (_level >= options.log_threshold) {
+    if (_level <= log_level) {
       for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < tab_size; j++) {
           cerr << " ";
@@ -98,7 +108,7 @@ class logger {
 
   template <typename T>
   logger&& operator<<(T t) {
-    if (_level >= options.log_threshold) cerr << t;
+    if (_level <= log_level) cerr << t;
     return move(*this);
   }
 };

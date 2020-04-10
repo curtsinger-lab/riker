@@ -14,8 +14,7 @@
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
-#include "core/UniqueID.hh"
-#include "ui/options.hh"
+#include "util/UniqueID.hh"
 
 class Graphviz;
 class Tracer;

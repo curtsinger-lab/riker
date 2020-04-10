@@ -11,7 +11,6 @@
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
 #include "ui/log.hh"
-#include "ui/options.hh"
 
 using std::list;
 using std::make_shared;
