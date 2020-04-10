@@ -1,6 +1,7 @@
 #include "serializer.hh"
 
 #include <fstream>
+#include <memory>
 #include <string>
 
 #include <cereal/archives/binary.hpp>
@@ -18,11 +19,13 @@
 #include "core/IR.hh"
 
 using std::ifstream;
+using std::make_unique;
 using std::ofstream;
 using std::string;
+using std::unique_ptr;
 
 // Load a saved build from a file
-bool load_build(string filename, Build& b) {
+unique_ptr<Build> load_build(string filename) {
   // Open the file for reading. Must pass std::ios::binary!
   ifstream f(filename, std::ios::binary);
 
@@ -31,16 +34,17 @@ bool load_build(string filename, Build& b) {
 
   try {
     // Attempt to load the build
-    archive(b);
-    return true;
+    unique_ptr<Build> b = make_unique<Build>();
+    archive(*b);
+    return b;
   } catch (cereal::Exception e) {
     // Return false on failure
-    return false;
+    return nullptr;
   }
 }
 
 // Save a build to a file
-void save_build(string filename, const Build& b) {
+void save_build(string filename, unique_ptr<Build>& b) {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 
@@ -48,7 +52,7 @@ void save_build(string filename, const Build& b) {
   cereal::BinaryOutputArchive archive(f);
 
   // Store the build
-  archive(b);
+  archive(*b);
 }
 
 /*
