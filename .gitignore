@@ -9,4 +9,3 @@ out.pdf
 out.svg
 out.png
 tests/*/*.t.err
-tests/ABbuild/myfile
