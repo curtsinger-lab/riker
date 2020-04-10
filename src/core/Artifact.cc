@@ -17,20 +17,20 @@ bool Artifact::isSystemFile() const {
 }
 
 // Get a reference to the latest version of an artifact
-Artifact::VersionRef Artifact::getLatestVersion() {
+ArtifactVersion Artifact::getLatestVersion() {
   // Tag an initial version of each artifact on demand
   if (_versions.size() == 0) tagNewVersion();
-  return VersionRef(shared_from_this(), _versions.size() - 1);
+  return ArtifactVersion(shared_from_this(), _versions.size() - 1);
 }
 
 // Save a new version of an artifact
-Artifact::VersionRef Artifact::tagNewVersion() {
+ArtifactVersion Artifact::tagNewVersion() {
   _versions.push_back(Artifact::Version());
-  return VersionRef(shared_from_this(), _versions.size() - 1);
+  return ArtifactVersion(shared_from_this(), _versions.size() - 1);
 }
 
 // Save the metadata for a version
-void Artifact::VersionRef::saveMetadata() {
+void ArtifactVersion::saveMetadata() {
   FAIL_IF(!_artifact) << "Attempted to save metadata for version of null artifact";
   FAIL_IF(_index >= _artifact->_versions.size())
       << "Attempted to save metadata for invalid version index";
@@ -52,10 +52,10 @@ void Artifact::VersionRef::saveMetadata() {
 }
 
 // Get a list of versions for this artifact
-list<Artifact::VersionRef> Artifact::getVersions() {
-  list<VersionRef> result;
+list<ArtifactVersion> Artifact::getVersions() {
+  list<ArtifactVersion> result;
   for (size_t i = 0; i < _versions.size(); i++) {
-    result.push_back(VersionRef(shared_from_this(), i));
+    result.push_back(ArtifactVersion(shared_from_this(), i));
   }
   return result;
 }

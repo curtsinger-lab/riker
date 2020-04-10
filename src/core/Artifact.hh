@@ -30,6 +30,52 @@ using std::to_string;
 using std::vector;
 using std::weak_ptr;
 
+class Artifact;
+
+/// A reference to a specific version of an artifact
+class ArtifactVersion {
+ public:
+  /// Default constructor for deserialization only
+  ArtifactVersion() = default;
+
+  /// Create a reference to a numbered version of an artifact
+  ArtifactVersion(shared_ptr<Artifact> artifact, size_t index) :
+      _artifact(artifact), _index(index) {}
+
+  /// Get the artifact this version references
+  shared_ptr<Artifact> getArtifact() const { return _artifact; }
+
+  /// Get the index of this version
+  size_t getIndex() const { return _index; }
+
+  /// Save the metadata for this version
+  void saveMetadata();
+
+  /// Save a fingerprint of the contents for this version
+  void saveFingerprint();
+
+  /// Save the contents of this version of the artifact
+  void saveContents();
+
+  /// Comparison function so versions can be used in sets and maps
+  bool operator<(const ArtifactVersion& other) const {
+    return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
+  }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, ArtifactVersion& v);
+
+  /// Print a version
+  friend ostream& operator<<(ostream& o, const ArtifactVersion& v) {
+    return o << v.getArtifact() << "@" << v.getIndex();
+  }
+
+ private:
+  shared_ptr<Artifact> _artifact;  //< The artifact this is a version of
+  size_t _index;  //< The index into the artifact's _versions list for this version's data
+};
+
 class Artifact : public enable_shared_from_this<Artifact> {
  private:
   // Default constructor for deserialization
@@ -50,50 +96,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   // Forward declaration for VerionRef class, which stores a reference to a specific version of an
   // artifact.
-  friend class VersionRef;
-
-  /// A reference to a specific version of this artifact
-  class VersionRef {
-   public:
-    /// Default constructor for deserialization only
-    VersionRef() = default;
-
-    /// Create a reference to a numbered version of an artifact
-    VersionRef(shared_ptr<Artifact> artifact, size_t index) : _artifact(artifact), _index(index) {}
-
-    /// Get the artifact this version references
-    shared_ptr<Artifact> getArtifact() const { return _artifact; }
-
-    /// Get the index of this version
-    size_t getIndex() const { return _index; }
-
-    /// Save the metadata for this version
-    void saveMetadata();
-
-    /// Save a fingerprint of the contents for this version
-    void saveFingerprint();
-
-    /// Save the contents of this version of the artifact
-    void saveContents();
-
-    /// Comparison function so VersionRefs can be used in sets and maps
-    bool operator<(const VersionRef& other) const {
-      return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
-    }
-
-    /// Friend method for serialization
-    template <class Archive>
-    friend void serialize(Archive& archive, VersionRef& v);
-
-    /// Print a VersionRef
-    friend ostream& operator<<(ostream& o, const Artifact::VersionRef& v) {
-      return o << v.getArtifact() << "@" << v.getIndex();
-    }
-
-   private:
-    shared_ptr<Artifact> _artifact;  //< The artifact this is a version of
-    size_t _index;  //< The index into the artifact's _versions list for this version's data
-  };
+  friend class ArtifactVersion;
 
   /// Get the unique ID assigned to this artifact
   size_t getID() const { return _id; }
@@ -111,14 +114,14 @@ class Artifact : public enable_shared_from_this<Artifact> {
   bool isSystemFile() const;
 
   /// Get a reference to the latest version of this artifact
-  VersionRef getLatestVersion();
+  ArtifactVersion getLatestVersion();
 
   /// Tag a new version of this artifact and return a reference to that version
-  VersionRef tagNewVersion();
+  ArtifactVersion tagNewVersion();
 
   /// Construct a list of references to the versions of this artifact. This isn't particularly
   /// efficient, but it's only used in the GraphViz output.
-  list<VersionRef> getVersions();
+  list<ArtifactVersion> getVersions();
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& f) {
@@ -133,7 +136,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
  private:
   /// Data about a specific version of this artifact. This struct is hidden from outside users.
-  /// Outside code should use Artifact::VersionRef to refer to a specific version of an artifact.
+  /// Outside code should use ArtifactVersion to refer to a specific version of an artifact.
   struct Version {
     /// Saved metadata for this version
     optional<struct stat> metadata;

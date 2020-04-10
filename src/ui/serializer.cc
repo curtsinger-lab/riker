@@ -94,7 +94,7 @@ void serialize(Archive& ar, struct stat& s) {
 }
 
 template <class Archive>
-void serialize(Archive& ar, Artifact::VersionRef& v) {
+void serialize(Archive& ar, ArtifactVersion& v) {
   ar(v._artifact, v._index);
 }
 

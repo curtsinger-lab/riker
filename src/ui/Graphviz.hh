@@ -81,7 +81,7 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [style=dotted weight=1]\n";
   }
 
-  void addInputEdge(Artifact::VersionRef f, shared_ptr<Command> c) {
+  void addInputEdge(ArtifactVersion f, shared_ptr<Command> c) {
     if (!_show_sysfiles && f.getArtifact()->isSystemFile()) return;
 
     addArtifact(f.getArtifact());
@@ -93,7 +93,7 @@ class Graphviz {
     _out << "  " << id1 << " -> " << id2 << " [arrowhead=empty weight=2]\n";
   }
 
-  void addOutputEdge(shared_ptr<Command> c, Artifact::VersionRef f) {
+  void addOutputEdge(shared_ptr<Command> c, ArtifactVersion f) {
     if (!_show_sysfiles && f.getArtifact()->isSystemFile()) return;
 
     addArtifact(f.getArtifact());
