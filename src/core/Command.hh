@@ -63,6 +63,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the full name for this command
   string getFullName() const;
 
+  const list<shared_ptr<Step>>& getSteps() const { return _steps; }
+
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(Tracer& tracer);
 

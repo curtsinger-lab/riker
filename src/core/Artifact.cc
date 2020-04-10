@@ -51,6 +51,21 @@ void ArtifactVersion::saveMetadata() {
   }
 }
 
+// Check if a version has saved metadata
+bool ArtifactVersion::hasMetadata() const {
+  return _artifact->_versions[_index].metadata.has_value();
+}
+
+// Check if a version has a fingerprint
+bool ArtifactVersion::hasFingerprint() const {
+  return _artifact->_versions[_index].fingerprint.has_value();
+}
+
+// Check if the contents of an artifact version have been saved
+bool ArtifactVersion::hasSavedContents() const {
+  return _artifact->_versions[_index].saved.has_value();
+}
+
 // Get a list of versions for this artifact
 list<ArtifactVersion> Artifact::getVersions() {
   list<ArtifactVersion> result;

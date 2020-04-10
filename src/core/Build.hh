@@ -32,6 +32,8 @@ class Build {
   Build(Build&&) = default;
   Build& operator=(Build&&) = default;
 
+  shared_ptr<Command> getRoot() const { return _root; }
+
   /****** Non-trivial methods ******/
 
   bool load(string filename);

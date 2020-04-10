@@ -17,6 +17,7 @@
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "ui/serializer.hh"
+#include "util/StatsVisitor.hh"
 
 using std::cerr;
 using std::cout;
@@ -101,6 +102,17 @@ void do_graph(string output, bool show_sysfiles) {
   }
 }
 
+void do_stats(bool list_artifacts) {
+  Build b;
+  if (!load_build(DatabaseFilename, b)) {
+    FAIL << "Failed to load a build. You must run a build before generating a build graph.";
+  }
+
+  StatsVisitor v;
+  v.visit(b);
+  v.print(cout, list_artifacts);
+}
+
 /**
  * Check if the current terminal supports color output.
  */
@@ -181,6 +193,14 @@ int main(int argc, char* argv[]) {
 
   // Set the callback fo the trace subcommand
   graph->final_callback([&] { do_graph(graph_output, show_sysfiles); });
+
+  /************* Stats Subcommand *************/
+  bool list_artifacts = false;
+
+  auto stats = app.add_subcommand("stats", "Print build statistics");
+  stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
+
+  stats->final_callback([&] { do_stats(list_artifacts); });
 
   /************* Argument Parsing *************/
 

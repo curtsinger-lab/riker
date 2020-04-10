@@ -51,11 +51,20 @@ class ArtifactVersion {
   /// Save the metadata for this version
   void saveMetadata();
 
+  /// Check if this version has saved metadata
+  bool hasMetadata() const;
+
   /// Save a fingerprint of the contents for this version
   void saveFingerprint();
 
+  /// Check if this version has a fingerprint saved
+  bool hasFingerprint() const;
+
   /// Save the contents of this version of the artifact
   void saveContents();
+
+  /// Check if the contents of this version have been saved
+  bool hasSavedContents() const;
 
   /// Comparison function so versions can be used in sets and maps
   bool operator<(const ArtifactVersion& other) const {
@@ -109,6 +118,9 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Get a short, printable name for this artifact
   string getShortName() const { return _path; }
+
+  /// Return the number of versions we're tracking for this artifact
+  size_t getVersionCount() const { return _versions.size(); }
 
   /// Check if this artifact corresponds to a system file
   bool isSystemFile() const;
