@@ -108,9 +108,7 @@ void do_stats(bool list_artifacts) {
     FAIL << "Failed to load a build. You must run a build before generating a build graph.";
   }
 
-  StatsVisitor v;
-  v.visit(b);
-  v.print(cout, list_artifacts);
+  cout << StatsVisitor(b, list_artifacts);
 }
 
 /**
