@@ -7,6 +7,7 @@
 #include <cereal/types/list.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>
+#include <cereal/types/optional.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/vector.hpp>
 
@@ -84,7 +85,7 @@ void serialize(Archive& ar, Artifact& a) {
 
 template <class Archive>
 void serialize(Archive& ar, Artifact::Version& v) {
-  ar(v.has_metadata, v.metadata, v.has_fingerprint, v.fingerprint);
+  ar(v.metadata, v.fingerprint, v.saved);
 }
 
 template <class Archive>

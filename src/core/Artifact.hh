@@ -31,15 +31,12 @@ using std::vector;
 using std::weak_ptr;
 
 class Artifact : public enable_shared_from_this<Artifact> {
- public:
-  // Forward declaration for VerionRef class, which stores a reference to a specific version of an
-  // artifact.
-  friend class VersionRef;
-
+ private:
   // Default constructor for deserialization
   friend class cereal::access;
   Artifact() = default;
 
+ public:
   /****** Constructors ******/
   Artifact(string path) : _path(path) {}
 
@@ -51,7 +48,52 @@ class Artifact : public enable_shared_from_this<Artifact> {
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
 
-  /****** Getters and setters ******/
+  // Forward declaration for VerionRef class, which stores a reference to a specific version of an
+  // artifact.
+  friend class VersionRef;
+
+  /// A reference to a specific version of this artifact
+  class VersionRef {
+   public:
+    /// Default constructor for deserialization only
+    VersionRef() = default;
+
+    /// Create a reference to a numbered version of an artifact
+    VersionRef(shared_ptr<Artifact> artifact, size_t index) : _artifact(artifact), _index(index) {}
+
+    /// Get the artifact this version references
+    shared_ptr<Artifact> getArtifact() const { return _artifact; }
+
+    /// Get the index of this version
+    size_t getIndex() const { return _index; }
+
+    /// Save the metadata for this version
+    void saveMetadata();
+
+    /// Save a fingerprint of the contents for this version
+    void saveFingerprint();
+
+    /// Save the contents of this version of the artifact
+    void saveContents();
+
+    /// Comparison function so VersionRefs can be used in sets and maps
+    bool operator<(const VersionRef& other) const {
+      return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
+    }
+
+    /// Friend method for serialization
+    template <class Archive>
+    friend void serialize(Archive& archive, VersionRef& v);
+
+    /// Print a VersionRef
+    friend ostream& operator<<(ostream& o, const Artifact::VersionRef& v) {
+      return o << v.getArtifact() << "@" << v.getIndex();
+    }
+
+   private:
+    shared_ptr<Artifact> _artifact;  //< The artifact this is a version of
+    size_t _index;  //< The index into the artifact's _versions list for this version's data
+  };
 
   /// Get the unique ID assigned to this artifact
   size_t getID() const { return _id; }
@@ -66,14 +108,17 @@ class Artifact : public enable_shared_from_this<Artifact> {
   string getShortName() const { return _path; }
 
   /// Check if this artifact corresponds to a system file
-  bool isSystemFile() {
-    for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
-      // Check if the path begins with one of our prefixes.
-      // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
-      if (_path.rfind(p, 0) != string::npos) return true;
-    }
-    return false;
-  }
+  bool isSystemFile() const;
+
+  /// Get a reference to the latest version of this artifact
+  VersionRef getLatestVersion();
+
+  /// Tag a new version of this artifact and return a reference to that version
+  VersionRef tagNewVersion();
+
+  /// Construct a list of references to the versions of this artifact. This isn't particularly
+  /// efficient, but it's only used in the GraphViz output.
+  list<VersionRef> getVersions();
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& f) {
@@ -86,70 +131,18 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }
 
-  /// A reference to a specific version of this artifact
-  class VersionRef {
-    friend class Artifact;
-
-   private:
-    VersionRef(shared_ptr<Artifact> artifact, size_t index) : _artifact(artifact), _index(index) {}
-
-   public:
-    // Default constructor for deserialization only
-    VersionRef() = default;
-
-    shared_ptr<Artifact> getArtifact() const { return _artifact; }
-    size_t getIndex() const { return _index; }
-    string getShortName() const { return _artifact->getShortName() + "v" + to_string(_index); }
-
-    bool operator<(const VersionRef& other) const {
-      return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
-    }
-
-    /// Friend method for serialization
-    template <class Archive>
-    friend void serialize(Archive& archive, VersionRef& v);
-
-   private:
-    shared_ptr<Artifact> _artifact;
-    size_t _index;
-  };
-
-  /// Tag a new version of this artifact and return a reference to that version
-  VersionRef tagNewVersion() {
-    _versions.push_back(Artifact::Version());
-    return VersionRef(shared_from_this(), _versions.size() - 1);
-  }
-
-  /// Get a reference to the latest version of this artifact
-  VersionRef getLatestVersion() {
-    // Tag an initial version of each artifact on demand
-    if (_versions.size() == 0) tagNewVersion();
-    return VersionRef(shared_from_this(), _versions.size() - 1);
-  }
-
-  /// Construct a list of references to the versions of this artifact. This isn't particularly
-  /// efficient, but it's only used in the GraphViz output.
-  const list<VersionRef> getVersions() {
-    list<VersionRef> result;
-    for (size_t i = 0; i < _versions.size(); i++) {
-      result.push_back(VersionRef(shared_from_this(), i));
-    }
-    return result;
-  }
-
-  friend ostream& operator<<(ostream& o, const Artifact::VersionRef& v) {
-    return o << v.getArtifact() << "@" << v.getIndex();
-  }
-
  private:
   /// Data about a specific version of this artifact. This struct is hidden from outside users.
   /// Outside code should use Artifact::VersionRef to refer to a specific version of an artifact.
   struct Version {
-    bool has_metadata = false;  //< Do we have file metadata for this version?
-    struct stat metadata;       //< If we have it, the metadata is stored here
+    /// Saved metadata for this version
+    optional<struct stat> metadata;
 
-    bool has_fingerprint = false;  //< Do we have a fingerprint of the file contents?
-    vector<uint8_t> fingerprint;   //< The fingerprint
+    /// Saved fingerprint for this version
+    optional<vector<uint8_t>> fingerprint;
+
+    /// Name of the file that contains a copy of this version
+    optional<string> saved;
   };
 
   /// Friend method for serializing Artifacts
@@ -159,10 +152,6 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /// Friend method for serializing Artifact::Versions
   template <class Archive>
   friend void serialize(Archive& archive, Artifact::Version& v);
-
- private:
-  /// Fingerprint this artifact and save the fingerprint with the latest version of the artifact
-  void fingerprint();
 
  private:
   UniqueID<Artifact> _id;     //< A unique ID for printing

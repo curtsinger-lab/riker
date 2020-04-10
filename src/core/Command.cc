@@ -87,6 +87,12 @@ void Command::isError(shared_ptr<Reference> ref, int err) {
 
 /// This command accesses the metadata for an artifact
 void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  // Get the version we depend on
+  auto v = a->getLatestVersion();
+
+  // Make sure we have metadata saved for that version
+  v.saveMetadata();
+
   // Record the dependency on metadata
   _steps.push_back(make_shared<Predicate::MetadataMatch>(ref, a->getLatestVersion()));
 }
