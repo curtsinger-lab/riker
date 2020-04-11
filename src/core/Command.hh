@@ -120,9 +120,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command starts another command
   void launch(shared_ptr<Command> cmd);
 
-  /// Print the abstract trace of this command (and its children) to an output stream
-  void printTrace(ostream& o) const;
-
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, Command& c, const uint32_t version);

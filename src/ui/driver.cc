@@ -17,6 +17,7 @@
 #include "ui/Graphviz.hh"
 #include "ui/log.hh"
 #include "util/StatsVisitor.hh"
+#include "util/TraceVisitor.hh"
 #include "util/serializer.hh"
 
 using std::cerr;
@@ -86,12 +87,11 @@ void do_trace(string output) {
     Build b = load_build(DatabaseFilename);
 
     if (output == "-") {
-      b.printTrace(cout);
+      cout << TraceVisitor(b);
     } else {
       ofstream f(output);
-      b.printTrace(f);
+      f << TraceVisitor(b);
     }
-
   } catch (db_version_exception e) {
     FAIL << "Build database is outdated. Rerun the build to create a new build database.";
   } catch (cereal::Exception e) {

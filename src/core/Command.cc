@@ -116,30 +116,6 @@ void Command::launch(shared_ptr<Command> cmd) {
   _steps.push_back(make_shared<Action::Launch>(cmd));
 }
 
-/// Print the abstract trace of this command (and its children) to an output stream
-void Command::printTrace(ostream& o) const {
-  // Print this command's name
-  o << this << endl;
-
-  list<shared_ptr<Command>> children;
-
-  // Print the trace for this command
-  for (auto& s : _steps) {
-    o << "  " << s << endl;
-
-    // If this is a LAUNCH step, we will need to print the child command
-    auto launch = std::dynamic_pointer_cast<Action::Launch>(s);
-    if (launch) {
-      children.push_back(launch->getCommand());
-    }
-  }
-
-  // Print traces for all child commands
-  for (auto& child : children) {
-    child->printTrace(o);
-  }
-}
-
 void Command::drawGraph(Graphviz& g) {
   g.addCommand(shared_from_this());
   for (auto& s : _steps) {

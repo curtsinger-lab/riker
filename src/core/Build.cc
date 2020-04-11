@@ -19,21 +19,21 @@ using std::ofstream;
 using std::string;
 
 Build::Build(string executable, vector<string> arguments) {
-  // Create a reference and artifact for each of the standard pipes
-  _stdin_ref = make_shared<Reference::Pipe>();
-  _stdin = make_shared<Artifact>("stdin");
+  // Create references for the three default pipes: stdin, stdout, and stderr
+  _default_refs[0] = make_shared<Reference::Pipe>();
+  _default_refs[1] = make_shared<Reference::Pipe>();
+  _default_refs[2] = make_shared<Reference::Pipe>();
 
-  _stdout_ref = make_shared<Reference::Pipe>();
-  _stdout = make_shared<Artifact>("stdout");
-
-  _stderr_ref = make_shared<Reference::Pipe>();
-  _stderr = make_shared<Artifact>("stderr");
+  // Create three artifacts to correspond to those same pipes
+  _default_artifacts[0] = make_shared<Artifact>("stdin");
+  _default_artifacts[1] = make_shared<Artifact>("stdout");
+  _default_artifacts[2] = make_shared<Artifact>("stderr");
 
   // Build the map of initial file descriptors
   map<int, FileDescriptor> fds = {
-      {0, FileDescriptor(_stdin_ref, _stdin, false)},
-      {1, FileDescriptor(_stdout_ref, _stdout, true)},
-      {2, FileDescriptor(_stderr_ref, _stderr, true)},
+      {0, FileDescriptor(_default_refs[0], _default_artifacts[0], false)},
+      {1, FileDescriptor(_default_refs[1], _default_artifacts[1], true)},
+      {2, FileDescriptor(_default_refs[2], _default_artifacts[2], true)},
   };
 
   // Create the root command for the build
@@ -53,13 +53,4 @@ void Build::run(Tracer& tracer) {
 
 void Build::drawGraph(Graphviz& g) {
   if (_root) _root->drawGraph(g);
-}
-
-void Build::printTrace(ostream& o) {
-  if (_root) {
-    o << _stdin_ref << endl;
-    o << _stdout_ref << endl;
-    o << _stderr_ref << endl;
-    _root->printTrace(o);
-  }
 }
