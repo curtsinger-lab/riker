@@ -16,7 +16,7 @@ using std::move;
 #define COLOR_SOURCE "\033[34m"
 #define COLOR_END "\033[0m"
 
-enum class LogLevel { Fatal = 0, Warning = 1, Info = 2, Verbose = 3 };
+enum class LogLevel { Fatal = -1, Warning = 0, Info = 1, Verbose = 2 };
 
 /**
  * This class is used for logging to the console. The macros defined below return an instance of
@@ -33,7 +33,7 @@ class logger {
   inline static bool debug = false;
 
   /// The threshold for log message output
-  inline static LogLevel log_level = LogLevel::Fatal;
+  inline static LogLevel log_level = LogLevel::Warning;
 
  private:
   LogLevel _level;  // Should the program abort when the log message is finished?
