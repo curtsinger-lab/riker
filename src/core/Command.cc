@@ -8,7 +8,6 @@
 #include "core/Artifact.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
-#include "ui/Graphviz.hh"
 #include "ui/log.hh"
 
 using std::dynamic_pointer_cast;
@@ -114,38 +113,4 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 /// This command launches a child command
 void Command::launch(shared_ptr<Command> cmd) {
   _steps.push_back(make_shared<Action::Launch>(cmd));
-}
-
-void Command::drawGraph(Graphviz& g) {
-  g.addCommand(shared_from_this());
-  for (auto& s : _steps) {
-    shared_ptr<Predicate::MetadataMatch> metadata_match;
-    shared_ptr<Predicate::ContentsMatch> contents_match;
-    shared_ptr<Action::Launch> launch;
-    shared_ptr<Action::SetMetadata> set_metadata;
-    shared_ptr<Action::SetContents> set_contents;
-
-    if ((metadata_match = dynamic_pointer_cast<Predicate::MetadataMatch>(s))) {
-      auto version = metadata_match->getVersion();
-      g.addInputEdge(version, shared_from_this());
-
-    } else if ((contents_match = dynamic_pointer_cast<Predicate::ContentsMatch>(s))) {
-      auto version = contents_match->getVersion();
-      g.addInputEdge(version, shared_from_this());
-
-    } else if ((launch = dynamic_pointer_cast<Action::Launch>(s))) {
-      // Recursively draw the child command
-      launch->getCommand()->drawGraph(g);
-      // Add a graph edge to the child command
-      g.addCommandEdge(shared_from_this(), launch->getCommand());
-
-    } else if ((set_metadata = dynamic_pointer_cast<Action::SetMetadata>(s))) {
-      auto version = set_metadata->getVersion();
-      g.addOutputEdge(shared_from_this(), version);
-
-    } else if ((set_contents = dynamic_pointer_cast<Action::SetContents>(s))) {
-      auto version = set_contents->getVersion();
-      g.addOutputEdge(shared_from_this(), version);
-    }
-  }
 }

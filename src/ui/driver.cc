@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <forward_list>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -14,8 +15,8 @@
 #include "core/Artifact.hh"
 #include "core/Build.hh"
 #include "tracing/Tracer.hh"
-#include "ui/Graphviz.hh"
 #include "ui/log.hh"
+#include "util/GraphVisitor.hh"
 #include "util/StatsVisitor.hh"
 #include "util/TraceVisitor.hh"
 #include "util/serializer.hh"
@@ -25,6 +26,7 @@ using std::cout;
 using std::endl;
 using std::forward_list;
 using std::make_unique;
+using std::ofstream;
 using std::stol;
 using std::string;
 
@@ -104,10 +106,10 @@ void do_graph(string output, bool show_sysfiles) {
     Build b = load_build(DatabaseFilename);
 
     if (output == "-") {
-      FAIL << "Terminal output for graphviz is not implemented.";
+      cout << GraphVisitor(b, show_sysfiles);
     } else {
-      Graphviz g(output, show_sysfiles);
-      b.drawGraph(g);
+      ofstream f(output);
+      f << GraphVisitor(b, show_sysfiles);
     }
 
   } catch (db_version_exception e) {

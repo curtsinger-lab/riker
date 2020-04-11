@@ -42,15 +42,6 @@ Build::Build(string executable, vector<string> arguments) {
   INFO << "Build initialized with root " << _root.get();
 }
 
-bool Build::load(string filename) {
-  // No loading yet. Just return failure
-  return false;
-}
-
 void Build::run(Tracer& tracer) {
   if (_root) _root->run(tracer);
-}
-
-void Build::drawGraph(Graphviz& g) {
-  if (_root) _root->drawGraph(g);
 }

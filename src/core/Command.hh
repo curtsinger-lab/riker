@@ -16,7 +16,6 @@
 #include "core/IR.hh"
 #include "util/UniqueID.hh"
 
-class Graphviz;
 class Tracer;
 
 using std::endl;
@@ -66,9 +65,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(Tracer& tracer);
-
-  /// Add this command and its children to a graphviz output object
-  void drawGraph(Graphviz& g);
 
   /// Get the path to the executable file this command runs
   const string& getExecutable() const { return _exe; }

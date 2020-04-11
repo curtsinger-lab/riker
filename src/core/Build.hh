@@ -10,7 +10,6 @@
 #include "core/IR.hh"
 
 class Command;
-class Graphviz;
 class Tracer;
 
 using std::array;
@@ -41,11 +40,7 @@ class Build {
 
   /****** Non-trivial methods ******/
 
-  bool load(string filename);
-
   void run(Tracer& tracer);
-
-  void drawGraph(Graphviz& g);
 
   template <class Archive>
   friend void serialize(Archive& archive, Build& g, uint32_t version);
