@@ -147,7 +147,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Data about a specific version of this artifact. This struct is hidden from outside users.
   /// Outside code should use ArtifactVersion to refer to a specific version of an artifact.
-  struct Version {
+  struct VersionData {
     /// Saved metadata for this version
     optional<struct stat> metadata;
 
@@ -165,10 +165,10 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Friend method for serializing Artifact::Versions
   template <class Archive>
-  friend void serialize(Archive& archive, Artifact::Version& v, const uint32_t version);
+  friend void serialize(Archive& archive, Artifact::VersionData& v, const uint32_t version);
 
  private:
-  UniqueID<Artifact> _id;     //< A unique ID for printing
-  string _path;               //< The absolute, normalized path to this artifact
-  vector<Version> _versions;  //< The sequence of versions of this artifact
+  UniqueID<Artifact> _id;         //< A unique ID for printing
+  string _path;                   //< The absolute, normalized path to this artifact
+  vector<VersionData> _versions;  //< The sequence of versions of this artifact
 };

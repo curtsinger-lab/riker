@@ -25,7 +25,7 @@ ArtifactVersion Artifact::getLatestVersion() {
 
 // Save a new version of an artifact
 ArtifactVersion Artifact::tagNewVersion() {
-  _versions.push_back(Artifact::Version());
+  _versions.push_back(Artifact::VersionData());
   return ArtifactVersion(shared_from_this(), _versions.size() - 1);
 }
 
@@ -38,7 +38,7 @@ void ArtifactVersion::saveMetadata() {
       << "Attempted to save metadata for a version after it has been overwritten";
 
   // Get the version data
-  Artifact::Version& v = _artifact->_versions[_index];
+  Artifact::VersionData& v = _artifact->_versions[_index];
 
   // Only save metadata if we don't have it already
   if (!v.metadata.has_value()) {

@@ -113,10 +113,10 @@ void serialize(Archive& ar, Artifact& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Artifact::Version, ArchiveVersion);
+CEREAL_CLASS_VERSION(Artifact::VersionData, ArchiveVersion);
 
 template <class Archive>
-void serialize(Archive& ar, Artifact::Version& v, const uint32_t version) {
+void serialize(Archive& ar, Artifact::VersionData& v, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(v.metadata, v.fingerprint, v.saved);
   } else {
