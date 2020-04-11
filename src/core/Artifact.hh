@@ -72,7 +72,7 @@ class ArtifactVersion {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, ArtifactVersion& v);
+  friend void serialize(Archive& archive, ArtifactVersion& v, const uint32_t version);
 
   /// Print a version
   friend ostream& operator<<(ostream& o, const ArtifactVersion& v) {
@@ -145,7 +145,6 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }
 
- private:
   /// Data about a specific version of this artifact. This struct is hidden from outside users.
   /// Outside code should use ArtifactVersion to refer to a specific version of an artifact.
   struct Version {
@@ -159,13 +158,14 @@ class Artifact : public enable_shared_from_this<Artifact> {
     optional<string> saved;
   };
 
+ private:
   /// Friend method for serializing Artifacts
   template <class Archive>
-  friend void serialize(Archive& archive, Artifact& a);
+  friend void serialize(Archive& archive, Artifact& a, const uint32_t version);
 
   /// Friend method for serializing Artifact::Versions
   template <class Archive>
-  friend void serialize(Archive& archive, Artifact::Version& v);
+  friend void serialize(Archive& archive, Artifact::Version& v, const uint32_t version);
 
  private:
   UniqueID<Artifact> _id;     //< A unique ID for printing

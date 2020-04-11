@@ -36,10 +36,19 @@ const fs::path DatabaseFilename = ".dodo/db";
 
 void do_build(bool dry_run, int jobs, string fingerprint) {
   // Create a build object
-  auto b = load_build(DatabaseFilename);
+  Build b;
+  bool loaded = false;
+  try {
+    b = load_build(DatabaseFilename);
+    loaded = true;
+  } catch (db_version_exception e) {
+    WARN << "Build database is outdated. Running a clean build.";
+  } catch (cereal::Exception e) {
+    // Silently fall back to a clean build when there is no build database file
+  }
 
   // Attempt to load a saved build. If that fails, create a new build object
-  if (!b) {
+  if (!loaded) {
     // We're going to set up a new build graph to run the build. There are three cases to handle:
     //  1. We can just run ./Dodofile
     //  2. Dodofile is not executable. We'll run it with /bin/sh
@@ -47,13 +56,11 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
 
     if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
       // Dodofile is directly executable. Initialize graph with a command to run it directly
-      vector<string> args = {RootBuildCommand};
-      b = make_unique<Build>(RootBuildCommand, args);
+      b = Build(RootBuildCommand, {RootBuildCommand});
 
     } else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
       // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-      vector<string> args = {RootBuildCommand, RootBuildCommand};
-      b = make_unique<Build>("/bin/sh", args);
+      b = Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
 
     } else {
       // Dodofile is neither executable nor readable. This won't work.
@@ -64,7 +71,7 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
 
   if (!dry_run) {
     Tracer tracer;
-    b->run(tracer);
+    b.run(tracer);
   }
 
   // Make sure the output directory exists
@@ -75,34 +82,51 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
 }
 
 void do_trace(string output) {
-  auto b = load_build(DatabaseFilename);
-  FAIL_IF(!b) << "Failed to load a build. You must run a build before printing a trace.";
+  try {
+    Build b = load_build(DatabaseFilename);
 
-  if (output == "-") {
-    b->printTrace(cout);
-  } else {
-    ofstream f(output);
-    b->printTrace(f);
+    if (output == "-") {
+      b.printTrace(cout);
+    } else {
+      ofstream f(output);
+      b.printTrace(f);
+    }
+
+  } catch (db_version_exception e) {
+    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
+  } catch (cereal::Exception e) {
+    FAIL << "Failed to load the build database. Have you run a build yet?";
   }
 }
 
 void do_graph(string output, bool show_sysfiles) {
-  auto b = load_build(DatabaseFilename);
-  FAIL_IF(!b) << "Failed to load a build. You must run a build before generating a build graph.";
+  try {
+    Build b = load_build(DatabaseFilename);
 
-  if (output == "-") {
-    FAIL << "Terminal output for graphviz is not implemented.";
-  } else {
-    Graphviz g(output, show_sysfiles);
-    b->drawGraph(g);
+    if (output == "-") {
+      FAIL << "Terminal output for graphviz is not implemented.";
+    } else {
+      Graphviz g(output, show_sysfiles);
+      b.drawGraph(g);
+    }
+
+  } catch (db_version_exception e) {
+    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
+  } catch (cereal::Exception e) {
+    FAIL << "Failed to load the build database. Have you run a build yet?";
   }
 }
 
 void do_stats(bool list_artifacts) {
-  auto b = load_build(DatabaseFilename);
-  FAIL_IF(!b) << "Failed to load a build. You must run a build before generating a build graph.";
+  try {
+    Build b = load_build(DatabaseFilename);
+    cout << StatsVisitor(b, list_artifacts);
 
-  cout << StatsVisitor(*b, list_artifacts);
+  } catch (db_version_exception e) {
+    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
+  } catch (cereal::Exception e) {
+    FAIL << "Failed to load the build database. Have you run a build yet?";
+  }
 }
 
 /**

@@ -125,7 +125,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, Command& c);
+  friend void serialize(Archive& archive, Command& c, const uint32_t version);
 
  private:
   /// A unique ID assigned to this command for log readability

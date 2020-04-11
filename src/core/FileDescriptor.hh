@@ -43,7 +43,7 @@ class FileDescriptor {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, FileDescriptor& fd);
+  friend void serialize(Archive& archive, FileDescriptor& fd, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;      //< The reference used to construct this file descriptor

@@ -72,7 +72,7 @@ class Reference::Pipe : public Reference {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, Pipe& p);
+  friend void serialize(Archive& archive, Pipe& p, const uint32_t version);
 };
 
 /// Access a filesystem path with a given set of flags
@@ -136,7 +136,7 @@ class Reference::Access : public Reference {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, Access& a);
+  friend void serialize(Archive& archive, Access& a, const uint32_t version);
 
  private:
   string _path;  //< The filesystem path that was accessed
@@ -179,7 +179,7 @@ class Predicate::IsOK : public Predicate {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, IsOK& p);
+  friend void serialize(Archive& archive, IsOK& p, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference that must have been made successfully
@@ -218,7 +218,7 @@ class Predicate::IsError : public Predicate {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, IsError& p);
+  friend void serialize(Archive& archive, IsError& p, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference that must have resulted in an error
@@ -251,7 +251,7 @@ class Predicate::MetadataMatch : public Predicate {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, MetadataMatch& p);
+  friend void serialize(Archive& archive, MetadataMatch& p, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference being examined
@@ -284,7 +284,7 @@ class Predicate::ContentsMatch : public Predicate {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, ContentsMatch& p);
+  friend void serialize(Archive& archive, ContentsMatch& p, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference being examined
@@ -329,7 +329,7 @@ class Action::Launch : public Action {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, Launch& a);
+  friend void serialize(Archive& archive, Launch& a, const uint32_t version);
 
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
@@ -360,7 +360,7 @@ class Action::SetMetadata : public Action {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, SetMetadata& a);
+  friend void serialize(Archive& archive, SetMetadata& a, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference used for this action
@@ -392,7 +392,7 @@ class Action::SetContents : public Action {
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, SetContents& a);
+  friend void serialize(Archive& archive, SetContents& a, const uint32_t version);
 
  private:
   shared_ptr<Reference> _ref;  //< The reference used for this action

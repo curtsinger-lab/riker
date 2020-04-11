@@ -46,7 +46,7 @@ class Build {
   void printTrace(ostream& o);
 
   template <class Archive>
-  friend void serialize(Archive& archive, Build& g);
+  friend void serialize(Archive& archive, Build& g, uint32_t version);
 
  private:
   shared_ptr<Command> _root;
