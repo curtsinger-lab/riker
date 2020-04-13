@@ -49,4 +49,14 @@ class Build {
   shared_ptr<Command> _root;
   array<shared_ptr<Reference>, 3> _default_refs;
   array<shared_ptr<Artifact>, 3> _default_artifacts;
+
+ public:
+  // Global flags to control build behavior
+
+  /****** Optimization ******/
+  /// Any command can read the effects of its own writes without versioning or dependencies
+  static inline bool ignore_self_reads = true;
+
+  /// Repeated writes by the same command with no interleaved read can be combined
+  static inline bool combine_writes = true;
 };

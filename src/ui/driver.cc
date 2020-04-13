@@ -187,6 +187,14 @@ int main(int argc, char* argv[]) {
   build->add_option("-f,--fingerprint", fingerprint, "Set the fingerprint level (default=local)")
       ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
 
+  build->add_flag_callback("--disable-ignore-self-reads", [] { Build::ignore_self_reads = false; })
+      ->description("Disable the ignore-self-reads optimization")
+      ->group("Optimizations");
+
+  build->add_flag_callback("--disable-write-combine", [] { Build::combine_writes = false; })
+      ->description("Disable the write-combining optimization")
+      ->group("Optimizations");
+
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
