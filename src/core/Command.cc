@@ -88,6 +88,12 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // Get the version we depend on
   auto v = a->getLatestVersion();
 
+  // If the latest version was created by this command, there's no need to depend on it
+  if (v.getCreator() == shared_from_this()) return;
+
+  // The version has been accessed
+  v.setAccessed();
+
   // Make sure we have metadata saved for that version
   v.saveMetadata();
 
@@ -97,17 +103,41 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
 /// This command accesses the contents of an artifact
 void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
-  _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, a->getLatestVersion()));
+  // We depend on the latest version of the artifact. Get it now.
+  auto v = a->getLatestVersion();
+
+  // If the latest version was created by this command, there's no need to depend on it
+  if (v.getCreator() == shared_from_this()) return;
+
+  // The version has been accessed
+  v.setAccessed();
+
+  // Make sure we have a fingerprint saved for this version
+  v.saveFingerprint();
+
+  // Record the dependency
+  _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, v));
 }
 
 /// This command sets the metadata for an artifact
 void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  // Metadata updates always tag new versions. That's because we don't explicitly track dependencies
+  // on metadata like permissions. Any filesystem access could depend on a metadata update.
   _steps.push_back(make_shared<Action::SetContents>(ref, a->tagNewVersion()));
 }
 
 /// This command sets the contents of an artifact
 void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
-  _steps.push_back(make_shared<Action::SetContents>(ref, a->tagNewVersion()));
+  // Get the latest version of this artifact
+  auto v = a->getLatestVersion();
+
+  // If this command created the last version, and no other command has accessed it, we can combine
+  // the updates into a single update. That means we don't need to tag a new version.
+  if (v.getCreator() == shared_from_this() && !v.isAccessed()) return;
+
+  // If we reach this point, the command is creating a new version of the artifact
+  auto new_version = a->tagNewVersion(shared_from_this());
+  _steps.push_back(make_shared<Action::SetContents>(ref, new_version));
 }
 
 /// This command launches a child command

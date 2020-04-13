@@ -23,9 +23,24 @@ ArtifactVersion Artifact::getLatestVersion() {
   return ArtifactVersion(shared_from_this(), _versions.size() - 1);
 }
 
+// Get the creator of this command
+shared_ptr<Command> ArtifactVersion::getCreator() const {
+  return _artifact->_versions[_index].creator.lock();
+}
+
+// Check if this version has been accessed
+bool ArtifactVersion::isAccessed() const {
+  return _artifact->_versions[_index].accessed;
+}
+
+// Record that this version has been accessed
+void ArtifactVersion::setAccessed() {
+  _artifact->_versions[_index].accessed = true;
+}
+
 // Save a new version of an artifact
-ArtifactVersion Artifact::tagNewVersion() {
-  _versions.push_back(Artifact::VersionData());
+ArtifactVersion Artifact::tagNewVersion(shared_ptr<Command> creator) {
+  _versions.push_back(Artifact::VersionData(creator));
   return ArtifactVersion(shared_from_this(), _versions.size() - 1);
 }
 
@@ -54,6 +69,12 @@ void ArtifactVersion::saveMetadata() {
 // Check if a version has saved metadata
 bool ArtifactVersion::hasMetadata() const {
   return _artifact->_versions[_index].metadata.has_value();
+}
+
+// Save a fingerprint of this file
+void ArtifactVersion::saveFingerprint() {
+  // Just use metadata as a fingerprint (mtime) for now
+  saveMetadata();
 }
 
 // Check if a version has a fingerprint

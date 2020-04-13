@@ -47,6 +47,15 @@ class ArtifactVersion {
   /// Get the index of this version
   size_t getIndex() const { return _index; }
 
+  /// Get the command that created this version
+  shared_ptr<Command> getCreator() const;
+
+  /// Check if this version has been accessed
+  bool isAccessed() const;
+
+  /// Mark this version as accessed
+  void setAccessed();
+
   /// Save the metadata for this version
   void saveMetadata();
 
@@ -128,7 +137,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   ArtifactVersion getLatestVersion();
 
   /// Tag a new version of this artifact and return a reference to that version
-  ArtifactVersion tagNewVersion();
+  ArtifactVersion tagNewVersion(shared_ptr<Command> creator = nullptr);
 
   /// Construct a list of references to the versions of this artifact. This isn't particularly
   /// efficient, but it's only used in the GraphViz output.
@@ -148,14 +157,17 @@ class Artifact : public enable_shared_from_this<Artifact> {
   /// Data about a specific version of this artifact. This struct is hidden from outside users.
   /// Outside code should use ArtifactVersion to refer to a specific version of an artifact.
   struct VersionData {
-    /// Saved metadata for this version
-    optional<struct stat> metadata;
+    /// Create a version with no recorded creator
+    VersionData() {}
 
-    /// Saved fingerprint for this version
-    optional<vector<uint8_t>> fingerprint;
+    /// Create a version with a given creator
+    VersionData(shared_ptr<Command> c) : creator(c) {}
 
-    /// Name of the file that contains a copy of this version
-    optional<string> saved;
+    weak_ptr<Command> creator;              //< Which command created this version?
+    bool accessed = false;                  //< Has this version been accessed by any commands?
+    optional<struct stat> metadata;         //< Saved metadata for this version
+    optional<vector<uint8_t>> fingerprint;  //< Saved fingerprint for this version
+    optional<string> saved;  //< Name of the file that contains a copy of this version
   };
 
  private:
