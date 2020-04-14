@@ -99,7 +99,7 @@ shared_ptr<Reference> Command::pipe() {
 
 /// This command requires that a reference resolves to an artifact without failure
 void Command::isOK(shared_ptr<Reference> ref) {
-  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, 0));
+  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, SUCCESS));
 }
 
 /// This command requires that a reference fails to resolve with a specific error

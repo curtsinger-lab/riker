@@ -23,6 +23,9 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 
+// Add a success constant so we don't have to keep returning 0 as a magic number
+enum : int { SUCCESS = 0 };
+
 class Reference;
 
 /**
@@ -51,7 +54,7 @@ class Step {
    */
   virtual bool eval(map<string, ArtifactVersion>& env) = 0;
 
-  /// Check if this step contains a reference
+  /// Get the reference used by this Step, if any. Used for printing.
   virtual shared_ptr<Reference> getReference() const { return nullptr; }
 
   /// Print this Step to an output stream
@@ -68,12 +71,9 @@ class Step {
 };
 
 /**
- * A Reference is created any time a command refers to an artifact. This happens when commands open
- * files, but other cases (like creating pipes) will also need to be tracked.
- *
- * The types of references are:
- * - PIPE()
- * - ACCESS(<path>, <mode>)
+ * Any time a command makes a reference to an artifact we will record it with an IR step that is a
+ * subclass of Reference. References do not necessarily resolve to artifacts (they could fail) but
+ * we can encode predicates about the outcome of a reference.
  */
 class Reference : public Step {
  public:
@@ -83,7 +83,8 @@ class Reference : public Step {
   /// Get the path this reference uses, if it has one
   virtual optional<string> getPath() = 0;
 
-  /// References are always successful, and do not need to update the environment
+  /// Evaluating a reference never updates the environment, and is not a predicate, so there's
+  /// nothing to do here
   virtual bool eval(map<string, ArtifactVersion>& env) override { return true; }
 
   /// Get the result of making this reference again, and return it
@@ -96,13 +97,14 @@ class Reference : public Step {
 /// Create a reference to a new pipe
 class Reference::Pipe : public Reference {
  public:
-  virtual ostream& print(ostream& o) const override { return o << getName() << " = PIPE()"; }
-
   /// Pipes do not have a path
   virtual optional<string> getPath() override { return nullopt; }
 
   /// Pipes are always created successfully
-  virtual int checkAccess() override { return 0; }
+  virtual int checkAccess() override { return SUCCESS; }
+
+  /// Print a PIPE reference
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -122,15 +124,14 @@ class Reference::Access : public Reference {
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const { return _flags; }
 
+  /// Get the path this access call uses to reach an artifact
   virtual optional<string> getPath() override { return _path; }
 
   /// Check the outcome of an access
   virtual int checkAccess() override;
 
-  /// Print an access reference
-  virtual ostream& print(ostream& o) const override {
-    return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
-  }
+  /// Print an ACCESS reference
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -210,9 +211,7 @@ class Predicate::MetadataMatch : public Predicate {
   virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a METADATA_MATCH predicate
-  virtual ostream& print(ostream& o) const override {
-    return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
-  }
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -246,9 +245,7 @@ class Predicate::ContentsMatch : public Predicate {
   virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a CONTENTS_MATCH predicate
-  virtual ostream& print(ostream& o) const override {
-    return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
-  }
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -328,9 +325,7 @@ class Action::SetMetadata : public Action {
   virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a SET_METADATA action
-  virtual ostream& print(ostream& o) const override {
-    return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
-  }
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -363,9 +358,7 @@ class Action::SetContents : public Action {
   virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a SET_CONTENTS action
-  virtual ostream& print(ostream& o) const override {
-    return o << "SET_CONTENTS(" << _ref->getName() << ", " << _version << ")";
-  }
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>

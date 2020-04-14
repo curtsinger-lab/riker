@@ -38,9 +38,11 @@ int Reference::Access::checkAccess() {
     return errno;
   } else {
     // If not, return success
-    return 0;
+    return SUCCESS;
   }
 }
+
+/******************** Eval Methods ********************/
 
 // Check if a reference would resolve the same way on rebuild
 bool Predicate::ReferenceResult::eval(map<string, ArtifactVersion>& env) {
@@ -119,13 +121,25 @@ bool Action::SetContents::eval(map<string, ArtifactVersion>& env) {
   return true;
 }
 
+/******************** Print Methods ********************/
+
+/// Print a PIPE reference
+ostream& Reference::Pipe::print(ostream& o) const {
+  return o << getName() << " = PIPE()";
+}
+
+/// Print an ACCESS reference
+ostream& Reference::Access::print(ostream& o) const {
+  return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
+}
+
+// Set up a map from return codes to names
+static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
+                                  {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
+                                  {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
+
 // Print a ReferenceResult predicate
 ostream& Predicate::ReferenceResult::print(ostream& o) const {
-  // Set up a map from error codes to names
-  static map<int, string> errors = {{0, "SUCCESS"},     {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-                                    {EEXIST, "EEXIST"}, {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-                                    {ELOOP, "ELOOP"},   {ENOENT, "ENOENT"}};
-
   // If we can't identify the error code, just print "EMYSTERY"
   string errname = "EMYSTERY";
 
@@ -136,6 +150,26 @@ ostream& Predicate::ReferenceResult::print(ostream& o) const {
   }
 
   return o << "REFERENCE_RESULT(" << _ref->getName() << ", " << errname << ")";
+}
+
+/// Print a METADATA_MATCH predicate
+ostream& Predicate::MetadataMatch::print(ostream& o) const {
+  return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
+}
+
+/// Print a CONTENTS_MATCH predicate
+ostream& Predicate::ContentsMatch::print(ostream& o) const {
+  return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
+}
+
+/// Print a SET_METADATA action
+ostream& Action::SetMetadata::print(ostream& o) const {
+  return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
+}
+
+/// Print a SET_CONTENTS action
+ostream& Action::SetContents::print(ostream& o) const {
+  return o << "SET_CONTENTS(" << _ref->getName() << ", " << _version << ")";
 }
 
 // Print a launch action
