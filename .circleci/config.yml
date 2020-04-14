@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default:
     docker:
-      - image: circleci/buildpack-deps:disco
+      - image: circleci/buildpack-deps:eoan
 jobs:
   all:
     executor: default
