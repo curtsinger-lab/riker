@@ -57,8 +57,8 @@ class Build {
 
   /****** Optimization ******/
   /// Any command can read the effects of its own writes without versioning or dependencies
-  static inline bool ignore_self_reads = true;
+  static inline bool ignore_self_reads = true;  // PAPER
 
   /// Repeated writes by the same command with no interleaved read can be combined
-  static inline bool combine_writes = true;
+  static inline bool combine_writes = true;  // PAPER
 };
