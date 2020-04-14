@@ -2,20 +2,27 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <cereal/access.hpp>
 
 #include "core/Artifact.hh"
+#include "ui/log.hh"
 #include "util/UniqueID.hh"
 
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+
+class Reference;
 
 /**
  * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation or
@@ -34,6 +41,12 @@ class Step {
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
+
+  /// Check if the outcome of this step has changed
+  virtual bool changed() = 0;
+
+  /// Check if this step contains a reference
+  virtual shared_ptr<Reference> getReference() const { return nullptr; }
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
@@ -61,6 +74,15 @@ class Reference : public Step {
   class Pipe;
   class Access;
 
+  /// Get the path this reference uses, if it has one
+  virtual optional<string> getPath() = 0;
+
+  /// References are always unchanged, so they don't have to rerun
+  virtual bool changed() { return false; }
+
+  /// Get the result of making this reference again, and return it
+  virtual int checkAccess() = 0;
+
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 };
@@ -69,6 +91,12 @@ class Reference : public Step {
 class Reference::Pipe : public Reference {
  public:
   virtual ostream& print(ostream& o) const { return o << getName() << " = PIPE()"; }
+
+  /// Pipes do not have a path
+  virtual optional<string> getPath() { return nullopt; }
+
+  /// Pipes are always created successfully
+  virtual int checkAccess() { return 0; }
 
   /// Friend method for serialization
   template <class Archive>
@@ -129,6 +157,29 @@ class Reference::Access : public Reference {
   /// Get the flags used to create this reference
   const Flags& getFlags() const { return _flags; }
 
+  virtual optional<string> getPath() { return _path; }
+
+  /// Check the outcome of an access
+  virtual int checkAccess() {
+    int access_mode = 0;
+    if (_flags.r) access_mode |= R_OK;
+    if (_flags.w) access_mode |= W_OK;
+    if (_flags.x) access_mode |= X_OK;
+    // TODO: Support creat, trunc, and excl
+
+    int access_flags = AT_EACCESS;
+    if (_flags.nofollow) access_flags |= AT_SYMLINK_NOFOLLOW;
+
+    // Use faccessat to check the reference
+    if (faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags)) {
+      // If there's an error, return the error value stored in errno
+      return errno;
+    } else {
+      // If not, return success
+      return 0;
+    }
+  }
+
   /// Print an access reference
   virtual ostream& print(ostream& o) const {
     return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
@@ -174,6 +225,11 @@ class Predicate::IsOK : public Predicate {
   /// Create an IS_OK predicate
   IsOK(shared_ptr<Reference> ref) : _ref(ref) {}
 
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// This predicate has changed if a reference is no longer successful
+  virtual bool changed() { return _ref->checkAccess() != 0; }
+
   /// Print an IS_OK predicate to an output stream
   virtual ostream& print(ostream& o) const { return o << "IS_OK(" << _ref->getName() << ")"; }
 
@@ -197,6 +253,19 @@ class Predicate::IsError : public Predicate {
   /// Create an IS_ERROR predicate
   IsError(shared_ptr<Reference> ref, int err) : _ref(ref), _err(err) {}
 
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
+
+  /// Return true if the given reference evaluates to a different result
+  virtual bool changed() {
+    int result = _ref->checkAccess();
+    if (result != _err) {
+      LOG << "Reference returned " << result << " instead of " << _err;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   /// Print an IS_ERROR predicate
   virtual ostream& print(ostream& o) const {
     // Set up a map from error codes to names
@@ -208,7 +277,7 @@ class Predicate::IsError : public Predicate {
     string errname = "EMYSTERY";
 
     // Look up the error name in our map
-    auto iter = errors.find(-_err);
+    auto iter = errors.find(_err);
     if (iter != errors.end()) {
       errname = iter->second;
     }
@@ -239,10 +308,21 @@ class Predicate::MetadataMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
+
+  /// Check if this predicate has changed
+  virtual bool changed() {
+    optional<string> path = _ref->getPath();
+    if (path.has_value()) {
+      // TODO: handle nofollow
+      return !_version.metadataMatch(path.value());
+    } else {
+      return true;
+    }
+  }
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const {
@@ -272,10 +352,21 @@ class Predicate::ContentsMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
+
+  /// Check if this predicate has changed
+  virtual bool changed() {
+    optional<string> path = _ref->getPath();
+    if (path.has_value()) {
+      // TODO: handle nofollow
+      return !_version.contentsMatch(path.value());
+    } else {
+      return true;
+    }
+  }
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const {
@@ -324,6 +415,12 @@ class Action::Launch : public Action {
   /// Get the command this action launches
   shared_ptr<Command> getCommand() const { return _cmd; }
 
+  /// A launch action's state is never changed
+  virtual bool changed() {
+    // Never changed. Recursively check the child command elsewhere
+    return false;
+  }
+
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const;
 
@@ -348,10 +445,16 @@ class Action::SetMetadata : public Action {
   SetMetadata(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
+
+  /// Check whether this action's outcome has changed
+  virtual bool changed() {
+    // TODO: Update an environment to record the new metadata
+    return false;
+  }
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const {
@@ -380,10 +483,16 @@ class Action::SetContents : public Action {
   SetContents(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
+
+  /// Check whether this action's outcome has changed
+  virtual bool changed() {
+    // TODO: Update an environment to record the new contents
+    return false;
+  }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const {

@@ -45,3 +45,7 @@ Build::Build(string executable, vector<string> arguments) {
 void Build::run(Tracer& tracer) {
   if (_root) _root->run(tracer);
 }
+
+void Build::check() {
+  if (_root) _root->check();
+}

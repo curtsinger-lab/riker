@@ -1,9 +1,10 @@
 #include "Command.hh"
 
+#include <iostream>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "core/Artifact.hh"
 #include "core/Build.hh"
@@ -11,11 +12,13 @@
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
+using std::cout;
 using std::dynamic_pointer_cast;
+using std::endl;
+using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
-using std::vector;
 
 string Command::getShortName() const {
   auto base = _exe;
@@ -53,6 +56,25 @@ void Command::run(Tracer& tracer) {
 
   // Actually run the command
   tracer.run(shared_from_this());
+}
+
+void Command::check(string indent) {
+  cout << indent << this << endl;
+  for (auto s : _steps) {
+    if (s->changed()) {
+      cout << indent << "  "
+           << "Changed: " << s << endl;
+
+      auto ref = s->getReference();
+      if (ref) {
+        cout << indent << "    (" << ref << ")" << endl;
+      }
+    }
+    // Check child commands as well
+    if (auto launch = dynamic_pointer_cast<Action::Launch>(s)) {
+      launch->getCommand()->check(indent + "  ");
+    }
+  }
 }
 
 /// The command accesses an artifact by path.
@@ -139,8 +161,8 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // Get the latest version of this artifact
   auto v = a->getLatestVersion();
 
-  // If this command created the last version, and no other command has accessed it, we can combine
-  // the updates into a single update. That means we don't need to tag a new version.
+  // If this command created the last version, and no other command has accessed it, we can
+  // combine the updates into a single update. That means we don't need to tag a new version.
   if (Build::combine_writes && v.getCreator() == shared_from_this() && !v.isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact

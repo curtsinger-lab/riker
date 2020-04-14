@@ -84,6 +84,18 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
   save_build(DatabaseFilename, b);
 }
 
+void do_check() {
+  try {
+    Build b = load_build(DatabaseFilename);
+    b.check();
+
+  } catch (db_version_exception e) {
+    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
+  } catch (cereal::Exception e) {
+    FAIL << "Failed to load the build database. Have you run a build yet?";
+  }
+}
+
 void do_trace(string output) {
   try {
     Build b = load_build(DatabaseFilename);
@@ -199,6 +211,10 @@ int main(int argc, char* argv[]) {
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
   build->final_callback([&] { do_build(dry_run, jobs, fingerprint); });
+
+  /************* Check Subcommand *************/
+  auto check = app.add_subcommand("check", "Check which commands must be rerun and report why");
+  check->final_callback([&] { do_check(); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";

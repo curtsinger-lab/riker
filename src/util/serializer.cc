@@ -4,6 +4,9 @@
 #include <memory>
 #include <string>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/list.hpp>
@@ -29,7 +32,7 @@ using std::unique_ptr;
 // Declare the current version of the archive. Increase this number each time the archive changes
 // in a way that would make old versions incompatible. Every serialize function below can
 // accommodate logic to deserialize an outdated version.
-const uint32_t ArchiveVersion = 2;
+const uint32_t ArchiveVersion = 3;
 
 // Load a saved build from a file
 Build load_build(string filename) {
@@ -130,7 +133,18 @@ CEREAL_CLASS_VERSION(struct stat, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, struct stat& s, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(s.st_mode, s.st_uid, s.st_gid, s.st_size, s.st_mtime, s.st_ctime);
+    ar(s.st_mode, s.st_uid, s.st_gid, s.st_size, s.st_mtim);
+  } else {
+    throw db_version_exception(version);
+  }
+}
+
+CEREAL_CLASS_VERSION(struct timespec, ArchiveVersion);
+
+template <class Archive>
+void serialize(Archive& ar, struct timespec& ts, const uint32_t version) {
+  if (version == ArchiveVersion) {
+    ar(ts.tv_sec, ts.tv_nsec);
   } else {
     throw db_version_exception(version);
   }

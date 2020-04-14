@@ -66,6 +66,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(Tracer& tracer);
 
+  /// Check if this command must run, and log information about why
+  void check(string indent = "");
+
   /// Get the path to the executable file this command runs
   const string& getExecutable() const { return _exe; }
 

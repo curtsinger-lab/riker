@@ -386,7 +386,8 @@ void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags
   if (rc == 0) {
     _command->isOK(ref);
   } else {
-    _command->isError(ref, rc);
+    // Record the error. We negate the return code because syscalls always return negative errors
+    _command->isError(ref, -rc);
   }
 }
 
@@ -422,7 +423,8 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref, artifact);
     } else {
-      _command->isError(ref, rc);
+      // Record the error. Negate rc because syscalls return negative errors
+      _command->isError(ref, -rc);
     }
   }
 
@@ -442,8 +444,8 @@ void Tracer::Process::_execveat(int dfd, string filename) {
   // Not sure why, but exec returns -38 on success.
   // If we see something else, handle the error
   if (rc != -38) {
-    // Failure! Record a failed reference
-    _command->isError(exe_ref, rc);
+    // Failure! Record a failed reference. Negate rc because syscalls return negative errors
+    _command->isError(exe_ref, -rc);
 
     // Resume the process and stop handling
     resume();
@@ -773,7 +775,8 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
-    _command->isError(ref, fd);
+    // Negate fd because syscalls return negative errors
+    _command->isError(ref, -fd);
   }
 }
 

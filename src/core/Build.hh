@@ -42,6 +42,8 @@ class Build {
 
   void run(Tracer& tracer);
 
+  void check();
+
   template <class Archive>
   friend void serialize(Archive& archive, Build& g, uint32_t version);
 
