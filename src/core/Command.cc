@@ -8,6 +8,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Build.hh"
+#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
@@ -78,7 +79,7 @@ void Command::check(map<string, ArtifactVersion>& env, string indent) {
 }
 
 /// The command accesses an artifact by path.
-shared_ptr<Reference> Command::access(string path, Reference::Access::Flags flags) {
+shared_ptr<Reference> Command::access(string path, Flags flags) {
   auto ref = make_shared<Reference::Access>(path, flags);
   _steps.push_back(ref);
 
@@ -98,12 +99,12 @@ shared_ptr<Reference> Command::pipe() {
 
 /// This command requires that a reference resolves to an artifact without failure
 void Command::isOK(shared_ptr<Reference> ref) {
-  _steps.push_back(make_shared<Predicate::IsOK>(ref));
+  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, 0));
 }
 
 /// This command requires that a reference fails to resolve with a specific error
 void Command::isError(shared_ptr<Reference> ref, int err) {
-  _steps.push_back(make_shared<Predicate::IsError>(ref, err));
+  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, err));
 }
 
 /// This command accesses the metadata for an artifact

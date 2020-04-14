@@ -20,6 +20,7 @@
 #include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
+#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "ui/log.hh"
 
@@ -32,7 +33,7 @@ using std::unique_ptr;
 // Declare the current version of the archive. Increase this number each time the archive changes
 // in a way that would make old versions incompatible. Every serialize function below can
 // accommodate logic to deserialize an outdated version.
-const uint32_t ArchiveVersion = 3;
+const uint32_t ArchiveVersion = 4;
 
 // Load a saved build from a file
 Build load_build(string filename) {
@@ -188,9 +189,9 @@ void serialize(Archive& ar, Reference::Access& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Reference::Access::Flags, ArchiveVersion);
+CEREAL_CLASS_VERSION(Flags, ArchiveVersion);
 template <class Archive>
-void serialize(Archive& ar, Reference::Access::Flags& f, const uint32_t version) {
+void serialize(Archive& ar, Flags& f, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(f.r, f.w, f.x, f.nofollow, f.truncate, f.create, f.exclusive);
   } else {
@@ -200,25 +201,13 @@ void serialize(Archive& ar, Reference::Access::Flags& f, const uint32_t version)
 
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Step, Predicate)
 
-CEREAL_CLASS_VERSION(Predicate::IsOK, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Predicate::IsOK)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::IsOK)
+CEREAL_CLASS_VERSION(Predicate::ReferenceResult, ArchiveVersion);
+CEREAL_REGISTER_TYPE(Predicate::ReferenceResult)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::ReferenceResult)
 template <class Archive>
-void serialize(Archive& ar, Predicate::IsOK& p, const uint32_t version) {
+void serialize(Archive& ar, Predicate::ReferenceResult& p, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(p._ref);
-  } else {
-    throw db_version_exception(version);
-  }
-}
-
-CEREAL_CLASS_VERSION(Predicate::IsError, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Predicate::IsError)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::IsError)
-template <class Archive>
-void serialize(Archive& ar, Predicate::IsError& p, const uint32_t version) {
-  if (version == ArchiveVersion) {
-    ar(p._ref, p._err);
+    ar(p._ref, p._rc);
   } else {
     throw db_version_exception(version);
   }

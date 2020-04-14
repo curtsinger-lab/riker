@@ -12,6 +12,7 @@
 #include <cereal/access.hpp>
 
 #include "core/Artifact.hh"
+#include "core/Flags.hh"
 #include "ui/log.hh"
 #include "util/UniqueID.hh"
 
@@ -115,47 +116,6 @@ class Reference::Access : public Reference {
   Access() = default;
 
  public:
-  /// This struct encodes the flags specified when making an access to a particular reference
-  struct Flags {
-    bool r = false;          // Does the reference require read access?
-    bool w = false;          // Does the reference require write access?
-    bool x = false;          // Does the reference require execute access?
-    bool nofollow = false;   // Does the reference resolve to a symlink rather than its target?
-    bool truncate = false;   // Does the reference truncate the artifact's contents?
-    bool create = false;     // Does the reference create an artifact if none exists?
-    bool exclusive = false;  // Does the reference require creation? (must also be set with .create
-
-    /// Create a Flags instance from the flags parameter to the open syscall
-    static Flags fromOpen(int flags) {
-      return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
-              .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
-              .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
-              .truncate = (flags & O_TRUNC) == O_TRUNC,
-              .create = (flags & O_CREAT) == O_CREAT,
-              .exclusive = (flags & O_EXCL) == O_EXCL};
-    }
-
-    /// Create a Flags instance from the mode and flags parameters to the access syscall
-    static Flags fromAccess(int mode, int flags) {
-      return {.r = (mode & R_OK) == R_OK,
-              .w = (mode & W_OK) == W_OK,
-              .x = (mode & X_OK) == X_OK,
-              .nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
-    }
-
-    /// Create a Flags instance from the flags parameter to the stat syscall
-    static Flags fromStat(int flags) {
-      return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
-    }
-
-    /// Print a Flags struct to an output stream
-    friend ostream& operator<<(ostream& o, const Flags& f) {
-      return o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
-               << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
-               << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "");
-    }
-  };
-
   /// Create an access reference to a path with given flags
   Access(string path, Flags flags) : _path(path), _flags(flags) {}
 
@@ -165,38 +125,7 @@ class Reference::Access : public Reference {
   virtual optional<string> getPath() override { return _path; }
 
   /// Check the outcome of an access
-  virtual int checkAccess() override {
-    // Set up an access mode that we'll check
-    int access_mode = 0;
-    if (_flags.r) access_mode |= R_OK;
-    if (_flags.w) access_mode |= W_OK;
-    if (_flags.x) access_mode |= X_OK;
-
-    // TODO: Add support for the create flag: if the access fails with ENOENT, but writing to the
-    // directory would succeed, we can return success.
-
-    // TODO: Add support for the exclusive flag: if create and exclusive are specified, we have to
-    // make sure the file does NOT exist, and the user can write to the containing directory.
-
-    // TODO: Is there anything to do for truncate? We need to be sure we can write the file, but is
-    // it even possible to open with O_TRUNC in read-only mode?
-
-    // Normally, faccessat checks whether the real user has access. We want to check as whatever the
-    // effective user is. That's the same permission level the build would run with.
-    int access_flags = AT_EACCESS;
-
-    // Check access on a symlink if nofollow is specified
-    if (_flags.nofollow) access_flags |= AT_SYMLINK_NOFOLLOW;
-
-    // Use faccessat to check the reference
-    if (faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags)) {
-      // If there's an error, return the error value stored in errno
-      return errno;
-    } else {
-      // If not, return success
-      return 0;
-    }
-  }
+  virtual int checkAccess() override;
 
   /// Print an access reference
   virtual ostream& print(ostream& o) const override {
@@ -218,101 +147,44 @@ class Reference::Access : public Reference {
  * predicate, we know we have to rerun that command.
  *
  * There are several types of predicates:
- * - IS_OK(r : Reference)
- * - IS_ERROR(r : Reference, e : Error)
+ * - REFERECE_RESULT(r : Reference, rc : int)
  * - METADATA_MATCH(r : Reference, v : ArtifactVersion)
  * - CONTENTS_MATCH(r : Reference, v : ArtifactVersion)
  */
 class Predicate : public Step {
  public:
-  class IsOK;
-  class IsError;
+  class ReferenceResult;
   class MetadataMatch;
   class ContentsMatch;
 };
 
 /**
- * Require that a reference was successful (e.g. it did not return an error code)
+ * Making a reference produced a particular result (error code or success)
  */
-class Predicate::IsOK : public Predicate {
+class Predicate::ReferenceResult : public Predicate {
   // Default constructor for deserialization
   friend class cereal::access;
-  IsOK() = default;
+  ReferenceResult() = default;
 
  public:
-  /// Create an IS_OK predicate
-  IsOK(shared_ptr<Reference> ref) : _ref(ref) {}
-
-  /// Get the reference this predicate checks
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
-
-  /// This predicate has changed if a reference is no longer successful
-  virtual bool eval(map<string, ArtifactVersion>& env) override { return _ref->checkAccess() == 0; }
-
-  /// Print an IS_OK predicate to an output stream
-  virtual ostream& print(ostream& o) const override {
-    return o << "IS_OK(" << _ref->getName() << ")";
-  }
-
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, IsOK& p, const uint32_t version);
-
- private:
-  shared_ptr<Reference> _ref;  //< The reference that must have been made successfully
-};
-
-/**
- * Require that a reference resulted in a specific error code
- */
-class Predicate::IsError : public Predicate {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  IsError() = default;
-
- public:
-  /// Create an IS_ERROR predicate
-  IsError(shared_ptr<Reference> ref, int err) : _ref(ref), _err(err) {}
+  /// Create a REFERENCE_RESULT predicate
+  ReferenceResult(shared_ptr<Reference> ref, int rc) : _ref(ref), _rc(rc) {}
 
   virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Return true if the given reference evaluates to a different result
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    int result = _ref->checkAccess();
-    if (result != _err) {
-      LOG << "Reference returned " << result << " instead of " << _err;
-      return false;
-    } else {
-      return true;
-    }
-  }
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
-  /// Print an IS_ERROR predicate
-  virtual ostream& print(ostream& o) const override {
-    // Set up a map from error codes to names
-    static map<int, string> errors = {{EACCES, "EACCES"}, {EDQUOT, "EDQUOT"}, {EEXIST, "EEXIST"},
-                                      {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"}, {ELOOP, "ELOOP"},
-                                      {ENOENT, "ENOENT"}};
-
-    // If we can't identify the error code, just print "EMYSTERY"
-    string errname = "EMYSTERY";
-
-    // Look up the error name in our map
-    auto iter = errors.find(_err);
-    if (iter != errors.end()) {
-      errname = iter->second;
-    }
-
-    return o << "IS_ERROR(" << _ref->getName() << ", " << errname << ")";
-  }
+  /// Print a REFERENCE_RESULT predicate
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
-  friend void serialize(Archive& archive, IsError& p, const uint32_t version);
+  friend void serialize(Archive& archive, ReferenceResult& p, const uint32_t version);
 
  private:
-  shared_ptr<Reference> _ref;  //< The reference that must have resulted in an error
-  int _err;                    //< The error code returned from the reference
+  shared_ptr<Reference> _ref;  //< The reference whose outcome we depend on
+  int _rc;                     //< The result of that reference
 };
 
 /**
@@ -335,23 +207,7 @@ class Predicate::MetadataMatch : public Predicate {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check if this predicate has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    optional<string> path = _ref->getPath();
-
-    // References without paths never check out
-    if (!path.has_value()) return false;
-
-    // If the environment has this path, we can check the version cached there
-    auto iter = env.find(path.value());
-    if (iter != env.end()) {
-      // This is probably overly-conservative. Any version with the same metadata would be okay.
-      return iter->second == _version;
-    } else {
-      // Check the contents of the referred-to path
-      // TODO: handle nofollow flag
-      return _version.metadataMatch(path.value());
-    }
-  }
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override {
@@ -387,23 +243,7 @@ class Predicate::ContentsMatch : public Predicate {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check if this predicate has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    optional<string> path = _ref->getPath();
-
-    // References without paths never check out
-    if (!path.has_value()) return false;
-
-    // If the environment has this path, we can check the version cached there
-    auto iter = env.find(path.value());
-    if (iter != env.end()) {
-      // This is overly-conservative. Any version with the same contents would be okay.
-      return iter->second == _version;
-    } else {
-      // Check the contents of the referred-to path
-      // TODO: handle nofollow flag
-      return _version.contentsMatch(path.value());
-    }
-  }
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override {
@@ -452,11 +292,8 @@ class Action::Launch : public Action {
   /// Get the command this action launches
   shared_ptr<Command> getCommand() const { return _cmd; }
 
-  /// A launch action's state is never changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    // Launch actions always evaluate successfully
-    return true;
-  }
+  /// Launch actions always evaluate successfully, with no effect on the environment
+  virtual bool eval(map<string, ArtifactVersion>& env) override { return true; }
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -488,18 +325,7 @@ class Action::SetMetadata : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check whether this action's outcome has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    optional<string> path = _ref->getPath();
-
-    // If the referred-to artifact doesn't have a path, there's nothing left to do
-    if (!path.has_value()) return true;
-
-    // We have a path. Record the effect of this action in the environment
-    env[path.value()] = _version;
-
-    // Evaluation succeeds
-    return true;
-  }
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override {
@@ -534,18 +360,7 @@ class Action::SetContents : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check whether this action's outcome has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override {
-    optional<string> path = _ref->getPath();
-
-    // If the referred-to artifact doesn't have a path, there's nothing left to do
-    if (!path.has_value()) return true;
-
-    // We have a path. Record the effect of this action in the environment
-    env[path.value()] = _version;
-
-    // Evaluation succeeds
-    return true;
-  }
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override {
