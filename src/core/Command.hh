@@ -11,9 +11,9 @@
 
 #include <cereal/access.hpp>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
-#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "util/UniqueID.hh"
 
@@ -94,7 +94,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Most access() calls will *not* have side-effects, but some will:
   ///  - O_CREAT was specified, and the file did not exist before this call
   ///  - O_TRUNC was specified, and the file existed before this call
-  shared_ptr<Reference> access(string path, Flags flags);
+  shared_ptr<Reference> access(string path, AccessFlags flags);
 
   /// This command creates a reference to a new pipe
   shared_ptr<Reference> pipe();

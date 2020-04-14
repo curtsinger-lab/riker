@@ -30,10 +30,10 @@
 #include <syscall.h>
 #include <unistd.h>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
@@ -375,7 +375,7 @@ void Tracer::Process::_faccessat(int dirfd, string pathname, int mode, int flags
   auto p = resolvePath(pathname, dirfd);
 
   // Record the command's access to this path with the given flags
-  auto ref = _command->access(p, Flags::fromAccess(mode, flags));
+  auto ref = _command->access(p, AccessFlags::fromAccess(mode, flags));
 
   // Finish the syscall so we can see its result
   int rc = finishSyscall();
@@ -748,7 +748,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   auto artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
 
   // The command makes a reference to a path, possibly modifying artifact f
-  auto ref_flags = Flags::fromOpen(flags);
+  auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _command->access(p, ref_flags);
 
   // Allow the syscall to finish, and record the result

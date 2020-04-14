@@ -6,9 +6,9 @@
 #include <memory>
 #include <string>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/Build.hh"
-#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
@@ -79,7 +79,7 @@ void Command::check(map<string, ArtifactVersion>& env, string indent) {
 }
 
 /// The command accesses an artifact by path.
-shared_ptr<Reference> Command::access(string path, Flags flags) {
+shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
   auto ref = make_shared<Reference::Access>(path, flags);
   _steps.push_back(ref);
 

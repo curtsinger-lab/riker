@@ -11,8 +11,8 @@
 
 #include <cereal/access.hpp>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
-#include "core/Flags.hh"
 #include "ui/log.hh"
 #include "util/UniqueID.hh"
 
@@ -117,10 +117,10 @@ class Reference::Access : public Reference {
 
  public:
   /// Create an access reference to a path with given flags
-  Access(string path, Flags flags) : _path(path), _flags(flags) {}
+  Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
 
   /// Get the flags used to create this reference
-  const Flags& getFlags() const { return _flags; }
+  const AccessFlags& getFlags() const { return _flags; }
 
   virtual optional<string> getPath() override { return _path; }
 
@@ -137,8 +137,8 @@ class Reference::Access : public Reference {
   friend void serialize(Archive& archive, Access& a, const uint32_t version);
 
  private:
-  string _path;  //< The filesystem path that was accessed
-  Flags _flags;  //< The relevant flags for the access
+  string _path;        //< The filesystem path that was accessed
+  AccessFlags _flags;  //< The relevant flags for the access
 };
 
 /**

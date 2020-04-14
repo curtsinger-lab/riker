@@ -16,11 +16,11 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/vector.hpp>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "core/Flags.hh"
 #include "core/IR.hh"
 #include "ui/log.hh"
 
@@ -189,9 +189,9 @@ void serialize(Archive& ar, Reference::Access& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Flags, ArchiveVersion);
+CEREAL_CLASS_VERSION(AccessFlags, ArchiveVersion);
 template <class Archive>
-void serialize(Archive& ar, Flags& f, const uint32_t version) {
+void serialize(Archive& ar, AccessFlags& f, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(f.r, f.w, f.x, f.nofollow, f.truncate, f.create, f.exclusive);
   } else {
