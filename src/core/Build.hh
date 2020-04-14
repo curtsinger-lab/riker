@@ -61,4 +61,7 @@ class Build {
 
   /// Repeated writes by the same command with no interleaved read can be combined
   static inline bool combine_writes = true;  // PAPER
+
+  /// Skip repeated checks of the contents or metadata for the same reference
+  static inline bool skip_repeat_checks = true;  // PAPER
 };

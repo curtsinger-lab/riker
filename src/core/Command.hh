@@ -7,6 +7,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <cereal/access.hpp>
@@ -23,6 +24,7 @@ using std::endl;
 using std::make_shared;
 using std::map;
 using std::ostream;
+using std::pair;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -139,4 +141,10 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
+
+  /// Track all the unique metadata checks made during tracing
+  set<pair<shared_ptr<Reference>, ArtifactVersion>> _metadata_checks;
+
+  /// Track all the unique content checks made during tracing
+  set<pair<shared_ptr<Reference>, ArtifactVersion>> _contents_checks;
 };

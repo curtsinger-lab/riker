@@ -116,6 +116,12 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // having to record the dependency. This is always safe.
   if (Build::ignore_self_reads && v.getCreator() == shared_from_this()) return;
 
+  // Add this check to the set of metadata checks. If the check is not new, we can return.
+  if (Build::skip_repeat_checks) {
+    auto [_, inserted] = _metadata_checks.emplace(ref, v);
+    if (!inserted) return;
+  }
+
   // The version has been accessed
   v.setAccessed();
 
@@ -134,6 +140,12 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
   if (Build::ignore_self_reads && v.getCreator() == shared_from_this()) return;
+
+  // Add this check to the set of contents checks. If the check is not new, we can return.
+  if (Build::skip_repeat_checks) {
+    auto [_, inserted] = _contents_checks.emplace(ref, v);
+    if (!inserted) return;
+  }
 
   // The version has been accessed
   v.setAccessed();
