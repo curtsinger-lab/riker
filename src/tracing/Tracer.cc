@@ -759,18 +759,23 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // Check whether the openat call succeeded or failed
   if (fd >= 0) {
+    bool created = false;
     // If the artifact did not already exist, but the syscall succeeded, there is now an artifact
     // we can resolve to. Get it.
     if (!artifact) {
+      created = true;
       artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
     }
 
     // The command observed a successful openat, so add this predicate to the command log
     _command->isOK(ref);
 
-    // If the command opened the file with the truncate flag, we'll also need to set the contents to
-    // a new version (an empty file)
-    if ((flags & O_TRUNC) == O_TRUNC) {
+    // Handle O_CREAT and O_TRUNC
+    if (created && (flags & O_CREAT)) {
+      // We created a file, so tag a new (empty) version
+      _command->setContents(ref, artifact);
+    } else if (flags & O_TRUNC) {
+      // We truncated a file, so tag a new (empty) version
       _command->setContents(ref, artifact);
     }
 

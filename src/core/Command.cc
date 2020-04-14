@@ -61,6 +61,7 @@ void Command::run(Tracer& tracer) {
 
 void Command::check(map<string, ArtifactVersion>& env, string indent) {
   cout << indent << this << endl;
+
   for (auto s : _steps) {
     if (!s->eval(env)) {
       cout << indent << "  "

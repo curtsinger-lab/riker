@@ -8,6 +8,11 @@
 
 using std::ostream;
 
+// Set up a map from return codes to names
+static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
+                                  {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
+                                  {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
+
 // Check the result of a Reference::Access
 int Reference::Access::checkAccess() {
   // Set up an access mode that we'll check
@@ -15,12 +20,6 @@ int Reference::Access::checkAccess() {
   if (_flags.r) access_mode |= R_OK;
   if (_flags.w) access_mode |= W_OK;
   if (_flags.x) access_mode |= X_OK;
-
-  // TODO: Add support for the create flag: if the access fails with ENOENT, but writing to the
-  // directory would succeed, we can return success.
-
-  // TODO: Add support for the exclusive flag: if create and exclusive are specified, we have to
-  // make sure the file does NOT exist, and the user can write to the containing directory.
 
   // TODO: Is there anything to do for truncate? We need to be sure we can write the file, but is
   // it even possible to open with O_TRUNC in read-only mode?
@@ -33,11 +32,21 @@ int Reference::Access::checkAccess() {
   if (_flags.nofollow) access_flags |= AT_SYMLINK_NOFOLLOW;
 
   // Use faccessat to check the reference
-  if (faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags)) {
-    // If there's an error, return the error value stored in errno
+  int rc = faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags);
+
+  // Check if the access() call failed for some reason
+  if (rc) {
+    // If the file does not exist, but O_CREAT was included, succeed
+    // TODO: Check to be sure we have permission to create the file
+    if (errno == ENOENT && _flags.create) return SUCCESS;
+
+    // If we hit this point, it's a normal access and errno has the right code
     return errno;
   } else {
-    // If not, return success
+    // If the file exists, but O_CREAT and O_EXCL were passed, fail
+    if (_flags.create && _flags.exclusive) return EEXIST;
+
+    // Otherwise, everything is okay
     return SUCCESS;
   }
 }
@@ -46,12 +55,18 @@ int Reference::Access::checkAccess() {
 
 // Check if a reference would resolve the same way on rebuild
 bool Predicate::ReferenceResult::eval(map<string, ArtifactVersion>& env) {
-  int result = _ref->checkAccess();
-  if (result != _rc) {
-    LOG << "Reference returned " << result << " instead of " << _rc;
-    return false;
+  optional<string> path = _ref->getPath();
+
+  // References without paths always succeed
+  if (!path.has_value()) return _rc == SUCCESS;
+
+  // If there's a path, check the environment
+  auto iter = env.find(path.value());
+  if (iter != env.end()) {
+    // The reference would succeed
+    return _rc == SUCCESS;
   } else {
-    return true;
+    return _ref->checkAccess() == _rc;
   }
 }
 
@@ -59,8 +74,9 @@ bool Predicate::ReferenceResult::eval(map<string, ArtifactVersion>& env) {
 bool Predicate::MetadataMatch::eval(map<string, ArtifactVersion>& env) {
   optional<string> path = _ref->getPath();
 
-  // References without paths never check out
-  if (!path.has_value()) return false;
+  // References without paths only match if they are in their initial versions
+  // TODO: initial version checks are probably a bad hack. Fix this!
+  if (!path.has_value()) return _version.getIndex() == 0;
 
   // If the environment has this path, we can check the version cached there
   auto iter = env.find(path.value());
@@ -78,8 +94,9 @@ bool Predicate::MetadataMatch::eval(map<string, ArtifactVersion>& env) {
 bool Predicate::ContentsMatch::eval(map<string, ArtifactVersion>& env) {
   optional<string> path = _ref->getPath();
 
-  // References without paths never check out
-  if (!path.has_value()) return false;
+  // References without paths only check out if they are in their initial versions
+  // TODO: initial version checks are probably a bad hack. Fix this!
+  if (!path.has_value()) return _version.getIndex() == 0;
 
   // If the environment has this path, we can check the version cached there
   auto iter = env.find(path.value());
@@ -132,11 +149,6 @@ ostream& Reference::Pipe::print(ostream& o) const {
 ostream& Reference::Access::print(ostream& o) const {
   return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
 }
-
-// Set up a map from return codes to names
-static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-                                  {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-                                  {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
 
 // Print a ReferenceResult predicate
 ostream& Predicate::ReferenceResult::print(ostream& o) const {
