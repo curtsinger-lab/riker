@@ -58,10 +58,10 @@ void Command::run(Tracer& tracer) {
   tracer.run(shared_from_this());
 }
 
-void Command::check(string indent) {
+void Command::check(map<string, ArtifactVersion>& env, string indent) {
   cout << indent << this << endl;
   for (auto s : _steps) {
-    if (s->changed()) {
+    if (!s->eval(env)) {
       cout << indent << "  "
            << "Changed: " << s << endl;
 
@@ -72,7 +72,7 @@ void Command::check(string indent) {
     }
     // Check child commands as well
     if (auto launch = dynamic_pointer_cast<Action::Launch>(s)) {
-      launch->getCommand()->check(indent + "  ");
+      launch->getCommand()->check(env, indent + "  ");
     }
   }
 }

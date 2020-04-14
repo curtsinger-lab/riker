@@ -85,6 +85,11 @@ class ArtifactVersion {
     return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
   }
 
+  /// Equality check for versions
+  bool operator==(const ArtifactVersion& other) const {
+    return std::tie(_artifact, _index) == std::tie(other._artifact, other._index);
+  }
+
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, ArtifactVersion& v, const uint32_t version);

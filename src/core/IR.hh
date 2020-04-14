@@ -42,8 +42,13 @@ class Step {
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
 
-  /// Check if the outcome of this step has changed
-  virtual bool changed() = 0;
+  /**
+   * Evaluate this build step in a hypothetical build environment. If the result of this build step
+   * is the same as the recorded outcome, return true. Otherwise return false.
+   * \param env   A map from paths to artifact versions placed at those paths
+   * \returns true if the outcome is unchanged, or false if the build step should be rerun
+   */
+  virtual bool eval(map<string, ArtifactVersion>& env) = 0;
 
   /// Check if this step contains a reference
   virtual shared_ptr<Reference> getReference() const { return nullptr; }
@@ -77,8 +82,8 @@ class Reference : public Step {
   /// Get the path this reference uses, if it has one
   virtual optional<string> getPath() = 0;
 
-  /// References are always unchanged, so they don't have to rerun
-  virtual bool changed() { return false; }
+  /// References are always successful, and do not need to update the environment
+  virtual bool eval(map<string, ArtifactVersion>& env) override { return true; }
 
   /// Get the result of making this reference again, and return it
   virtual int checkAccess() = 0;
@@ -90,13 +95,13 @@ class Reference : public Step {
 /// Create a reference to a new pipe
 class Reference::Pipe : public Reference {
  public:
-  virtual ostream& print(ostream& o) const { return o << getName() << " = PIPE()"; }
+  virtual ostream& print(ostream& o) const override { return o << getName() << " = PIPE()"; }
 
   /// Pipes do not have a path
-  virtual optional<string> getPath() { return nullopt; }
+  virtual optional<string> getPath() override { return nullopt; }
 
   /// Pipes are always created successfully
-  virtual int checkAccess() { return 0; }
+  virtual int checkAccess() override { return 0; }
 
   /// Friend method for serialization
   template <class Archive>
@@ -157,10 +162,10 @@ class Reference::Access : public Reference {
   /// Get the flags used to create this reference
   const Flags& getFlags() const { return _flags; }
 
-  virtual optional<string> getPath() { return _path; }
+  virtual optional<string> getPath() override { return _path; }
 
   /// Check the outcome of an access
-  virtual int checkAccess() {
+  virtual int checkAccess() override {
     int access_mode = 0;
     if (_flags.r) access_mode |= R_OK;
     if (_flags.w) access_mode |= W_OK;
@@ -181,7 +186,7 @@ class Reference::Access : public Reference {
   }
 
   /// Print an access reference
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
   }
 
@@ -225,13 +230,16 @@ class Predicate::IsOK : public Predicate {
   /// Create an IS_OK predicate
   IsOK(shared_ptr<Reference> ref) : _ref(ref) {}
 
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  /// Get the reference this predicate checks
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// This predicate has changed if a reference is no longer successful
-  virtual bool changed() { return _ref->checkAccess() != 0; }
+  virtual bool eval(map<string, ArtifactVersion>& env) override { return _ref->checkAccess() == 0; }
 
   /// Print an IS_OK predicate to an output stream
-  virtual ostream& print(ostream& o) const { return o << "IS_OK(" << _ref->getName() << ")"; }
+  virtual ostream& print(ostream& o) const override {
+    return o << "IS_OK(" << _ref->getName() << ")";
+  }
 
   /// Friend method for serialization
   template <class Archive>
@@ -253,21 +261,21 @@ class Predicate::IsError : public Predicate {
   /// Create an IS_ERROR predicate
   IsError(shared_ptr<Reference> ref, int err) : _ref(ref), _err(err) {}
 
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Return true if the given reference evaluates to a different result
-  virtual bool changed() {
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
     int result = _ref->checkAccess();
     if (result != _err) {
       LOG << "Reference returned " << result << " instead of " << _err;
-      return true;
-    } else {
       return false;
+    } else {
+      return true;
     }
   }
 
   /// Print an IS_ERROR predicate
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     // Set up a map from error codes to names
     static map<int, string> errors = {{EACCES, "EACCES"}, {EDQUOT, "EDQUOT"}, {EEXIST, "EEXIST"},
                                       {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"}, {ELOOP, "ELOOP"},
@@ -308,24 +316,32 @@ class Predicate::MetadataMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check if this predicate has changed
-  virtual bool changed() {
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
     optional<string> path = _ref->getPath();
-    if (path.has_value()) {
-      // TODO: handle nofollow
-      return !_version.metadataMatch(path.value());
+
+    // References without paths never check out
+    if (!path.has_value()) return false;
+
+    // If the environment has this path, we can check the version cached there
+    auto iter = env.find(path.value());
+    if (iter != env.end()) {
+      // This is probably overly-conservative. Any version with the same metadata would be okay.
+      return iter->second == _version;
     } else {
-      return true;
+      // Check the contents of the referred-to path
+      // TODO: handle nofollow flag
+      return _version.metadataMatch(path.value());
     }
   }
 
   /// Print a METADATA_MATCH predicate
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
   }
 
@@ -352,24 +368,32 @@ class Predicate::ContentsMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check if this predicate has changed
-  virtual bool changed() {
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
     optional<string> path = _ref->getPath();
-    if (path.has_value()) {
-      // TODO: handle nofollow
-      return !_version.contentsMatch(path.value());
+
+    // References without paths never check out
+    if (!path.has_value()) return false;
+
+    // If the environment has this path, we can check the version cached there
+    auto iter = env.find(path.value());
+    if (iter != env.end()) {
+      // This is overly-conservative. Any version with the same contents would be okay.
+      return iter->second == _version;
     } else {
-      return true;
+      // Check the contents of the referred-to path
+      // TODO: handle nofollow flag
+      return _version.contentsMatch(path.value());
     }
   }
 
   /// Print a CONTENTS_MATCH predicate
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
   }
 
@@ -416,13 +440,13 @@ class Action::Launch : public Action {
   shared_ptr<Command> getCommand() const { return _cmd; }
 
   /// A launch action's state is never changed
-  virtual bool changed() {
-    // Never changed. Recursively check the child command elsewhere
-    return false;
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
+    // Launch actions always evaluate successfully
+    return true;
   }
 
   /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const;
+  virtual ostream& print(ostream& o) const override;
 
   /// Friend method for serialization
   template <class Archive>
@@ -445,19 +469,27 @@ class Action::SetMetadata : public Action {
   SetMetadata(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check whether this action's outcome has changed
-  virtual bool changed() {
-    // TODO: Update an environment to record the new metadata
-    return false;
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
+    optional<string> path = _ref->getPath();
+
+    // If the referred-to artifact doesn't have a path, there's nothing left to do
+    if (!path.has_value()) return true;
+
+    // We have a path. Record the effect of this action in the environment
+    env[path.value()] = _version;
+
+    // Evaluation succeeds
+    return true;
   }
 
   /// Print a SET_METADATA action
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
   }
 
@@ -483,19 +515,27 @@ class Action::SetContents : public Action {
   SetContents(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  virtual shared_ptr<Reference> getReference() const { return _ref; }
+  virtual shared_ptr<Reference> getReference() const override { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
 
   /// Check whether this action's outcome has changed
-  virtual bool changed() {
-    // TODO: Update an environment to record the new contents
-    return false;
+  virtual bool eval(map<string, ArtifactVersion>& env) override {
+    optional<string> path = _ref->getPath();
+
+    // If the referred-to artifact doesn't have a path, there's nothing left to do
+    if (!path.has_value()) return true;
+
+    // We have a path. Record the effect of this action in the environment
+    env[path.value()] = _version;
+
+    // Evaluation succeeds
+    return true;
   }
 
   /// Print a SET_CONTENTS action
-  virtual ostream& print(ostream& o) const {
+  virtual ostream& print(ostream& o) const override {
     return o << "SET_CONTENTS(" << _ref->getName() << ", " << _version << ")";
   }
 

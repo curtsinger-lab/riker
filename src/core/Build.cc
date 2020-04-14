@@ -47,5 +47,8 @@ void Build::run(Tracer& tracer) {
 }
 
 void Build::check() {
-  if (_root) _root->check();
+  FAIL_IF(!_root) << "Cannot run build check on an empty build";
+
+  map<string, ArtifactVersion> env;
+  _root->check(env);
 }
