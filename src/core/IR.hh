@@ -166,13 +166,26 @@ class Reference::Access : public Reference {
 
   /// Check the outcome of an access
   virtual int checkAccess() override {
+    // Set up an access mode that we'll check
     int access_mode = 0;
     if (_flags.r) access_mode |= R_OK;
     if (_flags.w) access_mode |= W_OK;
     if (_flags.x) access_mode |= X_OK;
-    // TODO: Support creat, trunc, and excl
 
+    // TODO: Add support for the create flag: if the access fails with ENOENT, but writing to the
+    // directory would succeed, we can return success.
+
+    // TODO: Add support for the exclusive flag: if create and exclusive are specified, we have to
+    // make sure the file does NOT exist, and the user can write to the containing directory.
+
+    // TODO: Is there anything to do for truncate? We need to be sure we can write the file, but is
+    // it even possible to open with O_TRUNC in read-only mode?
+
+    // Normally, faccessat checks whether the real user has access. We want to check as whatever the
+    // effective user is. That's the same permission level the build would run with.
     int access_flags = AT_EACCESS;
+
+    // Check access on a symlink if nofollow is specified
     if (_flags.nofollow) access_flags |= AT_SYMLINK_NOFOLLOW;
 
     // Use faccessat to check the reference

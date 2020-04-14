@@ -767,6 +767,12 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
     // The command observed a successful openat, so add this predicate to the command log
     _command->isOK(ref);
 
+    // If the command opened the file with the truncate flag, we'll also need to set the contents to
+    // a new version (an empty file)
+    if ((flags & O_TRUNC) == O_TRUNC) {
+      _command->setContents(ref, artifact);
+    }
+
     // Is this new descriptor closed on exec?
     bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
