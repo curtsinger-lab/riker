@@ -36,7 +36,6 @@ type Operation =
 | Open of Command * Path * Perms * Flags * Outcome
 |
 
-
 type File =
 | ExistingFile
 | NewFile
