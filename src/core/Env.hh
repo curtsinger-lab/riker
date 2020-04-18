@@ -22,6 +22,30 @@ class Command;
 class Access;
 class Reference;
 
+/*
+ * Currently, Env only tracks the latest version stored at each path. If we instead keep track of
+ * the whole sequence of versions, we can scan back through this sequence and find the oldest
+ * version that still satisfies whatever predicate we're checking (e.g. access, contents, metadata).
+ * This will be useful for accesses in directories that are modified, since we don't have to depend
+ * on the latest versions, just the version that added whatever entry we're looking at. It also
+ * could work similarly for metadata.
+ *
+ * One odd detail comes up when there are several different commands that seem to create suitable
+ * versions of an artifact. We would need to encode this as a dependency on any one of those
+ * commands rather than a specific one. That works out just fine, but when we go to mark the
+ * commands that have to run, we now have multiple options to try. We could default to the oldest
+ * version that works, but that could run more commands than choosing some other version.
+ *
+ * We could try ALL options for these alternative command dependencies. That gets particularly
+ * expensive when there are multiple dependencies on sets of commands. If one command has two sets
+ * of alternative command dependencies, maybe we could try looking at their intersection? Although,
+ * if the command(s) in the intersection of those alternative sets are particularly expensive, it
+ * coudl still be cheaper to run depend on two other commands.
+ *
+ * This is a problem to solve later. But, it could be an interesting thing to discuss in the paper
+ * if it yields any interesting optimization opportunities.
+ */
+
 class Env {
  public:
   /// Default constructor
