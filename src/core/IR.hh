@@ -13,6 +13,7 @@
 
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
+#include "core/Env.hh"
 #include "ui/log.hh"
 #include "util/UniqueID.hh"
 
@@ -49,13 +50,10 @@ class Step {
   /**
    * Evaluate this build step in a hypothetical build environment. If the result of this build step
    * is the same as the recorded outcome, return true. Otherwise return false.
-   * \param env   A map from paths to artifact versions placed at those paths
+   * \param env   An environment that tracks the state of files as a build trace is emulated.
    * \returns true if the outcome is unchanged, or false if the build step should be rerun
    */
-  virtual bool eval(map<string, ArtifactVersion>& env) = 0;
-
-  /// Get the reference used by this Step, if any. Used for printing.
-  virtual shared_ptr<Reference> getReference() const { return nullptr; }
+  virtual bool eval(shared_ptr<Env> env) = 0;
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
@@ -80,16 +78,6 @@ class Reference : public Step {
   class Pipe;
   class Access;
 
-  /// Get the path this reference uses, if it has one
-  virtual optional<string> getPath() = 0;
-
-  /// Evaluating a reference never updates the environment, and is not a predicate, so there's
-  /// nothing to do here
-  virtual bool eval(map<string, ArtifactVersion>& env) override { return true; }
-
-  /// Get the result of making this reference again, and return it
-  virtual int checkAccess() = 0;
-
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 };
@@ -97,11 +85,8 @@ class Reference : public Step {
 /// Create a reference to a new pipe
 class Reference::Pipe : public Reference {
  public:
-  /// Pipes do not have a path
-  virtual optional<string> getPath() override { return nullopt; }
-
-  /// Pipes are always created successfully
-  virtual int checkAccess() override { return SUCCESS; }
+  /// Evaluate this PIPE reference in a given environment
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -121,14 +106,14 @@ class Reference::Access : public Reference {
   /// Create an access reference to a path with given flags
   Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
 
+  /// Get the path this ACCESS reference uses
+  const string& getPath() const override { return _path; }
+
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const { return _flags; }
 
-  /// Get the path this access call uses to reach an artifact
-  virtual optional<string> getPath() override { return _path; }
-
-  /// Check the outcome of an access
-  virtual int checkAccess() override;
+  /// Evaluate this ACCESS reference in a given environment
+  virtual bool eval(map<string, ArtifactVersion>& env) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -171,10 +156,15 @@ class Predicate::ReferenceResult : public Predicate {
   /// Create a REFERENCE_RESULT predicate
   ReferenceResult(shared_ptr<Reference> ref, int rc) : _ref(ref), _rc(rc) {}
 
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
+  /// Get the reference this predicate examines
+  shared_ptr<Reference> getReference() const { return _ref; }
 
-  /// Return true if the given reference evaluates to a different result
-  virtual bool eval(map<string, ArtifactVersion>& env) override;
+  /// Get the expected result of the reference
+  int getResult() const { return _rc; }
+
+  /// Evaluate this REFERENCE_RESULT predicate in a given environment. Return true if the result
+  /// matches the expected outcome from the previous build.
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -202,13 +192,14 @@ class Predicate::MetadataMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
+  shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
 
-  /// Check if this predicate has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override;
+  /// Evaluate this METADATA_MATCH predicate in a given environment. Return true if the metadata
+  /// at the specified reference matches the expected version.
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -236,13 +227,14 @@ class Predicate::ContentsMatch : public Predicate {
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
+  shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
   ArtifactVersion getVersion() const { return _version; }
 
-  /// Check if this predicate has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override;
+  /// Evaluate this CONTENTS_MATCH predicate in a given environment. Return true if the contents
+  /// at the specified reference matche the expected version.
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -289,8 +281,8 @@ class Action::Launch : public Action {
   /// Get the command this action launches
   shared_ptr<Command> getCommand() const { return _cmd; }
 
-  /// Launch actions always evaluate successfully, with no effect on the environment
-  virtual bool eval(map<string, ArtifactVersion>& env) override { return true; }
+  /// Evaluate this LAUNCH action in a given environment.
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -316,13 +308,13 @@ class Action::SetMetadata : public Action {
   SetMetadata(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
+  shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
 
-  /// Check whether this action's outcome has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override;
+  /// Evaluate this SET_METADATA action in a given environment
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -349,13 +341,13 @@ class Action::SetContents : public Action {
   SetContents(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
-  virtual shared_ptr<Reference> getReference() const override { return _ref; }
+  shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
   ArtifactVersion getVersion() const { return _version; }
 
-  /// Check whether this action's outcome has changed
-  virtual bool eval(map<string, ArtifactVersion>& env) override;
+  /// Evalaute this SET_CONTENTS action in a given environment
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

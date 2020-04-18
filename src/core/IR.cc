@@ -54,20 +54,14 @@ int Reference::Access::checkAccess() {
 /******************** Eval Methods ********************/
 
 // Check if a reference would resolve the same way on rebuild
-bool Predicate::ReferenceResult::eval(map<string, ArtifactVersion>& env) {
+bool Predicate::ReferenceResult::eval(shared_ptr<Env> env) {
   optional<string> path = _ref->getPath();
 
   // References without paths always succeed
   if (!path.has_value()) return _rc == SUCCESS;
 
   // If there's a path, check the environment
-  auto iter = env.find(path.value());
-  if (iter != env.end()) {
-    // The reference would succeed
-    return _rc == SUCCESS;
-  } else {
-    return _ref->checkAccess() == _rc;
-  }
+  return env.checkAccess(path.value(), _ref->getFlags
 }
 
 // Check if a MetadataMatch predicate would resolve the same way on rebuild

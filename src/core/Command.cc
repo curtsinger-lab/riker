@@ -59,6 +59,7 @@ void Command::run(Tracer& tracer) {
   tracer.run(shared_from_this());
 }
 
+/// Check the state of the build and report information about what commands must rerun
 void Command::check(map<string, ArtifactVersion>& env, string indent) {
   cout << indent << this << endl;
 
@@ -84,9 +85,8 @@ shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
   auto ref = make_shared<Reference::Access>(path, flags);
   _steps.push_back(ref);
 
-  // TODO: if f exists and O_TRUNC is set in flags, this access creates a new version of the file
-  // TODO: if f does not exist and O_CREAT is set, this access adds an entry to the containing
-  // directory
+  // Handling for the create and truncate flags is in the tracing layer. Currently, this is
+  // implemented by tagging a new version of the file immediately after the access.
 
   return ref;
 }
