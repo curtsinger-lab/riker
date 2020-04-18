@@ -165,11 +165,11 @@ void serialize(Archive& ar, ArtifactVersion& v, const uint32_t version) {
 // Polymorphic relations with non-serialized parent types must be registered as well
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Step, Reference)
 
-CEREAL_CLASS_VERSION(Reference::Pipe, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Reference::Pipe)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Reference::Pipe)
+CEREAL_CLASS_VERSION(Pipe, ArchiveVersion);
+CEREAL_REGISTER_TYPE(Pipe)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Pipe)
 template <class Archive>
-void serialize(Archive& ar, Reference::Pipe& p, const uint32_t version) {
+void serialize(Archive& ar, Pipe& p, const uint32_t version) {
   if (version == ArchiveVersion) {
     // No fields to serialize here
   } else {
@@ -177,11 +177,11 @@ void serialize(Archive& ar, Reference::Pipe& p, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Reference::Access, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Reference::Access)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Reference::Access)
+CEREAL_CLASS_VERSION(Access, ArchiveVersion);
+CEREAL_REGISTER_TYPE(Access)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Reference, Access)
 template <class Archive>
-void serialize(Archive& ar, Reference::Access& a, const uint32_t version) {
+void serialize(Archive& ar, Access& a, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(a._path, a._flags);
   } else {
@@ -201,11 +201,11 @@ void serialize(Archive& ar, AccessFlags& f, const uint32_t version) {
 
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Step, Predicate)
 
-CEREAL_CLASS_VERSION(Predicate::ReferenceResult, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Predicate::ReferenceResult)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::ReferenceResult)
+CEREAL_CLASS_VERSION(ReferenceResult, ArchiveVersion);
+CEREAL_REGISTER_TYPE(ReferenceResult)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, ReferenceResult)
 template <class Archive>
-void serialize(Archive& ar, Predicate::ReferenceResult& p, const uint32_t version) {
+void serialize(Archive& ar, ReferenceResult& p, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(p._ref, p._rc);
   } else {
@@ -213,11 +213,11 @@ void serialize(Archive& ar, Predicate::ReferenceResult& p, const uint32_t versio
   }
 }
 
-CEREAL_CLASS_VERSION(Predicate::MetadataMatch, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Predicate::MetadataMatch)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::MetadataMatch)
+CEREAL_CLASS_VERSION(MetadataMatch, ArchiveVersion);
+CEREAL_REGISTER_TYPE(MetadataMatch)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, MetadataMatch)
 template <class Archive>
-void serialize(Archive& ar, Predicate::MetadataMatch& p, const uint32_t version) {
+void serialize(Archive& ar, MetadataMatch& p, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(p._ref, p._version);
   } else {
@@ -225,11 +225,11 @@ void serialize(Archive& ar, Predicate::MetadataMatch& p, const uint32_t version)
   }
 }
 
-CEREAL_CLASS_VERSION(Predicate::ContentsMatch, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Predicate::ContentsMatch)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, Predicate::ContentsMatch)
+CEREAL_CLASS_VERSION(ContentsMatch, ArchiveVersion);
+CEREAL_REGISTER_TYPE(ContentsMatch)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Predicate, ContentsMatch)
 template <class Archive>
-void serialize(Archive& ar, Predicate::ContentsMatch& p, const uint32_t version) {
+void serialize(Archive& ar, ContentsMatch& p, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(p._ref, p._version);
   } else {
@@ -239,11 +239,11 @@ void serialize(Archive& ar, Predicate::ContentsMatch& p, const uint32_t version)
 
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Step, Action)
 
-CEREAL_CLASS_VERSION(Action::Launch, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Action::Launch)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, Action::Launch)
+CEREAL_CLASS_VERSION(Launch, ArchiveVersion);
+CEREAL_REGISTER_TYPE(Launch)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, Launch)
 template <class Archive>
-void serialize(Archive& ar, Action::Launch& a, const uint32_t version) {
+void serialize(Archive& ar, Launch& a, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(a._cmd);
   } else {
@@ -251,11 +251,11 @@ void serialize(Archive& ar, Action::Launch& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Action::SetMetadata, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Action::SetMetadata)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, Action::SetMetadata)
+CEREAL_CLASS_VERSION(SetMetadata, ArchiveVersion);
+CEREAL_REGISTER_TYPE(SetMetadata)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, SetMetadata)
 template <class Archive>
-void serialize(Archive& ar, Action::SetMetadata& a, const uint32_t version) {
+void serialize(Archive& ar, SetMetadata& a, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(a._ref, a._version);
   } else {
@@ -263,11 +263,11 @@ void serialize(Archive& ar, Action::SetMetadata& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Action::SetContents, ArchiveVersion);
-CEREAL_REGISTER_TYPE(Action::SetContents)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, Action::SetContents)
+CEREAL_CLASS_VERSION(SetContents, ArchiveVersion);
+CEREAL_REGISTER_TYPE(SetContents)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Action, SetContents)
 template <class Archive>
-void serialize(Archive& ar, Action::SetContents& a, const uint32_t version) {
+void serialize(Archive& ar, SetContents& a, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(a._ref, a._version);
   } else {

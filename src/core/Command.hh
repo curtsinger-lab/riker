@@ -70,7 +70,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void run(Tracer& tracer);
 
   /// Check if this command must run, and log information about why
-  void check(shared_ptr<CommandEnv> env, string indent = "");
+  void check(shared_ptr<Env> env, string indent = "");
 
   /// Get the path to the executable file this command runs
   const string& getExecutable() const { return _exe; }

@@ -60,7 +60,10 @@ void Command::run(Tracer& tracer) {
 }
 
 /// Check the state of the build and report information about what commands must rerun
-void Command::check(shared_ptr<CommandEnv> env, string indent) {
+void Command::check(shared_ptr<Env> env, string indent) {
+  // Notify the environment that we're running this command
+  env->startCommand(shared_from_this());
+
   cout << indent << this << endl;
 
   for (auto s : _steps) {
@@ -68,15 +71,18 @@ void Command::check(shared_ptr<CommandEnv> env, string indent) {
       cout << indent << "  Changed: " << s << endl;
     }
     // Check child commands as well
-    if (auto launch = dynamic_pointer_cast<Action::Launch>(s)) {
+    if (auto launch = dynamic_pointer_cast<Launch>(s)) {
       launch->getCommand()->check(env, indent + "  ");
     }
   }
+
+  // This command is now finished. Notify the environment.
+  env->finishCommand();
 }
 
 /// The command accesses an artifact by path.
 shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
-  auto ref = make_shared<Reference::Access>(path, flags);
+  auto ref = make_shared<Access>(path, flags);
   _steps.push_back(ref);
 
   // Handling for the create and truncate flags is in the tracing layer. Currently, this is
@@ -87,19 +93,19 @@ shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
 
 /// This command creates a reference to a new pipe
 shared_ptr<Reference> Command::pipe() {
-  auto ref = make_shared<Reference::Pipe>();
+  auto ref = make_shared<Pipe>();
   _steps.push_back(ref);
   return ref;
 }
 
 /// This command requires that a reference resolves to an artifact without failure
 void Command::isOK(shared_ptr<Reference> ref) {
-  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, SUCCESS));
+  _steps.push_back(make_shared<ReferenceResult>(ref, SUCCESS));
 }
 
 /// This command requires that a reference fails to resolve with a specific error
 void Command::isError(shared_ptr<Reference> ref, int err) {
-  _steps.push_back(make_shared<Predicate::ReferenceResult>(ref, err));
+  _steps.push_back(make_shared<ReferenceResult>(ref, err));
 }
 
 /// This command accesses the metadata for an artifact
@@ -124,7 +130,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   v.saveMetadata();
 
   // Record the dependency on metadata
-  _steps.push_back(make_shared<Predicate::MetadataMatch>(ref, a->getLatestVersion()));
+  _steps.push_back(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
 }
 
 /// This command accesses the contents of an artifact
@@ -149,7 +155,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   v.saveFingerprint();
 
   // Record the dependency
-  _steps.push_back(make_shared<Predicate::ContentsMatch>(ref, v));
+  _steps.push_back(make_shared<ContentsMatch>(ref, v));
 }
 
 /// This command sets the metadata for an artifact
@@ -161,7 +167,7 @@ void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   auto new_version = a->tagNewVersion(shared_from_this());
 
   // Record the update
-  _steps.push_back(make_shared<Action::SetContents>(ref, new_version));
+  _steps.push_back(make_shared<SetContents>(ref, new_version));
 }
 
 /// This command sets the contents of an artifact
@@ -175,10 +181,10 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // If we reach this point, the command is creating a new version of the artifact
   auto new_version = a->tagNewVersion(shared_from_this());
-  _steps.push_back(make_shared<Action::SetContents>(ref, new_version));
+  _steps.push_back(make_shared<SetContents>(ref, new_version));
 }
 
 /// This command launches a child command
 void Command::launch(shared_ptr<Command> cmd) {
-  _steps.push_back(make_shared<Action::Launch>(cmd));
+  _steps.push_back(make_shared<Launch>(cmd));
 }

@@ -50,7 +50,7 @@ class TraceVisitor {
       o << "  " << s << endl;
 
       // If this is a LAUNCH step, we will need to print the child command
-      auto launch = std::dynamic_pointer_cast<Action::Launch>(s);
+      auto launch = std::dynamic_pointer_cast<Launch>(s);
       if (launch) {
         children.push_back(launch->getCommand());
       }

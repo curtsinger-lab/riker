@@ -86,20 +86,20 @@ class StatsVisitor {
     _step_count++;
 
     // Handle steps that launch new commands or access artifacts
-    if (auto x = dynamic_pointer_cast<Action::Launch>(s)) {
+    if (auto x = dynamic_pointer_cast<Launch>(s)) {
       // Recurse into the launched command
       visit(x->getCommand());
 
-    } else if (auto x = dynamic_pointer_cast<Predicate::MetadataMatch>(s)) {
+    } else if (auto x = dynamic_pointer_cast<MetadataMatch>(s)) {
       visit(x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Predicate::ContentsMatch>(s)) {
+    } else if (auto x = dynamic_pointer_cast<ContentsMatch>(s)) {
       visit(x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Action::SetMetadata>(s)) {
+    } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
       visit(x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Action::SetContents>(s)) {
+    } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
       visit(x->getVersion());
     }
   }

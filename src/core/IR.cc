@@ -16,44 +16,44 @@ static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQ
 /******************** Eval Methods ********************/
 
 // Create a PIPE reference
-bool Reference::Pipe::eval(shared_ptr<CommandEnv> env) {
+bool Pipe::eval(shared_ptr<Env> env) {
   return true;
 }
 
 // Create an ACCESS reference
-bool Reference::Access::eval(shared_ptr<CommandEnv> env) {
+bool Access::eval(shared_ptr<Env> env) {
   return true;
 }
 
 // Check if a reference would resolve the same way on rebuild
-bool Predicate::ReferenceResult::eval(shared_ptr<CommandEnv> env) {
+bool ReferenceResult::eval(shared_ptr<Env> env) {
   // Check the environment
   return env->checkAccess(_ref, _rc);
 }
 
 // Check if a MetadataMatch predicate would resolve the same way on rebuild
-bool Predicate::MetadataMatch::eval(shared_ptr<CommandEnv> env) {
+bool MetadataMatch::eval(shared_ptr<Env> env) {
   return env->checkMetadataMatch(_ref, _version);
 }
 
 // Check if a ContentsMatch predicate would resolve the same ay on rebuild
-bool Predicate::ContentsMatch::eval(shared_ptr<CommandEnv> env) {
+bool ContentsMatch::eval(shared_ptr<Env> env) {
   return env->checkContentsMatch(_ref, _version);
 }
 
 // Run a LAUNCH action
-bool Action::Launch::eval(shared_ptr<CommandEnv> env) {
+bool Launch::eval(shared_ptr<Env> env) {
   return true;
 }
 
 // Run a SetMetadata action
-bool Action::SetMetadata::eval(shared_ptr<CommandEnv> env) {
+bool SetMetadata::eval(shared_ptr<Env> env) {
   env->setMetadata(_ref, _version);
   return true;
 }
 
 // Run a SetContents action
-bool Action::SetContents::eval(shared_ptr<CommandEnv> env) {
+bool SetContents::eval(shared_ptr<Env> env) {
   env->setContents(_ref, _version);
   return true;
 }
@@ -61,17 +61,17 @@ bool Action::SetContents::eval(shared_ptr<CommandEnv> env) {
 /******************** Print Methods ********************/
 
 /// Print a PIPE reference
-ostream& Reference::Pipe::print(ostream& o) const {
+ostream& Pipe::print(ostream& o) const {
   return o << getName() << " = PIPE()";
 }
 
 /// Print an ACCESS reference
-ostream& Reference::Access::print(ostream& o) const {
+ostream& Access::print(ostream& o) const {
   return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
 }
 
 // Print a ReferenceResult predicate
-ostream& Predicate::ReferenceResult::print(ostream& o) const {
+ostream& ReferenceResult::print(ostream& o) const {
   // If we can't identify the error code, just print "EMYSTERY"
   string errname = "EMYSTERY";
 
@@ -85,27 +85,27 @@ ostream& Predicate::ReferenceResult::print(ostream& o) const {
 }
 
 /// Print a METADATA_MATCH predicate
-ostream& Predicate::MetadataMatch::print(ostream& o) const {
+ostream& MetadataMatch::print(ostream& o) const {
   return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a CONTENTS_MATCH predicate
-ostream& Predicate::ContentsMatch::print(ostream& o) const {
+ostream& ContentsMatch::print(ostream& o) const {
   return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_METADATA action
-ostream& Action::SetMetadata::print(ostream& o) const {
+ostream& SetMetadata::print(ostream& o) const {
   return o << "SET_METADATA(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_CONTENTS action
-ostream& Action::SetContents::print(ostream& o) const {
+ostream& SetContents::print(ostream& o) const {
   return o << "SET_CONTENTS(" << _ref->getName() << ", " << _version << ")";
 }
 
 // Print a launch action
-ostream& Action::Launch::print(ostream& o) const {
+ostream& Launch::print(ostream& o) const {
   o << "LAUNCH(" << _cmd << ", [";
   bool first = true;
   for (auto& entry : _cmd->getInitialFDs()) {

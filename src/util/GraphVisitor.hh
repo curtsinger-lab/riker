@@ -114,23 +114,23 @@ class GraphVisitor {
 
   void visitCommandStep(shared_ptr<Command> c, shared_ptr<Step> s) {
     // Handle steps that launch new commands or access artifacts
-    if (auto x = dynamic_pointer_cast<Action::Launch>(s)) {
+    if (auto x = dynamic_pointer_cast<Launch>(s)) {
       // Recurse into the launched command
       visitCommand(x->getCommand());
 
       // Add the command edge
       _command_edges.emplace(_commands[c], _commands[x->getCommand()]);
 
-    } else if (auto x = dynamic_pointer_cast<Predicate::MetadataMatch>(s)) {
+    } else if (auto x = dynamic_pointer_cast<MetadataMatch>(s)) {
       visitInputEdge(c, x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Predicate::ContentsMatch>(s)) {
+    } else if (auto x = dynamic_pointer_cast<ContentsMatch>(s)) {
       visitInputEdge(c, x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Action::SetMetadata>(s)) {
+    } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
       visitOutputEdge(c, x->getVersion());
 
-    } else if (auto x = dynamic_pointer_cast<Action::SetContents>(s)) {
+    } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
       visitOutputEdge(c, x->getVersion());
     }
   }

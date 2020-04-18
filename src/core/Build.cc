@@ -21,9 +21,9 @@ using std::string;
 
 Build::Build(string executable, vector<string> arguments) {
   // Create references for the three default pipes: stdin, stdout, and stderr
-  _default_refs[0] = make_shared<Reference::Pipe>();
-  _default_refs[1] = make_shared<Reference::Pipe>();
-  _default_refs[2] = make_shared<Reference::Pipe>();
+  _default_refs[0] = make_shared<Pipe>();
+  _default_refs[1] = make_shared<Pipe>();
+  _default_refs[2] = make_shared<Pipe>();
 
   // Create three artifacts to correspond to those same pipes
   _default_artifacts[0] = make_shared<Artifact>("stdin");
@@ -50,6 +50,6 @@ void Build::run(Tracer& tracer) {
 void Build::check() {
   FAIL_IF(!_root) << "Cannot run build check on an empty build";
 
-  auto env = make_shared<CommandEnv>(_root);
+  auto env = make_shared<Env>();
   _root->check(env);
 }

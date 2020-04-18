@@ -53,7 +53,7 @@ class Step {
    * \param env   An environment that tracks the state of files as a build trace is emulated.
    * \returns true if the outcome is unchanged, or false if the build step should be rerun
    */
-  virtual bool eval(shared_ptr<CommandEnv> env) = 0;
+  virtual bool eval(shared_ptr<Env> env) = 0;
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
@@ -75,18 +75,15 @@ class Step {
  */
 class Reference : public Step {
  public:
-  class Pipe;
-  class Access;
-
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 };
 
 /// Create a reference to a new pipe
-class Reference::Pipe : public Reference {
+class Pipe : public Reference {
  public:
   /// Evaluate this PIPE reference in a given environment
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -97,7 +94,7 @@ class Reference::Pipe : public Reference {
 };
 
 /// Access a filesystem path with a given set of flags
-class Reference::Access : public Reference {
+class Access : public Reference {
   // Default constructor for deserialization
   friend class cereal::access;
   Access() = default;
@@ -113,7 +110,7 @@ class Reference::Access : public Reference {
   const AccessFlags& getFlags() const { return _flags; }
 
   /// Evaluate this ACCESS reference in a given environment
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -137,17 +134,12 @@ class Reference::Access : public Reference {
  * - METADATA_MATCH(r : Reference, v : ArtifactVersion)
  * - CONTENTS_MATCH(r : Reference, v : ArtifactVersion)
  */
-class Predicate : public Step {
- public:
-  class ReferenceResult;
-  class MetadataMatch;
-  class ContentsMatch;
-};
+class Predicate : public Step {};
 
 /**
  * Making a reference produced a particular result (error code or success)
  */
-class Predicate::ReferenceResult : public Predicate {
+class ReferenceResult : public Predicate {
   // Default constructor for deserialization
   friend class cereal::access;
   ReferenceResult() = default;
@@ -164,7 +156,7 @@ class Predicate::ReferenceResult : public Predicate {
 
   /// Evaluate this REFERENCE_RESULT predicate in a given environment. Return true if the result
   /// matches the expected outcome from the previous build.
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -181,7 +173,7 @@ class Predicate::ReferenceResult : public Predicate {
 /**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
-class Predicate::MetadataMatch : public Predicate {
+class MetadataMatch : public Predicate {
   // Default constructor for deserialization
   friend class cereal::access;
   MetadataMatch() = default;
@@ -199,7 +191,7 @@ class Predicate::MetadataMatch : public Predicate {
 
   /// Evaluate this METADATA_MATCH predicate in a given environment. Return true if the metadata
   /// at the specified reference matches the expected version.
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -216,7 +208,7 @@ class Predicate::MetadataMatch : public Predicate {
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
-class Predicate::ContentsMatch : public Predicate {
+class ContentsMatch : public Predicate {
   // Default constructor for deserialization
   friend class cereal::access;
   ContentsMatch() = default;
@@ -234,7 +226,7 @@ class Predicate::ContentsMatch : public Predicate {
 
   /// Evaluate this CONTENTS_MATCH predicate in a given environment. Return true if the contents
   /// at the specified reference matche the expected version.
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -258,18 +250,13 @@ class Predicate::ContentsMatch : public Predicate {
  * - SET_METADATA(r : Reference, v : Artifact::Version)
  * - SET_CONTENTS(r : Reference, v : Artifact::Version)
  */
-class Action : public Step {
- public:
-  class Launch;
-  class SetMetadata;
-  class SetContents;
-};
+class Action : public Step {};
 
 /**
  * A Launch action creates a new command, which inherits some (possibly empty)
  * set of references from its parent.
  */
-class Action::Launch : public Action {
+class Launch : public Action {
   // Default constructor for deserialization
   friend class cereal::access;
   Launch() = default;
@@ -282,7 +269,7 @@ class Action::Launch : public Action {
   shared_ptr<Command> getCommand() const { return _cmd; }
 
   /// Evaluate this LAUNCH action in a given environment.
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -298,7 +285,7 @@ class Action::Launch : public Action {
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class Action::SetMetadata : public Action {
+class SetMetadata : public Action {
   // Default constructor for deserialization
   friend class cereal::access;
   SetMetadata() = default;
@@ -314,7 +301,7 @@ class Action::SetMetadata : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Evaluate this SET_METADATA action in a given environment
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -331,7 +318,7 @@ class Action::SetMetadata : public Action {
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class Action::SetContents : public Action {
+class SetContents : public Action {
   // Default constructor for deserialization
   friend class cereal::access;
   SetContents() = default;
@@ -347,7 +334,7 @@ class Action::SetContents : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Evalaute this SET_CONTENTS action in a given environment
-  virtual bool eval(shared_ptr<CommandEnv> env) override;
+  virtual bool eval(shared_ptr<Env> env) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
