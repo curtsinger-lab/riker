@@ -8,6 +8,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
+#include "core/Env.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
 #include "ui/log.hh"
@@ -49,6 +50,6 @@ void Build::run(Tracer& tracer) {
 void Build::check() {
   FAIL_IF(!_root) << "Cannot run build check on an empty build";
 
-  map<string, ArtifactVersion> env;
+  auto env = make_shared<CommandEnv>(_root);
   _root->check(env);
 }

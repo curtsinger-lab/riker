@@ -28,7 +28,8 @@ bool CommandEnv::checkAccess(shared_ptr<Reference> ref, int expected) {
     }
 
   } else {
-    FAIL << "Unsupported reference type";
+    WARN << "Unsupported reference type: " << ref;
+    return false;
   }
 }
 
@@ -81,7 +82,8 @@ bool BaseEnv::checkAccess(shared_ptr<Reference> ref, int expected) {
       return expected == SUCCESS;
     }
   } else {
-    FAIL << "Unsupported reference type";
+    WARN << "Unsupported reference type: " << ref;
+    return false;
   }
 }
 
@@ -98,23 +100,37 @@ bool CommandEnv::checkMetadataMatch(shared_ptr<Reference> ref, ArtifactVersion v
     auto iter = _entries.find(a->getPath());
     if (iter == _entries.end()) {
       // Not here. Check the next environment
-      return _link->checkMetadataMatch(path, v);
+      return _link->checkMetadataMatch(ref, v);
     } else {
       // Find it. Compare the versions.
       return iter->second == v;
     }
 
   } else {
-    FAIL << "Unsupported reference type";
+    WARN << "Unsupported reference type: " << ref;
+    return false;
   }
 }
 
 bool BaseEnv::checkMetadataMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
-  // TODO: move this over from ArtifactVersion
-  return v.metadataMatch(path);
+  // Is ref a pipe, access, or something else?
+  if (auto p = dynamic_pointer_cast<Reference::Pipe>(ref)) {
+    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+
+    // For now, all pipe accesses are changed
+    return false;
+
+  } else if (auto a = dynamic_pointer_cast<Reference::Access>(ref)) {
+    // TODO: move this over from ArtifactVersion
+    return v.metadataMatch(a->getPath());
+
+  } else {
+    WARN << "Unsupported reference type: " << ref;
+    return false;
+  }
 }
 
-bool CommandEnv::checkContentsMatch(string path, ArtifactVersion v) {
+bool CommandEnv::checkContentsMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Reference::Pipe>(ref)) {
     // TODO: Handle pipes correctly.
@@ -127,30 +143,62 @@ bool CommandEnv::checkContentsMatch(string path, ArtifactVersion v) {
     auto iter = _entries.find(a->getPath());
     if (iter == _entries.end()) {
       // Not here. Check the next environment
-      return _link->checkContentsMatch(path, v);
+      return _link->checkContentsMatch(ref, v);
     } else {
       // Find it. Compare the versions.
       return iter->second == v;
     }
 
   } else {
-    FAIL << "Unsupported reference type";
+    WARN << "Unsupported reference type: " << ref;
+    return false;
   }
 }
 
-bool BaseEnv::checkContentsMatch(string path, ArtifactVersion v) {
-  // TODO: move this over from ArtifactVersion
-  return v.contentsMatch(path);
+bool BaseEnv::checkContentsMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
+  // Is ref a pipe, access, or something else?
+  if (auto p = dynamic_pointer_cast<Reference::Pipe>(ref)) {
+    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+
+    // For now, all pipe accesses are changed
+    return false;
+
+  } else if (auto a = dynamic_pointer_cast<Reference::Access>(ref)) {
+    // TODO: move this over from ArtifactVersion
+    return v.contentsMatch(a->getPath());
+
+  } else {
+    WARN << "Unsupported reference type: " << ref;
+    return false;
+  }
 }
 
-void CommandEnv::setMetadata(string path, ArtifactVersion v) {
-  // The path now resolves to this artifact version
-  // TODO: Deal with links, path normalization, etc.
-  _entries[path] = v;
+void CommandEnv::setMetadata(shared_ptr<Reference> ref, ArtifactVersion v) {
+  // Is ref a pipe, access, or something else?
+  if (auto p = dynamic_pointer_cast<Reference::Pipe>(ref)) {
+    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+
+  } else if (auto a = dynamic_pointer_cast<Reference::Access>(ref)) {
+    // The path now resolves to this artifact version
+    // TODO: Deal with links, path normalization, etc.
+    _entries[a->getPath()] = v;
+
+  } else {
+    WARN << "Unsupported reference type: " << ref;
+  }
 }
 
-void CommandEnv::setContents(string path, ArtifactVersion v) {
-  // The path now resolves to this artifact version
-  // TODO: Deal with links, path normalization, etc.
-  _entries[path] = v;
+void CommandEnv::setContents(shared_ptr<Reference> ref, ArtifactVersion v) {
+  // Is ref a pipe, access, or something else?
+  if (auto p = dynamic_pointer_cast<Reference::Pipe>(ref)) {
+    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+
+  } else if (auto a = dynamic_pointer_cast<Reference::Access>(ref)) {
+    // The path now resolves to this artifact version
+    // TODO: Deal with links, path normalization, etc.
+    _entries[a->getPath()] = v;
+
+  } else {
+    WARN << "Unsupported reference type: " << ref;
+  }
 }

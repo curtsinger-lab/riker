@@ -60,18 +60,12 @@ void Command::run(Tracer& tracer) {
 }
 
 /// Check the state of the build and report information about what commands must rerun
-void Command::check(map<string, ArtifactVersion>& env, string indent) {
+void Command::check(shared_ptr<CommandEnv> env, string indent) {
   cout << indent << this << endl;
 
   for (auto s : _steps) {
     if (!s->eval(env)) {
-      cout << indent << "  "
-           << "Changed: " << s << endl;
-
-      auto ref = s->getReference();
-      if (ref) {
-        cout << indent << "    (" << ref << ")" << endl;
-      }
+      cout << indent << "  Changed: " << s << endl;
     }
     // Check child commands as well
     if (auto launch = dynamic_pointer_cast<Action::Launch>(s)) {
