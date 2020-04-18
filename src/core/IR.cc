@@ -16,45 +16,45 @@ static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQ
 /******************** Eval Methods ********************/
 
 // Create a PIPE reference
-bool Pipe::eval(shared_ptr<Env> env) {
+bool Pipe::eval(Env& env) {
   return true;
 }
 
 // Create an ACCESS reference
-bool Access::eval(shared_ptr<Env> env) {
+bool Access::eval(Env& env) {
   return true;
 }
 
 // Check if a reference would resolve the same way on rebuild
-bool ReferenceResult::eval(shared_ptr<Env> env) {
+bool ReferenceResult::eval(Env& env) {
   // Check the environment
-  return env->checkAccess(_ref, _rc);
+  return env.checkAccess(_ref, _rc);
 }
 
 // Check if a MetadataMatch predicate would resolve the same way on rebuild
-bool MetadataMatch::eval(shared_ptr<Env> env) {
-  return env->checkMetadataMatch(_ref, _version);
+bool MetadataMatch::eval(Env& env) {
+  return env.checkMetadataMatch(_ref, _version);
 }
 
 // Check if a ContentsMatch predicate would resolve the same ay on rebuild
-bool ContentsMatch::eval(shared_ptr<Env> env) {
-  return env->checkContentsMatch(_ref, _version);
+bool ContentsMatch::eval(Env& env) {
+  return env.checkContentsMatch(_ref, _version);
 }
 
 // Run a LAUNCH action
-bool Launch::eval(shared_ptr<Env> env) {
+bool Launch::eval(Env& env) {
   return true;
 }
 
 // Run a SetMetadata action
-bool SetMetadata::eval(shared_ptr<Env> env) {
-  env->setMetadata(_ref, _version);
+bool SetMetadata::eval(Env& env) {
+  env.setMetadata(_ref, _version);
   return true;
 }
 
 // Run a SetContents action
-bool SetContents::eval(shared_ptr<Env> env) {
-  env->setContents(_ref, _version);
+bool SetContents::eval(Env& env) {
+  env.setContents(_ref, _version);
   return true;
 }
 

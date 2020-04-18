@@ -13,24 +13,30 @@
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
-using std::cout;
 using std::dynamic_pointer_cast;
-using std::endl;
 using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
 
 string Command::getShortName() const {
-  auto base = _exe;
-  if (_args.size() > 0) base = _args.front();
+  // By default, the short name is the executable
+  auto result = _exe;
 
-  auto pos = base.rfind('/');
-  if (pos == string::npos) {
-    return base;
-  } else {
-    return base.substr(pos + 1);
+  // If we have arguments, use args[0] instead of the exe name
+  if (_args.size() > 0) result = _args.front();
+
+  // Strip path from the base name
+  auto pos = result.rfind('/');
+  if (pos != string::npos) {
+    result = result.substr(pos + 1);
   }
+
+  // Add a couple arguments if we have them
+  if (_args.size() >= 2) result += " " + _args[1];
+  if (_args.size() >= 3) result += " " + _args[2];
+
+  return result;
 }
 
 string Command::getFullName() const {
@@ -59,25 +65,58 @@ void Command::run(Tracer& tracer) {
   tracer.run(shared_from_this());
 }
 
-/// Check the state of the build and report information about what commands must rerun
-void Command::check(shared_ptr<Env> env, string indent) {
+// Check the state of all the inputs to this command and its descendants. Add any commands with
+// changed inputs to the result set
+void Command::checkInputs(Env& env, set<shared_ptr<Command>>& result) {
   // Notify the environment that we're running this command
-  env->startCommand(shared_from_this());
+  env.startCommand(shared_from_this());
 
-  cout << indent << this << endl;
-
+  bool changed = false;
   for (auto s : _steps) {
-    if (!s->eval(env)) {
-      cout << indent << "  Changed: " << s << endl;
-    }
+    if (!s->eval(env)) changed = true;
+
     // Check child commands as well
     if (auto launch = dynamic_pointer_cast<Launch>(s)) {
-      launch->getCommand()->check(env, indent + "  ");
+      // Record this command's child
+      hasChild(launch->getCommand());
+
+      // Run through the child command's trace
+      launch->getCommand()->checkInputs(env, result);
     }
   }
 
+  // If anything changed, add this command to the result set
+  if (changed) {
+    result.insert(shared_from_this());
+  }
+
   // This command is now finished. Notify the environment.
-  env->finishCommand();
+  env.finishCommand();
+}
+
+// Mark this command for rerun. If this is a new marking, propagate it to other commands
+void Command::mark(set<shared_ptr<Command>>& marked) {
+  // If this command was already marked, return
+  if (_marked) return;
+
+  // Otherwise, we have work to do. First, mark this command and add it to the marked set
+  _marked = true;
+  marked.insert(shared_from_this());
+
+  // Rerunning this command also reruns its children
+  for (auto& c : _children) {
+    c->mark(marked);
+  }
+
+  // Rerunning this command requires rerunning any other command whose input we need
+  for (auto& c : _needs) {
+    c->mark(marked);
+  }
+
+  // Rerunning this command requires rerunning any command that uses this command's output
+  for (auto& c : _triggers) {
+    c->mark(marked);
+  }
 }
 
 /// The command accesses an artifact by path.

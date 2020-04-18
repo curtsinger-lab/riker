@@ -69,8 +69,15 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(Tracer& tracer);
 
-  /// Check if this command must run, and log information about why
-  void check(shared_ptr<Env> env, string indent = "");
+  /**
+   * Check the state of this command and its descendants' inputs. This process populates the command
+   * dependency graph, and adds any commands with changed inputs to the given set.
+   *
+   * \param env     The environment used to emulate filesystem actions in each command's trace, and
+   *                to build the dependency edges used for rebuild planning.
+   * \param result  The set of commands with at least one changed input.
+   */
+  void checkInputs(Env& env, set<shared_ptr<Command>>& result);
 
   /// Get the path to the executable file this command runs
   const string& getExecutable() const { return _exe; }
@@ -81,15 +88,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
 
-  /// Print a Command to an output stream
-  friend ostream& operator<<(ostream& o, const Command& c) {
-    return o << "[Command " << c.getID() << " " << c.getShortName() << "]";
-  }
-
-  /// Print a Command* to an output stream
-  friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
-
-  /********* New methods and types for command tracking **********/
+  /********* Command Tracing Operations **********/
 
   /// The command accesses an artifact by path.
   /// This function returns a shared_ptr<Ref>,
@@ -122,6 +121,33 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command starts another command
   void launch(shared_ptr<Command> cmd);
 
+  /****** Rebuild Methods ******/
+
+  /// This command has a child command c
+  void hasChild(shared_ptr<Command> c) { _children.insert(c); }
+
+  /// This command needs output from command c before it can run
+  void needs(shared_ptr<Command> c) { _needs.insert(c); }
+
+  /// This command produces output that is used by command c, so rerunning this command triggers a
+  /// rerun of c.
+  void triggers(shared_ptr<Command> c) { _triggers.insert(c); }
+
+  /// Mark this command to record that it must rerun. If the marking is new, propagate marking to
+  /// all children, dependencies, and commands who depend on this one. Marked commands are added
+  /// to the result set
+  void mark(set<shared_ptr<Command>>& marked);
+
+  /****** Utility Methods ******/
+
+  /// Print a Command to an output stream
+  friend ostream& operator<<(ostream& o, const Command& c) {
+    return o << "[Command " << c.getID() << " " << c.getShortName() << "]";
+  }
+
+  /// Print a Command* to an output stream
+  friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
+
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, Command& c, const uint32_t version);
@@ -142,9 +168,27 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
 
+  /***** Transient Data (not serialized) *****/
+
   /// Track all the unique metadata checks made during tracing
   set<pair<shared_ptr<Reference>, ArtifactVersion>> _metadata_checks;
 
   /// Track all the unique content checks made during tracing
   set<pair<shared_ptr<Reference>, ArtifactVersion>> _contents_checks;
+
+  /// The set of all this command's children (populated during rebuild checks)
+  set<shared_ptr<Command>> _children;
+
+  /// The set of commands that must run to produce inputs for this command
+  /// Note: if this command requires output from another command, but we have cached copies of all
+  /// dependencies, then that command will NOT appear in this set.
+  set<shared_ptr<Command>> _needs;
+
+  /// The set of commands that depend on this command's output
+  /// Note: this set always includes the full set of output users, regardless of caching. If this
+  /// command must run, it will mark as must_run all of these output users as well.
+  set<shared_ptr<Command>> _triggers;
+
+  /// Has this command already been marked for rerunning?
+  bool _marked = false;
 };

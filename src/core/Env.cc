@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "core/Artifact.hh"
+#include "core/Command.hh"
 #include "core/IR.hh"
 
 using std::dynamic_pointer_cast;
@@ -24,7 +25,18 @@ bool Env::checkAccess(shared_ptr<Reference> ref, int expected) {
     // TODO: handle changes to directories along the path used by ref
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
-      // TODO: currently-running command now depends on the command that created this entry
+      // Get the writing command and the entry it wrote
+      auto [writer, entry] = iter->second;
+
+      // If the writer reruns, the current command will need to rerun too because it depends on
+      // writer's output.
+      writer->triggers(_commands.top());
+
+      // If we had a cached version of the entry writer creates we could skip this, but no caching
+      // yet so any time we need to rerun the current command, writer will have to rerun first.
+      _commands.top()->needs(writer);
+
+      // This access will succeed, so check if that matches the expected outcome
       return expected == SUCCESS;
     } else {
       // There was no entry in the environment. Check the actual filesystem
@@ -94,7 +106,13 @@ bool Env::checkMetadataMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
       // Found a matching entry
-      auto [command, current_version] = iter->second;
+      auto [writer, current_version] = iter->second;
+
+      // If the writer ever reruns, the current command must rerun as well. Record that.
+      writer->triggers(_commands.top());
+
+      // This command also requires output from the writer. If we had it cached we could skip this.
+      _commands.top()->needs(writer);
 
       // Does the current version in the environment match the expected version?
       return current_version == v;
@@ -127,7 +145,13 @@ bool Env::checkContentsMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
       // Found a matching entry
-      auto [command, current_version] = iter->second;
+      auto [writer, current_version] = iter->second;
+
+      // If the writer ever reruns, the current command must rerun as well. Record that.
+      writer->triggers(_commands.top());
+
+      // This command also requires output from the writer. If we had it cached we could skip this.
+      _commands.top()->needs(writer);
 
       // Does the current version in the environment match the expected version?
       return current_version == v;

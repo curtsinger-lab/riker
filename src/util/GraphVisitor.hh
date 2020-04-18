@@ -39,7 +39,7 @@ class GraphVisitor {
 
     // Create command vertices
     for (auto& [c, id] : _commands) {
-      o << "  " << id << " [label=\"" << c->getShortName() << "\" tooltip=\""
+      o << "  " << id << " [label=\"" << escape(c->getShortName()) << "\" tooltip=\""
         << escape(c->getFullName()) << "\" fontname=Courier]\n";
     }
 
@@ -61,12 +61,12 @@ class GraphVisitor {
 
       // Special case for single-version artifacts
       if (a->getVersionCount() == 1 && a->getShortName() != "") {
-        o << "<tr><td port=\"v0\">" + a->getShortName() + "</td></tr>";
+        o << "<tr><td port=\"v0\">" + escape(a->getShortName()) + "</td></tr>";
 
       } else {
         // Add a row with the artifact name, if it has one
         if (a->getShortName() != "") {
-          o << "<tr><td>" + a->getShortName() + "</td></tr>";
+          o << "<tr><td>" + escape(a->getShortName()) + "</td></tr>";
         }
 
         // Add rows for artifact versions

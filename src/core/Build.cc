@@ -1,6 +1,7 @@
 #include "Build.hh"
 
 #include <fstream>
+#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
@@ -13,6 +14,8 @@
 #include "core/IR.hh"
 #include "ui/log.hh"
 
+using std::cout;
+using std::endl;
 using std::list;
 using std::make_shared;
 using std::map;
@@ -50,6 +53,38 @@ void Build::run(Tracer& tracer) {
 void Build::check() {
   FAIL_IF(!_root) << "Cannot run build check on an empty build";
 
-  auto env = make_shared<Env>();
-  _root->check(env);
+  // Set up an environment that will be used to emulate filesystem operations
+  Env env;
+
+  // This set will track all commands with inputs that are changed directly
+  set<shared_ptr<Command>> changed;
+
+  // Run through the command trace to populate the environment and changed set
+  _root->checkInputs(env, changed);
+
+  // We'll now build a set of commands that have to rerun to update the build
+  set<shared_ptr<Command>> to_rerun;
+
+  // Mark each command with changed inputs to populate the to_rerun set
+  for (auto& c : changed) {
+    c->mark(to_rerun);
+  }
+
+  // Print some information
+  if (changed.size() > 0) {
+    // Print commands that have changed inputs
+    cout << "Commands with changed inputs:" << endl;
+    for (auto& c : changed) {
+      cout << "  " << c << endl;
+    }
+    cout << endl;
+
+    cout << "A rebuild must run the following commands:" << endl;
+    for (auto& c : to_rerun) {
+      cout << "  " << c << endl;
+    }
+
+  } else {
+    cout << "No changes detected" << endl;
+  }
 }

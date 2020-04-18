@@ -53,7 +53,7 @@ class Step {
    * \param env   An environment that tracks the state of files as a build trace is emulated.
    * \returns true if the outcome is unchanged, or false if the build step should be rerun
    */
-  virtual bool eval(shared_ptr<Env> env) = 0;
+  virtual bool eval(Env& env) = 0;
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
@@ -83,7 +83,7 @@ class Reference : public Step {
 class Pipe : public Reference {
  public:
   /// Evaluate this PIPE reference in a given environment
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -110,7 +110,7 @@ class Access : public Reference {
   const AccessFlags& getFlags() const { return _flags; }
 
   /// Evaluate this ACCESS reference in a given environment
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -156,7 +156,7 @@ class ReferenceResult : public Predicate {
 
   /// Evaluate this REFERENCE_RESULT predicate in a given environment. Return true if the result
   /// matches the expected outcome from the previous build.
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -191,7 +191,7 @@ class MetadataMatch : public Predicate {
 
   /// Evaluate this METADATA_MATCH predicate in a given environment. Return true if the metadata
   /// at the specified reference matches the expected version.
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -226,7 +226,7 @@ class ContentsMatch : public Predicate {
 
   /// Evaluate this CONTENTS_MATCH predicate in a given environment. Return true if the contents
   /// at the specified reference matche the expected version.
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -269,7 +269,7 @@ class Launch : public Action {
   shared_ptr<Command> getCommand() const { return _cmd; }
 
   /// Evaluate this LAUNCH action in a given environment.
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -301,7 +301,7 @@ class SetMetadata : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Evaluate this SET_METADATA action in a given environment
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -334,7 +334,7 @@ class SetContents : public Action {
   ArtifactVersion getVersion() const { return _version; }
 
   /// Evalaute this SET_CONTENTS action in a given environment
-  virtual bool eval(shared_ptr<Env> env) override;
+  virtual bool eval(Env& env) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
