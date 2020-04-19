@@ -70,6 +70,11 @@ void Build::check() {
     c->mark(to_rerun);
   }
 
+  // Finally, build a minimal set of commands that includes only marked commands that are not
+  // descendants of marked commands. This is the set of commands we will actually invoke.
+  set<shared_ptr<Command>> rerun_ancestors;
+  _root->getMarkedAncestors(rerun_ancestors);
+
   // Print some information
   if (changed.size() > 0) {
     // Print commands that have changed inputs
@@ -81,8 +86,14 @@ void Build::check() {
 
     cout << "A rebuild must run the following commands:" << endl;
     for (auto& c : to_rerun) {
-      cout << "  " << c << endl;
+      cout << "  " << c;
+      if (rerun_ancestors.find(c) != rerun_ancestors.end()) {
+        cout << " *";
+      }
+      cout << endl;
     }
+    cout << "Only commands marked with * will be executed." << endl;
+    cout << "Others are descendants of marked commands and will be run implicitly." << endl;
 
   } else {
     cout << "No changes detected" << endl;

@@ -138,6 +138,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// to the result set
   void mark(set<shared_ptr<Command>>& marked);
 
+  /// Build a set of commands that includes only the ancestor commands that must be rerun
+  void getMarkedAncestors(set<shared_ptr<Command>>& marked);
+
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream

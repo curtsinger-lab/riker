@@ -119,6 +119,16 @@ void Command::mark(set<shared_ptr<Command>>& marked) {
   }
 }
 
+void Command::getMarkedAncestors(set<shared_ptr<Command>>& marked) {
+  if (_marked) {
+    marked.insert(shared_from_this());
+  } else {
+    for (auto& c : _children) {
+      c->getMarkedAncestors(marked);
+    }
+  }
+}
+
 /// The command accesses an artifact by path.
 shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
   auto ref = make_shared<Access>(path, flags);
@@ -211,16 +221,27 @@ void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
 /// This command sets the contents of an artifact
 void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
-  // Get the latest version of this artifact
-  auto v = a->getLatestVersion();
+  // Does this artifact have any versions yet?
+  if (a->getVersionCount() == 0) {
+    // If we're writing to an artifact with no existing versions, our write will create one
+    auto new_version = a->tagNewVersion(shared_from_this());
+    _steps.push_back(make_shared<SetContents>(ref, new_version));
 
-  // If this command created the last version, and no other command has accessed it, we can
-  // combine the updates into a single update. That means we don't need to tag a new version.
-  if (Build::combine_writes && v.getCreator() == shared_from_this() && !v.isAccessed()) return;
+  } else {
+    // If there are already versions, we have to tag a new version unless we can combine this with
+    // a previous write by the same command
 
-  // If we reach this point, the command is creating a new version of the artifact
-  auto new_version = a->tagNewVersion(shared_from_this());
-  _steps.push_back(make_shared<SetContents>(ref, new_version));
+    // Get the latest version of this artifact
+    auto v = a->getLatestVersion();
+
+    // If this command created the last version, and no other command has accessed it, we can
+    // combine the updates into a single update. That means we don't need to tag a new version.
+    if (Build::combine_writes && v.getCreator() == shared_from_this() && !v.isAccessed()) return;
+
+    // If we reach this point, the command is creating a new version of the artifact
+    auto new_version = a->tagNewVersion(shared_from_this());
+    _steps.push_back(make_shared<SetContents>(ref, new_version));
+  }
 }
 
 /// This command launches a child command
