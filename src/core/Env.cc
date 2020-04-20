@@ -1,13 +1,33 @@
 #include "Env.hh"
 
+#include <iostream>
 #include <memory>
+#include <set>
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
 
 using std::dynamic_pointer_cast;
+using std::make_shared;
+using std::set;
 using std::shared_ptr;
+
+void Env::checkFinalState(set<shared_ptr<Command>>& marked) {
+  // Loop over all entries in the environment
+  for (auto& [path, entry] : _entries) {
+    // Get the command that creates the entry, and the version we expect to find
+    auto& [cmd, version] = entry;
+
+    // Create a fake reference to check the file, just for now
+    auto ref = make_shared<Access>(path, AccessFlags());
+
+    // Check the filesystem to see if the real file matches our expected version
+    if (!checkFilesystemContentsMatch(ref, version)) {
+      marked.insert(cmd);
+    }
+  }
+}
 
 // Check if an access resolves as-expected in the current environment
 bool Env::checkAccess(shared_ptr<Reference> ref, int expected) {

@@ -58,6 +58,16 @@ class Env {
   void finishCommand() { _commands.pop(); }
 
   /**
+   * Check if all entries in this environment match what is on the actual filesystem. This should be
+   * run after emulating all commands. This check will look to see if the products of a build are
+   * in place, and if not, create the necessary dependencies to replace them.
+   *
+   * \param marked   A set of commands. This method will add any commands whose output does not
+   *                 appear on the filesystem to this set.
+   */
+  void checkFinalState(set<shared_ptr<Command>>& marked);
+
+  /**
    * Check the result of an access in this environment. If there is no entry, fall back to looking
    * in the actual filesystem. Return true if the result matches the expected value.
    *

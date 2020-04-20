@@ -137,6 +137,14 @@ void Tracer::run(shared_ptr<Command> cmd) {
   }
 }
 
+void Tracer::finalize() {
+  // Save fingerprints and metadata for the final versions of all remaining artifacts
+  for (auto& [_, artifact] : _artifacts) {
+    artifact->getLatestVersion().saveMetadata();
+    artifact->getLatestVersion().saveFingerprint();
+  }
+}
+
 void Tracer::Process::resume() {
   FAIL_IF(ptrace(PTRACE_CONT, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 }

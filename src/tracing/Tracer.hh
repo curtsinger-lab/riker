@@ -37,6 +37,9 @@ class Tracer {
  public:
   void run(shared_ptr<Command> cmd);
 
+  /// At the end of a trace, perform some final cleanup actions
+  void finalize();
+
  private:
   /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Process> p);

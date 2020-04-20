@@ -12,6 +12,7 @@
 #include "core/Env.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "tracing/Tracer.hh"
 #include "ui/log.hh"
 
 using std::cout;
@@ -47,7 +48,13 @@ Build::Build(string executable, vector<string> arguments) {
 }
 
 void Build::run(Tracer& tracer) {
-  if (_root) _root->run(tracer);
+  FAIL_IF(!_root) << "Cannot run an empty build";
+
+  // Run the root command with the tracer
+  _root->run(tracer);
+
+  // Finish up tracing by finalizing all artifacts
+  tracer.finalize();
 }
 
 void Build::check() {
@@ -62,6 +69,32 @@ void Build::check() {
   // Run through the command trace to populate the environment and changed set
   _root->checkInputs(env, changed);
 
+  // Print the commands whose inputs have changed
+  if (changed.size() > 0) {
+    // Print commands that have changed inputs
+    cout << "Commands with changed inputs:" << endl;
+    for (auto& c : changed) {
+      cout << "  " << c << endl;
+    }
+    cout << endl;
+  }
+
+  // This set will track commands whose output has been changed or removed
+  set<shared_ptr<Command>> needed;
+
+  // Check the final state of the environment against the actual filesystem
+  env.checkFinalState(needed);
+
+  // Print the commands whose outputs have been replaced
+  if (needed.size() > 0) {
+    // Print commands with needed outputs
+    cout << "Commands whose output is needed:" << endl;
+    for (auto& c : needed) {
+      cout << "  " << c << endl;
+    }
+    cout << endl;
+  }
+
   // We'll now build a set of commands that have to rerun to update the build
   set<shared_ptr<Command>> to_rerun;
 
@@ -70,20 +103,17 @@ void Build::check() {
     c->mark(to_rerun);
   }
 
+  // Mark each command with missing outputs as well
+  for (auto& c : needed) {
+    c->mark(to_rerun);
+  }
+
   // Finally, build a minimal set of commands that includes only marked commands that are not
   // descendants of marked commands. This is the set of commands we will actually invoke.
   set<shared_ptr<Command>> rerun_ancestors;
   _root->getMarkedAncestors(rerun_ancestors);
 
-  // Print some information
-  if (changed.size() > 0) {
-    // Print commands that have changed inputs
-    cout << "Commands with changed inputs:" << endl;
-    for (auto& c : changed) {
-      cout << "  " << c << endl;
-    }
-    cout << endl;
-
+  if (to_rerun.size() > 0) {
     cout << "A rebuild must run the following commands:" << endl;
     for (auto& c : to_rerun) {
       cout << "  " << c;
@@ -94,7 +124,6 @@ void Build::check() {
     }
     cout << "Only commands marked with * will be executed." << endl;
     cout << "Others are descendants of marked commands and will be run implicitly." << endl;
-
   } else {
     cout << "No changes detected" << endl;
   }
