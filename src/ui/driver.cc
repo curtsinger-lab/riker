@@ -37,40 +37,59 @@ const fs::path RootBuildCommand = "Dodofile";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
-void do_build(bool dry_run, int jobs, string fingerprint) {
-  // Create a build object
-  Build b;
-  bool loaded = false;
+/// Attempt to load a serialized build, but fall back to a default build on failure
+Build load_build_or_default() {
   try {
-    b = load_build(DatabaseFilename);
-    loaded = true;
+    return load_build(DatabaseFilename);
   } catch (db_version_exception e) {
-    WARN << "Build database is outdated. Running a clean build.";
+    WARN << "Build database is outdated. Resetting to a default, clean build.";
   } catch (cereal::Exception e) {
     // Silently fall back to a clean build when there is no build database file
   }
 
-  // Attempt to load a saved build. If that fails, create a new build object
-  if (!loaded) {
-    // We're going to set up a new build graph to run the build. There are three cases to handle:
-    //  1. We can just run ./Dodofile
-    //  2. Dodofile is not executable. We'll run it with /bin/sh
-    //  3. Dodofile is not accessible. This is an error
+  // We're going to set up a new build graph to run the build. There are three cases to handle:
+  //  1. We can just run ./Dodofile
+  //  2. Dodofile is not executable. We'll run it with /bin/sh
+  //  3. Dodofile is not accessible. This is an error
 
-    if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
-      // Dodofile is directly executable. Initialize graph with a command to run it directly
-      b = Build(RootBuildCommand, {RootBuildCommand});
+  if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
+    // Dodofile is directly executable. Initialize graph with a command to run it directly
+    return Build(RootBuildCommand, {RootBuildCommand});
 
-    } else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
-      // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-      b = Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
+  } else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
+    // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
+    return Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
 
-    } else {
-      // Dodofile is neither executable nor readable. This won't work.
-      FAIL << "Unable to access " << RootBuildCommand << ".\n"
-           << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-    }
+  } else {
+    // Dodofile is neither executable nor readable. This won't work.
+    FAIL << "Unable to access " << RootBuildCommand << ".\n"
+         << "  This file must be executable, or a readable file that can be run by /bin/sh.";
   }
+  return Build();  // Unreachable, but silences warnings
+}
+
+/// Try to load a build. Exit with an error if loading fails.
+Build require_load_build() {
+  try {
+    return load_build(DatabaseFilename);
+  } catch (db_version_exception e) {
+    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
+  } catch (cereal::Exception e) {
+    FAIL << "Failed to load the build database. Have you run a build yet?";
+  }
+  return Build();  // Unreachable, but silences warnings
+}
+
+/**
+ * Run the `build` subcommand.
+ * \param dry_run     If set, commands are not run but will instead be printed to the terminal
+ * \param jobs        The maximum number of concurrent jobs to run
+ * \param fingerprint The type of fingerprinting to use, "none", "local", or "all".
+ *                    The value is checked by the command line parsing code.
+ */
+void do_build(bool dry_run, int jobs, string fingerprint) {
+  // Load a build, or set up a default build if necessary
+  Build b = load_build_or_default();
 
   if (!dry_run) {
     Tracer tracer;
@@ -84,63 +103,50 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
   save_build(DatabaseFilename, b);
 }
 
+/**
+ * Run the `check` subcommand
+ */
 void do_check() {
-  try {
-    Build b = load_build(DatabaseFilename);
-    b.check();
-
-  } catch (db_version_exception e) {
-    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-  } catch (cereal::Exception e) {
-    FAIL << "Failed to load the build database. Have you run a build yet?";
-  }
+  Build b = require_load_build();
+  b.check();
 }
 
+/**
+ * Run the `trace` subcommand
+ * \param output  The name of the output file, or "-" for stdout
+ */
 void do_trace(string output) {
-  try {
-    Build b = load_build(DatabaseFilename);
-
-    if (output == "-") {
-      cout << TraceVisitor(b);
-    } else {
-      ofstream f(output);
-      f << TraceVisitor(b);
-    }
-  } catch (db_version_exception e) {
-    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-  } catch (cereal::Exception e) {
-    FAIL << "Failed to load the build database. Have you run a build yet?";
+  Build b = require_load_build();
+  if (output == "-") {
+    cout << TraceVisitor(b);
+  } else {
+    ofstream f(output);
+    f << TraceVisitor(b);
   }
 }
 
+/**
+ * Run the `graph` subcommand
+ * \param output        The name of the output file, or "-" for stdout
+ * \param show_sysfiles If true, include system files in the graph
+ */
 void do_graph(string output, bool show_sysfiles) {
-  try {
-    Build b = load_build(DatabaseFilename);
-
-    if (output == "-") {
-      cout << GraphVisitor(b, show_sysfiles);
-    } else {
-      ofstream f(output);
-      f << GraphVisitor(b, show_sysfiles);
-    }
-
-  } catch (db_version_exception e) {
-    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-  } catch (cereal::Exception e) {
-    FAIL << "Failed to load the build database. Have you run a build yet?";
+  Build b = require_load_build();
+  if (output == "-") {
+    cout << GraphVisitor(b, show_sysfiles);
+  } else {
+    ofstream f(output);
+    f << GraphVisitor(b, show_sysfiles);
   }
 }
 
+/**
+ * Run the `stats` subcommand
+ * \param list_artifacts  Should the output include a list of artifacts and versions?
+ */
 void do_stats(bool list_artifacts) {
-  try {
-    Build b = load_build(DatabaseFilename);
-    cout << StatsVisitor(b, list_artifacts);
-
-  } catch (db_version_exception e) {
-    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-  } catch (cereal::Exception e) {
-    FAIL << "Failed to load the build database. Have you run a build yet?";
-  }
+  Build b = require_load_build();
+  cout << StatsVisitor(b, list_artifacts);
 }
 
 /**
