@@ -1,13 +1,16 @@
 Move to test directory
   $ cd $TESTDIR
 
-Run the build
+Move in the new version of inputA
+  $ cp file_versions/inputA_new inputA
+
+Update the build
   $ ../../dodo --show
-  Dodofile
+  /bin/sh ./A
 
 Verify the output is correct
   $ cat myfile
-  hello world
+  goodbye world
 
 Run the build again, doing nothing this time
   $ ../../dodo --show

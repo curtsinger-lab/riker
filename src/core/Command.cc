@@ -106,8 +106,11 @@ string Command::getShortName() const {
 
 string Command::getFullName() const {
   string result;
+  bool first = true;
   for (const string& arg : _args) {
-    result += arg + " ";
+    if (!first) result += " ";
+    first = false;
+    result += arg;
   }
   return result;
 }

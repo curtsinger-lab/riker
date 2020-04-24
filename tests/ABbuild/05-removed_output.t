@@ -1,13 +1,16 @@
 Move to test directory
   $ cd $TESTDIR
 
-Run the build
+Remove the output myfile
+  $ rm myfile
+
+Update the build
   $ ../../dodo --show
-  Dodofile
+  /bin/sh ./A
 
 Verify the output is correct
   $ cat myfile
-  hello world
+  goodbye frodo
 
 Run the build again, doing nothing this time
   $ ../../dodo --show
