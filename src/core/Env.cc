@@ -131,8 +131,14 @@ bool Env::checkMetadataMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
       // If the writer ever reruns, the current command must rerun as well. Record that.
       writer->triggers(_commands.top());
 
-      // This command also requires output from the writer. If we had it cached we could skip this.
-      _commands.top()->needs(writer);
+      // This command also requires output from the writer. If we have the metadata cached, we don't
+      // necessarily have to run the command that sets it, since we can put it in place ourselves.
+      if (!current_version.hasMetadata()) {
+        _commands.top()->needs(writer);
+      } else {
+        // TODO: This may be the place to record that we have to stage in the expected artifact
+        // version if this command is run and the writer is not.
+      }
 
       // Does the current version in the environment match the expected version?
       return current_version == v;
@@ -170,8 +176,14 @@ bool Env::checkContentsMatch(shared_ptr<Reference> ref, ArtifactVersion v) {
       // If the writer ever reruns, the current command must rerun as well. Record that.
       writer->triggers(_commands.top());
 
-      // This command also requires output from the writer. If we had it cached we could skip this.
-      _commands.top()->needs(writer);
+      // This command also requires output from the writer
+      // If we have file saved we can stage it in instead of running the writing command.
+      if (!current_version.hasSavedContents()) {
+        _commands.top()->needs(writer);
+      } else {
+        // TODO: This may be the place to record that we have to stage in the expected artifact
+        // version if this command is run and the writer is not.
+      }
 
       // Does the current version in the environment match the expected version?
       return current_version == v;

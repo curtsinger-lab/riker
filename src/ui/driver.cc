@@ -37,16 +37,8 @@ const fs::path RootBuildCommand = "Dodofile";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
-/// Attempt to load a serialized build, but fall back to a default build on failure
-Build load_build_or_default() {
-  try {
-    return load_build(DatabaseFilename);
-  } catch (db_version_exception e) {
-    WARN << "Build database is outdated. Resetting to a default, clean build.";
-  } catch (cereal::Exception e) {
-    // Silently fall back to a clean build when there is no build database file
-  }
-
+/// Get a default build
+Build get_default_build() {
   // We're going to set up a new build graph to run the build. There are three cases to handle:
   //  1. We can just run ./Dodofile
   //  2. Dodofile is not executable. We'll run it with /bin/sh
@@ -66,6 +58,19 @@ Build load_build_or_default() {
          << "  This file must be executable, or a readable file that can be run by /bin/sh.";
   }
   return Build();  // Unreachable, but silences warnings
+}
+
+/// Attempt to load a serialized build, but fall back to a default build on failure
+Build load_build_or_default() {
+  try {
+    return load_build(DatabaseFilename);
+  } catch (db_version_exception e) {
+    WARN << "Build database is outdated. Resetting to a default, clean build.";
+  } catch (cereal::Exception e) {
+    // Silently fall back to a clean build when there is no build database file
+  }
+
+  return get_default_build();
 }
 
 /// Try to load a build. Exit with an error if loading fails.
@@ -106,9 +111,13 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
 /**
  * Run the `check` subcommand
  */
-void do_check() {
-  Build b = require_load_build();
-  b.check();
+void do_check(bool default_build) {
+  if (default_build) {
+    get_default_build().check();
+  } else {
+    Build b = require_load_build();
+    b.check();
+  }
 }
 
 /**
@@ -223,8 +232,13 @@ int main(int argc, char* argv[]) {
   build->final_callback([&] { do_build(dry_run, jobs, fingerprint); });
 
   /************* Check Subcommand *************/
+  bool default_build = false;
+
   auto check = app.add_subcommand("check", "Check which commands must be rerun and report why");
-  check->final_callback([&] { do_check(); });
+
+  check->add_flag("-d,--default", default_build, "Check the state of a default build");
+
+  check->final_callback([&] { do_check(default_build); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
