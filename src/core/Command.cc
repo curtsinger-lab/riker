@@ -133,8 +133,9 @@ void Command::run(set<shared_ptr<Command>> to_run, Tracer& tracer) {
       // Add the access checks we need to decide how to start the build, and get the launched child
       auto child = createRootSteps();
 
-      // Run the child
-      child->run(to_run, tracer);
+      // Run the child. Pass in a new set that includes the child command so it runs
+      child->run({child}, tracer);
+
     } else {
       // Show the command if printing is on, or if this is a dry run
       if (Build::print_on_run || Build::dry_run) cout << getFullName() << endl;
