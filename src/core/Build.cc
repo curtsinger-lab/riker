@@ -48,13 +48,8 @@ void Build::run(Tracer& tracer) {
     c->mark(to_rerun);
   }
 
-  // Finally, build a minimal set of commands that includes only marked commands that are not
-  // descendants of marked commands. This is the set of commands we will actually invoke.
-  set<shared_ptr<Command>> rerun_ancestors;
-  _root->getMarkedAncestors(rerun_ancestors);
-
   // Run the root command with the tracer
-  _root->run(rerun_ancestors, tracer);
+  _root->run(to_rerun, tracer);
 
   // Finish up tracing by finalizing all artifacts
   tracer.finalize();

@@ -74,7 +74,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const list<shared_ptr<Step>>& getSteps() const { return _steps; }
 
   /// Run this command, or skip it and descend to its children if a run is unnecessary
-  void run(set<shared_ptr<Command>> to_run, Tracer& tracer);
+  void run(const set<shared_ptr<Command>>& to_run, Tracer& tracer);
 
   /**
    * Check the state of this command and its descendants' inputs. This process populates the command
@@ -130,9 +130,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /****** Rebuild Methods ******/
 
-  /// This command has a child command c
-  void hasChild(shared_ptr<Command> c) { _children.insert(c); }
-
   /// This command needs output from command c before it can run
   void needs(shared_ptr<Command> c) { _needs.insert(c); }
 
@@ -181,6 +178,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
 
+  /// The list of this command's children, in order of creation
+  list<shared_ptr<Command>> _children;
+
   /***** Transient Data (not serialized) *****/
 
   /// Track all the unique metadata checks made during tracing
@@ -188,9 +188,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Track all the unique content checks made during tracing
   set<pair<shared_ptr<Reference>, ArtifactVersion>> _contents_checks;
-
-  /// The set of all this command's children (populated during rebuild checks)
-  set<shared_ptr<Command>> _children;
 
   /// The set of commands that must run to produce inputs for this command
   /// Note: if this command requires output from another command, but we have cached copies of all

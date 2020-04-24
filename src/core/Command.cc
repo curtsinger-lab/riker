@@ -115,7 +115,7 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::run(set<shared_ptr<Command>> to_run, Tracer& tracer) {
+void Command::run(const set<shared_ptr<Command>>& to_run, Tracer& tracer) {
   // Is this command in the set of commands to run?
   if (to_run.find(shared_from_this()) == to_run.end()) {
     // No match. We can skip this command, but must run its children
@@ -124,8 +124,9 @@ void Command::run(set<shared_ptr<Command>> to_run, Tracer& tracer) {
     }
 
   } else {
-    // We are rerunning this command, so clear the list of steps
+    // We are rerunning this command, so clear the lists of steps and children
     _steps.clear();
+    _children.clear();
 
     // The root command is not actually executed; it is a proxy for the work we do at the start of
     // the build
@@ -158,9 +159,6 @@ void Command::checkInputs(Env& env, set<shared_ptr<Command>>& result) {
 
     // Check child commands as well
     if (auto launch = dynamic_pointer_cast<Launch>(s)) {
-      // Record this command's child
-      hasChild(launch->getCommand());
-
       // Run through the child command's trace
       launch->getCommand()->checkInputs(env, result);
     }
@@ -200,6 +198,7 @@ void Command::mark(set<shared_ptr<Command>>& marked) {
   }
 }
 
+// Build a set of ancestor commands to cover the marked command set
 void Command::getMarkedAncestors(set<shared_ptr<Command>>& marked) {
   if (_marked) {
     marked.insert(shared_from_this());
@@ -329,5 +328,6 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
   shared_ptr<Command> child(new Command(exe, args, fds));
   _steps.push_back(make_shared<Launch>(child));
+  _children.push_back(child);
   return child;
 }
