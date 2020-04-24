@@ -79,7 +79,7 @@ CEREAL_CLASS_VERSION(Build, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, Build& b, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(b._root, b._stdin, b._stdout, b._stderr);
+    ar(b._root, b._std_pipes, b._std_refs);
   } else {
     throw db_version_exception(version);
   }
@@ -90,7 +90,7 @@ CEREAL_CLASS_VERSION(Command, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, Command& c, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(c._exe, c._args, c._initial_fds, c._steps);
+    ar(c._is_root, c._exe, c._args, c._initial_fds, c._steps);
   } else {
     throw db_version_exception(version);
   }

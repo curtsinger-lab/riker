@@ -37,25 +37,6 @@ const fs::path RootBuildCommand = "Dodofile";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
-// We're going to set up a new build graph to run the build. There are three cases to handle:
-//  1. We can just run ./Dodofile
-//  2. Dodofile is not executable. We'll run it with /bin/sh
-//  3. Dodofile is not accessible. This is an error
-
-/*if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
-  // Dodofile is directly executable. Initialize graph with a command to run it directly
-  return Build(RootBuildCommand, {RootBuildCommand});
-
-} else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
-  // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-  return Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
-
-} else {
-  // Dodofile is neither executable nor readable. This won't work.
-  FAIL << "Unable to access " << RootBuildCommand << ".\n"
-       << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-}*/
-
 /// Try to load a build. Exit with an error if loading fails.
 Build open_build(bool get_default) {
   try {
@@ -104,8 +85,7 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
  */
 void do_check(bool default_build) {
   if (default_build) {
-    Build b;
-    b.check();
+    Build().check();
   } else {
     Build b = open_build(false);
     b.check();

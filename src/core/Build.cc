@@ -23,35 +23,38 @@ using std::map;
 using std::ofstream;
 using std::string;
 
-/*Build::Build() {
-  // Create references for the three default pipes: stdin, stdout, and stderr
-  _default_refs[0] = make_shared<Pipe>();
-  _default_refs[1] = make_shared<Pipe>();
-  _default_refs[2] = make_shared<Pipe>();
-
-  // Create three artifacts to correspond to those same pipes
-  _default_artifacts[0] = make_shared<Artifact>("stdin");
-  _default_artifacts[1] = make_shared<Artifact>("stdout");
-  _default_artifacts[2] = make_shared<Artifact>("stderr");
-
-  // Build the map of initial file descriptors
-  map<int, FileDescriptor> fds = {
-      {0, FileDescriptor(_default_refs[0], _default_artifacts[0], false)},
-      {1, FileDescriptor(_default_refs[1], _default_artifacts[1], true)},
-      {2, FileDescriptor(_default_refs[2], _default_artifacts[2], true)},
-  };
-
-  // Create the root command for the build
-  _root = Command::createRootCommand();
-
-  INFO << "Build initialized with root " << _root.get();
-}*/
-
 void Build::run(Tracer& tracer) {
   FAIL_IF(!_root) << "Cannot run an empty build";
 
+  // Set up an environment that will be used to emulate filesystem operations
+  Env env;
+
+  // This set will track all commands that have to be run because they have changed inputs, or
+  // produce final outputs that are removed/overwritten
+  set<shared_ptr<Command>> changed;
+
+  // Run through the command trace to find commands whose inputs have changed
+  _root->checkInputs(env, changed);
+
+  // Check the final state of the environment against the actual filesystem
+  env.checkFinalState(changed);
+
+  // We'll now build a set of commands that have to rerun to update the build
+  set<shared_ptr<Command>> to_rerun;
+
+  // Mark each command in the command set, producing a (potentially larger) set of commands that
+  // must be rerun directly
+  for (auto& c : changed) {
+    c->mark(to_rerun);
+  }
+
+  // Finally, build a minimal set of commands that includes only marked commands that are not
+  // descendants of marked commands. This is the set of commands we will actually invoke.
+  set<shared_ptr<Command>> rerun_ancestors;
+  _root->getMarkedAncestors(rerun_ancestors);
+
   // Run the root command with the tracer
-  _root->run(tracer);
+  _root->run(rerun_ancestors, tracer);
 
   // Finish up tracing by finalizing all artifacts
   tracer.finalize();

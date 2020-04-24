@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdio>
 #include <list>
 #include <map>
@@ -20,6 +21,7 @@
 
 class Tracer;
 
+using std::array;
 using std::endl;
 using std::make_shared;
 using std::map;
@@ -46,8 +48,11 @@ class Command : public std::enable_shared_from_this<Command> {
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
       _is_root(false), _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
+  shared_ptr<Command> createRootSteps();
+
  public:
-  static shared_ptr<Command> createRootCommand();
+  /// Create a command to invoke the provided buildfile
+  static shared_ptr<Command> createRootCommand(map<int, FileDescriptor> fds);
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -69,7 +74,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const list<shared_ptr<Step>>& getSteps() const { return _steps; }
 
   /// Run this command, or skip it and descend to its children if a run is unnecessary
-  void run(Tracer& tracer);
+  void run(set<shared_ptr<Command>> to_run, Tracer& tracer);
 
   /**
    * Check the state of this command and its descendants' inputs. This process populates the command

@@ -1591,6 +1591,9 @@ static pid_t launch_traced(shared_ptr<Command> cmd) {
       args.push_back(s.c_str());
     }
 
+    // Null-terminate the args array
+    args.push_back(nullptr);
+
     // TODO: explicitly handle the environment
     execv(cmd->getExecutable().c_str(), (char* const*)args.data());
 
