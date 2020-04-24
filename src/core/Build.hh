@@ -69,6 +69,12 @@ class Build {
   /// The name of the file that starts the build
   static inline string buildfile_name = "Dodofile";
 
+  /// Should the build print commands as they are run?
+  static inline bool print_on_run = false;
+
+  /// Is this a dry run?
+  static inline bool dry_run = false;
+
   /****** Optimization ******/
   /// Any command can read the effects of its own writes without versioning or dependencies
   static inline bool ignore_self_reads = true;  // PAPER

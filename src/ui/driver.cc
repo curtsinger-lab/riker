@@ -59,19 +59,17 @@ Build open_build(bool get_default) {
 
 /**
  * Run the `build` subcommand.
- * \param dry_run     If set, commands are not run but will instead be printed to the terminal
  * \param jobs        The maximum number of concurrent jobs to run
  * \param fingerprint The type of fingerprinting to use, "none", "local", or "all".
  *                    The value is checked by the command line parsing code.
  */
-void do_build(bool dry_run, int jobs, string fingerprint) {
+void do_build(int jobs, string fingerprint) {
   // Load a build, or set up a default build if necessary
   Build b = open_build(true);
 
-  if (!dry_run) {
-    Tracer tracer;
-    b.run(tracer);
-  }
+  // Set up and run the build
+  Tracer tracer;
+  b.run(tracer);
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
@@ -172,13 +170,14 @@ int main(int argc, char* argv[]) {
       "Increase logging verbosity.");
 
   /************* Build Subcommand *************/
-  bool dry_run = false;
   int jobs = 0;
   string fingerprint = "local";
 
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
-  build->add_flag("-n,--dry-run", dry_run, "Do not run any build commands");
+  build->add_flag("--show", Build::print_on_run, "Show commands as they are run");
+
+  build->add_flag("-n,--dry-run", Build::dry_run, "Do not run any build commands");
 
   build->add_option("-j,--jobs", jobs, "Max concurrent jobs (0 is unlimited)")
       ->check(CLI::NonNegativeNumber);
@@ -201,7 +200,7 @@ int main(int argc, char* argv[]) {
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(dry_run, jobs, fingerprint); });
+  build->final_callback([&] { do_build(jobs, fingerprint); });
 
   /************* Check Subcommand *************/
   bool default_build = false;

@@ -15,7 +15,9 @@
 #include "ui/log.hh"
 
 using std::array;
+using std::cout;
 using std::dynamic_pointer_cast;
+using std::endl;
 using std::list;
 using std::map;
 using std::shared_ptr;
@@ -131,8 +133,11 @@ void Command::run(set<shared_ptr<Command>> to_run, Tracer& tracer) {
       // Run the child
       child->run(to_run, tracer);
     } else {
-      // Actually run the command
-      tracer.run(shared_from_this());
+      // Show the command if printing is on, or if this is a dry run
+      if (Build::print_on_run || Build::dry_run) cout << getFullName() << endl;
+
+      // Actually run the command, unless this is a dry run
+      if (!Build::dry_run) tracer.run(shared_from_this());
     }
   }
 }
