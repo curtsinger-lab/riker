@@ -19,6 +19,12 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+shared_ptr<Command> Command::createRootCommand() {
+  shared_ptr<Command> root(new Command());
+  root->_is_root = true;
+  return root;
+}
+
 string Command::getShortName() const {
   // By default, the short name is the executable
   auto result = _exe;
@@ -245,6 +251,8 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 }
 
 /// This command launches a child command
-void Command::launch(shared_ptr<Command> cmd) {
-  _steps.push_back(make_shared<Launch>(cmd));
+shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
+  shared_ptr<Command> child(new Command(exe, args, fds));
+  _steps.push_back(make_shared<Launch>(child));
+  return child;
 }

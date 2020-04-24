@@ -23,7 +23,7 @@ using std::map;
 using std::ofstream;
 using std::string;
 
-Build::Build(string executable, vector<string> arguments) {
+/*Build::Build() {
   // Create references for the three default pipes: stdin, stdout, and stderr
   _default_refs[0] = make_shared<Pipe>();
   _default_refs[1] = make_shared<Pipe>();
@@ -42,10 +42,10 @@ Build::Build(string executable, vector<string> arguments) {
   };
 
   // Create the root command for the build
-  _root = make_shared<Command>(executable, arguments, fds);
+  _root = Command::createRootCommand();
 
   INFO << "Build initialized with root " << _root.get();
-}
+}*/
 
 void Build::run(Tracer& tracer) {
   FAIL_IF(!_root) << "Cannot run an empty build";

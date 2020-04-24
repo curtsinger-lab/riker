@@ -27,9 +27,9 @@ class TraceVisitor {
   /// Print the trace from the given build
   void print(ostream& o) {
     // TODO: Print initial references to stdin, stdout, and stderr
-    for (auto s : _build.getDefaultReferences()) {
-      o << s << endl;
-    }
+    // for (auto s : _build.getDefaultReferences()) {
+    //  o << s << endl;
+    //}
     visit(o, _build.getRoot());
   }
 

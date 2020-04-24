@@ -37,52 +37,43 @@ const fs::path RootBuildCommand = "Dodofile";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
-/// Get a default build
-Build get_default_build() {
-  // We're going to set up a new build graph to run the build. There are three cases to handle:
-  //  1. We can just run ./Dodofile
-  //  2. Dodofile is not executable. We'll run it with /bin/sh
-  //  3. Dodofile is not accessible. This is an error
+// We're going to set up a new build graph to run the build. There are three cases to handle:
+//  1. We can just run ./Dodofile
+//  2. Dodofile is not executable. We'll run it with /bin/sh
+//  3. Dodofile is not accessible. This is an error
 
-  if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
-    // Dodofile is directly executable. Initialize graph with a command to run it directly
-    return Build(RootBuildCommand, {RootBuildCommand});
+/*if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), X_OK, AT_EACCESS) == 0) {
+  // Dodofile is directly executable. Initialize graph with a command to run it directly
+  return Build(RootBuildCommand, {RootBuildCommand});
 
-  } else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
-    // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
-    return Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
+} else if (faccessat(AT_FDCWD, RootBuildCommand.c_str(), R_OK, AT_EACCESS) == 0) {
+  // Dodofile is readable. Initialize graph with a command that runs Dodofile with sh
+  return Build("/bin/sh", {RootBuildCommand, RootBuildCommand});
 
-  } else {
-    // Dodofile is neither executable nor readable. This won't work.
-    FAIL << "Unable to access " << RootBuildCommand << ".\n"
-         << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-  }
-  return Build();  // Unreachable, but silences warnings
-}
-
-/// Attempt to load a serialized build, but fall back to a default build on failure
-Build load_build_or_default() {
-  try {
-    return load_build(DatabaseFilename);
-  } catch (db_version_exception e) {
-    WARN << "Build database is outdated. Resetting to a default, clean build.";
-  } catch (cereal::Exception e) {
-    // Silently fall back to a clean build when there is no build database file
-  }
-
-  return get_default_build();
-}
+} else {
+  // Dodofile is neither executable nor readable. This won't work.
+  FAIL << "Unable to access " << RootBuildCommand << ".\n"
+       << "  This file must be executable, or a readable file that can be run by /bin/sh.";
+}*/
 
 /// Try to load a build. Exit with an error if loading fails.
-Build require_load_build() {
+Build open_build(bool get_default) {
   try {
     return load_build(DatabaseFilename);
   } catch (db_version_exception e) {
+    // If the load is allowed to return a default build, warn about the version and return
+    if (get_default) {
+      WARN << "Build database is outdated. Initializing a default build.";
+      return Build();
+    }
     FAIL << "Build database is outdated. Rerun the build to create a new build database.";
   } catch (cereal::Exception e) {
+    // If fallback to a default is allowed, get that
+    if (get_default) return Build();
     FAIL << "Failed to load the build database. Have you run a build yet?";
   }
-  return Build();  // Unreachable, but silences warnings
+  // Unreachable, but silences warnings
+  exit(2);
 }
 
 /**
@@ -94,7 +85,7 @@ Build require_load_build() {
  */
 void do_build(bool dry_run, int jobs, string fingerprint) {
   // Load a build, or set up a default build if necessary
-  Build b = load_build_or_default();
+  Build b = open_build(true);
 
   if (!dry_run) {
     Tracer tracer;
@@ -113,9 +104,10 @@ void do_build(bool dry_run, int jobs, string fingerprint) {
  */
 void do_check(bool default_build) {
   if (default_build) {
-    get_default_build().check();
+    Build b;
+    b.check();
   } else {
-    Build b = require_load_build();
+    Build b = open_build(false);
     b.check();
   }
 }
@@ -125,7 +117,7 @@ void do_check(bool default_build) {
  * \param output  The name of the output file, or "-" for stdout
  */
 void do_trace(string output) {
-  Build b = require_load_build();
+  Build b = open_build(false);
   if (output == "-") {
     cout << TraceVisitor(b);
   } else {
@@ -140,7 +132,7 @@ void do_trace(string output) {
  * \param show_sysfiles If true, include system files in the graph
  */
 void do_graph(string output, bool show_sysfiles) {
-  Build b = require_load_build();
+  Build b = open_build(false);
   if (output == "-") {
     cout << GraphVisitor(b, show_sysfiles);
   } else {
@@ -154,7 +146,7 @@ void do_graph(string output, bool show_sysfiles) {
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) {
-  Build b = require_load_build();
+  Build b = open_build(false);
   cout << StatsVisitor(b, list_artifacts);
 }
 

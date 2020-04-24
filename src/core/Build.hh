@@ -7,9 +7,9 @@
 #include <vector>
 
 #include "core/Artifact.hh"
+#include "core/Command.hh"
 #include "core/IR.hh"
 
-class Command;
 class Tracer;
 
 using std::array;
@@ -22,9 +22,7 @@ enum class FingerprintLevel { None, Local, All };
 class Build {
  public:
   /****** Constructors ******/
-  Build() {}
-
-  Build(string executable, vector<string> arguments);
+  Build() : _root(Command::createRootCommand()) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -35,8 +33,6 @@ class Build {
   Build& operator=(Build&&) = default;
 
   shared_ptr<Command> getRoot() const { return _root; }
-
-  const auto& getDefaultReferences() const { return _default_refs; }
 
   /****** Non-trivial methods ******/
 
@@ -49,8 +45,9 @@ class Build {
 
  private:
   shared_ptr<Command> _root;
-  array<shared_ptr<Reference>, 3> _default_refs;
-  array<shared_ptr<Artifact>, 3> _default_artifacts;
+  shared_ptr<Artifact> _stdin = make_shared<Artifact>("stdin");
+  shared_ptr<Artifact> _stdout = make_shared<Artifact>("stdout");
+  shared_ptr<Artifact> _stderr = make_shared<Artifact>("stderr");
 
  public:
   // Global flags to control build behavior

@@ -489,14 +489,8 @@ void Tracer::Process::_execveat(int dfd, string filename) {
     _fds.erase(index);
   }
 
-  // Create the child command
-  auto child_command = make_shared<Command>(exe_path, args, _fds);
-
-  // The parent command launches the child command
-  _command->launch(child_command);
-
-  // This process is now running the child command
-  _command = child_command;
+  // This process launches a new command, and is now running that command
+  _command = _command->launch(exe_path, args, _fds);
 
   // Get the executable file artifact
   auto exe_artifact = _tracer.getArtifact(exe_path, true);

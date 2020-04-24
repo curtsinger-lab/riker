@@ -42,10 +42,12 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class cereal::access;
   Command() = default;
 
- public:
-  /// Create a new root command, which has no parent.
+  /// Create a new command
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
-      _exe(exe), _args(args), _initial_fds(initial_fds) {}
+      _is_root(false), _exe(exe), _args(args), _initial_fds(initial_fds) {}
+
+ public:
+  static shared_ptr<Command> createRootCommand();
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -119,7 +121,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command starts another command
-  void launch(shared_ptr<Command> cmd);
+  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);
 
   /****** Rebuild Methods ******/
 
@@ -158,6 +160,9 @@ class Command : public std::enable_shared_from_this<Command> {
  private:
   /// A unique ID assigned to this command for log readability
   UniqueID<Command> _id;
+
+  /// Is this the root command for a build?
+  bool _is_root;
 
   /// The executable file this command runs
   string _exe;
