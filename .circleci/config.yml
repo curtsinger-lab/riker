@@ -3,7 +3,7 @@ version: 2.1
 executors:
   default:
     docker:
-      - image: ccurtsinger/dodo-test:0.0.2
+      - image: ccurtsinger/dodo-test:0.0.3
 jobs:
   all:
     executor: default
