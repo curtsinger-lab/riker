@@ -18,7 +18,7 @@ static string readlink(string path) {
     bytes_read = readlink(path.c_str(), buffer, capacity);
   } while (bytes_read == capacity);
 
-  string result(buffer);
+  string result(buffer, buffer + bytes_read);
   free(buffer);
   return result;
 }
