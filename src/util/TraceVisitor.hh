@@ -43,21 +43,13 @@ class TraceVisitor {
     // Print the command's name
     o << c << endl;
 
-    list<shared_ptr<Command>> children;
-
     // Print the trace for this command
     for (auto& s : c->getSteps()) {
       o << "  " << s << endl;
-
-      // If this is a LAUNCH step, we will need to print the child command
-      auto launch = std::dynamic_pointer_cast<Launch>(s);
-      if (launch) {
-        children.push_back(launch->getCommand());
-      }
     }
 
     // Print traces for all child commands
-    for (auto& child : children) {
+    for (auto& child : c->getChildren()) {
       visit(o, child);
     }
   };
