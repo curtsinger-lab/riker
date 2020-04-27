@@ -33,7 +33,8 @@ using std::string;
 namespace fs = std::filesystem;
 
 // Constant names for files and paths
-const fs::path RootBuildCommand = "Dodofile";
+const char* RootBuildCommand = "Dodofile";
+const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
@@ -76,6 +77,29 @@ void do_build(int jobs, string fingerprint) {
 
   // Serialize the build
   save_build(DatabaseFilename, b);
+}
+
+/**
+ * Launch a by invoking its Dodofile. This action is the root command of every build, but should
+ * generally not be invoked directly by the user.
+ */
+void do_launch() {
+  // Check if the buildfile is executable
+  if (faccessat(AT_FDCWD, RootBuildCommand, X_OK, AT_EACCESS) == 0) {
+    // It is. Directly execute the buildfile
+    execl(RootBuildCommand, RootBuildCommand, NULL);
+    FAIL << "Failed to run " << RootBuildCommand << ": " << ERR;
+
+  } else if (faccessat(AT_FDCWD, RootBuildCommand, R_OK, AT_EACCESS) == 0) {
+    // The buildfile is not executable, but we have read access. Run it with /bin/sh
+    execl(ShellCommand, ShellCommand, RootBuildCommand, NULL);
+    FAIL << "Failed to run " << RootBuildCommand << " with shell " << ShellCommand << ": " << ERR;
+
+  } else {
+    // The buildfile is neither executable nor readable. This won't work.
+    FAIL << "Unable to access \"" << RootBuildCommand << "\".\n"
+         << "  This file must be directly executable or runnable with " << ShellCommand << ".";
+  }
 }
 
 /**
@@ -201,6 +225,10 @@ int main(int argc, char* argv[]) {
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
   build->final_callback([&] { do_build(jobs, fingerprint); });
+
+  /************* Launch Subcommand (hidden) *************/
+  auto launch = app.add_subcommand("launch", "Launch a build script");
+  launch->final_callback([&] { do_launch(); });
 
   /************* Check Subcommand *************/
   bool default_build = false;

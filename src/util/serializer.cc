@@ -33,7 +33,7 @@ using std::unique_ptr;
 // Declare the current version of the archive. Increase this number each time the archive changes
 // in a way that would make old versions incompatible. Every serialize function below can
 // accommodate logic to deserialize an outdated version.
-const uint32_t ArchiveVersion = 6;
+const uint32_t ArchiveVersion = 7;
 
 // Load a saved build from a file
 Build load_build(string filename) {
@@ -90,7 +90,7 @@ CEREAL_CLASS_VERSION(Command, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, Command& c, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(c._is_root, c._exe, c._args, c._initial_fds, c._steps, c._children);
+    ar(c._exe, c._args, c._initial_fds, c._steps, c._children);
   } else {
     throw db_version_exception(version);
   }

@@ -76,7 +76,7 @@ void ArtifactVersion::saveMetadata() {
     if (stat(_artifact->_path.c_str(), &s) == 0) {
       v.metadata = s;
     } else {
-      WARN << "Failed to stat artifact " << _artifact;
+      // WARN << "Failed to stat artifact " << _artifact;
     }
   }
 }

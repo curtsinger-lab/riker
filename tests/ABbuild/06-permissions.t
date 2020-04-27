@@ -6,7 +6,7 @@ Mark the buildfile as non-executable (so it runs with /bin/sh)
 
 Run the build
   $ ../../dodo --show
-  /bin/sh Dodofile
+  dodo launch
 
 Verify the output is correct
   $ cat myfile
@@ -20,7 +20,7 @@ Change the buildfile back to executable
 
 Run the build
   $ ../../dodo --show
-  Dodofile
+  dodo launch
 
 Verify the output is correct
   $ cat myfile

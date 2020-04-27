@@ -13,6 +13,7 @@
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
+#include "util/util.hh"
 
 using std::array;
 using std::cout;
@@ -23,65 +24,14 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+// The root command invokes "dodo launch" to run the actual build script. Construct this command.
 shared_ptr<Command> Command::createRootCommand(map<int, FileDescriptor> fds) {
-  shared_ptr<Command> root(new Command());
-  root->_exe = "ROOT";
-  root->_initial_fds = fds;
-  root->_is_root = true;
+  // We need to get the path to dodo. Use readlink for this.
+  string dodo = readlink("/proc/self/exe");
 
-  // Fill in the steps the root command will take
-  auto child = root->createRootSteps();
-
-  // The child depends on the contents of the buildfile
-  auto read_ref = child->access(Build::buildfile_name, AccessFlags{.r = true});
-
-  // Create a dummy artifact for the buildfile
-  auto a = make_shared<Artifact>(Build::buildfile_name);
-
-  // And get a version of that artifact WITHOUT taking a fingerprint/snapshot
-  auto v = a->getLatestVersion();
-
-  // Record the dependency on file contents. This check should fail becuase child hasn't run yet
-  child->_steps.push_back(make_shared<ContentsMatch>(read_ref, v));
+  shared_ptr<Command> root(new Command(dodo, {"dodo", "launch"}, fds));
 
   return root;
-}
-
-shared_ptr<Command> Command::createRootSteps() {
-  // The root command is going to start the build by invoking the buildfile. There are three cases:
-  // 1. buildfile is executable, and should be run directly
-  // 2. buildfile is NOT executable, but is readable and can be run with /bin/sh
-  // 3. buildfile is neither readable nor executable. This is an error
-
-  // Create an executable reference to the buildfile
-  auto exe_ref = access(Build::buildfile_name, AccessFlags{.x = true});
-  auto read_ref = access(Build::buildfile_name, AccessFlags{.r = true});
-
-  if (faccessat(AT_FDCWD, Build::buildfile_name.c_str(), X_OK, AT_EACCESS) == 0) {
-    // The buildfile is executable
-    isOK(exe_ref);
-
-    // Launch the buildfile directly. Return the child command.
-    return launch(Build::buildfile_name, {Build::buildfile_name}, _initial_fds);
-
-  } else if (faccessat(AT_FDCWD, Build::buildfile_name.c_str(), R_OK, AT_EACCESS) == 0) {
-    // The buildfile is NOT executable
-    isError(exe_ref, EACCES);
-
-    // buildfile is readable, though
-    isOK(read_ref);
-
-    // Launch the command with /bin/sh. Return the child command
-    return launch("/bin/sh", {"/bin/sh", Build::buildfile_name}, _initial_fds);
-
-  } else {
-    // The buildfile is neither executable nor readable. This won't work.
-    FAIL << "Unable to access \"" << Build::buildfile_name << "\".\n"
-         << "  This file must be executable, or a readable file that can be run by /bin/sh.";
-
-    // Unreachable, but silences warnings
-    exit(2);
-  }
 }
 
 string Command::getShortName() const {
@@ -116,33 +66,26 @@ string Command::getFullName() const {
 }
 
 void Command::run(const set<shared_ptr<Command>>& to_run, Tracer& tracer) {
-  // Is this command in the set of commands to run?
-  if (to_run.find(shared_from_this()) == to_run.end()) {
-    // No match. We can skip this command, but must run its children
-    for (auto& c : _children) {
-      c->run(to_run, tracer);
-    }
+  // We are now going to either run this command, or emulate it using the traced steps from a
+  // previous run. We have to execute the command in two cases:
+  //  1. This command is in the to_run set
+  //  2. This command has never run, so we do not have its trace
 
-  } else {
+  if (neverRun() || to_run.find(shared_from_this()) != to_run.end()) {
     // We are rerunning this command, so clear the lists of steps and children
     _steps.clear();
     _children.clear();
 
-    // The root command is not actually executed; it is a proxy for the work we do at the start of
-    // the build
-    if (_is_root) {
-      // Add the access checks we need to decide how to start the build, and get the launched child
-      auto child = createRootSteps();
+    // Show the command if printing is on, or if this is a dry run
+    if (Build::print_on_run || Build::dry_run) cout << getFullName() << endl;
 
-      // Run the child. Pass in a new set that includes the child command so it runs
-      child->run({child}, tracer);
+    // Actually run the command, unless this is a dry run
+    if (!Build::dry_run) tracer.run(shared_from_this());
 
-    } else {
-      // Show the command if printing is on, or if this is a dry run
-      if (Build::print_on_run || Build::dry_run) cout << getFullName() << endl;
-
-      // Actually run the command, unless this is a dry run
-      if (!Build::dry_run) tracer.run(shared_from_this());
+  } else {
+    // Emulate this command by running its children
+    for (auto& c : _children) {
+      c->run(to_run, tracer);
     }
   }
 }

@@ -46,9 +46,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Create a new command
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
-      _is_root(false), _exe(exe), _args(args), _initial_fds(initial_fds) {}
-
-  shared_ptr<Command> createRootSteps();
+      _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
  public:
   /// Create a command to invoke the provided buildfile
@@ -76,6 +74,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the list of this command's children
   const list<shared_ptr<Command>>& getChildren() const { return _children; }
+
+  /// Check if this command has never run
+  bool neverRun() const { return _steps.size() == 0; }
 
   /// Run this command, or skip it and descend to its children if a run is unnecessary
   void run(const set<shared_ptr<Command>>& to_run, Tracer& tracer);
@@ -166,9 +167,6 @@ class Command : public std::enable_shared_from_this<Command> {
  private:
   /// A unique ID assigned to this command for log readability
   UniqueID<Command> _id;
-
-  /// Is this the root command for a build?
-  bool _is_root;
 
   /// The executable file this command runs
   string _exe;

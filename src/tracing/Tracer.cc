@@ -37,6 +37,7 @@
 #include "core/IR.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
+#include "util/util.hh"
 
 using std::list;
 using std::make_shared;
@@ -1463,18 +1464,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
 path Tracer::Process::getExecutable() {
   char path_buffer[24];  // 24 is long enough for any integer PID
   sprintf(path_buffer, "/proc/%d/exe", _pid);
-
-  unique_ptr<char[]> buffer(nullptr);
-  ssize_t capacity = 0;
-  ssize_t bytes_read = 0;
-
-  do {
-    capacity += PATH_MAX;
-    buffer = unique_ptr<char[]>(new char[capacity]);
-    bytes_read = readlink(path_buffer, buffer.get(), capacity);
-  } while (bytes_read == capacity);
-
-  return string(buffer.get(), bytes_read);
+  return readlink(path_buffer);
 }
 
 user_regs_struct Tracer::Process::getRegisters() {

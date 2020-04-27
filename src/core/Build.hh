@@ -66,9 +66,6 @@ class Build {
  public:
   // Global flags to control build behavior
 
-  /// The name of the file that starts the build
-  static inline string buildfile_name = "Dodofile";
-
   /// Should the build print commands as they are run?
   static inline bool print_on_run = false;
 

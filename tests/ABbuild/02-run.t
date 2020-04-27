@@ -3,7 +3,7 @@ Move to test directory
 
 Run the build
   $ ../../dodo --show
-  Dodofile
+  dodo launch
 
 Verify the output is correct
   $ cat myfile
