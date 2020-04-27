@@ -4,6 +4,11 @@ Move to test directory
 Run the build
   $ ../../dodo --show
   dodo launch
+  Dodofile
+  ./A
+  cat inputA
+  ./B
+  cat inputB
 
 Verify the output is correct
   $ cat myfile

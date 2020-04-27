@@ -270,6 +270,9 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 /// This command launches a child command
 shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
   shared_ptr<Command> child(new Command(exe, args, fds));
+
+  if (Build::print_on_run) cout << child->getFullName() << endl;
+
   _steps.push_back(make_shared<Launch>(child));
   _children.push_back(child);
   return child;

@@ -6,7 +6,10 @@ Move in the new version of inputA
 
 Update the build
   $ ../../dodo --show
-  /bin/sh ./A
+  ./A
+  cat inputA
+  ./B
+  cat inputB
 
 Verify the output is correct
   $ cat myfile

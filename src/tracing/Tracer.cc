@@ -441,7 +441,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
   resume();
 }
 
-void Tracer::Process::_execveat(int dfd, string filename) {
+void Tracer::Process::_execveat(int dfd, string filename, vector<string> args) {
   // Get the path to the executable we will exec
   auto exe_path = resolvePath(filename, dfd);
 
@@ -464,17 +464,6 @@ void Tracer::Process::_execveat(int dfd, string filename) {
 
   // If we reached this point, the executable reference was okay
   _command->isOK(exe_ref);
-
-  // Get the registers so we can read exec arguments
-  auto regs = getRegisters();
-
-  // Read the args array
-  vector<string> args;
-  int child_argc = readData(regs.rsp);
-  for (int i = 0; i < child_argc; i++) {
-    uintptr_t arg_ptr = readData(regs.rsp + (1 + i) * sizeof(long));
-    args.push_back(readString(arg_ptr));
-  }
 
   // Resume the child
   resume();
@@ -1138,11 +1127,12 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
   // process after decoding the syscall arguments.
   switch (regs.SYSCALL_NUMBER) {
     case __NR_execve:
-      p->_execve(p->readString(regs.SYSCALL_ARG1));
+      p->_execve(p->readString(regs.SYSCALL_ARG1), p->readArgvArray(regs.SYSCALL_ARG2));
       break;
 
     case __NR_execveat:
-      p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2));
+      p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
+                   p->readArgvArray(regs.SYSCALL_ARG3));
       break;
 
     case __NR_stat:
@@ -1501,6 +1491,24 @@ uintptr_t Tracer::Process::readData(uintptr_t tracee_pointer) {
   uintptr_t result = ptrace(PTRACE_PEEKDATA, _pid, tracee_pointer, nullptr);
   FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
   return result;
+}
+
+vector<string> Tracer::Process::readArgvArray(uintptr_t tracee_pointer) {
+  vector<string> args;
+
+  size_t arg_index = 0;
+  while (true) {
+    // Read the pointer to the argument string from the array
+    uintptr_t arg_ptr = readData(tracee_pointer + arg_index * sizeof(long));
+
+    // If we hit NULL, return the args vector
+    if (reinterpret_cast<void*>(arg_ptr) == NULL) return args;
+
+    // Otherwise, read the string and add it to the array
+    args.push_back(readString(arg_ptr));
+
+    arg_index++;
+  }
 }
 
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.

@@ -84,6 +84,9 @@ class Tracer {
     /// Read an 8-byte data value from this process' memory
     uintptr_t readData(uintptr_t tracee_pointer);
 
+    /// Read a null-terminated array of strings
+    vector<string> readArgvArray(uintptr_t tracee_pointer);
+
     /// Resolve and normalize a path
     /// Returns an absolute path
     path resolvePath(path p, int at = AT_FDCWD);
@@ -107,7 +110,7 @@ class Tracer {
     void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off);
     int _dup(int fd);
     void _sendfile(int out_fd, int in_fd);
-    void _execveat(int dfd, string filename);
+    void _execveat(int dfd, string filename, vector<string> args);
     void _fcntl(int fd, int cmd, unsigned long arg);
     void _truncate(string path, long length);
     void _ftruncate(int fd, long length);
@@ -153,7 +156,7 @@ class Tracer {
     void _writev(int fd) { _write(fd); }
     void _pipe(int* fds) { _pipe2(fds, 0); }
     void _dup2(int oldfd, int newfd) { _dup3(oldfd, newfd, 0); }
-    void _execve(string filename) { _execveat(AT_FDCWD, filename); }
+    void _execve(string filename, vector<string> args) { _execveat(AT_FDCWD, filename, args); }
     void _getdents(int fd) { _read(fd); }
     void _rename(string n1, string n2) { _renameat(AT_FDCWD, n1, AT_FDCWD, n2); }
     void _mkdir(string p, mode_t mode) { _mkdirat(AT_FDCWD, p, mode); }
