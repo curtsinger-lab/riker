@@ -25,6 +25,7 @@
 #include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <syscall.h>
@@ -1465,51 +1466,87 @@ user_regs_struct Tracer::Process::getRegisters() {
 }
 
 string Tracer::Process::readString(uintptr_t tracee_pointer) {
-  string output;
+  // Strings are just char arrays terminated by '\0'
+  auto data = readTerminatedArray<char, '\0'>(tracee_pointer);
 
-  // Loop to fetch words at a time until we find a null byte
-  while (true) {
-    // To properly check for errors when doing PEEKDATA, we need to clear then check errno,
-    // since PEEKDATA could validly return -1.
-    errno = 0;
-    long data = ptrace(PTRACE_PEEKDATA, _pid, tracee_pointer + output.size(), nullptr);
-    FAIL_IF(errno != 0) << "Failed to read string from traced process: " << ERR;
-
-    // Copy in the data
-    for (size_t i = 0; i < sizeof(long); i++) {
-      char c = ((char*)&data)[i];
-      if (c == '\0')
-        return output;
-      else
-        output.push_back(c);
-    }
-  }
+  // Convert the result to a string
+  return string(data.begin(), data.end());
 }
 
-uintptr_t Tracer::Process::readData(uintptr_t tracee_pointer) {
-  // Clear errno so we can detect errors
-  errno = 0;
-  uintptr_t result = ptrace(PTRACE_PEEKDATA, _pid, tracee_pointer, nullptr);
-  FAIL_IF(errno != 0) << "Failed to read data from traced process: " << ERR;
+// Read a value of type T from this process
+template <typename T>
+T Tracer::Process::readData(uintptr_t tracee_pointer) {
+  // Reserve space for the value we will read
+  T result;
+
+  // Set up iovec structs for the remote read and local write
+  struct iovec local = {.iov_base = &result, .iov_len = sizeof(T)};
+  struct iovec remote = {.iov_base = (void*)tracee_pointer, .iov_len = sizeof(T)};
+
+  // Do the read
+  auto rc = process_vm_readv(_pid, &local, 1, &remote, 1, 0);
+
+  // Check the result
+  FAIL_IF(rc != sizeof(T)) << "Failed to read data from traced process";
+
   return result;
 }
 
-vector<string> Tracer::Process::readArgvArray(uintptr_t tracee_pointer) {
-  vector<string> args;
+// Read an array of values up to a terminating value
+template <typename T, T Terminator, size_t BatchSize>
+vector<T> Tracer::Process::readTerminatedArray(uintptr_t tracee_pointer) {
+  // We will read BatchSize values at a time into this buffer
+  T buffer[BatchSize];
 
-  size_t arg_index = 0;
+  // As we go, we'll build the vector of values we read
+  vector<T> result;
+
+  // Keep track of our position in the remote array
+  size_t position = 0;
+
   while (true) {
-    // Read the pointer to the argument string from the array
-    uintptr_t arg_ptr = readData(tracee_pointer + arg_index * sizeof(long));
+    // Set up iovecs to read from the array into buffer
+    struct iovec local = {.iov_base = buffer, .iov_len = sizeof(buffer)};
+    struct iovec remote = {.iov_base = (T*)tracee_pointer + position, .iov_len = sizeof(buffer)};
 
-    // If we hit NULL, return the args vector
-    if (reinterpret_cast<void*>(arg_ptr) == NULL) return args;
+    // Do the read. The result is the number of bytes read, or -1 on failure.
+    auto rc = process_vm_readv(_pid, &local, 1, &remote, 1, 0);
 
-    // Otherwise, read the string and add it to the array
-    args.push_back(readString(arg_ptr));
+    // Check for failure
+    FAIL_IF(rc == -1) << "Failed to read data from traced process: " << ERR;
 
-    arg_index++;
+    // Our position in the remote array is advanced by the number of bytes read. This will usually
+    // be BatchSize, but reading can end early when we hit the end of a page/region
+    position += rc;
+
+    // Let the result vector know we're about to append a bunch of data
+    result.reserve(result.size() + rc / sizeof(T));
+
+    // Scan for a terminator
+    for (size_t i = 0; i < rc / sizeof(T); i++) {
+      // If we find a termiantor, it's time to return
+      if (buffer[i] == Terminator) {
+        // Insert all elements from buffer up to (but not including) the terminator
+        result.insert(result.end(), buffer, buffer + i);
+        return result;
+      }
+    }
+
+    // No terminator found. We'll do another round of reading.
+
+    // Copy all elements from buffer into the result vector
+    result.insert(result.end(), buffer, buffer + BatchSize);
   }
+}
+
+vector<string> Tracer::Process::readArgvArray(uintptr_t tracee_pointer) {
+  auto arg_pointers = readTerminatedArray<uintptr_t, 0>(tracee_pointer);
+
+  vector<string> args;
+  for (auto arg_ptr : arg_pointers) {
+    args.push_back(readString(arg_ptr));
+  }
+  return args;
 }
 
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.

@@ -23,6 +23,7 @@ using std::map;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 using std::filesystem::path;
 
@@ -81,8 +82,13 @@ class Tracer {
     /// Read a string from this process' memory
     string readString(uintptr_t tracee_pointer);
 
-    /// Read an 8-byte data value from this process' memory
-    uintptr_t readData(uintptr_t tracee_pointer);
+    /// Read a value from this process' memory
+    template <typename T = uintptr_t>
+    T readData(uintptr_t tracee_pointer);
+
+    /// Read a terminated array from this process' memory
+    template <typename T, T Terminator, size_t BatchSize = 128>
+    vector<T> readTerminatedArray(uintptr_t tracee_pointer);
 
     /// Read a null-terminated array of strings
     vector<string> readArgvArray(uintptr_t tracee_pointer);
@@ -187,6 +193,7 @@ class Tracer {
     void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
     Tracer& _tracer;
+    int _memfd;
     pid_t _pid;
     string _cwd;
     string _root;
