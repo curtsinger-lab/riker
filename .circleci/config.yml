@@ -3,14 +3,12 @@ version: 2.1
 executors:
   default:
     docker:
-      - image: ccurtsinger/dodo-test:0.0.1
+      - image: ccurtsinger/dodo-test:0.0.2
 jobs:
   all:
     executor: default
     steps:
       - checkout
-      - run: sudo apt-get update
-      - run: sudo apt-get install git make clang capnproto libcapnp-dev graphviz python-cram
       - run: git submodule update --init
       - run: make
       - run: ./dodo build
