@@ -441,7 +441,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
   resume();
 }
 
-void Tracer::Process::_execveat(int dfd, string filename, vector<string> args) {
+void Tracer::Process::_execveat(int dfd, string filename, vector<string> args, vector<string> env) {
   // Get the path to the executable we will exec
   auto exe_path = resolvePath(filename, dfd);
 
@@ -1127,12 +1127,13 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
   // process after decoding the syscall arguments.
   switch (regs.SYSCALL_NUMBER) {
     case __NR_execve:
-      p->_execve(p->readString(regs.SYSCALL_ARG1), p->readArgvArray(regs.SYSCALL_ARG2));
+      p->_execve(p->readString(regs.SYSCALL_ARG1), p->readArgvArray(regs.SYSCALL_ARG2),
+                 p->readArgvArray(regs.SYSCALL_ARG3));
       break;
 
     case __NR_execveat:
       p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                   p->readArgvArray(regs.SYSCALL_ARG3));
+                   p->readArgvArray(regs.SYSCALL_ARG3), p->readArgvArray(regs.SYSCALL_ARG4));
       break;
 
     case __NR_stat:
