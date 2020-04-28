@@ -11,6 +11,7 @@
 #include "core/Artifact.hh"
 #include "core/Build.hh"
 #include "core/IR.hh"
+#include "core/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 #include "util/util.hh"
@@ -65,13 +66,8 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::run(const set<shared_ptr<Command>>& to_run, Tracer& tracer) {
-  // We are now going to either run this command, or emulate it using the traced steps from a
-  // previous run. We have to execute the command in two cases:
-  //  1. This command is in the to_run set
-  //  2. This command has never run, so we do not have its trace
-
-  if (neverRun() || to_run.find(shared_from_this()) != to_run.end()) {
+void Command::run(Rebuild& rebuild, Tracer& tracer) {
+  if (rebuild.mustRerun(shared_from_this())) {
     // We are rerunning this command, so clear the lists of steps and children
     _steps.clear();
     _children.clear();
@@ -85,69 +81,7 @@ void Command::run(const set<shared_ptr<Command>>& to_run, Tracer& tracer) {
   } else {
     // Emulate this command by running its children
     for (auto& c : _children) {
-      c->run(to_run, tracer);
-    }
-  }
-}
-
-// Check the state of all the inputs to this command and its descendants. Add any commands with
-// changed inputs to the result set
-void Command::checkInputs(Env& env, set<shared_ptr<Command>>& result) {
-  // Notify the environment that we're running this command
-  env.startCommand(shared_from_this());
-
-  bool changed = false;
-  for (auto s : _steps) {
-    if (!s->eval(env)) changed = true;
-
-    // Check child commands as well
-    if (auto launch = dynamic_pointer_cast<Launch>(s)) {
-      // Run through the child command's trace
-      launch->getCommand()->checkInputs(env, result);
-    }
-  }
-
-  // If anything changed, add this command to the result set
-  if (changed) {
-    result.insert(shared_from_this());
-  }
-
-  // This command is now finished. Notify the environment.
-  env.finishCommand();
-}
-
-// Mark this command for rerun. If this is a new marking, propagate it to other commands
-void Command::mark(set<shared_ptr<Command>>& marked) {
-  // If this command was already marked, return
-  if (_marked) return;
-
-  // Otherwise, we have work to do. First, mark this command and add it to the marked set
-  _marked = true;
-  marked.insert(shared_from_this());
-
-  // Rerunning this command also reruns its children
-  for (auto& c : _children) {
-    c->mark(marked);
-  }
-
-  // Rerunning this command requires rerunning any other command whose input we need
-  for (auto& c : _needs) {
-    c->mark(marked);
-  }
-
-  // Rerunning this command requires rerunning any command that uses this command's output
-  for (auto& c : _triggers) {
-    c->mark(marked);
-  }
-}
-
-// Build a set of ancestor commands to cover the marked command set
-void Command::getMarkedAncestors(set<shared_ptr<Command>>& marked) {
-  if (_marked) {
-    marked.insert(shared_from_this());
-  } else {
-    for (auto& c : _children) {
-      c->getMarkedAncestors(marked);
+      c->run(rebuild, tracer);
     }
   }
 }

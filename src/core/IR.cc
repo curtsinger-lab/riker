@@ -13,51 +13,6 @@ static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQ
                                   {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
                                   {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
 
-/******************** Eval Methods ********************/
-
-// Create a PIPE reference
-bool Pipe::eval(Env& env) {
-  return true;
-}
-
-// Create an ACCESS reference
-bool Access::eval(Env& env) {
-  return true;
-}
-
-// Check if a reference would resolve the same way on rebuild
-bool ReferenceResult::eval(Env& env) {
-  // Check the environment
-  return env.checkAccess(_ref, _rc);
-}
-
-// Check if a MetadataMatch predicate would resolve the same way on rebuild
-bool MetadataMatch::eval(Env& env) {
-  return env.checkMetadataMatch(_ref, _version);
-}
-
-// Check if a ContentsMatch predicate would resolve the same ay on rebuild
-bool ContentsMatch::eval(Env& env) {
-  return env.checkContentsMatch(_ref, _version);
-}
-
-// Run a LAUNCH action
-bool Launch::eval(Env& env) {
-  return true;
-}
-
-// Run a SetMetadata action
-bool SetMetadata::eval(Env& env) {
-  env.setMetadata(_ref, _version);
-  return true;
-}
-
-// Run a SetContents action
-bool SetContents::eval(Env& env) {
-  env.setContents(_ref, _version);
-  return true;
-}
-
 /******************** Print Methods ********************/
 
 /// Print a PIPE reference

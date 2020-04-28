@@ -14,6 +14,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Build.hh"
+#include "core/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 #include "util/GraphVisitor.hh"
@@ -68,9 +69,14 @@ void do_build(int jobs, string fingerprint) {
   // Load a build, or set up a default build if necessary
   Build b = open_build(true);
 
-  // Set up and run the build
+  // Compute the rebuild steps
+  Rebuild rebuild = Rebuild::create(b);
+
+  // Set up a tracer to run the build
   Tracer tracer;
-  b.run(tracer);
+
+  // Run the build
+  b.run(rebuild, tracer);
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
@@ -105,13 +111,15 @@ void do_launch() {
 /**
  * Run the `check` subcommand
  */
-void do_check(bool default_build) {
-  if (default_build) {
-    Build().check();
-  } else {
-    Build b = open_build(false);
-    b.check();
-  }
+void do_check() {
+  // Load a build, or set up a default build if necessary
+  Build b = open_build(true);
+
+  // Compute the rebuild steps
+  Rebuild rebuild = Rebuild::create(b);
+
+  // Print the rebuild information
+  rebuild.print(cout);
 }
 
 /**
@@ -235,13 +243,9 @@ int main(int argc, char* argv[]) {
   launch->final_callback([&] { do_launch(); });
 
   /************* Check Subcommand *************/
-  bool default_build = false;
-
   auto check = app.add_subcommand("check", "Check which commands must be rerun and report why");
 
-  check->add_flag("-d,--default", default_build, "Check the state of a default build");
-
-  check->final_callback([&] { do_check(default_build); });
+  check->final_callback([&] { do_check(); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
