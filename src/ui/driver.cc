@@ -228,6 +228,10 @@ int main(int argc, char* argv[]) {
 
   /************* Launch Subcommand (hidden) *************/
   auto launch = app.add_subcommand("launch", "Launch a build script");
+
+  // Hide this subcommand (it's not really useful for the user)
+  launch->group("");
+
   launch->final_callback([&] { do_launch(); });
 
   /************* Check Subcommand *************/
