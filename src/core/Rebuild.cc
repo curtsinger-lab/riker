@@ -4,6 +4,8 @@
 #include <memory>
 #include <ostream>
 
+#include <sys/stat.h>
+
 #include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
@@ -350,14 +352,75 @@ bool Rebuild::checkFilesystemAccess(shared_ptr<Access> ref, int expected) {
   }
 }
 
+/// Equality function for timespec structs
+bool operator==(const timespec& t1, const timespec& t2) {
+  return t1.tv_sec == t2.tv_sec && t1.tv_nsec == t2.tv_nsec;
+}
+
+/// Non-equality operator for timespec structs
+bool operator!=(const timespec& t1, const timespec& t2) {
+  return !(t1 == t2);
+}
+
+/// Printing for timespec structs
+ostream& operator<<(ostream& o, const timespec& ts) {
+  return o << ts.tv_sec << ":" << ts.tv_nsec;
+}
+
 // Check if the metadata for a file on the actual filesystem matches a saved version
 bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, ArtifactVersion v) {
-  // TODO: Pull code over from ArtifactVersion
-  return v.metadataMatch(ref->getPath());
+  // If we don't have metadata saved, we have to assume the file has changed
+  if (!v.hasMetadata()) return false;
+
+  // TODO: handle nofollow!
+
+  // Try to stat. If the stat fails, metadata does not match
+  struct stat metadata;
+  if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
+
+  auto saved_metadata = v.getMetadata();
+
+  // We only compare uid, gid, and mode (which covers both type and permissions)
+  if (metadata.st_uid != saved_metadata.st_uid) {
+    LOG << "uid mismatch";
+    return false;
+  }
+
+  if (metadata.st_gid != saved_metadata.st_gid) {
+    LOG << "gid mismatch";
+    return false;
+  }
+
+  if (metadata.st_mode != saved_metadata.st_mode) {
+    LOG << "mode mismatch";
+    return false;
+  }
+
+  // That's it. Metadata must match
+  return true;
 }
 
 // Check if the contents of a file on the actual fileystem match a saved version
 bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, ArtifactVersion v) {
-  // TODO: move this over from ArtifactVersion
-  return v.contentsMatch(ref->getPath());
+  // For now, we're just going to check mtime
+
+  // If we don't have metadata saved, we have to assume the file has changed
+  if (!v.hasMetadata()) return false;
+
+  // TODO: handle nofollow!
+
+  // Try to stat. If the stat fails, metadata does not match
+  struct stat metadata;
+  if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
+
+  auto saved_metadata = v.getMetadata();
+
+  // If the mtime for the on-disk file is changed, the contents must not match
+  if (metadata.st_mtim != saved_metadata.st_mtim) {
+    LOG << "mtime changed: " << metadata.st_mtim << " vs " << saved_metadata.st_mtim;
+    return false;
+  }
+
+  // That's it for now. If mtime is unchanged, the file must be unchanged
+  return true;
 }

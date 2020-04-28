@@ -62,8 +62,8 @@ class ArtifactVersion {
   /// Check if this version has saved metadata
   bool hasMetadata() const;
 
-  /// Check if the metadata for this version matches what is on disk
-  bool metadataMatch(string path) const;
+  /// Get the saved metadata for this version
+  const struct stat& getMetadata() const;
 
   /// Save a fingerprint of the contents for this version
   void saveFingerprint();
@@ -76,9 +76,6 @@ class ArtifactVersion {
 
   /// Check if the contents of this version have been saved
   bool hasSavedContents() const;
-
-  /// Check if the contents for this version match what is on disk
-  bool contentsMatch(string path) const;
 
   /// Comparison function so versions can be used in sets and maps
   bool operator<(const ArtifactVersion& other) const {
