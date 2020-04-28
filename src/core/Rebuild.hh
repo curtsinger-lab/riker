@@ -21,10 +21,7 @@ class Build;
 class Command;
 class Reference;
 
-/**
- * This class captures all of the logic and state required to plan a rebuild. Instantiating this
- * class performs all of the checks to identify commands that must (or may) need to rerun.
- */
+/// This class captures all of the logic and state required to plan a rebuild.
 class Rebuild {
  private:
   Rebuild() = default;

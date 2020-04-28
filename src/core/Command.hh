@@ -1,8 +1,5 @@
 #pragma once
 
-#include <array>
-#include <cstdio>
-#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -22,9 +19,6 @@
 class Rebuild;
 class Tracer;
 
-using std::array;
-using std::endl;
-using std::make_shared;
 using std::map;
 using std::ostream;
 using std::pair;
@@ -32,7 +26,6 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
-using std::weak_ptr;
 
 /**
  * Representation of a command that runs as part of the build.

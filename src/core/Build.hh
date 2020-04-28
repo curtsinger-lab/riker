@@ -2,20 +2,16 @@
 
 #include <array>
 #include <memory>
-#include <ostream>
-#include <string>
-#include <vector>
 
-#include "core/Artifact.hh"
-#include "core/Command.hh"
-#include "core/IR.hh"
-
+class Artifact;
+class Command;
+class Rebuild;
+class Reference;
 class Tracer;
 
 using std::array;
 using std::make_shared;
-using std::string;
-using std::vector;
+using std::shared_ptr;
 
 enum class FingerprintLevel { None, Local, All };
 
@@ -23,21 +19,7 @@ class Build {
  public:
   /****** Constructors ******/
   /// Create a build
-  Build() {
-    _std_pipes[0] = make_shared<Artifact>("stdin");
-    _std_pipes[1] = make_shared<Artifact>("stdout");
-    _std_pipes[2] = make_shared<Artifact>("stderr");
-
-    _std_refs[0] = make_shared<Pipe>();
-    _std_refs[1] = make_shared<Pipe>();
-    _std_refs[2] = make_shared<Pipe>();
-
-    map<int, FileDescriptor> default_fds = {{0, FileDescriptor(_std_refs[0], _std_pipes[0], false)},
-                                            {1, FileDescriptor(_std_refs[1], _std_pipes[1], true)},
-                                            {2, FileDescriptor(_std_refs[2], _std_pipes[2], true)}};
-
-    _root = Command::createRootCommand(default_fds);
-  }
+  Build();
 
   // Disallow Copy
   Build(const Build&) = delete;
