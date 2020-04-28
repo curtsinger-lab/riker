@@ -51,6 +51,7 @@ string Command::getShortName() const {
   // Add a couple arguments if we have them
   if (_args.size() >= 2) result += " " + _args[1];
   if (_args.size() >= 3) result += " " + _args[2];
+  if (_args.size() >= 4) result += " ...";
 
   return result;
 }
