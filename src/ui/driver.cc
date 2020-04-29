@@ -115,11 +115,8 @@ void do_check() {
   // Load a build, or set up a default build if necessary
   Build b = open_build(true);
 
-  // Compute the rebuild steps
-  Rebuild rebuild = Rebuild::create(b);
-
-  // Print the rebuild information
-  rebuild.print(cout);
+  // Plan and print the rebuild steps
+  cout << Rebuild::create(b);
 }
 
 /**

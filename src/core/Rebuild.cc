@@ -37,22 +37,30 @@ Rebuild Rebuild::create(Build& b) {
 }
 
 // Show rebuild information
-ostream& Rebuild::print(ostream& o) {
-  o << "Commands with changed inputs:" << endl;
-  for (auto& c : _changed) {
-    o << "  " << c << endl;
+ostream& Rebuild::print(ostream& o) const {
+  if (_changed.size() > 0) {
+    o << "Commands with changed inputs:" << endl;
+    for (auto& c : _changed) {
+      o << "  " << c << endl;
+    }
+    o << endl;
   }
-  o << endl;
 
-  o << "Commands whose output is needed:" << endl;
-  for (auto& c : _output_needed) {
-    o << "  " << c << endl;
+  if (_output_needed.size() > 0) {
+    o << "Commands whose output is missing or modified:" << endl;
+    for (auto& c : _output_needed) {
+      o << "  " << c << endl;
+    }
+    o << endl;
   }
-  o << endl;
 
-  o << "All commands that must rerun:" << endl;
-  for (auto& c : _rerun) {
-    o << "  " << c << endl;
+  if (_rerun.size() > 0) {
+    o << "A rebuild will run the following commands:" << endl;
+    for (auto& c : _rerun) {
+      o << "  " << c << endl;
+    }
+  } else {
+    o << "No changes detected" << endl;
   }
 
   return o;

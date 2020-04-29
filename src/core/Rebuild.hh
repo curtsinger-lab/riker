@@ -38,11 +38,14 @@ class Rebuild {
   /// Create a rebuild plan for an existing build trace
   static Rebuild create(Build& b);
 
-  /// Print information about the rebuild state
-  ostream& print(ostream& o);
-
   /// Check if a specific command must rerun
   bool mustRerun(shared_ptr<Command> c) { return _rerun.find(c) != _rerun.end(); }
+
+  /// Print information about the rebuild state
+  ostream& print(ostream& o) const;
+
+  /// Output stream printing
+  friend ostream& operator<<(ostream& o, const Rebuild& r) { return r.print(o); }
 
  private:
   /// Check a command and its descendants to see if any inputs have changed
