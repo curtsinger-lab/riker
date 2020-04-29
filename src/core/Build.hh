@@ -33,8 +33,6 @@ class Build {
 
   /****** Non-trivial methods ******/
 
-  void run(Rebuild& rebuild, Tracer& tracer);
-
   template <class Archive>
   friend void serialize(Archive& archive, Build& g, uint32_t version);
 

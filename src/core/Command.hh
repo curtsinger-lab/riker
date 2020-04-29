@@ -72,8 +72,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Check if this command has never run
   bool neverRun() const { return _steps.size() == 0; }
 
-  /// Run this command, or skip it and descend to its children if a run is unnecessary
-  void run(Rebuild& rebuild, Tracer& tracer);
+  /// Reset the record for this command in preparation for re-execution
+  void reset() {
+    _steps.clear();
+    _children.clear();
+  }
 
   /// Get the path to the executable file this command runs
   const string& getExecutable() const { return _exe; }

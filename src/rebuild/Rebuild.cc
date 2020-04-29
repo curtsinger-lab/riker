@@ -9,13 +9,17 @@
 #include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
+#include "tracing/Tracer.hh"
 
+using std::cout;
 using std::dynamic_pointer_cast;
 using std::endl;
 using std::ostream;
 
+// Create a rebuild plan
 Rebuild Rebuild::create(Build& b) {
-  Rebuild r;
+  // Initialize the rebuild with the build's root command
+  Rebuild r(b.getRoot());
 
   // Identify commands with changed dependencies
   r.findChanges(b.getRoot());
@@ -34,6 +38,40 @@ Rebuild Rebuild::create(Build& b) {
   }
 
   return r;
+}
+
+// Run a rebuild, updating the in-memory build representation
+void Rebuild::run() {
+  // Create a tracing context to run the build
+  Tracer tracer;
+
+  // Run or emulate the root command with the tracer
+  runCommand(_root, tracer);
+
+  // Finish up by saving metadata for any remaining artifacts
+  // TODO: Move this into Rebuild once artifacts are tracked here
+  tracer.finalize();
+}
+
+// Run or emulate a command in this rebuild
+void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
+  // Does the rebuild plan say command c must run?
+  if (mustRerun(c)) {
+    // We are rerunning this command, so clear the lists of steps and children
+    c->reset();
+
+    // Show the command if printing is on, or if this is a dry run
+    if (Build::print_on_run || Build::dry_run) cout << c->getFullName() << endl;
+
+    // Actually run the command, unless this is a dry run
+    if (!Build::dry_run) tracer.run(c);
+
+  } else {
+    // Emulate this command by running its children
+    for (auto& child : c->getChildren()) {
+      runCommand(child, tracer);
+    }
+  }
 }
 
 // Show rebuild information

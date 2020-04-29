@@ -67,26 +67,6 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::run(Rebuild& rebuild, Tracer& tracer) {
-  if (rebuild.mustRerun(shared_from_this())) {
-    // We are rerunning this command, so clear the lists of steps and children
-    _steps.clear();
-    _children.clear();
-
-    // Show the command if printing is on, or if this is a dry run
-    if (Build::print_on_run || Build::dry_run) cout << getFullName() << endl;
-
-    // Actually run the command, unless this is a dry run
-    if (!Build::dry_run) tracer.run(shared_from_this());
-
-  } else {
-    // Emulate this command by running its children
-    for (auto& c : _children) {
-      c->run(rebuild, tracer);
-    }
-  }
-}
-
 /// The command accesses an artifact by path.
 shared_ptr<Reference> Command::access(string path, AccessFlags flags) {
   auto ref = make_shared<Access>(path, flags);

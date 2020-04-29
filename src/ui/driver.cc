@@ -72,11 +72,8 @@ void do_build(int jobs, string fingerprint) {
   // Compute the rebuild steps
   Rebuild rebuild = Rebuild::create(b);
 
-  // Set up a tracer to run the build
-  Tracer tracer;
-
   // Run the build
-  b.run(rebuild, tracer);
+  rebuild.run();
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);

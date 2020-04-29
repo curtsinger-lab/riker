@@ -26,13 +26,3 @@ Build::Build() {
 
   _root = Command::createRootCommand(default_fds);
 }
-
-void Build::run(Rebuild& rebuild, Tracer& tracer) {
-  FAIL_IF(!_root) << "Cannot run an empty build";
-
-  // Run the root command with the tracer
-  _root->run(rebuild, tracer);
-
-  // Finish up tracing by finalizing all artifacts
-  tracer.finalize();
-}

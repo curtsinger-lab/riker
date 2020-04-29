@@ -20,11 +20,12 @@ class Access;
 class Build;
 class Command;
 class Reference;
+class Tracer;
 
 /// This class captures all of the logic and state required to plan a rebuild.
 class Rebuild {
  private:
-  Rebuild() = default;
+  Rebuild(shared_ptr<Command> root) : _root(root) {}
 
  public:
   // Disallow Copy
@@ -38,8 +39,8 @@ class Rebuild {
   /// Create a rebuild plan for an existing build trace
   static Rebuild create(Build& b);
 
-  /// Check if a specific command must rerun
-  bool mustRerun(shared_ptr<Command> c) { return _rerun.find(c) != _rerun.end(); }
+  /// Run the rebuild
+  void run();
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
@@ -48,6 +49,12 @@ class Rebuild {
   friend ostream& operator<<(ostream& o, const Rebuild& r) { return r.print(o); }
 
  private:
+  /// Run or emulate a command from this rebuild
+  void runCommand(shared_ptr<Command> c, Tracer& tracer);
+
+  /// Check if a specific command must rerun
+  bool mustRerun(shared_ptr<Command> c) { return _rerun.find(c) != _rerun.end(); }
+
   /// Check a command and its descendants to see if any inputs have changed
   void findChanges(shared_ptr<Command> c);
 
@@ -82,6 +89,9 @@ class Rebuild {
   bool checkFilesystemContents(shared_ptr<Access> ref, ArtifactVersion v);
 
  private:
+  /// The root command for the build
+  shared_ptr<Command> _root;
+
   /// A map from paths to entries in an emulated view of the filesystem. Each entry tracks the
   /// command that created it, as well as the actual artifact version at the given path
   map<string, ArtifactVersion> _entries;
