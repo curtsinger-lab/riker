@@ -5,7 +5,7 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
-#include "core/Rebuild.hh"
+#include "rebuild/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 

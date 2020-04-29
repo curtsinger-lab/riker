@@ -1,20 +1,20 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <ostream>
+#include <set>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 
 #include "core/Artifact.hh"
 
+using std::map;
 using std::ostream;
 using std::pair;
+using std::set;
 using std::shared_ptr;
 using std::string;
-using std::unordered_map;
-using std::unordered_set;
 
 class Access;
 class Build;
@@ -84,22 +84,22 @@ class Rebuild {
  private:
   /// A map from paths to entries in an emulated view of the filesystem. Each entry tracks the
   /// command that created it, as well as the actual artifact version at the given path
-  unordered_map<string, pair<shared_ptr<Command>, ArtifactVersion>> _entries;
+  map<string, ArtifactVersion> _entries;
 
   /// Track commands with changed inputs
-  unordered_set<shared_ptr<Command>> _changed;
+  set<shared_ptr<Command>> _changed;
 
   /// Track commands whose output is needed
-  unordered_set<shared_ptr<Command>> _output_needed;
+  set<shared_ptr<Command>> _output_needed;
 
   /// Record edges where one command requires output from other commands. These edges are only
   /// created when we do not have a cached copy of the output to stage in.
-  unordered_map<shared_ptr<Command>, unordered_set<shared_ptr<Command>>> _needs_output_from;
+  map<shared_ptr<Command>, set<shared_ptr<Command>>> _needs_output_from;
 
   /// Record edges where one command produces output that is used by other commands.
   /// These edges exist whether or not we have cached copies of output.
-  unordered_map<shared_ptr<Command>, unordered_set<shared_ptr<Command>>> _output_used_by;
+  map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;
 
   /// Track the commands that have been marked for rerunning
-  unordered_set<shared_ptr<Command>> _rerun;
+  set<shared_ptr<Command>> _rerun;
 };

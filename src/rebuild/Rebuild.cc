@@ -130,15 +130,12 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 void Rebuild::checkFinalState() {
   // Loop over all entries in the environment
   for (auto& [path, entry] : _entries) {
-    // Get the command that creates the entry, and the version we expect to find
-    auto& [cmd, version] = entry;
-
     // Create a fake reference to check the file, just for now
     auto ref = make_shared<Access>(path, AccessFlags());
 
     // Check the filesystem to see if the real file matches our expected version
-    if (!checkFilesystemContents(ref, version)) {
-      _output_needed.insert(cmd);
+    if (!checkFilesystemContents(ref, entry)) {
+      _output_needed.insert(entry.getCreator());
     }
   }
 }
@@ -183,15 +180,15 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
       // Get the writing command and the entry it wrote
-      auto [writer, entry] = iter->second;
+      auto [path, entry] = *iter;
 
       // If the writer reruns, the current command will need to rerun too because it depends on
       // writer's output.
-      _output_used_by[writer].insert(c);
+      _output_used_by[entry.getCreator()].insert(c);
 
       // If we had a cached version of the entry writer creates we could skip this, but no caching
       // yet so any time we need to rerun the current command, writer will have to rerun first.
-      _needs_output_from[c].insert(writer);
+      _needs_output_from[c].insert(entry.getCreator());
 
       // This access will succeed, so check if that matches the expected outcome
       return expected == SUCCESS;
@@ -219,22 +216,22 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
       // Found a matching entry
-      auto [writer, current_version] = iter->second;
+      auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[writer].insert(c);
+      _output_used_by[entry.getCreator()].insert(c);
 
       // This command also requires output from the writer. If we have the metadata cached, we don't
       // necessarily have to run the command that sets it, since we can put it in place ourselves.
-      if (!current_version.hasMetadata()) {
-        _needs_output_from[c].insert(writer);
+      if (!entry.hasMetadata()) {
+        _needs_output_from[c].insert(entry.getCreator());
       } else {
         // TODO: This may be the place to record that we have to stage in the expected artifact
         // version if this command is run and the writer is not.
       }
 
       // Does the current version in the environment match the expected version?
-      return current_version == v;
+      return entry == v;
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemMetadata(a, v);
@@ -259,22 +256,22 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
     auto iter = _entries.find(a->getPath());
     if (iter != _entries.end()) {
       // Found a matching entry
-      auto [writer, current_version] = iter->second;
+      auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[writer].insert(c);
+      _output_used_by[entry.getCreator()].insert(c);
 
       // This command also requires output from the writer
       // If we have file saved we can stage it in instead of running the writing command.
-      if (!current_version.hasSavedContents()) {
-        _needs_output_from[c].insert(writer);
+      if (!entry.hasSavedContents()) {
+        _needs_output_from[c].insert(entry.getCreator());
       } else {
         // TODO: This may be the place to record that we have to stage in the expected artifact
         // version if this command is run and the writer is not.
       }
 
       // Does the current version in the environment match the expected version?
-      return current_version == v;
+      return entry == v;
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemContents(a, v);
@@ -294,7 +291,7 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
     // TODO: Deal with links, path normalization, etc.
-    _entries[a->getPath()] = {c, v};
+    _entries[a->getPath()] = v;
 
   } else {
     WARN << "Unsupported reference type: " << ref;
@@ -309,7 +306,7 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
     // TODO: Deal with links, path normalization, etc.
-    _entries[a->getPath()] = {c, v};
+    _entries[a->getPath()] = v;
 
   } else {
     WARN << "Unsupported reference type: " << ref;

@@ -87,6 +87,9 @@ class ArtifactVersion {
     return std::tie(_artifact, _index) == std::tie(other._artifact, other._index);
   }
 
+  /// Inequality check
+  bool operator!=(const ArtifactVersion& other) const { return !(*this == other); }
+
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, ArtifactVersion& v, const uint32_t version);
@@ -172,10 +175,12 @@ class Artifact : public enable_shared_from_this<Artifact> {
     VersionData(shared_ptr<Command> c) : creator(c) {}
 
     weak_ptr<Command> creator;              //< Which command created this version?
-    bool accessed = false;                  //< Has this version been accessed by any commands?
     optional<struct stat> metadata;         //< Saved metadata for this version
     optional<vector<uint8_t>> fingerprint;  //< Saved fingerprint for this version
     optional<string> saved;  //< Name of the file that contains a copy of this version
+
+    /*** Transient Data (not serialized) ***/
+    bool accessed = false;  //< Has this version been accessed by any commands?
   };
 
  private:

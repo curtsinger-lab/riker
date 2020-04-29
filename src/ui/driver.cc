@@ -14,7 +14,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Build.hh"
-#include "core/Rebuild.hh"
+#include "rebuild/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 #include "util/GraphVisitor.hh"
