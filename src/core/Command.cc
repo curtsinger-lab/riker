@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 
+#include <linux/limits.h>
+
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/Build.hh"
@@ -14,7 +16,6 @@
 #include "rebuild/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
-#include "util/util.hh"
 
 using std::array;
 using std::cout;
@@ -24,6 +25,22 @@ using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
+
+string readlink(string path) {
+  char* buffer = nullptr;
+  ssize_t capacity = 0;
+  ssize_t bytes_read = 0;
+
+  do {
+    capacity += PATH_MAX;
+    buffer = (char*)realloc(buffer, capacity);
+    bytes_read = readlink(path.c_str(), buffer, capacity);
+  } while (bytes_read == capacity);
+
+  string result(buffer, buffer + bytes_read);
+  free(buffer);
+  return result;
+}
 
 // The root command invokes "dodo launch" to run the actual build script. Construct this command.
 shared_ptr<Command> Command::createRootCommand(map<int, FileDescriptor> fds) {

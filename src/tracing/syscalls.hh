@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdint>
 #include <map>
 #include <string>
 
@@ -23,7 +22,7 @@ using std::string;
 
 // Syscall list derived from syscall defines in /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 
-map<uint32_t, string> syscalls = {
+inline static map<uint32_t, string> syscalls = {
     /* 000 */ SYSCALL_ENTRY(read),
     /* 001 */ SYSCALL_ENTRY(write),
     /* 002 */ SYSCALL_ENTRY(open),
