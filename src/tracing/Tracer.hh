@@ -59,9 +59,9 @@ class Tracer {
  private:
   class Process {
    public:
-    Process(Tracer& tracer, pid_t pid, path cwd, shared_ptr<Command> command,
+    Process(Rebuild& rebuild, pid_t pid, path cwd, shared_ptr<Command> command,
             map<int, FileDescriptor> fds) :
-        _tracer(tracer), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
+        _rebuild(rebuild), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 
     /// Resume a traced process that is currently stopped
     void resume();
@@ -191,8 +191,7 @@ class Tracer {
     void _fstat(int fd) { _fstatat(fd, "", AT_EMPTY_PATH); }
     void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
-    Tracer& _tracer;
-    int _memfd;
+    Rebuild& _rebuild;
     pid_t _pid;
     string _cwd;
     string _root;

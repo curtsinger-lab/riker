@@ -54,7 +54,7 @@ static pid_t launch_traced(shared_ptr<Command> cmd);
 void Tracer::run(shared_ptr<Command> cmd) {
   pid_t pid = launch_traced(cmd);
 
-  _processes[pid] = make_shared<Process>(*this, pid, ".", cmd, cmd->getInitialFDs());
+  _processes[pid] = make_shared<Process>(_rebuild, pid, ".", cmd, cmd->getInitialFDs());
 
   // Sometime we get tracing events before we can process them. This queue holds that list
   list<pair<pid_t, int>> event_queue;
@@ -399,7 +399,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
       _command->isOK(ref);
 
       // Get the artifact that was stat-ed
-      auto artifact = _tracer.getArtifact(ref);
+      auto artifact = _rebuild.getArtifact(ref);
 
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref, artifact);
@@ -454,7 +454,7 @@ void Tracer::Process::_execveat(int dfd, string filename, vector<string> args, v
   _command = _command->launch(exe_path, args, _fds);
 
   // Get the executable file artifact
-  auto exe_artifact = _tracer.getArtifact(exe_ref);
+  auto exe_artifact = _rebuild.getArtifact(exe_ref);
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _command->access(exe_path, {.r = true});
@@ -498,7 +498,7 @@ void Tracer::Process::_truncate(string pathname, long length) {
   /*
     // Get the file
     auto p = resolvePath(pathname);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
 
     // Notify the file of an upcoming change
     if (length == 0) {
@@ -573,7 +573,7 @@ void Tracer::Process::_lchown(string filename, uid_t user, gid_t group) {
   /*
     // Resolve the path without following links, then get the file tracking object
     auto p = resolvePath(filename);
-    auto f = _tracer.getArtifact(p, false);  // Do not follow links
+    auto f = _rebuild.getArtifact(p, false);  // Do not follow links
 
     // Indicate that we may write this file
     f->mayWrite(_command);
@@ -598,7 +598,7 @@ void Tracer::Process::_chroot(string filename) {
   resume();
   /*
     auto p = resolvePath(filename);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
     string newroot = p;
 
     // Record the reference
@@ -624,7 +624,7 @@ void Tracer::Process::_setxattr(string pathname) {
   /*
     // Get the process and file
     auto p = resolvePath(pathname);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
 
     // Notify the file that it may be written
     f->mayWrite(_command);
@@ -647,7 +647,7 @@ void Tracer::Process::_lsetxattr(string pathname) {
     // Get the process and file
     // Same as setxattr, except we do not follow links
     auto p = resolvePath(pathname);
-    auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
+    auto f = _rebuild.getArtifact(pathname, false);  // Do not follow links
 
     // Notify the file that it may be written
     f->mayWrite(_command);
@@ -669,7 +669,7 @@ void Tracer::Process::_getxattr(string pathname) {
   /*
     // Get the process and file
     auto p = resolvePath(pathname);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
 
     // Record the reference
     _command->addReference(p);
@@ -689,7 +689,7 @@ void Tracer::Process::_lgetxattr(string pathname) {
     // Get the process and file
     // Same as getxattr, except we don't follow links
     auto p = resolvePath(pathname);
-    auto f = _tracer.getArtifact(pathname, false);  // Do not follow links
+    auto f = _rebuild.getArtifact(pathname, false);  // Do not follow links
 
     // Record the reference
     _command->addReference(p, {.nofollow = true});
@@ -712,7 +712,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
 
   // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
   // modify the artifact directly. Try to resolve the path now.
-  auto artifact = _tracer.getArtifact(ref);
+  auto artifact = _rebuild.getArtifact(ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -727,7 +727,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
     // we can resolve to. Get it.
     if (!artifact) {
       created = true;
-      artifact = _tracer.getArtifact(ref);
+      artifact = _rebuild.getArtifact(ref);
     }
 
     // The command observed a successful openat, so add this predicate to the command log
@@ -760,7 +760,7 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   resume();
   /*
     auto p = resolvePath(pathname, dfd);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
     bool dir_existed = f != nullptr;
 
     // Record the reference
@@ -775,7 +775,7 @@ void Tracer::Process::_mkdirat(int dfd, string pathname, mode_t mode) {
     if (rc) return;
 
     if (!dir_existed) {
-      f = _tracer.getArtifact(p);
+      f = _rebuild.getArtifact(p);
       f->createdBy(_command);
     }
   */
@@ -797,7 +797,7 @@ void Tracer::Process::_mknodat(int dfd, string filename, mode_t mode, unsigned d
     if (rc != 0) return;
 
     auto p = resolvePath(filename, dfd);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
 
     // Record the reference
     _command->addReference(filename);
@@ -821,7 +821,7 @@ void Tracer::Process::_fchownat(int dfd, string filename, uid_t user, gid_t grou
 
       // Resolve the path, then get the file tracking object
       auto p = resolvePath(filename, dfd);
-      f = _tracer.getArtifact(p, follow_links);
+      f = _rebuild.getArtifact(p, follow_links);
 
       // Record the reference
       _command->addReference(p, Ref::Flags::fromChown(flags));
@@ -847,7 +847,7 @@ void Tracer::Process::_unlinkat(int dfd, string pathname, int flags) {
   resume();
   /*
     auto p = resolvePath(pathname, dfd);
-    auto f = _tracer.getArtifact(p);
+    auto f = _rebuild.getArtifact(p);
 
     // Record the reference
     _command->addReference(p, Ref::Flags::fromUnlink(flags));
@@ -896,7 +896,7 @@ void Tracer::Process::_fchmodat(int dfd, string filename, mode_t mode, int flags
   /*
     // Find the file object
     auto p = resolvePath(filename, dfd);
-    auto f = _tracer.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
+    auto f = _rebuild.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
 
     // Record the reference
     _command->addReference(p, Ref::Flags::fromChmod(flags));
@@ -1000,14 +1000,14 @@ void Tracer::Process::_renameat2(int old_dfd, string oldpath, int new_dfd, strin
   resume();
   /*
     string old_path = resolvePath(oldpath, old_dfd);
-    auto old_f = _tracer.getArtifact(old_path);
+    auto old_f = _rebuild.getArtifact(old_path);
 
     // Record the reference to the old file
     // TODO: Deal with flags
     _command->addReference(old_path);
 
     string new_path = resolvePath(newpath, new_dfd);
-    auto new_f = _tracer.getArtifact(new_path);
+    auto new_f = _rebuild.getArtifact(new_path);
 
     // Record the reference to the new file
     // TODO: Deal with flags
@@ -1077,7 +1077,7 @@ void Tracer::handleFork(shared_ptr<Process> p) {
   LOG << "fork called in " << p;
 
   // Create a new process running the same command
-  auto new_proc = make_shared<Process>(*this, new_pid, p->_cwd, p->_command, p->_fds);
+  auto new_proc = make_shared<Process>(_rebuild, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
 
   LOG << "new process " << new_proc;
