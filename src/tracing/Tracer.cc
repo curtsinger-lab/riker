@@ -36,10 +36,12 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "rebuild/Rebuild.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 #include "util/util.hh"
 
+using std::dynamic_pointer_cast;
 using std::list;
 using std::make_shared;
 using std::pair;
@@ -194,33 +196,8 @@ path Tracer::Process::resolvePath(path p, int at) {
   return full_path.lexically_normal();
 }
 
-shared_ptr<Artifact> Tracer::getArtifact(path p, bool follow_links) {
-  // Now that we have a path, we can stat it
-  struct stat statbuf;
-  int rc;
-  if (follow_links)
-    rc = stat(p.c_str(), &statbuf);
-  else
-    rc = lstat(p.c_str(), &statbuf);
-
-  // If stat failed, there is no artifact to resolve to. Return a null pointer
-  if (rc) return shared_ptr<Artifact>();
-
-  // Check for an existing inode entry
-  auto iter = _artifacts.find(statbuf.st_ino);
-  if (iter != _artifacts.end()) {
-    // Found. Return it.
-    return iter->second;
-  }
-
-  // No existing artifact found. Create a new one.
-  shared_ptr<Artifact> result = make_shared<Artifact>(p);
-
-  // Add the artifact to the map
-  _artifacts.emplace(statbuf.st_ino, result);
-
-  // All done
-  return result;
+shared_ptr<Artifact> Tracer::getArtifact(shared_ptr<Reference> ref) {
+  return _rebuild.getArtifact(ref);
 }
 
 /****************************************************/
@@ -419,6 +396,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
     auto p = resolvePath(pathname, dirfd);
 
     // Create the reference
+    // TODO: handle nofollow
     auto ref = _command->access(p, {});
 
     // Finish the syscall to see if the reference succeeds
@@ -429,7 +407,7 @@ void Tracer::Process::_fstatat(int dirfd, string pathname, int flags) {
       _command->isOK(ref);
 
       // Get the artifact that was stat-ed
-      auto artifact = _tracer.getArtifact(p);
+      auto artifact = _tracer.getArtifact(ref);
 
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref, artifact);
@@ -484,7 +462,7 @@ void Tracer::Process::_execveat(int dfd, string filename, vector<string> args, v
   _command = _command->launch(exe_path, args, _fds);
 
   // Get the executable file artifact
-  auto exe_artifact = _tracer.getArtifact(exe_path, true);
+  auto exe_artifact = _tracer.getArtifact(exe_ref);
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _command->access(exe_path, {.r = true});
@@ -736,13 +714,13 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
   // Convert the path to an absolute, normalized lexical form
   auto p = resolvePath(filename, dfd);
 
-  // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
-  // modify the artifact directly. Try to resolve the path now.
-  auto artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
-
   // The command makes a reference to a path, possibly modifying artifact f
   auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _command->access(p, ref_flags);
+
+  // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
+  // modify the artifact directly. Try to resolve the path now.
+  auto artifact = _tracer.getArtifact(ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -757,7 +735,7 @@ void Tracer::Process::_openat(int dfd, string filename, int flags, mode_t mode) 
     // we can resolve to. Get it.
     if (!artifact) {
       created = true;
-      artifact = _tracer.getArtifact(p, (flags & O_NOFOLLOW) == O_NOFOLLOW);
+      artifact = _tracer.getArtifact(ref);
     }
 
     // The command observed a successful openat, so add this predicate to the command log

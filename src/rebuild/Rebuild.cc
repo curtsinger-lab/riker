@@ -43,14 +43,16 @@ Rebuild Rebuild::create(Build& b) {
 // Run a rebuild, updating the in-memory build representation
 void Rebuild::run() {
   // Create a tracing context to run the build
-  Tracer tracer;
+  Tracer tracer(*this);
 
   // Run or emulate the root command with the tracer
   runCommand(_root, tracer);
 
   // Finish up by saving metadata for any remaining artifacts
-  // TODO: Move this into Rebuild once artifacts are tracked here
-  tracer.finalize();
+  for (auto& [_, artifact] : _artifacts) {
+    artifact->getLatestVersion().saveMetadata();
+    artifact->getLatestVersion().saveFingerprint();
+  }
 }
 
 // Run or emulate a command in this rebuild
@@ -71,6 +73,44 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
     for (auto& child : c->getChildren()) {
       runCommand(child, tracer);
     }
+  }
+}
+
+// Get an artifact during tracing
+shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Reference> ref) {
+  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+    string p = a->getPath();
+    bool follow_links = !a->getFlags().nofollow;
+
+    // Now that we have a path, we can stat it
+    struct stat statbuf;
+    int rc;
+    if (follow_links)
+      rc = stat(p.c_str(), &statbuf);
+    else
+      rc = lstat(p.c_str(), &statbuf);
+
+    // If stat failed, there is no artifact to resolve to. Return a null pointer
+    if (rc) return shared_ptr<Artifact>();
+
+    // Check for an existing inode entry
+    auto iter = _artifacts.find(statbuf.st_ino);
+    if (iter != _artifacts.end()) {
+      // Found. Return it.
+      return iter->second;
+    }
+
+    // No existing artifact found. Create a new one.
+    shared_ptr<Artifact> result = make_shared<Artifact>(p);
+
+    // Add the artifact to the map
+    _artifacts.emplace(statbuf.st_ino, result);
+
+    // All done
+    return result;
+  } else {
+    FAIL << "Unsupported reference type";
+    return nullptr;  // Unreachable
   }
 }
 

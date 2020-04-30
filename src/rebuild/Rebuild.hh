@@ -42,6 +42,9 @@ class Rebuild {
   /// Run the rebuild
   void run();
 
+  /// Get the artifact a reference resolves to
+  shared_ptr<Artifact> getArtifact(shared_ptr<Reference> ref);
+
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 
@@ -92,8 +95,8 @@ class Rebuild {
   /// The root command for the build
   shared_ptr<Command> _root;
 
-  /// A map from paths to entries in an emulated view of the filesystem. Each entry tracks the
-  /// command that created it, as well as the actual artifact version at the given path
+  /// A map from paths to entries in an emulated view of the filesystem. Each entry maps a path
+  /// to a specific artifact version that was placed there by some command.
   map<string, ArtifactVersion> _entries;
 
   /// Track commands with changed inputs
@@ -112,4 +115,7 @@ class Rebuild {
 
   /// Track the commands that have been marked for rerunning
   set<shared_ptr<Command>> _rerun;
+
+  /// A map of artifacts found on the filesystem
+  map<ino_t, shared_ptr<Artifact>> _artifacts;
 };

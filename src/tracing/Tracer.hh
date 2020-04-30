@@ -36,6 +36,8 @@ class Tracer {
   class Process;
 
  public:
+  Tracer(Rebuild& rebuild) : _rebuild(rebuild) {}
+
   void run(shared_ptr<Command> cmd);
 
   /// At the end of a trace, perform some final cleanup actions
@@ -55,7 +57,7 @@ class Tracer {
   void handleExit(shared_ptr<Process> p);
 
   /// Get an artifact at a particular path
-  shared_ptr<Artifact> getArtifact(path p, bool follow_links = true);
+  shared_ptr<Artifact> getArtifact(shared_ptr<Reference> ref);
 
  private:
   class Process {
@@ -203,6 +205,7 @@ class Tracer {
   };
 
  private:
+  Rebuild& _rebuild;
   map<pid_t, shared_ptr<Process>> _processes;
   map<ino_t, shared_ptr<Artifact>> _artifacts;
 };
