@@ -20,6 +20,9 @@ class Tracer {
   void run(shared_ptr<Command> cmd);
 
  private:
+  /// Launch a command with tracing enabled
+  void launchTraced(shared_ptr<Command> cmd);
+
   /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Process> p);
 

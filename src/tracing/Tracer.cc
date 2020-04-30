@@ -23,16 +23,14 @@ using std::make_shared;
 using std::pair;
 using std::shared_ptr;
 
-static pid_t launch_traced(shared_ptr<Command> cmd);
-
 void Tracer::run(shared_ptr<Command> cmd) {
-  pid_t pid = launch_traced(cmd);
-
-  _processes[pid] = make_shared<Process>(_rebuild, pid, ".", cmd, cmd->getInitialFDs());
+  // Launch the command with tracing
+  launchTraced(cmd);
 
   // Sometime we get tracing events before we can process them. This queue holds that list
   list<pair<pid_t, int>> event_queue;
 
+  // Process tracaing events
   while (true) {
     int wait_status;
     pid_t child;
@@ -113,6 +111,134 @@ void Tracer::run(shared_ptr<Command> cmd) {
       handleExit(p);
     }
   }
+}
+
+// Launch a program fully set up with ptrace and seccomp to be traced by the current process.
+// launch_traced will return the PID of the newly created process, which should be running (or at
+// least ready to be waited on) upon return.
+void Tracer::launchTraced(shared_ptr<Command> cmd) {
+  // TODO: Fill this vector in with {parent_fd, child_fd} pairs
+  vector<pair<int, int>> initial_fds;
+
+  // In terms of overall structure, this is a bog standard fork/exec spawning function.
+  //
+  // The bulk of the complexity here is setting up tracing. Instead of just attaching
+  // ptrace and asking our caller to repeatedly use PTRACE_SYSCALL to step through
+  // syscalls, which can be incredibly expensive, we aim to only trigger a stop on
+  // a useful subset. To accomplish this, we instally a seccomp-bpf filter that returns
+  // SECCOMP_RET_TRACE when we want a stop.
+  pid_t child_pid = fork();
+  FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
+
+  if (child_pid == 0) {
+    // This is the child
+
+    // Set up FDs as requested. We assume that all parent FDs are marked CLOEXEC if
+    // necessary and that there are no ordering constraints on duping (e.g. if the
+    // child fd for one entry matches the parent fd of another).
+    for (auto [parent_fd, child_fd] : initial_fds) {
+      int rc = dup2(parent_fd, child_fd);
+      FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
+    }
+
+    // Allow ourselves to be traced by our parent
+    FAIL_IF(ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) << "Failed to start tracing: " << ERR;
+
+    // Lock down the process so that we are allowed to
+    // use seccomp without special permissions
+    FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
+
+    vector<struct sock_filter> filter;
+
+    // Load the syscall number
+    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
+
+    // Loop over syscalls
+    for (auto& entry : syscalls) {
+      uint32_t syscall_nr = entry.first;
+      // Check if the syscall matches the current entry
+      filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_nr, 0, 1));
+
+      // On a match, return trace
+      filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+    }
+
+    // Default case allows the syscall
+    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+
+    struct sock_fprog bpf_program;
+    bpf_program.filter = filter.data();
+    bpf_program.len = filter.size();
+
+    // Actually enable the filter
+    FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)
+        << "Error enabling seccomp: " << ERR;
+
+    // We need to stop here to give our parent a consistent time to add all the
+    // options and correctly configure ptrace. Otherwise it will get a very confusing
+    // response upon exec:
+    // - Because PTRACE_O_TRACEEXEC has not been set (or worse, is racing with the call
+    //   to exec), the parent may receive a SIGTRAP-stop on the exec.
+    // - Because our seccomp program traps execve, the it will attempt to send our parent
+    //   a seccomp stop when the parent is not configured to receive one.
+    // Therefore, to ensure reliable behavior, we wait here, let the parent configure ptrace,
+    // then continue to exec, which will raise two stops that the parent is (now) expecting
+    // to handle.
+    raise(SIGSTOP);
+
+    vector<const char*> args;
+    for (auto& s : cmd->getArguments()) {
+      args.push_back(s.c_str());
+    }
+
+    // Null-terminate the args array
+    args.push_back(nullptr);
+
+    // TODO: explicitly handle the environment
+    execv(cmd->getExecutable().c_str(), (char* const*)args.data());
+
+    // This is unreachable, unless execv fails
+    FAIL << "Failed to start traced program: " << ERR;
+  }
+
+  // In the parent. Wait for the child to reach its exec so that we
+  // have a consistent point to play in. Here we haven't yet set
+  // PTRACE_O_TRACEEXEC, so we will receive the legacy behavior of
+  // a SIGTRAP.
+  int wstatus;
+  waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
+  FAIL_IF(!WIFSTOPPED(wstatus) || WSTOPSIG(wstatus) != SIGSTOP) << "Unexpected stop from child";
+
+  // Set up options to handle everything reliably. We do this before continuing
+  // so that the actual running program has everything properly configured.
+  int options = 0;
+  options |= PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK;  // Follow forks
+  options |= PTRACE_O_TRACEEXEC;     // Handle execs more reliably
+  options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
+  options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
+
+  FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
+      << "Failed to set ptrace options: " << ERR;
+
+  // Let the child restart to reach its exec.
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
+  // Handle a stop on entry to the exec
+  waitpid(child_pid, &wstatus, 0);
+  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
+      << "Unexpected stop from child. Expected SECCOMP";
+
+  // Let the child continue with its exec
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
+  // Handle a stop from inside the exec
+  waitpid(child_pid, &wstatus, 0);
+  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
+      << "Unexpected stop from child. Expected EXEC";
+
+  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+
+  _processes[child_pid] = make_shared<Process>(_rebuild, child_pid, ".", cmd, cmd->getInitialFDs());
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
@@ -483,137 +609,4 @@ void Tracer::handleSyscall(shared_ptr<Process> p) {
         p->resume();
       }
   }
-}
-
-struct InitialFdEntry {
-  int parent_fd;
-  int child_fd;
-};
-
-// Launch a program fully set up with ptrace and seccomp to be traced by the current process.
-// launch_traced will return the PID of the newly created process, which should be running (or at
-// least ready to be waited on) upon return.
-static pid_t launch_traced(shared_ptr<Command> cmd) {
-  // TODO: Fill these in
-  vector<InitialFdEntry> initial_fds;
-
-  // In terms of overall structure, this is a bog standard fork/exec spawning function.
-  //
-  // The bulk of the complexity here is setting up tracing. Instead of just attaching
-  // ptrace and asking our caller to repeatedly use PTRACE_SYSCALL to step through
-  // syscalls, which can be incredibly expensive, we aim to only trigger a stop on
-  // a useful subset. To accomplish this, we instally a seccomp-bpf filter that returns
-  // SECCOMP_RET_TRACE when we want a stop.
-  pid_t child_pid = fork();
-  FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
-
-  if (child_pid == 0) {
-    // This is the child
-
-    // Set up FDs as requested. We assume that all parent FDs are marked CLOEXEC if
-    // necessary and that there are no ordering constraints on duping (e.g. if the
-    // child fd for one entry matches the parent fd of another).
-    for (size_t fd_index = 0; fd_index < initial_fds.size(); fd_index++) {
-      int rc = dup2(initial_fds[fd_index].parent_fd, initial_fds[fd_index].child_fd);
-      FAIL_IF(rc != initial_fds[fd_index].child_fd) << "Failed to initialize fds: " << ERR;
-    }
-
-    // Allow ourselves to be traced by our parent
-    FAIL_IF(ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) << "Failed to start tracing: " << ERR;
-
-    // Lock down the process so that we are allowed to
-    // use seccomp without special permissions
-    FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
-
-    vector<struct sock_filter> filter;
-
-    // Load the syscall number
-    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
-
-    // Loop over syscalls
-    for (auto& entry : syscalls) {
-      uint32_t syscall_nr = entry.first;
-      // Check if the syscall matches the current entry
-      filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_nr, 0, 1));
-
-      // On a match, return trace
-      filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
-    }
-
-    // Default case allows the syscall
-    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-
-    struct sock_fprog bpf_program;
-    bpf_program.filter = filter.data();
-    bpf_program.len = filter.size();
-
-    // Actually enable the filter
-    FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)
-        << "Error enabling seccomp: " << ERR;
-
-    // We need to stop here to give our parent a consistent time to add all the
-    // options and correctly configure ptrace. Otherwise it will get a very confusing
-    // response upon exec:
-    // - Because PTRACE_O_TRACEEXEC has not been set (or worse, is racing with the call
-    //   to exec), the parent may receive a SIGTRAP-stop on the exec.
-    // - Because our seccomp program traps execve, the it will attempt to send our parent
-    //   a seccomp stop when the parent is not configured to receive one.
-    // Therefore, to ensure reliable behavior, we wait here, let the parent configure ptrace,
-    // then continue to exec, which will raise two stops that the parent is (now) expecting
-    // to handle.
-    raise(SIGSTOP);
-
-    vector<const char*> args;
-    for (auto& s : cmd->getArguments()) {
-      args.push_back(s.c_str());
-    }
-
-    // Null-terminate the args array
-    args.push_back(nullptr);
-
-    // TODO: explicitly handle the environment
-    execv(cmd->getExecutable().c_str(), (char* const*)args.data());
-
-    // This is unreachable, unless execv fails
-    FAIL << "Failed to start traced program: " << ERR;
-  }
-
-  // In the parent. Wait for the child to reach its exec so that we
-  // have a consistent point to play in. Here we haven't yet set
-  // PTRACE_O_TRACEEXEC, so we will receive the legacy behavior of
-  // a SIGTRAP.
-  int wstatus;
-  waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
-  FAIL_IF(!WIFSTOPPED(wstatus) || WSTOPSIG(wstatus) != SIGSTOP) << "Unexpected stop from child";
-
-  // Set up options to handle everything reliably. We do this before continuing
-  // so that the actual running program has everything properly configured.
-  int options = 0;
-  options |= PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK;  // Follow forks
-  options |= PTRACE_O_TRACEEXEC;     // Handle execs more reliably
-  options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
-  options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
-
-  FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
-      << "Failed to set ptrace options: " << ERR;
-
-  // Let the child restart to reach its exec.
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
-
-  // Handle a stop on entry to the exec
-  waitpid(child_pid, &wstatus, 0);
-  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
-      << "Unexpected stop from child. Expected SECCOMP";
-
-  // Let the child continue with its exec
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
-
-  // Handle a stop from inside the exec
-  waitpid(child_pid, &wstatus, 0);
-  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
-      << "Unexpected stop from child. Expected EXEC";
-
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
-
-  return child_pid;
 }
