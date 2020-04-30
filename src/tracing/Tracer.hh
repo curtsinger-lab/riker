@@ -40,9 +40,6 @@ class Tracer {
 
   void run(shared_ptr<Command> cmd);
 
-  /// At the end of a trace, perform some final cleanup actions
-  void finalize();
-
  private:
   /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Process> p);
@@ -207,5 +204,4 @@ class Tracer {
  private:
   Rebuild& _rebuild;
   map<pid_t, shared_ptr<Process>> _processes;
-  map<ino_t, shared_ptr<Artifact>> _artifacts;
 };
