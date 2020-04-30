@@ -119,7 +119,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (Build::ignore_self_reads && v.getCreator() == shared_from_this()) return;
+  if (Build::ignore_self_reads && v->getCreator() == shared_from_this()) return;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
   if (Build::skip_repeat_checks) {
@@ -128,10 +128,10 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   }
 
   // The version has been accessed
-  v.setAccessed();
+  v->setAccessed();
 
   // Make sure we have metadata saved for that version
-  v.saveMetadata();
+  v->saveMetadata();
 
   // Record the dependency on metadata
   _steps.push_back(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
@@ -144,7 +144,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (Build::ignore_self_reads && v.getCreator() == shared_from_this()) return;
+  if (Build::ignore_self_reads && v->getCreator() == shared_from_this()) return;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
   if (Build::skip_repeat_checks) {
@@ -153,10 +153,10 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   }
 
   // The version has been accessed
-  v.setAccessed();
+  v->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  v.saveFingerprint();
+  v->saveFingerprint();
 
   // Record the dependency
   _steps.push_back(make_shared<ContentsMatch>(ref, v));
@@ -191,7 +191,7 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
     // If this command created the last version, and no other command has accessed it, we can
     // combine the updates into a single update. That means we don't need to tag a new version.
-    if (Build::combine_writes && v.getCreator() == shared_from_this() && !v.isAccessed()) return;
+    if (Build::combine_writes && v->getCreator() == shared_from_this() && !v->isAccessed()) return;
 
     // If we reach this point, the command is creating a new version of the artifact
     auto new_version = a->tagNewVersion(shared_from_this());

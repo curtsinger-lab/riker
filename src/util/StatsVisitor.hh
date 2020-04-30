@@ -43,12 +43,12 @@ class StatsVisitor {
         size_t skipped = 0;
         o << "  " << a << endl;
         for (auto v : a->getVersions()) {
-          bool metadata = v.hasMetadata();
-          bool fingerprint = v.hasFingerprint();
-          bool contents = v.hasSavedContents();
+          bool metadata = v->hasMetadata();
+          bool fingerprint = v->hasFingerprint();
+          bool contents = v->hasSavedContents();
 
           if (metadata || fingerprint || contents) {
-            o << "    v" << v.getIndex() << ":";
+            o << "    v" << v->getIndex() << ":";
             if (metadata) o << " metadata";
             if (fingerprint) o << " fingerprint";
             if (contents) o << " contents";
@@ -104,7 +104,7 @@ class StatsVisitor {
     }
   }
 
-  void visit(ArtifactVersion v) { visit(v.getArtifact()); }
+  void visit(shared_ptr<Version> v) { visit(v->getArtifact()); }
 
   void visit(shared_ptr<Artifact> a) {
     // set.insert() returns pair(iter, true) if the item is new.

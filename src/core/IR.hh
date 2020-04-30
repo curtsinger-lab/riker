@@ -116,8 +116,8 @@ class Access : public Reference {
  *
  * There are several types of predicates:
  * - REFERECE_RESULT(r : Reference, rc : int)
- * - METADATA_MATCH(r : Reference, v : ArtifactVersion)
- * - CONTENTS_MATCH(r : Reference, v : ArtifactVersion)
+ * - METADATA_MATCH(r : Reference, v : shared_ptr<Version>)
+ * - CONTENTS_MATCH(r : Reference, v : shared_ptr<Version>)
  */
 class Predicate : public Step {};
 
@@ -161,14 +161,14 @@ class MetadataMatch : public Predicate {
 
  public:
   /// Create a METADATA_MATCH predicate
-  MetadataMatch(shared_ptr<Reference> ref, ArtifactVersion version) :
+  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  ArtifactVersion getVersion() const { return _version; }
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -178,8 +178,8 @@ class MetadataMatch : public Predicate {
   friend void serialize(Archive& archive, MetadataMatch& p, const uint32_t version);
 
  private:
-  shared_ptr<Reference> _ref;  //< The reference being examined
-  ArtifactVersion _version;    //< The artifact version whose metadata the reference must match
+  shared_ptr<Reference> _ref;    //< The reference being examined
+  shared_ptr<Version> _version;  //< The artifact version whose metadata the reference must match
 };
 
 /**
@@ -192,14 +192,14 @@ class ContentsMatch : public Predicate {
 
  public:
   /// Create a CONTENTS_MATCH predicate
-  ContentsMatch(shared_ptr<Reference> ref, ArtifactVersion version) :
+  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  ArtifactVersion getVersion() const { return _version; }
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -209,8 +209,8 @@ class ContentsMatch : public Predicate {
   friend void serialize(Archive& archive, ContentsMatch& p, const uint32_t version);
 
  private:
-  shared_ptr<Reference> _ref;  //< The reference being examined
-  ArtifactVersion _version;    //< The artifact version whose contents the reference must match
+  shared_ptr<Reference> _ref;    //< The reference being examined
+  shared_ptr<Version> _version;  //< The artifact version whose contents the reference must match
 };
 
 /**
@@ -262,13 +262,14 @@ class SetMetadata : public Action {
 
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
+  SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+      _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
-  ArtifactVersion getVersion() const { return _version; }
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -278,8 +279,8 @@ class SetMetadata : public Action {
   friend void serialize(Archive& archive, SetMetadata& a, const uint32_t version);
 
  private:
-  shared_ptr<Reference> _ref;  //< The reference used for this action
-  ArtifactVersion _version;    //< The artifact version with the metadata written by this action
+  shared_ptr<Reference> _ref;    //< The reference used for this action
+  shared_ptr<Version> _version;  //< The artifact version with the metadata written by this action
 };
 
 /**
@@ -292,13 +293,14 @@ class SetContents : public Action {
 
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, ArtifactVersion version) : _ref(ref), _version(version) {}
+  SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+      _ref(ref), _version(version) {}
 
   /// Get the reference used for this action
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the artifact version that is put in place
-  ArtifactVersion getVersion() const { return _version; }
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
@@ -308,6 +310,6 @@ class SetContents : public Action {
   friend void serialize(Archive& archive, SetContents& a, const uint32_t version);
 
  private:
-  shared_ptr<Reference> _ref;  //< The reference used for this action
-  ArtifactVersion _version;    //< The artifact version with the contents written by this action
+  shared_ptr<Reference> _ref;    //< The reference used for this action
+  shared_ptr<Version> _version;  //< The artifact version with the contents written by this action
 };

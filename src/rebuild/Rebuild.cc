@@ -50,8 +50,8 @@ void Rebuild::run() {
 
   // Finish up by saving metadata for any remaining artifacts
   for (auto& [_, artifact] : _artifacts) {
-    artifact->getLatestVersion().saveMetadata();
-    artifact->getLatestVersion().saveFingerprint();
+    artifact->getLatestVersion()->saveMetadata();
+    artifact->getLatestVersion()->saveFingerprint();
   }
 }
 
@@ -213,7 +213,7 @@ void Rebuild::checkFinalState() {
 
     // Check the filesystem to see if the real file matches our expected version
     if (!checkFilesystemContents(ref, entry)) {
-      _output_needed.insert(entry.getCreator());
+      _output_needed.insert(entry->getCreator());
     }
   }
 }
@@ -262,11 +262,11 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
 
       // If the writer reruns, the current command will need to rerun too because it depends on
       // writer's output.
-      _output_used_by[entry.getCreator()].insert(c);
+      _output_used_by[entry->getCreator()].insert(c);
 
       // If we had a cached version of the entry writer creates we could skip this, but no caching
       // yet so any time we need to rerun the current command, writer will have to rerun first.
-      _needs_output_from[c].insert(entry.getCreator());
+      _needs_output_from[c].insert(entry->getCreator());
 
       // This access will succeed, so check if that matches the expected outcome
       return expected == SUCCESS;
@@ -281,7 +281,8 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
   }
 }
 
-bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v) {
+bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                            shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // TODO: Handle pipes correctly.
@@ -297,12 +298,12 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[entry.getCreator()].insert(c);
+      _output_used_by[entry->getCreator()].insert(c);
 
       // This command also requires output from the writer. If we have the metadata cached, we don't
       // necessarily have to run the command that sets it, since we can put it in place ourselves.
-      if (!entry.hasMetadata()) {
-        _needs_output_from[c].insert(entry.getCreator());
+      if (!entry->hasMetadata()) {
+        _needs_output_from[c].insert(entry->getCreator());
       } else {
         // TODO: This may be the place to record that we have to stage in the expected artifact
         // version if this command is run and the writer is not.
@@ -321,7 +322,8 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   }
 }
 
-bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v) {
+bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                            shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // TODO: Handle pipes correctly.
@@ -337,12 +339,12 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[entry.getCreator()].insert(c);
+      _output_used_by[entry->getCreator()].insert(c);
 
       // This command also requires output from the writer
       // If we have file saved we can stage it in instead of running the writing command.
-      if (!entry.hasSavedContents()) {
-        _needs_output_from[c].insert(entry.getCreator());
+      if (!entry->hasSavedContents()) {
+        _needs_output_from[c].insert(entry->getCreator());
       } else {
         // TODO: This may be the place to record that we have to stage in the expected artifact
         // version if this command is run and the writer is not.
@@ -361,7 +363,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   }
 }
 
-void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v) {
+void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     WARN << "Warning: Communication through pipes is not yet tracked correctly.";
@@ -376,7 +378,7 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   }
 }
 
-void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v) {
+void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     WARN << "Warning: Communication through pipes is not yet tracked correctly.";
@@ -451,9 +453,9 @@ ostream& operator<<(ostream& o, const timespec& ts) {
 }
 
 // Check if the metadata for a file on the actual filesystem matches a saved version
-bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, ArtifactVersion v) {
+bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v) {
   // If we don't have metadata saved, we have to assume the file has changed
-  if (!v.hasMetadata()) return false;
+  if (!v->hasMetadata()) return false;
 
   // TODO: handle nofollow!
 
@@ -461,7 +463,7 @@ bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, ArtifactVersion v)
   struct stat metadata;
   if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
 
-  auto saved_metadata = v.getMetadata();
+  auto saved_metadata = v->getMetadata();
 
   // We only compare uid, gid, and mode (which covers both type and permissions)
   if (metadata.st_uid != saved_metadata.st_uid) {
@@ -484,11 +486,11 @@ bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, ArtifactVersion v)
 }
 
 // Check if the contents of a file on the actual fileystem match a saved version
-bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, ArtifactVersion v) {
+bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v) {
   // For now, we're just going to check mtime
 
   // If we don't have metadata saved, we have to assume the file has changed
-  if (!v.hasMetadata()) return false;
+  if (!v->hasMetadata()) return false;
 
   // TODO: handle nofollow!
 
@@ -496,7 +498,7 @@ bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, ArtifactVersion v)
   struct stat metadata;
   if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
 
-  auto saved_metadata = v.getMetadata();
+  auto saved_metadata = v->getMetadata();
 
   // If the mtime for the on-disk file is changed, the contents must not match
   if (metadata.st_mtim != saved_metadata.st_mtim) {

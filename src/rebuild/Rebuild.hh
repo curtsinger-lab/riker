@@ -71,25 +71,25 @@ class Rebuild {
   bool checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected);
 
   /// Check if a command's dependency on metadata resolves to the expected version
-  bool checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v);
+  bool checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
   /// Check if a command's dependency on contents resolves to the expected version
-  bool checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v);
+  bool checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
   /// Command c sets file metadata in the rebuild environment
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v);
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
   /// Command c sets file contents in the rebuild environment
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, ArtifactVersion v);
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
   /// Check if an access resolves as expected against the actual filesystem state
   bool checkFilesystemAccess(shared_ptr<Access> ref, int expected);
 
   /// Check if a reference to the actual filesystem yields the expected metadata
-  bool checkFilesystemMetadata(shared_ptr<Access> ref, ArtifactVersion v);
+  bool checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v);
 
   /// Check if a reference to the actual filesystem yields the expected contents
-  bool checkFilesystemContents(shared_ptr<Access> ref, ArtifactVersion v);
+  bool checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v);
 
  private:
   /// The root command for the build
@@ -97,7 +97,7 @@ class Rebuild {
 
   /// A map from paths to entries in an emulated view of the filesystem. Each entry maps a path
   /// to a specific artifact version that was placed there by some command.
-  map<string, ArtifactVersion> _entries;
+  map<string, shared_ptr<Version>> _entries;
 
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;

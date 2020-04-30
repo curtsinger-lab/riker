@@ -118,17 +118,6 @@ void serialize(Archive& ar, Artifact& a, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(Artifact::VersionData, ArchiveVersion);
-
-template <class Archive>
-void serialize(Archive& ar, Artifact::VersionData& v, const uint32_t version) {
-  if (version == ArchiveVersion) {
-    ar(v.creator, v.metadata, v.fingerprint, v.saved);
-  } else {
-    throw db_version_exception(version);
-  }
-}
-
 CEREAL_CLASS_VERSION(struct stat, ArchiveVersion);
 
 template <class Archive>
@@ -151,12 +140,12 @@ void serialize(Archive& ar, struct timespec& ts, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(ArtifactVersion, ArchiveVersion);
+CEREAL_CLASS_VERSION(::Version, ArchiveVersion);
 
 template <class Archive>
-void serialize(Archive& ar, ArtifactVersion& v, const uint32_t version) {
+void serialize(Archive& ar, Version& v, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(v._artifact, v._index);
+    ar(v._artifact, v._index, v._creator, v._metadata, v._fingerprint, v._saved);
   } else {
     throw db_version_exception(version);
   }

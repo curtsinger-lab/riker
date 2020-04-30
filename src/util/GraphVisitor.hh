@@ -71,7 +71,7 @@ class GraphVisitor {
 
         // Add rows for artifact versions
         for (auto& v : a->getVersions()) {
-          string version_id = "v" + to_string(v.getIndex());
+          string version_id = "v" + to_string(v->getIndex());
           o << "<tr><td port=\"" + version_id + "\"></td></tr>";
         }
       }
@@ -135,16 +135,16 @@ class GraphVisitor {
     }
   }
 
-  void visitInputEdge(shared_ptr<Command> c, ArtifactVersion v) {
-    if (visitArtifact(v.getArtifact())) {
-      string version_id = _artifacts[v.getArtifact()] + ":v" + to_string(v.getIndex());
+  void visitInputEdge(shared_ptr<Command> c, shared_ptr<Version> v) {
+    if (visitArtifact(v->getArtifact())) {
+      string version_id = _artifacts[v->getArtifact()] + ":v" + to_string(v->getIndex());
       _io_edges.emplace(version_id, _commands[c]);
     }
   }
 
-  void visitOutputEdge(shared_ptr<Command> c, ArtifactVersion v) {
-    if (visitArtifact(v.getArtifact())) {
-      string version_id = _artifacts[v.getArtifact()] + ":v" + to_string(v.getIndex());
+  void visitOutputEdge(shared_ptr<Command> c, shared_ptr<Version> v) {
+    if (visitArtifact(v->getArtifact())) {
+      string version_id = _artifacts[v->getArtifact()] + ":v" + to_string(v->getIndex());
       _io_edges.emplace(_commands[c], version_id);
     }
   }

@@ -156,8 +156,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /***** Transient Data (not serialized) *****/
 
   /// Track all the unique metadata checks made during tracing
-  set<pair<shared_ptr<Reference>, ArtifactVersion>> _metadata_checks;
+  set<pair<shared_ptr<Reference>, shared_ptr<Version>>> _metadata_checks;
 
   /// Track all the unique content checks made during tracing
-  set<pair<shared_ptr<Reference>, ArtifactVersion>> _contents_checks;
+  set<pair<shared_ptr<Reference>, shared_ptr<Version>>> _contents_checks;
 };
