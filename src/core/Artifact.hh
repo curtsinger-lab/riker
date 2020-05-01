@@ -30,10 +30,13 @@ using std::vector;
 using std::weak_ptr;
 
 class Artifact;
+class Reference;
 
 /// A reference to a specific version of an artifact
 class Version : std::enable_shared_from_this<Version> {
  public:
+  friend class Artifact;
+
   /// Default constructor for deserialization only
   Version() = default;
 
@@ -58,11 +61,6 @@ class Version : std::enable_shared_from_this<Version> {
   /// Get the next version
   shared_ptr<Version> getNext() const { return _next; }
 
-  void setNext(shared_ptr<Version> v) {
-    _next = v;
-    _next->_index = _index + 1;
-  }
-
   /// Get the index of this version
   size_t getIndex() const { return _index; }
 
@@ -76,7 +74,7 @@ class Version : std::enable_shared_from_this<Version> {
   void setAccessed() { _accessed = true; }
 
   /// Save the metadata for this version
-  void saveMetadata();
+  void saveMetadata(shared_ptr<Reference> ref);
 
   /// Check if this version has saved metadata
   bool hasMetadata() const { return _metadata.has_value(); }
@@ -85,13 +83,13 @@ class Version : std::enable_shared_from_this<Version> {
   const struct stat& getMetadata() const { return _metadata.value(); }
 
   /// Save a fingerprint of the contents for this version
-  void saveFingerprint();
+  void saveFingerprint(shared_ptr<Reference> ref);
 
   /// Check if this version has a fingerprint saved
   bool hasFingerprint() const { return _fingerprint.has_value(); }
 
   /// Save the contents of this version of the artifact
-  void saveContents();
+  void saveContents(shared_ptr<Reference> ref);
 
   /// Check if the contents of this version have been saved
   bool hasSavedContents() const { return _saved.has_value(); }
@@ -148,22 +146,8 @@ class Artifact : public enable_shared_from_this<Artifact> {
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
 
-  /// Get the path used to refer to this artifact
-  const string& getPath() const { return _path; }
-
-  /// Update the path used to refer to this artifact
-  void updatePath(string path) { _path = path; }
-
   /// Get a short, printable name for this artifact
   string getShortName() const { return _path; }
-
-  /// Return the number of versions we're tracking for this artifact
-  size_t getVersionCount() const {
-    if (_latest)
-      return _latest->getIndex();
-    else
-      return 0;
-  }
 
   /// Check if this artifact corresponds to a system file
   bool isSystemFile() const;
@@ -178,12 +162,7 @@ class Artifact : public enable_shared_from_this<Artifact> {
   list<shared_ptr<Version>> getVersions() const;
 
   /// Print this artifact
-  friend ostream& operator<<(ostream& o, const Artifact& f) {
-    if (!f.getPath().empty())
-      return o << "[Artifact " << f.getPath() << "]";
-    else
-      return o << "[Artifact <anonymous>]";
-  }
+  friend ostream& operator<<(ostream& o, const Artifact& f) { return o << "[Artifact]"; }
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* f) { return o << *f; }

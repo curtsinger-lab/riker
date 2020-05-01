@@ -145,7 +145,8 @@ CEREAL_CLASS_VERSION(::Version, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, Version& v, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(v._artifact, v._index, v._creator, v._metadata, v._fingerprint, v._saved);
+    ar(v._artifact, v._index, v._previous, v._next, v._creator, v._metadata, v._fingerprint,
+       v._saved);
   } else {
     throw db_version_exception(version);
   }

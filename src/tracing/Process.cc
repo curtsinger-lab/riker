@@ -14,6 +14,7 @@
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
+using std::dynamic_pointer_cast;
 using std::make_shared;
 
 /*******************************************/
@@ -63,7 +64,15 @@ path Process::resolvePath(path p, int at) {
 
     // But if the file is not relative to cwd, get the path for the specified base
     if (at != AT_FDCWD) {
-      base = _fds.at(at).getArtifact()->getPath();
+      // Get the file descriptor that serves as the base directory
+      auto base_fd = _fds.at(at);
+
+      // Attempt to cast the reference this descriptor was created with to an Access
+      auto a = dynamic_pointer_cast<Access>(base_fd.getReference());
+
+      FAIL_IF(!a) << "Attempted to resolve a path relative to an anonymous reference";
+
+      base = a->getPath();
     }
 
     full_path = base / p;

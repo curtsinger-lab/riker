@@ -49,9 +49,11 @@ void Rebuild::run() {
   runCommand(_root, tracer);
 
   // Finish up by saving metadata for any remaining artifacts
-  for (auto& [_, artifact] : _artifacts) {
-    artifact->getLatestVersion()->saveMetadata();
-    artifact->getLatestVersion()->saveFingerprint();
+  for (auto& [_, entry] : _artifacts) {
+    auto& [path, artifact] = entry;
+    auto ref = make_shared<Access>(path, AccessFlags());
+    artifact->getLatestVersion()->saveMetadata(ref);
+    artifact->getLatestVersion()->saveFingerprint(ref);
   }
 }
 
@@ -97,14 +99,14 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Reference> ref) {
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter != _artifacts.end()) {
       // Found. Return it.
-      return iter->second;
+      return iter->second.second;
     }
 
     // No existing artifact found. Create a new one.
     shared_ptr<Artifact> result = make_shared<Artifact>(p);
 
     // Add the artifact to the map
-    _artifacts.emplace(statbuf.st_ino, result);
+    _artifacts.emplace(statbuf.st_ino, pair<string, shared_ptr<Artifact>>(p, result));
 
     // All done
     return result;

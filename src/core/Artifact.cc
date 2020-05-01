@@ -8,6 +8,7 @@
 #include "core/Command.hh"
 #include "ui/log.hh"
 
+using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::shared_ptr;
 
@@ -23,16 +24,24 @@ bool Artifact::isSystemFile() const {
 
 // Get a reference to the latest version of an artifact
 shared_ptr<Version> Artifact::getLatestVersion() {
-  if (!_latest) _latest = make_shared<Version>(shared_from_this());
+  if (!_latest) tagNewVersion();
   return _latest;
 }
 
 // Save a new version of an artifact
 shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> creator) {
-  auto v = make_shared<Version>(shared_from_this(), creator);
-  getLatestVersion()->setNext(v);
-  _latest = v;
-  return v;
+  if (!_latest) {
+    _latest = make_shared<Version>(shared_from_this(), creator);
+    _latest->_index = 0;
+  } else {
+    auto v = make_shared<Version>(shared_from_this(), creator);
+    v->_previous = _latest;
+    v->_index = _latest->_index + 1;
+    _latest->_next = v;
+    _latest = v;
+  }
+
+  return _latest;
 }
 
 list<shared_ptr<Version>> Artifact::getVersions() const {
@@ -46,11 +55,14 @@ list<shared_ptr<Version>> Artifact::getVersions() const {
 }
 
 // Save the metadata for a version
-void Version::saveMetadata() {
+void Version::saveMetadata(shared_ptr<Reference> ref) {
+  auto a = dynamic_pointer_cast<Access>(ref);
+  if (!a) return;
+
   // Only save metadata if we don't have it already
   if (!_metadata.has_value()) {
     struct stat s;
-    if (stat(_artifact->getPath().c_str(), &s) == 0) {
+    if (stat(a->getPath().c_str(), &s) == 0) {
       _metadata = s;
     } else {
       // WARN << "Failed to stat artifact " << _artifact;
@@ -59,7 +71,7 @@ void Version::saveMetadata() {
 }
 
 // Save a fingerprint of this file
-void Version::saveFingerprint() {
+void Version::saveFingerprint(shared_ptr<Reference> ref) {
   // Just use metadata as a fingerprint (mtime) for now
-  saveMetadata();
+  saveMetadata(ref);
 }

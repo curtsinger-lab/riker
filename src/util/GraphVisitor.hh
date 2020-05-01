@@ -59,21 +59,15 @@ class GraphVisitor {
       // Print the artifact type (not supported at the moment)
       // o << "<tr><td border=\"0\"><sub>" << ARTIFACT_TYPE << "</sub></td></tr>";
 
-      // Special case for single-version artifacts
-      if (a->getVersionCount() == 1 && a->getShortName() != "") {
-        o << "<tr><td port=\"v0\">" + escape(a->getShortName()) + "</td></tr>";
+      // Add a row with the artifact name, if it has one
+      if (a->getShortName() != "") {
+        o << "<tr><td>" + escape(a->getShortName()) + "</td></tr>";
+      }
 
-      } else {
-        // Add a row with the artifact name, if it has one
-        if (a->getShortName() != "") {
-          o << "<tr><td>" + escape(a->getShortName()) + "</td></tr>";
-        }
-
-        // Add rows for artifact versions
-        for (auto& v : a->getVersions()) {
-          string version_id = "v" + to_string(v->getIndex());
-          o << "<tr><td port=\"" + version_id + "\"></td></tr>";
-        }
+      // Add rows for artifact versions
+      for (auto& v : a->getVersions()) {
+        string version_id = "v" + to_string(v->getIndex());
+        o << "<tr><td port=\"" + version_id + "\"></td></tr>";
       }
 
       // Finish the vertex line

@@ -131,7 +131,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   v->setAccessed();
 
   // Make sure we have metadata saved for that version
-  v->saveMetadata();
+  v->saveMetadata(ref);
 
   // Record the dependency on metadata
   _steps.push_back(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
@@ -156,7 +156,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   v->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  v->saveFingerprint();
+  v->saveFingerprint(ref);
 
   // Record the dependency
   _steps.push_back(make_shared<ContentsMatch>(ref, v));

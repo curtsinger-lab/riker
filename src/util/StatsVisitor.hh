@@ -42,13 +42,16 @@ class StatsVisitor {
       for (auto a : _visited_artifacts) {
         size_t skipped = 0;
         o << "  " << a << endl;
-        for (auto v : a->getVersions()) {
-          bool metadata = v->hasMetadata();
-          bool fingerprint = v->hasFingerprint();
-          bool contents = v->hasSavedContents();
+
+        // Loop over all versions of this artifact
+        auto current = a;
+        while (current) {
+          bool metadata = current->hasMetadata();
+          bool fingerprint = current->hasFingerprint();
+          bool contents = current->hasSavedContents();
 
           if (metadata || fingerprint || contents) {
-            o << "    v" << v->getIndex() << ":";
+            o << "    v" << current->getIndex() << ":";
             if (metadata) o << " metadata";
             if (fingerprint) o << " fingerprint";
             if (contents) o << " contents";
@@ -56,6 +59,9 @@ class StatsVisitor {
           } else {
             skipped++;
           }
+
+          // Move to the next version
+          current = current->getNext();
         }
         if (skipped > 0) {
           o << "    (skipped " << skipped << " version" << (skipped > 1 ? "s" : "")
@@ -104,16 +110,23 @@ class StatsVisitor {
     }
   }
 
-  void visit(shared_ptr<Version> v) { visit(v->getArtifact()); }
+  void visit(shared_ptr<Version> v) {
+    // Seek to the earliest version of this artifact
+    auto first = v;
+    while (first->getPrevious()) first = first->getPrevious();
 
-  void visit(shared_ptr<Artifact> a) {
-    // set.insert() returns pair(iter, true) if the item is new.
-    // Use structured binding decl to access
-    auto [_, added] = _visited_artifacts.insert(a);
+    // Add this original version to the set of visited artifacts
+    auto [_, added] = _visited_artifacts.insert(first);
     if (added) {
       // Count this artifact if it's new
       _artifact_count++;
-      _artifact_version_count += a->getVersionCount();
+
+      // Loop over all versions and count each one
+      auto current = first;
+      while (current) {
+        _artifact_version_count++;
+        current = current->getNext();
+      }
     }
   }
 
@@ -126,5 +139,5 @@ class StatsVisitor {
   size_t _artifact_version_count = 0;  //< The total number of artifact versions in the build
 
   /// A set of artifacts that have already been visited
-  set<shared_ptr<Artifact>> _visited_artifacts;
+  set<shared_ptr<Version>> _visited_artifacts;
 };

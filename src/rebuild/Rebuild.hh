@@ -117,5 +117,5 @@ class Rebuild {
   set<shared_ptr<Command>> _rerun;
 
   /// A map of artifacts found on the filesystem
-  map<ino_t, shared_ptr<Artifact>> _artifacts;
+  map<ino_t, pair<string, shared_ptr<Artifact>>> _artifacts;
 };
