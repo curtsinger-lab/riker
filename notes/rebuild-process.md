@@ -186,3 +186,32 @@ file caching rather that storing many copies of a file with small changes betwee
 
 The current implementation of Artifacts and ArtifactVersions is quite different from this approach,
 so I'll be working on making these changes first.
+
+# Changes to Artifacts and Versions
+There is a nearly one-to-one relationship between actions in the IR and versions. The two exception
+seems to be existing files, whose contents and metadata do not correspond to any build action. Does
+it make sense to think of actions themselves as the versions? This actually seems quite reasonable.
+
+Launch actions are a little odd, since they don't manipulate artifacts. Maybe these should not be
+included under the Action subtype.
+
+One of the reasons this is appealing relates to fine-grained versioning. Right now, the only actions
+we use are SET_CONTENTS and SET_METADATA. These are idempotent operations, which works fine. But
+when we add tracing for directory operations, we're going to have finer-grained actions like LINK,
+UNLINK, etc. to encode limited changes to the contents of a directory rather than thinking of these
+as completely overwriting every entry of the directory. Every one of these new types of Actions will
+have a corresponding type of Version, since we'll need to be able to track the same information
+about each Version, and the Version will need to be able to commit its changes to the filesystem; in
+other words, it must be able to perform the action it represents.
+
+We will still need the Artifact class. When a Process has a file open, we need to be sure it is
+able to reach the latest version of that file, even if the changes made to the file were recorded in
+some other Process. The Artifact class is really just a wrapper around a pointer to the latest
+action performed on an artifact.
+
+Another nice thing about merging Actions and Versions is that it simplifies creating the Command
+dependency graph. If a command has the predicate CONTENTS_MATCH(r1, v), where v is some Version,
+that version will encode exactly what was done to produce the version, as well as the command that
+performed that action. This directly encodes the dependency between commands, although it does miss
+any dependencies on manipulations along the path to the given artifact. We'll still need to model
+path resolution in a way that captures these kinds of dependencies.
