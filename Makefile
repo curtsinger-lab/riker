@@ -2,9 +2,9 @@ CC  = clang
 CXX = clang++
 MAKEFLAGS = -j
 
-COMMON_CFLAGS = -Isrc -Icereal/include -ICLI11/include -Wall -g -flto -Wfatal-errors
+COMMON_CFLAGS = -Isrc -Icereal/include -ICLI11/include -Wall -g -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -flto -lstdc++fs
+LDFLAGS = -lstdc++fs
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
