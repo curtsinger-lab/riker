@@ -32,14 +32,14 @@ using std::weak_ptr;
 class Artifact;
 
 /// A reference to a specific version of an artifact
-class Version {
+class Version : std::enable_shared_from_this<Version> {
  public:
   /// Default constructor for deserialization only
   Version() = default;
 
   /// Create a reference to a numbered version of an artifact
-  Version(shared_ptr<Artifact> artifact, size_t index, shared_ptr<Command> creator = nullptr) :
-      _artifact(artifact), _index(index), _creator(creator) {}
+  Version(shared_ptr<Artifact> artifact, shared_ptr<Command> creator = nullptr) :
+      _artifact(artifact), _creator(creator) {}
 
   // Disallow Copy
   Version(const Version&) = delete;
@@ -51,6 +51,17 @@ class Version {
 
   /// Get the artifact this version references
   shared_ptr<Artifact> getArtifact() const { return _artifact; }
+
+  /// Get the previous version
+  shared_ptr<Version> getPrevious() const { return _previous; }
+
+  /// Get the next version
+  shared_ptr<Version> getNext() const { return _next; }
+
+  void setNext(shared_ptr<Version> v) {
+    _next = v;
+    _next->_index = _index + 1;
+  }
 
   /// Get the index of this version
   size_t getIndex() const { return _index; }
@@ -85,19 +96,6 @@ class Version {
   /// Check if the contents of this version have been saved
   bool hasSavedContents() const { return _saved.has_value(); }
 
-  /// Comparison function so versions can be used in sets and maps
-  bool operator<(const Version& other) const {
-    return std::tie(_artifact, _index) < std::tie(other._artifact, other._index);
-  }
-
-  /// Equality check for versions
-  bool operator==(const Version& other) const {
-    return std::tie(_artifact, _index) == std::tie(other._artifact, other._index);
-  }
-
-  /// Inequality check
-  bool operator!=(const Version& other) const { return !(*this == other); }
-
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, Version& v, const uint32_t version);
@@ -105,15 +103,23 @@ class Version {
   /// Print a version
   friend ostream& operator<<(ostream& o, const Version& v) {
     return o << v._artifact << "@" << v._index;
-    ;
   }
 
+  /// Print a version pointer
+  friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
+
  private:
-  //< The artifact this is a version of
+  /// The artifact this is a version of
   shared_ptr<Artifact> _artifact;
 
-  // The version number of this artifact
+  /// The version number of this artifact
   size_t _index;
+
+  /// The version that preceded this one, if any
+  shared_ptr<Version> _previous;
+
+  /// The version that comes after this one, if any
+  shared_ptr<Version> _next;
 
   weak_ptr<Command> _creator;              //< Which command created this version?
   optional<struct stat> _metadata;         //< Saved metadata for this version
@@ -142,13 +148,6 @@ class Artifact : public enable_shared_from_this<Artifact> {
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
 
-  // Forward declaration for VerionRef class, which stores a reference to a specific version of an
-  // artifact.
-  friend class Version;
-
-  /// Get the unique ID assigned to this artifact
-  size_t getID() const { return _id; }
-
   /// Get the path used to refer to this artifact
   const string& getPath() const { return _path; }
 
@@ -159,7 +158,12 @@ class Artifact : public enable_shared_from_this<Artifact> {
   string getShortName() const { return _path; }
 
   /// Return the number of versions we're tracking for this artifact
-  size_t getVersionCount() const { return _versions.size(); }
+  size_t getVersionCount() const {
+    if (_latest)
+      return _latest->getIndex();
+    else
+      return 0;
+  }
 
   /// Check if this artifact corresponds to a system file
   bool isSystemFile() const;
@@ -171,14 +175,14 @@ class Artifact : public enable_shared_from_this<Artifact> {
   shared_ptr<Version> tagNewVersion(shared_ptr<Command> creator = nullptr);
 
   /// Get the list of versions of this artifact
-  const vector<shared_ptr<Version>>& getVersions() const { return _versions; }
+  list<shared_ptr<Version>> getVersions() const;
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& f) {
     if (!f.getPath().empty())
       return o << "[Artifact " << f.getPath() << "]";
     else
-      return o << "[Artifact " << f.getID() << "]";
+      return o << "[Artifact <anonymous>]";
   }
 
   /// Print a pointer to an artifact
@@ -190,7 +194,6 @@ class Artifact : public enable_shared_from_this<Artifact> {
   friend void serialize(Archive& archive, Artifact& a, const uint32_t version);
 
  private:
-  UniqueID<Artifact> _id;                 //< A unique ID for printing
-  string _path;                           //< The absolute, normalized path to this artifact
-  vector<shared_ptr<Version>> _versions;  //< The sequence of versions of this artifact
+  string _path;                 //< The absolute, normalized path to this artifact
+  shared_ptr<Version> _latest;  //< The latest version of this artifact
 };

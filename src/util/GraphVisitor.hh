@@ -154,7 +154,7 @@ class GraphVisitor {
     if (!_show_sysfiles & a->isSystemFile()) return false;
 
     // Add the artifact
-    _artifacts.emplace(a, string("a") + to_string(a->getID()));
+    _artifacts.emplace(a, string("a") + to_string(_artifacts.size()));
     return true;
   }
 

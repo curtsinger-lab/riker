@@ -23,30 +23,34 @@ bool Artifact::isSystemFile() const {
 
 // Get a reference to the latest version of an artifact
 shared_ptr<Version> Artifact::getLatestVersion() {
-  // Tag an initial version of each artifact on demand
-  if (_versions.size() == 0) tagNewVersion();
-  return _versions.back();
+  if (!_latest) _latest = make_shared<Version>(shared_from_this());
+  return _latest;
 }
 
 // Save a new version of an artifact
 shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> creator) {
-  auto v = make_shared<Version>(shared_from_this(), _versions.size(), creator);
-  _versions.push_back(v);
+  auto v = make_shared<Version>(shared_from_this(), creator);
+  getLatestVersion()->setNext(v);
+  _latest = v;
   return v;
+}
+
+list<shared_ptr<Version>> Artifact::getVersions() const {
+  list<shared_ptr<Version>> result;
+  auto current = _latest;
+  while (current) {
+    result.push_front(current);
+    current = current->getPrevious();
+  }
+  return result;
 }
 
 // Save the metadata for a version
 void Version::saveMetadata() {
-  FAIL_IF(!_artifact) << "Attempted to save metadata for version of null artifact";
-  FAIL_IF(_index >= _artifact->_versions.size())
-      << "Attempted to save metadata for invalid version index";
-  FAIL_IF(_index != _artifact->_versions.size() - 1)
-      << "Attempted to save metadata for a version after it has been overwritten";
-
   // Only save metadata if we don't have it already
   if (!_metadata.has_value()) {
     struct stat s;
-    if (stat(_artifact->_path.c_str(), &s) == 0) {
+    if (stat(_artifact->getPath().c_str(), &s) == 0) {
       _metadata = s;
     } else {
       // WARN << "Failed to stat artifact " << _artifact;
