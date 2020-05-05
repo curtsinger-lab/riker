@@ -5,6 +5,7 @@
 #include <set>
 
 #include "core/Build.hh"
+#include "core/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

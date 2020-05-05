@@ -12,7 +12,6 @@
 #include <cereal/access.hpp>
 
 #include "core/AccessFlags.hh"
-#include "core/Artifact.hh"
 #include "ui/log.hh"
 #include "util/UniqueID.hh"
 
@@ -26,11 +25,13 @@ using std::string;
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int { SUCCESS = 0 };
 
+class Command;
 class Reference;
+class Version;
 
 /**
- * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation or
- * dependency we observed the last time a command executed.
+ * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation
+ * or dependency we observed the last time a command executed.
  *
  * Step is the abstract parent class for all IR values.
  * All command steps fall into one of three categories:

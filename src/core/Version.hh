@@ -24,12 +24,12 @@ class Version : std::enable_shared_from_this<Version> {
  public:
   friend class Artifact;
 
-  /// Default constructor for deserialization only
+  /// Default constructor for deserialization
   Version() = default;
 
   /// Create a reference to a numbered version of an artifact
-  Version(shared_ptr<Artifact> artifact, shared_ptr<Command> creator = nullptr) :
-      _artifact(artifact), _creator(creator) {}
+  Version(optional<string> path, shared_ptr<Command> creator = nullptr) :
+      _path(path), _creator(creator) {}
 
   // Disallow Copy
   Version(const Version&) = delete;
@@ -39,8 +39,11 @@ class Version : std::enable_shared_from_this<Version> {
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
 
-  /// Get the artifact this version references
-  shared_ptr<Artifact> getArtifact() const { return _artifact; }
+  /// Does this version have a known path?
+  bool hasPath() const { return _path.has_value(); }
+
+  /// Get the path for this version
+  string getPath() const { return _path.value_or("anon"); }
 
   /// Get the previous version
   shared_ptr<Version> getPrevious() const { return _previous; }
@@ -87,15 +90,15 @@ class Version : std::enable_shared_from_this<Version> {
 
   /// Print a version
   friend ostream& operator<<(ostream& o, const Version& v) {
-    return o << v._artifact << "@" << v._index;
+    return o << "[" << v.getPath() << "]@" << v._index;
   }
 
   /// Print a version pointer
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
 
  private:
-  /// The artifact this is a version of
-  shared_ptr<Artifact> _artifact;
+  /// The path to this version, if we have one
+  optional<string> _path;
 
   /// The version number of this artifact
   size_t _index;

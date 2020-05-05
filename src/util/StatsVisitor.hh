@@ -41,7 +41,7 @@ class StatsVisitor {
       o << "Artifacts:" << endl;
       for (auto a : _visited_artifacts) {
         size_t skipped = 0;
-        o << "  " << a << endl;
+        o << "  " << a->getPath() << endl;
 
         // Loop over all versions of this artifact
         auto current = a;

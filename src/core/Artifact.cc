@@ -29,11 +29,14 @@ shared_ptr<Version> Artifact::getLatestVersion() {
 
 // Save a new version of an artifact
 shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> creator) {
+  optional<string> path;
+  if (_path != "") path = _path;
+
   if (!_latest) {
-    _latest = make_shared<Version>(shared_from_this(), creator);
+    _latest = make_shared<Version>(path, creator);
     _latest->_index = 0;
   } else {
-    auto v = make_shared<Version>(shared_from_this(), creator);
+    auto v = make_shared<Version>(path, creator);
     v->_previous = _latest;
     v->_index = _latest->_index + 1;
     _latest->_next = v;

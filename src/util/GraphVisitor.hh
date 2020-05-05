@@ -61,14 +61,16 @@ class GraphVisitor {
       // o << "<tr><td border=\"0\"><sub>" << ARTIFACT_TYPE << "</sub></td></tr>";
 
       // Add a row with the artifact name, if it has one
-      if (a->getShortName() != "") {
-        o << "<tr><td>" + escape(a->getShortName()) + "</td></tr>";
+      if (a->hasPath()) {
+        o << "<tr><td>" + escape(a->getPath()) + "</td></tr>";
       }
 
-      // Add rows for artifact versions
-      for (auto& v : a->getVersions()) {
-        string version_id = "v" + to_string(v->getIndex());
+      // Add rows for artifact versions. Walk through them as a linked list
+      auto current = a;
+      while (current) {
+        string version_id = "v" + to_string(current->getIndex());
         o << "<tr><td port=\"" + version_id + "\"></td></tr>";
+        current = current->getNext();
       }
 
       // Finish the vertex line
@@ -131,25 +133,40 @@ class GraphVisitor {
   }
 
   void visitInputEdge(shared_ptr<Command> c, shared_ptr<Version> v) {
-    if (visitArtifact(v->getArtifact())) {
-      string version_id = _artifacts[v->getArtifact()] + ":v" + to_string(v->getIndex());
-      _io_edges.emplace(version_id, _commands[c]);
+    if (visitArtifact(v)) {
+      _io_edges.emplace(_versions[v], _commands[c]);
     }
   }
 
   void visitOutputEdge(shared_ptr<Command> c, shared_ptr<Version> v) {
-    if (visitArtifact(v->getArtifact())) {
-      string version_id = _artifacts[v->getArtifact()] + ":v" + to_string(v->getIndex());
-      _io_edges.emplace(_commands[c], version_id);
+    if (visitArtifact(v)) {
+      _io_edges.emplace(_commands[c], _versions[v]);
     }
   }
 
-  bool visitArtifact(shared_ptr<Artifact> a) {
-    // If this is a system file and we're not printing them, return false
-    if (!_show_sysfiles & a->isSystemFile()) return false;
+  bool visitArtifact(shared_ptr<Version> a) {
+    // Seek to the first version of this artifact
+    while (a->getPrevious()) a = a->getPrevious();
 
-    // Add the artifact
-    _artifacts.emplace(a, string("a") + to_string(_artifacts.size()));
+    // If we've already added this artifact, just return true
+    if (_artifacts.find(a) != _artifacts.end()) return true;
+
+    // If this is a system file and we're not printing them, return false
+    // if (!_show_sysfiles && a->isSystemFile()) return false;
+
+    // Add the original version to identify the artifact
+    string artifact_id = string("a") + to_string(_artifacts.size());
+    _artifacts.emplace(a, artifact_id);
+
+    // Walk through all versions and save IDs
+    int index = 0;
+    auto current = a;
+    while (current) {
+      _versions[current] = artifact_id + ":v" + to_string(index);
+      current = current->getNext();
+      index++;
+    }
+
     return true;
   }
 
@@ -160,7 +177,9 @@ class GraphVisitor {
   map<shared_ptr<Command>, string> _commands;
 
   /// A map from artifacts to their IDs in the graph output
-  map<shared_ptr<Artifact>, string> _artifacts;
+  map<shared_ptr<Version>, string> _artifacts;
+
+  map<shared_ptr<Version>, string> _versions;
 
   /// A set of command edges, from parent to child
   set<pair<string, string>> _command_edges;
