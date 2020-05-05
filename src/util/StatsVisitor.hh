@@ -111,9 +111,8 @@ class StatsVisitor {
   }
 
   void visit(shared_ptr<Version> v) {
-    // Seek to the earliest version of this artifact
-    auto first = v;
-    while (first->getPrevious()) first = first->getPrevious();
+    // Get the earliest version of this artifact
+    auto first = v->getFirstVersion();
 
     // Add this original version to the set of visited artifacts
     auto [_, added] = _visited_artifacts.insert(first);

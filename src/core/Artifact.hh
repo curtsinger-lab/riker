@@ -10,7 +10,6 @@
 class Command;
 class Version;
 
-using std::enable_shared_from_this;
 using std::list;
 using std::ostream;
 using std::shared_ptr;
@@ -20,7 +19,7 @@ using std::to_string;
 class Artifact;
 class Reference;
 
-class Artifact : public enable_shared_from_this<Artifact> {
+class Artifact : public std::enable_shared_from_this<Artifact> {
  private:
   // Default constructor for deserialization
   friend class cereal::access;
@@ -40,9 +39,6 @@ class Artifact : public enable_shared_from_this<Artifact> {
 
   /// Get a short, printable name for this artifact
   string getShortName() const { return _path; }
-
-  /// Check if this artifact corresponds to a system file
-  bool isSystemFile() const;
 
   /// Get a reference to the latest version of this artifact
   shared_ptr<Version> getLatestVersion();

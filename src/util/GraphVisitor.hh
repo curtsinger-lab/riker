@@ -145,14 +145,14 @@ class GraphVisitor {
   }
 
   bool visitArtifact(shared_ptr<Version> a) {
-    // Seek to the first version of this artifact
-    while (a->getPrevious()) a = a->getPrevious();
+    // Get the first version of this artifact
+    a = a->getFirstVersion();
 
     // If we've already added this artifact, just return true
     if (_artifacts.find(a) != _artifacts.end()) return true;
 
     // If this is a system file and we're not printing them, return false
-    // if (!_show_sysfiles && a->isSystemFile()) return false;
+    if (!_show_sysfiles && a->isSystemFile()) return false;
 
     // Add the original version to identify the artifact
     string artifact_id = string("a") + to_string(_artifacts.size());
