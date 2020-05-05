@@ -13,6 +13,7 @@
 #include "core/Artifact.hh"
 #include "core/Build.hh"
 #include "core/IR.hh"
+#include "core/Version.hh"
 #include "rebuild/Rebuild.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"

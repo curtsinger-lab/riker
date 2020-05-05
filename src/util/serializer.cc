@@ -22,6 +22,7 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "core/Version.hh"
 #include "ui/log.hh"
 
 using std::ifstream;

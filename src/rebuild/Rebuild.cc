@@ -9,6 +9,7 @@
 #include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
+#include "core/Version.hh"
 #include "tracing/Tracer.hh"
 
 using std::cout;
