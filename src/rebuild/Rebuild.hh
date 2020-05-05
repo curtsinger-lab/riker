@@ -7,7 +7,10 @@
 #include <string>
 #include <utility>
 
+#include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
+#include "core/Command.hh"
+#include "core/FileDescriptor.hh"
 
 using std::map;
 using std::ostream;
@@ -18,7 +21,6 @@ using std::string;
 
 class Access;
 class Build;
-class Command;
 class Reference;
 class Tracer;
 
@@ -44,6 +46,40 @@ class Rebuild {
 
   /// Get the artifact a reference resolves to
   shared_ptr<Artifact> getArtifact(shared_ptr<Reference> ref);
+
+  /*** Porting IR methods from Command ***/
+  shared_ptr<Reference> access(shared_ptr<Command> c, string path, AccessFlags flags) {
+    return c->access(path, flags);
+  }
+
+  shared_ptr<Reference> pipe(shared_ptr<Command> c) { return c->pipe(); }
+
+  void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result) {
+    c->referenceResult(ref, result);
+  }
+
+  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+    c->metadataMatch(ref, a);
+  }
+
+  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+    c->contentsMatch(ref, a);
+  }
+
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+    c->setMetadata(ref, a);
+  }
+
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+    c->setContents(ref, a);
+  }
+
+  shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
+                             map<int, FileDescriptor> fds) {
+    return c->launch(exe, args, fds);
+  }
+
+  /**************/
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;

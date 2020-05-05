@@ -89,6 +89,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /********* Command Tracing Operations **********/
 
+ private:
+  friend class Rebuild;
   /// The command accesses an artifact by path.
   /// This function returns a shared_ptr<Ref>,
   /// Most access() calls will *not* have side-effects, but some will:
@@ -99,11 +101,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command creates a reference to a new pipe
   shared_ptr<Reference> pipe();
 
-  /// This command requires that a reference resolves to an artifact without failure
-  void isOK(shared_ptr<Reference> ref);
-
-  /// This command requires that a reference fails to resolve with a specific error
-  void isError(shared_ptr<Reference> ref, int err);
+  /// This command observes a reference resolve with a particular result
+  void referenceResult(shared_ptr<Reference> ref, int result);
 
   /// This command accesses the metadata for an artifact
   void metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
@@ -120,6 +119,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command starts another command
   shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);
 
+ public:
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream

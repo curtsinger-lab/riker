@@ -102,14 +102,9 @@ shared_ptr<Reference> Command::pipe() {
   return ref;
 }
 
-/// This command requires that a reference resolves to an artifact without failure
-void Command::isOK(shared_ptr<Reference> ref) {
-  _steps.push_back(make_shared<ReferenceResult>(ref, SUCCESS));
-}
-
-/// This command requires that a reference fails to resolve with a specific error
-void Command::isError(shared_ptr<Reference> ref, int err) {
-  _steps.push_back(make_shared<ReferenceResult>(ref, err));
+/// This command observes a reference resolve with a particular result
+void Command::referenceResult(shared_ptr<Reference> ref, int result) {
+  _steps.push_back(make_shared<ReferenceResult>(ref, result));
 }
 
 /// This command accesses the metadata for an artifact
