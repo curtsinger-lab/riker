@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -13,12 +15,9 @@
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
 #include "core/FileDescriptor.hh"
-#include "core/IR.hh"
 #include "util/UniqueID.hh"
 
-class Rebuild;
-class Tracer;
-
+using std::list;
 using std::map;
 using std::ostream;
 using std::pair;
@@ -26,6 +25,10 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+
+class Reference;
+class Step;
+class Version;
 
 /**
  * Representation of a command that runs as part of the build.
@@ -44,7 +47,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a command to invoke the provided buildfile
-  static shared_ptr<Command> createRootCommand(map<int, FileDescriptor> fds);
+  static shared_ptr<Command> createRootCommand();
 
   // Disallow Copy
   Command(const Command&) = delete;

@@ -4,8 +4,6 @@
 #include <ostream>
 #include <set>
 
-#include "core/Build.hh"
-
 using std::dynamic_pointer_cast;
 using std::endl;
 using std::ostream;
@@ -23,8 +21,8 @@ class StatsVisitor {
    * \param b               The build to analyze
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
-  StatsVisitor(Build& b, bool list_artifacts) : _list_artifacts(list_artifacts) {
-    visit(b.getRoot());
+  StatsVisitor(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
+    visit(root);
     // TODO: visit initial references
   }
 

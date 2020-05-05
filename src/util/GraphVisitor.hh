@@ -5,8 +5,8 @@
 #include <ostream>
 #include <set>
 
-#include "core/Build.hh"
 #include "core/Command.hh"
+#include "core/IR.hh"
 #include "core/Version.hh"
 
 using std::dynamic_pointer_cast;
@@ -29,8 +29,8 @@ class GraphVisitor {
    * \param b              The build to analyze
    * \param show_sysfiles  If true, include artifacts that are system files
    */
-  GraphVisitor(Build& b, bool show_sysfiles) : _show_sysfiles(show_sysfiles) {
-    visitCommand(b.getRoot());
+  GraphVisitor(shared_ptr<Command> root, bool show_sysfiles) : _show_sysfiles(show_sysfiles) {
+    visitCommand(root);
   }
 
   /// Print the results of our stats gathering

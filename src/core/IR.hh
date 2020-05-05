@@ -1,18 +1,15 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
 
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <cereal/access.hpp>
 
 #include "core/AccessFlags.hh"
-#include "ui/log.hh"
 #include "util/UniqueID.hh"
 
 using std::map;
@@ -26,7 +23,6 @@ using std::string;
 enum : int { SUCCESS = 0 };
 
 class Command;
-class Reference;
 class Version;
 
 /**

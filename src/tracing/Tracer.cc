@@ -1,15 +1,22 @@
 #include "Tracer.hh"
 
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <list>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include <linux/bpf_common.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <signal.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -22,6 +29,7 @@ using std::list;
 using std::make_shared;
 using std::pair;
 using std::shared_ptr;
+using std::string;
 
 void Tracer::run(shared_ptr<Command> cmd) {
   // Launch the command with tracing

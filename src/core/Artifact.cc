@@ -1,14 +1,14 @@
 #include "Artifact.hh"
 
 #include <memory>
+#include <optional>
 
 #include "core/Artifact.hh"
-#include "core/Command.hh"
 #include "core/Version.hh"
-#include "ui/log.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;
+using std::optional;
 using std::shared_ptr;
 
 // Get a reference to the latest version of an artifact

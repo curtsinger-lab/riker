@@ -18,7 +18,6 @@
 
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
-#include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
@@ -34,10 +33,10 @@ using std::unique_ptr;
 // Declare the current version of the archive. Increase this number each time the archive changes
 // in a way that would make old versions incompatible. Every serialize function below can
 // accommodate logic to deserialize an outdated version.
-const uint32_t ArchiveVersion = 10;
+const uint32_t ArchiveVersion = 11;
 
 // Load a saved build from a file
-Build load_build(string filename) {
+shared_ptr<Command> load_build(string filename) {
   // Open the file for reading. Must pass std::ios::binary!
   ifstream f(filename, std::ios::binary);
 
@@ -45,13 +44,13 @@ Build load_build(string filename) {
   cereal::BinaryInputArchive archive(f);
 
   // Attempt to load the build
-  Build b;
-  archive(b);
-  return b;
+  shared_ptr<Command> root;
+  archive(root);
+  return root;
 }
 
 // Save a build to a file
-void save_build(string filename, Build& b) {
+void save_build(string filename, shared_ptr<Command> root) {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 
@@ -59,7 +58,7 @@ void save_build(string filename, Build& b) {
   cereal::BinaryOutputArchive archive(f);
 
   // Store the build
-  archive(b);
+  archive(root);
 }
 
 /*
@@ -74,17 +73,6 @@ void save_build(string filename, Build& b) {
  * CEREAL_REGISTER_TYPE. Parent classes that are *not* serialized must be reported with the
  * CEREAL_REGISTER_POLYMORPHIC_RELATION macro.
  */
-
-CEREAL_CLASS_VERSION(Build, ArchiveVersion);
-
-template <class Archive>
-void serialize(Archive& ar, Build& b, const uint32_t version) {
-  if (version == ArchiveVersion) {
-    ar(b._root, b._std_pipes, b._std_refs);
-  } else {
-    throw db_version_exception(version);
-  }
-}
 
 CEREAL_CLASS_VERSION(Command, ArchiveVersion);
 

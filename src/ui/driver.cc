@@ -1,11 +1,10 @@
 #include <cstdlib>
 #include <filesystem>
 #include <forward_list>
-#include <fstream>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <string>
+#include <vector>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -13,10 +12,9 @@
 #include <CLI/CLI.hpp>
 
 #include "core/Artifact.hh"
-#include "core/Build.hh"
 #include "rebuild/Rebuild.hh"
-#include "tracing/Tracer.hh"
 #include "ui/log.hh"
+#include "ui/options.hh"
 #include "util/GraphVisitor.hh"
 #include "util/StatsVisitor.hh"
 #include "util/TraceVisitor.hh"
@@ -30,8 +28,11 @@ using std::make_unique;
 using std::ofstream;
 using std::stol;
 using std::string;
+using std::vector;
 
 namespace fs = std::filesystem;
+
+class Command;
 
 // Constant names for files and paths
 const char* RootBuildCommand = "Dodofile";
@@ -40,19 +41,19 @@ const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
 /// Try to load a build. Exit with an error if loading fails.
-Build open_build(bool get_default) {
+shared_ptr<Command> open_build(bool get_default) {
   try {
     return load_build(DatabaseFilename);
   } catch (db_version_exception e) {
     // If the load is allowed to return a default build, warn about the version and return
     if (get_default) {
       WARN << "Build database is outdated. Initializing a default build.";
-      return Build();
+      return Command::createRootCommand();
     }
     FAIL << "Build database is outdated. Rerun the build to create a new build database.";
   } catch (cereal::Exception e) {
     // If fallback to a default is allowed, get that
-    if (get_default) return Build();
+    if (get_default) return Command::createRootCommand();
     FAIL << "Failed to load the build database. Have you run a build yet?";
   }
   // Unreachable, but silences warnings
@@ -67,10 +68,10 @@ Build open_build(bool get_default) {
  */
 void do_build(int jobs, string fingerprint) {
   // Load a build, or set up a default build if necessary
-  Build b = open_build(true);
+  auto root = open_build(true);
 
   // Compute the rebuild steps
-  Rebuild rebuild = Rebuild::create(b);
+  Rebuild rebuild = Rebuild::create(root);
 
   // Run the build
   rebuild.run();
@@ -79,7 +80,7 @@ void do_build(int jobs, string fingerprint) {
   fs::create_directories(OutputDir);
 
   // Serialize the build
-  save_build(DatabaseFilename, b);
+  save_build(DatabaseFilename, root);
 }
 
 /**
@@ -110,10 +111,10 @@ void do_launch() {
  */
 void do_check() {
   // Load a build, or set up a default build if necessary
-  Build b = open_build(true);
+  auto root = open_build(true);
 
   // Plan and print the rebuild steps
-  cout << Rebuild::create(b);
+  cout << Rebuild::create(root);
 }
 
 /**
@@ -121,12 +122,12 @@ void do_check() {
  * \param output  The name of the output file, or "-" for stdout
  */
 void do_trace(string output) {
-  Build b = open_build(false);
+  auto root = open_build(false);
   if (output == "-") {
-    cout << TraceVisitor(b);
+    cout << TraceVisitor(root);
   } else {
     ofstream f(output);
-    f << TraceVisitor(b);
+    f << TraceVisitor(root);
   }
 }
 
@@ -136,12 +137,12 @@ void do_trace(string output) {
  * \param show_sysfiles If true, include system files in the graph
  */
 void do_graph(string output, bool show_sysfiles) {
-  Build b = open_build(false);
+  auto root = open_build(false);
   if (output == "-") {
-    cout << GraphVisitor(b, show_sysfiles);
+    cout << GraphVisitor(root, show_sysfiles);
   } else {
     ofstream f(output);
-    f << GraphVisitor(b, show_sysfiles);
+    f << GraphVisitor(root, show_sysfiles);
   }
 }
 
@@ -150,8 +151,8 @@ void do_graph(string output, bool show_sysfiles) {
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) {
-  Build b = open_build(false);
-  cout << StatsVisitor(b, list_artifacts);
+  auto root = open_build(false);
+  cout << StatsVisitor(root, list_artifacts);
 }
 
 /**
@@ -201,9 +202,9 @@ int main(int argc, char* argv[]) {
 
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
-  build->add_flag("--show", Build::print_on_run, "Show commands as they are run");
+  build->add_flag("--show", options::print_on_run, "Show commands as they are run");
 
-  build->add_flag("-n,--dry-run", Build::dry_run, "Do not run any build commands");
+  build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
 
   build->add_option("-j,--jobs", jobs, "Max concurrent jobs (0 is unlimited)")
       ->check(CLI::NonNegativeNumber);
@@ -211,15 +212,15 @@ int main(int argc, char* argv[]) {
   build->add_option("-f,--fingerprint", fingerprint, "Set the fingerprint level (default=local)")
       ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
 
-  build->add_flag_callback("--no-ignore-self-reads", [] { Build::ignore_self_reads = false; })
+  build->add_flag_callback("--no-ignore-self-reads", [] { options::ignore_self_reads = false; })
       ->description("Disable the ignore-self-reads optimization")
       ->group("Optimizations");
 
-  build->add_flag_callback("--no-write-combine", [] { Build::combine_writes = false; })
+  build->add_flag_callback("--no-write-combine", [] { options::combine_writes = false; })
       ->description("Disable the write-combining optimization")
       ->group("Optimizations");
 
-  build->add_flag_callback("--no-skip-repeat-checks", [] { Build::skip_repeat_checks = false; })
+  build->add_flag_callback("--no-skip-repeat-checks", [] { options::skip_repeat_checks = false; })
       ->description("Disable the repeat check skipping optimization")
       ->group("Optimizations");
 

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -14,6 +17,7 @@
 #include "core/FileDescriptor.hh"
 
 using std::map;
+using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;

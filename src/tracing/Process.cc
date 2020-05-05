@@ -10,6 +10,7 @@
 
 #include "core/Artifact.hh"
 #include "core/Command.hh"
+#include "core/IR.hh"
 #include "rebuild/Rebuild.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"

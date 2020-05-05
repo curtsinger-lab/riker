@@ -1,29 +1,35 @@
 #include "Rebuild.hh"
 
+#include <cerrno>
+#include <ctime>
 #include <iostream>
 #include <memory>
 #include <ostream>
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
-#include "core/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
 #include "core/Version.hh"
 #include "tracing/Tracer.hh"
+#include "ui/log.hh"
+#include "ui/options.hh"
 
 using std::cout;
 using std::dynamic_pointer_cast;
 using std::endl;
+using std::make_shared;
 using std::ostream;
 
 // Create a rebuild plan
-Rebuild Rebuild::create(Build& b) {
+Rebuild Rebuild::create(shared_ptr<Command> root) {
   // Initialize the rebuild with the build's root command
-  Rebuild r(b.getRoot());
+  Rebuild r(root);
 
   // Identify commands with changed dependencies
-  r.findChanges(b.getRoot());
+  r.findChanges(root);
 
   // Check the final outputs of the emulated build against the filesystem
   r.checkFinalState();
@@ -66,10 +72,10 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
     c->reset();
 
     // Show the command if printing is on, or if this is a dry run
-    if (Build::print_on_run || Build::dry_run) cout << c->getFullName() << endl;
+    if (options::print_on_run || options::dry_run) cout << c->getFullName() << endl;
 
     // Actually run the command, unless this is a dry run
-    if (!Build::dry_run) tracer.run(c);
+    if (!options::dry_run) tracer.run(c);
 
   } else {
     // Emulate this command by running its children

@@ -3,11 +3,12 @@
 #include <map>
 #include <memory>
 
+#include <sys/types.h>
+
 using std::map;
 using std::shared_ptr;
 
 class Process;
-class Reference;
 class Rebuild;
 class Command;
 

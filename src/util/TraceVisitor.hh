@@ -4,7 +4,6 @@
 #include <ostream>
 #include <set>
 
-#include "core/Build.hh"
 #include "core/Version.hh"
 
 using std::dynamic_pointer_cast;
@@ -23,7 +22,7 @@ class TraceVisitor {
    * Print the complete trace for a build
    * \param b               The build to print
    */
-  TraceVisitor(Build& b) : _build(b) {}
+  TraceVisitor(shared_ptr<Command> root) : _root(root) {}
 
   /// Print the trace from the given build
   void print(ostream& o) {
@@ -31,7 +30,7 @@ class TraceVisitor {
     // for (auto s : _build.getDefaultReferences()) {
     //  o << s << endl;
     //}
-    visit(o, _build.getRoot());
+    visit(o, _root);
   }
 
   friend ostream& operator<<(ostream& o, TraceVisitor v) {
@@ -56,5 +55,5 @@ class TraceVisitor {
   };
 
  private:
-  Build& _build;  //< The build we're printing
+  shared_ptr<Command> _root;  //< The build we're printing
 };

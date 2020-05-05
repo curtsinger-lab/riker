@@ -6,6 +6,9 @@
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
+
+#include <sys/types.h>
 
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
@@ -18,9 +21,9 @@ using std::pair;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 class Access;
-class Build;
 class Reference;
 class Tracer;
 
@@ -39,7 +42,7 @@ class Rebuild {
   Rebuild& operator=(Rebuild&&) = default;
 
   /// Create a rebuild plan for an existing build trace
-  static Rebuild create(Build& b);
+  static Rebuild create(shared_ptr<Command> root);
 
   /// Run the rebuild
   void run();

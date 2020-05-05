@@ -1,5 +1,6 @@
 #include "IR.hh"
 
+#include <cerrno>
 #include <map>
 #include <ostream>
 #include <utility>

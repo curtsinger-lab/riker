@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -15,7 +17,6 @@ using std::string;
 using std::vector;
 using std::weak_ptr;
 
-class Artifact;
 class Command;
 class Reference;
 

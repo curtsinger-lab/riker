@@ -1,28 +1,28 @@
 #include "Command.hh"
 
 #include <array>
+#include <cstdlib>
 #include <iostream>
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
 
-#include <linux/limits.h>
+#include <limits.h>
+#include <unistd.h>
 
 #include "core/AccessFlags.hh"
 #include "core/Artifact.hh"
-#include "core/Build.hh"
 #include "core/IR.hh"
 #include "core/Version.hh"
-#include "rebuild/Rebuild.hh"
-#include "tracing/Tracer.hh"
-#include "ui/log.hh"
+#include "ui/options.hh"
 
 using std::array;
 using std::cout;
 using std::dynamic_pointer_cast;
 using std::endl;
 using std::list;
+using std::make_shared;
 using std::map;
 using std::shared_ptr;
 using std::string;
@@ -44,11 +44,23 @@ string readlink(string path) {
 }
 
 // The root command invokes "dodo launch" to run the actual build script. Construct this command.
-shared_ptr<Command> Command::createRootCommand(map<int, FileDescriptor> fds) {
+shared_ptr<Command> Command::createRootCommand() {
   // We need to get the path to dodo. Use readlink for this.
   string dodo = readlink("/proc/self/exe");
 
-  shared_ptr<Command> root(new Command(dodo, {"dodo", "launch"}, fds));
+  auto stdin = make_shared<Artifact>("stdin");
+  auto stdout = make_shared<Artifact>("stdout");
+  auto stderr = make_shared<Artifact>("stderr");
+
+  auto stdin_ref = make_shared<Pipe>();
+  auto stdout_ref = make_shared<Pipe>();
+  auto stderr_ref = make_shared<Pipe>();
+
+  map<int, FileDescriptor> default_fds = {{0, FileDescriptor(stdin_ref, stdin, false)},
+                                          {1, FileDescriptor(stdout_ref, stdout, true)},
+                                          {2, FileDescriptor(stderr_ref, stderr, true)}};
+
+  shared_ptr<Command> root(new Command(dodo, {"dodo", "launch"}, default_fds));
 
   return root;
 }
@@ -115,10 +127,10 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (Build::ignore_self_reads && v->getCreator() == shared_from_this()) return;
+  if (options::ignore_self_reads && v->getCreator() == shared_from_this()) return;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
-  if (Build::skip_repeat_checks) {
+  if (options::skip_repeat_checks) {
     auto [_, inserted] = _metadata_checks.emplace(ref, v);
     if (!inserted) return;
   }
@@ -140,10 +152,10 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (Build::ignore_self_reads && v->getCreator() == shared_from_this()) return;
+  if (options::ignore_self_reads && v->getCreator() == shared_from_this()) return;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
-  if (Build::skip_repeat_checks) {
+  if (options::skip_repeat_checks) {
     auto [_, inserted] = _contents_checks.emplace(ref, v);
     if (!inserted) return;
   }
@@ -177,7 +189,7 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 
   // If this command created the last version, and no other command has accessed it, we can
   // combine the updates into a single update. That means we don't need to tag a new version.
-  if (Build::combine_writes && v->getCreator() == shared_from_this() && !v->isAccessed()) return;
+  if (options::combine_writes && v->getCreator() == shared_from_this() && !v->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
   auto new_version = a->tagNewVersion(shared_from_this());
@@ -188,7 +200,7 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
   shared_ptr<Command> child(new Command(exe, args, fds));
 
-  if (Build::print_on_run) cout << child->getFullName() << endl;
+  if (options::print_on_run) cout << child->getFullName() << endl;
 
   _steps.push_back(make_shared<Launch>(child));
   _children.push_back(child);

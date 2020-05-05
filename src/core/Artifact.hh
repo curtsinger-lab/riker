@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <ostream>
@@ -16,10 +17,7 @@ using std::shared_ptr;
 using std::string;
 using std::to_string;
 
-class Artifact;
-class Reference;
-
-class Artifact : public std::enable_shared_from_this<Artifact> {
+class Artifact {
  private:
   // Default constructor for deserialization
   friend class cereal::access;
