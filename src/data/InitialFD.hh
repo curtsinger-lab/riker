@@ -15,12 +15,16 @@ class Reference;
  */
 class InitialFD {
  public:
+  // Default constructor for deserialization
   InitialFD() = default;
 
+  /// Create a record of an initial file descriptor
   InitialFD(shared_ptr<Reference> ref, bool writable) : _ref(ref), _writable(writable) {}
 
+  /// Get the reference used to open the file descriptor
   shared_ptr<Reference> getReference() const { return _ref; }
 
+  /// Check if the file descriptor should be writable
   bool isWritable() const { return _writable; }
 
   /// Friend method for serialization
