@@ -8,13 +8,13 @@ using std::ostream;
 
 /// This struct encodes the flags specified when making an access to a particular reference
 struct AccessFlags {
-  bool r = false;          // Does the reference require read access?
-  bool w = false;          // Does the reference require write access?
-  bool x = false;          // Does the reference require execute access?
-  bool nofollow = false;   // Does the reference resolve to a symlink rather than its target?
-  bool truncate = false;   // Does the reference truncate the artifact's contents?
-  bool create = false;     // Does the reference create an artifact if none exists?
-  bool exclusive = false;  // Does the reference require creation? (must also be set with .create
+  bool r = false;          //< Does the reference require read access?
+  bool w = false;          //< Does the reference require write access?
+  bool x = false;          //< Does the reference require execute access?
+  bool nofollow = false;   //< Does the reference resolve to a symlink rather than its target?
+  bool truncate = false;   //< Does the reference truncate the artifact's contents?
+  bool create = false;     //< Does the reference create an artifact if none exists?
+  bool exclusive = false;  //< Does the reference require creation? (must also be set with .create)
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
   static AccessFlags fromOpen(int flags) {

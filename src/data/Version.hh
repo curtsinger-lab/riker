@@ -96,9 +96,7 @@ class Version : public std::enable_shared_from_this<Version> {
   friend void serialize(Archive& archive, Version& v, const uint32_t version);
 
   /// Print a version
-  friend ostream& operator<<(ostream& o, const Version& v) {
-    return o << "[" << v.getPath() << "]@" << v._index;
-  }
+  friend ostream& operator<<(ostream& o, const Version& v) { return o << "v" << v._index; }
 
   /// Print a version pointer
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }

@@ -34,13 +34,3 @@ shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> creator) {
 
   return _latest;
 }
-
-list<shared_ptr<Version>> Artifact::getVersions() const {
-  list<shared_ptr<Version>> result;
-  auto current = _latest;
-  while (current) {
-    result.push_front(current);
-    current = current->getPrevious();
-  }
-  return result;
-}

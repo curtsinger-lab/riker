@@ -5,10 +5,12 @@
 
 #include <cereal/access.hpp>
 
+#include "data/IR.hh"
+#include "rebuild/Artifact.hh"
+
 using std::ostream;
 using std::shared_ptr;
 
-class Reference;
 class Artifact;
 
 class FDEntry {
@@ -35,7 +37,7 @@ class FDEntry {
 
   /// Print a file descriptor
   friend ostream& operator<<(ostream& o, const FDEntry& fd) {
-    return o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
+    return o << fd._ref << (fd._cloexec ? " (cloexec)" : "") << " -> " << fd._artifact;
   }
 
  private:
