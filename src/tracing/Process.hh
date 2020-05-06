@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/user.h>
 
-#include "tracing/FileDescriptor.hh"
+#include "tracing/FDEntry.hh"
 
 using std::map;
 using std::ostream;
@@ -30,7 +30,7 @@ class Rebuild;
 class Process {
  public:
   Process(Rebuild& rebuild, pid_t pid, path cwd, shared_ptr<Command> command,
-          map<int, FileDescriptor> fds) :
+          map<int, FDEntry> fds) :
       _rebuild(rebuild), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
@@ -167,5 +167,5 @@ class Process {
   string _root;
   shared_ptr<Command> _command;
   set<shared_ptr<Artifact>> _mmaps;
-  map<int, FileDescriptor> _fds;
+  map<int, FDEntry> _fds;
 };

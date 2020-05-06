@@ -12,6 +12,7 @@
 
 #include "data/AccessFlags.hh"
 #include "data/Command.hh"
+#include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 
 using std::map;

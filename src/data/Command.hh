@@ -13,6 +13,7 @@
 #include <cereal/access.hpp>
 
 #include "data/AccessFlags.hh"
+#include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 #include "util/UniqueID.hh"
 
@@ -28,34 +29,6 @@ using std::vector;
 class Reference;
 class Step;
 class Version;
-
-/**
- * Track information required to set up a file descriptor at the start of a command's execution.
- * This differs from the FileDescriptor class in that it does not refer to a specific artifact;
- * instead, the tracing layer will use the saved reference to locate an artifact and inflate this to
- * a FileDescriptor when a command is launched.
- */
-class InitialFD {
- public:
-  InitialFD() = default;
-
-  InitialFD(shared_ptr<Reference> ref, bool writable) : _ref(ref), _writable(writable) {}
-
-  shared_ptr<Reference> getReference() const { return _ref; }
-
-  bool isWritable() const { return _writable; }
-
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, InitialFD& fd, const uint32_t version);
-
- private:
-  /// The reference used to locate an artifact that the file descriptor points to
-  shared_ptr<Reference> _ref;
-
-  /// Is this file descriptor opened in writable mode?
-  bool _writable;
-};
 
 /**
  * Representation of a command that runs as part of the build.

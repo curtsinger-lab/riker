@@ -19,6 +19,7 @@
 #include "data/AccessFlags.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
+#include "data/InitialFD.hh"
 #include "data/Version.hh"
 #include "ui/log.hh"
 

@@ -22,7 +22,7 @@
 
 #include "data/Command.hh"
 #include "rebuild/Rebuild.hh"
-#include "tracing/FileDescriptor.hh"
+#include "tracing/FDEntry.hh"
 #include "tracing/Process.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
@@ -249,7 +249,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   // Build the file descriptor table for the running process
-  map<int, FileDescriptor> fds;
+  map<int, FDEntry> fds;
 
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
@@ -257,7 +257,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     auto artifact = _rebuild.getArtifact(ref);
     bool writable = initial_fd.isWritable();
 
-    fds.emplace(index, FileDescriptor(ref, artifact, writable));
+    fds.emplace(index, FDEntry(ref, artifact, writable));
   }
 
   _processes[child_pid] = make_shared<Process>(_rebuild, child_pid, ".", cmd, fds);

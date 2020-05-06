@@ -10,9 +10,10 @@
 
 #include "data/Command.hh"
 #include "data/IR.hh"
+#include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 #include "rebuild/Rebuild.hh"
-#include "tracing/FileDescriptor.hh"
+#include "tracing/FDEntry.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
@@ -728,7 +729,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
     // Record the reference in the correct location in this process' file descriptor table
-    _fds.emplace(fd, FileDescriptor(ref, artifact, ref_flags.w, cloexec));
+    _fds.emplace(fd, FDEntry(ref, artifact, ref_flags.w, cloexec));
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
@@ -972,8 +973,8 @@ void Process::_pipe2(int* fds, int flags) {
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
   // Fill in the file descriptor entries
-  _fds.emplace(read_pipefd, FileDescriptor(ref, artifact, false, cloexec));
-  _fds.emplace(write_pipefd, FileDescriptor(ref, artifact, true, cloexec));
+  _fds.emplace(read_pipefd, FDEntry(ref, artifact, false, cloexec));
+  _fds.emplace(write_pipefd, FDEntry(ref, artifact, true, cloexec));
 }
 
 void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) {

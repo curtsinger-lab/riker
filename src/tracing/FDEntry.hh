@@ -11,14 +11,11 @@ using std::shared_ptr;
 class Reference;
 class Artifact;
 
-class FileDescriptor {
+class FDEntry {
  public:
-  // Default constructor for deserialization
-  FileDescriptor() = default;
-
   /// Create an object to track a file descriptor
-  FileDescriptor(shared_ptr<Reference> ref, shared_ptr<Artifact> artifact, bool writable,
-                 bool cloexec = false) :
+  FDEntry(shared_ptr<Reference> ref, shared_ptr<Artifact> artifact, bool writable,
+          bool cloexec = false) :
       _ref(ref), _artifact(artifact), _writable(writable), _cloexec(cloexec) {}
 
   /// Get the reference used to construct this file descriptor
@@ -37,7 +34,7 @@ class FileDescriptor {
   void setCloexec(bool c) { _cloexec = c; }
 
   /// Print a file descriptor
-  friend ostream& operator<<(ostream& o, const FileDescriptor& fd) {
+  friend ostream& operator<<(ostream& o, const FDEntry& fd) {
     return o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
   }
 
