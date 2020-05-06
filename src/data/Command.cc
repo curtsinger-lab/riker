@@ -11,10 +11,10 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "core/AccessFlags.hh"
-#include "core/Artifact.hh"
-#include "core/IR.hh"
-#include "core/Version.hh"
+#include "data/AccessFlags.hh"
+#include "data/IR.hh"
+#include "data/Version.hh"
+#include "rebuild/Artifact.hh"
 #include "ui/options.hh"
 
 using std::array;

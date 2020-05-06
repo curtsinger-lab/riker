@@ -5,9 +5,9 @@
 #include <ostream>
 #include <set>
 
-#include "core/Command.hh"
-#include "core/IR.hh"
-#include "core/Version.hh"
+#include "data/Command.hh"
+#include "data/IR.hh"
+#include "data/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

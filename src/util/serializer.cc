@@ -16,11 +16,10 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "core/AccessFlags.hh"
-#include "core/Command.hh"
-#include "core/FileDescriptor.hh"
-#include "core/IR.hh"
-#include "core/Version.hh"
+#include "data/AccessFlags.hh"
+#include "data/Command.hh"
+#include "data/IR.hh"
+#include "data/Version.hh"
 #include "ui/log.hh"
 
 using std::ifstream;

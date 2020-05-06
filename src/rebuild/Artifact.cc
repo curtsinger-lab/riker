@@ -3,8 +3,7 @@
 #include <memory>
 #include <optional>
 
-#include "core/Artifact.hh"
-#include "core/Version.hh"
+#include "data/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;

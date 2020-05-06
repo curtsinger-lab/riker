@@ -4,7 +4,7 @@
 
 #include <sys/stat.h>
 
-#include "core/IR.hh"
+#include "data/IR.hh"
 
 using std::dynamic_pointer_cast;
 using std::shared_ptr;

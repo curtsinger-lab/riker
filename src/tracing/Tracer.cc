@@ -20,8 +20,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "core/Command.hh"
+#include "data/Command.hh"
 #include "rebuild/Rebuild.hh"
+#include "tracing/FileDescriptor.hh"
 #include "tracing/Process.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"

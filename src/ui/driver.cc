@@ -11,7 +11,7 @@
 
 #include <CLI/CLI.hpp>
 
-#include "core/Artifact.hh"
+#include "rebuild/Artifact.hh"
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"

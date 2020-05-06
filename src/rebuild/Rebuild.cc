@@ -10,9 +10,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "core/Command.hh"
-#include "core/IR.hh"
-#include "core/Version.hh"
+#include "data/Command.hh"
+#include "data/IR.hh"
+#include "data/Version.hh"
 #include "tracing/Tracer.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"

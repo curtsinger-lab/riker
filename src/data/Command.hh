@@ -12,9 +12,8 @@
 
 #include <cereal/access.hpp>
 
-#include "core/AccessFlags.hh"
-#include "core/Artifact.hh"
-#include "core/FileDescriptor.hh"
+#include "data/AccessFlags.hh"
+#include "rebuild/Artifact.hh"
 #include "util/UniqueID.hh"
 
 using std::list;

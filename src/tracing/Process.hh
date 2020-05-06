@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/user.h>
 
-#include "core/FileDescriptor.hh"
+#include "tracing/FileDescriptor.hh"
 
 using std::map;
 using std::ostream;

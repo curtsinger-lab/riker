@@ -9,7 +9,7 @@
 
 #include <cereal/access.hpp>
 
-#include "core/AccessFlags.hh"
+#include "data/AccessFlags.hh"
 #include "util/UniqueID.hh"
 
 using std::map;

@@ -5,8 +5,8 @@
 #include <ostream>
 #include <utility>
 
-#include "core/Command.hh"
-#include "core/Version.hh"
+#include "data/Command.hh"
+#include "data/Version.hh"
 
 using std::ostream;
 

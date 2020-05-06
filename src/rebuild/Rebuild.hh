@@ -10,10 +10,9 @@
 
 #include <sys/types.h>
 
-#include "core/AccessFlags.hh"
-#include "core/Artifact.hh"
-#include "core/Command.hh"
-#include "core/FileDescriptor.hh"
+#include "data/AccessFlags.hh"
+#include "data/Command.hh"
+#include "rebuild/Artifact.hh"
 
 using std::map;
 using std::ostream;
