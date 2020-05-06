@@ -17,7 +17,6 @@
 #include <cereal/types/vector.hpp>
 
 #include "core/AccessFlags.hh"
-#include "core/Artifact.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
@@ -33,7 +32,7 @@ using std::unique_ptr;
 // Declare the current version of the archive. Increase this number each time the archive changes
 // in a way that would make old versions incompatible. Every serialize function below can
 // accommodate logic to deserialize an outdated version.
-const uint32_t ArchiveVersion = 11;
+const uint32_t ArchiveVersion = 12;
 
 // Load a saved build from a file
 shared_ptr<Command> load_build(string filename) {
@@ -91,17 +90,6 @@ template <class Archive>
 void serialize(Archive& ar, InitialFD& fd, const uint32_t version) {
   if (version == ArchiveVersion) {
     ar(fd._ref, fd._writable);
-  } else {
-    throw db_version_exception(version);
-  }
-}
-
-CEREAL_CLASS_VERSION(Artifact, ArchiveVersion);
-
-template <class Archive>
-void serialize(Archive& ar, Artifact& a, const uint32_t version) {
-  if (version == ArchiveVersion) {
-    ar(a._path, a._latest);
   } else {
     throw db_version_exception(version);
   }
