@@ -31,6 +31,34 @@ class Step;
 class Version;
 
 /**
+ * Track information required to set up a file descriptor at the start of a command's execution.
+ * This differs from the FileDescriptor class in that it does not refer to a specific artifact;
+ * instead, the tracing layer will use the saved reference to locate an artifact and inflate this to
+ * a FileDescriptor when a command is launched.
+ */
+class InitialFD {
+ public:
+  InitialFD() = default;
+
+  InitialFD(shared_ptr<Reference> ref, bool writable) : _ref(ref), _writable(writable) {}
+
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  bool isWritable() const { return _writable; }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, InitialFD& fd, const uint32_t version);
+
+ private:
+  /// The reference used to locate an artifact that the file descriptor points to
+  shared_ptr<Reference> _ref;
+
+  /// Is this file descriptor opened in writable mode?
+  bool _writable;
+};
+
+/**
  * Representation of a command that runs as part of the build.
  * Commands correspond to exec() calls during the build process; these are commands we can directly
  * re-execute on a future build. We need to track the paths that commands reference, and their
@@ -42,7 +70,7 @@ class Command : public std::enable_shared_from_this<Command> {
   Command() = default;
 
   /// Create a new command
-  Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
+  Command(string exe, vector<string> args, map<int, InitialFD> initial_fds) :
       _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
  public:
@@ -88,7 +116,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const vector<string>& getArguments() const { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
+  const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
   /********* Command Tracing Operations **********/
 
@@ -120,7 +148,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command starts another command
-  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);
+  shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
 
  public:
   /****** Utility Methods ******/
@@ -147,8 +175,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The arguments passed to this command on startup
   vector<string> _args;
 
-  /// The file descriptors that should be opened prior to running this command
-  map<int, FileDescriptor> _initial_fds;
+  /// The file descriptor table at the start of this command's execution
+  map<int, InitialFD> _initial_fds;
 
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;

@@ -1,6 +1,5 @@
 CC  = clang
 CXX = clang++
-MAKEFLAGS = -j
 
 COMMON_CFLAGS = -Isrc -Icereal/include -ICLI11/include -Wall -g -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17

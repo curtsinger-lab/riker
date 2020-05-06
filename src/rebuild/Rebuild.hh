@@ -78,7 +78,7 @@ class Rebuild {
   }
 
   shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
-                             map<int, FileDescriptor> fds) {
+                             map<int, InitialFD> fds) {
     return c->launch(exe, args, fds);
   }
 

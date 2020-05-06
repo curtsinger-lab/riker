@@ -414,11 +414,17 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // Resume the child
   resume();
 
-  // Erase any cloexec fds from the process file descriptor table
+  // Build a map of the initial file descriptors for the child command
+  // As we build this map, keep track of which file descriptors have to be erased from the process'
+  // current map of file descriptors.
+  map<int, InitialFD> initial_fds;
   list<int> to_erase;
-  for (auto& entry : _fds) {
-    if (entry.second.isCloexec()) {
-      to_erase.push_back(entry.first);
+
+  for (auto& [index, fd] : _fds) {
+    if (fd.isCloexec()) {
+      to_erase.push_back(index);
+    } else {
+      initial_fds.emplace(index, InitialFD(fd.getReference(), fd.isWritable()));
     }
   }
   for (int index : to_erase) {
@@ -426,7 +432,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   }
 
   // This process launches a new command, and is now running that command
-  _command = _rebuild.launch(_command, exe_path, args, _fds);
+  _command = _rebuild.launch(_command, exe_path, args, initial_fds);
 
   // Get the executable file artifact
   auto exe_artifact = _rebuild.getArtifact(exe_ref);

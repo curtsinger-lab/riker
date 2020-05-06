@@ -85,12 +85,12 @@ void serialize(Archive& ar, Command& c, const uint32_t version) {
   }
 }
 
-CEREAL_CLASS_VERSION(FileDescriptor, ArchiveVersion);
+CEREAL_CLASS_VERSION(InitialFD, ArchiveVersion);
 
 template <class Archive>
-void serialize(Archive& ar, FileDescriptor& fd, const uint32_t version) {
+void serialize(Archive& ar, InitialFD& fd, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(fd._ref, fd._artifact, fd._writable, fd._cloexec);
+    ar(fd._ref, fd._writable);
   } else {
     throw db_version_exception(version);
   }

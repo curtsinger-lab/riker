@@ -41,10 +41,6 @@ class FileDescriptor {
     return o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
   }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, FileDescriptor& fd, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;      //< The reference used to construct this file descriptor
   shared_ptr<Artifact> _artifact;  //< The artifact referred to via this file descriptor

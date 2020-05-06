@@ -87,7 +87,11 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 
 // Get an artifact during tracing
 shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Reference> ref) {
-  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+  if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
+    // TODO: every pipe ref creates a new artifact for now. We'll need to track them eventually.
+    return make_shared<Artifact>("PIPE");
+
+  } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     string p = a->getPath();
     bool follow_links = !a->getFlags().nofollow;
 
