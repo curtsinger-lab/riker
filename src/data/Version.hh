@@ -58,7 +58,7 @@ class Version : public std::enable_shared_from_this<Version> {
   shared_ptr<Version> getPrevious() const { return _previous; }
 
   /// Get the next version
-  shared_ptr<Version> getNext() const { return _next; }
+  shared_ptr<Version> getNext() const { return _next.lock(); }
 
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const { return _creator.lock(); }
@@ -110,7 +110,7 @@ class Version : public std::enable_shared_from_this<Version> {
   shared_ptr<Version> _previous;
 
   /// The version that comes after this one, if any
-  shared_ptr<Version> _next;
+  weak_ptr<Version> _next;
 
   /// Which command created this version?
   weak_ptr<Command> _creator;
