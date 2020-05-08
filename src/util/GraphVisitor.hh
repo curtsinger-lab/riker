@@ -99,6 +99,17 @@ class GraphVisitor {
       return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
   }
 
+  bool isSystemFile(shared_ptr<Version> v) {
+    if (!v->hasPath()) return false;
+
+    for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
+      // Check if the path begins with one of our prefixes.
+      // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
+      if (v->getPath().rfind(p, 0) != string::npos) return true;
+    }
+    return false;
+  }
+
   void visitCommand(shared_ptr<Command> c) {
     // Record this command with an ID
     _commands.emplace(c, string("c") + to_string(c->getID()));
@@ -152,7 +163,7 @@ class GraphVisitor {
     if (_artifacts.find(a) != _artifacts.end()) return true;
 
     // If this is a system file and we're not printing them, return false
-    if (!_show_sysfiles && a->isSystemFile()) return false;
+    if (!_show_sysfiles && isSystemFile(a)) return false;
 
     // Add the original version to identify the artifact
     string artifact_id = string("a") + to_string(_artifacts.size());

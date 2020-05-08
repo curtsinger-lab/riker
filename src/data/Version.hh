@@ -46,9 +46,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the path for this version
   string getPath() const { return _path.value_or("anon"); }
 
-  /// Check if this artifact corresponds to a system file
-  bool isSystemFile() const;
-
   /// Get the first version of this artifact
   shared_ptr<Version> getFirstVersion();
 
