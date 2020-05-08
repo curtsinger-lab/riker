@@ -49,14 +49,14 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the first version of this artifact
   shared_ptr<Version> getFirstVersion();
 
+  /// Get the number of preceding versions of this artifact
+  size_t getVersionNumber() const { return _previous ? (_previous->getVersionNumber() + 1) : 0; }
+
   /// Get the previous version
   shared_ptr<Version> getPrevious() const { return _previous; }
 
   /// Get the next version
   shared_ptr<Version> getNext() const { return _next; }
-
-  /// Get the index of this version
-  size_t getIndex() const { return _index; }
 
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const { return _creator.lock(); }
@@ -93,7 +93,9 @@ class Version : public std::enable_shared_from_this<Version> {
   friend void serialize(Archive& archive, Version& v, const uint32_t version);
 
   /// Print a version
-  friend ostream& operator<<(ostream& o, const Version& v) { return o << "v" << v._index; }
+  friend ostream& operator<<(ostream& o, const Version& v) {
+    return o << "v" << v.getVersionNumber();
+  }
 
   /// Print a version pointer
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
@@ -101,9 +103,6 @@ class Version : public std::enable_shared_from_this<Version> {
  private:
   /// The path to this version, if we have one
   optional<string> _path;
-
-  /// The version number of this artifact
-  size_t _index;
 
   /// The version that preceded this one, if any
   shared_ptr<Version> _previous;

@@ -43,13 +43,14 @@ class StatsVisitor {
 
         // Loop over all versions of this artifact
         auto current = a;
+        size_t index = 0;
         while (current) {
           bool metadata = current->hasMetadata();
           bool fingerprint = current->hasFingerprint();
           bool contents = current->hasSavedContents();
 
           if (metadata || fingerprint || contents) {
-            o << "    v" << current->getIndex() << ":";
+            o << "    v" << index << ":";
             if (metadata) o << " metadata";
             if (fingerprint) o << " fingerprint";
             if (contents) o << " contents";
@@ -60,6 +61,7 @@ class StatsVisitor {
 
           // Move to the next version
           current = current->getNext();
+          index++;
         }
         if (skipped > 0) {
           o << "    (skipped " << skipped << " version" << (skipped > 1 ? "s" : "")
