@@ -23,7 +23,7 @@ clean:
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	
-$(OBJS): objs/%.o: src/%.cc $(HEADERS)
+$(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
