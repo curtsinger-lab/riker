@@ -9,6 +9,11 @@
 using std::dynamic_pointer_cast;
 using std::shared_ptr;
 
+void Version::followedBy(shared_ptr<Version> v) {
+  _next = v;
+  v->_previous = shared_from_this();
+}
+
 shared_ptr<Version> Version::getFirstVersion() {
   auto current = shared_from_this();
   while (current->_previous) {

@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using std::optional;
 using std::ostream;
@@ -23,8 +24,6 @@ class Reference;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  friend class Artifact;
-
   /// Default constructor for deserialization
   Version() = default;
 
@@ -39,6 +38,9 @@ class Version : public std::enable_shared_from_this<Version> {
   // Allow Move
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
+
+  /// Record a version that follows this one
+  void followedBy(shared_ptr<Version> v);
 
   /// Does this version have a known path?
   bool hasPath() const { return _path.has_value(); }
@@ -110,11 +112,19 @@ class Version : public std::enable_shared_from_this<Version> {
   /// The version that comes after this one, if any
   shared_ptr<Version> _next;
 
-  weak_ptr<Command> _creator;              //< Which command created this version?
-  optional<struct stat> _metadata;         //< Saved metadata for this version
-  optional<vector<uint8_t>> _fingerprint;  //< Saved fingerprint for this version
-  optional<string> _saved;                 //< Name of the file that contains a copy of this version
+  /// Which command created this version?
+  weak_ptr<Command> _creator;
+
+  /// Saved metadata for this version
+  optional<struct stat> _metadata;
+
+  /// Saved fingerprint for this version
+  optional<vector<uint8_t>> _fingerprint;
+
+  /// Name of the file that contains a copy of this version
+  optional<string> _saved;
 
   /*** Transient Data (not serialized) ***/
-  bool _accessed = false;  //< Has this version been accessed by any commands?
+  /// Has this version been accessed by any commands other than the creator?
+  bool _accessed = false;
 };

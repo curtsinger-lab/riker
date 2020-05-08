@@ -25,8 +25,7 @@ shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> creator) {
     _latest = make_shared<Version>(path, creator);
   } else {
     auto v = make_shared<Version>(path, creator);
-    v->_previous = _latest;
-    _latest->_next = v;
+    _latest->followedBy(v);
     _latest = v;
   }
 
