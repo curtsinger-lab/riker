@@ -9,7 +9,7 @@ SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
 HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
-TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile ABbuild
+TESTS = simple incremental readonly-Dodofile non-sh-Dodofile inaccessible-Dodofile ABbuild graph
 
 all: dodo
 	

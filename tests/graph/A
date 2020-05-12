@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cat inputA > myfile
+./B
+
