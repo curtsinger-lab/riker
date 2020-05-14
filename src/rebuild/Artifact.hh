@@ -40,22 +40,14 @@ class Artifact {
   Artifact& operator=(Artifact&&) = default;
 
   /**
-   * Access the latest version of this artifact. This non-const implementation will advance the
-   * Artifact's _version pointer to refer to the latest version so far.
+   * Access the latest version of this artifact. This access willadvance the Artifact's _version
+   * pointer to refer to the latest version so far.
    * \returns A shared pointer to the latest version of this artifact
    */
-  shared_ptr<Version> operator->() {
+  shared_ptr<Version> operator->() const {
     _version = _version->getLatestVersion();
     return _version;
   }
-
-  /**
-   * Access the latest version of this artifact. This const implementation does not advance the
-   * Artifact's _version pointer, so repeated calls will traverse the linked list of versions
-   * multiple times.
-   * \returns A shared pointer to the latest version of this artifact
-   */
-  shared_ptr<Version> operator->() const { return _version->getLatestVersion(); }
 
   /// Tag a new version of this artifact and return a reference to that version
   shared_ptr<Version> tagNewVersion(shared_ptr<Command> creator = nullptr) {
@@ -79,8 +71,7 @@ class Artifact {
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
 
  private:
-  /// A version of this artifact. This pointer will be advanced to reference the latest version when
-  /// accessed through getLatestVersion(), but is not guaranteed to point to the latest version at
-  /// all times
-  shared_ptr<Version> _version;
+  /// Some version of this artifact. When accessed through the methods of this class, _version is
+  /// always advanced to the newest version of the artifact.
+  mutable shared_ptr<Version> _version;
 };
