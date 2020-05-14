@@ -683,6 +683,15 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _rebuild.access(_command, p, ref_flags);
 
+  // If the openat call includes O_CREAT and does NOT include O_TRUNC, we have to know if the file
+  // is created or not
+  bool created = false;
+  if (ref_flags.create && !ref_flags.truncate) {
+    struct stat statbuf;
+    int rc = ref_flags.nofollow ? lstat(p.c_str(), &statbuf) : stat(p.c_str(), &statbuf);
+    if (rc) created = true;
+  }
+
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
 
@@ -697,8 +706,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The openat call succeeded, so there's an artifact we need to track now
     auto& artifact = _rebuild.getArtifact(ref);
 
-    // Handle O_CREAT and O_TRUNC
-    if ((flags & O_CREAT) || (flags & O_TRUNC)) {
+    // If the file was created or truncated, set its contents to empty
+    if (created || ref_flags.truncate) {
       // We either created an empty file or set its contents to empty
       _rebuild.setContents(_command, ref, artifact);
     }
