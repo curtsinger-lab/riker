@@ -683,12 +683,17 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _rebuild.access(_command, p, ref_flags);
 
-  // If the openat call includes O_CREAT and does NOT include O_TRUNC, we have to know if the file
-  // is created or not
+  // We need to know if an artifact version will be created by this openat call
   bool created = false;
-  if (ref_flags.create && !ref_flags.truncate) {
+  if (ref_flags.truncate) {
+    // If the O_TRUNC flag was passed, a version is created by the current command
+    created = true;
+  } else if (ref_flags.create) {
+    // If the O_CREAT flag was passed, we need to know if the file already exists
     struct stat statbuf;
     int rc = ref_flags.nofollow ? lstat(p.c_str(), &statbuf) : stat(p.c_str(), &statbuf);
+
+    // If the stat call fails, the openat call will create the file if it succeeds
     if (rc) created = true;
   }
 
@@ -706,8 +711,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The openat call succeeded, so there's an artifact we need to track now
     auto& artifact = _rebuild.getArtifact(ref);
 
-    // If the file was created or truncated, set its contents to empty
-    if (created || ref_flags.truncate) {
+    // If this openat call is going to create a new version, tag that version now
+    if (created) {
       // We either created an empty file or set its contents to empty
       _rebuild.setContents(_command, ref, artifact);
     }

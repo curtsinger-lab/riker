@@ -25,7 +25,7 @@ class Reference;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Create a reference to a numbered version of an artifact
+  /// Create a new version of an artifact
   Version(optional<string> path = nullopt, shared_ptr<Command> creator = nullptr) :
       _path(path), _creator(creator) {}
 

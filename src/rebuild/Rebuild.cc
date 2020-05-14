@@ -91,7 +91,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Reference> ref) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
-      // This is a new pipe. Create an artifact and add an entry
+      // This is a new pipe
       iter = _pipes.emplace_hint(iter, p, Artifact(make_shared<Version>()));
     }
 
@@ -117,9 +117,11 @@ Artifact& Rebuild::getArtifact(shared_ptr<Reference> ref) {
     // Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter == _artifacts.end()) {
-      // This is a new entry. Add an artifact to the map
-      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
-                                     pair<string, Artifact>{p, Artifact{make_shared<Version>(p)}});
+      // Create an initial version of this artifact
+      auto v = make_shared<Version>(p);
+
+      // Add the artifact to the map
+      iter = _artifacts.emplace_hint(iter, statbuf.st_ino, pair<string, Artifact>{p, Artifact(v)});
     }
 
     // Return the found/inserted artifact
