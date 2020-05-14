@@ -25,6 +25,7 @@ using std::vector;
 
 class Access;
 class Reference;
+class Pipe;
 class Tracer;
 
 /// This class captures all of the logic and state required to plan a rebuild.
@@ -48,7 +49,7 @@ class Rebuild {
   void run();
 
   /// Get the artifact a reference resolves to
-  shared_ptr<Artifact> getArtifact(shared_ptr<Reference> ref);
+  Artifact& getArtifact(shared_ptr<Reference> ref);
 
   /*** Porting IR methods from Command ***/
   shared_ptr<Reference> access(shared_ptr<Command> c, string path, AccessFlags flags) {
@@ -61,19 +62,19 @@ class Rebuild {
     c->referenceResult(ref, result);
   }
 
-  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
     c->metadataMatch(ref, a);
   }
 
-  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
     c->contentsMatch(ref, a);
   }
 
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
     c->setMetadata(ref, a);
   }
 
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
     c->setContents(ref, a);
   }
 
@@ -156,5 +157,8 @@ class Rebuild {
   set<shared_ptr<Command>> _rerun;
 
   /// A map of artifacts found on the filesystem
-  map<ino_t, pair<string, shared_ptr<Artifact>>> _artifacts;
+  map<ino_t, pair<string, Artifact>> _artifacts;
+
+  /// A map of pipes
+  map<shared_ptr<Pipe>, Artifact> _pipes;
 };

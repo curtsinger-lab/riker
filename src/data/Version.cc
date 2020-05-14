@@ -22,6 +22,15 @@ shared_ptr<Version> Version::getFirstVersion() {
   return current;
 }
 
+shared_ptr<Version> Version::getLatestVersion() {
+  auto newer = _next.lock();
+  if (newer) {
+    return newer->getLatestVersion();
+  } else {
+    return shared_from_this();
+  }
+}
+
 // Save the metadata for a version
 void Version::saveMetadata(shared_ptr<Reference> ref) {
   auto a = dynamic_pointer_cast<Access>(ref);

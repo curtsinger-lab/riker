@@ -86,10 +86,17 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Reference> ref) {
+Artifact& Rebuild::getArtifact(shared_ptr<Reference> ref) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    // TODO: every pipe ref creates a new artifact for now. We'll need to track them eventually.
-    return make_shared<Artifact>("PIPE");
+    // Look to see if we've already resolve this reference to an artifact
+    auto iter = _pipes.find(p);
+    if (iter == _pipes.end()) {
+      // This is a new pipe. Create an artifact and add an entry
+      iter = _pipes.emplace_hint(iter, p, Artifact(make_shared<Version>()));
+    }
+
+    // Return the artifact, which was either found or inserted
+    return iter->second;
 
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     string p = a->getPath();
@@ -98,32 +105,29 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Reference> ref) {
     // Now that we have a path, we can stat it
     struct stat statbuf;
     int rc;
-    if (follow_links)
+    if (follow_links) {
       rc = stat(p.c_str(), &statbuf);
-    else
+    } else {
       rc = lstat(p.c_str(), &statbuf);
+    }
 
-    // If stat failed, there is no artifact to resolve to. Return a null pointer
-    if (rc) return shared_ptr<Artifact>();
+    // If stat failed there is no artifact to resolve to. This is always an error.
+    FAIL_IF(rc) << "Artifact creation failed: unable to stat " << p;
 
     // Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
-    if (iter != _artifacts.end()) {
-      // Found. Return it.
-      return iter->second.second;
+    if (iter == _artifacts.end()) {
+      // This is a new entry. Add an artifact to the map
+      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
+                                     pair<string, Artifact>{p, Artifact{make_shared<Version>(p)}});
     }
 
-    // No existing artifact found. Create a new one.
-    shared_ptr<Artifact> result = make_shared<Artifact>(p);
+    // Return the found/inserted artifact
+    return iter->second.second;
 
-    // Add the artifact to the map
-    _artifacts.emplace(statbuf.st_ino, pair<string, shared_ptr<Artifact>>(p, result));
-
-    // All done
-    return result;
   } else {
     FAIL << "Unsupported reference type";
-    return nullptr;  // Unreachable
+    abort();
   }
 }
 
@@ -313,8 +317,9 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // If the writer ever reruns, the current command must rerun as well. Record that.
       _output_used_by[entry->getCreator()].insert(c);
 
-      // This command also requires output from the writer. If we have the metadata cached, we don't
-      // necessarily have to run the command that sets it, since we can put it in place ourselves.
+      // This command also requires output from the writer. If we have the metadata cached, we
+      // don't necessarily have to run the command that sets it, since we can put it in place
+      // ourselves.
       if (!entry->hasMetadata()) {
         _needs_output_from[c].insert(entry->getCreator());
       } else {

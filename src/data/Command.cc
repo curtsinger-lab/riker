@@ -118,7 +118,7 @@ void Command::referenceResult(shared_ptr<Reference> ref, int result) {
 }
 
 /// This command accesses the metadata for an artifact
-void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+void Command::metadataMatch(shared_ptr<Reference> ref, Artifact& a) {
   // Get the version we depend on
   auto v = a->getLatestVersion();
 
@@ -143,7 +143,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 }
 
 /// This command accesses the contents of an artifact
-void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+void Command::contentsMatch(shared_ptr<Reference> ref, Artifact& a) {
   // We depend on the latest version of the artifact. Get it now.
   auto v = a->getLatestVersion();
 
@@ -168,19 +168,19 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 }
 
 /// This command sets the metadata for an artifact
-void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+void Command::setMetadata(shared_ptr<Reference> ref, Artifact& a) {
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Tag a new version
-  auto new_version = a->tagNewVersion(shared_from_this());
+  auto new_version = a.tagNewVersion(shared_from_this());
 
   // Record the update
   _steps.push_back(make_shared<SetContents>(ref, new_version));
 }
 
 /// This command sets the contents of an artifact
-void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
+void Command::setContents(shared_ptr<Reference> ref, Artifact& a) {
   // Get the latest version of this artifact
   auto v = a->getLatestVersion();
 
@@ -189,7 +189,7 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   if (options::combine_writes && v->getCreator() == shared_from_this() && !v->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
-  auto new_version = a->tagNewVersion(shared_from_this());
+  auto new_version = a.tagNewVersion(shared_from_this());
   _steps.push_back(make_shared<SetContents>(ref, new_version));
 }
 

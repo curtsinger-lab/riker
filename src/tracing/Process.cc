@@ -182,9 +182,6 @@ void Process::_read(int fd) {
   // Get the reference used to read
   auto ref = descriptor.getReference();
 
-  // Get the artifact being read
-  auto artifact = descriptor.getArtifact();
-
   // The current command depends on the contents of this file
   _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
 
@@ -205,11 +202,8 @@ void Process::_write(int fd) {
   // Get the reference used to write
   auto ref = descriptor.getReference();
 
-  // Get the artifact being written
-  auto artifact = descriptor.getArtifact();
-
   // Record our dependency on the old contents of the artifact
-  _rebuild.contentsMatch(_command, ref, artifact);
+  _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -219,7 +213,7 @@ void Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _rebuild.setContents(_command, ref, artifact);
+  _rebuild.setContents(_command, ref, descriptor.getArtifact());
 }
 
 void Process::_close(int fd) {
@@ -255,18 +249,15 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   // Get the reference for the file we just mapped
   auto ref = descriptor.getReference();
 
-  // And get the artifact referenced
-  auto artifact = descriptor.getArtifact();
-
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _rebuild.contentsMatch(_command, ref, artifact);
+  _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
   bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _rebuild.setContents(_command, ref, artifact);
+    _rebuild.setContents(_command, ref, descriptor.getArtifact());
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -355,10 +346,9 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
     // This is essentially an fstat call
     auto descriptor = _fds.at(dirfd);
     auto ref = descriptor.getReference();
-    auto artifact = descriptor.getArtifact();
 
     // Record the dependency on metadata
-    _rebuild.metadataMatch(_command, ref, artifact);
+    _rebuild.metadataMatch(_command, ref, descriptor.getArtifact());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -376,7 +366,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _rebuild.referenceResult(_command, ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto artifact = _rebuild.getArtifact(ref);
+      auto& artifact = _rebuild.getArtifact(ref);
 
       // Record the dependence on the artifact's metadata
       _rebuild.metadataMatch(_command, ref, artifact);
@@ -437,7 +427,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _rebuild.launch(_command, exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto exe_artifact = _rebuild.getArtifact(exe_ref);
+  auto& exe_artifact = _rebuild.getArtifact(exe_ref);
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _rebuild.access(_command, exe_path, {.r = true});
@@ -693,10 +683,6 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _rebuild.access(_command, p, ref_flags);
 
-  // This reference may resolve to an existing artifact, and if the O_TRUNC flag is set, could
-  // modify the artifact directly. Try to resolve the path now.
-  auto artifact = _rebuild.getArtifact(ref);
-
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
 
@@ -705,23 +691,15 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // Check whether the openat call succeeded or failed
   if (fd >= 0) {
-    bool created = false;
-    // If the artifact did not already exist, but the syscall succeeded, there is now an artifact
-    // we can resolve to. Get it.
-    if (!artifact) {
-      created = true;
-      artifact = _rebuild.getArtifact(ref);
-    }
-
     // The command observed a successful openat, so add this predicate to the command log
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
+    // The openat call succeeded, so there's an artifact we need to track now
+    auto& artifact = _rebuild.getArtifact(ref);
+
     // Handle O_CREAT and O_TRUNC
-    if (created && (flags & O_CREAT)) {
-      // We created a file, so tag a new (empty) version
-      _rebuild.setContents(_command, ref, artifact);
-    } else if (flags & O_TRUNC) {
-      // We truncated a file, so tag a new (empty) version
+    if ((flags & O_CREAT) || (flags & O_TRUNC)) {
+      // We either created an empty file or set its contents to empty
       _rebuild.setContents(_command, ref, artifact);
     }
 
@@ -966,8 +944,8 @@ void Process::_pipe2(int* fds, int flags) {
   // The command can continue
   resume();
 
-  // Create a pipe artifact
-  auto artifact = make_shared<Artifact>("pipe");
+  // Get an artifact for this pipe
+  auto& artifact = _rebuild.getArtifact(ref);
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;

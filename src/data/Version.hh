@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::shared_ptr;
@@ -24,11 +25,8 @@ class Reference;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Default constructor for deserialization
-  Version() = default;
-
   /// Create a reference to a numbered version of an artifact
-  Version(optional<string> path, shared_ptr<Command> creator = nullptr) :
+  Version(optional<string> path = nullopt, shared_ptr<Command> creator = nullptr) :
       _path(path), _creator(creator) {}
 
   // Disallow Copy
@@ -43,13 +41,16 @@ class Version : public std::enable_shared_from_this<Version> {
   void followedBy(shared_ptr<Version> v);
 
   /// Does this version have a known path?
-  bool hasPath() const { return _path.has_value(); }
+  bool hasPath() const { return _path.has_value() || (_previous && _previous->hasPath()); }
 
   /// Get the path for this version
-  string getPath() const { return _path.value_or("anon"); }
+  string getPath() const { return _path.value_or(_previous ? _previous->getPath() : "anon"); }
 
   /// Get the first version of this artifact
   shared_ptr<Version> getFirstVersion();
+
+  /// Get the latest version of this artifact
+  shared_ptr<Version> getLatestVersion();
 
   /// Get the number of preceding versions of this artifact
   size_t getVersionNumber() const { return _previous ? (_previous->getVersionNumber() + 1) : 0; }

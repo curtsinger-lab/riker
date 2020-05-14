@@ -254,7 +254,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
     auto ref = initial_fd.getReference();
-    auto artifact = _rebuild.getArtifact(ref);
+    auto& artifact = _rebuild.getArtifact(ref);
     bool writable = initial_fd.isWritable();
 
     fds.emplace(index, FDEntry(ref, artifact, writable));
