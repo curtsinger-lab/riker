@@ -380,13 +380,18 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
       // Get the writing command and the entry it wrote
       auto [path, entry] = *iter;
 
-      // If the writer reruns, the current command will need to rerun too because it depends on
-      // writer's output.
+      // In a rebuild that runs entry->getCreator(), c must also run because it consumes output from
+      // entry->getCreator().
       _output_used_by[entry->getCreator()].insert(c);
 
-      // If we had a cached version of the entry writer creates we could skip this, but no caching
-      // yet so any time we need to rerun the current command, writer will have to rerun first.
-      _needs_output_from[c].insert(entry->getCreator());
+      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
+      // creator just to produce the file.
+      if (options::enable_cache && entry->hasSavedContents()) {
+        // We can use the cached version of the file
+      } else {
+        // No cached version available, so rerun the version's creator any time c reruns
+        _needs_output_from[c].insert(entry->getCreator());
+      }
 
       // This access will succeed, so check if that matches the expected outcome
       return expected == SUCCESS;
@@ -420,14 +425,13 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // If the writer ever reruns, the current command must rerun as well. Record that.
       _output_used_by[entry->getCreator()].insert(c);
 
-      // This command also requires output from the writer. If we have the metadata cached, we
-      // don't necessarily have to run the command that sets it, since we can put it in place
-      // ourselves.
-      if (!entry->hasMetadata()) {
-        _needs_output_from[c].insert(entry->getCreator());
+      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
+      // creator just to produce the file.
+      if (options::enable_cache && entry->hasMetadata()) {
+        // We can use the cached version
       } else {
-        // TODO: This may be the place to record that we have to stage in the expected artifact
-        // version if this command is run and the writer is not.
+        // No cached version available, so rerun the version's creator any time c reruns
+        _needs_output_from[c].insert(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
@@ -462,13 +466,13 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // If the writer ever reruns, the current command must rerun as well. Record that.
       _output_used_by[entry->getCreator()].insert(c);
 
-      // This command also requires output from the writer
-      // If we have file saved we can stage it in instead of running the writing command.
-      if (!entry->hasSavedContents()) {
-        _needs_output_from[c].insert(entry->getCreator());
+      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
+      // creator just to produce the file.
+      if (options::enable_cache && entry->hasSavedContents()) {
+        // We can use the cached version of the file
       } else {
-        // TODO: This may be the place to record that we have to stage in the expected artifact
-        // version if this command is run and the writer is not.
+        // No cached version available, so rerun the version's creator any time c reruns
+        _needs_output_from[c].insert(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
