@@ -21,4 +21,7 @@ inline bool combine_writes = true;  // PAPER
 /// Skip repeated checks of the contents or metadata for the same reference
 inline bool skip_repeat_checks = true;  // PAPER
 
+/// Enable file-staging cache
+inline bool enable_cache = false;  // PAPER
+
 };  // namespace options

@@ -1,5 +1,34 @@
 # Testing Instructions
-This file describes the process for creating new test cases for `dodo`. If you are looking for instructions on how to run tests, go back up to the root of the project and run `make test`.
+This file describes the test suite for dodo, and the process for creating new test cases. If you are looking for instructions on how to run tests, go back up to the root of the project and run `make test`.
+
+## Existing Tests
+
+`simple`                
+: Compile a hello world program with gcc
+
+`incremental`           
+: Compile a hello world program to .o, then link
+
+`readonly-Dodofile`     
+: Check if dodo correctly runs read-only Dodofiles with sh
+
+`non-sh-Dodofile`       
+: Check if dodo correctly runs a Dodofile that is not a shell script
+
+`inaccessible-Dodofile` 
+: Check if dodo fails with an error when Dodofile is not accessible
+
+`ABbuild-nocache`       
+: Generate output by running a sequence of shell commands with caching disabled
+
+`ABbuild-cache`         
+: Generate output by running a sequence of shell commands with caching enabled
+
+`graph`                 
+: Generate and render graphviz output
+
+`stats`                 
+: Generate build stats output
 
 Becasue Dodo is primarily a command-line tool, all tests are driven through the command line. Test cases use the [cram](https://pypi.org/project/cram/) tool to run commands and validate their output. This is not an introduction to cram, although the test cases in the `simple` directory demonstrate a number of useful features of cram.
 

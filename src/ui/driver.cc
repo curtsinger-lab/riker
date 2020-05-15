@@ -224,6 +224,10 @@ int main(int argc, char* argv[]) {
       ->description("Disable the repeat check skipping optimization")
       ->group("Optimizations");
 
+  build->add_flag_callback("--no-caching", [] { options::enable_cache = false; })
+      ->description("Disable the build cache")
+      ->group("Optimizations");
+
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
