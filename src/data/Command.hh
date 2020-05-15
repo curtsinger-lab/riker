@@ -41,13 +41,15 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class cereal::access;
   Command() = default;
 
-  /// Create a new command
-  Command(string exe, vector<string> args, map<int, InitialFD> initial_fds) :
-      _exe(exe), _args(args), _initial_fds(initial_fds) {}
+  friend class Rebuild;
 
  public:
   /// Create a command to invoke the provided buildfile
   static shared_ptr<Command> createRootCommand();
+
+  /// Create a new command
+  Command(string exe, vector<string> args, map<int, InitialFD> initial_fds) :
+      _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -93,34 +95,23 @@ class Command : public std::enable_shared_from_this<Command> {
   /********* Command Tracing Operations **********/
 
  private:
-  friend class Rebuild;
-  /// The command accesses an artifact by path.
-  /// This function returns a shared_ptr<Ref>,
-  /// Most access() calls will *not* have side-effects, but some will:
-  ///  - O_CREAT was specified, and the file did not exist before this call
-  ///  - O_TRUNC was specified, and the file existed before this call
-  shared_ptr<Reference> access(string path, AccessFlags flags);
+  /// Add a trace step to this command
+  void addStep(shared_ptr<Step> s) { _steps.push_back(s); }
 
-  /// This command creates a reference to a new pipe
-  shared_ptr<Reference> pipe();
+  /// Add a child to this command
+  void addChild(shared_ptr<Command> c) { _children.push_back(c); }
 
-  /// This command observes a reference resolve with a particular result
-  void referenceResult(shared_ptr<Reference> ref, int result);
+  /// Record a metadata check performed by this command, and return true if it is new
+  bool checkMetadataRequired(shared_ptr<Reference> ref, shared_ptr<Version> v) {
+    auto [_, inserted] = _metadata_checks.emplace(ref, v);
+    return inserted;
+  }
 
-  /// This command accesses the metadata for an artifact
-  void metadataMatch(shared_ptr<Reference> ref, Artifact& a);
-
-  /// This command accesses the contents of an artifact
-  void contentsMatch(shared_ptr<Reference> ref, Artifact& a);
-
-  /// This command sets the metadata for an artifact
-  void setMetadata(shared_ptr<Reference> ref, Artifact& a);
-
-  /// This command sets the contents of an artifact
-  void setContents(shared_ptr<Reference> ref, Artifact& a);
-
-  /// This command starts another command
-  shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
+  /// Record a contents check performed by this command, and return true if it is new
+  bool checkContentsRequired(shared_ptr<Reference> ref, shared_ptr<Version> v) {
+    auto [_, inserted] = _contents_checks.emplace(ref, v);
+    return inserted;
+  }
 
  public:
   /****** Utility Methods ******/

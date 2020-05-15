@@ -51,37 +51,32 @@ class Rebuild {
   /// Get the artifact a reference resolves to
   Artifact& getArtifact(shared_ptr<Reference> ref);
 
-  /*** Porting IR methods from Command ***/
-  shared_ptr<Reference> access(shared_ptr<Command> c, string path, AccessFlags flags) {
-    return c->access(path, flags);
-  }
+  /*** Tracing methods ***/
 
-  shared_ptr<Reference> pipe(shared_ptr<Command> c) { return c->pipe(); }
+  /// Command c accesses a path with the given flags
+  shared_ptr<Reference> access(shared_ptr<Command> c, string path, AccessFlags flags);
 
-  void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result) {
-    c->referenceResult(ref, result);
-  }
+  /// Command c creates a pipe
+  shared_ptr<Reference> pipe(shared_ptr<Command> c);
 
-  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
-    c->metadataMatch(ref, a);
-  }
+  /// Command c expects a reference to resolve with a particular result
+  void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result);
 
-  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
-    c->contentsMatch(ref, a);
-  }
+  /// Command c depends on the metadata of a referenced artifact
+  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
 
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
-    c->setMetadata(ref, a);
-  }
+  /// Command c depends on the contents of a referenced artifact
+  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
 
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
-    c->setContents(ref, a);
-  }
+  /// Command c sets the metadata of a referenced artifact
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
 
+  /// Command c sets the contents of a referenced artifact
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+
+  /// Command c launches a child command
   shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
-                             map<int, InitialFD> fds) {
-    return c->launch(exe, args, fds);
-  }
+                             map<int, InitialFD> fds);
 
   /**************/
 
