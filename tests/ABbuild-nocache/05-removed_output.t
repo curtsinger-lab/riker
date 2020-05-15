@@ -1,11 +1,11 @@
 Move to test directory
   $ cd $TESTDIR
 
-Move in the new version of inputB
-  $ cp file_versions/inputB_new inputB
+Remove the output myfile
+  $ rm myfile
 
 Update the build
-  $ ../../dodo --show
+  $ ../../dodo --show --no-caching
   ./A
   cat inputA
   ./B
@@ -16,4 +16,4 @@ Verify the output is correct
   goodbye frodo
 
 Run the build again, doing nothing this time
-  $ ../../dodo --show
+  $ ../../dodo --show --no-caching

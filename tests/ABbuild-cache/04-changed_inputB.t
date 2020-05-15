@@ -1,19 +1,16 @@
 Move to test directory
   $ cd $TESTDIR
 
-Move in the new version of inputA
-  $ cp file_versions/inputA_new inputA
+Move in the new version of inputB
+  $ cp file_versions/inputB_new inputB
 
 Update the build
   $ ../../dodo --show
-  ./A
-  cat inputA
-  ./B
   cat inputB
 
 Verify the output is correct
   $ cat myfile
-  goodbye world
+  goodbye frodo
 
 Run the build again, doing nothing this time
   $ ../../dodo --show
