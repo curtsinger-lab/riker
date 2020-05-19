@@ -23,7 +23,7 @@ clean:
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	
-$(OBJS): objs/%.o: src/%.cc $(HEADERS)
+$(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
@@ -31,7 +31,7 @@ test: dodo
 	@echo "Running test cases"
 	@cram --quiet tests/*/*.t || ( \
 		echo "\nFailed tests:" && \
-		for fail in `find tests | grep .t.err | xargs dirname | xargs basename | uniq`; do \
+		for fail in `find tests | grep .t.err | xargs -L 1 dirname | xargs -L 1 basename | uniq`; do \
 		  echo -n "  $$fail ("; \
 			echo -n `ls tests/$$fail | grep .t.err | rev | cut -c 5- | rev`; \
 			echo ")"; \
