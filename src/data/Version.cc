@@ -71,10 +71,20 @@ bool Version::fingerprintMatch(shared_ptr<Version> other) const {
   auto m2 = other->getMetadata();
 
   // We need metadata from both versions to compare
-  if (!m1.has_value() || !m2.has_value()) return false;
+  if (!m1.has_value() || !m2.has_value()) {
+    LOG << "Fingerprint mismatch: missing metadata";
+    return false;
+  }
 
   // Compare mtimes
-  return m1.value().st_mtim == m2.value().st_mtim;
+  if (m1.value().st_mtim == m2.value().st_mtim) {
+    return true;
+  } else {
+    LOG << "Fingerprint mismatch: different mtimes";
+    LOG << "  " << this << ": " << m1.value().st_mtim.tv_sec << ", " << m1.value().st_mtim.tv_nsec;
+    LOG << "  " << other << ": " << m2.value().st_mtim.tv_sec << ", " << m2.value().st_mtim.tv_nsec;
+    return false;
+  }
 }
 
 optional<struct stat> get_metadata(shared_ptr<Reference> ref) {
@@ -104,7 +114,19 @@ optional<string> OpenedVersion::getPath() const {
   }
 }
 
+optional<string> CreatedVersion::getPath() const {
+  if (auto a = dynamic_pointer_cast<Access>(_ref)) {
+    return a->getPath();
+  } else {
+    return nullopt;
+  }
+}
+
 void OpenedVersion::saveMetadata() {
+  _metadata = get_metadata(_ref);
+}
+
+void CreatedVersion::saveMetadata() {
   _metadata = get_metadata(_ref);
 }
 

@@ -49,7 +49,7 @@ class Rebuild {
   void run();
 
   /// Get the artifact a reference resolves to
-  Artifact& getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  Artifact& getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created = false);
 
   /*** Tracing methods ***/
 

@@ -86,7 +86,7 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
@@ -117,8 +117,18 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref)
     // Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter == _artifacts.end()) {
-      // Create an initial version of this artifact
-      auto v = make_shared<OpenedVersion>(ref);
+      shared_ptr<Version> v;
+
+      // Did the reference create this artifact?
+      if (created) {
+        // Yes. This version is created
+        v = make_shared<CreatedVersion>(c, ref);
+        // The command also sets the version's contents
+        c->addStep(make_shared<SetContents>(ref, v));
+      } else {
+        // No. This version is just opened
+        v = make_shared<OpenedVersion>(ref);
+      }
 
       // Add the artifact to the map
       iter = _artifacts.emplace_hint(iter, statbuf.st_ino, pair<string, Artifact>{p, Artifact(v)});

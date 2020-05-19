@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <cereal/types/polymorphic.hpp>
+
 #include "util/serializer.hh"
 
 using std::nullopt;
@@ -75,9 +77,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Save the metadata for this version
   virtual void saveMetadata() {}
 
-  /// Get saved metadata for this version
-  virtual optional<Metadata> getMetadata() const { return nullopt; }
-
   /// Compare metadata for this version to another version
   virtual bool metadataMatch(shared_ptr<Version> other) const;
 
@@ -86,9 +85,6 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Save a fingerprint of this version's contents
   virtual void saveFingerprint() {}
-
-  /// Get the saved fingerprint for this version
-  virtual optional<Fingerprint> getFingerprint() const { return nullopt; }
 
   /// Compare the fingerprint for this version to another version
   virtual bool fingerprintMatch(shared_ptr<Version> other) const;
@@ -99,6 +95,25 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as accessed
   void setAccessed() { _accessed = true; }
 
+  /// Print a Version
+  friend ostream& operator<<(ostream& o, const Version& v) {
+    if (auto p = v.getPath(); p.has_value()) {
+      return o << "[Artifact " << p.value() << "]@v" << v.getVersionNumber();
+    } else {
+      return o << "[Artifact]@v" << v.getVersionNumber();
+    }
+  }
+
+  /// Print a Version*
+  friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
+
+ protected:
+  /// Get saved metadata for this version
+  virtual optional<Metadata> getMetadata() const { return nullopt; }
+
+  /// Get the saved fingerprint for this version
+  virtual optional<Fingerprint> getFingerprint() const { return nullopt; }
+
  private:
   /// The version that preceded this one, if any
   shared_ptr<Version> _previous;
@@ -107,7 +122,7 @@ class Version : public std::enable_shared_from_this<Version> {
   weak_ptr<Version> _next;
 
   /// Transient: has this version been accessed?
-  bool _accessed;
+  bool _accessed = false;
 
   // Specify fields for serialization
   SERIALIZE(_previous, _next);
@@ -124,7 +139,7 @@ class InitialPipeVersion : public Version {
 
   // Create default constructor and specify fields for serialization
   InitialPipeVersion() = default;
-  SERIALIZE(_creator);
+  SERIALIZE(cereal::base_class<Version>(this), _creator);
 };
 
 class OpenedVersion : public Version {
@@ -137,9 +152,10 @@ class OpenedVersion : public Version {
 
   virtual void saveMetadata() override;
 
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
   virtual void saveFingerprint() override { saveMetadata(); }
+
+ protected:
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
 
  private:
   shared_ptr<Reference> _ref;
@@ -147,7 +163,35 @@ class OpenedVersion : public Version {
 
   // Create default constructor and specify fields for serialization
   OpenedVersion() = default;
-  SERIALIZE(_ref, _metadata);
+  SERIALIZE(cereal::base_class<Version>(this), _ref, _metadata);
+};
+
+class CreatedVersion : public Version {
+ public:
+  CreatedVersion(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
+      _creator(creator), _ref(ref) {}
+
+  virtual optional<string> getPath() const override;
+
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+
+  virtual bool hasMetadata() const override { return _metadata.has_value(); }
+
+  virtual void saveMetadata() override;
+
+  virtual void saveFingerprint() override { saveMetadata(); }
+
+ protected:
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
+
+ private:
+  shared_ptr<Command> _creator;
+  shared_ptr<Reference> _ref;
+  optional<Metadata> _metadata;
+
+  // Create default constructor and specify fields for serialization
+  CreatedVersion() = default;
+  SERIALIZE(cereal::base_class<Version>(this), _creator, _ref, _metadata);
 };
 
 class ModifiedVersion : public Version {
@@ -161,9 +205,10 @@ class ModifiedVersion : public Version {
 
   virtual void saveMetadata() override;
 
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
   virtual void saveFingerprint() override { saveMetadata(); }
+
+ protected:
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
 
  private:
   shared_ptr<Command> _creator;
@@ -172,5 +217,5 @@ class ModifiedVersion : public Version {
 
   // Create default constructor and specify fields for serialization
   ModifiedVersion() = default;
-  SERIALIZE(_creator, _ref, _metadata);
+  SERIALIZE(cereal::base_class<Version>(this), _creator, _ref, _metadata);
 };
