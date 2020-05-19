@@ -16,6 +16,7 @@
 #include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 #include "util/UniqueID.hh"
+#include "util/serializer.hh"
 
 using std::list;
 using std::map;
@@ -37,10 +38,6 @@ class Version;
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  Command() = default;
-
   friend class Rebuild;
 
  public:
@@ -124,10 +121,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Print a Command* to an output stream
   friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Command& c, const uint32_t version);
-
  private:
   /// A unique ID assigned to this command for log readability
   UniqueID<Command> _id;
@@ -154,4 +147,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Track all the unique content checks made during tracing
   set<pair<shared_ptr<Reference>, shared_ptr<Version>>> _contents_checks;
+
+  // Create default constructor and specify fields for serialization
+  Command() = default;
+  SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
 };

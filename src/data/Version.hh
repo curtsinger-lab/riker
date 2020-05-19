@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <cereal/access.hpp>
+#include "util/serializer.hh"
 
 using std::nullopt;
 using std::optional;
@@ -99,10 +99,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as accessed
   void setAccessed() { _accessed = true; }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Version& v, const uint32_t version);
-
  private:
   /// The version that preceded this one, if any
   shared_ptr<Version> _previous;
@@ -112,31 +108,26 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Transient: has this version been accessed?
   bool _accessed;
+
+  // Specify fields for serialization
+  SERIALIZE(_previous, _next);
 };
 
 class InitialPipeVersion : public Version {
- private:
-  friend class cereal::access;
-  InitialPipeVersion() = default;
-
  public:
   InitialPipeVersion(shared_ptr<Command> creator) : _creator(creator) {}
 
   virtual shared_ptr<Command> getCreator() const override { return _creator; }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, InitialPipeVersion& v, const uint32_t version);
-
  private:
   shared_ptr<Command> _creator;
+
+  // Create default constructor and specify fields for serialization
+  InitialPipeVersion() = default;
+  SERIALIZE(_creator);
 };
 
 class OpenedVersion : public Version {
- private:
-  friend class cereal::access;
-  OpenedVersion() = default;
-
  public:
   OpenedVersion(shared_ptr<Reference> ref) : _ref(ref) {}
 
@@ -150,20 +141,16 @@ class OpenedVersion : public Version {
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, OpenedVersion& v, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;
   optional<Metadata> _metadata;
+
+  // Create default constructor and specify fields for serialization
+  OpenedVersion() = default;
+  SERIALIZE(_ref, _metadata);
 };
 
 class ModifiedVersion : public Version {
- private:
-  friend class cereal::access;
-  ModifiedVersion() = default;
-
  public:
   ModifiedVersion(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
       _creator(creator), _ref(ref) {}
@@ -178,12 +165,12 @@ class ModifiedVersion : public Version {
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, ModifiedVersion& v, const uint32_t version);
-
  private:
   shared_ptr<Command> _creator;
   shared_ptr<Reference> _ref;
   optional<Metadata> _metadata;
+
+  // Create default constructor and specify fields for serialization
+  ModifiedVersion() = default;
+  SERIALIZE(_creator, _ref, _metadata);
 };

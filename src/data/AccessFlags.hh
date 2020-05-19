@@ -4,6 +4,8 @@
 
 #include <fcntl.h>
 
+#include "util/serializer.hh"
+
 using std::ostream;
 
 /// This struct encodes the flags specified when making an access to a particular reference
@@ -15,6 +17,9 @@ struct AccessFlags {
   bool truncate = false;   //< Does the reference truncate the artifact's contents?
   bool create = false;     //< Does the reference create an artifact if none exists?
   bool exclusive = false;  //< Does the reference require creation? (must also be set with .create)
+
+  // Declare fields for serialization
+  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive);
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
   static AccessFlags fromOpen(int flags) {

@@ -11,6 +11,7 @@
 
 #include "data/AccessFlags.hh"
 #include "util/UniqueID.hh"
+#include "util/serializer.hh"
 
 using std::map;
 using std::nullopt;
@@ -73,17 +74,14 @@ class Pipe : public Reference {
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Pipe& p, const uint32_t version);
+ private:
+  int x;
+  // Declare fields for serialization
+  SERIALIZE(x);
 };
 
 /// Access a filesystem path with a given set of flags
 class Access : public Reference {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  Access() = default;
-
  public:
   /// Create an access reference to a path with given flags
   Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
@@ -97,13 +95,13 @@ class Access : public Reference {
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Access& a, const uint32_t version);
-
  private:
   string _path;        //< The filesystem path that was accessed
   AccessFlags _flags;  //< The relevant flags for the access
+
+  // Create default constructor and specify fields for serialization
+  Access() = default;
+  SERIALIZE(_path, _flags);
 };
 
 /**
@@ -122,10 +120,6 @@ class Predicate : public Step {};
  * Making a reference produced a particular result (error code or success)
  */
 class ReferenceResult : public Predicate {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  ReferenceResult() = default;
-
  public:
   /// Create a REFERENCE_RESULT predicate
   ReferenceResult(shared_ptr<Reference> ref, int rc) : _ref(ref), _rc(rc) {}
@@ -139,23 +133,19 @@ class ReferenceResult : public Predicate {
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, ReferenceResult& p, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;  //< The reference whose outcome we depend on
   int _rc;                     //< The result of that reference
+
+  // Create default constructor and specify fields for serialization
+  ReferenceResult() = default;
+  SERIALIZE(_ref, _rc);
 };
 
 /**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
 class MetadataMatch : public Predicate {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  MetadataMatch() = default;
-
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -170,23 +160,19 @@ class MetadataMatch : public Predicate {
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, MetadataMatch& p, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;    //< The reference being examined
   shared_ptr<Version> _version;  //< The artifact version whose metadata the reference must match
+
+  // Create default constructor and specify fields for serialization
+  MetadataMatch() = default;
+  SERIALIZE(_ref, _version);
 };
 
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
 class ContentsMatch : public Predicate {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  ContentsMatch() = default;
-
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -201,13 +187,13 @@ class ContentsMatch : public Predicate {
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, ContentsMatch& p, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;    //< The reference being examined
   shared_ptr<Version> _version;  //< The artifact version whose contents the reference must match
+
+  // Create default constructor and specify fields for serialization
+  ContentsMatch() = default;
+  SERIALIZE(_ref, _version);
 };
 
 /**
@@ -227,10 +213,6 @@ class Action : public Step {};
  * set of references from its parent.
  */
 class Launch : public Action {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  Launch() = default;
-
  public:
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) : _cmd(cmd) {}
@@ -241,22 +223,18 @@ class Launch : public Action {
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, Launch& a, const uint32_t version);
-
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
+
+  // Create default constructor and specify fields for serialization
+  Launch() = default;
+  SERIALIZE(_cmd);
 };
 
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
 class SetMetadata : public Action {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  SetMetadata() = default;
-
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -271,23 +249,19 @@ class SetMetadata : public Action {
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, SetMetadata& a, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;    //< The reference used for this action
   shared_ptr<Version> _version;  //< The artifact version with the metadata written by this action
+
+  // Create default constructor and specify fields for serialization
+  SetMetadata() = default;
+  SERIALIZE(_ref, _version);
 };
 
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
 class SetContents : public Action {
-  // Default constructor for deserialization
-  friend class cereal::access;
-  SetContents() = default;
-
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -302,11 +276,11 @@ class SetContents : public Action {
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, SetContents& a, const uint32_t version);
-
  private:
   shared_ptr<Reference> _ref;    //< The reference used for this action
   shared_ptr<Version> _version;  //< The artifact version with the contents written by this action
+
+  // Create default constructor and specify fields for serialization
+  SetContents() = default;
+  SERIALIZE(_ref, _version);
 };

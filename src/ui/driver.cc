@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <forward_list>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -8,6 +9,9 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+
+#include <cereal/archives/binary.hpp>
+#include <cereal/types/memory.hpp>
 
 #include <CLI/CLI.hpp>
 
@@ -24,6 +28,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::forward_list;
+using std::ifstream;
 using std::make_unique;
 using std::ofstream;
 using std::stol;
@@ -40,26 +45,6 @@ const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 
-/// Try to load a build. Exit with an error if loading fails.
-shared_ptr<Command> open_build(bool get_default) {
-  try {
-    return load_build(DatabaseFilename);
-  } catch (db_version_exception e) {
-    // If the load is allowed to return a default build, warn about the version and return
-    if (get_default) {
-      WARN << "Build database is outdated. Initializing a default build.";
-      return Command::createRootCommand();
-    }
-    FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-  } catch (cereal::Exception e) {
-    // If fallback to a default is allowed, get that
-    if (get_default) return Command::createRootCommand();
-    FAIL << "Failed to load the build database. Have you run a build yet?";
-  }
-  // Unreachable, but silences warnings
-  exit(2);
-}
-
 /**
  * Run the `build` subcommand.
  * \param jobs        The maximum number of concurrent jobs to run
@@ -68,7 +53,7 @@ shared_ptr<Command> open_build(bool get_default) {
  */
 void do_build(int jobs, string fingerprint) {
   // Load a build, or set up a default build if necessary
-  auto root = open_build(true);
+  auto root = load_build(DatabaseFilename, true);
 
   // Compute the rebuild steps
   Rebuild rebuild = Rebuild::create(root);
@@ -111,7 +96,7 @@ void do_launch() {
  */
 void do_check() {
   // Load a build, or set up a default build if necessary
-  auto root = open_build(true);
+  auto root = load_build(DatabaseFilename, true);
 
   // Plan and print the rebuild steps
   cout << Rebuild::create(root);
@@ -122,7 +107,7 @@ void do_check() {
  * \param output  The name of the output file, or "-" for stdout
  */
 void do_trace(string output) {
-  auto root = open_build(false);
+  auto root = load_build(DatabaseFilename, false);
   if (output == "-") {
     cout << TraceVisitor(root);
   } else {
@@ -137,7 +122,7 @@ void do_trace(string output) {
  * \param show_sysfiles If true, include system files in the graph
  */
 void do_graph(string output, bool show_sysfiles) {
-  auto root = open_build(false);
+  auto root = load_build(DatabaseFilename, false);
   if (output == "-") {
     cout << GraphVisitor(root, show_sysfiles);
   } else {
@@ -151,7 +136,7 @@ void do_graph(string output, bool show_sysfiles) {
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) {
-  auto root = open_build(false);
+  auto root = load_build(DatabaseFilename, false);
   cout << StatsVisitor(root, list_artifacts);
 }
 

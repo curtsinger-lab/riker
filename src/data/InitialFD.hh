@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "util/serializer.hh"
+
 using std::shared_ptr;
 
 class Reference;
@@ -15,7 +17,7 @@ class Reference;
  */
 class InitialFD {
  public:
-  // Default constructor for deserialization
+  /// Default constructor, used only for serialization
   InitialFD() = default;
 
   /// Create a record of an initial file descriptor
@@ -27,14 +29,13 @@ class InitialFD {
   /// Check if the file descriptor should be writable
   bool isWritable() const { return _writable; }
 
-  /// Friend method for serialization
-  template <class Archive>
-  friend void serialize(Archive& archive, InitialFD& fd, const uint32_t version);
-
  private:
   /// The reference used to locate an artifact that the file descriptor points to
   shared_ptr<Reference> _ref;
 
   /// Is this file descriptor opened in writable mode?
   bool _writable;
+
+  // Declare fields for serialization
+  SERIALIZE(_ref, _writable);
 };
