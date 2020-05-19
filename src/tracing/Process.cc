@@ -366,7 +366,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _rebuild.referenceResult(_command, ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto& artifact = _rebuild.getArtifact(ref);
+      auto& artifact = _rebuild.getArtifact(_command, ref);
 
       // Record the dependence on the artifact's metadata
       _rebuild.metadataMatch(_command, ref, artifact);
@@ -427,7 +427,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _rebuild.launch(_command, exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto& exe_artifact = _rebuild.getArtifact(exe_ref);
+  auto& exe_artifact = _rebuild.getArtifact(_command, exe_ref);
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _rebuild.access(_command, exe_path, {.r = true});
@@ -709,7 +709,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
     // The openat call succeeded, so there's an artifact we need to track now
-    auto& artifact = _rebuild.getArtifact(ref);
+    auto& artifact = _rebuild.getArtifact(_command, ref);
 
     // If this openat call is going to create a new version, tag that version now
     if (created) {
@@ -959,7 +959,7 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto& artifact = _rebuild.getArtifact(ref);
+  auto& artifact = _rebuild.getArtifact(_command, ref);
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;

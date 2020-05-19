@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <cereal/access.hpp>
+
 using std::nullopt;
 using std::optional;
 using std::ostream;
@@ -22,12 +24,15 @@ using std::weak_ptr;
 class Command;
 class Reference;
 
+using Metadata = struct stat;
+using Fingerprint = struct stat;
+
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Create a new version of an artifact
-  Version(optional<string> path = nullopt, shared_ptr<Command> creator = nullptr) :
-      _path(path), _creator(creator) {}
+  Version() = default;
+
+  virtual ~Version() = default;
 
   // Disallow Copy
   Version(const Version&) = delete;
@@ -39,12 +44,6 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Record a version that follows this one
   void followedBy(shared_ptr<Version> v);
-
-  /// Does this version have a known path?
-  bool hasPath() const { return _path.has_value() || (_previous && _previous->hasPath()); }
-
-  /// Get the path for this version
-  string getPath() const { return _path.value_or(_previous ? _previous->getPath() : "anon"); }
 
   /// Get the first version of this artifact
   shared_ptr<Version> getFirstVersion();
@@ -61,8 +60,38 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the next version
   shared_ptr<Version> getNext() const { return _next.lock(); }
 
+  /// Get the path for this version if it has one
+  virtual optional<string> getPath() const { return _previous ? _previous->getPath() : nullopt; }
+
   /// Get the command that created this version
-  shared_ptr<Command> getCreator() const { return _creator.lock(); }
+  virtual shared_ptr<Command> getCreator() const { return nullptr; }
+
+  /// Is this version saved in a way that allows us to reproduce it?
+  virtual bool isSaved() const { return false; }
+
+  /// Do we have saved metadata for this version?
+  virtual bool hasMetadata() const { return false; }
+
+  /// Save the metadata for this version
+  virtual void saveMetadata() {}
+
+  /// Get saved metadata for this version
+  virtual optional<Metadata> getMetadata() const { return nullopt; }
+
+  /// Compare metadata for this version to another version
+  virtual bool metadataMatch(shared_ptr<Version> other) const;
+
+  /// Do we have a fingerprint for the contents of this version?
+  virtual bool hasFingerprint() const { return false; }
+
+  /// Save a fingerprint of this version's contents
+  virtual void saveFingerprint() {}
+
+  /// Get the saved fingerprint for this version
+  virtual optional<Fingerprint> getFingerprint() const { return nullopt; }
+
+  /// Compare the fingerprint for this version to another version
+  virtual bool fingerprintMatch(shared_ptr<Version> other) const;
 
   /// Check if this version has been accessed
   bool isAccessed() const { return _accessed; }
@@ -70,62 +99,91 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as accessed
   void setAccessed() { _accessed = true; }
 
-  /// Save the metadata for this version
-  void saveMetadata(shared_ptr<Reference> ref);
-
-  /// Check if this version has saved metadata
-  bool hasMetadata() const { return _metadata.has_value(); }
-
-  /// Get the saved metadata for this version
-  const struct stat& getMetadata() const { return _metadata.value(); }
-
-  /// Save a fingerprint of the contents for this version
-  void saveFingerprint(shared_ptr<Reference> ref);
-
-  /// Check if this version has a fingerprint saved
-  bool hasFingerprint() const { return _fingerprint.has_value(); }
-
-  /// Save the contents of this version of the artifact
-  void saveContents(shared_ptr<Reference> ref);
-
-  /// Check if the contents of this version have been saved
-  bool hasSavedContents() const { return _saved.has_value(); }
-
   /// Friend method for serialization
   template <class Archive>
   friend void serialize(Archive& archive, Version& v, const uint32_t version);
 
-  /// Print a version
-  friend ostream& operator<<(ostream& o, const Version& v) {
-    return o << "v" << v.getVersionNumber();
-  }
-
-  /// Print a version pointer
-  friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
-
  private:
-  /// The path to this version, if we have one
-  optional<string> _path;
-
   /// The version that preceded this one, if any
   shared_ptr<Version> _previous;
 
   /// The version that comes after this one, if any
   weak_ptr<Version> _next;
 
-  /// Which command created this version?
-  weak_ptr<Command> _creator;
+  /// Transient: has this version been accessed?
+  bool _accessed;
+};
 
-  /// Saved metadata for this version
-  optional<struct stat> _metadata;
+class InitialPipeVersion : public Version {
+ private:
+  friend class cereal::access;
+  InitialPipeVersion() = default;
 
-  /// Saved fingerprint for this version
-  optional<vector<uint8_t>> _fingerprint;
+ public:
+  InitialPipeVersion(shared_ptr<Command> creator) : _creator(creator) {}
 
-  /// Name of the file that contains a copy of this version
-  optional<string> _saved;
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
 
-  /*** Transient Data (not serialized) ***/
-  /// Has this version been accessed by any commands other than the creator?
-  bool _accessed = false;
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, InitialPipeVersion& v, const uint32_t version);
+
+ private:
+  shared_ptr<Command> _creator;
+};
+
+class OpenedVersion : public Version {
+ private:
+  friend class cereal::access;
+  OpenedVersion() = default;
+
+ public:
+  OpenedVersion(shared_ptr<Reference> ref) : _ref(ref) {}
+
+  virtual optional<string> getPath() const override;
+
+  virtual bool hasMetadata() const override { return _metadata.has_value(); }
+
+  virtual void saveMetadata() override;
+
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
+
+  virtual void saveFingerprint() override { saveMetadata(); }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, OpenedVersion& v, const uint32_t version);
+
+ private:
+  shared_ptr<Reference> _ref;
+  optional<Metadata> _metadata;
+};
+
+class ModifiedVersion : public Version {
+ private:
+  friend class cereal::access;
+  ModifiedVersion() = default;
+
+ public:
+  ModifiedVersion(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
+      _creator(creator), _ref(ref) {}
+
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+
+  virtual bool hasMetadata() const override { return _metadata.has_value(); }
+
+  virtual void saveMetadata() override;
+
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
+
+  virtual void saveFingerprint() override { saveMetadata(); }
+
+  /// Friend method for serialization
+  template <class Archive>
+  friend void serialize(Archive& archive, ModifiedVersion& v, const uint32_t version);
+
+ private:
+  shared_ptr<Command> _creator;
+  shared_ptr<Reference> _ref;
+  optional<Metadata> _metadata;
 };

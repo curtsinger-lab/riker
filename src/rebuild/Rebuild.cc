@@ -59,8 +59,8 @@ void Rebuild::run() {
   for (auto& [_, entry] : _artifacts) {
     auto& [path, artifact] = entry;
     auto ref = make_shared<Access>(path, AccessFlags());
-    artifact->getLatestVersion()->saveMetadata(ref);
-    artifact->getLatestVersion()->saveFingerprint(ref);
+    artifact->getLatestVersion()->saveMetadata();
+    artifact->getLatestVersion()->saveFingerprint();
   }
 }
 
@@ -86,13 +86,13 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-Artifact& Rebuild::getArtifact(shared_ptr<Reference> ref) {
+Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
       // This is a new pipe
-      iter = _pipes.emplace_hint(iter, p, Artifact(make_shared<Version>()));
+      iter = _pipes.emplace_hint(iter, p, Artifact(make_shared<InitialPipeVersion>(c)));
     }
 
     // Return the artifact, which was either found or inserted
@@ -118,7 +118,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Reference> ref) {
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter == _artifacts.end()) {
       // Create an initial version of this artifact
-      auto v = make_shared<Version>(p);
+      auto v = make_shared<OpenedVersion>(ref);
 
       // Add the artifact to the map
       iter = _artifacts.emplace_hint(iter, statbuf.st_ino, pair<string, Artifact>{p, Artifact(v)});
@@ -168,7 +168,7 @@ void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   v->setAccessed();
 
   // Make sure we have metadata saved for that version
-  v->saveMetadata(ref);
+  v->saveMetadata();
 
   // Record the dependency on metadata
   c->addStep(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
@@ -190,7 +190,7 @@ void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   v->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  v->saveFingerprint(ref);
+  v->saveFingerprint();
 
   // Record the dependency
   c->addStep(make_shared<ContentsMatch>(ref, v));
@@ -202,10 +202,11 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Tag a new version
-  auto new_version = a.tagNewVersion(c);
+  auto new_version = make_shared<ModifiedVersion>(c, ref);
+  a->getLatestVersion()->followedBy(new_version);
 
   // Record the update
-  c->addStep(make_shared<SetContents>(ref, new_version));
+  c->addStep(make_shared<SetMetadata>(ref, new_version));
 }
 
 /// This command sets the contents of an artifact
@@ -218,7 +219,9 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   if (options::combine_writes && v->getCreator() == c && !v->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
-  auto new_version = a.tagNewVersion(c);
+  auto new_version = make_shared<ModifiedVersion>(c, ref);
+  a->getLatestVersion()->followedBy(new_version);
+
   c->addStep(make_shared<SetContents>(ref, new_version));
 }
 
@@ -386,7 +389,7 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that version's
       // creator just to produce the file.
-      if (options::enable_cache && entry->hasSavedContents()) {
+      if (options::enable_cache && entry->isSaved()) {
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
@@ -435,7 +438,7 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       }
 
       // Does the current version in the environment match the expected version?
-      return entry == v;
+      return entry->metadataMatch(v);
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemMetadata(a, v);
@@ -468,7 +471,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that version's
       // creator just to produce the file.
-      if (options::enable_cache && entry->hasSavedContents()) {
+      if (options::enable_cache && entry->isSaved()) {
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
@@ -476,7 +479,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       }
 
       // Does the current version in the environment match the expected version?
-      return entry == v;
+      return entry->fingerprintMatch(v);
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemContents(a, v);
@@ -562,75 +565,16 @@ bool Rebuild::checkFilesystemAccess(shared_ptr<Access> ref, int expected) {
   }
 }
 
-/// Equality function for timespec structs
-bool operator==(const timespec& t1, const timespec& t2) {
-  return t1.tv_sec == t2.tv_sec && t1.tv_nsec == t2.tv_nsec;
-}
-
-/// Non-equality operator for timespec structs
-bool operator!=(const timespec& t1, const timespec& t2) {
-  return !(t1 == t2);
-}
-
-/// Printing for timespec structs
-ostream& operator<<(ostream& o, const timespec& ts) {
-  return o << ts.tv_sec << ":" << ts.tv_nsec;
-}
-
 // Check if the metadata for a file on the actual filesystem matches a saved version
 bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  // If we don't have metadata saved, we have to assume the file has changed
-  if (!v->hasMetadata()) return false;
-
-  // TODO: handle nofollow!
-
-  // Try to stat. If the stat fails, metadata does not match
-  struct stat metadata;
-  if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
-
-  auto saved_metadata = v->getMetadata();
-
-  // We only compare uid, gid, and mode (which covers both type and permissions)
-  if (metadata.st_uid != saved_metadata.st_uid) {
-    LOG << "uid mismatch";
-    return false;
-  }
-
-  if (metadata.st_gid != saved_metadata.st_gid) {
-    LOG << "gid mismatch";
-    return false;
-  }
-
-  if (metadata.st_mode != saved_metadata.st_mode) {
-    LOG << "mode mismatch";
-    return false;
-  }
-
-  // That's it. Metadata must match
-  return true;
+  auto ondisk = make_shared<OpenedVersion>(ref);
+  ondisk->saveMetadata();
+  return v->metadataMatch(ondisk);
 }
 
 // Check if the contents of a file on the actual fileystem match a saved version
 bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  // For now, we're just going to check mtime
-
-  // If we don't have metadata saved, we have to assume the file has changed
-  if (!v->hasMetadata()) return false;
-
-  // TODO: handle nofollow!
-
-  // Try to stat. If the stat fails, metadata does not match
-  struct stat metadata;
-  if (stat(ref->getPath().c_str(), &metadata) != 0) return false;
-
-  auto saved_metadata = v->getMetadata();
-
-  // If the mtime for the on-disk file is changed, the contents must not match
-  if (metadata.st_mtim != saved_metadata.st_mtim) {
-    LOG << "mtime changed: " << metadata.st_mtim << " vs " << saved_metadata.st_mtim;
-    return false;
-  }
-
-  // That's it for now. If mtime is unchanged, the file must be unchanged
-  return true;
+  auto ondisk = make_shared<OpenedVersion>(ref);
+  ondisk->saveFingerprint();
+  return v->fingerprintMatch(ondisk);
 }

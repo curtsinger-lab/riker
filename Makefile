@@ -27,7 +27,7 @@ $(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
 
 test: dodo
 	@echo "Running test cases"
-	cram tests/*/*.t
+	@cram tests/*/*.t
 
 selftest: dodo
 	@echo "Running self test"

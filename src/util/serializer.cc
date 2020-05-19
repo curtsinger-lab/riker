@@ -122,7 +122,43 @@ CEREAL_CLASS_VERSION(::Version, ArchiveVersion);
 template <class Archive>
 void serialize(Archive& ar, Version& v, const uint32_t version) {
   if (version == ArchiveVersion) {
-    ar(v._path, v._previous, v._next, v._creator, v._metadata, v._fingerprint, v._saved);
+    ar(v._previous, v._next);
+  } else {
+    throw db_version_exception(version);
+  }
+}
+
+CEREAL_CLASS_VERSION(InitialPipeVersion, ArchiveVersion);
+CEREAL_REGISTER_TYPE(InitialPipeVersion);
+
+template <class Archive>
+void serialize(Archive& ar, InitialPipeVersion& v, const uint32_t version) {
+  if (version == ArchiveVersion) {
+    ar(cereal::base_class<Version>(&v), v._creator);
+  } else {
+    throw db_version_exception(version);
+  }
+}
+
+CEREAL_CLASS_VERSION(OpenedVersion, ArchiveVersion);
+CEREAL_REGISTER_TYPE(OpenedVersion);
+
+template <class Archive>
+void serialize(Archive& ar, OpenedVersion& v, const uint32_t version) {
+  if (version == ArchiveVersion) {
+    ar(cereal::base_class<Version>(&v), v._ref, v._metadata);
+  } else {
+    throw db_version_exception(version);
+  }
+}
+
+CEREAL_CLASS_VERSION(ModifiedVersion, ArchiveVersion);
+CEREAL_REGISTER_TYPE(ModifiedVersion);
+
+template <class Archive>
+void serialize(Archive& ar, ModifiedVersion& v, const uint32_t version) {
+  if (version == ArchiveVersion) {
+    ar(cereal::base_class<Version>(&v), v._creator, v._ref, v._metadata);
   } else {
     throw db_version_exception(version);
   }

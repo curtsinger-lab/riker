@@ -61,8 +61,8 @@ class GraphVisitor {
       // o << "<tr><td border=\"0\"><sub>" << ARTIFACT_TYPE << "</sub></td></tr>";
 
       // Add a row with the artifact name, if it has one
-      if (a->hasPath()) {
-        o << "<tr><td>" + escape(a->getPath()) + "</td></tr>";
+      if (auto path = a->getPath(); path.has_value()) {
+        o << "<tr><td>" + escape(path.value()) + "</td></tr>";
       }
 
       // Add rows for artifact versions. Walk through them as a linked list
@@ -99,12 +99,13 @@ class GraphVisitor {
   }
 
   bool isSystemFile(shared_ptr<Version> v) {
-    if (!v->hasPath()) return false;
+    auto path = v->getPath();
+    if (!path.has_value()) return false;
 
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
       // Check if the path begins with one of our prefixes.
       // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
-      if (v->getPath().rfind(p, 0) != string::npos) return true;
+      if (path.value().rfind(p, 0) != string::npos) return true;
     }
     return false;
   }

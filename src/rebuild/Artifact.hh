@@ -49,19 +49,10 @@ class Artifact {
     return _version;
   }
 
-  /// Tag a new version of this artifact and return a reference to that version
-  shared_ptr<Version> tagNewVersion(shared_ptr<Command> creator = nullptr) {
-    auto v = make_shared<Version>(nullopt, creator);
-    _version = _version->getLatestVersion();
-    _version->followedBy(v);
-    _version = v;
-    return v;
-  }
-
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {
-    if (a->hasPath()) {
-      return o << "[Artifact " << a->getPath() << "]@" << a->getVersionNumber();
+    if (auto path = a->getPath(); path.has_value()) {
+      return o << "[Artifact " << path.value() << "]@" << a->getVersionNumber();
     } else {
       return o << "[Artifact]@" << a->getVersionNumber();
     }

@@ -39,7 +39,7 @@ class StatsVisitor {
       o << "Artifacts:" << endl;
       for (auto a : _visited_artifacts) {
         size_t skipped = 0;
-        o << "  " << a->getPath() << endl;
+        o << "  " << a->getPath().value_or("<anonymous>") << endl;
 
         // Loop over all versions of this artifact
         auto current = a;
@@ -47,13 +47,13 @@ class StatsVisitor {
         while (current) {
           bool metadata = current->hasMetadata();
           bool fingerprint = current->hasFingerprint();
-          bool contents = current->hasSavedContents();
+          bool saved = current->isSaved();
 
-          if (metadata || fingerprint || contents) {
+          if (metadata || fingerprint || saved) {
             o << "    v" << index << ":";
             if (metadata) o << " metadata";
             if (fingerprint) o << " fingerprint";
-            if (contents) o << " contents";
+            if (saved) o << " saved";
             o << endl;
           } else {
             skipped++;
