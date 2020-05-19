@@ -30,10 +30,10 @@ $(OBJS): objs/%.o: src/%.cc $(HEADERS)
 test: dodo
 	@echo "Running test cases"
 	@cram --quiet tests/*/*.t || ( \
-		echo "Failed tests:" && \
+		echo "\nFailed tests:" && \
 		for fail in `find tests | grep .t.err | xargs dirname | xargs basename | uniq`; do \
 		  echo -n "  $$fail ("; \
-			echo -n `ls tests/$$fail | grep .t.err | rev | cut -c5- | rev`; \
+			echo -n `ls tests/$$fail | grep .t.err | rev | cut -c 5- | rev`; \
 			echo ")"; \
 		done && echo && /bin/false)
 
