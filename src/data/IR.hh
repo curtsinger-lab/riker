@@ -12,6 +12,7 @@
 #include "util/UniqueID.hh"
 #include "util/serializer.hh"
 
+using std::dynamic_pointer_cast;
 using std::map;
 using std::nullopt;
 using std::optional;
@@ -73,24 +74,17 @@ class Reference : public Step {
 };
 
 /// Create a reference to a new pipe
-class Pipe : public Reference, public Version {
+class Pipe : public Reference {
  public:
   /// Create a pipe
-  Pipe(shared_ptr<Command> creator) : _creator(creator) {}
-
-  /// Get the command that created this pipe
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+  Pipe() = default;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
 
  private:
-  /// What command made the reference that creates this pipe?
-  shared_ptr<Command> _creator;
-
-  // Create default constructor and specify fields for serialization
-  Pipe() = default;
-  SERIALIZE(BASE(Reference), BASE(Version), _creator);
+  // Specify fields for serialization
+  SERIALIZE(BASE(Reference));
 };
 
 /// Access a filesystem path with a given set of flags
@@ -257,33 +251,21 @@ class SetMetadata : public Action, public Version {
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      _creator(creator), _ref(ref) {}
+      Version(ref), _creator(creator) {}
 
   virtual shared_ptr<Command> getCreator() const override { return _creator; }
-
-  /// Get the reference used for this action
-  shared_ptr<Reference> getReference() const { return _ref; }
-
-  virtual bool hasMetadata() const override { return _metadata.has_value(); }
-
-  virtual void saveMetadata() override;
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
 
- protected:
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
  private:
   shared_ptr<Command> _creator;
-  shared_ptr<Reference> _ref;  //< The reference used for this action
-  optional<Metadata> _metadata;
 
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
-  SERIALIZE(BASE(Action), BASE(Version), _creator, _ref, _metadata);
+  SERIALIZE(BASE(Action), BASE(Version), _creator);
 };
 
 /**
@@ -293,31 +275,19 @@ class SetContents : public Action, public Version {
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      _creator(creator), _ref(ref) {}
+      Version(ref), _creator(creator) {}
 
   virtual shared_ptr<Command> getCreator() const override { return _creator; }
-
-  /// Get the reference used for this action
-  shared_ptr<Reference> getReference() const { return _ref; }
-
-  virtual bool hasMetadata() const override { return _metadata.has_value(); }
-
-  virtual void saveMetadata() override;
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
 
- protected:
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
  private:
   shared_ptr<Command> _creator;
-  shared_ptr<Reference> _ref;  //< The reference used for this action
-  optional<Metadata> _metadata;
 
   // Create default constructor and specify fields for serialization
   SetContents() = default;
-  SERIALIZE(BASE(Action), BASE(Version), _creator, _ref, _metadata);
+  SERIALIZE(BASE(Action), BASE(Version), _creator);
 };

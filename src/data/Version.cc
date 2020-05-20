@@ -32,6 +32,16 @@ shared_ptr<Version> Version::getLatestVersion() {
   }
 }
 
+optional<string> Version::getPath() const {
+  if (auto a = dynamic_pointer_cast<Access>(getReference())) {
+    return a->getPath();
+  } else if (_previous) {
+    return _previous->getPath();
+  } else {
+    return nullopt;
+  }
+}
+
 bool Version::metadataMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
   auto m1 = this->getMetadata();
@@ -87,9 +97,12 @@ bool Version::fingerprintMatch(shared_ptr<Version> other) const {
   }
 }
 
-optional<struct stat> get_metadata(shared_ptr<Reference> ref) {
-  auto a = dynamic_pointer_cast<Access>(ref);
-  if (!a) return nullopt;
+void Version::saveMetadata() {
+  auto a = dynamic_pointer_cast<Access>(getReference());
+  if (!a) {
+    _metadata = nullopt;
+    return;
+  }
 
   struct stat statbuf;
   int rc;
@@ -100,32 +113,6 @@ optional<struct stat> get_metadata(shared_ptr<Reference> ref) {
   }
 
   if (rc == 0) {
-    return statbuf;
-  } else {
-    return nullopt;
+    _metadata = statbuf;
   }
-}
-
-optional<string> OpenedVersion::getPath() const {
-  if (auto a = dynamic_pointer_cast<Access>(_ref)) {
-    return a->getPath();
-  } else {
-    return nullopt;
-  }
-}
-
-optional<string> CreatedVersion::getPath() const {
-  if (auto a = dynamic_pointer_cast<Access>(_ref)) {
-    return a->getPath();
-  } else {
-    return nullopt;
-  }
-}
-
-void OpenedVersion::saveMetadata() {
-  _metadata = get_metadata(_ref);
-}
-
-void CreatedVersion::saveMetadata() {
-  _metadata = get_metadata(_ref);
 }

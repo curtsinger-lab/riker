@@ -91,8 +91,11 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
-      // This is a new pipe
-      iter = _pipes.emplace_hint(iter, p, Artifact(p));
+      // This is a new pipe. Create an initial version for the pipe
+      auto v = make_shared<OpenedVersion>(p);
+
+      // Add the record for this pipe
+      iter = _pipes.emplace_hint(iter, p, Artifact(v));
     }
 
     // Return the artifact, which was either found or inserted
@@ -157,7 +160,7 @@ shared_ptr<Reference> Rebuild::access(shared_ptr<Command> c, string path, Access
 
 /// This command creates a reference to a new pipe
 shared_ptr<Reference> Rebuild::pipe(shared_ptr<Command> c) {
-  auto ref = make_shared<Pipe>(c);
+  auto ref = make_shared<Pipe>();
   c->addStep(ref);
   return ref;
 }

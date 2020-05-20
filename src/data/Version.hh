@@ -30,7 +30,7 @@ using Fingerprint = struct stat;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  Version() = default;
+  Version(shared_ptr<Reference> ref) : _ref(ref) {}
 
   virtual ~Version() = default;
 
@@ -60,8 +60,11 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the next version
   shared_ptr<Version> getNext() const { return _next.lock(); }
 
+  /// Get the reference used to establish this reference
+  virtual shared_ptr<Reference> getReference() const { return _ref; }
+
   /// Get the path for this version if it has one
-  virtual optional<string> getPath() const { return _previous ? _previous->getPath() : nullopt; }
+  virtual optional<string> getPath() const;
 
   /// Get the command that created this version
   virtual shared_ptr<Command> getCreator() const { return nullptr; }
@@ -70,10 +73,10 @@ class Version : public std::enable_shared_from_this<Version> {
   virtual bool isSaved() const { return false; }
 
   /// Do we have saved metadata for this version?
-  virtual bool hasMetadata() const { return false; }
+  virtual bool hasMetadata() const { return _metadata.has_value(); }
 
   /// Save the metadata for this version
-  virtual void saveMetadata() {}
+  virtual void saveMetadata();
 
   /// Compare metadata for this version to another version
   virtual bool metadataMatch(shared_ptr<Version> other) const;
@@ -107,10 +110,14 @@ class Version : public std::enable_shared_from_this<Version> {
 
  protected:
   /// Get saved metadata for this version
-  virtual optional<Metadata> getMetadata() const { return nullopt; }
+  virtual optional<Metadata> getMetadata() const { return _metadata; }
 
   /// Get the saved fingerprint for this version
   virtual optional<Fingerprint> getFingerprint() const { return nullopt; }
+
+  // Specify fields for serialization
+  Version() = default;
+  SERIALIZE(_previous, _next, _ref, _metadata);
 
  private:
   /// The version that preceded this one, if any
@@ -119,61 +126,24 @@ class Version : public std::enable_shared_from_this<Version> {
   /// The version that comes after this one, if any
   weak_ptr<Version> _next;
 
+  /// The reference used to establish this version
+  shared_ptr<Reference> _ref;
+
+  /// Saved metadata for this version
+  optional<Metadata> _metadata;
+
   /// Transient: has this version been accessed?
   bool _accessed = false;
-
-  // Specify fields for serialization
-  SERIALIZE(_previous, _next);
 };
 
 class OpenedVersion : public Version {
  public:
-  OpenedVersion(shared_ptr<Reference> ref) : _ref(ref) {}
-
-  virtual optional<string> getPath() const override;
-
-  virtual bool hasMetadata() const override { return _metadata.has_value(); }
-
-  virtual void saveMetadata() override;
+  OpenedVersion(shared_ptr<Reference> ref) : Version(ref) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
- protected:
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
  private:
-  shared_ptr<Reference> _ref;
-  optional<Metadata> _metadata;
-
   // Create default constructor and specify fields for serialization
   OpenedVersion() = default;
-  SERIALIZE(cereal::base_class<Version>(this), _ref, _metadata);
-};
-
-class CreatedVersion : public Version {
- public:
-  CreatedVersion(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      _creator(creator), _ref(ref) {}
-
-  virtual optional<string> getPath() const override;
-
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
-
-  virtual bool hasMetadata() const override { return _metadata.has_value(); }
-
-  virtual void saveMetadata() override;
-
-  virtual void saveFingerprint() override { saveMetadata(); }
-
- protected:
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
- private:
-  shared_ptr<Command> _creator;
-  shared_ptr<Reference> _ref;
-  optional<Metadata> _metadata;
-
-  // Create default constructor and specify fields for serialization
-  CreatedVersion() = default;
-  SERIALIZE(cereal::base_class<Version>(this), _creator, _ref, _metadata);
+  SERIALIZE(cereal::base_class<Version>(this));
 };

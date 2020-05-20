@@ -12,33 +12,6 @@
 using std::dynamic_pointer_cast;
 using std::ostream;
 
-static optional<struct stat> get_metadata(shared_ptr<Reference> ref) {
-  auto a = dynamic_pointer_cast<Access>(ref);
-  if (!a) return nullopt;
-
-  struct stat statbuf;
-  int rc;
-  if (a->getFlags().nofollow) {
-    rc = lstat(a->getPath().c_str(), &statbuf);
-  } else {
-    rc = stat(a->getPath().c_str(), &statbuf);
-  }
-
-  if (rc == 0) {
-    return statbuf;
-  } else {
-    return nullopt;
-  }
-}
-
-void SetMetadata::saveMetadata() {
-  _metadata = get_metadata(_ref);
-}
-
-void SetContents::saveMetadata() {
-  _metadata = get_metadata(_ref);
-}
-
 // Set up a map from return codes to names
 static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
                                   {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
@@ -82,12 +55,12 @@ ostream& ContentsMatch::print(ostream& o) const {
 
 /// Print a SET_METADATA action
 ostream& SetMetadata::print(ostream& o) const {
-  return o << "SET_METADATA(" << _ref->getName() << ", v" << getVersionNumber() << ")";
+  return o << "SET_METADATA(" << getReference()->getName() << ", v" << getVersionNumber() << ")";
 }
 
 /// Print a SET_CONTENTS action
 ostream& SetContents::print(ostream& o) const {
-  return o << "SET_CONTENTS(" << _ref->getName() << ", v" << getVersionNumber() << ")";
+  return o << "SET_CONTENTS(" << getReference()->getName() << ", v" << getVersionNumber() << ")";
 }
 
 // Print a launch action

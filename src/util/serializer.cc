@@ -97,7 +97,6 @@ void serialize(Archive& ar, struct timespec& ts) {
 
 // Versions
 CEREAL_REGISTER_TYPE(OpenedVersion);
-CEREAL_REGISTER_TYPE(CreatedVersion);
 
 // References
 CEREAL_REGISTER_TYPE(Pipe);
