@@ -22,7 +22,7 @@ class StatsVisitor {
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
   StatsVisitor(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
-    visit(root);
+    visitCommand(root);
     // TODO: visit initial references
   }
 
@@ -77,40 +77,40 @@ class StatsVisitor {
   }
 
  private:
-  void visit(shared_ptr<Command> c) {
+  void visitCommand(shared_ptr<Command> c) {
     // Count this command
     _command_count++;
 
     // Visit each of the steps the command runs
     for (auto s : c->getSteps()) {
-      visit(s);
+      visitStep(s);
     }
   };
 
-  void visit(shared_ptr<Step> s) {
+  void visitStep(shared_ptr<Step> s) {
     // Count this step
     _step_count++;
 
     // Handle steps that launch new commands or access artifacts
     if (auto x = dynamic_pointer_cast<Launch>(s)) {
       // Recurse into the launched command
-      visit(x->getCommand());
+      visitCommand(x->getCommand());
 
     } else if (auto x = dynamic_pointer_cast<MetadataMatch>(s)) {
-      visit(x->getVersion());
+      visitVersion(x->getVersion());
 
     } else if (auto x = dynamic_pointer_cast<ContentsMatch>(s)) {
-      visit(x->getVersion());
+      visitVersion(x->getVersion());
 
     } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
-      visit(x->getVersion());
+      visitVersion(x);
 
     } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
-      visit(x->getVersion());
+      visitVersion(x);
     }
   }
 
-  void visit(shared_ptr<Version> v) {
+  void visitVersion(shared_ptr<Version> v) {
     // Get the earliest version of this artifact
     auto first = v->getFirstVersion();
 

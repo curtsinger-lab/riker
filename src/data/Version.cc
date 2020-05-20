@@ -129,7 +129,3 @@ void OpenedVersion::saveMetadata() {
 void CreatedVersion::saveMetadata() {
   _metadata = get_metadata(_ref);
 }
-
-void ModifiedVersion::saveMetadata() {
-  _metadata = get_metadata(_ref);
-}

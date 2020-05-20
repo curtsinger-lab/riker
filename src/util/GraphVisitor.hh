@@ -136,10 +136,10 @@ class GraphVisitor {
       visitInputEdge(c, x->getVersion());
 
     } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
-      visitOutputEdge(c, x->getVersion());
+      visitOutputEdge(c, x);
 
     } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
-      visitOutputEdge(c, x->getVersion());
+      visitOutputEdge(c, x);
     }
   }
 

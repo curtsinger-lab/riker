@@ -92,7 +92,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
       // This is a new pipe
-      iter = _pipes.emplace_hint(iter, p, Artifact(make_shared<InitialPipeVersion>(c)));
+      iter = _pipes.emplace_hint(iter, p, Artifact(p));
     }
 
     // Return the artifact, which was either found or inserted
@@ -121,10 +121,15 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
 
       // Did the reference create this artifact?
       if (created) {
-        // Yes. This version is created
-        v = make_shared<CreatedVersion>(c, ref);
+        // Yes. The version is
+        auto s = make_shared<SetContents>(c, ref);
+
         // The command also sets the version's contents
-        c->addStep(make_shared<SetContents>(ref, v));
+        c->addStep(s);
+
+        // The SetContents action is also the current version
+        v = s;
+
       } else {
         // No. This version is just opened
         v = make_shared<OpenedVersion>(ref);
@@ -152,7 +157,7 @@ shared_ptr<Reference> Rebuild::access(shared_ptr<Command> c, string path, Access
 
 /// This command creates a reference to a new pipe
 shared_ptr<Reference> Rebuild::pipe(shared_ptr<Command> c) {
-  auto ref = make_shared<Pipe>();
+  auto ref = make_shared<Pipe>(c);
   c->addStep(ref);
   return ref;
 }
@@ -211,12 +216,12 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
-  // Tag a new version
-  auto new_version = make_shared<ModifiedVersion>(c, ref);
-  a->getLatestVersion()->followedBy(new_version);
+  // Create the SetMetadata step and add it to the command
+  auto s = make_shared<SetMetadata>(c, ref);
+  c->addStep(s);
 
-  // Record the update
-  c->addStep(make_shared<SetMetadata>(ref, new_version));
+  // The SetMetadata step is also the new version of Artifact a
+  a->getLatestVersion()->followedBy(s);
 }
 
 /// This command sets the contents of an artifact
@@ -229,10 +234,12 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   if (options::combine_writes && v->getCreator() == c && !v->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
-  auto new_version = make_shared<ModifiedVersion>(c, ref);
-  a->getLatestVersion()->followedBy(new_version);
+  // Create the SetContents step and add it to the command
+  auto s = make_shared<SetContents>(c, ref);
+  c->addStep(s);
 
-  c->addStep(make_shared<SetContents>(ref, new_version));
+  // The SetContents step is also the new version of Artifact a
+  a->getLatestVersion()->followedBy(s);
 }
 
 /// This command launches a child command
@@ -323,11 +330,11 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 
     } else if (auto set_metadata = dynamic_pointer_cast<SetMetadata>(step)) {
       // Update the metadata in the environment
-      setMetadata(c, set_metadata->getReference(), set_metadata->getVersion());
+      setMetadata(c, set_metadata->getReference(), set_metadata);
 
     } else if (auto set_contents = dynamic_pointer_cast<SetContents>(step)) {
       // Update the contents in the environment
-      setContents(c, set_contents->getReference(), set_contents->getVersion());
+      setContents(c, set_contents->getReference(), set_contents);
 
     } else {
       FAIL << "Unsupported IR action " << step;

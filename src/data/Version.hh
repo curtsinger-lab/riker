@@ -11,8 +11,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <cereal/types/polymorphic.hpp>
-
 #include "util/serializer.hh"
 
 using std::nullopt;
@@ -128,20 +126,6 @@ class Version : public std::enable_shared_from_this<Version> {
   SERIALIZE(_previous, _next);
 };
 
-class InitialPipeVersion : public Version {
- public:
-  InitialPipeVersion(shared_ptr<Command> creator) : _creator(creator) {}
-
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
-
- private:
-  shared_ptr<Command> _creator;
-
-  // Create default constructor and specify fields for serialization
-  InitialPipeVersion() = default;
-  SERIALIZE(cereal::base_class<Version>(this), _creator);
-};
-
 class OpenedVersion : public Version {
  public:
   OpenedVersion(shared_ptr<Reference> ref) : _ref(ref) {}
@@ -191,31 +175,5 @@ class CreatedVersion : public Version {
 
   // Create default constructor and specify fields for serialization
   CreatedVersion() = default;
-  SERIALIZE(cereal::base_class<Version>(this), _creator, _ref, _metadata);
-};
-
-class ModifiedVersion : public Version {
- public:
-  ModifiedVersion(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      _creator(creator), _ref(ref) {}
-
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
-
-  virtual bool hasMetadata() const override { return _metadata.has_value(); }
-
-  virtual void saveMetadata() override;
-
-  virtual void saveFingerprint() override { saveMetadata(); }
-
- protected:
-  virtual optional<Metadata> getMetadata() const override { return _metadata; }
-
- private:
-  shared_ptr<Command> _creator;
-  shared_ptr<Reference> _ref;
-  optional<Metadata> _metadata;
-
-  // Create default constructor and specify fields for serialization
-  ModifiedVersion() = default;
   SERIALIZE(cereal::base_class<Version>(this), _creator, _ref, _metadata);
 };

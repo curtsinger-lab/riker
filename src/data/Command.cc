@@ -49,9 +49,9 @@ shared_ptr<Command> Command::createRootCommand() {
   // We need to get the path to dodo. Use readlink for this.
   string dodo = readlink("/proc/self/exe");
 
-  auto stdin_ref = make_shared<Pipe>();
-  auto stdout_ref = make_shared<Pipe>();
-  auto stderr_ref = make_shared<Pipe>();
+  auto stdin_ref = make_shared<Pipe>(nullptr);
+  auto stdout_ref = make_shared<Pipe>(nullptr);
+  auto stderr_ref = make_shared<Pipe>(nullptr);
 
   map<int, InitialFD> default_fds = {{0, InitialFD(stdin_ref, false)},
                                      {1, InitialFD(stdout_ref, true)},

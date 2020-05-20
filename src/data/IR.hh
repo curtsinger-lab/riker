@@ -7,9 +7,8 @@
 #include <ostream>
 #include <string>
 
-#include <cereal/access.hpp>
-
 #include "data/AccessFlags.hh"
+#include "data/Version.hh"
 #include "util/UniqueID.hh"
 #include "util/serializer.hh"
 
@@ -55,6 +54,8 @@ class Step {
 
  private:
   UniqueID<Step> _id;
+
+  SERIALIZE();
 };
 
 /**
@@ -66,18 +67,30 @@ class Reference : public Step {
  public:
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
+
+ private:
+  SERIALIZE(BASE(Step));
 };
 
 /// Create a reference to a new pipe
-class Pipe : public Reference {
+class Pipe : public Reference, public Version {
  public:
+  /// Create a pipe
+  Pipe(shared_ptr<Command> creator) : _creator(creator) {}
+
+  /// Get the command that created this pipe
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
 
  private:
-  int x;
-  // Declare fields for serialization
-  SERIALIZE(x);
+  /// What command made the reference that creates this pipe?
+  shared_ptr<Command> _creator;
+
+  // Create default constructor and specify fields for serialization
+  Pipe() = default;
+  SERIALIZE(BASE(Reference), BASE(Version), _creator);
 };
 
 /// Access a filesystem path with a given set of flags
@@ -101,7 +114,7 @@ class Access : public Reference {
 
   // Create default constructor and specify fields for serialization
   Access() = default;
-  SERIALIZE(_path, _flags);
+  SERIALIZE(BASE(Reference), _path, _flags);
 };
 
 /**
@@ -114,7 +127,10 @@ class Access : public Reference {
  * - METADATA_MATCH(r : Reference, v : shared_ptr<Version>)
  * - CONTENTS_MATCH(r : Reference, v : shared_ptr<Version>)
  */
-class Predicate : public Step {};
+class Predicate : public Step {
+ private:
+  SERIALIZE(BASE(Step));
+};
 
 /**
  * Making a reference produced a particular result (error code or success)
@@ -139,7 +155,7 @@ class ReferenceResult : public Predicate {
 
   // Create default constructor and specify fields for serialization
   ReferenceResult() = default;
-  SERIALIZE(_ref, _rc);
+  SERIALIZE(BASE(Predicate), _ref, _rc);
 };
 
 /**
@@ -166,7 +182,7 @@ class MetadataMatch : public Predicate {
 
   // Create default constructor and specify fields for serialization
   MetadataMatch() = default;
-  SERIALIZE(_ref, _version);
+  SERIALIZE(BASE(Predicate), _ref, _version);
 };
 
 /**
@@ -193,7 +209,7 @@ class ContentsMatch : public Predicate {
 
   // Create default constructor and specify fields for serialization
   ContentsMatch() = default;
-  SERIALIZE(_ref, _version);
+  SERIALIZE(BASE(Predicate), _ref, _version);
 };
 
 /**
@@ -206,7 +222,10 @@ class ContentsMatch : public Predicate {
  * - SET_METADATA(r : Reference, v : Artifact::Version)
  * - SET_CONTENTS(r : Reference, v : Artifact::Version)
  */
-class Action : public Step {};
+class Action : public Step {
+ private:
+  SERIALIZE(BASE(Step));
+};
 
 /**
  * A Launch action creates a new command, which inherits some (possibly empty)
@@ -228,59 +247,77 @@ class Launch : public Action {
 
   // Create default constructor and specify fields for serialization
   Launch() = default;
-  SERIALIZE(_cmd);
+  SERIALIZE(BASE(Action), _cmd);
 };
 
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata : public Action {
+class SetMetadata : public Action, public Version {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
-      _ref(ref), _version(version) {}
+  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
+      _creator(creator), _ref(ref) {}
+
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
 
   /// Get the reference used for this action
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  /// Get the artifact version that is put in place
-  shared_ptr<Version> getVersion() const { return _version; }
+  virtual bool hasMetadata() const override { return _metadata.has_value(); }
+
+  virtual void saveMetadata() override;
+
+  virtual void saveFingerprint() override { saveMetadata(); }
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
 
+ protected:
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
+
  private:
-  shared_ptr<Reference> _ref;    //< The reference used for this action
-  shared_ptr<Version> _version;  //< The artifact version with the metadata written by this action
+  shared_ptr<Command> _creator;
+  shared_ptr<Reference> _ref;  //< The reference used for this action
+  optional<Metadata> _metadata;
 
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
-  SERIALIZE(_ref, _version);
+  SERIALIZE(BASE(Action), BASE(Version), _creator, _ref, _metadata);
 };
 
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents : public Action {
+class SetContents : public Action, public Version {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
-      _ref(ref), _version(version) {}
+  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
+      _creator(creator), _ref(ref) {}
+
+  virtual shared_ptr<Command> getCreator() const override { return _creator; }
 
   /// Get the reference used for this action
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  /// Get the artifact version that is put in place
-  shared_ptr<Version> getVersion() const { return _version; }
+  virtual bool hasMetadata() const override { return _metadata.has_value(); }
+
+  virtual void saveMetadata() override;
+
+  virtual void saveFingerprint() override { saveMetadata(); }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
 
+ protected:
+  virtual optional<Metadata> getMetadata() const override { return _metadata; }
+
  private:
-  shared_ptr<Reference> _ref;    //< The reference used for this action
-  shared_ptr<Version> _version;  //< The artifact version with the contents written by this action
+  shared_ptr<Command> _creator;
+  shared_ptr<Reference> _ref;  //< The reference used for this action
+  optional<Metadata> _metadata;
 
   // Create default constructor and specify fields for serialization
   SetContents() = default;
-  SERIALIZE(_ref, _version);
+  SERIALIZE(BASE(Action), BASE(Version), _creator, _ref, _metadata);
 };
