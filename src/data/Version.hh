@@ -30,8 +30,7 @@ using Fingerprint = struct stat;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  Version(shared_ptr<Reference> ref, shared_ptr<Command> creator = nullptr) :
-      _ref(ref), _creator(creator) {}
+  Version(shared_ptr<Command> creator, shared_ptr<Reference> ref) : _creator(creator), _ref(ref) {}
 
   virtual ~Version() = default;
 
@@ -115,7 +114,7 @@ class Version : public std::enable_shared_from_this<Version> {
 
   // Specify fields for serialization
   Version() = default;
-  SERIALIZE(_previous, _next, _ref, _creator, _metadata);
+  SERIALIZE(_previous, _next, _creator, _ref, _metadata);
 
  private:
   /// The version that preceded this one, if any
@@ -124,11 +123,11 @@ class Version : public std::enable_shared_from_this<Version> {
   /// The version that comes after this one, if any
   weak_ptr<Version> _next;
 
+  /// The command that created this version
+  weak_ptr<Command> _creator;
+
   /// The reference used to establish this version
   shared_ptr<Reference> _ref;
-
-  /// The command that creatd this version
-  weak_ptr<Command> _creator;
 
   /// Saved metadata for this version
   optional<Metadata> _metadata;
@@ -139,12 +138,12 @@ class Version : public std::enable_shared_from_this<Version> {
 
 class OpenedVersion : public Version {
  public:
-  OpenedVersion(shared_ptr<Reference> ref) : Version(ref) {}
+  OpenedVersion(shared_ptr<Reference> ref) : Version(nullptr, ref) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
  private:
   // Create default constructor and specify fields for serialization
   OpenedVersion() = default;
-  SERIALIZE(cereal::base_class<Version>(this));
+  SERIALIZE(BASE(Version));
 };

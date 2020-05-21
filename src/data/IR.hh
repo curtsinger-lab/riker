@@ -250,7 +250,7 @@ class Launch : public Action {
 class SetMetadata : public Action, public Version {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(ref, creator) {}
+  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(creator, ref) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
@@ -269,7 +269,7 @@ class SetMetadata : public Action, public Version {
 class SetContents : public Action, public Version {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(ref, creator) {}
+  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(creator, ref) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
