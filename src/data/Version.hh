@@ -30,7 +30,8 @@ using Fingerprint = struct stat;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  Version(shared_ptr<Reference> ref) : _ref(ref) {}
+  Version(shared_ptr<Reference> ref, shared_ptr<Command> creator = nullptr) :
+      _ref(ref), _creator(creator) {}
 
   virtual ~Version() = default;
 
@@ -64,7 +65,7 @@ class Version : public std::enable_shared_from_this<Version> {
   virtual optional<string> getPath() const;
 
   /// Get the command that created this version
-  virtual shared_ptr<Command> getCreator() const { return nullptr; }
+  shared_ptr<Command> getCreator() const { return _creator.lock(); }
 
   /// Is this version saved in a way that allows us to reproduce it?
   virtual bool isSaved() const { return false; }
@@ -114,7 +115,7 @@ class Version : public std::enable_shared_from_this<Version> {
 
   // Specify fields for serialization
   Version() = default;
-  SERIALIZE(_previous, _next, _ref, _metadata);
+  SERIALIZE(_previous, _next, _ref, _creator, _metadata);
 
  private:
   /// The version that preceded this one, if any
@@ -125,6 +126,9 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// The reference used to establish this version
   shared_ptr<Reference> _ref;
+
+  /// The command that creatd this version
+  weak_ptr<Command> _creator;
 
   /// Saved metadata for this version
   optional<Metadata> _metadata;

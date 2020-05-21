@@ -250,10 +250,7 @@ class Launch : public Action {
 class SetMetadata : public Action, public Version {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      Version(ref), _creator(creator) {}
-
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(ref, creator) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
@@ -261,11 +258,9 @@ class SetMetadata : public Action, public Version {
   virtual ostream& print(ostream& o) const override;
 
  private:
-  shared_ptr<Command> _creator;
-
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
-  SERIALIZE(BASE(Action), BASE(Version), _creator);
+  SERIALIZE(BASE(Action), BASE(Version));
 };
 
 /**
@@ -274,10 +269,7 @@ class SetMetadata : public Action, public Version {
 class SetContents : public Action, public Version {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) :
-      Version(ref), _creator(creator) {}
-
-  virtual shared_ptr<Command> getCreator() const override { return _creator; }
+  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(ref, creator) {}
 
   virtual void saveFingerprint() override { saveMetadata(); }
 
@@ -285,9 +277,7 @@ class SetContents : public Action, public Version {
   virtual ostream& print(ostream& o) const override;
 
  private:
-  shared_ptr<Command> _creator;
-
   // Create default constructor and specify fields for serialization
   SetContents() = default;
-  SERIALIZE(BASE(Action), BASE(Version), _creator);
+  SERIALIZE(BASE(Action), BASE(Version));
 };
