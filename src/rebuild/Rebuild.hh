@@ -90,17 +90,11 @@ class Rebuild {
   /// Run or emulate a command from this rebuild
   void runCommand(shared_ptr<Command> c, Tracer& tracer);
 
-  /// Check if a specific command must rerun
-  bool mustRerun(shared_ptr<Command> c) { return _rerun.find(c) != _rerun.end(); }
-
   /// Check a command and its descendants to see if any inputs have changed
   void findChanges(shared_ptr<Command> c);
 
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
-
-  /// Mark a command for rerun. If this is a new mark, propagate the marking to its dependents
-  void mark(shared_ptr<Command> c);
 
   /// Check if a command's access resolves as expected in the environment for this rebuild
   bool checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected);
@@ -139,17 +133,6 @@ class Rebuild {
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
-
-  /// Record edges where one command requires output from other commands. These edges are only
-  /// created when we do not have a cached copy of the output to stage in.
-  map<shared_ptr<Command>, set<shared_ptr<Command>>> _needs_output_from;
-
-  /// Record edges where one command produces output that is used by other commands.
-  /// These edges exist whether or not we have cached copies of output.
-  map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;
-
-  /// Track the commands that have been marked for rerunning
-  set<shared_ptr<Command>> _rerun;
 
   /// A map of artifacts found on the filesystem
   map<ino_t, pair<string, Artifact>> _artifacts;

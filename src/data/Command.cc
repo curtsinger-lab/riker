@@ -93,3 +93,27 @@ string Command::getFullName() const {
   }
   return result;
 }
+
+// Tell this command that it must rerun, and propagate that mark along the command graph
+void Command::mark() {
+  // If this command is already marked, there's no work to do
+  if (_rerun) return;
+
+  // Mark this command
+  _rerun = true;
+
+  // Mark this command's children
+  for (auto& child : _children) {
+    child->mark();
+  }
+
+  // Mark any commands that produce output that this command needs
+  for (auto& other : _needs_output_from) {
+    other->mark();
+  }
+
+  // Mark any commands that use this command's output
+  for (auto& other : _output_used_by) {
+    other->mark();
+  }
+}

@@ -78,6 +78,8 @@ class Command : public std::enable_shared_from_this<Command> {
   void reset() {
     _steps.clear();
     _children.clear();
+    _metadata_checks.clear();
+    _contents_checks.clear();
   }
 
   /// Get the path to the executable file this command runs
@@ -88,6 +90,19 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
+
+  /// Tell this command that it must rerun, and propagate that mark along the command graph
+  void mark();
+
+  /// Command c uses this command's output; c must rerun if this command runs
+  void outputUsedBy(shared_ptr<Command> c) { _output_used_by.insert(c); }
+
+  /// This command produces output that is used by command c, and cannot be reproduced
+  /// Command c must rerun if this command runs
+  void needsOutputFrom(shared_ptr<Command> c) { _needs_output_from.insert(c); }
+
+  /// Check if this command has been marked for rerun
+  bool mustRerun() const { return _rerun; }
 
   /********* Command Tracing Operations **********/
 
@@ -140,15 +155,24 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The list of this command's children, in order of creation
   list<shared_ptr<Command>> _children;
 
-  /***** Transient Data (not serialized) *****/
-
-  /// Track all the unique metadata checks made during tracing
-  set<pair<shared_ptr<Reference>, shared_ptr<Version>>> _metadata_checks;
-
-  /// Track all the unique content checks made during tracing
-  set<pair<shared_ptr<Reference>, shared_ptr<Version>>> _contents_checks;
-
   // Create default constructor and specify fields for serialization
   Command() = default;
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
+
+  /***** Transient Data (not serialized) *****/
+
+  /// Track all the unique metadata checks made during tracing
+  map<shared_ptr<Reference>, shared_ptr<Version>> _metadata_checks;
+
+  /// Track all the unique content checks made during tracing
+  map<shared_ptr<Reference>, shared_ptr<Version>> _contents_checks;
+
+  /// Does this command have to rerun?
+  bool _rerun = false;
+
+  /// What commands does this command need output from?
+  set<shared_ptr<Command>> _needs_output_from;
+
+  /// What commands use this command's output?
+  set<shared_ptr<Command>> _output_used_by;
 };

@@ -36,12 +36,12 @@ Rebuild Rebuild::create(shared_ptr<Command> root) {
 
   // Mark all the commands with changed inputs
   for (auto& c : r._changed) {
-    r.mark(c);
+    c->mark();
   }
 
   // Mark all the commands whose output is required
   for (auto& c : r._output_needed) {
-    r.mark(c);
+    c->mark();
   }
 
   return r;
@@ -67,7 +67,7 @@ void Rebuild::run() {
 // Run or emulate a command in this rebuild
 void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
   // Does the rebuild plan say command c must run?
-  if (mustRerun(c)) {
+  if (c->mustRerun()) {
     // We are rerunning this command, so clear the lists of steps and children
     c->reset();
 
@@ -265,11 +265,11 @@ ostream& Rebuild::print(ostream& o) const {
     o << endl;
   }
 
-  if (_rerun.size() > 0) {
+  if (_changed.size() > 0 || _output_needed.size() > 0) {
     o << "A rebuild will run the following commands:" << endl;
-    for (auto& c : _rerun) {
+    /*for (auto& c : _rerun) {
       o << "  " << c << endl;
-    }
+    }*/
   } else {
     o << "No changes detected" << endl;
   }
@@ -351,29 +351,6 @@ void Rebuild::checkFinalState() {
   }
 }
 
-void Rebuild::mark(shared_ptr<Command> c) {
-  // If command c was already marked, return
-  if (_rerun.find(c) != _rerun.end()) return;
-
-  // Otherwise, we have work to do. Frist, add command c to the rerun set.
-  _rerun.insert(c);
-
-  // Rerunning this command also reruns its children
-  for (auto& child : c->getChildren()) {
-    mark(child);
-  }
-
-  // If command c requires output from other commands, mark them
-  for (auto& needed : _needs_output_from[c]) {
-    mark(needed);
-  }
-
-  // If other commands depend on output from command c, mark them
-  for (auto& other : _output_used_by[c]) {
-    mark(other);
-  }
-}
-
 // Check if an access resolves as-expected in the current environment
 bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected) {
   // Is ref a pipe, access, or something else?
@@ -395,7 +372,7 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
 
       // In a rebuild that runs entry->getCreator(), c must also run because it consumes output
       // from entry->getCreator().
-      _output_used_by[entry->getCreator()].insert(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -403,7 +380,7 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        _needs_output_from[c].insert(entry->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // This access will succeed, so check if that matches the expected outcome
@@ -436,7 +413,7 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[entry->getCreator()].insert(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -444,7 +421,7 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
         // We can use the cached version
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        _needs_output_from[c].insert(entry->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
@@ -477,7 +454,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      _output_used_by[entry->getCreator()].insert(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -485,7 +462,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        _needs_output_from[c].insert(entry->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
