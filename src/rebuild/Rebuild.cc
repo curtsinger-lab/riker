@@ -86,7 +86,7 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
+Artifact Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
@@ -114,10 +114,10 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
       rc = lstat(p.c_str(), &statbuf);
     }
 
-    // If stat failed there is no artifact to resolve to. This is always an error.
-    FAIL_IF(rc) << "Artifact creation failed: unable to stat " << p;
+    // If the stat call failed, return an empty artifact
+    if (rc) return Artifact();
 
-    // Check for an existing inode entry
+    // The stat call succeeded. Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter == _artifacts.end()) {
       shared_ptr<Version> v;
@@ -144,7 +144,6 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
 
     // Return the found/inserted artifact
     return iter->second.second;
-
   } else {
     FAIL << "Unsupported reference type";
     abort();
@@ -171,7 +170,7 @@ void Rebuild::referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, 
 }
 
 /// This command accesses the metadata for an artifact
-void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
   // Get the version we depend on
   auto v = a->getLatestVersion();
 
@@ -193,7 +192,7 @@ void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
 }
 
 /// This command accesses the contents of an artifact
-void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
   // We depend on the latest version of the artifact. Get it now.
   auto v = a->getLatestVersion();
 
@@ -215,7 +214,7 @@ void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
 }
 
 /// This command sets the metadata for an artifact
-void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
@@ -228,7 +227,7 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
 }
 
 /// This command sets the contents of an artifact
-void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
   // Get the latest version of this artifact
   auto v = a->getLatestVersion();
 
@@ -403,12 +402,12 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
       // Get the writing command and the entry it wrote
       auto [path, entry] = *iter;
 
-      // In a rebuild that runs entry->getCreator(), c must also run because it consumes output from
-      // entry->getCreator().
+      // In a rebuild that runs entry->getCreator(), c must also run because it consumes output
+      // from entry->getCreator().
       _output_used_by[entry->getCreator()].insert(c);
 
-      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
-      // creator just to produce the file.
+      // If we have a cached copy of the version c accesses, there's no need to rerun that
+      // version's creator just to produce the file.
       if (options::enable_cache && entry->isSaved()) {
         // We can use the cached version of the file
       } else {
@@ -448,8 +447,8 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // If the writer ever reruns, the current command must rerun as well. Record that.
       _output_used_by[entry->getCreator()].insert(c);
 
-      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
-      // creator just to produce the file.
+      // If we have a cached copy of the version c accesses, there's no need to rerun that
+      // version's creator just to produce the file.
       if (options::enable_cache && entry->hasMetadata()) {
         // We can use the cached version
       } else {
@@ -489,8 +488,8 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // If the writer ever reruns, the current command must rerun as well. Record that.
       _output_used_by[entry->getCreator()].insert(c);
 
-      // If we have a cached copy of the version c accesses, there's no need to rerun that version's
-      // creator just to produce the file.
+      // If we have a cached copy of the version c accesses, there's no need to rerun that
+      // version's creator just to produce the file.
       if (options::enable_cache && entry->isSaved()) {
         // We can use the cached version of the file
       } else {

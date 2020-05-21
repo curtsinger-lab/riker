@@ -366,7 +366,9 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _rebuild.referenceResult(_command, ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto& artifact = _rebuild.getArtifact(_command, ref);
+      auto artifact = _rebuild.getArtifact(_command, ref);
+
+      FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
 
       // Record the dependence on the artifact's metadata
       _rebuild.metadataMatch(_command, ref, artifact);
@@ -427,7 +429,9 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _rebuild.launch(_command, exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto& exe_artifact = _rebuild.getArtifact(_command, exe_ref);
+  auto exe_artifact = _rebuild.getArtifact(_command, exe_ref);
+
+  FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _rebuild.access(_command, exe_path, {.r = true});
@@ -683,18 +687,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto ref_flags = AccessFlags::fromOpen(flags);
   auto ref = _rebuild.access(_command, p, ref_flags);
 
-  // We need to know if an artifact version will be created or modified by this openat call
-  bool created = false;
-
-  if (ref_flags.create) {
-    // If the O_CREAT flag was passed, we need to know if the file already exists
-    struct stat statbuf;
-    int rc = ref_flags.nofollow ? lstat(p.c_str(), &statbuf) : stat(p.c_str(), &statbuf);
-
-    // If the stat call fails, that means the file does not exist.
-    // If the openat call succeeds, then we know this command created the file.
-    if (rc) created = true;
-  }
+  // Attempt to get an artifact using this reference *BEFORE* running the syscall.
+  // This will tell us whether or not the syscall created the artifact
+  auto artifact = _rebuild.getArtifact(_command, ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -707,11 +702,15 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
-    // The openat call succeeded, so there's an artifact we need to track now
-    auto& artifact = _rebuild.getArtifact(_command, ref, created);
+    // If the first attempt to resolve the artifact failed, we know the syscall must have created it
+    if (!artifact) {
+      artifact = _rebuild.getArtifact(_command, ref, true);
+    }
+
+    FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
     // If the file was truncated by this open call, record the modification
-    if (!created && ref_flags.truncate) {
+    if (ref_flags.truncate) {
       _rebuild.setContents(_command, ref, artifact);
     }
 
@@ -866,7 +865,9 @@ void Process::_readlinkat(int dfd, string pathname) {
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
     // Get the artifact that we referenced
-    auto& artifact = _rebuild.getArtifact(_command, ref);
+    auto artifact = _rebuild.getArtifact(_command, ref);
+
+    FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
 
     // We depend on this artifact's contents now
     _rebuild.contentsMatch(_command, ref, artifact);
@@ -971,7 +972,9 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto& artifact = _rebuild.getArtifact(_command, ref);
+  auto artifact = _rebuild.getArtifact(_command, ref);
+
+  FAIL_IF(!artifact) << "Failed to get artifact for pipe";
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;

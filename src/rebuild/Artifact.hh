@@ -26,18 +26,29 @@ using std::to_string;
 class Artifact {
  public:
   /**
+   * Create a new artifact that does not reference any version
+   */
+  Artifact() = default;
+
+  /**
    * Create a new artifact from its initial version.
    * \param version The initial version of this artifact.
    */
   Artifact(shared_ptr<Version> version) : _version(version) {}
 
-  // Disallow copy
-  Artifact(const Artifact&) = delete;
-  Artifact& operator=(const Artifact&) = delete;
+  // Allow Copy
+  Artifact(const Artifact&) = default;
+  Artifact& operator=(const Artifact&) = default;
 
   // Allow Move
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
+
+  /**
+   * Check if an artifact resolves to at least one version
+   * \returns true if there is a version for this artifact
+   */
+  operator bool() const { return _version != nullptr; }
 
   /**
    * Access the latest version of this artifact. This access willadvance the Artifact's _version

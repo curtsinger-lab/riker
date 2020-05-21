@@ -49,7 +49,7 @@ class Rebuild {
   void run();
 
   /// Get the artifact a reference resolves to
-  Artifact& getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created = false);
+  Artifact getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created = false);
 
   /*** Tracing methods ***/
 
@@ -63,16 +63,16 @@ class Rebuild {
   void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result);
 
   /// Command c depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a);
 
   /// Command c depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a);
 
   /// Command c sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a);
 
   /// Command c sets the contents of a referenced artifact
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a);
 
   /// Command c launches a child command
   shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
