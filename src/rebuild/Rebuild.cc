@@ -59,8 +59,8 @@ void Rebuild::run() {
   for (auto& [_, entry] : _artifacts) {
     auto& [path, artifact] = entry;
     auto ref = make_shared<Access>(path, AccessFlags());
-    artifact->getLatestVersion()->saveMetadata();
-    artifact->getLatestVersion()->saveFingerprint();
+    artifact->saveMetadata();
+    artifact->saveFingerprint();
   }
 }
 
@@ -171,46 +171,40 @@ void Rebuild::referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, 
 
 /// This command accesses the metadata for an artifact
 void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
-  // Get the version we depend on
-  auto v = a->getLatestVersion();
-
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && v->getCreator() == c) return;
+  if (options::ignore_self_reads && a->getCreator() == c) return;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
-  if (options::skip_repeat_checks && !c->checkMetadataRequired(ref, v)) return;
+  if (options::skip_repeat_checks && !c->checkMetadataRequired(ref, a)) return;
 
   // The version has been accessed
-  v->setAccessed();
+  a->setAccessed();
 
   // Make sure we have metadata saved for that version
-  v->saveMetadata();
+  a->saveMetadata();
 
   // Record the dependency on metadata
-  c->addStep(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
+  c->addStep(make_shared<MetadataMatch>(ref, a));
 }
 
 /// This command accesses the contents of an artifact
 void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
-  // We depend on the latest version of the artifact. Get it now.
-  auto v = a->getLatestVersion();
-
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && v->getCreator() == c) return;
+  if (options::ignore_self_reads && a->getCreator() == c) return;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
-  if (options::skip_repeat_checks && !c->checkContentsRequired(ref, v)) return;
+  if (options::skip_repeat_checks && !c->checkContentsRequired(ref, a)) return;
 
   // The version has been accessed
-  v->setAccessed();
+  a->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  v->saveFingerprint();
+  a->saveFingerprint();
 
   // Record the dependency
-  c->addStep(make_shared<ContentsMatch>(ref, v));
+  c->addStep(make_shared<ContentsMatch>(ref, a));
 }
 
 /// This command sets the metadata for an artifact
@@ -223,17 +217,14 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, cons
   c->addStep(s);
 
   // The SetMetadata step is also the new version of Artifact a
-  a->getLatestVersion()->followedBy(s);
+  a->followedBy(s);
 }
 
 /// This command sets the contents of an artifact
 void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
-  // Get the latest version of this artifact
-  auto v = a->getLatestVersion();
-
   // If this command created the last version, and no other command has accessed it, we can
   // combine the updates into a single update. That means we don't need to tag a new version.
-  if (options::combine_writes && v->getCreator() == c && !v->isAccessed()) return;
+  if (options::combine_writes && a->getCreator() == c && !a->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
   // Create the SetContents step and add it to the command
@@ -241,7 +232,7 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, cons
   c->addStep(s);
 
   // The SetContents step is also the new version of Artifact a
-  a->getLatestVersion()->followedBy(s);
+  a->followedBy(s);
 }
 
 /// This command launches a child command

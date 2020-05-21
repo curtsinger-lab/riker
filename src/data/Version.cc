@@ -23,15 +23,6 @@ shared_ptr<Version> Version::getFirstVersion() {
   return current;
 }
 
-shared_ptr<Version> Version::getLatestVersion() {
-  auto newer = _next.lock();
-  if (newer) {
-    return newer->getLatestVersion();
-  } else {
-    return shared_from_this();
-  }
-}
-
 optional<string> Version::getPath() const {
   if (auto a = dynamic_pointer_cast<Access>(getReference())) {
     return a->getPath();

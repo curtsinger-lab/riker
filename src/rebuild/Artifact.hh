@@ -1,21 +1,14 @@
 #pragma once
 
-#include <cstdint>
-#include <list>
 #include <memory>
 #include <ostream>
-#include <string>
 
 #include "data/Version.hh"
 
 class Command;
 
-using std::list;
-using std::make_shared;
 using std::ostream;
 using std::shared_ptr;
-using std::string;
-using std::to_string;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact
@@ -51,14 +44,26 @@ class Artifact {
   operator bool() const { return _version != nullptr; }
 
   /**
-   * Access the latest version of this artifact. This access willadvance the Artifact's _version
-   * pointer to refer to the latest version so far.
-   * \returns A shared pointer to the latest version of this artifact
+   * Get the latest version of this artifact. This also advances the internal version pointer.
+   * \returns A shared pointer to the latest version
    */
-  shared_ptr<Version> operator->() const {
-    _version = _version->getLatestVersion();
+  shared_ptr<Version> get() const {
+    if (!_version) return _version;
+
+    auto next = _version->getNext();
+    while (next) {
+      _version = next;
+      next = _version->getNext();
+    }
+
     return _version;
   }
+
+  /// Make Artifact instances behave like version pointers
+  shared_ptr<Version> operator->() const { return get(); }
+
+  /// Implicitly convert from Artifact to a Version pointer
+  operator shared_ptr<Version>() const { return get(); }
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {

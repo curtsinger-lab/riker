@@ -48,9 +48,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the first version of this artifact
   shared_ptr<Version> getFirstVersion();
 
-  /// Get the latest version of this artifact
-  shared_ptr<Version> getLatestVersion();
-
   /// Get the number of preceding versions of this artifact
   size_t getVersionNumber() const { return _previous ? (_previous->getVersionNumber() + 1) : 0; }
 
