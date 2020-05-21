@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <queue>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -22,6 +23,7 @@ using std::dynamic_pointer_cast;
 using std::endl;
 using std::make_shared;
 using std::ostream;
+using std::queue;
 
 // Create a rebuild plan
 Rebuild Rebuild::create(shared_ptr<Command> root) {
@@ -267,9 +269,16 @@ ostream& Rebuild::print(ostream& o) const {
 
   if (_changed.size() > 0 || _output_needed.size() > 0) {
     o << "A rebuild will run the following commands:" << endl;
-    /*for (auto& c : _rerun) {
+    queue<shared_ptr<Command>> q;
+    q.push(_root);
+    while (!q.empty()) {
+      auto c = q.front();
       o << "  " << c << endl;
-    }*/
+      q.pop();
+      for (auto& child : c->getChildren()) {
+        q.push(child);
+      }
+    }
   } else {
     o << "No changes detected" << endl;
   }
