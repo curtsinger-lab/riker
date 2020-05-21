@@ -852,15 +852,29 @@ void Process::_symlinkat(string oldname, int newdfd, string newname) {
 }
 
 void Process::_readlinkat(int dfd, string pathname) {
-  WARN << "readlinkat syscall is not updated";
-  resume();
-  /*
-    auto p = resolvePath(pathname, dfd);
-    _command->addReference(p, {.nofollow = true});
+  // We're making a reference to a symlink, so don't follow links
+  auto p = resolvePath(pathname, dfd);
+  auto ref = _rebuild.access(_command, p, {.nofollow = true});
 
-    resume();
-    // TODO
-  */
+  // Finish the syscall and then resume the process
+  int rc = finishSyscall();
+  resume();
+
+  // Did the call succeed?
+  if (rc >= 0) {
+    // Yes. Record the successful reference
+    _rebuild.referenceResult(_command, ref, SUCCESS);
+
+    // Get the artifact that we referenced
+    auto& artifact = _rebuild.getArtifact(_command, ref);
+
+    // We depend on this artifact's contents now
+    _rebuild.contentsMatch(_command, ref, artifact);
+
+  } else {
+    // No. Record the failure
+    _rebuild.referenceResult(_command, ref, -rc);
+  }
 }
 
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
