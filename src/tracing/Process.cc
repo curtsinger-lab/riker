@@ -470,78 +470,83 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) {
 }
 
 void Process::_truncate(string pathname, long length) {
-  WARN << "truncate syscall is not updated";
+  auto p = resolvePath(pathname);
+  auto ref = _rebuild.access(_command, p, AccessFlags{.w = true});
+
+  // Get the artifact that's being truncated
+  auto artifact = _rebuild.getArtifact(_command, ref);
+
+  // If length is non-zero, we depend on the previous contents
+  // This only applies if the artifact exists
+  if (length > 0 && artifact) {
+    _rebuild.contentsMatch(_command, ref, artifact);
+  }
+
+  // Finish the syscall and resume the process
+  int rc = finishSyscall();
   resume();
-  /*
-    // Get the file
-    auto p = resolvePath(pathname);
-    auto f = _rebuild.getArtifact(p);
 
-    // Notify the file of an upcoming change
-    if (length == 0) {
-      f->mayTruncate(_command);
-    } else {
-      f->mayWrite(_command);
-    }
+  // Did the call succeed?
+  if (rc == 0) {
+    // Record the successful reference
+    _rebuild.referenceResult(_command, ref, SUCCESS);
 
-    // Record the reference
-    _command->addReference(p);
+    // Make sure the artifact actually existed
+    FAIL_IF(!artifact) << "Failed to get artifact for truncated file";
 
-    // Finish the system call and resume
-    int rc = finishSyscall();
-    resume();
+    // Record the update to the artifact contents
+    _rebuild.setContents(_command, ref, artifact);
 
-    // If the syscall failed, do nothing
-    if (rc == -1) return;
-
-    // Record the write or truncate
-    if (length == 0) {
-      f->truncatedBy(_command);
-    } else {
-      f->writtenBy(_command);
-    }*/
+  } else {
+    // Record the failed reference
+    _rebuild.referenceResult(_command, ref, -rc);
+  }
 }
 
 void Process::_ftruncate(int fd, long length) {
-  WARN << "ftruncate syscall is not updated";
+  // Get the descriptor
+  auto descriptor = _fds.at(fd);
+
+  // If length is non-zero, this is a write so we depend on the previous contents
+  if (length > 0) {
+    _rebuild.contentsMatch(_command, descriptor.getReference(), descriptor.getArtifact());
+  }
+
+  // Finish the syscall and resume the process
+  int rc = finishSyscall();
   resume();
-  /*
-    auto f = _fds[fd].getRef()->getArtifact();
 
-    if (length == 0) {
-      f->truncatedBy(_command);
-    } else {
-      f->writtenBy(_command);
-    }
-
-    // Resume after logging so we have a chance to fingerprint
-    resume();*/
+  if (rc == 0) {
+    // Record the update to the artifact contents
+    _rebuild.setContents(_command, descriptor.getReference(), descriptor.getArtifact());
+  }
 }
 
 void Process::_chdir(string filename) {
   int rc = finishSyscall();
+  resume();
 
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
     _cwd = resolvePath(filename);
   }
-
-  resume();
 }
 
 void Process::_fchdir(int fd) {
-  WARN << "fchdir syscall is not updated";
+  int rc = finishSyscall();
   resume();
-  /*
-    int rc = finishSyscall();
-    resume();
 
-    if (rc == 0) {
-      auto f = _fds[fd].getRef()->getArtifact();
-      WARN_IF(!f) << "Unable to locate file used in fchdir";
-      _cwd = f->getPath();
-    }
-  */
+  if (rc == 0) {
+    // Get the path to the artifact this descriptor references
+    auto descriptor = _fds.at(fd);
+    auto p = descriptor.getArtifact()->getPath();
+
+    // Make sure there really is a path
+    FAIL_IF(!p.has_value()) << "fchdir to anonymous artifact succeeded";
+
+    // Update the working directory
+    _cwd = p.value();
+  }
 }
 
 void Process::_lchown(string filename, uid_t user, gid_t group) {
@@ -702,7 +707,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
-    // If the first attempt to resolve the artifact failed, we know the syscall must have created it
+    // If the first attempt to resolve the artifact failed, we know the syscall must have created
+    // it
     if (!artifact) {
       artifact = _rebuild.getArtifact(_command, ref, true);
     }
@@ -879,29 +885,38 @@ void Process::_readlinkat(int dfd, string pathname) {
 }
 
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
-  WARN << "fchmodat syscall is not updated";
+  // Make a reference to the file that will be chmod-ed.
+  // TODO: We need permissions in the directory to chmod, right?
+  auto p = resolvePath(filename, dfd);
+  auto ref = _rebuild.access(_command, p, AccessFlags{});
+
+  // Get the artifact that we're going to chmod
+  auto artifact = _rebuild.getArtifact(_command, ref);
+
+  // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
+  // values)
+  if (artifact) {
+    _rebuild.metadataMatch(_command, ref, artifact);
+  }
+
+  // Finish the syscall and then resume the process
+  int rc = finishSyscall();
   resume();
-  /*
-    // Find the file object
-    auto p = resolvePath(filename, dfd);
-    auto f = _rebuild.getArtifact(p, (flags & AT_SYMLINK_NOFOLLOW) == 0);
 
-    // Record the reference
-    _command->addReference(p, Ref::Flags::fromChmod(flags));
+  // Did the call succeed?
+  if (rc >= 0) {
+    // Yes. Record the successful reference
+    _rebuild.referenceResult(_command, ref, SUCCESS);
 
-    // Indicate that we may write this file
-    f->mayWrite(_command);
+    FAIL_IF(!artifact) << "Failed to get artifact";
 
-    // Finish the syscall and resume
-    int rc = finishSyscall();
-    resume();
+    // We've now set the artifact's metadata
+    _rebuild.setMetadata(_command, ref, artifact);
 
-    // If the syscall failed, bail out
-    if (rc != 0) return;
-
-    // Record the write
-    f->writtenBy(_command);
-  */
+  } else {
+    // No. Record the failure
+    _rebuild.referenceResult(_command, ref, -rc);
+  }
 }
 
 void Process::_tee(int fd_in, int fd_out) {
