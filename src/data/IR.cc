@@ -55,12 +55,12 @@ ostream& ContentsMatch::print(ostream& o) const {
 
 /// Print a SET_METADATA action
 ostream& SetMetadata::print(ostream& o) const {
-  return o << "SET_METADATA(" << getReference()->getName() << ", v" << getVersionNumber() << ")";
+  return o << "SET_METADATA(" << getReference()->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_CONTENTS action
 ostream& SetContents::print(ostream& o) const {
-  return o << "SET_CONTENTS(" << getReference()->getName() << ", v" << getVersionNumber() << ")";
+  return o << "SET_CONTENTS(" << getReference()->getName() << ", " << _version << ")";
 }
 
 // Print a launch action

@@ -107,3 +107,7 @@ void Version::saveMetadata() {
     _metadata = statbuf;
   }
 }
+
+void Version::saveFingerprint() {
+  saveMetadata();
+}

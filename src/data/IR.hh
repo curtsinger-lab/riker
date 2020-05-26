@@ -247,37 +247,49 @@ class Launch : public Action {
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata : public Action, public Version {
+class SetMetadata : public Action {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(creator, ref) {}
+  SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+      _ref(ref), _version(version) {}
 
-  virtual void saveFingerprint() override { saveMetadata(); }
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
 
  private:
+  shared_ptr<Reference> _ref;
+  shared_ptr<Version> _version;
+
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
-  SERIALIZE(BASE(Action), BASE(Version));
+  SERIALIZE(BASE(Action), _ref, _version);
 };
 
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents : public Action, public Version {
+class SetContents : public Action {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Command> creator, shared_ptr<Reference> ref) : Version(creator, ref) {}
+  SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+      _ref(ref), _version(version) {}
 
-  virtual void saveFingerprint() override { saveMetadata(); }
+  shared_ptr<Reference> getReference() const { return _ref; }
+
+  shared_ptr<Version> getVersion() const { return _version; }
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
 
  private:
+  shared_ptr<Reference> _ref;
+  shared_ptr<Version> _version;
+
   // Create default constructor and specify fields for serialization
   SetContents() = default;
-  SERIALIZE(BASE(Action), BASE(Version));
+  SERIALIZE(BASE(Action), _ref, _version);
 };

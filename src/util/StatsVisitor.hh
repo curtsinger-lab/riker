@@ -103,10 +103,10 @@ class StatsVisitor {
       visitVersion(x->getVersion());
 
     } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
-      visitVersion(x);
+      visitVersion(x->getVersion());
 
     } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
-      visitVersion(x);
+      visitVersion(x->getVersion());
     }
   }
 

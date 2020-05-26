@@ -94,7 +94,7 @@ Artifact Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, 
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
       // This is a new pipe. Create an initial version for the pipe
-      auto v = make_shared<OpenedVersion>(p);
+      auto v = make_shared<Version>(ref);
 
       // Add the record for this pipe
       iter = _pipes.emplace_hint(iter, p, Artifact(v));
@@ -126,18 +126,18 @@ Artifact Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, 
 
       // Did the reference create this artifact?
       if (created) {
-        // Yes. The version is
-        auto s = make_shared<SetContents>(c, ref);
+        // Yes. Create a version for the new artifact
+        v = make_shared<Version>(c, ref);
 
-        // The command also sets the version's contents
+        // And a SetContents action
+        auto s = make_shared<SetContents>(ref, v);
+
+        // Record the step in the command
         c->addStep(s);
-
-        // The SetContents action is also the current version
-        v = s;
 
       } else {
         // No. This version is just opened
-        v = make_shared<OpenedVersion>(ref);
+        v = make_shared<Version>(ref);
       }
 
       // Add the artifact to the map
@@ -214,12 +214,13 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, cons
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
-  // Create the SetMetadata step and add it to the command
-  auto s = make_shared<SetMetadata>(c, ref);
-  c->addStep(s);
+  // Create a new version
+  auto v = make_shared<Version>(c, ref);
+  a->followedBy(v);
 
-  // The SetMetadata step is also the new version of Artifact a
-  a->followedBy(s);
+  // Create the SetMetadata step and add it to the command
+  auto s = make_shared<SetMetadata>(ref, v);
+  c->addStep(s);
 }
 
 /// This command sets the contents of an artifact
@@ -229,12 +230,14 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, cons
   if (options::combine_writes && a->getCreator() == c && !a->isAccessed()) return;
 
   // If we reach this point, the command is creating a new version of the artifact
-  // Create the SetContents step and add it to the command
-  auto s = make_shared<SetContents>(c, ref);
-  c->addStep(s);
 
-  // The SetContents step is also the new version of Artifact a
-  a->followedBy(s);
+  // Create a new version of the artifacy
+  auto v = make_shared<Version>(c, ref);
+  a->followedBy(v);
+
+  // Create the SetContents step and add it to the command
+  auto s = make_shared<SetContents>(ref, v);
+  c->addStep(s);
 }
 
 /// This command launches a child command
@@ -332,11 +335,11 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 
     } else if (auto set_metadata = dynamic_pointer_cast<SetMetadata>(step)) {
       // Update the metadata in the environment
-      setMetadata(c, set_metadata->getReference(), set_metadata);
+      setMetadata(c, set_metadata->getReference(), set_metadata->getVersion());
 
     } else if (auto set_contents = dynamic_pointer_cast<SetContents>(step)) {
       // Update the contents in the environment
-      setContents(c, set_contents->getReference(), set_contents);
+      setContents(c, set_contents->getReference(), set_contents->getVersion());
 
     } else {
       FAIL << "Unsupported IR action " << step;
@@ -563,14 +566,14 @@ bool Rebuild::checkFilesystemAccess(shared_ptr<Access> ref, int expected) {
 
 // Check if the metadata for a file on the actual filesystem matches a saved version
 bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<OpenedVersion>(ref);
+  auto ondisk = make_shared<Version>(ref);
   ondisk->saveMetadata();
   return v->metadataMatch(ondisk);
 }
 
 // Check if the contents of a file on the actual fileystem match a saved version
 bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<OpenedVersion>(ref);
+  auto ondisk = make_shared<Version>(ref);
   ondisk->saveFingerprint();
   return v->fingerprintMatch(ondisk);
 }

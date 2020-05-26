@@ -95,8 +95,7 @@ void serialize(Archive& ar, struct timespec& ts) {
 
 /** Register types and polymorphic relationships **/
 
-// Versions
-CEREAL_REGISTER_TYPE(OpenedVersion);
+CEREAL_REGISTER_TYPE(::Version);
 
 // References
 CEREAL_REGISTER_TYPE(Pipe);
