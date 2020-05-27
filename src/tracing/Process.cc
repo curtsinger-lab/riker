@@ -539,13 +539,14 @@ void Process::_fchdir(int fd) {
   if (rc == 0) {
     // Get the path to the artifact this descriptor references
     auto descriptor = _fds.at(fd);
-    auto p = descriptor.getArtifact()->getPath();
+    auto ref = descriptor.getReference();
+    auto a = dynamic_pointer_cast<Access>(ref);
 
     // Make sure there really is a path
-    FAIL_IF(!p.has_value()) << "fchdir to anonymous artifact succeeded";
+    FAIL_IF(!a) << "fchdir to anonymous artifact succeeded";
 
     // Update the working directory
-    _cwd = p.value();
+    _cwd = a->getPath();
   }
 }
 

@@ -68,11 +68,8 @@ class Artifact {
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {
-    if (auto path = a->getPath(); path.has_value()) {
-      return o << "[Artifact " << path.value() << "]@" << a->getVersionNumber();
-    } else {
-      return o << "[Artifact]@" << a->getVersionNumber();
-    }
+    // TODO: Print a canonical path when we have one
+    return o << "[Artifact]@" << a->getVersionNumber();
   }
 
   /// Print a pointer to an artifact

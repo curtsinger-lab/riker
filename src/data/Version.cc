@@ -23,16 +23,6 @@ shared_ptr<Version> Version::getFirstVersion() {
   return current;
 }
 
-optional<string> Version::getPath() const {
-  if (auto a = dynamic_pointer_cast<Access>(getReference())) {
-    return a->getPath();
-  } else if (_previous) {
-    return _previous->getPath();
-  } else {
-    return nullopt;
-  }
-}
-
 bool Version::metadataMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
   auto m1 = this->getMetadata();

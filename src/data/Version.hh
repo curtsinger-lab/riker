@@ -64,9 +64,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the reference used to establish this reference
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  /// Get the path for this version if it has one
-  optional<string> getPath() const;
-
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const { return _creator.lock(); }
 
@@ -99,11 +96,13 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const Version& v) {
-    if (auto p = v.getPath(); p.has_value()) {
+    /*if (auto p = v.getPath(); p.has_value()) {
       return o << "[Artifact " << p.value() << "]@v" << v.getVersionNumber();
     } else {
       return o << "[Artifact]@v" << v.getVersionNumber();
-    }
+    }*/
+    // TODO: Print something useful here
+    return o << "VERSION";
   }
 
   /// Print a Version*
