@@ -183,7 +183,7 @@ void Process::_read(int fd) {
   auto ref = descriptor.getReference();
 
   // The current command depends on the contents of this file
-  _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
+  _command->contentsMatch(ref, descriptor.getArtifact());
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -203,7 +203,7 @@ void Process::_write(int fd) {
   auto ref = descriptor.getReference();
 
   // Record our dependency on the old contents of the artifact
-  _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
+  _command->contentsMatch(ref, descriptor.getArtifact());
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -213,7 +213,7 @@ void Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _rebuild.setContents(_command, ref, descriptor.getArtifact());
+  _command->setContents(ref, descriptor.getArtifact());
 }
 
 void Process::_close(int fd) {
@@ -251,13 +251,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _rebuild.contentsMatch(_command, ref, descriptor.getArtifact());
+  _command->contentsMatch(ref, descriptor.getArtifact());
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
   bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _rebuild.setContents(_command, ref, descriptor.getArtifact());
+    _command->setContents(ref, descriptor.getArtifact());
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -322,7 +322,7 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
   auto p = resolvePath(pathname, dirfd);
 
   // Record the command's access to this path with the given flags
-  auto ref = _rebuild.access(_command, p, AccessFlags::fromAccess(mode, flags));
+  auto ref = _command->access(p, AccessFlags::fromAccess(mode, flags));
 
   // Finish the syscall so we can see its result
   int rc = finishSyscall();
@@ -332,10 +332,10 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
 
   // Did the access() call succeed?
   if (rc == 0) {
-    _rebuild.referenceResult(_command, ref, SUCCESS);
+    _command->referenceResult(ref, SUCCESS);
   } else {
     // Record the error. We negate the return code because syscalls always return negative errors
-    _rebuild.referenceResult(_command, ref, -rc);
+    _command->referenceResult(ref, -rc);
   }
 }
 
@@ -348,7 +348,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
     auto ref = descriptor.getReference();
 
     // Record the dependency on metadata
-    _rebuild.metadataMatch(_command, ref, descriptor.getArtifact());
+    _command->metadataMatch(ref, descriptor.getArtifact());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -356,14 +356,14 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
 
     // Create the reference
     // TODO: handle nofollow
-    auto ref = _rebuild.access(_command, p, {});
+    auto ref = _command->access(p, {});
 
     // Finish the syscall to see if the reference succeeds
     int rc = finishSyscall();
 
     // Log the success or failure
     if (rc == 0) {
-      _rebuild.referenceResult(_command, ref, SUCCESS);
+      _command->referenceResult(ref, SUCCESS);
 
       // Get the artifact that was stat-ed
       auto artifact = _rebuild.getArtifact(_command, ref);
@@ -371,10 +371,10 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
 
       // Record the dependence on the artifact's metadata
-      _rebuild.metadataMatch(_command, ref, artifact);
+      _command->metadataMatch(ref, artifact);
     } else {
       // Record the error. Negate rc because syscalls return negative errors
-      _rebuild.referenceResult(_command, ref, -rc);
+      _command->referenceResult(ref, -rc);
     }
   }
 
@@ -386,7 +386,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   auto exe_path = resolvePath(filename, dfd);
 
   // The command accesses this path with execute permissions
-  auto exe_ref = _rebuild.access(_command, exe_path, {.x = true});
+  auto exe_ref = _command->access(exe_path, {.x = true});
 
   // Finish the exec syscall
   int rc = finishSyscall();
@@ -395,7 +395,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // If we see something else, handle the error
   if (rc != -38) {
     // Failure! Record a failed reference. Negate rc because syscalls return negative errors
-    _rebuild.referenceResult(_command, exe_ref, -rc);
+    _command->referenceResult(exe_ref, -rc);
 
     // Resume the process and stop handling
     resume();
@@ -403,7 +403,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   }
 
   // If we reached this point, the executable reference was okay
-  _rebuild.referenceResult(_command, exe_ref, SUCCESS);
+  _command->referenceResult(exe_ref, SUCCESS);
 
   // Resume the child
   resume();
@@ -426,7 +426,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   }
 
   // This process launches a new command, and is now running that command
-  _command = _rebuild.launch(_command, exe_path, args, initial_fds);
+  _command = _command->launch(exe_path, args, initial_fds);
 
   // Get the executable file artifact
   auto exe_artifact = _rebuild.getArtifact(_command, exe_ref);
@@ -434,13 +434,13 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
 
   // The child command reads the contents of the executable file
-  auto child_exe_ref = _rebuild.access(_command, exe_path, {.r = true});
+  auto child_exe_ref = _command->access(exe_path, {.r = true});
 
   // The reference to the executable file must succeed
-  _rebuild.referenceResult(_command, child_exe_ref, SUCCESS);
+  _command->referenceResult(child_exe_ref, SUCCESS);
 
   // We also depend on the contents of the executable file at this point
-  _rebuild.contentsMatch(_command, child_exe_ref, exe_artifact);
+  _command->contentsMatch(child_exe_ref, exe_artifact);
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
@@ -471,7 +471,7 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) {
 
 void Process::_truncate(string pathname, long length) {
   auto p = resolvePath(pathname);
-  auto ref = _rebuild.access(_command, p, AccessFlags{.w = true});
+  auto ref = _command->access(p, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
   auto artifact = _rebuild.getArtifact(_command, ref);
@@ -479,7 +479,7 @@ void Process::_truncate(string pathname, long length) {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && artifact) {
-    _rebuild.contentsMatch(_command, ref, artifact);
+    _command->contentsMatch(ref, artifact);
   }
 
   // Finish the syscall and resume the process
@@ -489,17 +489,17 @@ void Process::_truncate(string pathname, long length) {
   // Did the call succeed?
   if (rc == 0) {
     // Record the successful reference
-    _rebuild.referenceResult(_command, ref, SUCCESS);
+    _command->referenceResult(ref, SUCCESS);
 
     // Make sure the artifact actually existed
     FAIL_IF(!artifact) << "Failed to get artifact for truncated file";
 
     // Record the update to the artifact contents
-    _rebuild.setContents(_command, ref, artifact);
+    _command->setContents(ref, artifact);
 
   } else {
     // Record the failed reference
-    _rebuild.referenceResult(_command, ref, -rc);
+    _command->referenceResult(ref, -rc);
   }
 }
 
@@ -509,7 +509,7 @@ void Process::_ftruncate(int fd, long length) {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _rebuild.contentsMatch(_command, descriptor.getReference(), descriptor.getArtifact());
+    _command->contentsMatch(descriptor.getReference(), descriptor.getArtifact());
   }
 
   // Finish the syscall and resume the process
@@ -518,7 +518,7 @@ void Process::_ftruncate(int fd, long length) {
 
   if (rc == 0) {
     // Record the update to the artifact contents
-    _rebuild.setContents(_command, descriptor.getReference(), descriptor.getArtifact());
+    _command->setContents(descriptor.getReference(), descriptor.getArtifact());
   }
 }
 
@@ -691,7 +691,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // The command makes a reference to a path, possibly modifying artifact f
   auto ref_flags = AccessFlags::fromOpen(flags);
-  auto ref = _rebuild.access(_command, p, ref_flags);
+  auto ref = _command->access(p, ref_flags);
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will tell us whether or not the syscall created the artifact
@@ -706,7 +706,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   // Check whether the openat call succeeded or failed
   if (fd >= 0) {
     // The command observed a successful openat, so add this predicate to the command log
-    _rebuild.referenceResult(_command, ref, SUCCESS);
+    _command->referenceResult(ref, SUCCESS);
 
     // If the first attempt to resolve the artifact failed, we know the syscall created it
     if (!artifact) {
@@ -717,7 +717,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
     // If the file was truncated by this open call, record the modification
     if (ref_flags.truncate) {
-      _rebuild.setContents(_command, ref, artifact);
+      _command->setContents(ref, artifact);
     }
 
     // Is this new descriptor closed on exec?
@@ -729,7 +729,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
     // Negate fd because syscalls return negative errors
-    _rebuild.referenceResult(_command, ref, -fd);
+    _command->referenceResult(ref, -fd);
   }
 }
 
@@ -859,7 +859,7 @@ void Process::_symlinkat(string oldname, int newdfd, string newname) {
 void Process::_readlinkat(int dfd, string pathname) {
   // We're making a reference to a symlink, so don't follow links
   auto p = resolvePath(pathname, dfd);
-  auto ref = _rebuild.access(_command, p, {.nofollow = true});
+  auto ref = _command->access(p, {.nofollow = true});
 
   // Finish the syscall and then resume the process
   int rc = finishSyscall();
@@ -868,7 +868,7 @@ void Process::_readlinkat(int dfd, string pathname) {
   // Did the call succeed?
   if (rc >= 0) {
     // Yes. Record the successful reference
-    _rebuild.referenceResult(_command, ref, SUCCESS);
+    _command->referenceResult(ref, SUCCESS);
 
     // Get the artifact that we referenced
     auto artifact = _rebuild.getArtifact(_command, ref);
@@ -876,11 +876,11 @@ void Process::_readlinkat(int dfd, string pathname) {
     FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
 
     // We depend on this artifact's contents now
-    _rebuild.contentsMatch(_command, ref, artifact);
+    _command->contentsMatch(ref, artifact);
 
   } else {
     // No. Record the failure
-    _rebuild.referenceResult(_command, ref, -rc);
+    _command->referenceResult(ref, -rc);
   }
 }
 
@@ -888,7 +888,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // Make a reference to the file that will be chmod-ed.
   // TODO: We need permissions in the directory to chmod, right?
   auto p = resolvePath(filename, dfd);
-  auto ref = _rebuild.access(_command, p, AccessFlags{});
+  auto ref = _command->access(p, AccessFlags{});
 
   // Get the artifact that we're going to chmod
   auto artifact = _rebuild.getArtifact(_command, ref);
@@ -896,7 +896,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (artifact) {
-    _rebuild.metadataMatch(_command, ref, artifact);
+    _command->metadataMatch(ref, artifact);
   }
 
   // Finish the syscall and then resume the process
@@ -906,16 +906,16 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // Did the call succeed?
   if (rc >= 0) {
     // Yes. Record the successful reference
-    _rebuild.referenceResult(_command, ref, SUCCESS);
+    _command->referenceResult(ref, SUCCESS);
 
     FAIL_IF(!artifact) << "Failed to get artifact";
 
     // We've now set the artifact's metadata
-    _rebuild.setMetadata(_command, ref, artifact);
+    _command->setMetadata(ref, artifact);
 
   } else {
     // No. Record the failure
-    _rebuild.referenceResult(_command, ref, -rc);
+    _command->referenceResult(ref, -rc);
   }
 }
 
@@ -977,7 +977,7 @@ void Process::_pipe2(int* fds, int flags) {
   }
 
   // Create a reference to the pipe
-  auto ref = _rebuild.pipe(_command);
+  auto ref = _command->pipe();
 
   // Read the file descriptors
   int read_pipefd = readData((uintptr_t)fds);

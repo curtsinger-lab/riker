@@ -91,6 +91,30 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
+  /// This command accesses a path
+  shared_ptr<Access> access(string path, AccessFlags flags);
+
+  /// This command creates a pipe
+  shared_ptr<Pipe> pipe();
+
+  /// This command depends on the outcome of a reference
+  void referenceResult(shared_ptr<Reference> ref, int result);
+
+  /// This command depends on the metadata of a referenced artifact
+  void metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+
+  /// This command depends on the contents of a referenced artifact
+  void contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+
+  /// This command sets the metadata of a referenced artifact
+  void setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+
+  /// This command sets the contents of a referenced artifact
+  void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+
+  /// This command launches a child command
+  shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
+
   /// Tell this command that it must rerun, and propagate that mark along the command graph
   void mark();
 

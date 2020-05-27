@@ -52,35 +52,6 @@ class Rebuild {
   shared_ptr<Artifact> getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
                                    bool created = false);
 
-  /*** Tracing methods ***/
-
-  /// Command c accesses a path with the given flags
-  shared_ptr<Reference> access(shared_ptr<Command> c, string path, AccessFlags flags);
-
-  /// Command c creates a pipe
-  shared_ptr<Reference> pipe(shared_ptr<Command> c);
-
-  /// Command c expects a reference to resolve with a particular result
-  void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result);
-
-  /// Command c depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
-
-  /// Command c depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
-
-  /// Command c sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
-
-  /// Command c sets the contents of a referenced artifact
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
-
-  /// Command c launches a child command
-  shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
-                             map<int, InitialFD> fds);
-
-  /**************/
-
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 
