@@ -88,7 +88,7 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-Artifact Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
+Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
@@ -117,7 +117,7 @@ Artifact Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, 
     }
 
     // If the stat call failed, return an empty artifact
-    if (rc) return Artifact();
+    if (rc) return Artifact::getEmptyArtifact();
 
     // The stat call succeeded. Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
@@ -172,7 +172,7 @@ void Rebuild::referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, 
 }
 
 /// This command accesses the metadata for an artifact
-void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
+void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
   if (options::ignore_self_reads && a->getCreator() == c) return;
@@ -191,7 +191,7 @@ void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, co
 }
 
 /// This command accesses the contents of an artifact
-void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
+void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
   if (options::ignore_self_reads && a->getCreator() == c) return;
@@ -210,7 +210,7 @@ void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, co
 }
 
 /// This command sets the metadata for an artifact
-void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
+void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
@@ -224,7 +224,7 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, cons
 }
 
 /// This command sets the contents of an artifact
-void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, const Artifact& a) {
+void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
   // If this command created the last version, and no other command has accessed it, we can
   // combine the updates into a single update. That means we don't need to tag a new version.
   if (options::combine_writes && a->getCreator() == c && !a->isAccessed()) return;

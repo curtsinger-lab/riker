@@ -17,21 +17,22 @@ using std::shared_ptr;
  * ensure all operations on a given file, pipe, etc. refer to the latest versions of that artifact.
  */
 class Artifact {
- public:
+ private:
   /**
    * Create a new artifact that does not reference any version
    */
   Artifact() = default;
 
+ public:
   /**
    * Create a new artifact from its initial version.
    * \param version The initial version of this artifact.
    */
   Artifact(shared_ptr<Version> version) : _version(version) {}
 
-  // Allow Copy
-  Artifact(const Artifact&) = default;
-  Artifact& operator=(const Artifact&) = default;
+  // Disallow Copy
+  Artifact(const Artifact&) = delete;
+  Artifact& operator=(const Artifact&) = delete;
 
   // Allow Move
   Artifact(Artifact&&) = default;
@@ -76,6 +77,12 @@ class Artifact {
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
+
+  /// Create a single artifact instance for empty artifacts
+  static Artifact& getEmptyArtifact() {
+    static Artifact _empty;
+    return _empty;
+  }
 
  private:
   /// Some version of this artifact. When accessed through the methods of this class, _version is
