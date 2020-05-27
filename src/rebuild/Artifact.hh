@@ -46,39 +46,19 @@ class Artifact {
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
 
-  /**
-   * Move this artifact to a new version
-   */
+  /// Get the latest version of this artifact
+  shared_ptr<Version> getLatestVersion() const { return _versions.back(); }
+
+  /// Advance this artifact to a new version
   void addVersion(shared_ptr<Version> v) { _versions.push_back(v); }
 
-  /**
-   * Check if an artifact resolves to at least one version
-   * \returns true if there is a version for this artifact
-   */
+  /// Check if this artifact has any versions
   operator bool() const { return !_versions.empty(); }
-
-  /**
-   * Get the latest version of this artifact.
-   * \returns A shared pointer to the latest version
-   */
-  shared_ptr<Version> get() const { return _versions.back(); }
-
-  /// Make Artifact instances behave like version pointers
-  shared_ptr<Version> operator->() const { return get(); }
-
-  /// Implicitly convert from Artifact to a Version pointer
-  operator shared_ptr<Version>() const { return get(); }
 
   /// Get the path to this artifact, if it has one.
   /// This is ONLY useful for pretty printing artifacts; the actual path(s) to this artifact can
   /// change during a build.
-  optional<string> getPath() const {
-    if (auto a = dynamic_pointer_cast<Access>(_ref)) {
-      return a->getPath();
-    } else {
-      return nullopt;
-    }
-  }
+  optional<string> getPath() const;
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {
