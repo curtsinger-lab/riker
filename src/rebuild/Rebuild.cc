@@ -61,8 +61,8 @@ void Rebuild::run() {
   for (auto& [_, entry] : _artifacts) {
     auto& [path, artifact] = entry;
     auto ref = make_shared<Access>(path, AccessFlags());
-    artifact->saveMetadata();
-    artifact->saveFingerprint();
+    artifact->saveMetadata(ref);
+    artifact->saveFingerprint(ref);
   }
 }
 
@@ -94,10 +94,10 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
       // This is a new pipe. Create an initial version for the pipe
-      auto v = make_shared<Version>(ref);
+      auto v = make_shared<Version>(c);
 
       // Add the record for this pipe
-      iter = _pipes.emplace_hint(iter, p, Artifact(v));
+      iter = _pipes.emplace_hint(iter, p, Artifact(ref, v));
     }
 
     // Return the artifact, which was either found or inserted
@@ -127,7 +127,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
       // Did the reference create this artifact?
       if (created) {
         // Yes. Create a version for the new artifact
-        v = make_shared<Version>(c, ref);
+        v = make_shared<Version>(c);
 
         // And a SetContents action
         auto s = make_shared<SetContents>(ref, v);
@@ -137,11 +137,12 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
 
       } else {
         // No. This version is just opened
-        v = make_shared<Version>(ref);
+        v = make_shared<Version>();
       }
 
       // Add the artifact to the map
-      iter = _artifacts.emplace_hint(iter, statbuf.st_ino, pair<string, Artifact>{p, Artifact(v)});
+      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
+                                     pair<string, Artifact>{p, Artifact(ref, v)});
     }
 
     // Return the found/inserted artifact
@@ -184,7 +185,7 @@ void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   a->setAccessed();
 
   // Make sure we have metadata saved for that version
-  a->saveMetadata();
+  a->saveMetadata(ref);
 
   // Record the dependency on metadata
   c->addStep(make_shared<MetadataMatch>(ref, a));
@@ -203,7 +204,7 @@ void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Ar
   a->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  a->saveFingerprint();
+  a->saveFingerprint(ref);
 
   // Record the dependency
   c->addStep(make_shared<ContentsMatch>(ref, a));
@@ -215,8 +216,8 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Create a new version
-  auto v = make_shared<Version>(c, ref);
-  a->followedBy(v);
+  auto v = make_shared<Version>(c);
+  a.addVersion(v);
 
   // Create the SetMetadata step and add it to the command
   auto s = make_shared<SetMetadata>(ref, v);
@@ -231,9 +232,9 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
 
   // If we reach this point, the command is creating a new version of the artifact
 
-  // Create a new version of the artifacy
-  auto v = make_shared<Version>(c, ref);
-  a->followedBy(v);
+  // Create a new version of the artifact
+  auto v = make_shared<Version>(c);
+  a.addVersion(v);
 
   // Create the SetContents step and add it to the command
   auto s = make_shared<SetContents>(ref, v);
@@ -566,14 +567,14 @@ bool Rebuild::checkFilesystemAccess(shared_ptr<Access> ref, int expected) {
 
 // Check if the metadata for a file on the actual filesystem matches a saved version
 bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<Version>(ref);
-  ondisk->saveMetadata();
+  auto ondisk = make_shared<Version>();
+  ondisk->saveMetadata(ref);
   return v->metadataMatch(ondisk);
 }
 
 // Check if the contents of a file on the actual fileystem match a saved version
 bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<Version>(ref);
-  ondisk->saveFingerprint();
+  auto ondisk = make_shared<Version>();
+  ondisk->saveFingerprint(ref);
   return v->fingerprintMatch(ondisk);
 }

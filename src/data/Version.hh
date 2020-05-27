@@ -30,13 +30,11 @@ using Fingerprint = struct stat;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Recor a version that was not created by any command
-  Version(shared_ptr<Reference> ref) : _ref(ref) {}
+  /// Record a version that was not created by any command
+  Version() = default;
 
   /// Record a version that was created by a specified command
-  Version(shared_ptr<Command> creator, shared_ptr<Reference> ref) : _creator(creator), _ref(ref) {}
-
-  virtual ~Version() = default;
+  Version(shared_ptr<Command> creator) : _creator(creator) {}
 
   // Disallow Copy
   Version(const Version&) = delete;
@@ -45,24 +43,6 @@ class Version : public std::enable_shared_from_this<Version> {
   // Allow Move
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
-
-  /// Record a version that follows this one
-  void followedBy(shared_ptr<Version> v);
-
-  /// Get the first version of this artifact
-  shared_ptr<Version> getFirstVersion();
-
-  /// Get the number of preceding versions of this artifact
-  size_t getVersionNumber() const { return _previous ? (_previous->getVersionNumber() + 1) : 0; }
-
-  /// Get the previous version
-  shared_ptr<Version> getPrevious() const { return _previous; }
-
-  /// Get the next version
-  shared_ptr<Version> getNext() const { return _next.lock(); }
-
-  /// Get the reference used to establish this reference
-  shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const { return _creator.lock(); }
@@ -74,7 +54,7 @@ class Version : public std::enable_shared_from_this<Version> {
   bool hasMetadata() const { return _metadata.has_value(); }
 
   /// Save the metadata for this version
-  void saveMetadata();
+  void saveMetadata(shared_ptr<Reference> ref);
 
   /// Compare metadata for this version to another version
   bool metadataMatch(shared_ptr<Version> other) const;
@@ -83,7 +63,7 @@ class Version : public std::enable_shared_from_this<Version> {
   bool hasFingerprint() const { return false; }
 
   /// Save a fingerprint of this version's contents
-  void saveFingerprint();
+  void saveFingerprint(shared_ptr<Reference> ref);
 
   /// Compare the fingerprint for this version to another version
   bool fingerprintMatch(shared_ptr<Version> other) const;
@@ -108,33 +88,23 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Print a Version*
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
 
- protected:
+ private:
   /// Get saved metadata for this version
   optional<Metadata> getMetadata() const { return _metadata; }
 
   /// Get the saved fingerprint for this version
   optional<Fingerprint> getFingerprint() const { return nullopt; }
 
-  // Specify fields for serialization
-  Version() = default;
-  SERIALIZE(_previous, _next, _creator, _ref, _metadata);
-
  private:
-  /// The version that preceded this one, if any
-  shared_ptr<Version> _previous;
-
-  /// The version that comes after this one, if any
-  weak_ptr<Version> _next;
-
   /// The command that created this version
   weak_ptr<Command> _creator;
-
-  /// The reference used to establish this version
-  shared_ptr<Reference> _ref;
 
   /// Saved metadata for this version
   optional<Metadata> _metadata;
 
   /// Transient: has this version been accessed?
   bool _accessed = false;
+
+  // Specify fields for serialization
+  SERIALIZE(_creator, _metadata);
 };

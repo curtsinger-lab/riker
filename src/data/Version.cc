@@ -10,19 +10,6 @@
 using std::dynamic_pointer_cast;
 using std::shared_ptr;
 
-void Version::followedBy(shared_ptr<Version> v) {
-  _next = v;
-  v->_previous = shared_from_this();
-}
-
-shared_ptr<Version> Version::getFirstVersion() {
-  auto current = shared_from_this();
-  while (current->_previous) {
-    current = current->_previous;
-  }
-  return current;
-}
-
 bool Version::metadataMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
   auto m1 = this->getMetadata();
@@ -78,8 +65,8 @@ bool Version::fingerprintMatch(shared_ptr<Version> other) const {
   }
 }
 
-void Version::saveMetadata() {
-  auto a = dynamic_pointer_cast<Access>(getReference());
+void Version::saveMetadata(shared_ptr<Reference> ref) {
+  auto a = dynamic_pointer_cast<Access>(ref);
   if (!a) {
     _metadata = nullopt;
     return;
@@ -98,6 +85,6 @@ void Version::saveMetadata() {
   }
 }
 
-void Version::saveFingerprint() {
-  saveMetadata();
+void Version::saveFingerprint(shared_ptr<Reference> ref) {
+  saveMetadata(ref);
 }
