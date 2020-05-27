@@ -695,7 +695,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will tell us whether or not the syscall created the artifact
-  auto pre_artifact = _rebuild.getArtifact(_command, ref);
+  auto artifact = _rebuild.getArtifact(_command, ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -709,8 +709,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
     // If the first attempt to resolve the artifact failed, we know the syscall created it
-    // TODO: Maybe just add a version to the existing empty artifact instead of fetching a new one?
-    auto artifact = pre_artifact ? pre_artifact : _rebuild.getArtifact(_command, ref, true);
+    if (!artifact) {
+      artifact = _rebuild.getArtifact(_command, ref, true);
+    }
 
     FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
