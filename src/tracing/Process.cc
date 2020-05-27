@@ -366,7 +366,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _rebuild.referenceResult(_command, ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto& artifact = _rebuild.getArtifact(_command, ref);
+      auto artifact = _rebuild.getArtifact(_command, ref);
 
       FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
 
@@ -429,7 +429,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _rebuild.launch(_command, exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto& exe_artifact = _rebuild.getArtifact(_command, exe_ref);
+  auto exe_artifact = _rebuild.getArtifact(_command, exe_ref);
 
   FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
 
@@ -474,7 +474,7 @@ void Process::_truncate(string pathname, long length) {
   auto ref = _rebuild.access(_command, p, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
-  auto& artifact = _rebuild.getArtifact(_command, ref);
+  auto artifact = _rebuild.getArtifact(_command, ref);
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
@@ -695,7 +695,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will tell us whether or not the syscall created the artifact
-  auto& pre_artifact = _rebuild.getArtifact(_command, ref);
+  auto pre_artifact = _rebuild.getArtifact(_command, ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -710,7 +710,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
     // If the first attempt to resolve the artifact failed, we know the syscall created it
     // TODO: Maybe just add a version to the existing empty artifact instead of fetching a new one?
-    auto& artifact = pre_artifact ? pre_artifact : _rebuild.getArtifact(_command, ref, true);
+    auto artifact = pre_artifact ? pre_artifact : _rebuild.getArtifact(_command, ref, true);
 
     FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
@@ -870,7 +870,7 @@ void Process::_readlinkat(int dfd, string pathname) {
     _rebuild.referenceResult(_command, ref, SUCCESS);
 
     // Get the artifact that we referenced
-    auto& artifact = _rebuild.getArtifact(_command, ref);
+    auto artifact = _rebuild.getArtifact(_command, ref);
 
     FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
 
@@ -890,7 +890,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   auto ref = _rebuild.access(_command, p, AccessFlags{});
 
   // Get the artifact that we're going to chmod
-  auto& artifact = _rebuild.getArtifact(_command, ref);
+  auto artifact = _rebuild.getArtifact(_command, ref);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -986,7 +986,7 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto& artifact = _rebuild.getArtifact(_command, ref);
+  auto artifact = _rebuild.getArtifact(_command, ref);
 
   FAIL_IF(!artifact) << "Failed to get artifact for pipe";
 

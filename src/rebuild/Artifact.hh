@@ -23,12 +23,6 @@ using std::shared_ptr;
  * artifact.
  */
 class Artifact {
- private:
-  /**
-   * Create a new artifact that does not reference any version
-   */
-  Artifact() = default;
-
  public:
   /**
    * Create a new artifact from its initial version.
@@ -52,9 +46,6 @@ class Artifact {
   /// Advance this artifact to a new version
   void addVersion(shared_ptr<Version> v) { _versions.push_back(v); }
 
-  /// Check if this artifact has any versions
-  operator bool() const { return !_versions.empty(); }
-
   /// Get the path to this artifact, if it has one.
   /// This is ONLY useful for pretty printing artifacts; the actual path(s) to this artifact can
   /// change during a build.
@@ -71,12 +62,6 @@ class Artifact {
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
-
-  /// Create a single artifact instance for empty artifacts
-  static Artifact& getEmptyArtifact() {
-    static Artifact _empty;
-    return _empty;
-  }
 
  private:
   /// The reference used for the first access to this artifact

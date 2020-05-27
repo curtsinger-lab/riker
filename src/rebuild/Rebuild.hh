@@ -49,7 +49,8 @@ class Rebuild {
   void run();
 
   /// Get the artifact a reference resolves to
-  Artifact& getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created = false);
+  shared_ptr<Artifact> getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                   bool created = false);
 
   /*** Tracing methods ***/
 
@@ -63,16 +64,16 @@ class Rebuild {
   void referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, int result);
 
   /// Command c depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// Command c depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// Command c sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// Command c sets the contents of a referenced artifact
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a);
+  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// Command c launches a child command
   shared_ptr<Command> launch(shared_ptr<Command> c, string exe, vector<string> args,
@@ -126,7 +127,7 @@ class Rebuild {
 
   /// A map from paths to entries in an emulated view of the filesystem. Each entry maps a path
   /// to a specific artifact version that was placed there by some command.
-  map<string, shared_ptr<Version>> _entries;
+  map<string, shared_ptr<Artifact>> _entries;
 
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
@@ -135,8 +136,8 @@ class Rebuild {
   set<shared_ptr<Command>> _output_needed;
 
   /// A map of artifacts found on the filesystem
-  map<ino_t, pair<string, Artifact>> _artifacts;
+  map<ino_t, pair<string, shared_ptr<Artifact>>> _artifacts;
 
   /// A map of pipes
-  map<shared_ptr<Pipe>, Artifact> _pipes;
+  map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
 };

@@ -61,8 +61,8 @@ void Rebuild::run() {
   for (auto& [_, entry] : _artifacts) {
     auto& [path, artifact] = entry;
     auto ref = make_shared<Access>(path, AccessFlags());
-    artifact.getLatestVersion()->saveMetadata(ref);
-    artifact.getLatestVersion()->saveFingerprint(ref);
+    artifact->getLatestVersion()->saveMetadata(ref);
+    artifact->getLatestVersion()->saveFingerprint(ref);
   }
 }
 
@@ -88,7 +88,8 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 }
 
 // Get an artifact during tracing
-Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref, bool created) {
+shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          bool created) {
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
@@ -97,7 +98,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto v = make_shared<Version>(c);
 
       // Add the record for this pipe
-      iter = _pipes.emplace_hint(iter, p, Artifact(ref, v));
+      iter = _pipes.emplace_hint(iter, p, make_shared<Artifact>(ref, v));
     }
 
     // Return the artifact, which was either found or inserted
@@ -117,7 +118,7 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
     }
 
     // If the stat call failed, return an empty artifact
-    if (rc) return Artifact::getEmptyArtifact();
+    if (rc) return shared_ptr<Artifact>();
 
     // The stat call succeeded. Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
@@ -141,8 +142,9 @@ Artifact& Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
       }
 
       // Add the artifact to the map
-      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
-                                     pair<string, Artifact>{p, Artifact(ref, v)});
+      iter = _artifacts.emplace_hint(
+          iter, statbuf.st_ino,
+          pair<string, shared_ptr<Artifact>>{p, make_shared<Artifact>(ref, v)});
     }
 
     // Return the found/inserted artifact
@@ -173,51 +175,54 @@ void Rebuild::referenceResult(shared_ptr<Command> c, shared_ptr<Reference> ref, 
 }
 
 /// This command accesses the metadata for an artifact
-void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::metadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                            shared_ptr<Artifact> a) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && a.getLatestVersion()->getCreator() == c) return;
+  if (options::ignore_self_reads && a->getLatestVersion()->getCreator() == c) return;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
-  if (options::skip_repeat_checks && !c->checkMetadataRequired(ref, a.getLatestVersion())) return;
+  if (options::skip_repeat_checks && !c->checkMetadataRequired(ref, a->getLatestVersion())) return;
 
   // The version has been accessed
-  a.getLatestVersion()->setAccessed();
+  a->getLatestVersion()->setAccessed();
 
   // Make sure we have metadata saved for that version
-  a.getLatestVersion()->saveMetadata(ref);
+  a->getLatestVersion()->saveMetadata(ref);
 
   // Record the dependency on metadata
-  c->addStep(make_shared<MetadataMatch>(ref, a.getLatestVersion()));
+  c->addStep(make_shared<MetadataMatch>(ref, a->getLatestVersion()));
 }
 
 /// This command accesses the contents of an artifact
-void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::contentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                            shared_ptr<Artifact> a) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && a.getLatestVersion()->getCreator() == c) return;
+  if (options::ignore_self_reads && a->getLatestVersion()->getCreator() == c) return;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
-  if (options::skip_repeat_checks && !c->checkContentsRequired(ref, a.getLatestVersion())) return;
+  if (options::skip_repeat_checks && !c->checkContentsRequired(ref, a->getLatestVersion())) return;
 
   // The version has been accessed
-  a.getLatestVersion()->setAccessed();
+  a->getLatestVersion()->setAccessed();
 
   // Make sure we have a fingerprint saved for this version
-  a.getLatestVersion()->saveFingerprint(ref);
+  a->getLatestVersion()->saveFingerprint(ref);
 
   // Record the dependency
-  c->addStep(make_shared<ContentsMatch>(ref, a.getLatestVersion()));
+  c->addStep(make_shared<ContentsMatch>(ref, a->getLatestVersion()));
 }
 
 /// This command sets the metadata for an artifact
-void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                          shared_ptr<Artifact> a) {
   // We cannot do write-combining on metadata updates because any access to a path could depend on
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Create a new version
   auto v = make_shared<Version>(c);
-  a.addVersion(v);
+  a->addVersion(v);
 
   // Create the SetMetadata step and add it to the command
   auto s = make_shared<SetMetadata>(ref, v);
@@ -225,18 +230,20 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, Arti
 }
 
 /// This command sets the contents of an artifact
-void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, Artifact& a) {
+void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                          shared_ptr<Artifact> a) {
   // If this command created the last version, and no other command has accessed it, we can
   // combine the updates into a single update. That means we don't need to tag a new version.
-  if (options::combine_writes && a.getLatestVersion()->getCreator() == c &&
-      !a.getLatestVersion()->isAccessed())
+  if (options::combine_writes && a->getLatestVersion()->getCreator() == c &&
+      !a->getLatestVersion()->isAccessed()) {
     return;
+  }
 
   // If we reach this point, the command is creating a new version of the artifact
 
   // Create a new version of the artifact
   auto v = make_shared<Version>(c);
-  a.addVersion(v);
+  a->addVersion(v);
 
   // Create the SetContents step and add it to the command
   auto s = make_shared<SetContents>(ref, v);
@@ -360,8 +367,8 @@ void Rebuild::checkFinalState() {
     auto ref = make_shared<Access>(path, AccessFlags());
 
     // Check the filesystem to see if the real file matches our expected version
-    if (!checkFilesystemContents(ref, entry)) {
-      _output_needed.insert(entry->getCreator());
+    if (!checkFilesystemContents(ref, entry->getLatestVersion())) {
+      _output_needed.insert(entry->getLatestVersion()->getCreator());
     }
   }
 }
@@ -387,15 +394,15 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
 
       // In a rebuild that runs entry->getCreator(), c must also run because it consumes output
       // from entry->getCreator().
-      entry->getCreator()->outputUsedBy(c);
+      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
-      if (options::enable_cache && entry->isSaved()) {
+      if (options::enable_cache && entry->getLatestVersion()->isSaved()) {
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getCreator());
+        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
       }
 
       // This access will succeed, so check if that matches the expected outcome
@@ -428,19 +435,19 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      entry->getCreator()->outputUsedBy(c);
+      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
-      if (options::enable_cache && entry->hasMetadata()) {
+      if (options::enable_cache && entry->getLatestVersion()->hasMetadata()) {
         // We can use the cached version
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getCreator());
+        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
-      return entry->metadataMatch(v);
+      return entry->getLatestVersion()->metadataMatch(v);
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemMetadata(a, v);
@@ -469,19 +476,19 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      entry->getCreator()->outputUsedBy(c);
+      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
-      if (options::enable_cache && entry->isSaved()) {
+      if (options::enable_cache && entry->getLatestVersion()->isSaved()) {
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getCreator());
+        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
-      return entry->fingerprintMatch(v);
+      return entry->getLatestVersion()->fingerprintMatch(v);
     } else {
       // There is no matching entry in the environment. Check the actual filesystem
       return checkFilesystemContents(a, v);
@@ -501,7 +508,12 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
     // TODO: Deal with links, path normalization, etc.
-    _entries[a->getPath()] = v;
+    auto iter = _entries.find(a->getPath());
+    if (iter == _entries.end()) {
+      _entries.emplace_hint(iter, a->getPath(), make_shared<Artifact>(ref, v));
+    } else {
+      iter->second->addVersion(v);
+    }
 
   } else {
     WARN << "Unsupported reference type: " << ref;
@@ -516,7 +528,12 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
     // TODO: Deal with links, path normalization, etc.
-    _entries[a->getPath()] = v;
+    auto iter = _entries.find(a->getPath());
+    if (iter == _entries.end()) {
+      _entries.emplace_hint(iter, a->getPath(), make_shared<Artifact>(ref, v));
+    } else {
+      iter->second->addVersion(v);
+    }
 
   } else {
     WARN << "Unsupported reference type: " << ref;

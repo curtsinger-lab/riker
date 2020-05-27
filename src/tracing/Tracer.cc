@@ -254,7 +254,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
     auto ref = initial_fd.getReference();
-    auto& artifact = _rebuild.getArtifact(cmd, ref);
+    auto artifact = _rebuild.getArtifact(cmd, ref);
     bool writable = initial_fd.isWritable();
 
     FAIL_IF(!artifact) << "Attempted to launch command with non-existent artifact ref";
