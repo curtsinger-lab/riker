@@ -3,5 +3,5 @@ Move to test directory
 
 Clean up
   $ rm -rf .dodo
-  $ rm myfile
-  $ rm out.dot out.png
+  $ rm -f myfile
+  $ rm -f out.dot out.png

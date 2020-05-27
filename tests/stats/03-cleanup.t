@@ -3,4 +3,4 @@ Move to test directory
 
 Clean up
   $ rm -rf .dodo
-  $ rm myfile
+  $ rm -f myfile

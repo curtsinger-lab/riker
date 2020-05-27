@@ -29,6 +29,7 @@ $(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
 
 test: dodo
 	@echo "Running test cases"
+	@rm -f tests/*/*.t.err
 	@cram --quiet tests/*/*.t || ( \
 		echo "\nFailed tests:" && \
 		for fail in `find tests | grep .t.err | xargs -L 1 dirname | xargs -L 1 basename | uniq`; do \
