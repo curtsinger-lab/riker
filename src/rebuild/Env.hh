@@ -27,6 +27,11 @@ class Reference;
 class Env {
  public:
   /**
+   * Reset this environment to a safe starting state
+   */
+  void reset();
+
+  /**
    * Get an artifact from this environment
    * \param c   The command that makes this access
    * \param ref The reference used to reach the artifact

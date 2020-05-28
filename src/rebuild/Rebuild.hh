@@ -31,10 +31,10 @@ class Tracer;
 
 /// This class captures all of the logic and state required to plan a rebuild.
 class Rebuild {
- private:
-  Rebuild(shared_ptr<Command> root) : _root(root) {}
-
  public:
+  /// Create a rebuild plan
+  Rebuild(shared_ptr<Command> root);
+
   // Disallow Copy
   Rebuild(const Rebuild&) = delete;
   Rebuild& operator=(const Rebuild&) = delete;
@@ -43,20 +43,20 @@ class Rebuild {
   Rebuild(Rebuild&&) = default;
   Rebuild& operator=(Rebuild&&) = default;
 
-  /// Create a rebuild plan for an existing build trace
-  static Rebuild create(shared_ptr<Command> root);
-
   /// Run the rebuild
   void run();
+
+  /// Check if a specific command must rerun
+  bool mustRerun(shared_ptr<Command> c) const;
+
+  /// Record the necessary dependencies for when command c accesses artifact a
+  void addDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 
   /// Output stream printing
   friend ostream& operator<<(ostream& o, const Rebuild& r) { return r.print(o); }
-
-  /// Record the necessary dependencies for when command c accesses artifact a
-  void recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
 
  private:
   /// Run or emulate a command from this rebuild
@@ -72,15 +72,15 @@ class Rebuild {
   /// The root command for the build
   shared_ptr<Command> _root;
 
-  /// The environment that tracks artifacts during the checking phase of the rebuild
-  Env _check_env;
-
-  /// The environment that tracks artifacts during the running phase of the rebuild
-  Env _run_env;
+  /// This environment resolves and tracks artifacts during the checking and re-execution phases
+  Env _env;
 
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
+
+  /// All commands that will rerun
+  set<shared_ptr<Command>> _rerun;
 };

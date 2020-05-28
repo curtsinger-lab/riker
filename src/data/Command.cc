@@ -180,25 +180,25 @@ shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, In
 }
 
 // Tell this command that it must rerun, and propagate that mark along the command graph
-void Command::mark() {
+void Command::mark(set<shared_ptr<Command>>& rerun) {
   // If this command is already marked, there's no work to do
-  if (_rerun) return;
+  if (rerun.find(shared_from_this()) != rerun.end()) return;
 
   // Mark this command
-  _rerun = true;
+  rerun.insert(shared_from_this());
 
   // Mark this command's children
   for (auto& child : _children) {
-    child->mark();
+    child->mark(rerun);
   }
 
   // Mark any commands that produce output that this command needs
   for (auto& other : _needs_output_from) {
-    other->mark();
+    other->mark(rerun);
   }
 
   // Mark any commands that use this command's output
   for (auto& other : _output_used_by) {
-    other->mark();
+    other->mark(rerun);
   }
 }

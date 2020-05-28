@@ -89,6 +89,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
+  /********* Command Tracing Operations **********/
+
   /// This command accesses a path
   shared_ptr<Access> access(string path, AccessFlags flags);
 
@@ -113,8 +115,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command launches a child command
   shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
 
-  /// Tell this command that it must rerun, and propagate that mark along the command graph
-  void mark();
+  /// Add this command to the rerun set, and propagate that marking to other required commands
+  void mark(set<shared_ptr<Command>>& rerun);
 
   /// Command c uses this command's output; c must rerun if this command runs
   void outputUsedBy(shared_ptr<Command> c) { _output_used_by.insert(c); }
@@ -123,19 +125,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Command c must rerun if this command runs
   void needsOutputFrom(shared_ptr<Command> c) { _needs_output_from.insert(c); }
 
-  /// Check if this command has been marked for rerun
-  bool mustRerun() const { return _rerun; }
-
-  /********* Command Tracing Operations **********/
-
- private:
-  /// Add a trace step to this command
-  void addStep(shared_ptr<Step> s) { _steps.push_back(s); }
-
-  /// Add a child to this command
-  void addChild(shared_ptr<Command> c) { _children.push_back(c); }
-
- public:
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
@@ -170,9 +159,6 @@ class Command : public std::enable_shared_from_this<Command> {
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
 
   /***** Transient Data (not serialized) *****/
-
-  /// Does this command have to rerun?
-  bool _rerun = false;
 
   /// What commands does this command need output from?
   set<shared_ptr<Command>> _needs_output_from;

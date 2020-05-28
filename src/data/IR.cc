@@ -36,7 +36,7 @@ bool ReferenceResult::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
 
   // If the reference succeeds, this command depends on the artifact
   if (rc == SUCCESS) {
-    r.recordDependency(c, artifact);
+    r.addDependency(c, artifact);
   }
 
   return rc == _rc;
@@ -52,7 +52,7 @@ bool MetadataMatch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
   if (!a->getLatestVersion()) return false;
 
   // Record command c's dependency on artifact a
-  r.recordDependency(c, a);
+  r.addDependency(c, a);
 
   // Compare versions and return the result
   return _version->metadataMatch(a->getLatestVersion());
@@ -68,7 +68,7 @@ bool ContentsMatch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
   if (!a->getLatestVersion()) return false;
 
   // Record command c's dependency on artifact a
-  r.recordDependency(c, a);
+  r.addDependency(c, a);
 
   // Compare versions and return the result
   return _version->fingerprintMatch(a->getLatestVersion());

@@ -26,39 +26,37 @@ using std::ostream;
 using std::queue;
 
 // Create a rebuild plan
-Rebuild Rebuild::create(shared_ptr<Command> root) {
-  // Initialize the rebuild with the build's root command
-  Rebuild r(root);
-
+Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
   // Identify commands with changed dependencies
-  r.findChanges(root);
+  findChanges(_root);
 
   // Check the final outputs of the emulated build against the filesystem
-  r.checkFinalState();
+  checkFinalState();
 
   // Mark all the commands with changed inputs
-  for (auto& c : r._changed) {
-    c->mark();
+  for (auto& c : _changed) {
+    c->mark(_rerun);
   }
 
   // Mark all the commands whose output is required
-  for (auto& c : r._output_needed) {
-    c->mark();
+  for (auto& c : _output_needed) {
+    c->mark(_rerun);
   }
-
-  return r;
 }
 
 // Run a rebuild, updating the in-memory build representation
 void Rebuild::run() {
+  // Reset the environment
+  _env.reset();
+
   // Create a tracing context to run the build
-  Tracer tracer(_run_env);
+  Tracer tracer(_env);
 
   // Run or emulate the root command with the tracer
   runCommand(_root, tracer);
 
   // Finish up by saving metadata for any remaining artifacts
-  for (auto& [ref, artifact] : _run_env.getArtifacts()) {
+  for (auto& [ref, artifact] : _env.getArtifacts()) {
     artifact->getLatestVersion()->saveMetadata(ref);
     artifact->getLatestVersion()->saveFingerprint(ref);
   }
@@ -67,7 +65,7 @@ void Rebuild::run() {
 // Run or emulate a command in this rebuild
 void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
   // Does the rebuild plan say command c must run?
-  if (c->mustRerun()) {
+  if (mustRerun(c)) {
     // We are rerunning this command, so clear the lists of steps and children
     c->reset();
 
@@ -79,12 +77,17 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 
   } else {
     for (auto step : c->getSteps()) {
-      step->check(c, _run_env, *this);
+      step->check(c, _env, *this);
       if (auto launch = dynamic_pointer_cast<Launch>(step)) {
         runCommand(launch->getCommand(), tracer);
       }
     }
   }
+}
+
+// Check if a command must rerun
+bool Rebuild::mustRerun(shared_ptr<Command> c) const {
+  return _rerun.find(c) != _rerun.end();
 }
 
 // Show rebuild information
@@ -107,17 +110,8 @@ ostream& Rebuild::print(ostream& o) const {
 
   if (_changed.size() > 0 || _output_needed.size() > 0) {
     o << "A rebuild will run the following commands:" << endl;
-    queue<shared_ptr<Command>> q;
-    q.push(_root);
-    while (!q.empty()) {
-      auto c = q.front();
-      if (c->mustRerun()) {
-        o << "  " << c << endl;
-      }
-      q.pop();
-      for (auto& child : c->getChildren()) {
-        q.push(child);
-      }
+    for (auto c : _rerun) {
+      o << "  " << c << endl;
     }
   } else {
     o << "No changes detected" << endl;
@@ -139,7 +133,7 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
   // Loop over the steps from the command trace to see if command c will see any changes
   for (auto step : c->getSteps()) {
     // Check whether the IR step runs as expected in the emulated environment
-    if (!step->check(c, _check_env, *this)) {
+    if (!step->check(c, _env, *this)) {
       // If check() returns false, something has changed
       LOG << c << " changed: " << step;
       changed = true;
@@ -157,7 +151,7 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 
 void Rebuild::checkFinalState() {
   // Loop over all the artifacts left in the environment at the end of the build
-  for (auto& [ref, a] : _check_env.getArtifacts()) {
+  for (auto& [ref, a] : _env.getArtifacts()) {
     // If this artifact was not created by any command, we can't do anything about it
     auto creator = a->getCreator();
     if (!creator) continue;
@@ -178,8 +172,8 @@ void Rebuild::checkFinalState() {
   }
 }
 
-void Rebuild::recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-  // Record dependency information
+// Command c depends on artifact a
+void Rebuild::addDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   auto creator = a->getCreator();
   if (creator) {
     // If creator has to rerun, c may see changed input through this artifact

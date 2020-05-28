@@ -21,6 +21,14 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
+void Env::reset() {
+  // TODO: could just roll back to artifacts and versions that exist pre-emulation, but for now
+  // it's safe to just get rid of everything.
+  _filesystem.clear();
+  _files.clear();
+  _pipes.clear();
+}
+
 tuple<shared_ptr<Artifact>, int, bool> Env::get(shared_ptr<Command> c, shared_ptr<Reference> ref) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {

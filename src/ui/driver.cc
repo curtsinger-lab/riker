@@ -56,7 +56,7 @@ void do_build(int jobs, string fingerprint) {
   auto root = load_build(DatabaseFilename, true);
 
   // Compute the rebuild steps
-  Rebuild rebuild = Rebuild::create(root);
+  Rebuild rebuild(root);
 
   // Run the build
   rebuild.run();
@@ -99,7 +99,7 @@ void do_check() {
   auto root = load_build(DatabaseFilename, true);
 
   // Plan and print the rebuild steps
-  cout << Rebuild::create(root);
+  cout << Rebuild(root);
 }
 
 /**
