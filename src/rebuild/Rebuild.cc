@@ -58,9 +58,7 @@ void Rebuild::run() {
   runCommand(_root, tracer);
 
   // Finish up by saving metadata for any remaining artifacts
-  for (auto& [_, entry] : _artifacts) {
-    auto& [path, artifact] = entry;
-    auto ref = make_shared<Access>(path, AccessFlags());
+  for (auto& [ref, artifact] : _run_env.getArtifacts()) {
     artifact->getLatestVersion()->saveMetadata(ref);
     artifact->getLatestVersion()->saveFingerprint(ref);
   }
@@ -90,67 +88,18 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 // Get an artifact during tracing
 shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
                                           bool created) {
-  if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    // Look to see if we've already resolve this reference to an artifact
-    auto iter = _pipes.find(p);
-    if (iter == _pipes.end()) {
-      // Create the artifact for this pipe
-      auto artifact = make_shared<Artifact>(ref);
+  auto [artifact, rc, is_new] = _run_env.get(c, ref);
 
-      // Creating a pipe sets the pipe's contents as well
-      c->setContents(ref, artifact);
+  // If we didn't get an artifact, return a nullptr
+  if (rc != SUCCESS) return shared_ptr<Artifact>();
 
-      // Add the record for this pipe
-      iter = _pipes.emplace_hint(iter, p, artifact);
-    }
-
-    // Return the artifact, which was either found or inserted
-    return iter->second;
-
-  } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
-    string p = a->getPath();
-    bool follow_links = !a->getFlags().nofollow;
-
-    // Now that we have a path, we can stat it
-    struct stat statbuf;
-    int rc;
-    if (follow_links) {
-      rc = stat(p.c_str(), &statbuf);
-    } else {
-      rc = lstat(p.c_str(), &statbuf);
-    }
-
-    // If the stat call failed, return an empty artifact
-    if (rc) return shared_ptr<Artifact>();
-
-    // The stat call succeeded. Check for an existing inode entry
-    auto iter = _artifacts.find(statbuf.st_ino);
-    if (iter == _artifacts.end()) {
-      // Create an artifact
-      auto artifact = make_shared<Artifact>(ref);
-
-      // Did the reference create this artifact?
-      if (created) {
-        // Yes. Generate the new version and add the IR step to the command that creates it
-        auto v = artifact->setContents(c);
-        c->addStep(make_shared<SetContents>(ref, v));
-
-      } else {
-        // No. This version is just opened
-        artifact->createInitialVersion();
-      }
-
-      // Add the artifact to the map
-      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
-                                     pair<string, shared_ptr<Artifact>>{p, artifact});
-    }
-
-    // Return the found/inserted artifact
-    return iter->second.second;
-  } else {
-    FAIL << "Unsupported reference type";
-    abort();
+  // If this artifact was created, set its contents
+  if (is_new) {
+    c->setContents(ref, artifact);
   }
+
+  // Return the artifact
+  return artifact;
 }
 
 // Show rebuild information

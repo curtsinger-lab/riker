@@ -85,15 +85,12 @@ class Rebuild {
   /// The environment that tracks artifacts during the checking phase of the rebuild
   Env _check_env;
 
+  /// The environment that tracks artifacts during the running phase of the rebuild
+  Env _run_env;
+
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
-
-  /// A map of artifacts found on the filesystem
-  map<ino_t, pair<string, shared_ptr<Artifact>>> _artifacts;
-
-  /// A map of pipes
-  map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
 };
