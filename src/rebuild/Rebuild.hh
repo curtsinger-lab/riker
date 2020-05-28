@@ -59,6 +59,9 @@ class Rebuild {
   /// Output stream printing
   friend ostream& operator<<(ostream& o, const Rebuild& r) { return r.print(o); }
 
+  /// Record the necessary dependencies for when command c accesses artifact a
+  void recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
+
  private:
   /// Run or emulate a command from this rebuild
   void runCommand(shared_ptr<Command> c, Tracer& tracer);
@@ -68,24 +71,6 @@ class Rebuild {
 
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
-
-  /// Record the necessary dependencies for when command c accesses artifact a
-  void recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
-
-  /// Check if a command's access resolves as expected in the environment for this rebuild
-  bool checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected);
-
-  /// Check if a command's dependency on metadata resolves to the expected version
-  bool checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
-
-  /// Check if a command's dependency on contents resolves to the expected version
-  bool checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
-
-  /// Command c sets file metadata in the rebuild environment
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
-
-  /// Command c sets file contents in the rebuild environment
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
   /// Check if a reference to the actual filesystem yields the expected metadata
   bool checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v);
@@ -97,7 +82,8 @@ class Rebuild {
   /// The root command for the build
   shared_ptr<Command> _root;
 
-  Env _env;
+  /// The environment that tracks artifacts during the checking phase of the rebuild
+  Env _check_env;
 
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;

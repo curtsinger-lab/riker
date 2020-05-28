@@ -202,48 +202,16 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 
   // Loop over the steps from the command trace to see if command c will see any changes
   for (auto step : c->getSteps()) {
-    // Handle each IR type here
-    if (auto pipe = dynamic_pointer_cast<Pipe>(step)) {
-      // Nothing to do for pipes
+    // Check whether the IR step runs as expected in the emulated environment
+    if (!step->check(c, _check_env, *this)) {
+      // If check() returns false, something has changed
+      LOG << c << " changed: " << step;
+      changed = true;
+    }
 
-    } else if (auto access = dynamic_pointer_cast<Access>(step)) {
-      // Nothing to do for access
-
-    } else if (auto ref_result = dynamic_pointer_cast<ReferenceResult>(step)) {
-      // Check if the reference resolves the same way
-      if (!checkAccess(c, ref_result->getReference(), ref_result->getResult())) {
-        LOG << c << " changed: " << ref_result;
-        changed = true;
-      }
-
-    } else if (auto m_match = dynamic_pointer_cast<MetadataMatch>(step)) {
-      // Check if the metadata in the environment matches the expected version
-      if (!checkMetadata(c, m_match->getReference(), m_match->getVersion())) {
-        LOG << c << " changed: " << m_match;
-        changed = true;
-      }
-
-    } else if (auto c_match = dynamic_pointer_cast<ContentsMatch>(step)) {
-      // Check if the contents in the environment match the expected version
-      if (!checkContents(c, c_match->getReference(), c_match->getVersion())) {
-        LOG << c << " changed: " << c_match;
-        changed = true;
-      }
-
-    } else if (auto launch = dynamic_pointer_cast<Launch>(step)) {
-      // Check the child command's inputs
+    // If this is a launch action, check the child command
+    if (auto launch = dynamic_pointer_cast<Launch>(step)) {
       findChanges(launch->getCommand());
-
-    } else if (auto set_metadata = dynamic_pointer_cast<SetMetadata>(step)) {
-      // Update the metadata in the environment
-      setMetadata(c, set_metadata->getReference(), set_metadata->getVersion());
-
-    } else if (auto set_contents = dynamic_pointer_cast<SetContents>(step)) {
-      // Update the contents in the environment
-      setContents(c, set_contents->getReference(), set_contents->getVersion());
-
-    } else {
-      FAIL << "Unsupported IR action " << step;
     }
   }
 
@@ -253,7 +221,7 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 
 void Rebuild::checkFinalState() {
   // Loop over all entries in the environment
-  for (auto& [ref, entry] : _env.getArtifacts()) {
+  for (auto& [ref, entry] : _check_env.getArtifacts()) {
     // Check the filesystem to see if the real file matches our expected version
     if (!checkFilesystemContents(ref, entry->getLatestVersion())) {
       auto creator = entry->getCreator();
@@ -277,52 +245,6 @@ void Rebuild::recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
       c->needsOutputFrom(creator);
     }
   }
-}
-
-// Check if an access resolves as-expected in the current environment
-bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected) {
-  auto [artifact, rc, created] = _env.get(c, ref);
-
-  if (rc == SUCCESS) {
-    recordDependency(c, artifact);
-  }
-
-  return rc == expected;
-}
-
-bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                            shared_ptr<Version> v) {
-  auto [a, rc, created] = _env.get(c, ref);
-  FAIL_IF(rc != SUCCESS) << "Failed to get artifact for metadata check";
-  FAIL_IF(!a->getLatestVersion()) << "Artifact for " << ref << " has no versions";
-
-  recordDependency(c, a);
-
-  return v->metadataMatch(a->getLatestVersion());
-}
-
-bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                            shared_ptr<Version> v) {
-  auto [a, rc, created] = _env.get(c, ref);
-  FAIL_IF(rc != SUCCESS) << "Failed to get artifact for contents check";
-
-  recordDependency(c, a);
-
-  return v->fingerprintMatch(a->getLatestVersion());
-}
-
-void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
-  auto [a, rc, created] = _env.get(c, ref);
-  FAIL_IF(rc != SUCCESS) << "Failed to get artifact";
-
-  a->appendVersion(v, c);
-}
-
-void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
-  auto [a, rc, created] = _env.get(c, ref);
-  FAIL_IF(rc != SUCCESS) << "Failed to get artifact";
-
-  a->appendVersion(v, c);
 }
 
 // Check if the metadata for a file on the actual filesystem matches a saved version
