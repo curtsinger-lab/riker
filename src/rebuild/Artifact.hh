@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 
 #include "data/IR.hh"
 #include "data/Version.hh"
@@ -13,6 +14,7 @@ class Command;
 using std::list;
 using std::optional;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 
 /**
@@ -86,9 +88,24 @@ class Artifact {
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
 
  private:
+  /// Tag a new version of this artifact created by command c (may be nullptr)
+  shared_ptr<Version> tagNewVersion(shared_ptr<Command> c);
+
+  /// Check if a command has already accessed the metadata for the latest version of this artifact
+  bool metadataAccessedBy(shared_ptr<Command> c);
+
+  /// Check if a command has already accessed the contents for the latest version of this artifact
+  bool contentsAccessedBy(shared_ptr<Command> c);
+
   /// The reference used for the first access to this artifact
   shared_ptr<Reference> _ref;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
+
+  /// Keep track of commands that have accessed metadata for the latest version
+  set<shared_ptr<Command>> _metadata_accesses;
+
+  /// Keep track of commands that have accessed contents for the latest version
+  set<shared_ptr<Command>> _content_accesses;
 };

@@ -29,9 +29,7 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   if (options::ignore_self_reads && getLatestVersion()->getCreator() == c) return nullptr;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
-  /*if (options::skip_repeat_checks && !c->checkMetadataRequired(ref, a->getLatestVersion())) {
-    return nullptr;
-  }*/
+  if (options::skip_repeat_checks && metadataAccessedBy(c)) return nullptr;
 
   // Get the latest version, mark it as accessed, and return it
   auto v = getLatestVersion();
@@ -49,9 +47,7 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   if (options::ignore_self_reads && getLatestVersion()->getCreator() == c) return nullptr;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
-  /*if (options::skip_repeat_checks && !checkContentsRequired(ref, a->getLatestVersion())) {
-    return;
-  }*/
+  if (options::skip_repeat_checks && contentsAccessedBy(c)) return nullptr;
 
   // Get the latest version, mark it as accessed, and return it
   auto v = getLatestVersion();
@@ -68,9 +64,7 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c) {
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Create a new version
-  auto v = make_shared<Version>(c);
-  _versions.push_back(v);
-  return v;
+  return tagNewVersion(c);
 }
 
 /**
@@ -86,9 +80,25 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   }
 
   // If we reach this point, the command is creating a new version of the artifact
+  return tagNewVersion(c);
+}
 
-  // Create a new version of the artifact
+// Tag a new version of this artifact, created by command c
+shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> c) {
+  _metadata_accesses.clear();
+  _content_accesses.clear();
+
   auto v = make_shared<Version>(c);
   _versions.push_back(v);
   return v;
+}
+
+bool Artifact::metadataAccessedBy(shared_ptr<Command> c) {
+  auto [_, inserted] = _metadata_accesses.insert(c);
+  return !inserted;
+}
+
+bool Artifact::contentsAccessedBy(shared_ptr<Command> c) {
+  auto [_, inserted] = _content_accesses.insert(c);
+  return !inserted;
 }

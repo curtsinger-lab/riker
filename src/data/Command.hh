@@ -39,7 +39,6 @@ class Version;
  */
 class Command : public std::enable_shared_from_this<Command> {
   friend class Rebuild;
-  friend class Artifact;
 
  public:
   /// Create a command to invoke the provided buildfile
@@ -79,8 +78,6 @@ class Command : public std::enable_shared_from_this<Command> {
   void reset() {
     _steps.clear();
     _children.clear();
-    _metadata_checks.clear();
-    _contents_checks.clear();
   }
 
   /// Get the path to the executable file this command runs
@@ -138,18 +135,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Add a child to this command
   void addChild(shared_ptr<Command> c) { _children.push_back(c); }
 
-  /// Record a metadata check performed by this command, and return true if it is new
-  bool checkMetadataRequired(shared_ptr<Reference> ref, shared_ptr<Version> v) {
-    auto [_, inserted] = _metadata_checks.emplace(ref, v);
-    return inserted;
-  }
-
-  /// Record a contents check performed by this command, and return true if it is new
-  bool checkContentsRequired(shared_ptr<Reference> ref, shared_ptr<Version> v) {
-    auto [_, inserted] = _contents_checks.emplace(ref, v);
-    return inserted;
-  }
-
  public:
   /****** Utility Methods ******/
 
@@ -185,12 +170,6 @@ class Command : public std::enable_shared_from_this<Command> {
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
 
   /***** Transient Data (not serialized) *****/
-
-  /// Track all the unique metadata checks made during tracing
-  map<shared_ptr<Reference>, shared_ptr<Version>> _metadata_checks;
-
-  /// Track all the unique content checks made during tracing
-  map<shared_ptr<Reference>, shared_ptr<Version>> _contents_checks;
 
   /// Does this command have to rerun?
   bool _rerun = false;
