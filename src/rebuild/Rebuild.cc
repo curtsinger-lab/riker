@@ -97,8 +97,15 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Refe
       // This is a new pipe. Create an initial version for the pipe
       auto v = make_shared<Version>(c);
 
+      // Create the artifact for this pipe
+      auto artifact = make_shared<Artifact>(ref);
+
+      // Creating a pipe sets the pipe's contents as well
+      artifact->addVersion(make_shared<Version>(c));
+      c->setContents(ref, artifact);
+
       // Add the record for this pipe
-      iter = _pipes.emplace_hint(iter, p, make_shared<Artifact>(ref, v));
+      iter = _pipes.emplace_hint(iter, p, artifact);
     }
 
     // Return the artifact, which was either found or inserted
@@ -141,10 +148,15 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Refe
         v = make_shared<Version>();
       }
 
+      // Create an artifact
+      auto artifact = make_shared<Artifact>(ref);
+
+      // Add the initial version to the artifact
+      artifact->addVersion(v);
+
       // Add the artifact to the map
-      iter = _artifacts.emplace_hint(
-          iter, statbuf.st_ino,
-          pair<string, shared_ptr<Artifact>>{p, make_shared<Artifact>(ref, v)});
+      iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
+                                     pair<string, shared_ptr<Artifact>>{p, artifact});
     }
 
     // Return the found/inserted artifact
@@ -403,7 +415,14 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
     // TODO: Deal with links, path normalization, etc.
     auto iter = _entries.find(a->getPath());
     if (iter == _entries.end()) {
-      _entries.emplace_hint(iter, a->getPath(), make_shared<Artifact>(ref, v));
+      // Create the artifact
+      auto artifact = make_shared<Artifact>(ref);
+
+      // Add the initial version to the artifact
+      artifact->addVersion(v);
+
+      // Record the artifact in the map
+      _entries.emplace_hint(iter, a->getPath(), artifact);
     } else {
       iter->second->addVersion(v);
     }
@@ -423,7 +442,14 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
     // TODO: Deal with links, path normalization, etc.
     auto iter = _entries.find(a->getPath());
     if (iter == _entries.end()) {
-      _entries.emplace_hint(iter, a->getPath(), make_shared<Artifact>(ref, v));
+      // Create the artifact
+      auto artifact = make_shared<Artifact>(ref);
+
+      // Add the initial version to the artifact
+      artifact->addVersion(v);
+
+      // Record the artifact in the map
+      _entries.emplace_hint(iter, a->getPath(), artifact);
     } else {
       iter->second->addVersion(v);
     }

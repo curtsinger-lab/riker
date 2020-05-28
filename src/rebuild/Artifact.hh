@@ -28,9 +28,7 @@ class Artifact {
    * Create a new artifact from its initial version.
    * \param version The initial version of this artifact.
    */
-  Artifact(shared_ptr<Reference> ref, shared_ptr<Version> version) : _ref(ref) {
-    _versions.push_back(version);
-  }
+  Artifact(shared_ptr<Reference> ref) : _ref(ref) {}
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
@@ -45,6 +43,30 @@ class Artifact {
 
   /// Advance this artifact to a new version
   void addVersion(shared_ptr<Version> v) { _versions.push_back(v); }
+
+  /**
+   * Command c accesses the metadata for this artifact.
+   * Return the version c will observe, or nullptr if this version has already been accessed.
+   */
+  shared_ptr<Version> accessMetadata(shared_ptr<Command> c);
+
+  /**
+   * Command c accesses the contents of this artifact.
+   * Return the version c will observe, or nullptr if this version has already been accessed.
+   */
+  shared_ptr<Version> accessContents(shared_ptr<Command> c);
+
+  /**
+   * Command c sets the metadata for this artifact.
+   * Return the version created by this operation, or nullptr if no new version is necessary.
+   */
+  shared_ptr<Version> setMetadata(shared_ptr<Command> c);
+
+  /**
+   * Command c sets the contents of this artifact.
+   * Return the version created by this operation, or nullptr if no new version is necessary.
+   */
+  shared_ptr<Version> setContents(shared_ptr<Command> c);
 
   /// Get the path to this artifact, if it has one.
   /// This is ONLY useful for pretty printing artifacts; the actual path(s) to this artifact can
