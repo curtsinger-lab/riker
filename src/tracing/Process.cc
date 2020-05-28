@@ -991,6 +991,9 @@ void Process::_pipe2(int* fds, int flags) {
 
   FAIL_IF(!artifact) << "Failed to get artifact for pipe";
 
+  // The command sets the contents of the pipe on creation
+  _command->setContents(ref, artifact);
+
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 

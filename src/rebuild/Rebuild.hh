@@ -14,6 +14,7 @@
 #include "data/Command.hh"
 #include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
+#include "rebuild/Env.hh"
 
 using std::map;
 using std::ostream;
@@ -68,6 +69,9 @@ class Rebuild {
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
 
+  /// Record the necessary dependencies for when command c accesses artifact a
+  void recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
+
   /// Check if a command's access resolves as expected in the environment for this rebuild
   bool checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int expected);
 
@@ -83,9 +87,6 @@ class Rebuild {
   /// Command c sets file contents in the rebuild environment
   void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
 
-  /// Check if an access resolves as expected against the actual filesystem state
-  bool checkFilesystemAccess(shared_ptr<Access> ref, int expected);
-
   /// Check if a reference to the actual filesystem yields the expected metadata
   bool checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v);
 
@@ -96,9 +97,7 @@ class Rebuild {
   /// The root command for the build
   shared_ptr<Command> _root;
 
-  /// A map from paths to entries in an emulated view of the filesystem. Each entry maps a path
-  /// to a specific artifact version that was placed there by some command.
-  map<string, shared_ptr<Artifact>> _entries;
+  Env _env;
 
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
