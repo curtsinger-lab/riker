@@ -26,14 +26,14 @@ optional<string> Artifact::getPath() const {
 shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && getLatestVersion()->getCreator() == c) return nullptr;
+  if (options::ignore_self_reads && _creator == c) return nullptr;
 
   // Add this check to the set of metadata checks. If the check is not new, we can return.
   if (options::skip_repeat_checks && metadataAccessedBy(c)) return nullptr;
 
   // Get the latest version, mark it as accessed, and return it
   auto v = getLatestVersion();
-  v->setAccessed();
+  _accessed = true;
   return v;
 }
 
@@ -44,14 +44,14 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
 shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   // When the optimization is enabled, we can assume that a command sees its own writes without
   // having to record the dependency. This is always safe.
-  if (options::ignore_self_reads && getLatestVersion()->getCreator() == c) return nullptr;
+  if (options::ignore_self_reads && _creator == c) return nullptr;
 
   // Add this check to the set of contents checks. If the check is not new, we can return.
   if (options::skip_repeat_checks && contentsAccessedBy(c)) return nullptr;
 
   // Get the latest version, mark it as accessed, and return it
   auto v = getLatestVersion();
-  v->setAccessed();
+  _accessed = true;
   return v;
 }
 
@@ -74,8 +74,7 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c) {
 shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   // If this command created the last version, and no other command has accessed it, we can
   // combine the updates into a single update. That means we don't need to tag a new version.
-  if (options::combine_writes && getLatestVersion()->getCreator() == c &&
-      !getLatestVersion()->isAccessed()) {
+  if (options::combine_writes && _creator == c && !_accessed) {
     return nullptr;
   }
 
@@ -85,10 +84,16 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
 
 // Tag a new version of this artifact, created by command c
 shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> c) {
+  // The new version has not been accessed
   _metadata_accesses.clear();
   _content_accesses.clear();
+  _accessed = false;
 
-  auto v = make_shared<Version>(c);
+  // Record the creator of the new version
+  _creator = c;
+
+  // Create the new version
+  auto v = make_shared<Version>();
   _versions.push_back(v);
   return v;
 }

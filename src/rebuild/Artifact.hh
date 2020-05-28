@@ -43,8 +43,19 @@ class Artifact {
   /// Get the latest version of this artifact
   shared_ptr<Version> getLatestVersion() const { return _versions.back(); }
 
+  /// Get the creator of the latest version of this artifact
+  shared_ptr<Command> getCreator() const { return _creator; }
+
   /// Advance this artifact to a new version
-  void addVersion(shared_ptr<Version> v) { _versions.push_back(v); }
+  void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr) {
+    _versions.push_back(v);
+    _creator = creator;
+  }
+
+  /**
+   * Create an initial version of this artifact that is not created by any particular command.
+   */
+  void createInitialVersion() { tagNewVersion(nullptr); }
 
   /**
    * Command c accesses the metadata for this artifact.
@@ -102,6 +113,12 @@ class Artifact {
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
+
+  /// Which command created the latest version of this artifact?
+  shared_ptr<Command> _creator;
+
+  /// Has the latest version been accessed by a command other than its creator?
+  bool _accessed = false;
 
   /// Keep track of commands that have accessed metadata for the latest version
   set<shared_ptr<Command>> _metadata_accesses;

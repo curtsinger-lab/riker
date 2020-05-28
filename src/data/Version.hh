@@ -33,9 +33,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Record a version that was not created by any command
   Version() = default;
 
-  /// Record a version that was created by a specified command
-  Version(shared_ptr<Command> creator) : _creator(creator) {}
-
   // Disallow Copy
   Version(const Version&) = delete;
   Version& operator=(const Version&) = delete;
@@ -43,9 +40,6 @@ class Version : public std::enable_shared_from_this<Version> {
   // Allow Move
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
-
-  /// Get the command that created this version
-  shared_ptr<Command> getCreator() const { return _creator.lock(); }
 
   /// Is this version saved in a way that allows us to reproduce it?
   bool isSaved() const { return false; }
@@ -67,12 +61,6 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Compare the fingerprint for this version to another version
   bool fingerprintMatch(shared_ptr<Version> other) const;
-
-  /// Check if this version has been accessed
-  bool isAccessed() const { return _accessed; }
-
-  /// Mark this version as accessed
-  void setAccessed() { _accessed = true; }
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const Version& v) {
@@ -96,15 +84,9 @@ class Version : public std::enable_shared_from_this<Version> {
   optional<Fingerprint> getFingerprint() const { return nullopt; }
 
  private:
-  /// The command that created this version
-  weak_ptr<Command> _creator;
-
   /// Saved metadata for this version
   optional<Metadata> _metadata;
 
-  /// Transient: has this version been accessed?
-  bool _accessed = false;
-
   // Specify fields for serialization
-  SERIALIZE(_creator, _metadata);
+  SERIALIZE(_metadata);
 };

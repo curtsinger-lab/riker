@@ -94,14 +94,10 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Refe
     // Look to see if we've already resolve this reference to an artifact
     auto iter = _pipes.find(p);
     if (iter == _pipes.end()) {
-      // This is a new pipe. Create an initial version for the pipe
-      auto v = make_shared<Version>(c);
-
       // Create the artifact for this pipe
       auto artifact = make_shared<Artifact>(ref);
 
       // Creating a pipe sets the pipe's contents as well
-      artifact->addVersion(make_shared<Version>(c));
       c->setContents(ref, artifact);
 
       // Add the record for this pipe
@@ -130,29 +126,19 @@ shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Refe
     // The stat call succeeded. Check for an existing inode entry
     auto iter = _artifacts.find(statbuf.st_ino);
     if (iter == _artifacts.end()) {
-      shared_ptr<Version> v;
-
-      // Did the reference create this artifact?
-      if (created) {
-        // Yes. Create a version for the new artifact
-        v = make_shared<Version>(c);
-
-        // And a SetContents action
-        auto s = make_shared<SetContents>(ref, v);
-
-        // Record the step in the command
-        c->addStep(s);
-
-      } else {
-        // No. This version is just opened
-        v = make_shared<Version>();
-      }
-
       // Create an artifact
       auto artifact = make_shared<Artifact>(ref);
 
-      // Add the initial version to the artifact
-      artifact->addVersion(v);
+      // Did the reference create this artifact?
+      if (created) {
+        // Yes. Generate the new version and add the IR step to the command that creates it
+        auto v = artifact->setContents(c);
+        c->addStep(make_shared<SetContents>(ref, v));
+
+      } else {
+        // No. This version is just opened
+        artifact->createInitialVersion();
+      }
 
       // Add the artifact to the map
       iter = _artifacts.emplace_hint(iter, statbuf.st_ino,
@@ -273,7 +259,7 @@ void Rebuild::checkFinalState() {
 
     // Check the filesystem to see if the real file matches our expected version
     if (!checkFilesystemContents(ref, entry->getLatestVersion())) {
-      _output_needed.insert(entry->getLatestVersion()->getCreator());
+      _output_needed.insert(entry->getCreator());
     }
   }
 }
@@ -299,7 +285,7 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
 
       // In a rebuild that runs entry->getCreator(), c must also run because it consumes output
       // from entry->getCreator().
-      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -307,7 +293,7 @@ bool Rebuild::checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, int 
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // This access will succeed, so check if that matches the expected outcome
@@ -340,7 +326,7 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -348,7 +334,7 @@ bool Rebuild::checkMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
         // We can use the cached version
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
@@ -381,7 +367,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
       auto [path, entry] = *iter;
 
       // If the writer ever reruns, the current command must rerun as well. Record that.
-      entry->getLatestVersion()->getCreator()->outputUsedBy(c);
+      entry->getCreator()->outputUsedBy(c);
 
       // If we have a cached copy of the version c accesses, there's no need to rerun that
       // version's creator just to produce the file.
@@ -389,7 +375,7 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
         // We can use the cached version of the file
       } else {
         // No cached version available, so rerun the version's creator any time c reruns
-        c->needsOutputFrom(entry->getLatestVersion()->getCreator());
+        c->needsOutputFrom(entry->getCreator());
       }
 
       // Does the current version in the environment match the expected version?
@@ -408,7 +394,8 @@ bool Rebuild::checkContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
 void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+    // TODO: Model pipe interactions
+    // WARN << "Warning: Communication through pipes is not yet tracked correctly.";
 
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
@@ -419,12 +406,12 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
       auto artifact = make_shared<Artifact>(ref);
 
       // Add the initial version to the artifact
-      artifact->addVersion(v);
+      artifact->appendVersion(v, c);
 
       // Record the artifact in the map
       _entries.emplace_hint(iter, a->getPath(), artifact);
     } else {
-      iter->second->addVersion(v);
+      iter->second->appendVersion(v, c);
     }
 
   } else {
@@ -435,7 +422,8 @@ void Rebuild::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
 void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    WARN << "Warning: Communication through pipes is not yet tracked correctly.";
+    // TODO: Model pipe interactions
+    // WARN << "Warning: Communication through pipes is not yet tracked correctly.";
 
   } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // The path now resolves to this artifact version
@@ -446,12 +434,12 @@ void Rebuild::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shar
       auto artifact = make_shared<Artifact>(ref);
 
       // Add the initial version to the artifact
-      artifact->addVersion(v);
+      artifact->appendVersion(v, c);
 
       // Record the artifact in the map
       _entries.emplace_hint(iter, a->getPath(), artifact);
     } else {
-      iter->second->addVersion(v);
+      iter->second->appendVersion(v, c);
     }
 
   } else {
