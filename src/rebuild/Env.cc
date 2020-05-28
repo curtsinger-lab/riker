@@ -86,28 +86,8 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     return {iter->second, SUCCESS, false};
   }
 
-  // At this point, we are left to look at the actual filesystem
-
-  // Set up an access mode that we'll check
-  int access_mode = 0;
-  if (flags.r) access_mode |= R_OK;
-  if (flags.w) access_mode |= W_OK;
-  if (flags.x) access_mode |= X_OK;
-
-  // TODO: Is there anything to do for truncate? We need to be sure we can write the file, but
-  // is it even possible to open with O_TRUNC in read-only mode?
-
-  // Normally, faccessat checks whether the real user has access. We want to check as whatever
-  // the effective user is. That's the same permission level the build would run with.
-  int access_flags = AT_EACCESS;
-
-  // Check access on a symlink if nofollow is specified
-  if (flags.nofollow) access_flags |= AT_SYMLINK_NOFOLLOW;
-
-  // Use faccessat to check the reference
-  int rc = faccessat(AT_FDCWD, path.c_str(), access_mode, access_flags);
-
-  // TODO: use stat to identify hard links to the same artifact
+  // Use the access() system call to check the reference
+  int rc = ref->access();
 
   // Check if the access() call failed for some reason
   if (rc) {

@@ -68,12 +68,6 @@ class Rebuild {
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
 
-  /// Check if a reference to the actual filesystem yields the expected metadata
-  bool checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v);
-
-  /// Check if a reference to the actual filesystem yields the expected contents
-  bool checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v);
-
  private:
   /// The root command for the build
   shared_ptr<Command> _root;

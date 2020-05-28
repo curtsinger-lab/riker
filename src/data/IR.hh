@@ -109,6 +109,15 @@ class Access : public Reference {
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const { return _flags; }
 
+  /// Open this reference
+  int open() const;
+
+  /// Stat this reference
+  int stat(struct stat* statbuf) const;
+
+  /// Call access() on this reference
+  int access() const;
+
   /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
   /// as-expected, or false if the command c, which contains this IR step, must rerun.
   virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;

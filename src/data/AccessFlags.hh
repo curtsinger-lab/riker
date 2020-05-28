@@ -1,12 +1,14 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 #include <fcntl.h>
 
 #include "util/serializer.hh"
 
 using std::ostream;
+using std::pair;
 
 /// This struct encodes the flags specified when making an access to a particular reference
 struct AccessFlags {
@@ -31,6 +33,20 @@ struct AccessFlags {
             .exclusive = (flags & O_EXCL) == O_EXCL};
   }
 
+  /// Generate flags for the open() call from this AccessFlags instance
+  int toOpen() const {
+    int flags = 0;
+    if (r && w) flags |= O_RDWR;
+    if (r && !w) flags |= O_RDONLY;
+    if (!r && w) flags |= O_WRONLY;
+    if (nofollow) flags |= O_NOFOLLOW;
+    if (truncate) flags |= O_TRUNC;
+    if (create) flags |= O_CREAT;
+    if (exclusive) flags |= O_EXCL;
+
+    return flags;
+  }
+
   /// Create an AccessFlags instance from the mode and flags parameters to the access syscall
   static AccessFlags fromAccess(int mode, int flags) {
     return {.r = (mode & R_OK) == R_OK,
@@ -39,10 +55,26 @@ struct AccessFlags {
             .nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
   }
 
+  /// Generate mode and flags for the access() call from this AccessFlags instance
+  pair<int, int> toAccess() const {
+    int mode = 0;
+    if (r) mode |= R_OK;
+    if (w) mode |= W_OK;
+    if (x) mode |= X_OK;
+
+    int flags = AT_EACCESS;
+    if (nofollow) flags |= AT_SYMLINK_NOFOLLOW;
+
+    return {mode, flags};
+  }
+
   /// Create an AccessFlags instance from the flags parameter to the stat syscall
   static AccessFlags fromStat(int flags) {
     return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
   }
+
+  /// Generate flags for the fstatat() call from this AccessFlags instance
+  int toStat() const { return nofollow ? AT_SYMLINK_NOFOLLOW : 0; }
 
   /// Print an AccessFlags struct to an output stream
   friend ostream& operator<<(ostream& o, const AccessFlags& f) {

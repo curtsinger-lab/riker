@@ -127,8 +127,28 @@ void Tracer::run(shared_ptr<Command> cmd) {
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
 void Tracer::launchTraced(shared_ptr<Command> cmd) {
-  // TODO: Fill this vector in with {parent_fd, child_fd} pairs
+  // Fill this vector in with {parent_fd, child_fd} pairs
+  // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
+
+  // Loop over the initial fds for the command we are launching
+  for (auto& [child_fd, info] : cmd->getInitialFDs()) {
+    // For now, only handle Access references
+    auto ref = dynamic_pointer_cast<Access>(info.getReference());
+    if (!ref) continue;
+
+    // Get the artifact from the environment
+    auto [artifact, rc, created] = _env.getFile(cmd, ref);
+    auto latest = artifact->getLatestVersion();
+
+    // If the latest version of the artifact is saved, we can stage it in
+    // TODO: shift this logic to an Artifact::commit method
+    if (latest->isSaved()) {
+      int parent_fd = ref->open();
+      FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
+      initial_fds.emplace_back(parent_fd, child_fd);
+    }
+  }
 
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
   //
@@ -148,6 +168,9 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     // child fd for one entry matches the parent fd of another).
     for (auto [parent_fd, child_fd] : initial_fds) {
       int rc = dup2(parent_fd, child_fd);
+
+      LOG << "Duped parent fd " << parent_fd << " to " << child_fd;
+
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
     }
 

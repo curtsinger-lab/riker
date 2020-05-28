@@ -10,6 +10,16 @@
 using std::dynamic_pointer_cast;
 using std::shared_ptr;
 
+bool Version::isSaved() const {
+  // Empty files can be recreated
+  if (_metadata.has_value() && _metadata.value().st_size == 0) {
+    return true;
+  }
+
+  // We're not saving any other files at this point
+  return false;
+}
+
 bool Version::metadataMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
   auto m1 = this->getMetadata();
@@ -73,14 +83,7 @@ void Version::saveMetadata(shared_ptr<Reference> ref) {
   }
 
   struct stat statbuf;
-  int rc;
-  if (a->getFlags().nofollow) {
-    rc = lstat(a->getPath().c_str(), &statbuf);
-  } else {
-    rc = stat(a->getPath().c_str(), &statbuf);
-  }
-
-  if (rc == 0) {
+  if (a->stat(&statbuf) == 0) {
     _metadata = statbuf;
   }
 }

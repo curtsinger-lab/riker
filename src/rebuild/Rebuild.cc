@@ -78,9 +78,11 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
     if (!options::dry_run) tracer.run(c);
 
   } else {
-    // Emulate this command by running its children
-    for (auto& child : c->getChildren()) {
-      runCommand(child, tracer);
+    for (auto step : c->getSteps()) {
+      step->check(c, _run_env, *this);
+      if (auto launch = dynamic_pointer_cast<Launch>(step)) {
+        runCommand(launch->getCommand(), tracer);
+      }
     }
   }
 }
@@ -109,7 +111,9 @@ ostream& Rebuild::print(ostream& o) const {
     q.push(_root);
     while (!q.empty()) {
       auto c = q.front();
-      o << "  " << c << endl;
+      if (c->mustRerun()) {
+        o << "  " << c << endl;
+      }
       q.pop();
       for (auto& child : c->getChildren()) {
         q.push(child);
@@ -152,12 +156,24 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
 }
 
 void Rebuild::checkFinalState() {
-  // Loop over all entries in the environment
-  for (auto& [ref, entry] : _check_env.getArtifacts()) {
-    // Check the filesystem to see if the real file matches our expected version
-    if (!checkFilesystemContents(ref, entry->getLatestVersion())) {
-      auto creator = entry->getCreator();
-      if (creator) _output_needed.insert(creator);
+  // Loop over all the artifacts left in the environment at the end of the build
+  for (auto& [ref, a] : _check_env.getArtifacts()) {
+    // If this artifact was not created by any command, we can't do anything about it
+    auto creator = a->getCreator();
+    if (!creator) continue;
+
+    auto latest = a->getLatestVersion();
+
+    // If this artifact's final version is cached, we can just stage it in
+    if (options::enable_cache && latest->isSaved()) continue;
+
+    // Create a version that represents the on-disk contents reached through this reference
+    auto v = make_shared<Version>();
+    v->saveFingerprint(ref);
+
+    // If the fingerprint doesn't match we will need to rerun the creator
+    if (!v->fingerprintMatch(a->getLatestVersion())) {
+      _output_needed.insert(creator);
     }
   }
 }
@@ -177,18 +193,4 @@ void Rebuild::recordDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
       c->needsOutputFrom(creator);
     }
   }
-}
-
-// Check if the metadata for a file on the actual filesystem matches a saved version
-bool Rebuild::checkFilesystemMetadata(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<Version>();
-  ondisk->saveMetadata(ref);
-  return v->metadataMatch(ondisk);
-}
-
-// Check if the contents of a file on the actual fileystem match a saved version
-bool Rebuild::checkFilesystemContents(shared_ptr<Access> ref, shared_ptr<Version> v) {
-  auto ondisk = make_shared<Version>();
-  ondisk->saveFingerprint(ref);
-  return v->fingerprintMatch(ondisk);
 }

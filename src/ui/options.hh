@@ -22,6 +22,6 @@ inline bool combine_writes = true;  // PAPER
 inline bool skip_repeat_checks = true;  // PAPER
 
 /// Enable file-staging cache
-inline bool enable_cache = false;  // PAPER
+inline bool enable_cache = true;  // PAPER
 
 };  // namespace options

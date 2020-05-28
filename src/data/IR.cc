@@ -6,6 +6,10 @@
 #include <ostream>
 #include <utility>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "data/Command.hh"
 #include "data/Version.hh"
 #include "rebuild/Env.hh"
@@ -99,6 +103,21 @@ bool SetContents::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
 bool Launch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
   // Do nothing for launch actions
   return true;
+}
+
+/******************* Access Methods ********************/
+
+int Access::open() const {
+  return ::open(_path.c_str(), _flags.toOpen());
+}
+
+int Access::stat(struct stat* statbuf) const {
+  return fstatat(AT_FDCWD, _path.c_str(), statbuf, _flags.toStat());
+}
+
+int Access::access() const {
+  auto [access_mode, access_flags] = _flags.toAccess();
+  return faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags);
 }
 
 /******************** Print Methods ********************/
