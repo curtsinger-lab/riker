@@ -29,9 +29,8 @@ class Rebuild;
 
 class Process {
  public:
-  Process(Rebuild& rebuild, pid_t pid, path cwd, shared_ptr<Command> command,
-          map<int, FDEntry> fds) :
-      _rebuild(rebuild), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
+  Process(Env& env, pid_t pid, path cwd, shared_ptr<Command> command, map<int, FDEntry> fds) :
+      _env(env), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
   void resume();
@@ -161,7 +160,7 @@ class Process {
   void _fstat(int fd) { _fstatat(fd, "", AT_EMPTY_PATH); }
   void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
-  Rebuild& _rebuild;
+  Env& _env;
   pid_t _pid;
   string _cwd;
   string _root;

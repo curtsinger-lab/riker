@@ -366,7 +366,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _command->referenceResult(ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto artifact = _rebuild.getArtifact(_command, ref);
+      auto [artifact, env_rc, created] = _env.get(_command, ref);
 
       FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
 
@@ -429,7 +429,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _command->launch(exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto exe_artifact = _rebuild.getArtifact(_command, exe_ref);
+  auto [exe_artifact, exe_rc, _] = _env.get(_command, exe_ref);
 
   FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
 
@@ -474,7 +474,7 @@ void Process::_truncate(string pathname, long length) {
   auto ref = _command->access(p, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
-  auto artifact = _rebuild.getArtifact(_command, ref);
+  auto [artifact, env_rc, _] = _env.get(_command, ref);
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
@@ -556,7 +556,7 @@ void Process::_lchown(string filename, uid_t user, gid_t group) {
   /*
     // Resolve the path without following links, then get the file tracking object
     auto p = resolvePath(filename);
-    auto f = _rebuild.getArtifact(p, false);  // Do not follow links
+    auto f = _env.get(p, false);  // Do not follow links
 
     // Indicate that we may write this file
     f->mayWrite(_command);
@@ -581,7 +581,7 @@ void Process::_chroot(string filename) {
   resume();
   /*
     auto p = resolvePath(filename);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
     string newroot = p;
 
     // Record the reference
@@ -607,7 +607,7 @@ void Process::_setxattr(string pathname) {
   /*
     // Get the process and file
     auto p = resolvePath(pathname);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
 
     // Notify the file that it may be written
     f->mayWrite(_command);
@@ -630,7 +630,7 @@ void Process::_lsetxattr(string pathname) {
     // Get the process and file
     // Same as setxattr, except we do not follow links
     auto p = resolvePath(pathname);
-    auto f = _rebuild.getArtifact(pathname, false);  // Do not follow links
+    auto f = _env.get(pathname, false);  // Do not follow links
 
     // Notify the file that it may be written
     f->mayWrite(_command);
@@ -652,7 +652,7 @@ void Process::_getxattr(string pathname) {
   /*
     // Get the process and file
     auto p = resolvePath(pathname);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
 
     // Record the reference
     _command->addReference(p);
@@ -672,7 +672,7 @@ void Process::_lgetxattr(string pathname) {
     // Get the process and file
     // Same as getxattr, except we don't follow links
     auto p = resolvePath(pathname);
-    auto f = _rebuild.getArtifact(pathname, false);  // Do not follow links
+    auto f = _env.get(pathname, false);  // Do not follow links
 
     // Record the reference
     _command->addReference(p, {.nofollow = true});
@@ -695,7 +695,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will tell us whether or not the syscall created the artifact
-  auto artifact = _rebuild.getArtifact(_command, ref);
+  auto [artifact, _, created] = _env.get(_command, ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -708,15 +708,10 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _command->referenceResult(ref, SUCCESS);
 
-    // If the first attempt to resolve the artifact failed, we know the syscall created it
-    if (!artifact) {
-      artifact = _rebuild.getArtifact(_command, ref, true);
-    }
-
     FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
-    // If the file was truncated by this open call, record the modification
-    if (ref_flags.truncate) {
+    // If the file was created or truncated by the open call, set the contents in the artifact
+    if (created || ref_flags.truncate) {
       _command->setContents(ref, artifact);
     }
 
@@ -738,7 +733,7 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   resume();
   /*
     auto p = resolvePath(pathname, dfd);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
     bool dir_existed = f != nullptr;
 
     // Record the reference
@@ -753,7 +748,7 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) {
     if (rc) return;
 
     if (!dir_existed) {
-      f = _rebuild.getArtifact(p);
+      f = _env.get(p);
       f->createdBy(_command);
     }
   */
@@ -775,7 +770,7 @@ void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
     if (rc != 0) return;
 
     auto p = resolvePath(filename, dfd);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
 
     // Record the reference
     _command->addReference(filename);
@@ -799,7 +794,7 @@ void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int f
 
       // Resolve the path, then get the file tracking object
       auto p = resolvePath(filename, dfd);
-      f = _rebuild.getArtifact(p, follow_links);
+      f = _env.get(p, follow_links);
 
       // Record the reference
       _command->addReference(p, Ref::Flags::fromChown(flags));
@@ -825,7 +820,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) {
   resume();
   /*
     auto p = resolvePath(pathname, dfd);
-    auto f = _rebuild.getArtifact(p);
+    auto f = _env.get(p);
 
     // Record the reference
     _command->addReference(p, Ref::Flags::fromUnlink(flags));
@@ -871,7 +866,7 @@ void Process::_readlinkat(int dfd, string pathname) {
     _command->referenceResult(ref, SUCCESS);
 
     // Get the artifact that we referenced
-    auto artifact = _rebuild.getArtifact(_command, ref);
+    auto [artifact, _, __] = _env.get(_command, ref);
 
     FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
 
@@ -891,7 +886,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   auto ref = _command->access(p, AccessFlags{});
 
   // Get the artifact that we're going to chmod
-  auto artifact = _rebuild.getArtifact(_command, ref);
+  auto [artifact, _, __] = _env.get(_command, ref);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -987,7 +982,7 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto artifact = _rebuild.getArtifact(_command, ref);
+  auto [artifact, _, __] = _env.get(_command, ref);
 
   FAIL_IF(!artifact) << "Failed to get artifact for pipe";
 
@@ -1007,14 +1002,14 @@ void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpat
   resume();
   /*
     string old_path = resolvePath(oldpath, old_dfd);
-    auto old_f = _rebuild.getArtifact(old_path);
+    auto old_f = _env.get(old_path);
 
     // Record the reference to the old file
     // TODO: Deal with flags
     _command->addReference(old_path);
 
     string new_path = resolvePath(newpath, new_dfd);
-    auto new_f = _rebuild.getArtifact(new_path);
+    auto new_f = _env.get(new_path);
 
     // Record the reference to the new file
     // TODO: Deal with flags

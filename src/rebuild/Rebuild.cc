@@ -52,7 +52,7 @@ Rebuild Rebuild::create(shared_ptr<Command> root) {
 // Run a rebuild, updating the in-memory build representation
 void Rebuild::run() {
   // Create a tracing context to run the build
-  Tracer tracer(*this);
+  Tracer tracer(_run_env);
 
   // Run or emulate the root command with the tracer
   runCommand(_root, tracer);
@@ -83,23 +83,6 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
       runCommand(child, tracer);
     }
   }
-}
-
-// Get an artifact during tracing
-shared_ptr<Artifact> Rebuild::getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          bool created) {
-  auto [artifact, rc, is_new] = _run_env.get(c, ref);
-
-  // If we didn't get an artifact, return a nullptr
-  if (rc != SUCCESS) return shared_ptr<Artifact>();
-
-  // If this artifact was created, set its contents
-  if (is_new) {
-    c->setContents(ref, artifact);
-  }
-
-  // Return the artifact
-  return artifact;
 }
 
 // Show rebuild information

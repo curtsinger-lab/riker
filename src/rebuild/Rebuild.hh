@@ -49,10 +49,6 @@ class Rebuild {
   /// Run the rebuild
   void run();
 
-  /// Get the artifact a reference resolves to
-  shared_ptr<Artifact> getArtifact(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                   bool created = false);
-
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 

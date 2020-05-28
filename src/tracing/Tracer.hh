@@ -8,14 +8,14 @@
 using std::map;
 using std::shared_ptr;
 
-class Process;
-class Rebuild;
 class Command;
+class Env;
+class Process;
 
 class Tracer {
  public:
   /// Create a tracer linked to a specific rebuild environment
-  Tracer(Rebuild& rebuild) : _rebuild(rebuild) {}
+  Tracer(Env& env) : _env(env) {}
 
   /// Run a command in this tracer
   void run(shared_ptr<Command> cmd);
@@ -37,8 +37,8 @@ class Tracer {
   void handleExit(shared_ptr<Process> p);
 
  private:
-  /// The rebuild environment where this tracer will resolve artifacts
-  Rebuild& _rebuild;
+  /// The environment this tracer uses to resolve artifacts
+  Env& _env;
 
   /// A map from process IDs to processes. Note that a process will appear multiple times if it uses
   /// multiple threads; all entries will point to the same Process instance.

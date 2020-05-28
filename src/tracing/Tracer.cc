@@ -254,15 +254,14 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
     auto ref = initial_fd.getReference();
-    auto artifact = _rebuild.getArtifact(cmd, ref);
-    bool writable = initial_fd.isWritable();
+    auto [artifact, rc, created] = _env.get(cmd, ref);
 
-    FAIL_IF(!artifact) << "Attempted to launch command with non-existent artifact ref";
+    FAIL_IF(!artifact || rc != SUCCESS) << "Failed to get artifact for initial file descriptor";
 
-    fds.emplace(index, FDEntry(ref, artifact, writable));
+    fds.emplace(index, FDEntry(ref, artifact, initial_fd.isWritable()));
   }
 
-  _processes[child_pid] = make_shared<Process>(_rebuild, child_pid, ".", cmd, fds);
+  _processes[child_pid] = make_shared<Process>(_env, child_pid, ".", cmd, fds);
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
@@ -293,7 +292,7 @@ void Tracer::handleFork(shared_ptr<Process> p) {
   LOG << "fork called in " << p;
 
   // Create a new process running the same command
-  auto new_proc = make_shared<Process>(_rebuild, new_pid, p->_cwd, p->_command, p->_fds);
+  auto new_proc = make_shared<Process>(_env, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
 
   LOG << "new process " << new_proc;
