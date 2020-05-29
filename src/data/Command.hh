@@ -27,6 +27,8 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+class DependencyVisitor;
+class Env;
 class Reference;
 class Step;
 class Version;
@@ -88,6 +90,10 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
+
+  /// Emulate the steps of this command in a given environment. Report all dependency and change
+  /// information to the dependency visitor v.
+  void emulate(Env& env, DependencyVisitor& v);
 
   /********* Command Tracing Operations **********/
 

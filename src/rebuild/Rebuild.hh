@@ -15,6 +15,7 @@
 #include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
+#include "tracing/Tracer.hh"
 #include "util/DependencyVisitor.hh"
 
 using std::map;
@@ -28,7 +29,6 @@ using std::vector;
 class Access;
 class Reference;
 class Pipe;
-class Tracer;
 
 /// This class captures all of the logic and state required to plan a rebuild.
 class Rebuild : public DependencyVisitor {
@@ -56,6 +56,9 @@ class Rebuild : public DependencyVisitor {
   /// IR step s in command c observed a change
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;
 
+  /// An emulated command is launching a child command
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override;
+
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 
@@ -64,7 +67,7 @@ class Rebuild : public DependencyVisitor {
 
  private:
   /// Run or emulate a command from this rebuild
-  void runCommand(shared_ptr<Command> c, Tracer& tracer);
+  void runCommand(shared_ptr<Command> c);
 
   /// Check a command and its descendants to see if any inputs have changed
   void findChanges(shared_ptr<Command> c);
@@ -76,6 +79,11 @@ class Rebuild : public DependencyVisitor {
   void mark(shared_ptr<Command> c);
 
  private:
+  enum class RebuildPhase { Planning, Running };
+
+  /// What phase of the rebuild are we in?
+  RebuildPhase _phase = RebuildPhase::Planning;
+
   /// The root command for the build
   shared_ptr<Command> _root;
 

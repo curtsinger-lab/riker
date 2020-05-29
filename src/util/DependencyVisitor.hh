@@ -24,4 +24,7 @@ class DependencyVisitor {
 
   /// The outcome of an IR step has changed since the build trace was collected
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) {}
+
+  /// A command is about to be launched. The visitor can choose whether or not to emulate it.
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) {}
 };

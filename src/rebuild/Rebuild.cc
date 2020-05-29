@@ -46,14 +46,13 @@ Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
 
 // Run a rebuild, updating the in-memory build representation
 void Rebuild::run() {
+  _phase = RebuildPhase::Running;
+
   // Reset the environment
   _env.reset();
 
-  // Create a tracing context to run the build
-  Tracer tracer(_env);
-
   // Run or emulate the root command with the tracer
-  runCommand(_root, tracer);
+  runCommand(_root);
 
   // Finish up by saving metadata for any remaining artifacts
   for (auto& [ref, artifact] : _env.getArtifacts()) {
@@ -63,7 +62,7 @@ void Rebuild::run() {
 }
 
 // Run or emulate a command in this rebuild
-void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
+void Rebuild::runCommand(shared_ptr<Command> c) {
   // Does the rebuild plan say command c must run?
   if (mustRerun(c)) {
     // We are rerunning this command, so clear the lists of steps and children
@@ -73,15 +72,13 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
     if (options::print_on_run || options::dry_run) cout << c->getFullName() << endl;
 
     // Actually run the command, unless this is a dry run
-    if (!options::dry_run) tracer.run(c);
+    if (!options::dry_run) {
+      // Set up a tracing context and run the command
+      Tracer(_env).run(c);
+    }
 
   } else {
-    for (auto step : c->getSteps()) {
-      step->emulate(c, _env, *this);
-      if (auto launch = dynamic_pointer_cast<Launch>(step)) {
-        runCommand(launch->getCommand(), tracer);
-      }
-    }
+    c->emulate(_env, *this);
   }
 }
 
@@ -130,11 +127,6 @@ void Rebuild::findChanges(shared_ptr<Command> c) {
   // Loop over the steps from the command trace to see if command c will see any changes
   for (auto step : c->getSteps()) {
     step->emulate(c, _env, *this);
-
-    // If this is a launch action, check the child command
-    if (auto launch = dynamic_pointer_cast<Launch>(step)) {
-      findChanges(launch->getCommand());
-    }
   }
 }
 
@@ -159,6 +151,16 @@ void Rebuild::addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
 void Rebuild::changed(shared_ptr<Command> c, shared_ptr<const Step> s) {
   LOG << c << " changed: " << s;
   _changed.insert(c);
+}
+
+void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
+  if (_phase == RebuildPhase::Planning) {
+    // In the planning phase, we always emulate every command
+    child->emulate(_env, *this);
+  } else {
+    // If we are actually running the rebuild, call runCommand to decide whether to run or emulate
+    runCommand(child);
+  }
 }
 
 void Rebuild::checkFinalState() {

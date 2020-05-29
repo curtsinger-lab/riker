@@ -122,7 +122,8 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
 }
 
 void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
-  // Nothing to do for launch actions
+  // Inform the dependency visitor that command c launches a child command
+  v.launched(c, _cmd);
 }
 
 /******************* Access Methods ********************/
