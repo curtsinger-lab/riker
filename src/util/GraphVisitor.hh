@@ -42,8 +42,15 @@ class GraphVisitor : private DependencyVisitor {
 
     // Create command vertices
     for (auto& [c, id] : _command_ids) {
-      o << "  " << id << " [label=\"" << escape(c->getShortName()) << "\" tooltip=\""
-        << escape(c->getFullName()) << "\" fontname=Courier]\n";
+      o << "  " << id << " [";
+      o << "label=\"" << escape(c->getShortName()) << "\" ";
+      o << "tooltip=\"" << escape(c->getFullName()) << "\" ";
+      o << "fontname=Courier ";
+      if (_changed.find(c) != _changed.end()) {
+        o << "style=\"filled\" ";
+        o << "fillcolor=\"yellow\" ";
+      }
+      o << "]\n";
     }
 
     // Create command edges
@@ -153,6 +160,10 @@ class GraphVisitor : private DependencyVisitor {
     _command_edges.emplace(_command_ids[parent], _command_ids[child]);
   }
 
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {
+    _changed.insert(c);
+  }
+
  private:
   /// Should the graph output include system files?
   bool _show_sysfiles;
@@ -171,4 +182,7 @@ class GraphVisitor : private DependencyVisitor {
 
   /// A set of input/output edges, from source to destination (both inputs and outputs)
   set<pair<string, string>> _io_edges;
+
+  /// The set of commands marked as changed
+  set<shared_ptr<Command>> _changed;
 };
