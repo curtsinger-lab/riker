@@ -51,7 +51,7 @@ const fs::path DatabaseFilename = ".dodo/db";
  * \param fingerprint The type of fingerprinting to use, "none", "local", or "all".
  *                    The value is checked by the command line parsing code.
  */
-void do_build(int jobs, string fingerprint) {
+void do_build(int jobs) {
   // Load a build, or set up a default build if necessary
   auto root = load_build(DatabaseFilename, true);
 
@@ -183,6 +183,20 @@ int main(int argc, char* argv[]) {
       },
       "Increase logging verbosity.");
 
+  app.add_option_function<string>(
+         "--fingerprint",
+         [](string opt) {
+           if (opt == "all") {
+             options::fingerprint_level = FingerprintLevel::All;
+           } else if (opt == "local") {
+             options::fingerprint_level = FingerprintLevel::Local;
+           } else {
+             options::fingerprint_level = FingerprintLevel::None;
+           }
+         },
+         "Set the fingerprint level (default=local)")
+      ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
+
   app.add_flag_callback("--no-ignore-self-reads", [] { options::ignore_self_reads = false; })
       ->description("Disable the ignore-self-reads optimization")
       ->group("Optimizations");
@@ -201,7 +215,6 @@ int main(int argc, char* argv[]) {
 
   /************* Build Subcommand *************/
   int jobs = 0;
-  string fingerprint = "local";
 
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
@@ -212,13 +225,10 @@ int main(int argc, char* argv[]) {
   build->add_option("-j,--jobs", jobs, "Max concurrent jobs (0 is unlimited)")
       ->check(CLI::NonNegativeNumber);
 
-  build->add_option("-f,--fingerprint", fingerprint, "Set the fingerprint level (default=local)")
-      ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
-
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(jobs, fingerprint); });
+  build->final_callback([&] { do_build(jobs); });
 
   /************* Launch Subcommand (hidden) *************/
   auto launch = app.add_subcommand("launch", "Launch a build script");
@@ -229,7 +239,7 @@ int main(int argc, char* argv[]) {
   launch->final_callback([&] { do_launch(); });
 
   /************* Check Subcommand *************/
-  auto check = app.add_subcommand("check", "Check which commands must be rerun and report why");
+  auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
   check->final_callback([&] { do_check(); });
 

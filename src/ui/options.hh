@@ -11,6 +11,9 @@ inline bool print_on_run = false;
 /// Is this a dry run?
 inline bool dry_run = false;
 
+/// Which files should be fingerprinted instead of just checked for mtime?
+inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
+
 /****** Optimization ******/
 /// Any command can read the effects of its own writes without versioning or dependencies
 inline bool ignore_self_reads = true;  // PAPER

@@ -33,7 +33,7 @@ class logger {
   inline static bool debug = false;
 
   /// The threshold for log message output
-  inline static LogLevel log_level = LogLevel::Warning;
+  inline static LogLevel log_level = LogLevel::Fatal;
 
  private:
   LogLevel _level;  // Should the program abort when the log message is finished?
