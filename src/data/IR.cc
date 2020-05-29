@@ -14,95 +14,115 @@
 #include "data/Version.hh"
 #include "rebuild/Env.hh"
 #include "rebuild/Rebuild.hh"
+#include "util/DependencyVisitor.hh"
 
 using std::dynamic_pointer_cast;
 using std::ostream;
 
 /******* Change Detection *******/
 
-bool Pipe::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void Pipe::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   // Nothing to do for pipes
-  return true;
 }
 
-bool Access::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   // Nothing to do for access
-  return true;
 }
 
-bool ReferenceResult::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   // Check if the reference resolves the same way
   auto [artifact, rc, created] = env.get(c, _ref);
 
   // If the reference succeeds, this command depends on the artifact
   if (rc == SUCCESS) {
-    r.addDependency(c, artifact);
+    v.addInput(c, artifact);
   }
 
-  return rc == _rc;
+  if (rc != _rc) v.changed(c, shared_from_this());
 }
 
-bool MetadataMatch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
-  if (rc != SUCCESS) return false;
+  if (rc != SUCCESS) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // If the resolved artifact has no versions, report a change
-  if (!a->getLatestVersion()) return false;
+  if (!a->getLatestVersion()) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // Record command c's dependency on artifact a
-  r.addDependency(c, a);
+  v.addInput(c, a);
 
   // Compare versions and return the result
-  return _version->metadataMatch(a->getLatestVersion());
+  if (!_version->metadataMatch(a->getLatestVersion())) {
+    v.changed(c, shared_from_this());
+  }
 }
 
-bool ContentsMatch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
-  if (rc != SUCCESS) return false;
+  if (rc != SUCCESS) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // If the resolved artifact has no versions, report a change
-  if (!a->getLatestVersion()) return false;
+  if (!a->getLatestVersion()) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // Record command c's dependency on artifact a
-  r.addDependency(c, a);
+  v.addInput(c, a);
 
   // Compare versions and return the result
-  return _version->fingerprintMatch(a->getLatestVersion());
+  if (!_version->fingerprintMatch(a->getLatestVersion())) {
+    v.changed(c, shared_from_this());
+  }
 }
 
-bool SetMetadata::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
-  if (rc != SUCCESS) return false;
+  if (rc != SUCCESS) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // Add the assigned version to the artifact
   a->appendVersion(_version, c);
 
-  // This IR step ran as expected
-  return true;
+  // Report command c's output to artifact a
+  v.addOutput(c, a);
 }
 
-bool SetContents::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
+void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
-  if (rc != SUCCESS) return false;
+  if (rc != SUCCESS) {
+    v.changed(c, shared_from_this());
+    return;
+  }
 
   // Add the assigned version to the artifact
   a->appendVersion(_version, c);
 
-  // This IR step ran as expected
-  return true;
+  // Report command c's output to artifact a
+  v.addOutput(c, a);
 }
 
-bool Launch::check(shared_ptr<Command> c, Env& env, Rebuild& r) const {
-  // Do nothing for launch actions
-  return true;
+void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+  // Nothing to do for launch actions
 }
 
 /******************* Access Methods ********************/

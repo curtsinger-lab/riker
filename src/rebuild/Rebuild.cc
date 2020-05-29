@@ -77,7 +77,7 @@ void Rebuild::runCommand(shared_ptr<Command> c, Tracer& tracer) {
 
   } else {
     for (auto step : c->getSteps()) {
-      step->check(c, _env, *this);
+      step->emulate(c, _env, *this);
       if (auto launch = dynamic_pointer_cast<Launch>(step)) {
         runCommand(launch->getCommand(), tracer);
       }
@@ -121,32 +121,44 @@ ostream& Rebuild::print(ostream& o) const {
 }
 
 void Rebuild::findChanges(shared_ptr<Command> c) {
-  // Keep track of whether we've seen any changes for command c
-  bool changed = false;
-
-  // If this command has never run, it is definitely changed
   if (c->neverRun()) {
     LOG << c << " changed: never run";
-    changed = true;
+    _changed.insert(c);
+    return;
   }
 
   // Loop over the steps from the command trace to see if command c will see any changes
   for (auto step : c->getSteps()) {
-    // Check whether the IR step runs as expected in the emulated environment
-    if (!step->check(c, _env, *this)) {
-      // If check() returns false, something has changed
-      LOG << c << " changed: " << step;
-      changed = true;
-    }
+    step->emulate(c, _env, *this);
 
     // If this is a launch action, check the child command
     if (auto launch = dynamic_pointer_cast<Launch>(step)) {
       findChanges(launch->getCommand());
     }
   }
+}
 
-  // If anything was different, add c to the set of commands with changed inputs
-  if (changed) _changed.insert(c);
+// Command c depends on artifact a. This method is called by emulate() in Step
+void Rebuild::addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+  auto creator = a->getCreator();
+  if (creator) {
+    // Output from creator is used by c. If creator reruns, c may have to rerun.
+    _output_used_by[creator].insert(c);
+
+    // The dependency back edge depends on caching
+    if (options::enable_cache && a->getLatestVersion()->isSaved()) {
+      // If this artifact is cached, we could restore it before c runs.
+    } else {
+      // Otherwise, if c has to run then we also need to run creator to produce this input
+      _needs_output_from[c].insert(creator);
+    }
+  }
+}
+
+// IR step s in command c observed a change. This method is called by emulate() in Step
+void Rebuild::changed(shared_ptr<Command> c, shared_ptr<const Step> s) {
+  LOG << c << " changed: " << s;
+  _changed.insert(c);
 }
 
 void Rebuild::checkFinalState() {
@@ -168,23 +180,6 @@ void Rebuild::checkFinalState() {
     // If the fingerprint doesn't match we will need to rerun the creator
     if (!v->fingerprintMatch(a->getLatestVersion())) {
       _output_needed.insert(creator);
-    }
-  }
-}
-
-// Command c depends on artifact a
-void Rebuild::addDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-  auto creator = a->getCreator();
-  if (creator) {
-    // Output from creator is used by c. If creator reruns, c may have to rerun.
-    _output_used_by[creator].insert(c);
-
-    // The dependency back edge depends on caching
-    if (options::enable_cache && a->getLatestVersion()->isSaved()) {
-      // If this artifact is cached, we could restore it before c runs.
-    } else {
-      // Otherwise, if c has to run then we also need to run creator to produce this input
-      _needs_output_from[c].insert(creator);
     }
   }
 }

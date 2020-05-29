@@ -24,6 +24,7 @@ using std::string;
 enum : int { SUCCESS = 0 };
 
 class Command;
+class DependencyVisitor;
 class Env;
 class Rebuild;
 class Version;
@@ -38,14 +39,19 @@ class Version;
  * - Predicate: a statement about a reference that was true on the example build
  * - Action: a modification to system state performed by the command
  */
-class Step {
+class Step : public std::enable_shared_from_this<Step> {
  public:
   /// Use a default virtual destructor
   virtual ~Step() = default;
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const = 0;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const = 0;
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
@@ -85,9 +91,14 @@ class Pipe : public Reference {
   /// Create a pipe
   Pipe() = default;
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -118,9 +129,14 @@ class Access : public Reference {
   /// Call access() on this reference
   int access() const;
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -163,9 +179,14 @@ class ReferenceResult : public Predicate {
   /// Get the expected result of the reference
   int getResult() const { return _rc; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -194,9 +215,14 @@ class MetadataMatch : public Predicate {
   /// Get the expected artifact version
   shared_ptr<Version> getVersion() const { return _version; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -225,9 +251,14 @@ class ContentsMatch : public Predicate {
   /// Get the expected artifact version
   shared_ptr<Version> getVersion() const { return _version; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -268,9 +299,14 @@ class Launch : public Action {
   /// Get the command this action launches
   shared_ptr<Command> getCommand() const { return _cmd; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -296,9 +332,14 @@ class SetMetadata : public Action {
 
   shared_ptr<Version> getVersion() const { return _version; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -325,9 +366,14 @@ class SetContents : public Action {
 
   shared_ptr<Version> getVersion() const { return _version; }
 
-  /// Check the evaluation of this IR step in a given environment. Returns true if the behavior is
-  /// as-expected, or false if the command c, which contains this IR step, must rerun.
-  virtual bool check(shared_ptr<Command> c, Env& env, Rebuild& r) const override;
+  /**
+   * Emulate this IR step in a given environment, and report any dependency and change information
+   * to the DependencyVisitor.
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   * \param v   Dependency information and any detected changes are reported to this instance
+   */
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

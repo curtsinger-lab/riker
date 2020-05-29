@@ -15,6 +15,7 @@
 #include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
+#include "util/DependencyVisitor.hh"
 
 using std::map;
 using std::ostream;
@@ -30,7 +31,7 @@ class Pipe;
 class Tracer;
 
 /// This class captures all of the logic and state required to plan a rebuild.
-class Rebuild {
+class Rebuild : public DependencyVisitor {
  public:
   /// Create a rebuild plan
   Rebuild(shared_ptr<Command> root);
@@ -49,8 +50,11 @@ class Rebuild {
   /// Check if a specific command must rerun
   bool mustRerun(shared_ptr<Command> c) const;
 
-  /// Record the necessary dependencies for when command c accesses artifact a
-  void addDependency(shared_ptr<Command> c, shared_ptr<Artifact> a);
+  /// Command c depends on the current state of artifact a
+  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+
+  /// IR step s in command c observed a change
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
