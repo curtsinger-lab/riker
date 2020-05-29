@@ -6,7 +6,7 @@ Mark the buildfile as non-executable (so it runs with /bin/sh)
 
 Run the build
   $ ../../dodo --show --no-caching
-  dodo launch
+  dodo-launch
   /bin/sh Dodofile
   ./A
   cat inputA
@@ -25,7 +25,7 @@ Change the buildfile back to executable
 
 Run the build
   $ ../../dodo --show --no-caching
-  dodo launch
+  dodo-launch
   Dodofile
   ./A
   cat inputA

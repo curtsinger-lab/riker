@@ -3,6 +3,7 @@
 ._*
 objs/
 dodo
+dodo-launch
 .dodo
 out.dot
 out.pdf

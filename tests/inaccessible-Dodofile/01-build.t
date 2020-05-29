@@ -9,7 +9,7 @@ Make sure the Dodofile is not readable (required for this test)
 
 Build with dodo. This should fail
   $ ../../dodo
-  Unable to access "Dodofile".
+  Unable to access Dodofile.
     This file must be directly executable or runnable with /bin/sh.
 
 Grant permissions for Dodofile again so it can be committed.

@@ -3,7 +3,7 @@ Move to test directory
 
 Run the build
   $ ../../dodo --show --no-caching
-  dodo launch
+  dodo-launch
   Dodofile
   ./A
   cat inputA

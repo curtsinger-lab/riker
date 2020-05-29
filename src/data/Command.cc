@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <list>
 #include <map>
@@ -28,7 +29,9 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-string readlink(string path) {
+namespace fs = std::filesystem;
+
+fs::path readlink(string path) {
   char* buffer = nullptr;
   ssize_t capacity = 0;
   ssize_t bytes_read = 0;
@@ -47,7 +50,8 @@ string readlink(string path) {
 // The root command invokes "dodo launch" to run the actual build script. Construct this command.
 shared_ptr<Command> Command::createRootCommand() {
   // We need to get the path to dodo. Use readlink for this.
-  string dodo = readlink("/proc/self/exe");
+  fs::path dodo = readlink("/proc/self/exe");
+  fs::path dodo_launch = dodo.parent_path() / "dodo-launch";
 
   auto stdin_ref = make_shared<Pipe>();
   auto stdout_ref = make_shared<Pipe>();
@@ -57,7 +61,7 @@ shared_ptr<Command> Command::createRootCommand() {
                                      {1, InitialFD(stdout_ref, true)},
                                      {2, InitialFD(stderr_ref, true)}};
 
-  shared_ptr<Command> root(new Command(dodo, {"dodo", "launch"}, default_fds));
+  shared_ptr<Command> root(new Command(dodo_launch, {"dodo-launch"}, default_fds));
 
   return root;
 }

@@ -11,7 +11,7 @@ HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h
 
 TESTS := $(shell find tests -type d)
 
-all: dodo
+all: dodo dodo-launch
 	
 clean:
 	rm -rf dodo objs .dodo
@@ -27,7 +27,10 @@ $(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
-test: dodo
+dodo-launch: launch/launch.c
+	$(CC) -o $@ $^
+
+test: dodo dodo-launch
 	@echo "Running test cases"
 	@rm -f tests/*/*.t.err
 	@cram --quiet tests/*/*.t || ( \
