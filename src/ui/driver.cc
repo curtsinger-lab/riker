@@ -183,6 +183,22 @@ int main(int argc, char* argv[]) {
       },
       "Increase logging verbosity.");
 
+  app.add_flag_callback("--no-ignore-self-reads", [] { options::ignore_self_reads = false; })
+      ->description("Disable the ignore-self-reads optimization")
+      ->group("Optimizations");
+
+  app.add_flag_callback("--no-write-combine", [] { options::combine_writes = false; })
+      ->description("Disable the write-combining optimization")
+      ->group("Optimizations");
+
+  app.add_flag_callback("--no-skip-repeat-checks", [] { options::skip_repeat_checks = false; })
+      ->description("Disable the repeat check skipping optimization")
+      ->group("Optimizations");
+
+  app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
+      ->description("Disable the build cache")
+      ->group("Optimizations");
+
   /************* Build Subcommand *************/
   int jobs = 0;
   string fingerprint = "local";
@@ -198,22 +214,6 @@ int main(int argc, char* argv[]) {
 
   build->add_option("-f,--fingerprint", fingerprint, "Set the fingerprint level (default=local)")
       ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
-
-  build->add_flag_callback("--no-ignore-self-reads", [] { options::ignore_self_reads = false; })
-      ->description("Disable the ignore-self-reads optimization")
-      ->group("Optimizations");
-
-  build->add_flag_callback("--no-write-combine", [] { options::combine_writes = false; })
-      ->description("Disable the write-combining optimization")
-      ->group("Optimizations");
-
-  build->add_flag_callback("--no-skip-repeat-checks", [] { options::skip_repeat_checks = false; })
-      ->description("Disable the repeat check skipping optimization")
-      ->group("Optimizations");
-
-  build->add_flag_callback("--no-caching", [] { options::enable_cache = false; })
-      ->description("Disable the build cache")
-      ->group("Optimizations");
 
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
