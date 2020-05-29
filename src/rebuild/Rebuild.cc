@@ -74,7 +74,7 @@ void Rebuild::run() {
 // Run or emulate a command in this rebuild
 void Rebuild::runCommand(shared_ptr<Command> c) {
   // Does the rebuild plan say command c must run?
-  if (mustRerun(c)) {
+  if (_rerun.find(c) != _rerun.end()) {
     // We are rerunning this command, so clear the lists of steps and children
     c->reset();
 
@@ -90,11 +90,6 @@ void Rebuild::runCommand(shared_ptr<Command> c) {
   } else {
     c->emulate(_env, *this);
   }
-}
-
-// Check if a command must rerun
-bool Rebuild::mustRerun(shared_ptr<Command> c) const {
-  return _rerun.find(c) != _rerun.end();
 }
 
 // Show rebuild information
@@ -129,30 +124,48 @@ ostream& Rebuild::print(ostream& o) const {
 
 // Command c depends on artifact a. This method is called by emulate() in Step
 void Rebuild::addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-  auto creator = a->getCreator();
-  if (creator) {
-    // Output from creator is used by c. If creator reruns, c may have to rerun.
-    _output_used_by[creator].insert(c);
+  // Are we planning or running the rebuild?
+  if (_phase == RebuildPhase::Planning) {
+    // During the planning phase, record this dependency
+    auto creator = a->getCreator();
+    if (creator) {
+      // Output from creator is used by c. If creator reruns, c may have to rerun.
+      _output_used_by[creator].insert(c);
 
-    // The dependency back edge depends on caching
-    if (options::enable_cache && a->getLatestVersion()->isSaved()) {
-      // If this artifact is cached, we could restore it before c runs.
-    } else {
-      // Otherwise, if c has to run then we also need to run creator to produce this input
-      _needs_output_from[c].insert(creator);
+      // The dependency back edge depends on caching
+      if (options::enable_cache && a->getLatestVersion()->isSaved()) {
+        // If this artifact is cached, we could restore it before c runs.
+      } else {
+        // Otherwise, if c has to run then we also need to run creator to produce this input
+        _needs_output_from[c].insert(creator);
+      }
     }
+  } else {
+    // We don't need to record new dependencies during the rebuild. At the moment, addInput is only
+    // called on emulated commands. If we also call it on traced commands we could use this point to
+    // detect when commands gain a new dependency on rerun. That could be especially useful for
+    // synchronizing parallel rebuilds.
   }
 }
 
 // IR step s in command c observed a change. This method is called by emulate() in Step
 void Rebuild::changed(shared_ptr<Command> c, shared_ptr<const Step> s) {
-  LOG << c << " changed: " << s;
-  _changed.insert(c);
+  // Are we planning or running the rebuild?
+  if (_phase == RebuildPhase::Planning) {
+    // Record the change
+    LOG << c << " changed: " << s;
+    _changed.insert(c);
+  } else {
+    // We shouldn't detect changes in the running phase, so this is a failure
+    WARN << "Unexpected change detected during rebuild: " << c << ", " << s;
+  }
 }
 
+// A parent command is launching a child command
 void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
+  // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
-    // In the planning phase, we always emulate every command
+    // In the planning phase, we always emulate the child command to capture its dependencies
     child->emulate(_env, *this);
   } else {
     // If we are actually running the rebuild, call runCommand to decide whether to run or emulate
@@ -160,6 +173,7 @@ void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
   }
 }
 
+// Check to see if artifacts left at the end of an emulated build match the on-disk state
 void Rebuild::checkFinalState() {
   // Loop over all the artifacts left in the environment at the end of the build
   for (auto& [ref, a] : _env.getArtifacts()) {

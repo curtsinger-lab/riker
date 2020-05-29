@@ -31,7 +31,7 @@ class Reference;
 class Pipe;
 
 /// This class captures all of the logic and state required to plan a rebuild.
-class Rebuild : public DependencyVisitor {
+class Rebuild : private DependencyVisitor {
  public:
   /// Create a rebuild plan
   Rebuild(shared_ptr<Command> root);
@@ -46,18 +46,6 @@ class Rebuild : public DependencyVisitor {
 
   /// Run the rebuild
   void run();
-
-  /// Check if a specific command must rerun
-  bool mustRerun(shared_ptr<Command> c) const;
-
-  /// Command c depends on the current state of artifact a
-  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
-
-  /// IR step s in command c observed a change
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;
-
-  /// An emulated command is launching a child command
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override;
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
@@ -74,6 +62,15 @@ class Rebuild : public DependencyVisitor {
 
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
   void mark(shared_ptr<Command> c);
+
+  /// Command c depends on the current state of artifact a
+  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+
+  /// IR step s in command c observed a change
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;
+
+  /// An emulated command is launching a child command
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override;
 
  private:
   enum class RebuildPhase { Planning, Running };
