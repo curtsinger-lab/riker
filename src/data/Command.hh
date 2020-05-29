@@ -115,16 +115,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command launches a child command
   shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
 
-  /// Add this command to the rerun set, and propagate that marking to other required commands
-  void mark(set<shared_ptr<Command>>& rerun);
-
-  /// Command c uses this command's output; c must rerun if this command runs
-  void outputUsedBy(shared_ptr<Command> c) { _output_used_by.insert(c); }
-
-  /// This command produces output that is used by command c, and cannot be reproduced
-  /// Command c must rerun if this command runs
-  void needsOutputFrom(shared_ptr<Command> c) { _needs_output_from.insert(c); }
-
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
@@ -157,12 +147,4 @@ class Command : public std::enable_shared_from_this<Command> {
   // Create default constructor and specify fields for serialization
   Command() = default;
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
-
-  /***** Transient Data (not serialized) *****/
-
-  /// What commands does this command need output from?
-  set<shared_ptr<Command>> _needs_output_from;
-
-  /// What commands use this command's output?
-  set<shared_ptr<Command>> _output_used_by;
 };

@@ -68,6 +68,9 @@ class Rebuild {
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
 
+  /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
+  void mark(shared_ptr<Command> c);
+
  private:
   /// The root command for the build
   shared_ptr<Command> _root;
@@ -83,4 +86,10 @@ class Rebuild {
 
   /// All commands that will rerun
   set<shared_ptr<Command>> _rerun;
+
+  /// Map command that produces output(s) -> commands that consume that output
+  map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;
+
+  /// Map command that consumes uncached input -> commands that produce that input
+  map<shared_ptr<Command>, set<shared_ptr<Command>>> _needs_output_from;
 };

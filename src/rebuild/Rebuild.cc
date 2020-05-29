@@ -35,12 +35,12 @@ Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
 
   // Mark all the commands with changed inputs
   for (auto& c : _changed) {
-    c->mark(_rerun);
+    mark(c);
   }
 
   // Mark all the commands whose output is required
   for (auto& c : _output_needed) {
-    c->mark(_rerun);
+    mark(c);
   }
 }
 
@@ -176,15 +176,39 @@ void Rebuild::checkFinalState() {
 void Rebuild::addDependency(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   auto creator = a->getCreator();
   if (creator) {
-    // If creator has to rerun, c may see changed input through this artifact
-    creator->outputUsedBy(c);
+    // Output from creator is used by c. If creator reruns, c may have to rerun.
+    _output_used_by[creator].insert(c);
 
     // The dependency back edge depends on caching
     if (options::enable_cache && a->getLatestVersion()->isSaved()) {
       // If this artifact is cached, we could restore it before c runs.
     } else {
       // Otherwise, if c has to run then we also need to run creator to produce this input
-      c->needsOutputFrom(creator);
+      _needs_output_from[c].insert(creator);
     }
+  }
+}
+
+// Mark command c for rerun, and propagate that marking to other required commands
+void Rebuild::mark(shared_ptr<Command> c) {
+  // If this command is already marked, there's no work to do
+  if (_rerun.find(c) != _rerun.end()) return;
+
+  // Mark this command
+  _rerun.insert(c);
+
+  // Mark this command's children
+  for (auto& child : c->getChildren()) {
+    mark(child);
+  }
+
+  // Mark any commands that produce output that this command needs
+  for (auto& other : _needs_output_from[c]) {
+    mark(other);
+  }
+
+  // Mark any commands that use this command's output
+  for (auto& other : _output_used_by[c]) {
+    mark(other);
   }
 }
