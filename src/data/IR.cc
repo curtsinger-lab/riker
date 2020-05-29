@@ -84,7 +84,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   v.addInput(c, a);
 
   // Compare versions and return the result
-  if (!_version->fingerprintMatch(a->getLatestVersion())) {
+  if (!_version->contentsMatch(a->getLatestVersion())) {
     v.changed(c, shared_from_this());
   }
 }

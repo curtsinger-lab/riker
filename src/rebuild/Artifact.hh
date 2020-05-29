@@ -47,6 +47,9 @@ class Artifact {
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getCreator() const { return _creator; }
 
+  /// Get the list of versions of this artifact
+  const list<shared_ptr<Version>>& getVersions() const { return _versions; }
+
   /// Advance this artifact to a new version
   void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr) {
     _versions.push_back(v);

@@ -186,7 +186,7 @@ void Rebuild::checkFinalState() {
     v->saveFingerprint(ref);
 
     // If the fingerprint doesn't match we will need to rerun the creator
-    if (!v->fingerprintMatch(a->getLatestVersion())) {
+    if (!v->contentsMatch(a->getLatestVersion())) {
       _output_needed.insert(creator);
     }
   }

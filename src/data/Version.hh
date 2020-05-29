@@ -49,13 +49,13 @@ class Version : public std::enable_shared_from_this<Version> {
   bool metadataMatch(shared_ptr<Version> other) const;
 
   /// Do we have a fingerprint for the contents of this version?
-  bool hasFingerprint() const { return hasMetadata(); }
+  bool hasFingerprint() const { return false; }
 
   /// Save a fingerprint of this version's contents
   void saveFingerprint(shared_ptr<Reference> ref);
 
-  /// Compare the fingerprint for this version to another version
-  bool fingerprintMatch(shared_ptr<Version> other) const;
+  /// Compare the contents of this version to another version
+  bool contentsMatch(shared_ptr<Version> other) const;
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const Version& v) {
@@ -70,12 +70,6 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Print a Version*
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
-
-  /// Get saved metadata for this version
-  optional<Metadata> getMetadata() const { return _metadata; }
-
-  /// Get the saved fingerprint for this version
-  optional<Fingerprint> getFingerprint() const { return nullopt; }
 
  private:
   /// Saved metadata for this version

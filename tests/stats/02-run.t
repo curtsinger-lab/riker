@@ -1,12 +1,9 @@
 Move to test directory
   $ cd $TESTDIR
 
-SKIP!
-  $ exit 80
-
 Run the build
   $ ../../dodo --show
-  dodo launch
+  dodo-launch
   Dodofile
   ./A
   cat inputA

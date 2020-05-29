@@ -4,6 +4,11 @@
 #include <ostream>
 #include <set>
 
+#include "data/Command.hh"
+#include "data/Version.hh"
+#include "rebuild/Env.hh"
+#include "util/DependencyVisitor.hh"
+
 using std::dynamic_pointer_cast;
 using std::endl;
 using std::ostream;
@@ -14,7 +19,7 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class StatsVisitor {
+class StatsVisitor : private DependencyVisitor {
  public:
   /**
    * Gather statistics for a completed build
@@ -22,8 +27,13 @@ class StatsVisitor {
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
   StatsVisitor(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
-    visitCommand(root);
-    // TODO: visit initial references
+    // Get stats from the root command
+    processCommand(root);
+
+    // Total up the versions of all artifacts
+    for (auto& a : _artifacts) {
+      _version_count += a->getVersions().size();
+    }
   }
 
   /// Print the results of our stats gathering
@@ -31,41 +41,29 @@ class StatsVisitor {
     o << "Build Statistics:" << endl;
     o << "  Commands: " << _command_count << endl;
     o << "  Steps: " << _step_count << endl;
-    o << "  Artifacts: " << _artifact_count << endl;
-    o << "  Artifact Versions: " << _artifact_version_count << endl;
+    o << "  Artifacts: " << _artifacts.size() << endl;
+    o << "  Artifact Versions: " << _version_count << endl;
 
     if (_list_artifacts) {
       o << endl;
       o << "Artifacts:" << endl;
-      for (auto a : _visited_artifacts) {
-        size_t skipped = 0;
+      for (auto& a : _artifacts) {
         o << "  " << a->getPath().value_or("<anonymous>") << endl;
 
-        // Loop over all versions of this artifact
-        auto current = a;
         size_t index = 0;
-        while (current) {
-          bool metadata = current->hasMetadata();
-          bool fingerprint = current->hasFingerprint();
-          bool saved = current->isSaved();
+        for (auto& v : a->getVersions()) {
+          bool metadata = v->hasMetadata();
+          bool fingerprint = v->hasFingerprint();
+          bool saved = v->isSaved();
 
-          if (metadata || fingerprint || saved) {
-            o << "    v" << index << ":";
-            if (metadata) o << " metadata";
-            if (fingerprint) o << " fingerprint";
-            if (saved) o << " saved";
-            o << endl;
-          } else {
-            skipped++;
-          }
+          o << "    v" << index << ":";
+          if (metadata) o << " metadata";
+          if (fingerprint) o << " fingerprint";
+          if (saved) o << " saved";
+          if (!metadata && !fingerprint && !saved) o << " no data";
+          o << endl;
 
-          // Move to the next version
-          current = current->getNext();
           index++;
-        }
-        if (skipped > 0) {
-          o << "    (skipped " << skipped << " version" << (skipped > 1 ? "s" : "")
-            << " with no saved data)" << endl;
         }
       }
     }
@@ -77,66 +75,47 @@ class StatsVisitor {
   }
 
  private:
-  void visitCommand(shared_ptr<Command> c) {
-    // Count this command
+  /// Gather stats for a command
+  void processCommand(shared_ptr<Command> c) {
+    // Count this command and its steps
     _command_count++;
+    _step_count += c->getSteps().size();
 
-    // Visit each of the steps the command runs
-    for (auto s : c->getSteps()) {
-      visitStep(s);
-    }
-  };
-
-  void visitStep(shared_ptr<Step> s) {
-    // Count this step
-    _step_count++;
-
-    // Handle steps that launch new commands or access artifacts
-    if (auto x = dynamic_pointer_cast<Launch>(s)) {
-      // Recurse into the launched command
-      visitCommand(x->getCommand());
-
-    } else if (auto x = dynamic_pointer_cast<MetadataMatch>(s)) {
-      visitVersion(x->getVersion());
-
-    } else if (auto x = dynamic_pointer_cast<ContentsMatch>(s)) {
-      visitVersion(x->getVersion());
-
-    } else if (auto x = dynamic_pointer_cast<SetMetadata>(s)) {
-      visitVersion(x->getVersion());
-
-    } else if (auto x = dynamic_pointer_cast<SetContents>(s)) {
-      visitVersion(x->getVersion());
-    }
+    // Emulate the command to traverse the build trace
+    c->emulate(_env, *this);
   }
 
-  void visitVersion(shared_ptr<Version> v) {
-    // Get the earliest version of this artifact
-    auto first = v->getFirstVersion();
+  /// Called during emulation to report an output from command c
+  virtual void addOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _artifacts.insert(a);
+  }
 
-    // Add this original version to the set of visited artifacts
-    auto [_, added] = _visited_artifacts.insert(first);
-    if (added) {
-      // Count this artifact if it's new
-      _artifact_count++;
+  /// Called during emulation to report an input to command c
+  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _artifacts.insert(a);
+  }
 
-      // Loop over all versions and count each one
-      auto current = first;
-      while (current) {
-        _artifact_version_count++;
-        current = current->getNext();
-      }
-    }
+  /// Called each time a command emulates a launch step
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+    // Process the child command
+    processCommand(child);
   }
 
  private:
   bool _list_artifacts;  //< Should the stats include a list of artifacts?
 
-  size_t _command_count = 0;           //< The total number of commands in the build
-  size_t _step_count = 0;              //< The total number of steps in the build
-  size_t _artifact_count = 0;          //< The total number of artifacts in the build
-  size_t _artifact_version_count = 0;  //< The total number of artifact versions in the build
+  /// The environment used to emulate the build trace
+  Env _env;
 
-  /// A set of artifacts that have already been visited
-  set<shared_ptr<Version>> _visited_artifacts;
+  /// The total number of commands in the build trace
+  size_t _command_count = 0;
+
+  /// The total number of IR steps in the build trace
+  size_t _step_count = 0;
+
+  /// The total number of versions of artifacts
+  size_t _version_count = 0;
+
+  /// A set of artifacts visited during the stats collection
+  set<shared_ptr<Artifact>> _artifacts;
 };

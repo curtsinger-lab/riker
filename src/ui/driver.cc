@@ -13,7 +13,7 @@
 #include "ui/log.hh"
 #include "ui/options.hh"
 //#include "util/GraphVisitor.hh"
-//#include "util/StatsVisitor.hh"
+#include "util/StatsVisitor.hh"
 #include "util/TraceVisitor.hh"
 #include "util/serializer.hh"
 
@@ -100,9 +100,8 @@ void do_graph(string output, bool show_sysfiles) {
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) {
-  /*auto root = load_build(DatabaseFilename, false);
-  cout << StatsVisitor(root, list_artifacts);*/
-  WARN << "Stats output is temporarily disabled";
+  auto root = load_build(DatabaseFilename, false);
+  cout << StatsVisitor(root, list_artifacts);
 }
 
 /**

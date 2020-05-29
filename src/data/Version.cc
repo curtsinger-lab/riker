@@ -25,8 +25,8 @@ bool Version::isSaved() const {
 
 bool Version::metadataMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
-  auto m1 = this->getMetadata();
-  auto m2 = other->getMetadata();
+  auto& m1 = _metadata;
+  auto& m2 = other->_metadata;
 
   // We need metadata for both versions to compare
   if (!m1.has_value() || !m2.has_value()) return false;
@@ -56,10 +56,10 @@ bool operator==(const timespec& t1, const timespec& t2) {
   return t1.tv_sec == t2.tv_sec && t1.tv_nsec == t2.tv_nsec;
 }
 
-bool Version::fingerprintMatch(shared_ptr<Version> other) const {
+bool Version::contentsMatch(shared_ptr<Version> other) const {
   // Get metadata from both versions
-  auto m1 = this->getMetadata();
-  auto m2 = other->getMetadata();
+  auto& m1 = _metadata;
+  auto& m2 = other->_metadata;
 
   // We need metadata from both versions to compare
   if (!m1.has_value() || !m2.has_value()) {
