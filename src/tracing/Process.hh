@@ -22,14 +22,15 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
-using std::filesystem::path;
+
+namespace fs = std::filesystem;
 
 class Command;
 class Rebuild;
 
 class Process {
  public:
-  Process(Env& env, pid_t pid, path cwd, shared_ptr<Command> command, map<int, FDEntry> fds) :
+  Process(Env& env, pid_t pid, fs::path cwd, shared_ptr<Command> command, map<int, FDEntry> fds) :
       _env(env), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
@@ -40,9 +41,6 @@ class Process {
 
   /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
   unsigned long getEventMessage();
-
-  /// Get the filename of this process' executable
-  // path getExecutable();
 
   /// Get the current register state for this process
   user_regs_struct getRegisters();
@@ -63,7 +61,7 @@ class Process {
 
   /// Resolve and normalize a path
   /// Returns an absolute path
-  path resolvePath(path p, int at = AT_FDCWD);
+  fs::path resolvePath(fs::path p, int at = AT_FDCWD);
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) {

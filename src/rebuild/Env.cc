@@ -11,10 +11,12 @@
 
 #include "data/Command.hh"
 #include "data/IR.hh"
+#include "data/Version.hh"
 #include "rebuild/Artifact.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 
+using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::map;
 using std::shared_ptr;

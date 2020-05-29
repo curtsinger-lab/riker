@@ -1,37 +1,31 @@
 #pragma once
 
-#include <cstdint>
 #include <list>
 #include <map>
 #include <memory>
 #include <ostream>
-#include <set>
 #include <string>
-#include <utility>
 #include <vector>
-
-#include <cereal/access.hpp>
 
 #include "data/AccessFlags.hh"
 #include "data/InitialFD.hh"
-#include "rebuild/Artifact.hh"
 #include "util/UniqueID.hh"
 #include "util/serializer.hh"
 
 using std::list;
 using std::map;
 using std::ostream;
-using std::pair;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
 
+class Access;
+class Artifact;
 class DependencyVisitor;
 class Env;
+class Pipe;
 class Reference;
 class Step;
-class Version;
 
 /**
  * Representation of a command that runs as part of the build.

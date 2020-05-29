@@ -20,6 +20,8 @@
 using std::dynamic_pointer_cast;
 using std::make_shared;
 
+namespace fs = std::filesystem;
+
 /*******************************************/
 /********** Utilities for tracing **********/
 /*******************************************/
@@ -54,16 +56,16 @@ unsigned long Process::getEventMessage() {
   return message;
 }
 
-path Process::resolvePath(path p, int at) {
+fs::path Process::resolvePath(fs::path p, int at) {
   // TODO: Handle chroot-ed processes correctly
 
   // We're going to build a full path from the reference. Simplest case is an absolute path.
-  path full_path = p;
+  fs::path full_path = p;
 
   // Relative paths have to be relative to something
   if (p.is_relative()) {
     // By default, paths are relative to the current directory
-    path base = _cwd;
+    fs::path base = _cwd;
 
     // But if the file is not relative to cwd, get the path for the specified base
     if (at != AT_FDCWD) {

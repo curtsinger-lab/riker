@@ -4,11 +4,6 @@
 #include <memory>
 #include <ostream>
 #include <set>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include <sys/types.h>
 
 #include "data/AccessFlags.hh"
 #include "data/Command.hh"
@@ -20,11 +15,8 @@
 
 using std::map;
 using std::ostream;
-using std::pair;
 using std::set;
 using std::shared_ptr;
-using std::string;
-using std::vector;
 
 class Access;
 class Reference;

@@ -5,17 +5,18 @@
 #include <optional>
 #include <ostream>
 #include <set>
-
-#include "data/IR.hh"
-#include "data/Version.hh"
+#include <string>
 
 class Command;
+class Reference;
+class Version;
 
 using std::list;
 using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
+using std::string;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact

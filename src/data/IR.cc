@@ -1,6 +1,5 @@
 #include "IR.hh"
 
-#include <cerrno>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -12,12 +11,13 @@
 
 #include "data/Command.hh"
 #include "data/Version.hh"
+#include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
-#include "rebuild/Rebuild.hh"
 #include "util/DependencyVisitor.hh"
 
 using std::dynamic_pointer_cast;
 using std::ostream;
+using std::shared_ptr;
 
 /******* Change Detection *******/
 

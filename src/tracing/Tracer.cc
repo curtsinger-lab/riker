@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <list>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -21,17 +20,18 @@
 #include <unistd.h>
 
 #include "data/Command.hh"
+#include "data/Version.hh"
 #include "rebuild/Rebuild.hh"
 #include "tracing/FDEntry.hh"
 #include "tracing/Process.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"
 
+using std::dynamic_pointer_cast;
 using std::list;
 using std::make_shared;
 using std::pair;
 using std::shared_ptr;
-using std::string;
 
 void Tracer::run(shared_ptr<Command> cmd) {
   // Launch the command with tracing

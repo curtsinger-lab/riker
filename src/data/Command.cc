@@ -1,10 +1,8 @@
 #include "Command.hh"
 
-#include <array>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
-#include <list>
 #include <map>
 #include <memory>
 #include <string>
@@ -19,11 +17,8 @@
 #include "rebuild/Artifact.hh"
 #include "ui/options.hh"
 
-using std::array;
 using std::cout;
-using std::dynamic_pointer_cast;
 using std::endl;
-using std::list;
 using std::make_shared;
 using std::map;
 using std::shared_ptr;

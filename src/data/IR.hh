@@ -1,21 +1,13 @@
 #pragma once
 
-#include <cstdint>
-#include <map>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <string>
 
 #include "data/AccessFlags.hh"
-#include "data/Version.hh"
 #include "util/UniqueID.hh"
 #include "util/serializer.hh"
 
-using std::dynamic_pointer_cast;
-using std::map;
-using std::nullopt;
-using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -26,7 +18,6 @@ enum : int { SUCCESS = 0 };
 class Command;
 class DependencyVisitor;
 class Env;
-class Rebuild;
 class Version;
 
 /**

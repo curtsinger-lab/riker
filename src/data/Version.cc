@@ -1,13 +1,16 @@
 #include "Version.hh"
 
 #include <memory>
+#include <optional>
 
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "data/IR.hh"
 #include "ui/log.hh"
 
 using std::dynamic_pointer_cast;
+using std::nullopt;
 using std::shared_ptr;
 
 bool Version::isSaved() const {

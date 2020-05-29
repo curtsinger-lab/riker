@@ -1,11 +1,8 @@
 #include "Rebuild.hh"
 
-#include <cerrno>
-#include <ctime>
 #include <iostream>
 #include <memory>
 #include <ostream>
-#include <queue>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -19,11 +16,9 @@
 #include "ui/options.hh"
 
 using std::cout;
-using std::dynamic_pointer_cast;
 using std::endl;
 using std::make_shared;
 using std::ostream;
-using std::queue;
 
 // Create a rebuild plan
 Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {

@@ -1,21 +1,14 @@
 #include <cstdlib>
 #include <filesystem>
-#include <forward_list>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <fcntl.h>
 #include <unistd.h>
-
-#include <cereal/archives/binary.hpp>
-#include <cereal/types/memory.hpp>
 
 #include <CLI/CLI.hpp>
 
-#include "rebuild/Artifact.hh"
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -24,20 +17,13 @@
 #include "util/TraceVisitor.hh"
 #include "util/serializer.hh"
 
-using std::cerr;
 using std::cout;
-using std::endl;
-using std::forward_list;
-using std::ifstream;
 using std::make_unique;
 using std::ofstream;
-using std::stol;
 using std::string;
 using std::vector;
 
 namespace fs = std::filesystem;
-
-class Command;
 
 // Constant names for files and paths
 const char* RootBuildCommand = "Dodofile";

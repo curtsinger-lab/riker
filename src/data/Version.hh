@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -9,7 +7,6 @@
 #include <vector>
 
 #include <sys/stat.h>
-#include <sys/types.h>
 
 #include "util/serializer.hh"
 
@@ -19,9 +16,7 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
-using std::weak_ptr;
 
-class Command;
 class Reference;
 
 using Metadata = struct stat;
