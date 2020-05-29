@@ -27,8 +27,17 @@ using std::queue;
 
 // Create a rebuild plan
 Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
-  // Identify commands with changed dependencies
-  findChanges(_root);
+  // Record that we are in the planning phase of the rebuild
+  _phase = RebuildPhase::Planning;
+
+  // If the root command has never run, mark it as changed
+  if (_root->neverRun()) {
+    LOG << _root << " changed: never run";
+    _changed.insert(_root);
+  } else {
+    // Otherwise, emulate the root command to track dependencies and changes
+    _root->emulate(_env, *this);
+  }
 
   // Check the final outputs of the emulated build against the filesystem
   checkFinalState();
@@ -46,6 +55,7 @@ Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
 
 // Run a rebuild, updating the in-memory build representation
 void Rebuild::run() {
+  // The rebuild is now in the running phase
   _phase = RebuildPhase::Running;
 
   // Reset the environment
@@ -54,7 +64,7 @@ void Rebuild::run() {
   // Run or emulate the root command with the tracer
   runCommand(_root);
 
-  // Finish up by saving metadata for any remaining artifacts
+  // Finish up by saving metadata and fingerprints for any artifacts left after the build
   for (auto& [ref, artifact] : _env.getArtifacts()) {
     artifact->getLatestVersion()->saveMetadata(ref);
     artifact->getLatestVersion()->saveFingerprint(ref);
@@ -115,19 +125,6 @@ ostream& Rebuild::print(ostream& o) const {
   }
 
   return o;
-}
-
-void Rebuild::findChanges(shared_ptr<Command> c) {
-  if (c->neverRun()) {
-    LOG << c << " changed: never run";
-    _changed.insert(c);
-    return;
-  }
-
-  // Loop over the steps from the command trace to see if command c will see any changes
-  for (auto step : c->getSteps()) {
-    step->emulate(c, _env, *this);
-  }
 }
 
 // Command c depends on artifact a. This method is called by emulate() in Step

@@ -69,9 +69,6 @@ class Rebuild : public DependencyVisitor {
   /// Run or emulate a command from this rebuild
   void runCommand(shared_ptr<Command> c);
 
-  /// Check a command and its descendants to see if any inputs have changed
-  void findChanges(shared_ptr<Command> c);
-
   /// Check to see if any files remaining in the environment match the filesystem state
   void checkFinalState();
 
