@@ -1,7 +1,7 @@
 CC  = clang
 CXX = clang++
 
-COMMON_CFLAGS = -Isrc -Icereal/include -ICLI11/include -Wall -g -Wfatal-errors
+COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -lstdc++fs
 

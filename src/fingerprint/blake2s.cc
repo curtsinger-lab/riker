@@ -2,7 +2,7 @@
 
 #if defined(__SSE__) && defined(__SSE2__)
 // TODO: consider ifuncs and dynamic feature detection
-#include "../blake2/sse/blake2s.c"
+#include "../deps/blake2/sse/blake2s.c"
 #else
-#include "../blake2/ref/blake2s-ref.c"
+#include "../deps/blake2/ref/blake2s-ref.c"
 #endif

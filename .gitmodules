@@ -8,3 +8,12 @@
 [submodule "CLI11"]
 	path = CLI11
 	url = git@github.com:CLIUtils/CLI11.git
+[submodule "deps/blake2"]
+	path = deps/blake2
+	url = https://github.com/BLAKE2/BLAKE2.git
+[submodule "deps/CLI11"]
+	path = deps/CLI11
+	url = git@github.com:CLIUtils/CLI11.git
+[submodule "deps/cereal"]
+	path = deps/cereal
+	url = https://github.com/USCiLab/cereal.git
