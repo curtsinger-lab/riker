@@ -12,7 +12,7 @@
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
-//#include "util/GraphVisitor.hh"
+#include "util/GraphVisitor.hh"
 #include "util/StatsVisitor.hh"
 #include "util/TraceVisitor.hh"
 #include "util/serializer.hh"
@@ -85,14 +85,13 @@ void do_trace(string output) {
  * \param show_sysfiles If true, include system files in the graph
  */
 void do_graph(string output, bool show_sysfiles) {
-  /*auto root = load_build(DatabaseFilename, false);
+  auto root = load_build(DatabaseFilename, false);
   if (output == "-") {
     cout << GraphVisitor(root, show_sysfiles);
   } else {
     ofstream f(output);
     f << GraphVisitor(root, show_sysfiles);
-  }*/
-  WARN << "Graph output is temporarily disabled";
+  }
 }
 
 /**

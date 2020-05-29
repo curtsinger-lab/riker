@@ -50,6 +50,9 @@ class Artifact {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const { return _versions; }
 
+  /// Get the number of versions of this artifact
+  size_t getVersionCount() const { return _versions.size(); }
+
   /// Advance this artifact to a new version
   void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr) {
     _versions.push_back(v);

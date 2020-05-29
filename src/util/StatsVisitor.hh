@@ -32,7 +32,7 @@ class StatsVisitor : private DependencyVisitor {
 
     // Total up the versions of all artifacts
     for (auto& a : _artifacts) {
-      _version_count += a->getVersions().size();
+      _version_count += a->getVersionCount();
     }
   }
 
