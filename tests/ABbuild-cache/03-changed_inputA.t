@@ -7,7 +7,6 @@ Move in the new version of inputA
 Update the build
   $ ../../dodo --show
   cat inputA
-  ./B
   cat inputB
 
 Verify the output is correct

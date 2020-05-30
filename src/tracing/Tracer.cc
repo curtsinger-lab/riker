@@ -127,12 +127,18 @@ void Tracer::run(shared_ptr<Command> cmd) {
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
 void Tracer::launchTraced(shared_ptr<Command> cmd) {
+  LOG << "Launching " << cmd;
+
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
 
+  LOG << "Initial FDs:";
+
   // Loop over the initial fds for the command we are launching
   for (auto& [child_fd, info] : cmd->getInitialFDs()) {
+    LOG << "  " << child_fd << ": " << info.getReference();
+
     // For now, only handle Access references
     auto ref = dynamic_pointer_cast<Access>(info.getReference());
     if (!ref) continue;
@@ -141,13 +147,15 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     auto [artifact, rc, created] = _env.getFile(cmd, ref);
     auto latest = artifact->getLatestVersion();
 
-    // If the latest version of the artifact is saved, we can stage it in
-    // TODO: shift this logic to an Artifact::commit method
-    if (latest->isSaved()) {
-      int parent_fd = ref->open();
-      FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
-      initial_fds.emplace_back(parent_fd, child_fd);
-    }
+    // Open the artifact the command expects in its FD table. Right now, this logic assumes either:
+    // 1. The open() call will create/truncate the file, or
+    // 2. The file is in the correct state on disk becuase it was created/written by other commands.
+    // This will be more complex once we have the possibility of cached files that need to be moved
+    // into place. The logic to prepare these files (and any directories they may depend on) should
+    // go into the Env/Artifact classes.
+    int parent_fd = ref->open();
+    FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
+    initial_fds.emplace_back(parent_fd, child_fd);
   }
 
   // In terms of overall structure, this is a bog standard fork/exec spawning function.

@@ -19,9 +19,10 @@ struct AccessFlags {
   bool truncate = false;   //< Does the reference truncate the artifact's contents?
   bool create = false;     //< Does the reference create an artifact if none exists?
   bool exclusive = false;  //< Does the reference require creation? (must also be set with .create)
+  bool append = false;     //< Is the file opened in append mode?
 
   // Declare fields for serialization
-  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive);
+  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive, append);
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
   static AccessFlags fromOpen(int flags) {
@@ -30,7 +31,8 @@ struct AccessFlags {
             .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
             .truncate = (flags & O_TRUNC) == O_TRUNC,
             .create = (flags & O_CREAT) == O_CREAT,
-            .exclusive = (flags & O_EXCL) == O_EXCL};
+            .exclusive = (flags & O_EXCL) == O_EXCL,
+            .append = (flags & O_APPEND) == O_APPEND};
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
@@ -43,6 +45,7 @@ struct AccessFlags {
     if (truncate) flags |= O_TRUNC;
     if (create) flags |= O_CREAT;
     if (exclusive) flags |= O_EXCL;
+    if (append) flags |= O_APPEND;
 
     return flags;
   }
@@ -80,6 +83,7 @@ struct AccessFlags {
   friend ostream& operator<<(ostream& o, const AccessFlags& f) {
     return o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
              << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
-             << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "");
+             << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "")
+             << (f.append ? " append" : "");
   }
 };
