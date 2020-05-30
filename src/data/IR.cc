@@ -138,7 +138,8 @@ void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
 /******************* Access Methods ********************/
 
 int Access::open() const {
-  return ::open(_path.c_str(), _flags.toOpen());
+  auto [open_flags, open_mode] = _flags.toOpen();
+  return ::open(_path.c_str(), open_flags, open_mode);
 }
 
 int Access::stat(struct stat* statbuf) const {

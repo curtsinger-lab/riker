@@ -20,23 +20,25 @@ struct AccessFlags {
   bool create = false;     //< Does the reference create an artifact if none exists?
   bool exclusive = false;  //< Does the reference require creation? (must also be set with .create)
   bool append = false;     //< Is the file opened in append mode?
+  int mode = 0;            //< The file access modifiers
 
   // Declare fields for serialization
-  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive, append);
+  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive, append, mode);
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(int flags) {
+  static AccessFlags fromOpen(int flags, int mode) {
     return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
             .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
             .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
             .truncate = (flags & O_TRUNC) == O_TRUNC,
             .create = (flags & O_CREAT) == O_CREAT,
             .exclusive = (flags & O_EXCL) == O_EXCL,
-            .append = (flags & O_APPEND) == O_APPEND};
+            .append = (flags & O_APPEND) == O_APPEND,
+            .mode = mode};
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
-  int toOpen() const {
+  pair<int, int> toOpen() const {
     int flags = 0;
     if (r && w) flags |= O_RDWR;
     if (r && !w) flags |= O_RDONLY;
@@ -47,7 +49,7 @@ struct AccessFlags {
     if (exclusive) flags |= O_EXCL;
     if (append) flags |= O_APPEND;
 
-    return flags;
+    return {flags, mode};
   }
 
   /// Create an AccessFlags instance from the mode and flags parameters to the access syscall
@@ -81,9 +83,25 @@ struct AccessFlags {
 
   /// Print an AccessFlags struct to an output stream
   friend ostream& operator<<(ostream& o, const AccessFlags& f) {
-    return o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
-             << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
-             << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "")
-             << (f.append ? " append" : "");
+    o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
+      << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
+      << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "")
+      << (f.append ? " append" : "");
+
+    if (f.mode != 0) {
+      o << " (";
+      o << (f.mode & S_IRUSR ? 'r' : '-');
+      o << (f.mode & S_IWUSR ? 'w' : '-');
+      o << (f.mode & S_IXUSR ? 'x' : '-');
+      o << (f.mode & S_IRGRP ? 'r' : '-');
+      o << (f.mode & S_IWGRP ? 'w' : '-');
+      o << (f.mode & S_IXGRP ? 'x' : '-');
+      o << (f.mode & S_IROTH ? 'r' : '-');
+      o << (f.mode & S_IWOTH ? 'w' : '-');
+      o << (f.mode & S_IXOTH ? 'x' : '-');
+      o << ")";
+    }
+
+    return o;
   }
 };

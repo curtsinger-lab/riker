@@ -692,7 +692,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto p = resolvePath(filename, dfd);
 
   // The command makes a reference to a path, possibly modifying artifact f
-  auto ref_flags = AccessFlags::fromOpen(flags);
+  auto ref_flags = AccessFlags::fromOpen(flags, mode);
   auto ref = _command->access(p, ref_flags);
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
