@@ -30,7 +30,7 @@ class Version;
  * - Predicate: a statement about a reference that was true on the example build
  * - Action: a modification to system state performed by the command
  */
-class Step : public std::enable_shared_from_this<Step> {
+class Step {
  public:
   /// Use a default virtual destructor
   virtual ~Step() = default;
@@ -42,7 +42,7 @@ class Step : public std::enable_shared_from_this<Step> {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const = 0;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) = 0;
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
@@ -77,7 +77,7 @@ class Reference : public Step {
 };
 
 /// Create a reference to a new pipe
-class Pipe : public Reference {
+class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
  public:
   /// Create a pipe
   Pipe() = default;
@@ -89,7 +89,7 @@ class Pipe : public Reference {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -100,7 +100,7 @@ class Pipe : public Reference {
 };
 
 /// Access a filesystem path with a given set of flags
-class Access : public Reference {
+class Access : public Reference, public std::enable_shared_from_this<Access> {
  public:
   /// Create an access reference to a path with given flags
   Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
@@ -127,7 +127,7 @@ class Access : public Reference {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -159,7 +159,7 @@ class Predicate : public Step {
 /**
  * Making a reference produced a particular result (error code or success)
  */
-class ReferenceResult : public Predicate {
+class ReferenceResult : public Predicate, public std::enable_shared_from_this<ReferenceResult> {
  public:
   /// Create a REFERENCE_RESULT predicate
   ReferenceResult(shared_ptr<Reference> ref, int rc) : _ref(ref), _rc(rc) {}
@@ -177,7 +177,7 @@ class ReferenceResult : public Predicate {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -194,7 +194,7 @@ class ReferenceResult : public Predicate {
 /**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
-class MetadataMatch : public Predicate {
+class MetadataMatch : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -213,7 +213,7 @@ class MetadataMatch : public Predicate {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -230,7 +230,7 @@ class MetadataMatch : public Predicate {
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
-class ContentsMatch : public Predicate {
+class ContentsMatch : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -249,7 +249,7 @@ class ContentsMatch : public Predicate {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -282,7 +282,7 @@ class Action : public Step {
  * A Launch action creates a new command, which inherits some (possibly empty)
  * set of references from its parent.
  */
-class Launch : public Action {
+class Launch : public Action, public std::enable_shared_from_this<Launch> {
  public:
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) : _cmd(cmd) {}
@@ -297,7 +297,7 @@ class Launch : public Action {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -313,7 +313,7 @@ class Launch : public Action {
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata : public Action {
+class SetMetadata : public Action, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -330,7 +330,7 @@ class SetMetadata : public Action {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -347,7 +347,7 @@ class SetMetadata : public Action {
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents : public Action {
+class SetContents : public Action, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
@@ -364,7 +364,7 @@ class SetContents : public Action {
    * \param env The environment this step should be emulated in
    * \param v   Dependency information and any detected changes are reported to this instance
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

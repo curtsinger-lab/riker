@@ -13,6 +13,7 @@
 #include "data/Version.hh"
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
+#include "ui/log.hh"
 #include "util/DependencyVisitor.hh"
 
 using std::dynamic_pointer_cast;
@@ -21,27 +22,33 @@ using std::shared_ptr;
 
 /******* Change Detection *******/
 
-void Pipe::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
-  // Nothing to do for pipes
+void Pipe::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+  // Resolve the reference
+  auto [artifact, rc, created] = env.get(c, shared_from_this());
+
+  // Nothing else to do for pipes; referencing them always creates them.
+  // This IR step should be followed by a SET_CONTENTS step soon after.
 }
 
-void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
-  // Nothing to do for access
-}
+void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+  // Resolve the reference
+  auto [artifact, rc, created] = env.get(c, shared_from_this());
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
-  // Check if the reference resolves the same way
-  auto [artifact, rc, created] = env.get(c, _ref);
-
-  // If the reference succeeds, this command depends on the artifact
-  if (rc == SUCCESS) {
+  // Command c depends on the artifact if it couldn't create it with the reference.
+  // This is true regardless of whether or not the access actually created the artifact.
+  if (rc == SUCCESS && !_flags.create) {
     v.addInput(c, artifact);
   }
+}
+
+void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+  // Check if the reference resolves the same way
+  auto [artifact, rc, created] = env.get(c, _ref);
 
   if (rc != _rc) v.changed(c, shared_from_this());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
@@ -65,7 +72,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
@@ -89,7 +96,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 }
 
-void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
@@ -105,7 +112,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   v.addOutput(c, a);
 }
 
-void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
@@ -121,7 +128,7 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   v.addOutput(c, a);
 }
 
-void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) const {
+void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   // Inform the dependency visitor that command c launches a child command
   v.launched(c, _cmd);
 }
