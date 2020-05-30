@@ -77,7 +77,11 @@ class GraphVisitor : private DependencyVisitor {
       // Add a row for each version
       size_t index = 0;
       for (auto v : artifact->getVersions()) {
-        o << "<tr><td port=\"v" + to_string(index) + "\"></td></tr>";
+        o << "<tr><td port=\"v" + to_string(index) + "\"";
+        if (_changed_versions.find({artifact, index}) != _changed_versions.end()) {
+          o << " bgcolor=\"yellow\"";
+        }
+        o << "></td></tr>";
         index++;
       }
 
@@ -160,6 +164,10 @@ class GraphVisitor : private DependencyVisitor {
     _command_edges.emplace(_command_ids[parent], _command_ids[child]);
   }
 
+  virtual void mismatch(shared_ptr<Artifact> a) override {
+    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  }
+
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {
     _changed.insert(c);
   }
@@ -185,4 +193,7 @@ class GraphVisitor : private DependencyVisitor {
 
   /// The set of commands marked as changed
   set<shared_ptr<Command>> _changed;
+
+  /// The set of artifact versions marked as changed
+  set<pair<shared_ptr<Artifact>, size_t>> _changed_versions;
 };

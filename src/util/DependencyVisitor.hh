@@ -22,6 +22,9 @@ class DependencyVisitor {
   /// Command c depends on artifact a
   virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
+  /// The latest version of an artifact does not match the expected version
+  virtual void mismatch(shared_ptr<Artifact> a) {}
+
   /// The outcome of an IR step has changed since the build trace was collected
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) {}
 

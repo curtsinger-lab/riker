@@ -66,8 +66,9 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   // Record command c's dependency on artifact a
   v.addInput(c, a);
 
-  // Compare versions and return the result
+  // Compare versions and report a change if detected
   if (!_version->metadataMatch(a->getLatestVersion())) {
+    v.mismatch(a);
     v.changed(c, shared_from_this());
   }
 }
@@ -90,8 +91,9 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   // Record command c's dependency on artifact a
   v.addInput(c, a);
 
-  // Compare versions and return the result
+  // Compare versions and report a change if detected
   if (!_version->contentsMatch(a->getLatestVersion())) {
+    v.mismatch(a);
     v.changed(c, shared_from_this());
   }
 }
