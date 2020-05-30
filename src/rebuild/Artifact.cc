@@ -85,6 +85,13 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   return tagNewVersion(c);
 }
 
+// Append an existing version to this artifact
+void Artifact::appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator) {
+  _versions.push_back(v);
+  _creator = creator;
+  v->identify(this);
+}
+
 // Tag a new version of this artifact, created by command c
 shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> c) {
   // The new version has not been accessed
@@ -98,6 +105,7 @@ shared_ptr<Version> Artifact::tagNewVersion(shared_ptr<Command> c) {
   // Create the new version
   auto v = make_shared<Version>();
   _versions.push_back(v);
+  v->identify(this);
   return v;
 }
 

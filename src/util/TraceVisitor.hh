@@ -4,7 +4,9 @@
 #include <ostream>
 #include <set>
 
+#include "data/IR.hh"
 #include "data/Version.hh"
+#include "util/DependencyVisitor.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;
@@ -16,21 +18,28 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class TraceVisitor {
+class TraceVisitor : private DependencyVisitor {
  public:
   /**
    * Print the complete trace for a build
    * \param b               The build to print
    */
-  TraceVisitor(shared_ptr<Command> root) : _root(root) {}
+  TraceVisitor(shared_ptr<Command> root) {
+    // Save the root command
+    _commands.insert(root);
+
+    // Emulate the whole build to reconstruct artifacts
+    root->emulate(_env, *this);
+  }
 
   /// Print the trace from the given build
   void print(ostream& o) {
-    // TODO: Print initial references to stdin, stdout, and stderr
-    // for (auto s : _build.getDefaultReferences()) {
-    //  o << s << endl;
-    //}
-    visit(o, _root);
+    for (auto& c : _commands) {
+      o << c << endl;
+      for (auto& s : c->getSteps()) {
+        o << "  " << s << endl;
+      }
+    }
   }
 
   friend ostream& operator<<(ostream& o, TraceVisitor v) {
@@ -39,21 +48,15 @@ class TraceVisitor {
   }
 
  private:
-  void visit(ostream& o, shared_ptr<Command> c) {
-    // Print the command's name
-    o << c << endl;
-
-    // Print the trace for this command
-    for (auto& s : c->getSteps()) {
-      o << "  " << s << endl;
-    }
-
-    // Print traces for all child commands
-    for (auto& child : c->getChildren()) {
-      visit(o, child);
-    }
-  };
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
+    _commands.insert(child);
+    child->emulate(_env, *this);
+  }
 
  private:
-  shared_ptr<Command> _root;  //< The build we're printing
+  /// The set of all commands
+  set<shared_ptr<Command>> _commands;
+
+  /// The environment used to emulate the build before printing the trace
+  Env _env;
 };

@@ -54,10 +54,7 @@ class Artifact {
   size_t getVersionCount() const { return _versions.size(); }
 
   /// Advance this artifact to a new version
-  void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr) {
-    _versions.push_back(v);
-    _creator = creator;
-  }
+  void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr);
 
   /**
    * Create an initial version of this artifact that is not created by any particular command.
@@ -96,9 +93,9 @@ class Artifact {
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {
     if (auto p = a.getPath(); p.has_value()) {
-      return o << "[Artifact " << p.value() << "]@v" << a._versions.size();
+      return o << "[Artifact " << p.value() << "]@v" << a._versions.size() - 1;
     } else {
-      return o << "[Artifact]@v" << a._versions.size();
+      return o << "[Artifact]@v" << a._versions.size() - 1;
     }
   }
 

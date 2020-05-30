@@ -8,6 +8,7 @@
 
 #include <sys/stat.h>
 
+#include "ui/log.hh"
 #include "util/serializer.hh"
 
 using std::nullopt;
@@ -16,7 +17,9 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+using std::weak_ptr;
 
+class Artifact;
 class Reference;
 
 using Metadata = struct stat;
@@ -58,15 +61,7 @@ class Version : public std::enable_shared_from_this<Version> {
   bool contentsMatch(shared_ptr<Version> other) const;
 
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const Version& v) {
-    /*if (auto p = v.getPath(); p.has_value()) {
-      return o << "[Artifact " << p.value() << "]@v" << v.getVersionNumber();
-    } else {
-      return o << "[Artifact]@v" << v.getVersionNumber();
-    }*/
-    // TODO: Print something useful here
-    return o << "VERSION";
-  }
+  friend ostream& operator<<(ostream& o, const Version& v);
 
   /// Print a Version*
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
@@ -77,4 +72,17 @@ class Version : public std::enable_shared_from_this<Version> {
 
   // Specify fields for serialization
   SERIALIZE(_metadata);
+
+  /******** Transient Fields *********/
+
+  friend class Artifact;
+
+  /// Record a printable identity for this version that has just been attached to a given artifact
+  void identify(const Artifact* a) const;
+
+  /// Copy the identity to or from another version
+  void identify(shared_ptr<Version> other) const;
+
+  /// A printable identity for this version, if one is available
+  mutable optional<string> _identity;
 };
