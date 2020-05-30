@@ -20,5 +20,6 @@ Run the build again, doing nothing this time
 Generate a build graph
   $ ../../dodo graph
 
-Render the graph
-  $ dot -Tpng out.dot > out.png
+Check for the rendered build graph
+  $ file out.png
+  out.png: PNG image .* (re)

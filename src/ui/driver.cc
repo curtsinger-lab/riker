@@ -1,7 +1,9 @@
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -21,6 +23,7 @@ using std::cout;
 using std::make_unique;
 using std::ofstream;
 using std::string;
+using std::stringstream;
 using std::vector;
 
 namespace fs = std::filesystem;
@@ -86,12 +89,21 @@ void do_trace(string output) {
  */
 void do_graph(string output, bool show_sysfiles) {
   auto root = load_build(DatabaseFilename, false);
-  if (output == "-") {
-    cout << GraphVisitor(root, show_sysfiles);
-  } else {
-    ofstream f(output);
-    f << GraphVisitor(root, show_sysfiles);
-  }
+
+  // Send graph source to a stringstream
+  stringstream ss;
+  ss << GraphVisitor(root, show_sysfiles);
+
+  // Write the graph output to a temporary file, then move that file to stdin
+  auto tmp = std::tmpfile();
+  std::fputs(ss.str().c_str(), tmp);
+  std::rewind(tmp);
+  dup2(fileno(tmp), STDIN_FILENO);
+
+  // Exec dot
+  execlp("dot", "dot", "-Tpng", "-o", output.c_str(), NULL);
+
+  FAIL << "Failed to render graph with dot. Is graphviz installed?";
 }
 
 /**
@@ -206,11 +218,11 @@ int main(int argc, char* argv[]) {
   trace->final_callback([&] { do_trace(trace_output); });
 
   /************* Graph Subcommand *************/
-  string graph_output = "out.dot";
+  string graph_output = "out.png";
   bool show_sysfiles = false;
 
   auto graph = app.add_subcommand("graph", "Generate a build graph");
-  graph->add_option("-o,--output", graph_output, "Output file for the graph (default: out.dot)");
+  graph->add_option("-o,--output", graph_output, "Output file for the graph (default: out.png)");
   graph->add_flag("-a,--all", show_sysfiles, "Include system files in graph output");
 
   // Set the callback fo the trace subcommand
