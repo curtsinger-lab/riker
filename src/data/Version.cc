@@ -34,17 +34,14 @@ bool Version::metadataMatch(shared_ptr<Version> other) const {
 
   // We only compare uid, gid, and mode (which covers both type and permissions)
   if (m1.value().st_uid != m2.value().st_uid) {
-    LOG << "uid mismatch";
     return false;
   }
 
   if (m1.value().st_gid != m2.value().st_gid) {
-    LOG << "gid mismatch";
     return false;
   }
 
   if (m1.value().st_mode != m2.value().st_mode) {
-    LOG << "mode mismatch";
     return false;
   }
 
@@ -67,7 +64,6 @@ bool Version::contentsMatch(shared_ptr<Version> other) const {
 
   // We need metadata from both versions to compare
   if (!m1.has_value() || !m2.has_value()) {
-    LOG << "Fingerprint mismatch: missing metadata";
     return false;
   }
 
@@ -77,9 +73,6 @@ bool Version::contentsMatch(shared_ptr<Version> other) const {
     identify(other);
     return true;
   } else {
-    LOG << "Fingerprint mismatch: different mtimes";
-    LOG << "  " << this << ": " << m1.value().st_mtim.tv_sec << ", " << m1.value().st_mtim.tv_nsec;
-    LOG << "  " << other << ": " << m2.value().st_mtim.tv_sec << ", " << m2.value().st_mtim.tv_nsec;
     return false;
   }
 }
