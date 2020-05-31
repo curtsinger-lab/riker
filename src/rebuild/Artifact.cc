@@ -9,6 +9,7 @@
 
 using std::dynamic_pointer_cast;
 using std::make_shared;
+using std::nullopt;
 using std::shared_ptr;
 
 /// Get the path to this artifact, if it has one.

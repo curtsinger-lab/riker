@@ -4,20 +4,16 @@
 #include <optional>
 #include <ostream>
 #include <string>
-#include <vector>
 
 #include <sys/stat.h>
 
 #include "ui/log.hh"
 #include "util/serializer.hh"
 
-using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
-using std::vector;
-using std::weak_ptr;
 
 class Artifact;
 class Reference;
