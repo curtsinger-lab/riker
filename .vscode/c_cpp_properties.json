@@ -4,7 +4,8 @@
       "name": "Linux",
       "includePath": [
         "${workspaceFolder}/src",
-        "${workspaceFolder}/cereal/include"
+        "${workspaceFolder}/deps/cereal/include",
+        "${workspaceFolder}/deps/CLI11/include"
       ],
       "intelliSenseMode": "clang-x64",
       "compilerPath": "/usr/bin/clang",
