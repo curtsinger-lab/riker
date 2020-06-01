@@ -55,8 +55,11 @@ class Rebuild : private DependencyVisitor {
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
   void mark(shared_ptr<Command> c);
 
-  /// Command c depends on the current state of artifact a
-  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+  /// Command c depends on the metadata for artifact a
+  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+
+  /// Command c depends on the contents of artifact a
+  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
   /// IR step s in command c observed a change
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;

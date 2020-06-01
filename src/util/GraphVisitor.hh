@@ -89,9 +89,24 @@ class GraphVisitor : private DependencyVisitor {
       o << "</table>> shape=plain]\n";
     }
 
-    // Create I/O edges
-    for (auto [src, dest] : _io_edges) {
-      o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2]\n";
+    // Create I/O edges for metadata accesses
+    for (auto [src, dest] : _metadata_edges) {
+      o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2 label=\"m";
+
+      // If this edge also appears in _content_edges, label it as both metadata and contents
+      if (_content_edges.find({src, dest}) != _content_edges.end()) {
+        o << "+c";
+      }
+
+      o << "\"]\n";
+    }
+
+    // Create I/O edges for content accesses
+    for (auto [src, dest] : _content_edges) {
+      // Only print this edge if it wasn't already printed as a metadata+content edge
+      if (_metadata_edges.find({src, dest}) == _metadata_edges.end()) {
+        o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2 label=\"c\"]\n";
+      }
     }
 
     o << "}\n";
@@ -144,16 +159,28 @@ class GraphVisitor : private DependencyVisitor {
     return _artifact_ids[a] + ":v" + to_string(a->getVersionCount() - 1);
   }
 
-  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _io_edges.emplace(getVersionID(a), _command_ids[c]);
+    _metadata_edges.emplace(getVersionID(a), _command_ids[c]);
   }
 
-  virtual void addOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _io_edges.emplace(_command_ids[c], getVersionID(a));
+    _content_edges.emplace(getVersionID(a), _command_ids[c]);
+  }
+
+  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    if (isSystemFile(a) && !_show_sysfiles) return;
+
+    _metadata_edges.emplace(_command_ids[c], getVersionID(a));
+  }
+
+  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    if (isSystemFile(a) && !_show_sysfiles) return;
+
+    _content_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
@@ -188,8 +215,11 @@ class GraphVisitor : private DependencyVisitor {
   /// A set of command edges, from parent to child
   set<pair<string, string>> _command_edges;
 
-  /// A set of input/output edges, from source to destination (both inputs and outputs)
-  set<pair<string, string>> _io_edges;
+  /// Input/output edges (source -> dest) that correspond to artifact metadata
+  set<pair<string, string>> _metadata_edges;
+
+  /// Input/output edges (source -> dest) that correspond to artifact contents
+  set<pair<string, string>> _content_edges;
 
   /// The set of commands marked as changed
   set<shared_ptr<Command>> _changed;

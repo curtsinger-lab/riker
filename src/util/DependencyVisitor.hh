@@ -16,11 +16,17 @@ class Predicate;
  */
 class DependencyVisitor {
  public:
-  /// Command c modifies artifact a
-  virtual void addOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
+  /// Command c modifies the metadata for artifact a
+  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
-  /// Command c depends on artifact a
-  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
+  /// Command c modifies the contents of artifact a
+  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
+
+  /// Command c depends on the metadata for artifact a
+  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
+
+  /// Command c depends on the contents of artifact a
+  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// The latest version of an artifact does not match the expected version
   virtual void mismatch(shared_ptr<Artifact> a) {}

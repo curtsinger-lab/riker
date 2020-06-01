@@ -34,11 +34,8 @@ void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   // Resolve the reference
   auto [artifact, rc, created] = env.get(c, shared_from_this());
 
-  // Command c depends on the artifact if it couldn't create it with the reference.
-  // This is true regardless of whether or not the access actually created the artifact.
-  if (rc == SUCCESS && !_flags.create) {
-    v.addInput(c, artifact);
-  }
+  // TODO: Track the depenency of command c on whatever command made the result of this access
+  // possible. This is going to have to happen inside of the path resolution in env.
 }
 
 void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
@@ -64,7 +61,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 
   // Record command c's dependency on artifact a
-  v.addInput(c, a);
+  v.addMetadataInput(c, a);
 
   // Compare versions and report a change if detected
   if (!_version->metadataMatch(a->getMetadata())) {
@@ -89,7 +86,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 
   // Record command c's dependency on artifact a
-  v.addInput(c, a);
+  v.addContentInput(c, a);
 
   // Compare versions and report a change if detected
   if (!_version->contentsMatch(a->getContents())) {
@@ -111,7 +108,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   a->setMetadata(c, _version);
 
   // Report command c's output to artifact a
-  v.addOutput(c, a);
+  v.addMetadataOutput(c, a);
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
@@ -127,7 +124,7 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   a->setContents(c, _version);
 
   // Report command c's output to artifact a
-  v.addOutput(c, a);
+  v.addContentOutput(c, a);
 }
 
 void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {

@@ -117,8 +117,15 @@ ostream& Rebuild::print(ostream& o) const {
   return o;
 }
 
-// Command c depends on artifact a. This method is called by emulate() in Step
-void Rebuild::addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+// Command c depends on the metadata for artifact a
+void Rebuild::addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+  // TODO: any check for caching/staging here?
+  // It seems like we can always stage in metadata changes, since we store all of the relevant stat
+  // fields and could put them in place for any command.
+}
+
+// Command c depends on the contents of artifact a
+void Rebuild::addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // During the planning phase, record this dependency

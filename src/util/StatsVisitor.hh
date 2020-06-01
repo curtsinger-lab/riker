@@ -86,12 +86,21 @@ class StatsVisitor : private DependencyVisitor {
   }
 
   /// Called during emulation to report an output from command c
-  virtual void addOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _artifacts.insert(a);
+  }
+
+  /// Called during emulation to report an output from command c
+  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _artifacts.insert(a);
+  }
+  /// Called during emulation to report an input to command c
+  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
