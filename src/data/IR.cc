@@ -58,7 +58,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 
   // If the resolved artifact has no versions, report a change
-  if (!a->getLatestVersion()) {
+  if (a->empty()) {
     v.changed(c, shared_from_this());
     return;
   }
@@ -67,7 +67,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   v.addInput(c, a);
 
   // Compare versions and report a change if detected
-  if (!_version->metadataMatch(a->getLatestVersion())) {
+  if (!_version->metadataMatch(a->getMetadata())) {
     v.mismatch(a);
     v.changed(c, shared_from_this());
   }
@@ -83,7 +83,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   }
 
   // If the resolved artifact has no versions, report a change
-  if (!a->getLatestVersion()) {
+  if (a->empty()) {
     v.changed(c, shared_from_this());
     return;
   }
@@ -92,7 +92,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& 
   v.addInput(c, a);
 
   // Compare versions and report a change if detected
-  if (!_version->contentsMatch(a->getLatestVersion())) {
+  if (!_version->contentsMatch(a->getContents())) {
     v.mismatch(a);
     v.changed(c, shared_from_this());
   }
@@ -108,7 +108,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   }
 
   // Add the assigned version to the artifact
-  a->appendVersion(_version, c);
+  a->setMetadata(c, _version);
 
   // Report command c's output to artifact a
   v.addOutput(c, a);
@@ -124,7 +124,7 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   }
 
   // Add the assigned version to the artifact
-  a->appendVersion(_version, c);
+  a->setContents(c, _version);
 
   // Report command c's output to artifact a
   v.addOutput(c, a);

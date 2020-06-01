@@ -61,8 +61,8 @@ void Rebuild::run() {
 
   // Finish up by saving metadata and fingerprints for any artifacts left after the build
   for (auto& [ref, artifact] : _env.getArtifacts()) {
-    artifact->getLatestVersion()->saveMetadata(ref);
-    artifact->getLatestVersion()->saveFingerprint(ref);
+    artifact->saveMetadata(ref);
+    artifact->saveFingerprint(ref);
   }
 }
 
@@ -128,7 +128,7 @@ void Rebuild::addInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
       _output_used_by[creator].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && a->getLatestVersion()->isSaved()) {
+      if (options::enable_cache && a->getContents()->isSaved()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
@@ -176,17 +176,15 @@ void Rebuild::checkFinalState() {
     auto creator = a->getCreator();
     if (!creator) continue;
 
-    auto latest = a->getLatestVersion();
-
     // If this artifact's final version is cached, we can just stage it in
-    if (options::enable_cache && latest->isSaved()) continue;
+    if (options::enable_cache && a->getContents()->isSaved()) continue;
 
     // Create a version that represents the on-disk contents reached through this reference
     auto v = make_shared<Version>();
     v->saveFingerprint(ref);
 
     // If the fingerprint doesn't match we will need to rerun the creator
-    if (!v->contentsMatch(a->getLatestVersion())) {
+    if (!v->contentsMatch(a->getContents())) {
       _output_needed.insert(creator);
     }
   }

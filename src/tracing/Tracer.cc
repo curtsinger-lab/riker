@@ -145,7 +145,6 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
 
     // Get the artifact from the environment
     auto [artifact, rc, created] = _env.getFile(cmd, ref);
-    auto latest = artifact->getLatestVersion();
 
     // Open the artifact the command expects in its FD table. Right now, this logic assumes either:
     // 1. The open() call will create/truncate the file, or

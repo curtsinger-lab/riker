@@ -28,8 +28,8 @@ using std::string;
 class Artifact {
  public:
   /**
-   * Create a new artifact from its initial version.
-   * \param version The initial version of this artifact.
+   * Create a new artifact.
+   * \param ref A reference to this artifact used for pretty-printing
    */
   Artifact(shared_ptr<Reference> ref) : _ref(ref) {}
 
@@ -41,25 +41,28 @@ class Artifact {
   Artifact(Artifact&&) = default;
   Artifact& operator=(Artifact&&) = default;
 
-  /// Get the latest version of this artifact
-  shared_ptr<Version> getLatestVersion() const { return _versions.back(); }
-
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getCreator() const { return _creator; }
 
-  /// Get the list of versions of this artifact
-  const list<shared_ptr<Version>>& getVersions() const { return _versions; }
+  /// Get the latest version of this artifact's metadata
+  shared_ptr<Version> getMetadata() const { return _versions.back(); }
+
+  /// Get the latest version of this artifact's contents
+  shared_ptr<Version> getContents() const { return _versions.back(); }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const { return _versions.size(); }
 
-  /// Advance this artifact to a new version
-  void appendVersion(shared_ptr<Version> v, shared_ptr<Command> creator = nullptr);
+  /// Get the list of versions of this artifact
+  const list<shared_ptr<Version>>& getVersions() const { return _versions; }
+
+  /// Check if this artifact has no versions
+  bool empty() const { return _versions.empty(); }
 
   /**
-   * Create an initial version of this artifact that is not created by any particular command.
+   * Create a version of this artifact to reflect what is currently on the filesystem
    */
-  void createInitialVersion() { tagNewVersion(nullptr); }
+  void createExistingVersion();
 
   /**
    * Command c accesses the metadata for this artifact.
@@ -75,19 +78,53 @@ class Artifact {
 
   /**
    * Command c sets the metadata for this artifact.
-   * Return the version created by this operation, or nullptr if no new version is necessary.
+   * This method should be called during execution to record a new version.
+   * \param c The command that has set the metadata for this artifact
+   * \returns the version created by this operation, or nullptr if no new version is necessary.
    */
   shared_ptr<Version> setMetadata(shared_ptr<Command> c);
 
   /**
+   * Command c sets the metadata for this artifact to an existing version.
+   * This method is used to replay the effect of a SET_METADATA step when emulating a command.
+   * \param c The command that sets the metadata for this artifact
+   * \param v The new metadata version that should be appended to this artifact's version list
+   */
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /**
    * Command c sets the contents of this artifact.
-   * Return the version created by this operation, or nullptr if no new version is necessary.
+   * This method should be called during execution to record a new version.
+   * \param c The command that set the contents of this artifact
+   * \returns the version created by this operation, or nullptr if no new version is necessary.
    */
   shared_ptr<Version> setContents(shared_ptr<Command> c);
 
-  /// Get the path to this artifact, if it has one.
-  /// This is ONLY useful for pretty printing artifacts; the actual path(s) to this artifact can
-  /// change during a build.
+  /**
+   * Command c sets the contents of this artifact to an existing version.
+   * This methos is used to replay the effect of a SET_CONTENTS step when emulating a command.
+   * \param c The command that sets the contents of this artifact
+   * \param v The new contents version that should be appended to this artifact's version list
+   */
+  void setContents(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /**
+   * Save the metadata for the latest version of this artifact
+   * \param ref The reference to this artifact that should be used to access metadata
+   */
+  void saveMetadata(shared_ptr<Reference> ref);
+
+  /**
+   * Save a fingerprint of the contents of the latest version of this artifact
+   * \param ref The reference to this artifact that should be used to access contents
+   */
+  void saveFingerprint(shared_ptr<Reference> ref);
+
+  /**
+   * Get the path to this artifact if it has one.
+   * This is ONLY useful for pretty printing artifacts; the actual path(s) to this artifact can
+   * change during a build. Those changes will not be reflected in the path returned here.
+   */
   optional<string> getPath() const;
 
   /// Print this artifact

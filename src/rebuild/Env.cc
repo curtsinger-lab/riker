@@ -129,12 +129,12 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     // Otherwise, the access succeeds. Create an artifact to track this real file.
     auto artifact = make_shared<Artifact>(ref);
 
-    // Because this artifact is on disk, create an initial version to track it
-    artifact->createInitialVersion();
+    // Create an initial version to reflect the on-disk state of this artifact
+    artifact->createExistingVersion();
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
-    artifact->getLatestVersion()->saveMetadata(ref);
-    artifact->getLatestVersion()->saveFingerprint(ref);
+    artifact->saveMetadata(ref);
+    artifact->saveFingerprint(ref);
 
     // Add this new artifact to the map of resolved references
     _files.emplace(ref, artifact);
