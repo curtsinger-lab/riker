@@ -54,7 +54,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getPipe(shared_ptr<Command> c, share
 
   } else {
     // No match found. Create a pipe artifact
-    auto artifact = make_shared<Artifact>(ref);
+    shared_ptr<Artifact> artifact(new Artifact(*this, ref));
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -105,7 +105,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     // TODO: Check to be sure we have permission to create the file
     if (errno == ENOENT && flags.create) {
       // Create the artifact
-      auto artifact = make_shared<Artifact>(ref);
+      shared_ptr<Artifact> artifact(new Artifact(*this, ref));
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -127,7 +127,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = make_shared<Artifact>(ref);
+    shared_ptr<Artifact> artifact(new Artifact(*this, ref));
 
     // Create an initial version to reflect the on-disk state of this artifact
     artifact->createExistingVersion();

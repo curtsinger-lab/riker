@@ -1,16 +1,22 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include <sys/types.h>
 
+#include "util/BuildObserver.hh"
+
 using std::map;
+using std::reference_wrapper;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
+using std::vector;
 
 class Access;
 class Artifact;
@@ -26,6 +32,21 @@ class Reference;
  */
 class Env {
  public:
+  /**
+   * Create an environment for build emulation or execution.
+   * \param observer This build observer will be notified of dependencies and changes as the build
+   *                 unfolds.
+   */
+  Env(BuildObserver& observer) : _observer(observer) {}
+
+  // Disallow Copy
+  Env(const Env&) = delete;
+  Env& operator=(const Env&) = delete;
+
+  // Allow Move
+  Env(Env&&) = default;
+  Env& operator=(Env&&) = default;
+
   /**
    * Reset this environment to a safe starting state
    */
@@ -58,6 +79,43 @@ class Env {
   /// Get an iterable view of the artifacts currently in this environment.
   const map<shared_ptr<Access>, shared_ptr<Artifact>>& getArtifacts() { return _files; }
 
+  /********** Observer Interface **********/
+
+  /// Inform the observer that command c modified the metadata of artifact a
+  void observeMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().addMetadataOutput(c, a);
+  }
+
+  /// Inform the observer that command c modified the contents of artifact a
+  void observeContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().addContentOutput(c, a);
+  }
+
+  /// Inform the observer that command c accessed the metadata of artifact a
+  void observeMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().addMetadataInput(c, a);
+  }
+
+  /// Inform the observer that command c accessed the contents of artifact a
+  void observeContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().addContentInput(c, a);
+  }
+
+  /// Inform the observer that command c did not find the expected version of artifact a
+  void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().mismatch(c, a);
+  }
+
+  /// Inform the observer that a given command's IR action would detect a change in the build env
+  void observeChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
+    _observer.get().changed(c, s);
+  }
+
+  /// Inform the observer that a command has launched another command
+  void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) {
+    _observer.get().launched(parent, child);
+  }
+
  private:
   /// An emulated filesystem for artifacts in this environment
   map<string, shared_ptr<Artifact>> _filesystem;
@@ -67,4 +125,7 @@ class Env {
 
   /// The pipe artifacts used in this environment
   map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
+
+  /// An observer who should be notified of dependency and change events
+  reference_wrapper<BuildObserver> _observer;
 };

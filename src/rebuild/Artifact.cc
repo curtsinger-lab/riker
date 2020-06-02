@@ -5,6 +5,7 @@
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
+#include "rebuild/Env.hh"
 #include "ui/options.hh"
 
 using std::dynamic_pointer_cast;
@@ -37,9 +38,28 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   // Add this check to the set of metadata checks. If the check is not new, we can return.
   if (options::skip_repeat_checks && metadataAccessedBy(c)) return nullptr;
 
-  // Get the latest version, mark it as accessed, and return it
+  // The latest version has now been accessed
   _accessed = true;
-  return getMetadata();
+
+  // Get the version we'll return
+  auto result = getMetadata();
+
+  // Inform the environment of this input
+  _env.get().observeMetadataInput(c, shared_from_this());
+
+  // All done
+  return result;
+}
+
+// Command c checks whether this artifact's metadata matches an expected version
+void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
+  // Inform the environment of this input
+  _env.get().observeMetadataInput(c, shared_from_this());
+
+  // Compare versions
+  if (!getMetadata()->metadataMatch(v)) {
+    _env.get().observeMismatch(c, shared_from_this());
+  }
 }
 
 // Command c accesses this artifact's contents
@@ -52,9 +72,28 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   // Add this check to the set of contents checks. If the check is not new, we can return.
   if (options::skip_repeat_checks && contentsAccessedBy(c)) return nullptr;
 
-  // Get the latest version, mark it as accessed, and return it
+  // The latest version has now been accessed
   _accessed = true;
-  return getContents();
+
+  // Get the version we'll return
+  auto result = getContents();
+
+  // Inform the environment of this input
+  _env.get().observeContentInput(c, shared_from_this());
+
+  // All done
+  return result;
+}
+
+// Command c checks whether this artifact's content matches an expected version
+void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
+  // Inform the environment of this input
+  _env.get().observeContentInput(c, shared_from_this());
+
+  // Compare versions
+  if (!getContents()->contentsMatch(v)) {
+    _env.get().observeMismatch(c, shared_from_this());
+  }
 }
 
 // Command c sets the metadata for this artifact.
@@ -64,7 +103,13 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c) {
   // an update to the metadata of any artifact along that path (e.g. /, /foo, /foo/bar, ...)
 
   // Create a new version
-  return tagNewVersion(c);
+  auto result = tagNewVersion(c);
+
+  // Inform the environment of this output
+  _env.get().observeMetadataOutput(c, shared_from_this());
+
+  // Return the newly-tagged version
+  return result;
 }
 
 // Command c sets the metadata for this artifact to an existing version. Used during emulation.
@@ -82,6 +127,9 @@ void Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
 
   // Identify the version for pretty-printing
   v->identify(this);
+
+  // Inform the environment of this output
+  _env.get().observeMetadataOutput(c, shared_from_this());
 }
 
 // Command c sets the contents of this artifact.
@@ -94,7 +142,13 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   }
 
   // If we reach this point, the command is creating a new version of the artifact
-  return tagNewVersion(c);
+  auto result = tagNewVersion(c);
+
+  // Inform the environment of this output
+  _env.get().observeContentOutput(c, shared_from_this());
+
+  // Return the newly-tagged version
+  return result;
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
@@ -112,6 +166,9 @@ void Artifact::setContents(shared_ptr<Command> c, shared_ptr<Version> v) {
 
   // Identify the version for pretty-printing
   v->identify(this);
+
+  // Inform the environment of this output
+  _env.get().observeContentOutput(c, shared_from_this());
 }
 
 // Tag a new version of this artifact, created by command c

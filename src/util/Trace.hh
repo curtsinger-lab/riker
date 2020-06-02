@@ -24,12 +24,12 @@ class Trace : private BuildObserver {
    * Print the complete trace for a build
    * \param b               The build to print
    */
-  Trace(shared_ptr<Command> root) {
+  Trace(shared_ptr<Command> root) : _env(*this) {
     // Save the root command
     _commands.insert(root);
 
     // Emulate the whole build to reconstruct artifacts
-    root->emulate(_env, *this);
+    root->emulate(_env);
   }
 
   /// Print the trace from the given build
@@ -50,13 +50,13 @@ class Trace : private BuildObserver {
  private:
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
     _commands.insert(child);
-    child->emulate(_env, *this);
+    child->emulate(_env);
   }
 
  private:
-  /// The set of all commands
-  set<shared_ptr<Command>> _commands;
-
   /// The environment used to emulate the build before printing the trace
   Env _env;
+
+  /// The set of all commands
+  set<shared_ptr<Command>> _commands;
 };

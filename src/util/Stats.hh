@@ -26,7 +26,8 @@ class Stats : private BuildObserver {
    * \param b               The build to analyze
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
-  Stats(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
+  Stats(shared_ptr<Command> root, bool list_artifacts) :
+      _env(*this), _list_artifacts(list_artifacts) {
     // Get stats from the root command
     processCommand(root);
 
@@ -82,7 +83,7 @@ class Stats : private BuildObserver {
     _step_count += c->getSteps().size();
 
     // Emulate the command to traverse the build trace
-    c->emulate(_env, *this);
+    c->emulate(_env);
   }
 
   /// Called during emulation to report an output from command c
@@ -111,10 +112,11 @@ class Stats : private BuildObserver {
   }
 
  private:
-  bool _list_artifacts;  //< Should the stats include a list of artifacts?
-
   /// The environment used to emulate the build trace
   Env _env;
+
+  /// Should the stats include a list of artifacts?
+  bool _list_artifacts;
 
   /// The total number of commands in the build trace
   size_t _command_count = 0;

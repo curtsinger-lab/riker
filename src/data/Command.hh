@@ -86,8 +86,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
   /// Emulate the steps of this command in a given environment
-  /// Report all dependency and change information to the observer o
-  void emulate(Env& env, BuildObserver& o);
+  void emulate(Env& env);
 
   /********* Command Tracing Operations **********/
 

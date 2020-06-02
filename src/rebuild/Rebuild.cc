@@ -21,7 +21,7 @@ using std::make_shared;
 using std::ostream;
 
 // Create a rebuild plan
-Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
+Rebuild::Rebuild(shared_ptr<Command> root) : _root(root), _env(*this) {
   // Record that we are in the planning phase of the rebuild
   _phase = RebuildPhase::Planning;
 
@@ -31,7 +31,7 @@ Rebuild::Rebuild(shared_ptr<Command> root) : _root(root) {
     _changed.insert(_root);
   } else {
     // Otherwise, emulate the root command to track dependencies and changes
-    _root->emulate(_env, *this);
+    _root->emulate(_env);
   }
 
   // Check the final outputs of the emulated build against the filesystem
@@ -83,7 +83,7 @@ void Rebuild::runCommand(shared_ptr<Command> c) {
     }
 
   } else {
-    c->emulate(_env, *this);
+    c->emulate(_env);
   }
 }
 
@@ -150,6 +150,18 @@ void Rebuild::addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   }
 }
 
+void Rebuild::mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+  // Are we planning or running the rebuild?
+  if (_phase == RebuildPhase::Planning) {
+    // Record the change
+    LOG << c << " changed: " << a;
+    _changed.insert(c);
+  } else {
+    // We shouldn't detect changes in the running phase, so this is a failure
+    WARN << "Unexpected change detected during rebuild: " << c;
+  }
+}
+
 // IR step s in command c observed a change. This method is called by emulate() in Step
 void Rebuild::changed(shared_ptr<Command> c, shared_ptr<const Step> s) {
   // Are we planning or running the rebuild?
@@ -168,7 +180,7 @@ void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // In the planning phase, we always emulate the child command to capture its dependencies
-    child->emulate(_env, *this);
+    child->emulate(_env);
   } else {
     // If we are actually running the rebuild, call runCommand to decide whether to run or emulate
     runCommand(child);

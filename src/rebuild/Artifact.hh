@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
@@ -14,9 +15,12 @@ class Version;
 using std::list;
 using std::optional;
 using std::ostream;
+using std::reference_wrapper;
 using std::set;
 using std::shared_ptr;
 using std::string;
+
+class Env;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact
@@ -25,14 +29,16 @@ using std::string;
  * ensure all operations on a given file, pipe, etc. refer to the latest versions of that
  * artifact.
  */
-class Artifact {
- public:
+class Artifact : public std::enable_shared_from_this<Artifact> {
+ private:
+  friend class Env;
   /**
-   * Create a new artifact.
+   * Create a new artifact. Only accessibly to this class and Env
    * \param ref A reference to this artifact used for pretty-printing
    */
-  Artifact(shared_ptr<Reference> ref) : _ref(ref) {}
+  Artifact(Env& env, shared_ptr<Reference> ref) : _env(env), _ref(ref) {}
 
+ public:
   // Disallow Copy
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
@@ -71,10 +77,22 @@ class Artifact {
   shared_ptr<Version> accessMetadata(shared_ptr<Command> c);
 
   /**
+   * Command c expects this artifact's metadata to match a given version.
+   * Perform the check and report a change if detected.
+   */
+  void checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /**
    * Command c accesses the contents of this artifact.
    * Return the version c will observe, or nullptr if this version has already been accessed.
    */
   shared_ptr<Version> accessContents(shared_ptr<Command> c);
+
+  /**
+   * Command c expects this artifact's contents to match a given version.
+   * Perform the check and report a change if detected.
+   */
+  void checkContents(shared_ptr<Command> c, shared_ptr<Version> v);
 
   /**
    * Command c sets the metadata for this artifact.
@@ -140,6 +158,9 @@ class Artifact {
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
 
  private:
+  /// The environment that manages this artifact
+  reference_wrapper<Env> _env;
+
   /// Tag a new version of this artifact created by command c (may be nullptr)
   shared_ptr<Version> tagNewVersion(shared_ptr<Command> c);
 

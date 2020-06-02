@@ -61,6 +61,9 @@ class Rebuild : private BuildObserver {
   /// Command c depends on the contents of artifact a
   virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
+  /// Command c did not find the expected version of an artifact a
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+
   /// IR step s in command c observed a change
   virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override;
 

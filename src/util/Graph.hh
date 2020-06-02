@@ -31,7 +31,7 @@ class Graph : private BuildObserver {
    * \param root           The root command in the build graph
    * \param show_sysfiles  If true, include artifacts that are system files
    */
-  Graph(shared_ptr<Command> root, bool show_sysfiles) : _show_sysfiles(show_sysfiles) {
+  Graph(shared_ptr<Command> root, bool show_sysfiles) : _env(*this), _show_sysfiles(show_sysfiles) {
     processCommand(root);
   }
 
@@ -143,7 +143,7 @@ class Graph : private BuildObserver {
     _command_ids.emplace(c, string("c") + to_string(c->getID()));
 
     // Emulate the command to gather its dependencies and children
-    c->emulate(_env, *this);
+    c->emulate(_env);
   }
 
   void processArtifact(shared_ptr<Artifact> a) {
@@ -191,7 +191,8 @@ class Graph : private BuildObserver {
     _command_edges.emplace(_command_ids[parent], _command_ids[child]);
   }
 
-  virtual void mismatch(shared_ptr<Artifact> a) override {
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _changed.insert(c);
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
@@ -200,11 +201,11 @@ class Graph : private BuildObserver {
   }
 
  private:
-  /// Should the graph output include system files?
-  bool _show_sysfiles;
-
   /// The environment used to emulate the build trace
   Env _env;
+
+  /// Should the graph output include system files?
+  bool _show_sysfiles;
 
   /// A map from commands to their IDs in the graph output
   map<shared_ptr<Command>, string> _command_ids;

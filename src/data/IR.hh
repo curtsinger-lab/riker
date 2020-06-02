@@ -36,13 +36,11 @@ class Step {
   virtual ~Step() = default;
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) = 0;
+  virtual void emulate(shared_ptr<Command> c, Env& env) = 0;
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
@@ -83,13 +81,11 @@ class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
   Pipe() = default;
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -121,13 +117,11 @@ class Access : public Reference, public std::enable_shared_from_this<Access> {
   int access() const;
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -171,13 +165,11 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
   int getResult() const { return _rc; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -207,13 +199,11 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
   shared_ptr<Version> getVersion() const { return _version; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -243,13 +233,11 @@ class ContentsMatch : public Predicate, public std::enable_shared_from_this<Cont
   shared_ptr<Version> getVersion() const { return _version; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -291,13 +279,11 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
   shared_ptr<Command> getCommand() const { return _cmd; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -324,13 +310,11 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
   shared_ptr<Version> getVersion() const { return _version; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -358,13 +342,11 @@ class SetContents : public Action, public std::enable_shared_from_this<SetConten
   shared_ptr<Version> getVersion() const { return _version; }
 
   /**
-   * Emulate this IR step in a given environment, and report any dependency and change information
-   * to the DependencyVisitor.
+   * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;
