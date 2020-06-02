@@ -49,22 +49,22 @@ class Trace : private BuildObserver {
 
  private:
   /// Command c modifies the metadata for artifact a (unused)
-  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// Command c modifies the contents of artifact a (unused)
-  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// Command c depends on the metadata for artifact a (unused)
-  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// Command c depends on the contents of artifact a (unused)
-  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// Command c does not find the expected version of an artifact (unused)
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// The outcome of an IR step has changed since the build trace was collected (unused)
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
 
   /// A command is about to be launched. The visitor can choose whether or not to emulate it
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {

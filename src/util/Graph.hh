@@ -160,25 +160,25 @@ class Graph : private BuildObserver {
     return _artifact_ids[a] + ":v" + to_string(a->getVersionCount() - 1);
   }
 
-  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _metadata_edges.emplace(getVersionID(a), _command_ids[c]);
   }
 
-  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _content_edges.emplace(getVersionID(a), _command_ids[c]);
   }
 
-  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _metadata_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
-  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _content_edges.emplace(_command_ids[c], getVersionID(a));
@@ -189,7 +189,7 @@ class Graph : private BuildObserver {
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
     _changed.insert(c);
   }
 

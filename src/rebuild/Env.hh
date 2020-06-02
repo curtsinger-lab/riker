@@ -89,22 +89,22 @@ class Env {
 
   /// Inform the observer that command c modified the metadata of artifact a
   void observeMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().addMetadataOutput(c, a);
+    _observer.get().metadataOutput(c, a);
   }
 
   /// Inform the observer that command c modified the contents of artifact a
   void observeContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().addContentOutput(c, a);
+    _observer.get().contentOutput(c, a);
   }
 
   /// Inform the observer that command c accessed the metadata of artifact a
   void observeMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().addMetadataInput(c, a);
+    _observer.get().metadataInput(c, a);
   }
 
   /// Inform the observer that command c accessed the contents of artifact a
   void observeContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().addContentInput(c, a);
+    _observer.get().contentInput(c, a);
   }
 
   /// Inform the observer that command c did not find the expected version of artifact a
@@ -114,7 +114,7 @@ class Env {
 
   /// Inform the observer that a given command's IR action would detect a change in the build env
   void observeChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
-    _observer.get().changed(c, s);
+    _observer.get().commandChanged(c, s);
   }
 
   /// Inform the observer that a command has launched another command

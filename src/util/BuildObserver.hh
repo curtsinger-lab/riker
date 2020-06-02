@@ -18,22 +18,22 @@ class Step;
 class BuildObserver {
  public:
   /// Command c modifies the metadata for artifact a
-  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// Command c modifies the contents of artifact a
-  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// Command c depends on the metadata for artifact a
-  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// Command c depends on the contents of artifact a
-  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// Command c does not find the expected version of an artifact
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) = 0;
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) = 0;
 
   /// A command is about to be launched. The visitor can choose whether or not to emulate it.
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) = 0;

@@ -87,22 +87,22 @@ class Stats : private BuildObserver {
   }
 
   /// Called during emulation to report an output from command c
-  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an output from command c
-  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
 
@@ -110,7 +110,7 @@ class Stats : private BuildObserver {
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// The outcome of an IR step has changed since the build trace was collected (unused)
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
 
   /// Called each time a command emulates a launch step
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {

@@ -118,14 +118,14 @@ ostream& Rebuild::print(ostream& o) const {
 }
 
 // Command c depends on the metadata for artifact a
-void Rebuild::addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+void Rebuild::metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   // TODO: any check for caching/staging here?
   // It seems like we can always stage in metadata changes, since we store all of the relevant stat
   // fields and could put them in place for any command.
 }
 
 // Command c depends on the contents of artifact a
-void Rebuild::addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+void Rebuild::contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // During the planning phase, record this dependency
@@ -163,7 +163,7 @@ void Rebuild::mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
 }
 
 // IR step s in command c observed a change. This method is called by emulate() in Step
-void Rebuild::changed(shared_ptr<Command> c, shared_ptr<const Step> s) {
+void Rebuild::commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // Record the change
