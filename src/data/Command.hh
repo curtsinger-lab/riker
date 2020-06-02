@@ -21,7 +21,7 @@ using std::vector;
 
 class Access;
 class Artifact;
-class DependencyVisitor;
+class BuildObserver;
 class Env;
 class Pipe;
 class Reference;
@@ -85,9 +85,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
-  /// Emulate the steps of this command in a given environment. Report all dependency and change
-  /// information to the dependency visitor v.
-  void emulate(Env& env, DependencyVisitor& v);
+  /// Emulate the steps of this command in a given environment
+  /// Report all dependency and change information to the observer o
+  void emulate(Env& env, BuildObserver& o);
 
   /********* Command Tracing Operations **********/
 

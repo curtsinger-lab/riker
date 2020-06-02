@@ -9,7 +9,7 @@
 #include "data/Version.hh"
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
-#include "util/DependencyVisitor.hh"
+#include "util/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;
@@ -24,14 +24,14 @@ using std::to_string;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class GraphVisitor : private DependencyVisitor {
+class Graph : private BuildObserver {
  public:
   /**
    * Print graphviz output for a completed build
    * \param root           The root command in the build graph
    * \param show_sysfiles  If true, include artifacts that are system files
    */
-  GraphVisitor(shared_ptr<Command> root, bool show_sysfiles) : _show_sysfiles(show_sysfiles) {
+  Graph(shared_ptr<Command> root, bool show_sysfiles) : _show_sysfiles(show_sysfiles) {
     processCommand(root);
   }
 
@@ -112,7 +112,7 @@ class GraphVisitor : private DependencyVisitor {
     o << "}\n";
   }
 
-  friend ostream& operator<<(ostream& o, GraphVisitor v) {
+  friend ostream& operator<<(ostream& o, Graph v) {
     v.print(o);
     return o;
   }

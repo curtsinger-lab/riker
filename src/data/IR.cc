@@ -14,7 +14,7 @@
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
 #include "ui/log.hh"
-#include "util/DependencyVisitor.hh"
+#include "util/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::ostream;
@@ -22,7 +22,7 @@ using std::shared_ptr;
 
 /******* Change Detection *******/
 
-void Pipe::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void Pipe::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   // Resolve the reference
   auto [artifact, rc, created] = env.get(c, shared_from_this());
 
@@ -30,7 +30,7 @@ void Pipe::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   // This IR step should be followed by a SET_CONTENTS step soon after.
 }
 
-void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void Access::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   // Resolve the reference
   auto [artifact, rc, created] = env.get(c, shared_from_this());
 
@@ -38,69 +38,69 @@ void Access::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
   // possible. This is going to have to happen inside of the path resolution in env.
 }
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void ReferenceResult::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   // Check if the reference resolves the same way
   auto [artifact, rc, created] = env.get(c, _ref);
 
-  if (rc != _rc) v.changed(c, shared_from_this());
+  if (rc != _rc) o.changed(c, shared_from_this());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void MetadataMatch::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
   // Record command c's dependency on artifact a
-  v.addMetadataInput(c, a);
+  o.addMetadataInput(c, a);
 
   // Compare versions and report a change if detected
   if (!_version->metadataMatch(a->getMetadata())) {
-    v.mismatch(a);
-    v.changed(c, shared_from_this());
+    o.mismatch(a);
+    o.changed(c, shared_from_this());
   }
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void ContentsMatch::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
   // Record command c's dependency on artifact a
-  v.addContentInput(c, a);
+  o.addContentInput(c, a);
 
   // Compare versions and report a change if detected
   if (!_version->contentsMatch(a->getContents())) {
-    v.mismatch(a);
-    v.changed(c, shared_from_this());
+    o.mismatch(a);
+    o.changed(c, shared_from_this());
   }
 }
 
-void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void SetMetadata::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
@@ -108,15 +108,15 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   a->setMetadata(c, _version);
 
   // Report command c's output to artifact a
-  v.addMetadataOutput(c, a);
+  o.addMetadataOutput(c, a);
 }
 
-void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void SetContents::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   auto [a, rc, created] = env.get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    v.changed(c, shared_from_this());
+    o.changed(c, shared_from_this());
     return;
   }
 
@@ -124,12 +124,12 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v)
   a->setContents(c, _version);
 
   // Report command c's output to artifact a
-  v.addContentOutput(c, a);
+  o.addContentOutput(c, a);
 }
 
-void Launch::emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) {
+void Launch::emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) {
   // Inform the dependency visitor that command c launches a child command
-  v.launched(c, _cmd);
+  o.launched(c, _cmd);
 }
 
 /******************* Access Methods ********************/

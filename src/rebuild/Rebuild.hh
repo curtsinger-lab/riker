@@ -11,7 +11,7 @@
 #include "rebuild/Artifact.hh"
 #include "rebuild/Env.hh"
 #include "tracing/Tracer.hh"
-#include "util/DependencyVisitor.hh"
+#include "util/BuildObserver.hh"
 
 using std::map;
 using std::ostream;
@@ -23,7 +23,7 @@ class Reference;
 class Pipe;
 
 /// This class captures all of the logic and state required to plan a rebuild.
-class Rebuild : private DependencyVisitor {
+class Rebuild : private BuildObserver {
  public:
   /// Create a rebuild plan
   Rebuild(shared_ptr<Command> root);

@@ -93,9 +93,9 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::emulate(Env& env, DependencyVisitor& v) {
+void Command::emulate(Env& env, BuildObserver& o) {
   for (auto step : _steps) {
-    step->emulate(shared_from_this(), env, v);
+    step->emulate(shared_from_this(), env, o);
   }
 }
 

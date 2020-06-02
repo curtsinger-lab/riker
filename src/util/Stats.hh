@@ -7,7 +7,7 @@
 #include "data/Command.hh"
 #include "data/Version.hh"
 #include "rebuild/Env.hh"
-#include "util/DependencyVisitor.hh"
+#include "util/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;
@@ -19,14 +19,14 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class StatsVisitor : private DependencyVisitor {
+class Stats : private BuildObserver {
  public:
   /**
    * Gather statistics for a completed build
    * \param b               The build to analyze
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
-  StatsVisitor(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
+  Stats(shared_ptr<Command> root, bool list_artifacts) : _list_artifacts(list_artifacts) {
     // Get stats from the root command
     processCommand(root);
 
@@ -69,7 +69,7 @@ class StatsVisitor : private DependencyVisitor {
     }
   }
 
-  friend ostream& operator<<(ostream& o, StatsVisitor v) {
+  friend ostream& operator<<(ostream& o, Stats v) {
     v.print(o);
     return o;
   }

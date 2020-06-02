@@ -6,7 +6,7 @@
 
 #include "data/IR.hh"
 #include "data/Version.hh"
-#include "util/DependencyVisitor.hh"
+#include "util/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;
@@ -18,13 +18,13 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class TraceVisitor : private DependencyVisitor {
+class Trace : private BuildObserver {
  public:
   /**
    * Print the complete trace for a build
    * \param b               The build to print
    */
-  TraceVisitor(shared_ptr<Command> root) {
+  Trace(shared_ptr<Command> root) {
     // Save the root command
     _commands.insert(root);
 
@@ -42,7 +42,7 @@ class TraceVisitor : private DependencyVisitor {
     }
   }
 
-  friend ostream& operator<<(ostream& o, TraceVisitor v) {
+  friend ostream& operator<<(ostream& o, Trace v) {
     v.print(o);
     return o;
   }

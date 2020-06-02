@@ -14,9 +14,9 @@
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
-#include "util/GraphVisitor.hh"
-#include "util/StatsVisitor.hh"
-#include "util/TraceVisitor.hh"
+#include "util/Graph.hh"
+#include "util/Stats.hh"
+#include "util/Trace.hh"
 #include "util/serializer.hh"
 
 using std::cout;
@@ -75,10 +75,10 @@ void do_check() {
 void do_trace(string output) {
   auto root = load_build(DatabaseFilename, false);
   if (output == "-") {
-    cout << TraceVisitor(root);
+    cout << Trace(root);
   } else {
     ofstream f(output);
-    f << TraceVisitor(root);
+    f << Trace(root);
   }
 }
 
@@ -92,7 +92,7 @@ void do_graph(string output, bool show_sysfiles) {
 
   // Send graph source to a stringstream
   stringstream ss;
-  ss << GraphVisitor(root, show_sysfiles);
+  ss << Graph(root, show_sysfiles);
 
   // Write the graph output to a temporary file, then move that file to stdin
   auto tmp = std::tmpfile();
@@ -112,7 +112,7 @@ void do_graph(string output, bool show_sysfiles) {
  */
 void do_stats(bool list_artifacts) {
   auto root = load_build(DatabaseFilename, false);
-  cout << StatsVisitor(root, list_artifacts);
+  cout << Stats(root, list_artifacts);
 }
 
 /**

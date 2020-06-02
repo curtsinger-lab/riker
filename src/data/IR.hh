@@ -15,8 +15,8 @@ using std::string;
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int { SUCCESS = 0 };
 
+class BuildObserver;
 class Command;
-class DependencyVisitor;
 class Env;
 class Version;
 
@@ -40,9 +40,9 @@ class Step {
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) = 0;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) = 0;
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
@@ -87,9 +87,9 @@ class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -125,9 +125,9 @@ class Access : public Reference, public std::enable_shared_from_this<Access> {
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -175,9 +175,9 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -211,9 +211,9 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -247,9 +247,9 @@ class ContentsMatch : public Predicate, public std::enable_shared_from_this<Cont
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -295,9 +295,9 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -328,9 +328,9 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -362,9 +362,9 @@ class SetContents : public Action, public std::enable_shared_from_this<SetConten
    * to the DependencyVisitor.
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
-   * \param v   Dependency information and any detected changes are reported to this instance
+   * \param o   Dependency information and any detected changes are reported to this observer
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env, DependencyVisitor& v) override;
+  virtual void emulate(shared_ptr<Command> c, Env& env, BuildObserver& o) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

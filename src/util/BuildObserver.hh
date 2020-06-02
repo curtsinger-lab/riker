@@ -14,7 +14,7 @@ class Predicate;
  * class tracks command dependencies and changed predicates to select the set of commands that will
  * run during a rebuild.
  */
-class DependencyVisitor {
+class BuildObserver {
  public:
   /// Command c modifies the metadata for artifact a
   virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
