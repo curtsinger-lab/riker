@@ -9,9 +9,9 @@
 #include "data/Command.hh"
 #include "data/InitialFD.hh"
 #include "rebuild/Artifact.hh"
+#include "rebuild/BuildObserver.hh"
 #include "rebuild/Env.hh"
 #include "tracing/Tracer.hh"
-#include "util/BuildObserver.hh"
 
 using std::map;
 using std::ostream;

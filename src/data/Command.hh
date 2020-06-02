@@ -9,8 +9,8 @@
 
 #include "data/AccessFlags.hh"
 #include "data/InitialFD.hh"
+#include "data/serializer.hh"
 #include "util/UniqueID.hh"
-#include "util/serializer.hh"
 
 using std::list;
 using std::map;

@@ -7,8 +7,8 @@
 
 #include <sys/stat.h>
 
+#include "data/serializer.hh"
 #include "ui/log.hh"
-#include "util/serializer.hh"
 
 using std::optional;
 using std::ostream;

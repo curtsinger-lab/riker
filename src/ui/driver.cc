@@ -11,13 +11,13 @@
 
 #include <CLI/CLI.hpp>
 
+#include "data/serializer.hh"
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 #include "util/Graph.hh"
 #include "util/Stats.hh"
 #include "util/Trace.hh"
-#include "util/serializer.hh"
 
 using std::cout;
 using std::make_unique;

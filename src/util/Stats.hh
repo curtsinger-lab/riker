@@ -6,8 +6,8 @@
 
 #include "data/Command.hh"
 #include "data/Version.hh"
+#include "rebuild/BuildObserver.hh"
 #include "rebuild/Env.hh"
-#include "util/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

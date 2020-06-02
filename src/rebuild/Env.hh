@@ -9,7 +9,7 @@
 
 #include <sys/types.h>
 
-#include "util/BuildObserver.hh"
+#include "rebuild/BuildObserver.hh"
 
 using std::map;
 using std::reference_wrapper;

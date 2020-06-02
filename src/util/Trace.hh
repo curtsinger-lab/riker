@@ -6,7 +6,7 @@
 
 #include "data/IR.hh"
 #include "data/Version.hh"
-#include "util/BuildObserver.hh"
+#include "rebuild/BuildObserver.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

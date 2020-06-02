@@ -5,8 +5,8 @@
 #include <string>
 
 #include "data/AccessFlags.hh"
+#include "data/serializer.hh"
 #include "util/UniqueID.hh"
-#include "util/serializer.hh"
 
 using std::ostream;
 using std::shared_ptr;

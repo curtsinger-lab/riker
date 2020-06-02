@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "util/serializer.hh"
+#include "data/serializer.hh"
 
 using std::shared_ptr;
 
