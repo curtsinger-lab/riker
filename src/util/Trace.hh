@@ -60,8 +60,11 @@ class Trace : private BuildObserver {
   /// Command c depends on the contents of artifact a (unused)
   virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
-  /// Command c does not find the expected version of an artifact (unused)
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  /// Command c does not find the expected metadata in an artifact (unused)
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c does not find the expected content in an artifact (unused)
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
   /// The outcome of an IR step has changed since the build trace was collected (unused)
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}

@@ -64,8 +64,11 @@ class Rebuild : private BuildObserver {
   /// Command c writes the contents of artifact a (unused)
   virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
 
-  /// Command c did not find the expected version of an artifact a
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+  /// Command c did not find the expected metadata in artifact a
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
+
+  /// Command c did not find the expected metadata in artifact a
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
   /// IR step s in command c observed a change
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override;

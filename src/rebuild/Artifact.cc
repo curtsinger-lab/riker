@@ -58,7 +58,7 @@ void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
 
   // Compare versions
   if (!_versions.back()->metadataMatch(v)) {
-    _env.get().observeMismatch(c, shared_from_this());
+    _env.get().observeMetadataMismatch(c, shared_from_this());
   }
 }
 
@@ -89,7 +89,7 @@ void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
 
   // Compare versions
   if (!_versions.back()->contentsMatch(v)) {
-    _env.get().observeMismatch(c, shared_from_this());
+    _env.get().observeContentMismatch(c, shared_from_this());
   }
 }
 

@@ -107,13 +107,18 @@ class Env {
     _observer.get().contentInput(c, a);
   }
 
-  /// Inform the observer that command c did not find the expected version of artifact a
-  void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().mismatch(c, a);
+  /// Inform the observer that command c did not find the expected metadata in artifact a
+  void observeMetadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().metadataMismatch(c, a);
+  }
+
+  /// Inform the observer that command c did not find the expected contents in artifact a
+  void observeContentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+    _observer.get().contentMismatch(c, a);
   }
 
   /// Inform the observer that a given command's IR action would detect a change in the build env
-  void observeChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
+  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
     _observer.get().commandChanged(c, s);
   }
 

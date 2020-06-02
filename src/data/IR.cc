@@ -42,7 +42,7 @@ void ReferenceResult::emulate(shared_ptr<Command> c, Env& env) {
   // Check if the reference resolves the same way
   auto [artifact, rc, created] = env.get(c, _ref);
 
-  if (rc != _rc) env.observeChange(c, shared_from_this());
+  if (rc != _rc) env.observeCommandChange(c, shared_from_this());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Env& env) {
@@ -50,13 +50,13 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env) {
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -69,13 +69,13 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env) {
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -88,7 +88,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env) {
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -101,7 +101,7 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env) {
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeChange(c, shared_from_this());
+    env.observeCommandChange(c, shared_from_this());
     return;
   }
 

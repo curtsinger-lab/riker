@@ -184,7 +184,12 @@ class Graph : private BuildObserver {
     _content_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _changed.insert(c);
+    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  }
+
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _changed.insert(c);
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }

@@ -29,8 +29,11 @@ class BuildObserver {
   /// Command c depends on the contents of artifact a
   virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
-  /// Command c does not find the expected version of an artifact
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  /// Command c does not find the expected metadata in an artifact a
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+
+  /// Command c does not find the expected contents in an artifact a
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
 
   /// The outcome of an IR step has changed since the build trace was collected
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) = 0;

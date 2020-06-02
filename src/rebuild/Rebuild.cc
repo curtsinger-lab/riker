@@ -150,11 +150,23 @@ void Rebuild::contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   }
 }
 
-void Rebuild::mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+void Rebuild::metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // Record the change
-    LOG << c << " changed: " << a;
+    LOG << c << " observed metadata change in " << a;
+    _changed.insert(c);
+  } else {
+    // We shouldn't detect changes in the running phase, so this is a failure
+    WARN << "Unexpected change detected during rebuild: " << c;
+  }
+}
+
+void Rebuild::contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
+  // Are we planning or running the rebuild?
+  if (_phase == RebuildPhase::Planning) {
+    // Record the change
+    LOG << c << " observed content change in " << a;
     _changed.insert(c);
   } else {
     // We shouldn't detect changes in the running phase, so this is a failure
