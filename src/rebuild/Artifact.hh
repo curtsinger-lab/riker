@@ -50,9 +50,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getCreator() const { return _creator; }
 
-  /// Get the latest version of this artifact's metadata
-  shared_ptr<Version> getMetadata() const { return _versions.back(); }
-
   /// Get the latest version of this artifact's contents
   shared_ptr<Version> getContents() const { return _versions.back(); }
 
@@ -137,6 +134,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param ref The reference to this artifact that should be used to access contents
    */
   void saveFingerprint(shared_ptr<Reference> ref);
+
+  /**
+   * Do we have sufficient saved data to commit this artifact to the filesystem?
+   */
+  bool isSaved() const;
 
   /**
    * Get the path to this artifact if it has one.

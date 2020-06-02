@@ -42,7 +42,7 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   _accessed = true;
 
   // Get the version we'll return
-  auto result = getMetadata();
+  auto result = _versions.back();
 
   // Inform the environment of this input
   _env.get().observeMetadataInput(c, shared_from_this());
@@ -57,7 +57,7 @@ void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
   _env.get().observeMetadataInput(c, shared_from_this());
 
   // Compare versions
-  if (!getMetadata()->metadataMatch(v)) {
+  if (!_versions.back()->metadataMatch(v)) {
     _env.get().observeMismatch(c, shared_from_this());
   }
 }
@@ -196,6 +196,11 @@ void Artifact::saveMetadata(shared_ptr<Reference> ref) {
 // Save a fingerprint of the contents of the latest version of this artifact
 void Artifact::saveFingerprint(shared_ptr<Reference> ref) {
   _versions.back()->saveFingerprint(ref);
+}
+
+// Check if this artifact can be restored to the filesystem
+bool Artifact::isSaved() const {
+  return _versions.back()->isSaved();
 }
 
 // Record command c in the set of commands that have accessed this artifact's current metadata.

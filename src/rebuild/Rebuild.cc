@@ -135,7 +135,7 @@ void Rebuild::addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
       _output_used_by[creator].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && a->getContents()->isSaved()) {
+      if (options::enable_cache && a->isSaved()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
@@ -196,7 +196,7 @@ void Rebuild::checkFinalState() {
     if (!creator) continue;
 
     // If this artifact's final version is cached, we can just stage it in
-    if (options::enable_cache && a->getContents()->isSaved()) continue;
+    if (options::enable_cache && a->isSaved()) continue;
 
     // Create a version that represents the on-disk contents reached through this reference
     auto v = make_shared<Version>();
