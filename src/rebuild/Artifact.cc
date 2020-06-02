@@ -75,14 +75,11 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   // The latest version has now been accessed
   _accessed = true;
 
-  // Get the version we'll return
-  auto result = getContents();
-
   // Inform the environment of this input
   _env.get().observeContentInput(c, shared_from_this());
 
   // All done
-  return result;
+  return _versions.back();
 }
 
 // Command c checks whether this artifact's content matches an expected version
@@ -91,7 +88,7 @@ void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
   _env.get().observeContentInput(c, shared_from_this());
 
   // Compare versions
-  if (!getContents()->contentsMatch(v)) {
+  if (!_versions.back()->contentsMatch(v)) {
     _env.get().observeMismatch(c, shared_from_this());
   }
 }
@@ -201,6 +198,22 @@ void Artifact::saveFingerprint(shared_ptr<Reference> ref) {
 // Check if this artifact can be restored to the filesystem
 bool Artifact::isSaved() const {
   return _versions.back()->isSaved();
+}
+
+// Check this artifact's contents and metadata against the filesystem state
+void Artifact::checkFinalState(shared_ptr<Reference> ref) {
+  // Create a version that represents the on-disk contents reached through this reference
+  auto v = make_shared<Version>();
+  v->saveMetadata(ref);
+  v->saveFingerprint(ref);
+
+  if (!_versions.back()->metadataMatch(v)) {
+    _env.get().observeFinalMetadataMismatch(shared_from_this());
+  }
+
+  if (!_versions.back()->contentsMatch(v)) {
+    _env.get().observeFinalContentMismatch(shared_from_this());
+  }
 }
 
 // Record command c in the set of commands that have accessed this artifact's current metadata.

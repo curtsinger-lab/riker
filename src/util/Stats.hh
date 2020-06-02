@@ -100,16 +100,29 @@ class Stats : private BuildObserver {
   virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
+
   /// Called during emulation to report an input to command c
   virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _artifacts.insert(a);
   }
+
+  /// Command c does not find the expected version of an artifact (unused)
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// The outcome of an IR step has changed since the build trace was collected (unused)
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
 
   /// Called each time a command emulates a launch step
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     // Process the child command
     processCommand(child);
   }
+
+  /// The metadata for an artifact on the file system do not match its state at the end of the build
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}
+
+  /// The contents of an artifact on the file system do not match its state at the end of the build
+  virtual void finalContentMismatch(shared_ptr<Artifact> a) override {}
 
  private:
   /// The environment used to emulate the build trace

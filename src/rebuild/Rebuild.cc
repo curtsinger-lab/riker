@@ -35,7 +35,7 @@ Rebuild::Rebuild(shared_ptr<Command> root) : _root(root), _env(*this) {
   }
 
   // Check the final outputs of the emulated build against the filesystem
-  checkFinalState();
+  _env.checkFinalState();
 
   // Mark all the commands with changed inputs
   for (auto& c : _changed) {
@@ -187,26 +187,16 @@ void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
   }
 }
 
-// Check to see if artifacts left at the end of an emulated build match the on-disk state
-void Rebuild::checkFinalState() {
-  // Loop over all the artifacts left in the environment at the end of the build
-  for (auto& [ref, a] : _env.getArtifacts()) {
-    // If this artifact was not created by any command, we can't do anything about it
-    auto creator = a->getCreator();
-    if (!creator) continue;
+// An artifact's final contents do not match what is on the filesystem
+void Rebuild::finalContentMismatch(shared_ptr<Artifact> a) {
+  // If this artifact was not created by any command, there's nothing we can do about it
+  if (!a->getCreator()) return;
 
-    // If this artifact's final version is cached, we can just stage it in
-    if (options::enable_cache && a->isSaved()) continue;
+  // If this artifact's final version is cached, we can just stage it in
+  if (options::enable_cache && a->isSaved()) return;
 
-    // Create a version that represents the on-disk contents reached through this reference
-    auto v = make_shared<Version>();
-    v->saveFingerprint(ref);
-
-    // If the fingerprint doesn't match we will need to rerun the creator
-    if (!v->contentsMatch(a->getContents())) {
-      _output_needed.insert(creator);
-    }
-  }
+  // Otherwise we have to run the command that created this artifact
+  _output_needed.insert(a->getCreator());
 }
 
 // Mark command c for rerun, and propagate that marking to other required commands

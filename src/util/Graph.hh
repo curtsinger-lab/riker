@@ -33,6 +33,7 @@ class Graph : private BuildObserver {
    */
   Graph(shared_ptr<Command> root, bool show_sysfiles) : _env(*this), _show_sysfiles(show_sysfiles) {
     processCommand(root);
+    _env.checkFinalState();
   }
 
   /// Print the results of our stats gathering
@@ -183,6 +184,15 @@ class Graph : private BuildObserver {
     _content_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+    _changed.insert(c);
+    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  }
+
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {
+    _changed.insert(c);
+  }
+
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     // Process the child command to gather its dependencies
     processCommand(child);
@@ -191,13 +201,14 @@ class Graph : private BuildObserver {
     _command_edges.emplace(_command_ids[parent], _command_ids[child]);
   }
 
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
-    _changed.insert(c);
+  /// The metadata for an artifact on the file system do not match its state at the end of the build
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
-  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {
-    _changed.insert(c);
+  /// The contents of an artifact on the file system do not match its state at the end of the build
+  virtual void finalContentMismatch(shared_ptr<Artifact> a) override {
+    _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
  private:

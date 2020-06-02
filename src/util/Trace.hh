@@ -48,10 +48,37 @@ class Trace : private BuildObserver {
   }
 
  private:
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
+  /// Command c modifies the metadata for artifact a (unused)
+  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c modifies the contents of artifact a (unused)
+  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c depends on the metadata for artifact a (unused)
+  virtual void addMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c depends on the contents of artifact a (unused)
+  virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c does not find the expected version of an artifact (unused)
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// The outcome of an IR step has changed since the build trace was collected (unused)
+  virtual void changed(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
+
+  /// A command is about to be launched. The visitor can choose whether or not to emulate it
+  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     _commands.insert(child);
     child->emulate(_env);
   }
+
+  /// The metadata for an artifact on the file system do not match its state at the end of the build
+  /// (unused)
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}
+
+  /// The contents of an artifact on the file system do not match its state at the end of the build
+  /// (unused)
+  virtual void finalContentMismatch(shared_ptr<Artifact> a) override {}
 
  private:
   /// The environment used to emulate the build before printing the trace

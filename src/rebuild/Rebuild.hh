@@ -49,9 +49,6 @@ class Rebuild : private BuildObserver {
   /// Run or emulate a command from this rebuild
   void runCommand(shared_ptr<Command> c);
 
-  /// Check to see if any files remaining in the environment match the filesystem state
-  void checkFinalState();
-
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
   void mark(shared_ptr<Command> c);
 
@@ -61,6 +58,12 @@ class Rebuild : private BuildObserver {
   /// Command c depends on the contents of artifact a
   virtual void addContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
+  /// Command c writes the metadata for artifact a (unused)
+  virtual void addMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
+  /// Command c writes the contents of artifact a (unused)
+  virtual void addContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+
   /// Command c did not find the expected version of an artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
@@ -69,6 +72,12 @@ class Rebuild : private BuildObserver {
 
   /// An emulated command is launching a child command
   virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override;
+
+  /// An artifact's final metadata do not match what is on the filesystem (unused)
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}
+
+  /// An artifact's final contents do not match what is on the filesystem
+  virtual void finalContentMismatch(shared_ptr<Artifact> a) override;
 
  private:
   enum class RebuildPhase { Planning, Running };

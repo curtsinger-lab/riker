@@ -146,3 +146,11 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     return {artifact, SUCCESS, false};
   }
 }
+
+void Env::checkFinalState() {
+  // Loop over all the artifacts
+  for (auto& [ref, a] : _files) {
+    // Check the artifact's final contents and metadata against the filesystem
+    a->checkFinalState(ref);
+  }
+}

@@ -50,9 +50,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getCreator() const { return _creator; }
 
-  /// Get the latest version of this artifact's contents
-  shared_ptr<Version> getContents() const { return _versions.back(); }
-
   /// Get the number of versions of this artifact
   size_t getVersionCount() const { return _versions.size(); }
 
@@ -139,6 +136,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * Do we have sufficient saved data to commit this artifact to the filesystem?
    */
   bool isSaved() const;
+
+  /**
+   * Check this artifact's final state against the filesystem.
+   * Report any change in content or metadata to the environment.
+   */
+  void checkFinalState(shared_ptr<Reference> ref);
 
   /**
    * Get the path to this artifact if it has one.

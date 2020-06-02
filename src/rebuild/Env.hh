@@ -79,6 +79,12 @@ class Env {
   /// Get an iterable view of the artifacts currently in this environment.
   const map<shared_ptr<Access>, shared_ptr<Artifact>>& getArtifacts() { return _files; }
 
+  /**
+   * Check the final state of all artifacts against the file system.
+   * Report any mismatched contents or metadata to the observer
+   */
+  void checkFinalState();
+
   /********** Observer Interface **********/
 
   /// Inform the observer that command c modified the metadata of artifact a
@@ -114,6 +120,16 @@ class Env {
   /// Inform the observer that a command has launched another command
   void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) {
     _observer.get().launched(parent, child);
+  }
+
+  /// Inform the observer that an artifact's metadata does not match the expected final state
+  void observeFinalMetadataMismatch(shared_ptr<Artifact> a) {
+    _observer.get().finalMetadataMismatch(a);
+  }
+
+  /// Inform the observer that an artifact's contents do not match the expected final state
+  void observeFinalContentMismatch(shared_ptr<Artifact> a) {
+    _observer.get().finalContentMismatch(a);
   }
 
  private:
