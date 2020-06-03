@@ -8,10 +8,6 @@
 #include <set>
 #include <string>
 
-class Command;
-class Reference;
-class Version;
-
 using std::list;
 using std::optional;
 using std::ostream;
@@ -20,7 +16,11 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 
+class Build;
+class Command;
 class Env;
+class Reference;
+class Version;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact
@@ -34,18 +34,15 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   friend class Env;
   /**
    * Create a new artifact. Only accessibly to this class and Env
-   * \param ref A reference to this artifact used for pretty-printing
+   * \param build This artifact is instantiated as part of this build instance
+   * \param ref   A reference to this artifact used for pretty-printing
    */
-  Artifact(Env& env, shared_ptr<Reference> ref) : _env(env), _ref(ref) {}
+  Artifact(Build* build, shared_ptr<Reference> ref) : _build(build), _ref(ref) {}
 
  public:
   // Disallow Copy
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
-
-  // Allow Move
-  Artifact(Artifact&&) = default;
-  Artifact& operator=(Artifact&&) = default;
 
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getCreator() const { return _creator; }
@@ -139,7 +136,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /**
    * Check this artifact's final state against the filesystem.
-   * Report any change in content or metadata to the environment.
+   * Report any change in content or metadata to the build.
    */
   void checkFinalState(shared_ptr<Reference> ref);
 
@@ -163,8 +160,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
 
  private:
-  /// The environment that manages this artifact
-  reference_wrapper<Env> _env;
+  /// The build that this artifact is part of
+  Build* _build;
 
   /// Tag a new version of this artifact created by command c (may be nullptr)
   shared_ptr<Version> tagNewVersion(shared_ptr<Command> c);

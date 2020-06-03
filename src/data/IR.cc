@@ -12,8 +12,8 @@
 #include "data/Command.hh"
 #include "data/Version.hh"
 #include "rebuild/Artifact.hh"
+#include "rebuild/Build.hh"
 #include "rebuild/BuildObserver.hh"
-#include "rebuild/Env.hh"
 #include "ui/log.hh"
 
 using std::dynamic_pointer_cast;
@@ -22,41 +22,41 @@ using std::shared_ptr;
 
 /******* Change Detection *******/
 
-void Pipe::emulate(shared_ptr<Command> c, Env& env) {
+void Pipe::emulate(shared_ptr<Command> c, Build& build) {
   // Resolve the reference
-  auto [artifact, rc, created] = env.get(c, shared_from_this());
+  auto [artifact, rc, created] = build.getEnv().get(c, shared_from_this());
 
   // Nothing else to do for pipes; referencing them always creates them.
   // This IR step should be followed by a SET_CONTENTS step soon after.
 }
 
-void Access::emulate(shared_ptr<Command> c, Env& env) {
+void Access::emulate(shared_ptr<Command> c, Build& build) {
   // Resolve the reference
-  auto [artifact, rc, created] = env.get(c, shared_from_this());
+  auto [artifact, rc, created] = build.getEnv().get(c, shared_from_this());
 
   // TODO: Track the depenency of command c on whatever command made the result of this access
-  // possible. This is going to have to happen inside of the path resolution in env.
+  // possible. This is going to have to happen inside of the path resolution in the environment.
 }
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Env& env) {
+void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) {
   // Check if the reference resolves the same way
-  auto [artifact, rc, created] = env.get(c, _ref);
+  auto [artifact, rc, created] = build.getEnv().get(c, _ref);
 
-  if (rc != _rc) env.observeCommandChange(c, shared_from_this());
+  if (rc != _rc) build.observeCommandChange(c, shared_from_this());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Env& env) {
-  auto [a, rc, created] = env.get(c, _ref);
+void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
+  auto [a, rc, created] = build.getEnv().get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -64,18 +64,18 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Env& env) {
   a->checkMetadata(c, _version);
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Env& env) {
-  auto [a, rc, created] = env.get(c, _ref);
+void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
+  auto [a, rc, created] = build.getEnv().get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // If the resolved artifact has no versions, report a change
   if (a->empty()) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -83,12 +83,12 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Env& env) {
   a->checkContents(c, _version);
 }
 
-void SetMetadata::emulate(shared_ptr<Command> c, Env& env) {
-  auto [a, rc, created] = env.get(c, _ref);
+void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
+  auto [a, rc, created] = build.getEnv().get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -96,12 +96,12 @@ void SetMetadata::emulate(shared_ptr<Command> c, Env& env) {
   a->setMetadata(c, _version);
 }
 
-void SetContents::emulate(shared_ptr<Command> c, Env& env) {
-  auto [a, rc, created] = env.get(c, _ref);
+void SetContents::emulate(shared_ptr<Command> c, Build& build) {
+  auto [a, rc, created] = build.getEnv().get(c, _ref);
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    env.observeCommandChange(c, shared_from_this());
+    build.observeCommandChange(c, shared_from_this());
     return;
   }
 
@@ -109,9 +109,9 @@ void SetContents::emulate(shared_ptr<Command> c, Env& env) {
   a->setContents(c, _version);
 }
 
-void Launch::emulate(shared_ptr<Command> c, Env& env) {
-  // Observe the launch action
-  env.observeLaunch(c, _cmd);
+void Launch::emulate(shared_ptr<Command> c, Build& build) {
+  // Tell the build to launch the child command
+  build.launch(c, _cmd);
 }
 
 /******************* Access Methods ********************/

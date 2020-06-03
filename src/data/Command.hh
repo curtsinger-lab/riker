@@ -21,8 +21,8 @@ using std::vector;
 
 class Access;
 class Artifact;
+class Build;
 class BuildObserver;
-class Env;
 class Pipe;
 class Reference;
 class Step;
@@ -85,8 +85,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
 
-  /// Emulate the steps of this command in a given environment
-  void emulate(Env& env);
+  /// Emulate the steps of this command as part of a particular build
+  void emulate(Build& build);
 
   /********* Command Tracing Operations **********/
 

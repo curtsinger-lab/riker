@@ -54,7 +54,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getPipe(shared_ptr<Command> c, share
 
   } else {
     // No match found. Create a pipe artifact
-    shared_ptr<Artifact> artifact(new Artifact(*this, ref));
+    shared_ptr<Artifact> artifact(new Artifact(_build, ref));
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -105,7 +105,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     // TODO: Check to be sure we have permission to create the file
     if (errno == ENOENT && flags.create) {
       // Create the artifact
-      shared_ptr<Artifact> artifact(new Artifact(*this, ref));
+      shared_ptr<Artifact> artifact(new Artifact(_build, ref));
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -127,7 +127,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    shared_ptr<Artifact> artifact(new Artifact(*this, ref));
+    shared_ptr<Artifact> artifact(new Artifact(_build, ref));
 
     // Create an initial version to reflect the on-disk state of this artifact
     artifact->createExistingVersion();
@@ -147,10 +147,15 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
   }
 }
 
-void Env::checkFinalState() {
+// Check all remaining artifacts for changes and save updated fingerprints and metadata
+void Env::finalize() {
   // Loop over all the artifacts
   for (auto& [ref, a] : _files) {
     // Check the artifact's final contents and metadata against the filesystem
     a->checkFinalState(ref);
+
+    // Save fingerprint and metadta for this artifact
+    a->saveMetadata(ref);
+    a->saveFingerprint(ref);
   }
 }

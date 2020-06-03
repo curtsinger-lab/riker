@@ -18,75 +18,34 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class Trace : private BuildObserver {
+class Trace : public BuildObserver {
  public:
-  /**
-   * Print the complete trace for a build
-   * \param b               The build to print
-   */
-  Trace(shared_ptr<Command> root) : _env(*this) {
-    // Save the root command
-    _commands.insert(root);
+  /// The root command is being launched.
+  virtual void launchRootCommand(shared_ptr<Command> root) override { _commands.insert(root); }
 
-    // Emulate the whole build to reconstruct artifacts
-    root->emulate(_env);
+  /// A child command is being launched. Record the new command.
+  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+    _commands.insert(child);
   }
 
   /// Print the trace from the given build
-  void print(ostream& o) {
+  ostream& print(ostream& o) const {
     for (auto& c : _commands) {
       o << c << endl;
       for (auto& s : c->getSteps()) {
         o << "  " << s << endl;
       }
     }
-  }
-
-  friend ostream& operator<<(ostream& o, Trace v) {
-    v.print(o);
     return o;
   }
 
- private:
-  /// Command c modifies the metadata for artifact a (unused)
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
+  /// Print a Trace reference
+  friend ostream& operator<<(ostream& o, Trace& t) { return t.print(o); }
 
-  /// Command c modifies the contents of artifact a (unused)
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// Command c depends on the metadata for artifact a (unused)
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// Command c depends on the contents of artifact a (unused)
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// Command c does not find the expected metadata in an artifact (unused)
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// Command c does not find the expected content in an artifact (unused)
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// The outcome of an IR step has changed since the build trace was collected (unused)
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
-
-  /// A command is about to be launched. The visitor can choose whether or not to emulate it
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override {
-    _commands.insert(child);
-    child->emulate(_env);
-  }
-
-  /// The metadata for an artifact on the file system do not match its state at the end of the build
-  /// (unused)
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}
-
-  /// The contents of an artifact on the file system do not match its state at the end of the build
-  /// (unused)
-  virtual void finalContentMismatch(shared_ptr<Artifact> a) override {}
+  // Print a Trace pointer
+  friend ostream& operator<<(ostream& o, Trace* t) { return t->print(o); }
 
  private:
-  /// The environment used to emulate the build before printing the trace
-  Env _env;
-
   /// The set of all commands
   set<shared_ptr<Command>> _commands;
 };

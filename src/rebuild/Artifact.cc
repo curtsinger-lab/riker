@@ -5,6 +5,7 @@
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
+#include "rebuild/Build.hh"
 #include "rebuild/Env.hh"
 #include "ui/options.hh"
 
@@ -45,7 +46,7 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   auto result = _versions.back();
 
   // Inform the environment of this input
-  _env.get().observeMetadataInput(c, shared_from_this());
+  _build->observeMetadataInput(c, shared_from_this());
 
   // All done
   return result;
@@ -54,11 +55,11 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
 // Command c checks whether this artifact's metadata matches an expected version
 void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
   // Inform the environment of this input
-  _env.get().observeMetadataInput(c, shared_from_this());
+  _build->observeMetadataInput(c, shared_from_this());
 
   // Compare versions
   if (!_versions.back()->metadataMatch(v)) {
-    _env.get().observeMetadataMismatch(c, shared_from_this());
+    _build->observeMetadataMismatch(c, shared_from_this());
   }
 }
 
@@ -76,7 +77,7 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   _accessed = true;
 
   // Inform the environment of this input
-  _env.get().observeContentInput(c, shared_from_this());
+  _build->observeContentInput(c, shared_from_this());
 
   // All done
   return _versions.back();
@@ -85,11 +86,11 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
 // Command c checks whether this artifact's content matches an expected version
 void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
   // Inform the environment of this input
-  _env.get().observeContentInput(c, shared_from_this());
+  _build->observeContentInput(c, shared_from_this());
 
   // Compare versions
   if (!_versions.back()->contentsMatch(v)) {
-    _env.get().observeContentMismatch(c, shared_from_this());
+    _build->observeContentMismatch(c, shared_from_this());
   }
 }
 
@@ -103,7 +104,7 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c) {
   auto result = tagNewVersion(c);
 
   // Inform the environment of this output
-  _env.get().observeMetadataOutput(c, shared_from_this());
+  _build->observeMetadataOutput(c, shared_from_this());
 
   // Return the newly-tagged version
   return result;
@@ -126,7 +127,7 @@ void Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
   v->identify(this);
 
   // Inform the environment of this output
-  _env.get().observeMetadataOutput(c, shared_from_this());
+  _build->observeMetadataOutput(c, shared_from_this());
 }
 
 // Command c sets the contents of this artifact.
@@ -142,7 +143,7 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   auto result = tagNewVersion(c);
 
   // Inform the environment of this output
-  _env.get().observeContentOutput(c, shared_from_this());
+  _build->observeContentOutput(c, shared_from_this());
 
   // Return the newly-tagged version
   return result;
@@ -165,7 +166,7 @@ void Artifact::setContents(shared_ptr<Command> c, shared_ptr<Version> v) {
   v->identify(this);
 
   // Inform the environment of this output
-  _env.get().observeContentOutput(c, shared_from_this());
+  _build->observeContentOutput(c, shared_from_this());
 }
 
 // Tag a new version of this artifact, created by command c
@@ -208,11 +209,11 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   v->saveFingerprint(ref);
 
   if (!_versions.back()->metadataMatch(v)) {
-    _env.get().observeFinalMetadataMismatch(shared_from_this());
+    _build->observeFinalMetadataMismatch(shared_from_this());
   }
 
   if (!_versions.back()->contentsMatch(v)) {
-    _env.get().observeFinalContentMismatch(shared_from_this());
+    _build->observeFinalContentMismatch(shared_from_this());
   }
 }
 

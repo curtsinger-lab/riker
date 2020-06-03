@@ -12,6 +12,7 @@
 #include <CLI/CLI.hpp>
 
 #include "data/serializer.hh"
+#include "rebuild/Build.hh"
 #include "rebuild/Rebuild.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
@@ -20,7 +21,8 @@
 #include "util/Trace.hh"
 
 using std::cout;
-using std::make_unique;
+using std::endl;
+using std::make_shared;
 using std::ofstream;
 using std::string;
 using std::stringstream;
@@ -44,11 +46,24 @@ void do_build(int jobs) {
   // Load a build, or set up a default build if necessary
   auto root = load_build(DatabaseFilename, true);
 
-  // Compute the rebuild steps
-  Rebuild rebuild(root);
+  // Set up a build to emulate the loaded command tree
+  Build phase1(root);
 
-  // Run the build
-  rebuild.run();
+  // Set up a rebuild planner to observe the emulated build
+  auto rebuild = make_shared<Rebuild>();
+  phase1.addObserver(rebuild);
+
+  // Run the emulated build to gather change and dependency information
+  phase1.run();
+
+  // Now create a build to run the second phase, the actual build execution
+  Build phase2(root);
+
+  // Prepare the build to execute the necessary commands
+  rebuild->planBuild(phase2);
+
+  // Execute the planned build
+  phase2.run();
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
@@ -64,8 +79,25 @@ void do_check() {
   // Load a build, or set up a default build if necessary
   auto root = load_build(DatabaseFilename, true);
 
-  // Plan and print the rebuild steps
-  cout << Rebuild(root);
+  // Set up a build to emulate the loaded command tryy
+  Build phase1(root);
+
+  // Set up a rebuild planner to observe the emulated build
+  auto rebuild = make_shared<Rebuild>();
+  phase1.addObserver(rebuild);
+
+  // Run the emulated build to gather change and dependency information
+  phase1.run();
+
+  // Print the rebuild planning dependency information
+  cout << rebuild;
+
+  // Plan a build
+  Build phase2(root);
+  rebuild->planBuild(phase2);
+
+  // Print the planned build
+  cout << phase2;
 }
 
 /**
@@ -73,12 +105,24 @@ void do_check() {
  * \param output  The name of the output file, or "-" for stdout
  */
 void do_trace(string output) {
+  // Load the root command
   auto root = load_build(DatabaseFilename, false);
+
+  // Set up a build to emulate the command tree
+  Build b(root);
+
+  // Set the trace printer as an observer on the build
+  auto trace = make_shared<Trace>();
+  b.addObserver(trace);
+
+  // Run the emulated build
+  b.run();
+
   if (output == "-") {
-    cout << Trace(root);
+    cout << trace;
   } else {
     ofstream f(output);
-    f << Trace(root);
+    f << trace;
   }
 }
 
@@ -88,11 +132,22 @@ void do_trace(string output) {
  * \param show_sysfiles If true, include system files in the graph
  */
 void do_graph(string output, bool show_sysfiles) {
+  // Load the command tree
   auto root = load_build(DatabaseFilename, false);
+
+  // Set up a build to emulate the command tree
+  Build b(root);
+
+  // Create the Graph observer and attach it to the build
+  auto graph = make_shared<Graph>(show_sysfiles);
+  b.addObserver(graph);
+
+  // Run the emulated build
+  b.run();
 
   // Send graph source to a stringstream
   stringstream ss;
-  ss << Graph(root, show_sysfiles);
+  ss << graph;
 
   // Write the graph output to a temporary file, then move that file to stdin
   auto tmp = std::tmpfile();
@@ -111,8 +166,21 @@ void do_graph(string output, bool show_sysfiles) {
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) {
+  // Load the serialized command tree
   auto root = load_build(DatabaseFilename, false);
-  cout << Stats(root, list_artifacts);
+
+  // Set up a build to emulate the commands
+  Build b(root);
+
+  // Create a stats observer and attach it to the build
+  auto stats = make_shared<Stats>(list_artifacts);
+  b.addObserver(stats);
+
+  // Emulate the build
+  b.run();
+
+  // Print the result
+  cout << stats;
 }
 
 /**

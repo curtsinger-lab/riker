@@ -15,9 +15,9 @@ using std::string;
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int { SUCCESS = 0 };
 
+class Build;
 class BuildObserver;
 class Command;
-class Env;
 class Version;
 
 /**
@@ -40,7 +40,7 @@ class Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) = 0;
+  virtual void emulate(shared_ptr<Command> c, Build& build) = 0;
 
   /// Get the unique ID for this IR node
   size_t getID() const { return _id; }
@@ -85,7 +85,7 @@ class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -121,7 +121,7 @@ class Access : public Reference, public std::enable_shared_from_this<Access> {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
@@ -169,7 +169,7 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -203,7 +203,7 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -237,7 +237,7 @@ class ContentsMatch : public Predicate, public std::enable_shared_from_this<Cont
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -283,7 +283,7 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -314,7 +314,7 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -346,7 +346,7 @@ class SetContents : public Action, public std::enable_shared_from_this<SetConten
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Env& env) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

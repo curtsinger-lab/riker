@@ -21,6 +21,7 @@
 
 #include "data/Command.hh"
 #include "data/Version.hh"
+#include "rebuild/Build.hh"
 #include "rebuild/Rebuild.hh"
 #include "tracing/FDEntry.hh"
 #include "tracing/Process.hh"
@@ -144,7 +145,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     if (!ref) continue;
 
     // Get the artifact from the environment
-    auto [artifact, rc, created] = _env.getFile(cmd, ref);
+    auto [artifact, rc, created] = _build.getEnv().getFile(cmd, ref);
 
     // Open the artifact the command expects in its FD table. Right now, this logic assumes either:
     // 1. The open() call will create/truncate the file, or
@@ -284,14 +285,14 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
     auto ref = initial_fd.getReference();
-    auto [artifact, rc, created] = _env.get(cmd, ref);
+    auto [artifact, rc, created] = _build.getEnv().get(cmd, ref);
 
     FAIL_IF(!artifact || rc != SUCCESS) << "Failed to get artifact for initial file descriptor";
 
     fds.emplace(index, FDEntry(ref, artifact, initial_fd.isWritable()));
   }
 
-  _processes[child_pid] = make_shared<Process>(_env, child_pid, ".", cmd, fds);
+  _processes[child_pid] = make_shared<Process>(_build, child_pid, ".", cmd, fds);
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) {
@@ -322,7 +323,7 @@ void Tracer::handleFork(shared_ptr<Process> p) {
   LOG << "fork called in " << p;
 
   // Create a new process running the same command
-  auto new_proc = make_shared<Process>(_env, new_pid, p->_cwd, p->_command, p->_fds);
+  auto new_proc = make_shared<Process>(_build, new_pid, p->_cwd, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
 
   LOG << "new process " << new_proc;

@@ -23,10 +23,10 @@ class Reference;
 class Pipe;
 
 /// This class captures all of the logic and state required to plan a rebuild.
-class Rebuild : private BuildObserver {
+class Rebuild : public BuildObserver {
  public:
-  /// Create a rebuild plan
-  Rebuild(shared_ptr<Command> root);
+  /// Create a rebuild planner
+  Rebuild() = default;
 
   // Disallow Copy
   Rebuild(const Rebuild&) = delete;
@@ -36,21 +36,22 @@ class Rebuild : private BuildObserver {
   Rebuild(Rebuild&&) = default;
   Rebuild& operator=(Rebuild&&) = default;
 
-  /// Run the rebuild
-  void run();
+  /**
+   * Identify the commands that must rerun and mark them in the given Build
+   * \param b The build that will be used to execute any commands this rebuild marks for rerun
+   */
+  void planBuild(Build& b) const;
 
   /// Print information about the rebuild state
   ostream& print(ostream& o) const;
 
-  /// Output stream printing
+  /// Print a Rebuild
   friend ostream& operator<<(ostream& o, const Rebuild& r) { return r.print(o); }
 
- private:
-  /// Run or emulate a command from this rebuild
-  void runCommand(shared_ptr<Command> c);
+  /// Print a Rebuild pointer
+  friend ostream& operator<<(ostream& o, const Rebuild* r) { return r->print(o); }
 
-  /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(shared_ptr<Command> c);
+  /******** BuildObserver Interface ********/
 
   /// Command c depends on the metadata for artifact a
   virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
@@ -58,50 +59,31 @@ class Rebuild : private BuildObserver {
   /// Command c depends on the contents of artifact a
   virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
-  /// Command c writes the metadata for artifact a (unused)
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
-  /// Command c writes the contents of artifact a (unused)
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {}
-
   /// Command c did not find the expected metadata in artifact a
   virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
   /// Command c did not find the expected metadata in artifact a
   virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override;
 
+  /// Command c has never been run
+  virtual void commandNeverRun(shared_ptr<Command> c) override;
+
   /// IR step s in command c observed a change
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override;
-
-  /// A command is being launched
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override;
-
-  /// An artifact's final metadata do not match what is on the filesystem (unused)
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}
 
   /// An artifact's final contents do not match what is on the filesystem
   virtual void finalContentMismatch(shared_ptr<Artifact> a) override;
 
  private:
-  enum class RebuildPhase { Planning, Running };
+  /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
+  void mark(Build& build, shared_ptr<Command> c) const;
 
-  /// What phase of the rebuild are we in?
-  RebuildPhase _phase = RebuildPhase::Planning;
-
-  /// The root command for the build
-  shared_ptr<Command> _root;
-
-  /// This environment resolves and tracks artifacts during the checking and re-execution phases
-  Env _env;
-
+ private:
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
-
-  /// All commands that will rerun
-  set<shared_ptr<Command>> _rerun;
 
   /// Map command that produces output(s) -> commands that consume that output
   map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;

@@ -25,13 +25,15 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
+class Build;
 class Command;
 class Rebuild;
 
 class Process {
  public:
-  Process(Env& env, pid_t pid, fs::path cwd, shared_ptr<Command> command, map<int, FDEntry> fds) :
-      _env(env), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
+  Process(Build& build, pid_t pid, fs::path cwd, shared_ptr<Command> command,
+          map<int, FDEntry> fds) :
+      _build(build), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
   void resume();
@@ -158,7 +160,7 @@ class Process {
   void _fstat(int fd) { _fstatat(fd, "", AT_EMPTY_PATH); }
   void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
-  Env& _env;
+  Build& _build;
   pid_t _pid;
   string _cwd;
   string _root;

@@ -17,33 +17,42 @@ class Step;
  */
 class BuildObserver {
  public:
+  /// Virtual destructor
+  virtual ~BuildObserver() = default;
+
   /// Command c modifies the metadata for artifact a
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// Command c modifies the contents of artifact a
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// Command c depends on the metadata for artifact a
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// Command c depends on the contents of artifact a
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// Command c does not find the expected metadata in an artifact a
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
 
   /// Command c does not find the expected contents in an artifact a
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) = 0;
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {}
+
+  /// A command has never been run
+  virtual void commandNeverRun(shared_ptr<Command> c) {}
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) = 0;
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) {}
 
-  /// A command is being started
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) = 0;
+  /// The root command is being launched
+  virtual void launchRootCommand(shared_ptr<Command> root) {}
+
+  /// A child command is being launched
+  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) {}
 
   /// The metadata for an artifact on the file system do not match its state at the end of the build
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) = 0;
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) {}
 
   /// The contents of an artifact on the file system do not match its state at the end of the build
-  virtual void finalContentMismatch(shared_ptr<Artifact> a) = 0;
+  virtual void finalContentMismatch(shared_ptr<Artifact> a) {}
 };

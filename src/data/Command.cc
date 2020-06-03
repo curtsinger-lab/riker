@@ -15,6 +15,7 @@
 #include "data/InitialFD.hh"
 #include "data/Version.hh"
 #include "rebuild/Artifact.hh"
+#include "rebuild/Build.hh"
 #include "ui/options.hh"
 
 using std::cout;
@@ -93,9 +94,12 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::emulate(Env& env) {
+void Command::emulate(Build& build) {
+  // If this command has never run, report it as changed
+  if (_steps.empty()) build.observeCommandNeverRun(shared_from_this());
+
   for (auto step : _steps) {
-    step->emulate(shared_from_this(), env);
+    step->emulate(shared_from_this(), build);
   }
 }
 

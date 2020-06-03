@@ -24,20 +24,16 @@ using std::to_string;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class Graph : private BuildObserver {
+class Graph : public BuildObserver {
  public:
   /**
-   * Print graphviz output for a completed build
-   * \param root           The root command in the build graph
+   * Print graphviz output for a build
    * \param show_sysfiles  If true, include artifacts that are system files
    */
-  Graph(shared_ptr<Command> root, bool show_sysfiles) : _env(*this), _show_sysfiles(show_sysfiles) {
-    processCommand(root);
-    _env.checkFinalState();
-  }
+  Graph(bool show_sysfiles) : _show_sysfiles(show_sysfiles) {}
 
   /// Print the results of our stats gathering
-  void print(ostream& o) {
+  ostream& print(ostream& o) {
     o << "digraph {\n";
     o << "  graph [rankdir=LR]\n";
 
@@ -111,14 +107,18 @@ class Graph : private BuildObserver {
     }
 
     o << "}\n";
-  }
 
-  friend ostream& operator<<(ostream& o, Graph v) {
-    v.print(o);
     return o;
   }
 
+  /// Print a Graph reference
+  friend ostream& operator<<(ostream& o, Graph& g) { return g.print(o); }
+
+  /// Print a Graph pointer
+  friend ostream& operator<<(ostream& o, Graph* g) { return g->print(o); }
+
  private:
+  /// Escape a string for safe printing inside a graphviz string
   string escape(string s) {
     auto pos = s.find('"');
     if (pos == string::npos)
@@ -127,6 +127,7 @@ class Graph : private BuildObserver {
       return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
   }
 
+  /// Check if an artifact appears to be a system file
   bool isSystemFile(shared_ptr<Artifact> a) {
     auto path = a->getPath();
     if (!path.has_value()) return false;
@@ -142,9 +143,6 @@ class Graph : private BuildObserver {
   void processCommand(shared_ptr<Command> c) {
     // Add this command to the map of command IDs
     _command_ids.emplace(c, string("c") + to_string(c->getID()));
-
-    // Emulate the command to gather its dependencies and children
-    c->emulate(_env);
   }
 
   void processArtifact(shared_ptr<Artifact> a) {
@@ -160,45 +158,56 @@ class Graph : private BuildObserver {
     return _artifact_ids[a] + ":v" + to_string(a->getVersionCount() - 1);
   }
 
+  /// Command c reads metadata from artifact a
   virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _metadata_edges.emplace(getVersionID(a), _command_ids[c]);
   }
 
+  /// Command c reads the contents of artifact a
   virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _content_edges.emplace(getVersionID(a), _command_ids[c]);
   }
 
+  /// Command c changes metadata for artifact a
   virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _metadata_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
+  /// Command c changes the contents of artifact a
   virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _content_edges.emplace(_command_ids[c], getVersionID(a));
   }
 
+  /// Command c observes a change in metadata for artifact a
   virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _changed.insert(c);
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
+  /// Command c observes a change in the contents of artifact a
   virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     _changed.insert(c);
     _changed_versions.emplace(a, a->getVersionCount() - 1);
   }
 
+  /// Command c observes a change when executing an IR step
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
     _changed.insert(c);
   }
 
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  /// The root command is starting
+  virtual void launchRootCommand(shared_ptr<Command> root) override { processCommand(root); }
+
+  /// A child command is starting
+  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     // Process the child command to gather its dependencies
     processCommand(child);
 
@@ -217,9 +226,6 @@ class Graph : private BuildObserver {
   }
 
  private:
-  /// The environment used to emulate the build trace
-  Env _env;
-
   /// Should the graph output include system files?
   bool _show_sysfiles;
 

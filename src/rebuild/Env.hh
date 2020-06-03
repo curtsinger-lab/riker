@@ -1,25 +1,22 @@
 #pragma once
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <vector>
 
 #include <sys/types.h>
 
 #include "rebuild/BuildObserver.hh"
 
 using std::map;
-using std::reference_wrapper;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
-using std::vector;
 
 class Access;
 class Artifact;
+class Build;
 class Command;
 class Pipe;
 class Reference;
@@ -34,10 +31,9 @@ class Env {
  public:
   /**
    * Create an environment for build emulation or execution.
-   * \param observer This build observer will be notified of dependencies and changes as the build
-   *                 unfolds.
+   * \param build The build that executes in this environment
    */
-  Env(BuildObserver& observer) : _observer(observer) {}
+  Env(Build* build) : _build(build) {}
 
   // Disallow Copy
   Env(const Env&) = delete;
@@ -76,68 +72,17 @@ class Env {
    */
   tuple<shared_ptr<Artifact>, int, bool> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
 
-  /// Get an iterable view of the artifacts currently in this environment.
-  const map<shared_ptr<Access>, shared_ptr<Artifact>>& getArtifacts() { return _files; }
-
   /**
-   * Check the final state of all artifacts against the file system.
-   * Report any mismatched contents or metadata to the observer
+   * Check and save data for any artifacts left in the environment.
+   * This reports changes for artifacts whose on-disk versions do not match what the build produced,
+   * and saves fingerprints and metadata for artifacts that were modified by executed commands.
    */
-  void checkFinalState();
-
-  /********** Observer Interface **********/
-
-  /// Inform the observer that command c modified the metadata of artifact a
-  void observeMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().metadataOutput(c, a);
-  }
-
-  /// Inform the observer that command c modified the contents of artifact a
-  void observeContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().contentOutput(c, a);
-  }
-
-  /// Inform the observer that command c accessed the metadata of artifact a
-  void observeMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().metadataInput(c, a);
-  }
-
-  /// Inform the observer that command c accessed the contents of artifact a
-  void observeContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().contentInput(c, a);
-  }
-
-  /// Inform the observer that command c did not find the expected metadata in artifact a
-  void observeMetadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().metadataMismatch(c, a);
-  }
-
-  /// Inform the observer that command c did not find the expected contents in artifact a
-  void observeContentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) {
-    _observer.get().contentMismatch(c, a);
-  }
-
-  /// Inform the observer that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
-    _observer.get().commandChanged(c, s);
-  }
-
-  /// Inform the observer that a command has launched another command
-  void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) {
-    _observer.get().launch(parent, child);
-  }
-
-  /// Inform the observer that an artifact's metadata does not match the expected final state
-  void observeFinalMetadataMismatch(shared_ptr<Artifact> a) {
-    _observer.get().finalMetadataMismatch(a);
-  }
-
-  /// Inform the observer that an artifact's contents do not match the expected final state
-  void observeFinalContentMismatch(shared_ptr<Artifact> a) {
-    _observer.get().finalContentMismatch(a);
-  }
+  void finalize();
 
  private:
+  /// The build this environment is attached to
+  Build* _build;
+
   /// An emulated filesystem for artifacts in this environment
   map<string, shared_ptr<Artifact>> _filesystem;
 
@@ -146,7 +91,4 @@ class Env {
 
   /// The pipe artifacts used in this environment
   map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
-
-  /// An observer who should be notified of dependency and change events
-  reference_wrapper<BuildObserver> _observer;
 };
