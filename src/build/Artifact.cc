@@ -2,11 +2,11 @@
 
 #include <memory>
 
+#include "build/Build.hh"
+#include "build/Env.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
-#include "rebuild/Build.hh"
-#include "rebuild/Env.hh"
 #include "ui/options.hh"
 
 using std::dynamic_pointer_cast;

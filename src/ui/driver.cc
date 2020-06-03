@@ -11,14 +11,14 @@
 
 #include <CLI/CLI.hpp>
 
+#include "build/Build.hh"
 #include "data/serializer.hh"
-#include "rebuild/Build.hh"
-#include "rebuild/Rebuild.hh"
+#include "observers/Graph.hh"
+#include "observers/RebuildPlanner.hh"
+#include "observers/Stats.hh"
+#include "observers/Trace.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
-#include "util/Graph.hh"
-#include "util/Stats.hh"
-#include "util/Trace.hh"
 
 using std::cout;
 using std::endl;
@@ -50,7 +50,7 @@ void do_build(int jobs) {
   Build phase1(root);
 
   // Set up a rebuild planner to observe the emulated build
-  auto rebuild = make_shared<Rebuild>();
+  auto rebuild = make_shared<RebuildPlanner>();
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
@@ -83,7 +83,7 @@ void do_check() {
   Build phase1(root);
 
   // Set up a rebuild planner to observe the emulated build
-  auto rebuild = make_shared<Rebuild>();
+  auto rebuild = make_shared<RebuildPlanner>();
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information

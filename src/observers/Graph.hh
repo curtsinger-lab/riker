@@ -5,11 +5,11 @@
 #include <ostream>
 #include <set>
 
+#include "build/Artifact.hh"
+#include "build/BuildObserver.hh"
+#include "build/Env.hh"
 #include "data/Command.hh"
 #include "data/Version.hh"
-#include "rebuild/Artifact.hh"
-#include "rebuild/BuildObserver.hh"
-#include "rebuild/Env.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

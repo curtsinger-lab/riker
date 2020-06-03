@@ -9,11 +9,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "build/Artifact.hh"
+#include "build/Build.hh"
+#include "build/BuildObserver.hh"
 #include "data/Command.hh"
 #include "data/Version.hh"
-#include "rebuild/Artifact.hh"
-#include "rebuild/Build.hh"
-#include "rebuild/BuildObserver.hh"
 #include "ui/log.hh"
 
 using std::dynamic_pointer_cast;

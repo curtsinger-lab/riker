@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 
-#include "rebuild/BuildObserver.hh"
+#include "build/BuildObserver.hh"
 
 using std::map;
 using std::shared_ptr;

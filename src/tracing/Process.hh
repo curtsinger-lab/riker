@@ -27,7 +27,7 @@ namespace fs = std::filesystem;
 
 class Build;
 class Command;
-class Rebuild;
+class RebuildPlanner;
 
 class Process {
  public:

@@ -10,12 +10,12 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "build/Artifact.hh"
+#include "build/Build.hh"
 #include "data/AccessFlags.hh"
 #include "data/IR.hh"
 #include "data/InitialFD.hh"
 #include "data/Version.hh"
-#include "rebuild/Artifact.hh"
-#include "rebuild/Build.hh"
 #include "ui/options.hh"
 
 using std::cout;

@@ -34,7 +34,7 @@ class Step;
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
-  friend class Rebuild;
+  friend class RebuildPlanner;
 
  public:
   /// Create a command to invoke the provided buildfile

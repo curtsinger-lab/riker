@@ -4,9 +4,9 @@
 #include <ostream>
 #include <set>
 
+#include "build/BuildObserver.hh"
 #include "data/Command.hh"
 #include "data/Version.hh"
-#include "rebuild/BuildObserver.hh"
 
 using std::endl;
 using std::ostream;

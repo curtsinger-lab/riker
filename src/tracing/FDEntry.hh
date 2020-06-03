@@ -5,8 +5,8 @@
 
 #include <cereal/access.hpp>
 
+#include "build/Artifact.hh"
 #include "data/IR.hh"
-#include "rebuild/Artifact.hh"
 
 using std::ostream;
 using std::shared_ptr;

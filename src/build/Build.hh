@@ -5,9 +5,9 @@
 #include <set>
 #include <vector>
 
+#include "build/BuildObserver.hh"
+#include "build/Env.hh"
 #include "data/Command.hh"
-#include "rebuild/BuildObserver.hh"
-#include "rebuild/Env.hh"
 
 using std::ostream;
 using std::set;

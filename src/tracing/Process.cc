@@ -8,12 +8,11 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
+#include "build/Artifact.hh"
+#include "build/Build.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/InitialFD.hh"
-#include "rebuild/Artifact.hh"
-#include "rebuild/Build.hh"
-#include "rebuild/Rebuild.hh"
 #include "tracing/FDEntry.hh"
 #include "tracing/syscalls.hh"
 #include "ui/log.hh"

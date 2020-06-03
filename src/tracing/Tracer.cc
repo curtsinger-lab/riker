@@ -19,10 +19,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "build/Build.hh"
 #include "data/Command.hh"
 #include "data/Version.hh"
-#include "rebuild/Build.hh"
-#include "rebuild/Rebuild.hh"
 #include "tracing/FDEntry.hh"
 #include "tracing/Process.hh"
 #include "tracing/syscalls.hh"

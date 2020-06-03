@@ -9,10 +9,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "build/Artifact.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
-#include "rebuild/Artifact.hh"
 #include "ui/log.hh"
 #include "ui/options.hh"
 
