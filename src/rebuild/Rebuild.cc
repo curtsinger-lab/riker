@@ -188,7 +188,7 @@ void Rebuild::commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) {
 }
 
 // A parent command is launching a child command
-void Rebuild::launched(shared_ptr<Command> parent, shared_ptr<Command> child) {
+void Rebuild::launch(shared_ptr<Command> parent, shared_ptr<Command> child) {
   // Are we planning or running the rebuild?
   if (_phase == RebuildPhase::Planning) {
     // In the planning phase, we always emulate the child command to capture its dependencies

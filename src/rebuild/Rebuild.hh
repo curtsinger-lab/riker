@@ -73,8 +73,8 @@ class Rebuild : private BuildObserver {
   /// IR step s in command c observed a change
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override;
 
-  /// An emulated command is launching a child command
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override;
+  /// A command is being launched
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override;
 
   /// An artifact's final metadata do not match what is on the filesystem (unused)
   virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {}

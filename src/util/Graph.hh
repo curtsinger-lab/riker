@@ -198,7 +198,7 @@ class Graph : private BuildObserver {
     _changed.insert(c);
   }
 
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     // Process the child command to gather its dependencies
     processCommand(child);
 

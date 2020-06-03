@@ -70,7 +70,7 @@ class Trace : private BuildObserver {
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
 
   /// A command is about to be launched. The visitor can choose whether or not to emulate it
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     _commands.insert(child);
     child->emulate(_env);
   }

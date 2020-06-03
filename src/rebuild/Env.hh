@@ -124,7 +124,7 @@ class Env {
 
   /// Inform the observer that a command has launched another command
   void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) {
-    _observer.get().launched(parent, child);
+    _observer.get().launch(parent, child);
   }
 
   /// Inform the observer that an artifact's metadata does not match the expected final state

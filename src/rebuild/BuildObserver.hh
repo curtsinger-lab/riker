@@ -38,8 +38,8 @@ class BuildObserver {
   /// The outcome of an IR step has changed since the build trace was collected
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) = 0;
 
-  /// A command is about to be launched. The visitor can choose whether or not to emulate it.
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) = 0;
+  /// A command is being started
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) = 0;
 
   /// The metadata for an artifact on the file system do not match its state at the end of the build
   virtual void finalMetadataMismatch(shared_ptr<Artifact> a) = 0;

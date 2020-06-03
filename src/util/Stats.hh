@@ -116,7 +116,7 @@ class Stats : private BuildObserver {
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {}
 
   /// Called each time a command emulates a launch step
-  virtual void launched(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) override {
     // Process the child command
     processCommand(child);
   }
