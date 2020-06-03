@@ -42,9 +42,6 @@ class Step {
    */
   virtual void emulate(shared_ptr<Command> c, Build& build) = 0;
 
-  /// Get the unique ID for this IR node
-  size_t getID() const { return _id; }
-
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
 
@@ -55,8 +52,6 @@ class Step {
   friend ostream& operator<<(ostream& o, const Step* s) { return o << *s; }
 
  private:
-  UniqueID<Step> _id;
-
   SERIALIZE();
 };
 
@@ -67,10 +62,16 @@ class Step {
  */
 class Reference : public Step {
  public:
+  /// Get the unique ID for this reference
+  size_t getID() const { return _id; }
+
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 
  private:
+  /// Assign a unique ID to each reference
+  UniqueID<Reference> _id;
+
   SERIALIZE(BASE(Step));
 };
 

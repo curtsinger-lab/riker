@@ -14,7 +14,7 @@
 #include "build/BuildObserver.hh"
 #include "data/Command.hh"
 #include "data/Version.hh"
-#include "ui/log.hh"
+#include "util/log.hh"
 
 using std::dynamic_pointer_cast;
 using std::ostream;

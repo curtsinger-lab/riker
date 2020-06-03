@@ -142,7 +142,7 @@ class Graph : public BuildObserver {
 
   void processCommand(shared_ptr<Command> c) {
     // Add this command to the map of command IDs
-    _command_ids.emplace(c, string("c") + to_string(c->getID()));
+    _command_ids.emplace(c, string("c") + to_string(_command_ids.size()));
   }
 
   void processArtifact(shared_ptr<Artifact> a) {

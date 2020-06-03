@@ -10,7 +10,6 @@
 #include "data/AccessFlags.hh"
 #include "data/InitialFD.hh"
 #include "data/serializer.hh"
-#include "util/UniqueID.hh"
 
 using std::list;
 using std::map;
@@ -51,9 +50,6 @@ class Command : public std::enable_shared_from_this<Command> {
   // Allow Move
   Command(Command&&) = default;
   Command& operator=(Command&&) = default;
-
-  /// Get a command's unique ID
-  int getID() const { return _id; }
 
   /// Get a short, printable name for this command
   string getShortName() const;
@@ -118,16 +114,13 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Print a Command to an output stream
   friend ostream& operator<<(ostream& o, const Command& c) {
-    return o << "[Command " << c.getID() << " " << c.getShortName() << "]";
+    return o << "[Command " << c.getShortName() << "]";
   }
 
   /// Print a Command* to an output stream
   friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
 
  private:
-  /// A unique ID assigned to this command for log readability
-  UniqueID<Command> _id;
-
   /// The executable file this command runs
   string _exe;
 

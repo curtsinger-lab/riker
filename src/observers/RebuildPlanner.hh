@@ -8,8 +8,8 @@
 #include "build/Artifact.hh"
 #include "build/BuildObserver.hh"
 #include "data/Command.hh"
-#include "ui/log.hh"
 #include "ui/options.hh"
+#include "util/log.hh"
 
 using std::map;
 using std::ostream;

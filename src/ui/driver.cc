@@ -17,8 +17,8 @@
 #include "observers/RebuildPlanner.hh"
 #include "observers/Stats.hh"
 #include "observers/Trace.hh"
-#include "ui/log.hh"
 #include "ui/options.hh"
+#include "util/log.hh"
 
 using std::cout;
 using std::endl;

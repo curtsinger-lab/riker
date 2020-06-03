@@ -13,8 +13,8 @@
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
-#include "ui/log.hh"
 #include "ui/options.hh"
+#include "util/log.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;

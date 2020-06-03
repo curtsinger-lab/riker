@@ -15,7 +15,7 @@
 #include "data/InitialFD.hh"
 #include "tracing/FDEntry.hh"
 #include "tracing/syscalls.hh"
-#include "ui/log.hh"
+#include "util/log.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;

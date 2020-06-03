@@ -8,7 +8,7 @@
 
 #include "build/Artifact.hh"
 #include "data/IR.hh"
-#include "ui/log.hh"
+#include "util/log.hh"
 
 using std::dynamic_pointer_cast;
 using std::nullopt;
