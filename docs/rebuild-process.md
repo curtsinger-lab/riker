@@ -1,4 +1,6 @@
 # Rebuild Process
+TODO: Update thid document. The two-phase process is still relevant, but some of the details of how artifacts and versions are handled have changed.
+
 I'm just jotting down some notes about how the rebuild process works to help me think about how to
 structure the phases of the rebuild.
 
