@@ -713,7 +713,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
     // If the file was created or truncated by the open call, set the contents in the artifact
-    if (created || ref_flags.truncate) {
+    if (ref_flags.truncate) {
       _command->setContents(ref, artifact);
     }
 

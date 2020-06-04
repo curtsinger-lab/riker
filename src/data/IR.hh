@@ -4,6 +4,9 @@
 #include <ostream>
 #include <string>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "data/AccessFlags.hh"
 #include "data/serializer.hh"
 #include "util/UniqueID.hh"
@@ -15,6 +18,7 @@ using std::string;
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int { SUCCESS = 0 };
 
+class Artifact;
 class Build;
 class BuildObserver;
 class Command;
@@ -60,26 +64,9 @@ class Step {
  * subclass of Reference. References do not necessarily resolve to artifacts (they could fail) but
  * we can encode predicates about the outcome of a reference.
  */
-class Reference : public Step {
+class Reference : public Step, public std::enable_shared_from_this<Reference> {
  public:
-  /// Get the unique ID for this reference
-  size_t getID() const { return _id; }
-
-  /// Get the short name for this reference
-  string getName() const { return "r" + std::to_string(getID()); }
-
- private:
-  /// Assign a unique ID to each reference
-  UniqueID<Reference> _id;
-
-  SERIALIZE(BASE(Step));
-};
-
-/// Create a reference to a new pipe
-class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
- public:
-  /// Create a pipe
-  Pipe() = default;
+  void resolve(shared_ptr<Command> c, Build& build);
 
   /**
    * Emulate this IR step in a given environment
@@ -87,6 +74,35 @@ class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
    * \param env The environment this step should be emulated in
    */
   virtual void emulate(shared_ptr<Command> c, Build& build) override;
+
+  /// Get the unique ID for this reference
+  size_t getID() const { return _id; }
+
+  /// Get the short name for this reference
+  string getName() const { return "r" + std::to_string(getID()); }
+
+  /// Get the artifact this reference resolved to
+  shared_ptr<Artifact> getArtifact() const { return _artifact; }
+
+  /// Get the result of trying to resolve this reference
+  int getResult() const { return _rc; }
+
+ private:
+  /// Assign a unique ID to each reference
+  UniqueID<Reference> _id;
+
+  SERIALIZE(BASE(Step));
+
+  // Transient fields
+  shared_ptr<Artifact> _artifact;
+  int _rc;
+};
+
+/// Create a reference to a new pipe
+class Pipe : public Reference {
+ public:
+  /// Create a pipe
+  Pipe() = default;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -97,7 +113,7 @@ class Pipe : public Reference, public std::enable_shared_from_this<Pipe> {
 };
 
 /// Access a filesystem path with a given set of flags
-class Access : public Reference, public std::enable_shared_from_this<Access> {
+class Access : public Reference {
  public:
   /// Create an access reference to a path with given flags
   Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
@@ -116,13 +132,6 @@ class Access : public Reference, public std::enable_shared_from_this<Access> {
 
   /// Call access() on this reference
   int access() const;
-
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;

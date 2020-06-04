@@ -20,81 +20,66 @@ using std::dynamic_pointer_cast;
 using std::ostream;
 using std::shared_ptr;
 
-/******* Change Detection *******/
-
-void Pipe::emulate(shared_ptr<Command> c, Build& build) {
-  // Resolve the reference
-  auto [artifact, rc, created] = build.getEnv().get(c, shared_from_this());
-
-  // Nothing else to do for pipes; referencing them always creates them.
-  // This IR step should be followed by a SET_CONTENTS step soon after.
+void Reference::resolve(shared_ptr<Command> c, Build& build) {
+  auto [artifact, rc, _] = build.getEnv().get(c, shared_from_this());
+  _artifact = artifact;
+  _rc = rc;
 }
 
-void Access::emulate(shared_ptr<Command> c, Build& build) {
-  // Resolve the reference
-  auto [artifact, rc, created] = build.getEnv().get(c, shared_from_this());
+/******* Emulation *******/
 
-  // TODO: Track the depenency of command c on whatever command made the result of this access
-  // possible. This is going to have to happen inside of the path resolution in the environment.
+void Reference::emulate(shared_ptr<Command> c, Build& build) {
+  // Resolve the reference
+  resolve(c, build);
 }
 
 void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) {
-  // Check if the reference resolves the same way
-  auto [artifact, rc, created] = build.getEnv().get(c, _ref);
-
-  if (rc != _rc) build.observeCommandChange(c, shared_from_this());
+  // Check if the reference resolved as expected
+  if (_ref->getResult() != _rc) build.observeCommandChange(c, shared_from_this());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
-  auto [a, rc, created] = build.getEnv().get(c, _ref);
-
   // If the reference does not resolve, report a change
-  if (rc != SUCCESS) {
+  if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // Have the artifact check whether its metadata matches the expected version
-  a->checkMetadata(c, _version);
+  _ref->getArtifact()->checkMetadata(c, _version);
 }
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
-  auto [a, rc, created] = build.getEnv().get(c, _ref);
-
-  // If the reference does not resolve, report a change
-  if (rc != SUCCESS) {
+  // If the reference did not resolve, report a change
+  if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // Have the artifact check whether its contents match the expected version
-  a->checkContents(c, _version);
+  _ref->getArtifact()->checkContents(c, _version);
 }
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
-  auto [a, rc, created] = build.getEnv().get(c, _ref);
-
-  // If the reference does not resolve, report a change
-  if (rc != SUCCESS) {
+  // If the reference did not resolve, report a change
+  if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // Add the assigned version to the artifact
-  a->setMetadata(c, _version);
+  _ref->getArtifact()->setMetadata(c, _version);
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) {
-  auto [a, rc, created] = build.getEnv().get(c, _ref);
-
-  // If the reference does not resolve, report a change
-  if (rc != SUCCESS) {
+  // If the reference did not resolve, report a change
+  if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
 
   // Add the assigned version to the artifact
-  a->setContents(c, _version);
+  _ref->getArtifact()->setContents(c, _version);
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) {

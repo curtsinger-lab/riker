@@ -33,17 +33,11 @@ bool Version::metadataMatch(shared_ptr<Version> other) const {
   if (!m1.has_value() || !m2.has_value()) return false;
 
   // We only compare uid, gid, and mode (which covers both type and permissions)
-  if (m1.value().st_uid != m2.value().st_uid) {
-    return false;
-  }
+  if (m1.value().st_uid != m2.value().st_uid) return false;
 
-  if (m1.value().st_gid != m2.value().st_gid) {
-    return false;
-  }
+  if (m1.value().st_gid != m2.value().st_gid) return false;
 
-  if (m1.value().st_mode != m2.value().st_mode) {
-    return false;
-  }
+  if (m1.value().st_mode != m2.value().st_mode) return false;
 
   // Copy the identity to/from the matched version
   identify(other);

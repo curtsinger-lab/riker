@@ -2,6 +2,10 @@
 
 #include <memory>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "data/Command.hh"
@@ -25,6 +29,29 @@ shared_ptr<Artifact> Artifact::created(Build* build, shared_ptr<Reference> ref,
                                        shared_ptr<Command> c) {
   shared_ptr<Artifact> a(new Artifact(build, ref));
   a->createInitialVersion(c);
+
+  // Manufacture the expected stat data for this created artifact
+  // TODO: get euid and egid from the process
+  struct stat statbuf = {.st_uid = geteuid(), .st_gid = getegid()};
+
+  // Fill in the mode field
+  if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
+    statbuf.st_mode = S_IFIFO | 0777;
+  } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
+    // Get the current umask
+    // TODO: This should come from the running process, not dodo
+    auto mask = umask(0);
+    umask(mask);
+
+    statbuf.st_mode = S_IFREG | (a->getFlags().mode & ~mask);
+  }
+
+  // Shoehorn this manufactured stat buffer into the initial version
+  a->_versions.back()->setMetadata(statbuf);
+
+  build->observeMetadataOutput(c, a);
+  build->observeContentOutput(c, a);
+
   return a;
 }
 
