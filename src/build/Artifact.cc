@@ -49,8 +49,8 @@ shared_ptr<Artifact> Artifact::created(Build* build, shared_ptr<Reference> ref,
   // Shoehorn this manufactured stat buffer into the initial version
   a->_versions.back()->setMetadata(statbuf);
 
-  build->observeMetadataOutput(c, a);
-  build->observeContentOutput(c, a);
+  build->observeMetadataOutput(c, a, a->_versions.back());
+  build->observeContentOutput(c, a, a->_versions.back());
 
   return a;
 }
@@ -80,7 +80,7 @@ optional<string> Artifact::getPath() const {
 // Return the version it observes, or nullptr if no check is necessary
 shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
   // Inform the environment of this input
-  _build->observeMetadataInput(c, shared_from_this());
+  _build->observeMetadataInput(c, shared_from_this(), _metadata_version);
 
   // All done
   return _metadata_version;
@@ -90,7 +90,7 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c) {
 // Return the version it observes, or nullptr if no check is necessary
 shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c) {
   // Inform the environment of this input
-  _build->observeContentInput(c, shared_from_this());
+  _build->observeContentInput(c, shared_from_this(), _content_version);
 
   // All done
   return _content_version;
@@ -107,7 +107,7 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c) {
   _metadata_creator = c;
 
   // Inform the environment of this output
-  _build->observeMetadataOutput(c, shared_from_this());
+  _build->observeMetadataOutput(c, shared_from_this(), _metadata_version);
 
   // Return the newly-tagged version
   return v;
@@ -124,7 +124,7 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
   _content_creator = c;
 
   // Inform the environment of this output
-  _build->observeContentOutput(c, shared_from_this());
+  _build->observeContentOutput(c, shared_from_this(), _content_version);
 
   // Return the newly-tagged version
   return v;
@@ -135,22 +135,22 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c) {
 // Command c checks whether this artifact's metadata matches an expected version
 void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
   // Inform the environment of this input
-  _build->observeMetadataInput(c, shared_from_this());
+  _build->observeMetadataInput(c, shared_from_this(), _metadata_version);
 
   // Compare versions
   if (!_metadata_version->metadataMatch(v)) {
-    _build->observeMetadataMismatch(c, shared_from_this());
+    _build->observeMetadataMismatch(c, shared_from_this(), _metadata_version, v);
   }
 }
 
 // Command c checks whether this artifact's content matches an expected version
 void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
   // Inform the environment of this input
-  _build->observeContentInput(c, shared_from_this());
+  _build->observeContentInput(c, shared_from_this(), _content_version);
 
   // Compare versions
   if (!_content_version->contentsMatch(v)) {
-    _build->observeContentMismatch(c, shared_from_this());
+    _build->observeContentMismatch(c, shared_from_this(), _content_version, v);
   }
 }
 
@@ -163,7 +163,7 @@ void Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
   _metadata_creator = c;
 
   // Inform the environment of this output
-  _build->observeMetadataOutput(c, shared_from_this());
+  _build->observeMetadataOutput(c, shared_from_this(), _metadata_version);
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
@@ -175,7 +175,7 @@ void Artifact::setContents(shared_ptr<Command> c, shared_ptr<Version> v) {
   _content_creator = c;
 
   // Inform the environment of this output
-  _build->observeContentOutput(c, shared_from_this());
+  _build->observeContentOutput(c, shared_from_this(), _content_version);
 }
 
 // Save metadata for the latest version of this artifact
@@ -201,10 +201,10 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   v->saveFingerprint(ref);
 
   if (!_metadata_version->metadataMatch(v)) {
-    _build->observeFinalMetadataMismatch(shared_from_this());
+    _build->observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
 
   if (!_content_version->contentsMatch(v)) {
-    _build->observeFinalContentMismatch(shared_from_this());
+    _build->observeFinalContentMismatch(shared_from_this(), _content_version, v);
   }
 }

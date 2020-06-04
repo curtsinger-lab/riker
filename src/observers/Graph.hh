@@ -43,7 +43,7 @@ class Graph : public BuildObserver {
       o << "label=\"" << escape(c->getShortName()) << "\" ";
       o << "tooltip=\"" << escape(c->getFullName()) << "\" ";
       o << "fontname=Courier ";
-      if (_changed.find(c) != _changed.end()) {
+      if (_changed_commands.find(c) != _changed_commands.end()) {
         o << "style=\"filled\" ";
         o << "fillcolor=\"yellow\" ";
       }
@@ -72,14 +72,12 @@ class Graph : public BuildObserver {
       }
 
       // Add a row for each version
-      size_t index = 0;
       for (auto v : artifact->getVersions()) {
-        o << "<tr><td port=\"v" + to_string(index) + "\"";
-        if (_changed_versions.find({artifact, index}) != _changed_versions.end()) {
+        o << "<tr><td port=\"" + getVersionID(v) + "\"";
+        if (_changed_versions.find(v) != _changed_versions.end()) {
           o << " bgcolor=\"yellow\"";
         }
         o << "></td></tr>";
-        index++;
       }
 
       // Finish the vertex line
@@ -140,89 +138,114 @@ class Graph : public BuildObserver {
     return false;
   }
 
-  void processCommand(shared_ptr<Command> c) {
-    // Add this command to the map of command IDs
-    _command_ids.emplace(c, string("c") + to_string(_command_ids.size()));
+  string getCommandID(shared_ptr<Command> c) {
+    // Add this command to the map of command IDs if necessary
+    if (auto iter = _command_ids.find(c); iter == _command_ids.end()) {
+      _command_ids.emplace_hint(iter, c, string("c") + to_string(_command_ids.size()));
+    }
+    return _command_ids[c];
   }
 
-  void processArtifact(shared_ptr<Artifact> a) {
+  string getArtifactID(shared_ptr<Artifact> a) {
     // Add this artifact to the map of artifact IDs if necessary
-    auto iter = _artifact_ids.find(a);
-    if (iter == _artifact_ids.end()) {
+    if (auto iter = _artifact_ids.find(a); iter == _artifact_ids.end()) {
       _artifact_ids.emplace_hint(iter, a, string("a") + to_string(_artifact_ids.size()));
     }
+
+    return _artifact_ids[a];
   }
 
-  string getVersionID(shared_ptr<Artifact> a) {
-    processArtifact(a);
-    return _artifact_ids[a] + ":v" + to_string(a->getVersionCount() - 1);
+  string getVersionID(shared_ptr<Version> v) {
+    if (auto iter = _version_ids.find(v); iter == _version_ids.end()) {
+      _version_ids.emplace_hint(iter, v, string("v") + to_string(_version_ids.size()));
+    }
+    return _version_ids[v];
+  }
+
+  string getVersionID(shared_ptr<Artifact> a, shared_ptr<Version> v) {
+    return getArtifactID(a) + ":" + getVersionID(v);
   }
 
   /// Command c reads metadata from artifact a
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                             shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _metadata_edges.emplace(getVersionID(a), _command_ids[c]);
+    _metadata_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
 
   /// Command c reads the contents of artifact a
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                            shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _content_edges.emplace(getVersionID(a), _command_ids[c]);
+    _content_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
 
   /// Command c changes metadata for artifact a
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                              shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _metadata_edges.emplace(_command_ids[c], getVersionID(a));
+    _metadata_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
   /// Command c changes the contents of artifact a
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
+  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                             shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _content_edges.emplace(_command_ids[c], getVersionID(a));
+    _content_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
   /// Command c observes a change in metadata for artifact a
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
-    _changed.insert(c);
-    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                                shared_ptr<Version> observed,
+                                shared_ptr<Version> expected) override {
+    _changed_commands.insert(c);
+
+    // The observed version is what the emulated build produced, and will appear in the graph.
+    // Mark it as changed.
+    _changed_versions.emplace(observed);
   }
 
   /// Command c observes a change in the contents of artifact a
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
-    _changed.insert(c);
-    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                               shared_ptr<Version> observed,
+                               shared_ptr<Version> expected) override {
+    _changed_commands.insert(c);
+
+    // The observed version is what the emulated build produced, and will appear in the graph.
+    // Mark it as changed.
+    _changed_versions.emplace(observed);
   }
 
   /// Command c observes a change when executing an IR step
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
-    _changed.insert(c);
+    _changed_commands.insert(c);
   }
 
   /// The root command is starting
-  virtual void launchRootCommand(shared_ptr<Command> root) override { processCommand(root); }
+  virtual void launchRootCommand(shared_ptr<Command> root) override { getCommandID(root); }
 
   /// A child command is starting
   virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
-    // Process the child command to gather its dependencies
-    processCommand(child);
-
     // Add the edge from parent to child
-    _command_edges.emplace(_command_ids[parent], _command_ids[child]);
+    _command_edges.emplace(getCommandID(parent), getCommandID(child));
   }
 
   /// The metadata for an artifact on the file system do not match its state at the end of the build
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a) override {
-    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  virtual void finalMetadataMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                                     shared_ptr<Version> expected) override {
+    // The expected version is what the emulated build produced. Mark it as changed.
+    _changed_versions.emplace(observed);
   }
 
   /// The contents of an artifact on the file system do not match its state at the end of the build
-  virtual void finalContentMismatch(shared_ptr<Artifact> a) override {
-    _changed_versions.emplace(a, a->getVersionCount() - 1);
+  virtual void finalContentMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                                    shared_ptr<Version> expected) override {
+    // The observed version is what the emulated build produced. Mark this as changed.
+    _changed_versions.emplace(observed);
   }
 
  private:
@@ -232,8 +255,11 @@ class Graph : public BuildObserver {
   /// A map from commands to their IDs in the graph output
   map<shared_ptr<Command>, string> _command_ids;
 
-  /// A map from versions to the ID used to represent the entire artifact in the build graph
+  /// A map from artifacts to the ID used to represent the entire artifact in the build graph
   map<shared_ptr<Artifact>, string> _artifact_ids;
+
+  /// A map from versions to their ID (not prefixed by artifact ID)
+  map<shared_ptr<Version>, string> _version_ids;
 
   /// A set of command edges, from parent to child
   set<pair<string, string>> _command_edges;
@@ -245,8 +271,8 @@ class Graph : public BuildObserver {
   set<pair<string, string>> _content_edges;
 
   /// The set of commands marked as changed
-  set<shared_ptr<Command>> _changed;
+  set<shared_ptr<Command>> _changed_commands;
 
-  /// The set of artifact versions marked as changed
-  set<pair<shared_ptr<Artifact>, size_t>> _changed_versions;
+  /// The set of versions to mark as changed
+  set<shared_ptr<Version>> _changed_versions;
 };
