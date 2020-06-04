@@ -1,5 +1,6 @@
 CC  = clang
 CXX = clang++
+MAKEFLAGS += -j
 
 COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
@@ -7,7 +8,7 @@ LDFLAGS = -lstdc++fs
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))
-HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
+DEPS := $(patsubst src/%.cc, .obj/%.d, $(SRCS))
 
 all: dodo dodo-launch
 	
@@ -21,9 +22,9 @@ clean:
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	
-$(OBJS): .obj/%.o: src/%.cc $(HEADERS) Makefile
+$(OBJS): .obj/%.o: src/%.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
+	$(CXX) -MMD -MP $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
 dodo-launch: launch/launch.c
 	$(CC) -o $@ $^
@@ -43,3 +44,5 @@ selftest: dodo
 	@echo "Running self test"
 	@rm -f .dodo
 	./dodo
+
+-include $(DEPS)
