@@ -59,7 +59,7 @@ shared_ptr<Command> load_build(string filename, bool default_fallback) {
     // If the version matches, return the root of the build
     return root;
 
-  } catch (cereal::Exception e) {
+  } catch (cereal::Exception& e) {
     // If fallback to a default is allowed, get a default build
     if (default_fallback) return Command::createRootCommand();
     FAIL << "Failed to load the build database. Have you run a build yet?";

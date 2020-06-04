@@ -56,7 +56,7 @@ class Step {
   friend ostream& operator<<(ostream& o, const Step* s) { return o << *s; }
 
  private:
-  SERIALIZE();
+  SERIALIZE_EMPTY();
 };
 
 /**
