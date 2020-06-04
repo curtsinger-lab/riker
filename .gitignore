@@ -1,10 +1,10 @@
 #*
 *~
 ._*
-objs/
+.obj
+.dodo
 dodo
 dodo-launch
-.dodo
 out.dot
 out.pdf
 out.svg

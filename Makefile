@@ -6,7 +6,7 @@ CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -lstdc++fs
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
-OBJS := $(patsubst src/%.cc, objs/%.o, $(SRCS))
+OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))
 HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
 TESTS := $(shell find tests -type d)
@@ -14,7 +14,7 @@ TESTS := $(shell find tests -type d)
 all: dodo dodo-launch
 	
 clean:
-	rm -rf dodo objs .dodo
+	rm -rf dodo .obj .dodo
 
 .PHONY: all clean test selftest
 
@@ -23,7 +23,7 @@ clean:
 dodo: $(OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	
-$(OBJS): objs/%.o: src/%.cc $(HEADERS) Makefile
+$(OBJS): .obj/%.o: src/%.cc $(HEADERS) Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) $(filter %.cc,$^) -c -o $@
 
