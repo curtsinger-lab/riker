@@ -43,7 +43,7 @@ class Stats : public BuildObserver {
       o << endl;
       o << "Artifacts:" << endl;
       for (auto& a : _artifacts) {
-        o << "  " << a->getPath().value_or("<anonymous>") << endl;
+        o << "  " << a->getName() << endl;
 
         size_t index = 0;
         for (auto& v : a->getVersions()) {

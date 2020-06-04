@@ -854,6 +854,13 @@ void Process::_symlinkat(string oldname, int newdfd, string newname) {
 }
 
 void Process::_readlinkat(int dfd, string pathname) {
+  // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
+  // build work
+  if (pathname.find("/proc/self") != string::npos) {
+    resume();
+    return;
+  }
+
   // We're making a reference to a symlink, so don't follow links
   auto p = resolvePath(pathname, dfd);
   auto ref = _command->access(p, {.nofollow = true});

@@ -66,10 +66,8 @@ class Graph : public BuildObserver {
       // Print the artifact type (not supported at the moment)
       // o << "<tr><td border=\"0\"><sub>" << ARTIFACT_TYPE << "</sub></td></tr>";
 
-      // Add a row with the artifact name, if it has one
-      if (auto path = artifact->getPath(); path.has_value()) {
-        o << "<tr><td>" + escape(path.value()) + "</td></tr>";
-      }
+      // Add a row with the artifact name
+      o << "<tr><td>" + artifact->getName() + "</td></tr>";
 
       // Add a row for each version
       for (auto v : artifact->getVersions()) {
@@ -127,13 +125,12 @@ class Graph : public BuildObserver {
 
   /// Check if an artifact appears to be a system file
   bool isSystemFile(shared_ptr<Artifact> a) {
-    auto path = a->getPath();
-    if (!path.has_value()) return false;
+    auto path = a->getName();
 
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
       // Check if the path begins with one of our prefixes.
       // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
-      if (path.value().rfind(p, 0) != string::npos) return true;
+      if (path.rfind(p, 0) != string::npos) return true;
     }
     return false;
   }

@@ -66,7 +66,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
   }
 
   // Add the assigned version to the artifact
-  _ref->getArtifact()->setMetadata(c, _version);
+  _ref->getArtifact()->setMetadata(c, _ref, _version);
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) {
@@ -77,7 +77,7 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) {
   }
 
   // Add the assigned version to the artifact
-  _ref->getArtifact()->setContents(c, _version);
+  _ref->getArtifact()->setContents(c, _ref, _version);
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) {

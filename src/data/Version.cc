@@ -89,9 +89,7 @@ void Version::saveFingerprint(shared_ptr<Reference> ref) {
 }
 
 void Version::identify(const Artifact* a) const {
-  auto p = a->getPath();
-  _identity =
-      string("[") + p.value_or("<anon>") + " v" + std::to_string(a->getVersionCount() - 1) + "]";
+  _identity = string("[") + a->getName() + " v" + std::to_string(a->getVersionCount() - 1) + "]";
 }
 
 void Version::identify(shared_ptr<Version> other) const {

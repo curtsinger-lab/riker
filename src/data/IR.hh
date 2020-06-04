@@ -10,6 +10,7 @@
 #include "data/AccessFlags.hh"
 #include "data/serializer.hh"
 #include "util/UniqueID.hh"
+#include "util/log.hh"
 
 using std::ostream;
 using std::shared_ptr;
@@ -82,7 +83,10 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
   string getName() const { return "r" + std::to_string(getID()); }
 
   /// Get the artifact this reference resolved to
-  shared_ptr<Artifact> getArtifact() const { return _artifact; }
+  shared_ptr<Artifact> getArtifact() const {
+    FAIL_IF(!_artifact) << "Attempted to access unresolved reference " << this;
+    return _artifact;
+  }
 
   /// Get the result of trying to resolve this reference
   int getResult() const { return _rc; }
