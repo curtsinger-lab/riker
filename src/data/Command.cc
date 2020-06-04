@@ -75,10 +75,16 @@ string Command::getShortName() const {
     result = result.substr(pos + 1);
   }
 
-  // Add a couple arguments if we have them
-  if (_args.size() >= 2) result += " " + _args[1];
-  if (_args.size() >= 3) result += " " + _args[2];
-  if (_args.size() >= 4) result += " ...";
+  // Add arguments up to a length of 20 characters
+  size_t index = 1;
+  while (index < _args.size() && result.length() < 20) {
+    result += " " + _args[index];
+    index++;
+  }
+
+  if (result.length() >= 20) {
+    result = result.substr(0, 17) + "...";
+  }
 
   return result;
 }
