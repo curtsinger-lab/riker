@@ -1,4 +1,4 @@
-# Dependency Lanuage
+# Dependency Language
 We can write down commands' dependences using an expression-based language, documented below. This doesn't capture any of the version lookup logic, but I think it does help make examples a bit more concise, and could be helpful as an actual representation for the implementation.
 
 The language must by dynamically typed, since a core operation is to get an entry from a directory by name. The result of that operation could be either a file or directory. I'll use type alternatives to express the dynamically-typed results of different operations.
@@ -63,4 +63,4 @@ There is currently no way to express the difference between opening a file in re
 The language needs to be extended to include symlinks. The right approach is probably to add another top-level datatype. Will we need `O_NOFOLLOW` versions of other operations to handle them? Could we instead wrap them in a special NOFOLLOW operation to explicitly access the symlink itself?
 
 ### Metadata Access and Changes
-The langauge includes a mostly unexamined `STAT` operation for accessing metadata, but we'll also need to add representations for `chmod` or `chown` operations.
+The language includes a mostly unexamined `STAT` operation for accessing metadata, but we'll also need to add representations for `chmod` or `chown` operations.
