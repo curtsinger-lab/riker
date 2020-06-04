@@ -31,7 +31,7 @@ void Env::reset() {
   _pipes.clear();
 }
 
-tuple<shared_ptr<Artifact>, int, bool> Env::get(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+tuple<shared_ptr<Artifact>, int> Env::get(shared_ptr<Command> c, shared_ptr<Reference> ref) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     return getPipe(c, p);
@@ -41,16 +41,16 @@ tuple<shared_ptr<Artifact>, int, bool> Env::get(shared_ptr<Command> c, shared_pt
 
   } else {
     WARN << "Unsupported reference type: " << ref;
-    return {nullptr, ENOENT, false};
+    return {nullptr, ENOENT};
   }
 }
 
-tuple<shared_ptr<Artifact>, int, bool> Env::getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) {
+tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) {
   // Check the _pipes map for an existing artifact
   auto iter = _pipes.find(ref);
   if (iter != _pipes.end()) {
     // Found a match. Return the artifact and result code
-    return {iter->second, SUCCESS, false};
+    return {iter->second, SUCCESS};
 
   } else {
     // No match found. Create a pipe artifact
@@ -60,15 +60,15 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getPipe(shared_ptr<Command> c, share
     _pipes.emplace_hint(iter, ref, artifact);
 
     // Return the artifact and result code
-    return {artifact, SUCCESS, true};
+    return {artifact, SUCCESS};
   }
 }
 
-tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, shared_ptr<Access> ref) {
+tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<Access> ref) {
   // Check the _files map to see if this reference has already been resolved
   if (auto iter = _files.find(ref); iter != _files.end()) {
     // Found a match. Return the artifact and result code
-    return {iter->second, SUCCESS, false};
+    return {iter->second, SUCCESS};
   }
 
   // At this point, we know this is a new reference. There are three possible outcomes:
@@ -86,14 +86,14 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
 
     // If the access was required to create the file, return an error
     if (flags.create && flags.exclusive) {
-      return {nullptr, EEXIST, false};
+      return {nullptr, EEXIST};
     }
 
     // Otherwise, the access will succeed. Save this in the map of resolved references
     _files.emplace(ref, iter->second);
 
     // Return the artifact and success code
-    return {iter->second, SUCCESS, false};
+    return {iter->second, SUCCESS};
   }
 
   // Use the access() system call to check the reference
@@ -114,16 +114,16 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
       _filesystem.emplace(path, artifact);
 
       // And finally, return success
-      return {artifact, SUCCESS, true};
+      return {artifact, SUCCESS};
     }
 
     // If we hit this point, it's a normal access and errno has the right code.
-    return {nullptr, errno, false};
+    return {nullptr, errno};
 
   } else {
     // If the file exists, but O_CREAT and O_EXCL were passed, the reference will fail
     if (flags.create && flags.exclusive) {
-      return {nullptr, EEXIST, false};
+      return {nullptr, EEXIST};
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
@@ -143,7 +143,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     _filesystem.emplace(path, artifact);
 
     // And finally, return success
-    return {artifact, SUCCESS, false};
+    return {artifact, SUCCESS};
   }
 }
 

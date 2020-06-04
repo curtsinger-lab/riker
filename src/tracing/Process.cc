@@ -368,7 +368,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _command->referenceResult(ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto [artifact, env_rc, created] = _build.getEnv().get(_command, ref);
+      auto [artifact, env_rc] = _build.getEnv().get(_command, ref);
 
       FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
 
@@ -431,7 +431,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _command->launch(exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto [exe_artifact, exe_rc, _] = _build.getEnv().get(_command, exe_ref);
+  auto [exe_artifact, exe_rc] = _build.getEnv().get(_command, exe_ref);
 
   FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
 
@@ -476,7 +476,7 @@ void Process::_truncate(string pathname, long length) {
   auto ref = _command->access(p, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
-  auto [artifact, env_rc, _] = _build.getEnv().get(_command, ref);
+  auto [artifact, env_rc] = _build.getEnv().get(_command, ref);
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
@@ -696,8 +696,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   auto ref = _command->access(p, ref_flags);
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
-  // This will tell us whether or not the syscall created the artifact
-  auto [artifact, _, created] = _build.getEnv().get(_command, ref);
+  // This will ensure the environment knows whether or not this artifact is created
+  auto [artifact, _] = _build.getEnv().get(_command, ref);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -712,7 +712,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
     FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
 
-    // If the file was created or truncated by the open call, set the contents in the artifact
+    // If the file is truncated by the open call, set the contents in the artifact
     if (ref_flags.truncate) {
       _command->setContents(ref, artifact);
     }
@@ -868,7 +868,7 @@ void Process::_readlinkat(int dfd, string pathname) {
     _command->referenceResult(ref, SUCCESS);
 
     // Get the artifact that we referenced
-    auto [artifact, _, __] = _build.getEnv().get(_command, ref);
+    auto [artifact, _] = _build.getEnv().get(_command, ref);
 
     FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
 
@@ -888,7 +888,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   auto ref = _command->access(p, AccessFlags{});
 
   // Get the artifact that we're going to chmod
-  auto [artifact, _, __] = _build.getEnv().get(_command, ref);
+  auto [artifact, _] = _build.getEnv().get(_command, ref);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -984,7 +984,7 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto [artifact, _, __] = _build.getEnv().get(_command, ref);
+  auto [artifact, _] = _build.getEnv().get(_command, ref);
 
   FAIL_IF(!artifact) << "Failed to get artifact for pipe";
 

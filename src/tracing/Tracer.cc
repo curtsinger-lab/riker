@@ -144,7 +144,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     if (!ref) continue;
 
     // Get the artifact from the environment
-    auto [artifact, rc, created] = _build.getEnv().getFile(cmd, ref);
+    auto [artifact, rc] = _build.getEnv().getFile(cmd, ref);
 
     // Open the artifact the command expects in its FD table. Right now, this logic assumes either:
     // 1. The open() call will create/truncate the file, or
@@ -284,7 +284,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   // Loop over the references the command expects to have in its FD table
   for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
     auto ref = initial_fd.getReference();
-    auto [artifact, rc, created] = _build.getEnv().get(cmd, ref);
+    auto [artifact, rc] = _build.getEnv().get(cmd, ref);
 
     FAIL_IF(!artifact || rc != SUCCESS) << "Failed to get artifact for initial file descriptor";
 

@@ -21,9 +21,7 @@ using std::ostream;
 using std::shared_ptr;
 
 void Reference::resolve(shared_ptr<Command> c, Build& build) {
-  auto [artifact, rc, _] = build.getEnv().get(c, shared_from_this());
-  _artifact = artifact;
-  _rc = rc;
+  std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
 }
 
 /******* Emulation *******/

@@ -52,25 +52,25 @@ class Env {
    * Get an artifact from this environment
    * \param c   The command that makes this access
    * \param ref The reference used to reach the artifact
-   * \returns an artifact, a result code, and whether this access created the artifact
+   * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int, bool> get(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  tuple<shared_ptr<Artifact>, int> get(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
   /**
    * Get a pipe from this environment
    * \param c   The command that makes this access
    * \param ref The pipe reference used to reach the artifact
-   * \returns an artifact, a result code, and whether this access created the artifact
+   * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int, bool> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref);
+  tuple<shared_ptr<Artifact>, int> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref);
 
   /**
    * Get a file from this environment
    * \param c   The command that makes this access
    * \param ref The reference used to reach the artifact
-   * \returns an artifact, a result code, and whether this access created the artifact
+   * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int, bool> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
+  tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
 
   /**
    * Check and save data for any artifacts left in the environment.
