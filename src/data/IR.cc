@@ -54,12 +54,6 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
     return;
   }
 
-  // If the resolved artifact has no versions, report a change
-  if (a->empty()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
   // Have the artifact check whether its metadata matches the expected version
   a->checkMetadata(c, _version);
 }
@@ -69,12 +63,6 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
 
   // If the reference does not resolve, report a change
   if (rc != SUCCESS) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // If the resolved artifact has no versions, report a change
-  if (a->empty()) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }

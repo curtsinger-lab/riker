@@ -54,7 +54,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getPipe(shared_ptr<Command> c, share
 
   } else {
     // No match found. Create a pipe artifact
-    shared_ptr<Artifact> artifact(new Artifact(_build, ref));
+    auto artifact = Artifact::created(_build, ref, c);
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -105,7 +105,7 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     // TODO: Check to be sure we have permission to create the file
     if (errno == ENOENT && flags.create) {
       // Create the artifact
-      shared_ptr<Artifact> artifact(new Artifact(_build, ref));
+      auto artifact = Artifact::created(_build, ref, c);
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -127,12 +127,12 @@ tuple<shared_ptr<Artifact>, int, bool> Env::getFile(shared_ptr<Command> c, share
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    shared_ptr<Artifact> artifact(new Artifact(_build, ref));
-
-    // Create an initial version to reflect the on-disk state of this artifact
-    artifact->createExistingVersion();
+    auto artifact = Artifact::existing(_build, ref);
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
+    // TODO: do this lazily. We have to save these here because we need to compare expected versions
+    // to what we find on disk. But if we know which version actually resides on the filesystem we
+    // can stat/fingerprint it on demand.
     artifact->saveMetadata(ref);
     artifact->saveFingerprint(ref);
 

@@ -85,7 +85,7 @@ class RebuildPlanner : public BuildObserver {
   /// Command c depends on the contents of artifact a
   virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a) override {
     // During the planning phase, record this dependency
-    auto creator = a->getCreator();
+    auto creator = a->getContentCreator();
     if (creator) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
       _output_used_by[creator].insert(c);
@@ -131,13 +131,13 @@ class RebuildPlanner : public BuildObserver {
   /// An artifact's final contents do not match what is on the filesystem
   virtual void finalContentMismatch(shared_ptr<Artifact> a) override {
     // If this artifact was not created by any command, there's nothing we can do about it
-    if (!a->getCreator()) return;
+    if (!a->getContentCreator()) return;
 
     // If this artifact's final version is cached, we can just stage it in
     if (options::enable_cache && a->isSaved()) return;
 
     // Otherwise we have to run the command that created this artifact
-    _output_needed.insert(a->getCreator());
+    _output_needed.insert(a->getContentCreator());
   }
 
  private:

@@ -31,7 +31,6 @@ class Version;
  */
 class Artifact : public std::enable_shared_from_this<Artifact> {
  private:
-  friend class Env;
   /**
    * Create a new artifact. Only accessibly to this class and Env
    * \param build This artifact is instantiated as part of this build instance
@@ -39,13 +38,27 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   Artifact(Build* build, shared_ptr<Reference> ref) : _build(build), _ref(ref) {}
 
+  void createInitialVersion(shared_ptr<Command> creator);
+
  public:
+  static shared_ptr<Artifact> existing(Build* build, shared_ptr<Reference> ref);
+
+  static shared_ptr<Artifact> created(Build* build, shared_ptr<Reference> ref,
+                                      shared_ptr<Command> c);
+
   // Disallow Copy
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
 
+  // Allow Move
+  Artifact(Artifact&&) = default;
+  Artifact& operator=(Artifact&&) = default;
+
   /// Get the creator of the latest version of this artifact
-  shared_ptr<Command> getCreator() const { return _creator; }
+  shared_ptr<Command> getMetadataCreator() const { return _metadata_creator; }
+
+  /// Get the creator of the latest version of this artifact
+  shared_ptr<Command> getContentCreator() const { return _content_creator; }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const { return _versions.size(); }
@@ -53,69 +66,37 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const { return _versions; }
 
-  /// Check if this artifact has no versions
-  bool empty() const { return _versions.empty(); }
+  /****** Tracing Methods *******/
+  // These methods are called when executing commands make accesses to this artifact
 
-  /**
-   * Create a version of this artifact to reflect what is currently on the filesystem
-   */
-  void createExistingVersion();
-
-  /**
-   * Command c accesses the metadata for this artifact.
-   * Return the version c will observe, or nullptr if this version has already been accessed.
-   */
+  /// Command c accesses the metadata for this artifact. Return the version it sees.
   shared_ptr<Version> accessMetadata(shared_ptr<Command> c);
 
-  /**
-   * Command c expects this artifact's metadata to match a given version.
-   * Perform the check and report a change if detected.
-   */
-  void checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
-
-  /**
-   * Command c accesses the contents of this artifact.
-   * Return the version c will observe, or nullptr if this version has already been accessed.
-   */
+  /// Command c access the contents of this artifact. Return the version it sees.
   shared_ptr<Version> accessContents(shared_ptr<Command> c);
 
-  /**
-   * Command c expects this artifact's contents to match a given version.
-   * Perform the check and report a change if detected.
-   */
-  void checkContents(shared_ptr<Command> c, shared_ptr<Version> v);
-
-  /**
-   * Command c sets the metadata for this artifact.
-   * This method should be called during execution to record a new version.
-   * \param c The command that has set the metadata for this artifact
-   * \returns the version created by this operation, or nullptr if no new version is necessary.
-   */
+  /// Command c sets this artifact's metadata. Return the version this creates.
   shared_ptr<Version> setMetadata(shared_ptr<Command> c);
 
-  /**
-   * Command c sets the metadata for this artifact to an existing version.
-   * This method is used to replay the effect of a SET_METADATA step when emulating a command.
-   * \param c The command that sets the metadata for this artifact
-   * \param v The new metadata version that should be appended to this artifact's version list
-   */
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
-
-  /**
-   * Command c sets the contents of this artifact.
-   * This method should be called during execution to record a new version.
-   * \param c The command that set the contents of this artifact
-   * \returns the version created by this operation, or nullptr if no new version is necessary.
-   */
+  /// Command c sets this artifact's contents. Return the version this creates.
   shared_ptr<Version> setContents(shared_ptr<Command> c);
 
-  /**
-   * Command c sets the contents of this artifact to an existing version.
-   * This methos is used to replay the effect of a SET_CONTENTS step when emulating a command.
-   * \param c The command that sets the contents of this artifact
-   * \param v The new contents version that should be appended to this artifact's version list
-   */
+  /****** Emulation Methods ******/
+  // These methods are called when emulated commands make accesses to this artifact
+
+  /// Command c expects to see metadata matching version v
+  void checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /// Command c expects to see contents matching version v
+  void checkContents(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /// Command c sets the metadata for this artifact to version v
+  void setMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /// Command c sets the contents of this artifact to version v
   void setContents(shared_ptr<Command> c, shared_ptr<Version> v);
+
+  /****** Utility Methods ******/
 
   /**
    * Save the metadata for the latest version of this artifact
@@ -163,30 +144,21 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The build that this artifact is part of
   Build* _build;
 
-  /// Tag a new version of this artifact created by command c (may be nullptr)
-  shared_ptr<Version> tagNewVersion(shared_ptr<Command> c);
-
-  /// Check if a command has already accessed the metadata for the latest version of this artifact
-  bool metadataAccessedBy(shared_ptr<Command> c);
-
-  /// Check if a command has already accessed the contents for the latest version of this artifact
-  bool contentsAccessedBy(shared_ptr<Command> c);
-
   /// The reference used for the first access to this artifact
   shared_ptr<Reference> _ref;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
 
-  /// Which command created the latest version of this artifact?
-  shared_ptr<Command> _creator;
+  /// What is the latest metadata version?
+  shared_ptr<Version> _metadata_version;
 
-  /// Has the latest version been accessed by a command other than its creator?
-  bool _accessed = false;
+  /// What is the latest content version?
+  shared_ptr<Version> _content_version;
 
-  /// Keep track of commands that have accessed metadata for the latest version
-  set<shared_ptr<Command>> _metadata_accesses;
+  /// Which command wrote the latest metadata for this artifact?
+  shared_ptr<Command> _metadata_creator;
 
-  /// Keep track of commands that have accessed contents for the latest version
-  set<shared_ptr<Command>> _content_accesses;
+  /// Which command wrote the latest contnet of this artifact?
+  shared_ptr<Command> _content_creator;
 };
