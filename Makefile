@@ -9,8 +9,6 @@ SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))
 HEADERS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.[h]*")
 
-TESTS := $(shell find tests -type d)
-
 all: dodo dodo-launch
 	
 clean:
@@ -33,7 +31,7 @@ dodo-launch: launch/launch.c
 test: dodo dodo-launch
 	@echo "Running test cases"
 	@rm -f tests/*/*.t.err
-	@cram --quiet tests/*/*.t || ( \
+	@DODO="$(PWD)/dodo" cram --quiet tests/*/*.t || ( \
 		echo "\nFailed tests:" && \
 		for fail in `find tests | grep .t.err | xargs -L 1 dirname | xargs -L 1 basename | uniq`; do \
 		  echo -n "  $$fail ("; \

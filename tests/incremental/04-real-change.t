@@ -5,7 +5,7 @@ Change the output message
   $ cp file_versions/hello-message.c hello.c
 
 Rebuild
-  $ ../../dodo
+  $ $DODO
   .*/cc1 .* (re)
   .*-as .* (re)
   rm .*\.s (re)

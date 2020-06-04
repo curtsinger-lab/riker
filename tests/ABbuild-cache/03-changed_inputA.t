@@ -5,7 +5,7 @@ Move in the new version of inputA
   $ cp file_versions/inputA_new inputA
 
 Update the build
-  $ ../../dodo --show
+  $ $DODO --show
   cat inputA
   cat inputB
 
@@ -14,4 +14,4 @@ Verify the output is correct
   goodbye world
 
 Run the build again, doing nothing this time
-  $ ../../dodo --show
+  $ $DODO --show

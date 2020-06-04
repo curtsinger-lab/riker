@@ -61,12 +61,15 @@ Move to test directory
 
 The `$TESTDIR` variable will always be set to the directory that holds the `.t` file currently being executed. The first line of this header is a comment because it is not indented. The second line, which begins with two spaces and a `$` is run on the command line.
 
+### Running Dodo
+The test run will set the `DODO` environment variable to refer to the correct executable. Use this variable to invoke dodo. At some point in the future, we may want to run tests against a version of dodo built with AddressSanitizer, so having the ability to swap in a different `dodo` executable will be useful.
+
 ### Matching Commands
 Currently, `dodo` prints out all commands it runs to `stdout`. This may change (at least as a default), but for now that means we can match commands. However, commands are often platform-specific, including information about the architecture, compiler version, and other details we won't expect to match across machines. The `simple` tests use `cram`'s regular expression matching to check for commands without matching full paths or argument strings. Here is a section from the `simple` test that runs `dodo` and checks to make sure it runs the `cc1` and `rm` commands:
 
 ```
 Run a rebuild. We should compile to assembly, then stop.
-  $ ../../dodo
+  $ $DODO
   .*/cc1 .* (re)
   rm .*\.s (re)
 ```
@@ -78,7 +81,7 @@ We will expect `dodo` to fail in some test cases. To check for this, you can wri
 
 ```
 Check for error when missing Dodofile
-  $ ../../dodo
+  $ $DODO
   Unable to access Dodofile, which is required for the build.
   See http://dodo.build for instructions.
   [1]

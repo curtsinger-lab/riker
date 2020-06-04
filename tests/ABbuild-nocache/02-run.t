@@ -2,7 +2,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Run the build
-  $ ../../dodo --show --no-caching
+  $ $DODO --show --no-caching
   dodo-launch
   Dodofile
   ./A
@@ -15,4 +15,4 @@ Verify the output is correct
   hello world
 
 Run the build again, doing nothing this time
-  $ ../../dodo --show --no-caching
+  $ $DODO --show --no-caching

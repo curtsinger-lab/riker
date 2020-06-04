@@ -8,7 +8,7 @@ Make sure the Dodofile is not readable (required for this test)
   $ chmod a-r Dodofile
 
 Build with dodo. This should fail
-  $ ../../dodo
+  $ $DODO
   Unable to access Dodofile.
     This file must be directly executable or runnable with /bin/sh.
 

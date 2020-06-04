@@ -5,7 +5,7 @@ Move in the new version of inputA
   $ cp file_versions/inputA_new inputA
 
 Update the build
-  $ ../../dodo --show --no-caching
+  $ $DODO --show --no-caching
   ./A
   cat inputA
   ./B
@@ -16,4 +16,4 @@ Verify the output is correct
   goodbye world
 
 Run the build again, doing nothing this time
-  $ ../../dodo --show --no-caching
+  $ $DODO --show --no-caching

@@ -5,7 +5,7 @@ Move in the new version of inputB
   $ cp file_versions/inputB_new inputB
 
 Update the build
-  $ ../../dodo --show
+  $ $DODO --show
   cat inputB
 
 Verify the output is correct
@@ -13,7 +13,7 @@ Verify the output is correct
   goodbye frodo
 
 Run the build again, doing nothing this time
-  $ ../../dodo --show
+  $ $DODO --show
 
 SKIP! This test does not work.
   $ exit 80

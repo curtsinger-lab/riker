@@ -6,7 +6,7 @@ Prepare for a clean build
   $ rm -f hello
 
 Build with dodo. We don't expect any output on the first build
-  $ ../../dodo 2>/dev/null
+  $ $DODO 2>/dev/null
 
 Run the simple program
   $ ./hello
