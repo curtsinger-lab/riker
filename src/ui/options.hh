@@ -4,27 +4,25 @@ enum class FingerprintLevel { None, Local, All };
 
 // Namespace to contain global flags that control build behavior
 namespace options {
+  /// Should the build print commands as they are run?
+  inline bool print_on_run = false;
 
-/// Should the build print commands as they are run?
-inline bool print_on_run = false;
+  /// Is this a dry run?
+  inline bool dry_run = false;
 
-/// Is this a dry run?
-inline bool dry_run = false;
+  /// Which files should be fingerprinted instead of just checked for mtime?
+  inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
-/// Which files should be fingerprinted instead of just checked for mtime?
-inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
+  /****** Optimization ******/
+  /// Any command can read the effects of its own writes without versioning or dependencies
+  inline bool ignore_self_reads = true;  // PAPER
 
-/****** Optimization ******/
-/// Any command can read the effects of its own writes without versioning or dependencies
-inline bool ignore_self_reads = true;  // PAPER
+  /// Repeated writes by the same command with no interleaved read can be combined
+  inline bool combine_writes = true;  // PAPER
 
-/// Repeated writes by the same command with no interleaved read can be combined
-inline bool combine_writes = true;  // PAPER
+  /// Skip repeated checks of the contents or metadata for the same reference
+  inline bool skip_repeat_checks = true;  // PAPER
 
-/// Skip repeated checks of the contents or metadata for the same reference
-inline bool skip_repeat_checks = true;  // PAPER
-
-/// Enable file-staging cache
-inline bool enable_cache = true;  // PAPER
-
-};  // namespace options
+  /// Enable file-staging cache
+  inline bool enable_cache = true;  // PAPER
+}

@@ -16,8 +16,8 @@ shared_ptr<Command> load_build(string filename, bool default_fallback);
 void save_build(string filename, shared_ptr<Command> root);
 
 namespace cereal {
-class access;
-}  // namespace cereal
+  class access;
+}
 
 /// This dummy type exists only to make sure we have at least one value to serialize in the
 /// SERIALIZE macro below. This occupies no space in the serialized output.
