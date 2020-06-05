@@ -82,6 +82,4 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// A printable identity for this version, if one is available
   mutable optional<string> _identity;
-
-  void setMetadata(struct stat& statbuf) { _metadata = statbuf; }
 };
