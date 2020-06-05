@@ -28,11 +28,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
  public:
   /**
    * Create a new artifact. Only accessibly to this class and Env
-   * \param env This artifact is instantiated as part of this environment
-   * \param ref A reference to this artifact used for pretty-printing
-   * \param v   An initial version the new artifact should be seeded with
+   * \param env       This artifact is instantiated as part of this environment
+   * \param name      A name for this artifact used in pretty-printing
+   * \param committed Does the initial version of this artifact represent the filesystem state?
+   * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, string name, shared_ptr<Version> v = make_shared<Version>());
+  Artifact(Env& env, string name, bool committed, shared_ptr<Version> v = make_shared<Version>());
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
@@ -70,39 +71,43 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /**
    * Command c sets the metadata of this artifact using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
+   * \param c         The command making the change
+   * \param ref       The reference used to reach this artifact
+   * \param committed Was the metadata change performed on the filesystem?
    * \returns the version the command creates, or nullptr if no new version is necessary
    */
-  shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, bool committed);
 
   /**
    * Command c sets the metadata of this artifact to version v using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
-   * \param v   The version this artifact's metadata is set to
+   * \param c         The command making the change
+   * \param ref       The reference used to reach this artifact
+   * \param v         The version this artifact's metadata is set to
+   * \param committed Was the metadata change already performed on the filesystem?
    * \returns the newly-assigned metadata version
    */
   shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                  shared_ptr<Version> v);
+                                  shared_ptr<Version> v, bool committed);
 
   /**
    * Command c sets the content of this artifact using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
+   * \param c         The command making the change
+   * \param ref       The reference used to reach this artifact
+   * \param committed Was the content change already performed on the filesystem?
    * \returns the version the command creates, or nullptr if no new version is necessary
    */
-  shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, bool committed);
 
   /**
    * Command c sets the content of this artifact to version v using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
-   * \param v   The version this artifact's content is set to
+   * \param c         The command making the change
+   * \param ref       The reference used to reach this artifact
+   * \param v         The version this artifact's content is set to
+   * \param committed Was the metadata change already performed on the filesystem?
    * \returns the newly-assigned content version
    */
   shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                  shared_ptr<Version> v);
+                                  shared_ptr<Version> v, bool committed);
 
   /****** Utility Methods ******/
 
@@ -117,6 +122,16 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param ref The reference to this artifact that should be used to access contents
    */
   void saveFingerprint(shared_ptr<Reference> ref);
+
+  /**
+   * Have all modifications to this artifact been committed to the filesystem?
+   */
+  bool isCommitted() const { return _committed_versions == _versions.size(); }
+
+  /**
+   * Commit any un-committed version of this artifact using the provided reference
+   */
+  void commit(shared_ptr<Reference> ref);
 
   /**
    * Do we have sufficient saved data to commit this artifact to the filesystem?
@@ -151,6 +166,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
+
+  /// The number of versions in the sequence that have been committed to the filesystem
+  size_t _committed_versions;
 
   shared_ptr<Version> _metadata_version;  //< The latest metadata version
   shared_ptr<Command> _metadata_creator;  //< The command that last changed this artifact's metadata

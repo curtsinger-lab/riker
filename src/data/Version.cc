@@ -5,6 +5,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "build/Artifact.hh"
 #include "data/IR.hh"
@@ -22,6 +23,16 @@ bool Version::isSaved() const {
 
   // We're not saving any other files at this point
   return false;
+}
+
+void Version::commit(shared_ptr<Reference> ref) {
+  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+    if (_metadata.has_value() && _metadata.value().st_size == 0) {
+      int fd = a->open();
+      FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
+      close(fd);
+    }
+  }
 }
 
 bool Version::metadataMatch(shared_ptr<Version> other) const {

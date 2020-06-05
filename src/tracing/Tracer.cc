@@ -146,12 +146,10 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
     // Get the artifact from the environment
     auto [artifact, rc] = _build.getEnv().getFile(cmd, ref);
 
-    // Open the artifact the command expects in its FD table. Right now, this logic assumes either:
-    // 1. The open() call will create/truncate the file, or
-    // 2. The file is in the correct state on disk becuase it was created/written by other commands.
-    // This will be more complex once we have the possibility of cached files that need to be moved
-    // into place. The logic to prepare these files (and any directories they may depend on) should
-    // go into the Env/Artifact classes.
+    // Make sure the artifact is committed to the filesystem
+    artifact->commit(ref);
+
+    // Use the reference to open the file
     int parent_fd = ref->open();
     FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
     initial_fds.emplace_back(parent_fd, child_fd);

@@ -48,7 +48,7 @@ tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<
 
   } else {
     // No match found. Create a pipe artifact
-    auto artifact = make_shared<Artifact>(*this, "pipe");
+    auto artifact = make_shared<Artifact>(*this, "pipe", true);
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -114,8 +114,10 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       // Create the initial version for this artifact
       auto v = make_shared<Version>(metadata);
 
-      // Create the artifact
-      auto artifact = make_shared<Artifact>(*this, path, v);
+      // Create the artifact. Because it's being created, mark it as committed (even though it isn't
+      // actually on-disk yet).
+      // TODO: Add a just_created flag to this method so we don't have to do this hackery
+      auto artifact = make_shared<Artifact>(*this, path, true, v);
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -141,7 +143,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = make_shared<Artifact>(*this, path);
+    auto artifact = make_shared<Artifact>(*this, path, true);
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
     // TODO: do this lazily. We have to save these here because we need to compare expected versions
@@ -168,7 +170,7 @@ void Env::finalize() {
     // Check the artifact's final contents and metadata against the filesystem
     a->checkFinalState(ref);
 
-    // Save fingerprint and metadta for this artifact
+    // Save fingerprint and metadata for this artifact
     a->saveMetadata(ref);
     a->saveFingerprint(ref);
   }

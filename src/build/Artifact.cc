@@ -18,11 +18,14 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-Artifact::Artifact(Env& env, string name, shared_ptr<Version> v) : _env(env), _name(name) {
+Artifact::Artifact(Env& env, string name, bool committed, shared_ptr<Version> v) :
+    _env(env), _name(name) {
   _versions.push_back(v);
   v->identify(this);
   _metadata_version = v;
   _content_version = v;
+
+  if (committed) _committed_versions = 1;
 }
 
 // Command c accesses this artifact's metadata
@@ -59,7 +62,8 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c, shared_ptr<R
 
 // Command c sets the metadata for this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          bool committed) {
   // We do not need to create a new version for metadata if all conditions hold:
   // 1. Command c was the last command to modify metadata,
   // 2. that modification was made using the same reference, and
@@ -70,12 +74,17 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
   }
 
   // Create a new version, add it to this artifact, and return it
-  return setMetadata(c, ref, make_shared<Version>());
+  return setMetadata(c, ref, make_shared<Version>(), committed);
 }
 
 // Command c sets the metadata for this artifact to an existing version. Used during emulation.
 shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v) {
+                                          shared_ptr<Version> v, bool committed) {
+  // If this version is already committed, make sure previous version have been committed
+  // TODO: Maybe we could commit on-demand?
+  FAIL_IF(committed && !isCommitted()) << "Tried to make a committed metadata update to an "
+                                          "artifact that has not been fully committed";
+
   // Add the new version
   _versions.push_back(v);
   v->identify(this);
@@ -83,6 +92,9 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
   _metadata_creator = c;
   _metadata_ref = ref;
   _metadata_accessed = false;
+
+  // If this version is committed, bump the count of committed versions
+  if (committed) _committed_versions++;
 
   // Inform the environment of this output
   _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
@@ -93,7 +105,8 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
 
 // Command c sets the contents of this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          bool committed) {
   // We do not need to create a new version for content if all conditions hold:
   // 1. Command c was the last command to modify content,
   // 2. that modification was made using the same reference, and
@@ -104,12 +117,17 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Refe
   }
 
   // Create a new version, add it to this artifact, and return it
-  return setContents(c, ref, make_shared<Version>());
+  return setContents(c, ref, make_shared<Version>(), committed);
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
 shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v) {
+                                          shared_ptr<Version> v, bool committed) {
+  // If this version is already committed, make sure previous version have been committed
+  // TODO: Maybe we could commit on-demand?
+  FAIL_IF(committed && !isCommitted()) << "Tried to make a committed content update to an artifact "
+                                          "that has not been fully committed";
+
   // Add the new version
   _versions.push_back(v);
   v->identify(this);
@@ -117,6 +135,9 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Refe
   _content_creator = c;
   _content_ref = ref;
   _content_accessed = false;
+
+  // If this version is committed, bump the count of committed versions
+  if (committed) _committed_versions++;
 
   // Inform the environment of this output
   _env.getBuild().observeContentOutput(c, shared_from_this(), _content_version);
@@ -140,18 +161,41 @@ bool Artifact::isSaved() const {
   return _content_version->isSaved();
 }
 
+void Artifact::commit(shared_ptr<Reference> ref) {
+  auto iter = _versions.begin();
+  std::advance(iter, _committed_versions);
+  while (iter != _versions.end()) {
+    auto v = *iter;
+    FAIL_IF(!v->isSaved()) << "Attempted to commit an unsaved version";
+    v->commit(ref);
+    _committed_versions++;
+    iter++;
+  }
+}
+
 // Check this artifact's contents and metadata against the filesystem state
 void Artifact::checkFinalState(shared_ptr<Reference> ref) {
+  // If this artifact is committed to the filesystem, we already know it matches
+  if (isCommitted()) return;
+
   // Create a version that represents the on-disk contents reached through this reference
   auto v = make_shared<Version>();
   v->saveMetadata(ref);
   v->saveFingerprint(ref);
 
-  if (!_metadata_version->metadataMatch(v)) {
+  bool metadata_match = _metadata_version->metadataMatch(v);
+  bool contents_match = _content_version->contentsMatch(v);
+
+  // Report a metadata mismatch if necessary
+  if (!metadata_match) {
     _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
 
-  if (!_content_version->contentsMatch(v)) {
+  // Report a content mismatch if necessary
+  if (!contents_match) {
     _env.getBuild().observeFinalContentMismatch(shared_from_this(), _content_version, v);
   }
+
+  // If both contents and metadata match, we can mark this artifact as committed
+  if (metadata_match && contents_match) _committed_versions = _versions.size();
 }
