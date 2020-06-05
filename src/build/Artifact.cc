@@ -18,16 +18,16 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-shared_ptr<Artifact> Artifact::existing(Build* build, string name, shared_ptr<Reference> ref) {
+shared_ptr<Artifact> Artifact::existing(Env& env, string name) {
   // Create an artifact
-  shared_ptr<Artifact> a(new Artifact(build, name));
+  shared_ptr<Artifact> a(new Artifact(env, name));
   a->createInitialVersion(nullptr);
   return a;
 }
 
-shared_ptr<Artifact> Artifact::created(Build* build, string name, shared_ptr<Reference> ref,
+shared_ptr<Artifact> Artifact::created(Env& env, string name, shared_ptr<Reference> ref,
                                        shared_ptr<Command> c) {
-  shared_ptr<Artifact> a(new Artifact(build, name));
+  shared_ptr<Artifact> a(new Artifact(env, name));
   a->createInitialVersion(c);
 
   // Manufacture the expected stat data for this created artifact
@@ -49,8 +49,8 @@ shared_ptr<Artifact> Artifact::created(Build* build, string name, shared_ptr<Ref
   // Shoehorn this manufactured stat buffer into the initial version
   a->_versions.back()->setMetadata(statbuf);
 
-  build->observeMetadataOutput(c, a, a->_versions.back());
-  build->observeContentOutput(c, a, a->_versions.back());
+  env.getBuild().observeMetadataOutput(c, a, a->_versions.back());
+  env.getBuild().observeContentOutput(c, a, a->_versions.back());
 
   return a;
 }
@@ -77,7 +77,7 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c, shared_ptr<R
   _metadata_accessed = true;
 
   // Inform the environment of this input
-  _build->observeMetadataInput(c, shared_from_this(), _metadata_version);
+  _env.getBuild().observeMetadataInput(c, shared_from_this(), _metadata_version);
 
   // All done
   return _metadata_version;
@@ -93,7 +93,7 @@ shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c, shared_ptr<R
   _content_accessed = true;
 
   // Inform the environment of this input
-  _build->observeContentInput(c, shared_from_this(), _content_version);
+  _env.getBuild().observeContentInput(c, shared_from_this(), _content_version);
 
   // All done
   return _content_version;
@@ -111,13 +111,25 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
     return nullptr;
   }
 
-  // Create the new version
-  auto v = make_shared<Version>();
+  // Create a new version, add it to this artifact, and return it
+  return setMetadata(c, ref, make_shared<Version>());
+}
 
-  // Update metadata with this new version
-  setMetadata(c, ref, v);
+// Command c sets the metadata for this artifact to an existing version. Used during emulation.
+shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<Version> v) {
+  // Add the new version
+  _versions.push_back(v);
+  v->identify(this);
+  _metadata_version = v;
+  _metadata_creator = c;
+  _metadata_ref = ref;
+  _metadata_accessed = false;
 
-  // Return the newly-tagged version
+  // Inform the environment of this output
+  _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
+
+  // Return the new metadata version
   return v;
 }
 
@@ -133,62 +145,13 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Refe
     return nullptr;
   }
 
-  // Create the new version
-  auto v = make_shared<Version>();
-
-  // Update contents with this new version
-  setContents(c, ref, v);
-
-  // Return the newly-tagged version
-  return v;
-}
-
-/////////////////////// Emulation Methods ///////////////////////
-
-// Command c checks whether this artifact's metadata matches an expected version
-void Artifact::checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v) {
-  _metadata_accessed = true;
-
-  // Inform the environment of this input
-  _build->observeMetadataInput(c, shared_from_this(), _metadata_version);
-
-  // Compare versions
-  if (!_metadata_version->metadataMatch(v)) {
-    _build->observeMetadataMismatch(c, shared_from_this(), _metadata_version, v);
-  }
-}
-
-// Command c checks whether this artifact's content matches an expected version
-void Artifact::checkContents(shared_ptr<Command> c, shared_ptr<Version> v) {
-  _content_accessed = true;
-
-  // Inform the environment of this input
-  _build->observeContentInput(c, shared_from_this(), _content_version);
-
-  // Compare versions
-  if (!_content_version->contentsMatch(v)) {
-    _build->observeContentMismatch(c, shared_from_this(), _content_version, v);
-  }
-}
-
-// Command c sets the metadata for this artifact to an existing version. Used during emulation.
-void Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                           shared_ptr<Version> v) {
-  // Add the new version
-  _versions.push_back(v);
-  v->identify(this);
-  _metadata_version = v;
-  _metadata_creator = c;
-  _metadata_ref = ref;
-  _metadata_accessed = false;
-
-  // Inform the environment of this output
-  _build->observeMetadataOutput(c, shared_from_this(), _metadata_version);
+  // Create a new version, add it to this artifact, and return it
+  return setContents(c, ref, make_shared<Version>());
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
-void Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                           shared_ptr<Version> v) {
+shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<Version> v) {
   // Add the new version
   _versions.push_back(v);
   v->identify(this);
@@ -198,7 +161,10 @@ void Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
   _content_accessed = false;
 
   // Inform the environment of this output
-  _build->observeContentOutput(c, shared_from_this(), _content_version);
+  _env.getBuild().observeContentOutput(c, shared_from_this(), _content_version);
+
+  // Return the new content version
+  return v;
 }
 
 // Save metadata for the latest version of this artifact
@@ -224,10 +190,10 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   v->saveFingerprint(ref);
 
   if (!_metadata_version->metadataMatch(v)) {
-    _build->observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
+    _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
 
   if (!_content_version->contentsMatch(v)) {
-    _build->observeFinalContentMismatch(shared_from_this(), _content_version, v);
+    _env.getBuild().observeFinalContentMismatch(shared_from_this(), _content_version, v);
   }
 }

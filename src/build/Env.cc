@@ -23,14 +23,6 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-void Env::reset() {
-  // TODO: could just roll back to artifacts and versions that exist pre-emulation, but for now
-  // it's safe to just get rid of everything.
-  _filesystem.clear();
-  _files.clear();
-  _pipes.clear();
-}
-
 tuple<shared_ptr<Artifact>, int> Env::get(shared_ptr<Command> c, shared_ptr<Reference> ref) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
@@ -54,7 +46,7 @@ tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<
 
   } else {
     // No match found. Create a pipe artifact
-    auto artifact = Artifact::created(_build, "pipe", ref, c);
+    auto artifact = Artifact::created(*this, "pipe", ref, c);
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -105,7 +97,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     // TODO: Check to be sure we have permission to create the file
     if (errno == ENOENT && flags.create) {
       // Create the artifact
-      auto artifact = Artifact::created(_build, path, ref, c);
+      auto artifact = Artifact::created(*this, path, ref, c);
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -127,7 +119,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = Artifact::existing(_build, path, ref);
+    auto artifact = Artifact::existing(*this, path);
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
     // TODO: do this lazily. We have to save these here because we need to compare expected versions

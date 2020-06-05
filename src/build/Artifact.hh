@@ -16,7 +16,6 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 
-class Build;
 class Command;
 class Env;
 class Reference;
@@ -33,26 +32,22 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
  private:
   /**
    * Create a new artifact. Only accessibly to this class and Env
-   * \param build This artifact is instantiated as part of this build instance
-   * \param ref   A reference to this artifact used for pretty-printing
+   * \param env This artifact is instantiated as part of this environment
+   * \param ref A reference to this artifact used for pretty-printing
    */
-  Artifact(Build* build, string name) : _build(build), _name(name) {}
+  Artifact(Env& env, string name) : _env(env), _name(name) {}
 
   void createInitialVersion(shared_ptr<Command> creator);
 
  public:
-  static shared_ptr<Artifact> existing(Build* build, string name, shared_ptr<Reference> ref);
+  static shared_ptr<Artifact> existing(Env& env, string name);
 
-  static shared_ptr<Artifact> created(Build* build, string name, shared_ptr<Reference> ref,
+  static shared_ptr<Artifact> created(Env& env, string name, shared_ptr<Reference> ref,
                                       shared_ptr<Command> c);
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
-
-  // Allow Move
-  Artifact(Artifact&&) = default;
-  Artifact& operator=(Artifact&&) = default;
 
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getMetadataCreator() const { return _metadata_creator; }
@@ -66,39 +61,59 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const { return _versions; }
 
-  /****** Tracing Methods *******/
-  // These methods are called when executing commands make accesses to this artifact
-
-  /// Command c accesses the metadata for this artifact using reference ref.
-  /// Return the version command c should check for, or nullptr if no check is necessary.
+  /**
+   * Command c accesses the metadata for this artifact using reference ref.
+   * \param c   The command making the access
+   * \param ref The referenced used to reach this artifact
+   * \returns the version the command observes, or nullptr if the command has already observed the
+   *          latest version using this reference (no check is necessary).
+   */
   shared_ptr<Version> accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
-  /// Command c accesses the contents of this artifact using reference ref.
-  /// Return the version command c should check for, or nullptr if no check is necessary.
+  /**
+   * Command c accesses the content of this artifact using reference ref.
+   * \param c   The command making the access
+   * \param ref The referenced used to reach this artifact
+   * \returns the version the command observes, or nullptr if the command has already observed the
+   *          latest version using this reference (no check is necessary).
+   */
   shared_ptr<Version> accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
-  /// Command c sets this artifact's metadata using reference ref.
-  /// Return the version this creates, or nullptr if no new version is necessary.
+  /**
+   * Command c sets the metadata of this artifact using reference ref.
+   * \param c   The command making the change
+   * \param ref The reference used to reach this artifact
+   * \returns the version the command creates, or nullptr if no new version is necessary
+   */
   shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
-  /// Command c sets this artifact's contents using reference ref.
-  /// Return the version this creates, or nullptr if no new version is necessary.
+  /**
+   * Command c sets the metadata of this artifact to version v using reference ref.
+   * \param c   The command making the change
+   * \param ref The reference used to reach this artifact
+   * \param v   The version this artifact's metadata is set to
+   * \returns the newly-assigned metadata version
+   */
+  shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                  shared_ptr<Version> v);
+
+  /**
+   * Command c sets the content of this artifact using reference ref.
+   * \param c   The command making the change
+   * \param ref The reference used to reach this artifact
+   * \returns the version the command creates, or nullptr if no new version is necessary
+   */
   shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
-  /****** Emulation Methods ******/
-  // These methods are called when emulated commands make accesses to this artifact
-
-  /// Command c expects to see metadata matching version v
-  void checkMetadata(shared_ptr<Command> c, shared_ptr<Version> v);
-
-  /// Command c expects to see contents matching version v
-  void checkContents(shared_ptr<Command> c, shared_ptr<Version> v);
-
-  /// Command c sets the metadata for this artifact to version v
-  void setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
-
-  /// Command c sets the contents of this artifact to version v
-  void setContents(shared_ptr<Command> c, shared_ptr<Reference> ref, shared_ptr<Version> v);
+  /**
+   * Command c sets the content of this artifact to version v using reference ref.
+   * \param c   The command making the change
+   * \param ref The reference used to reach this artifact
+   * \param v   The version this artifact's content is set to
+   * \returns the newly-assigned content version
+   */
+  shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                  shared_ptr<Version> v);
 
   /****** Utility Methods ******/
 
@@ -139,8 +154,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
 
  private:
-  /// The build that this artifact is part of
-  Build* _build;
+  /// The environment this artifact is managed by
+  Env& _env;
 
   /// The name of this artifact used for pretty-printing
   string _name;

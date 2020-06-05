@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -10,6 +11,7 @@
 #include "build/BuildObserver.hh"
 
 using std::map;
+using std::reference_wrapper;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -33,20 +35,28 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build* build) : _build(build) {}
+  Env(Build& build) : _build(build) {}
 
   // Disallow Copy
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
 
-  // Allow Move
+  /// Allow Move
   Env(Env&&) = default;
   Env& operator=(Env&&) = default;
 
   /**
-   * Reset this environment to a safe starting state
+   * Get the Build instance this environment is part of
    */
-  void reset();
+  Build& getBuild() const { return _build; }
+
+  /**
+   * Check and save data for any artifacts left in the environment.
+   * This reports changes for artifacts whose on-disk versions do not match what the build
+   * produced, and saves fingerprints and metadata for artifacts that were modified by executed
+   * commands.
+   */
+  void finalize();
 
   /**
    * Get an artifact from this environment
@@ -72,16 +82,9 @@ class Env {
    */
   tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
 
-  /**
-   * Check and save data for any artifacts left in the environment.
-   * This reports changes for artifacts whose on-disk versions do not match what the build produced,
-   * and saves fingerprints and metadata for artifacts that were modified by executed commands.
-   */
-  void finalize();
-
  private:
   /// The build this environment is attached to
-  Build* _build;
+  reference_wrapper<Build> _build;
 
   /// An emulated filesystem for artifacts in this environment
   map<string, shared_ptr<Artifact>> _filesystem;

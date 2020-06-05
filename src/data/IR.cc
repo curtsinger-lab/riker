@@ -43,8 +43,13 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
     return;
   }
 
-  // Have the artifact check whether its metadata matches the expected version
-  _ref->getArtifact()->checkMetadata(c, _version);
+  // Get the latest metadata version. The returned version will be nullptr if no check is necessary.
+  auto v = _ref->getArtifact()->accessMetadata(c, _ref);
+
+  // If a version was returned and it doesn't match the expected version, report a mismatch
+  if (v && !v->metadataMatch(_version)) {
+    build.observeMetadataMismatch(c, _ref->getArtifact(), v, _version);
+  }
 }
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
@@ -54,8 +59,13 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
     return;
   }
 
-  // Have the artifact check whether its contents match the expected version
-  _ref->getArtifact()->checkContents(c, _version);
+  // Get the latest content version. The returned version will be nullptr if no check is necessary.
+  auto v = _ref->getArtifact()->accessContents(c, _ref);
+
+  // If a version was returned and it doesn't match the expected version, report a mismatch
+  if (v && !v->contentsMatch(_version)) {
+    build.observeContentMismatch(c, _ref->getArtifact(), v, _version);
+  }
 }
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {

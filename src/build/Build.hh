@@ -29,7 +29,7 @@ class Build {
    * added later.
    * \param root  The root command of the build
    */
-  Build(shared_ptr<Command> root) : _root(root), _env(this) {}
+  Build(shared_ptr<Command> root) : _root(root), _env(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
