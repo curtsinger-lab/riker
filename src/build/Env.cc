@@ -124,8 +124,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       _filesystem.emplace(path, artifact);
 
       // Notify the build that the creating command wrote to this artifact
-      _build.get().observeMetadataOutput(c, artifact, v);
-      _build.get().observeContentOutput(c, artifact, v);
+      _build.observeMetadataOutput(c, artifact, v);
+      _build.observeContentOutput(c, artifact, v);
 
       // And finally, return success
       return {artifact, SUCCESS};

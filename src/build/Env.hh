@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -11,7 +10,6 @@
 #include "build/BuildObserver.hh"
 
 using std::map;
-using std::reference_wrapper;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -40,10 +38,6 @@ class Env {
   // Disallow Copy
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
-
-  /// Allow Move
-  Env(Env&&) = default;
-  Env& operator=(Env&&) = default;
 
   /**
    * Get the Build instance this environment is part of
@@ -84,7 +78,7 @@ class Env {
 
  private:
   /// The build this environment is attached to
-  reference_wrapper<Build> _build;
+  Build& _build;
 
   /// An emulated filesystem for artifacts in this environment
   map<string, shared_ptr<Artifact>> _filesystem;

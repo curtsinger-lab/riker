@@ -35,10 +35,6 @@ class Build {
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
 
-  // Allow Move
-  Build(Build&&) = default;
-  Build& operator=(Build&&) = default;
-
   /**
    * Mark a command for re-execution rather than emulation
    * \param c The command that should be executed rather than emulated
