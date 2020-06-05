@@ -18,54 +18,12 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-shared_ptr<Artifact> Artifact::existing(Env& env, string name) {
-  // Create an artifact
-  shared_ptr<Artifact> a(new Artifact(env, name));
-  a->createInitialVersion(nullptr);
-  return a;
-}
-
-shared_ptr<Artifact> Artifact::created(Env& env, string name, shared_ptr<Reference> ref,
-                                       shared_ptr<Command> c) {
-  shared_ptr<Artifact> a(new Artifact(env, name));
-  a->createInitialVersion(c);
-
-  // Manufacture the expected stat data for this created artifact
-  // TODO: get euid and egid from the process
-  struct stat statbuf = {.st_uid = geteuid(), .st_gid = getegid()};
-
-  // Fill in the mode field
-  if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    statbuf.st_mode = S_IFIFO | 0777;
-  } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
-    // Get the current umask
-    // TODO: This should come from the running process, not dodo
-    auto mask = umask(0);
-    umask(mask);
-
-    statbuf.st_mode = S_IFREG | (a->getFlags().mode & ~mask);
-  }
-
-  // Shoehorn this manufactured stat buffer into the initial version
-  a->_versions.back()->setMetadata(statbuf);
-
-  env.getBuild().observeMetadataOutput(c, a, a->_versions.back());
-  env.getBuild().observeContentOutput(c, a, a->_versions.back());
-
-  return a;
-}
-
-void Artifact::createInitialVersion(shared_ptr<Command> creator) {
-  auto v = make_shared<Version>();
+Artifact::Artifact(Env& env, string name, shared_ptr<Version> v) : _env(env), _name(name) {
   _versions.push_back(v);
   v->identify(this);
   _metadata_version = v;
-  _metadata_creator = creator;
   _content_version = v;
-  _content_creator = creator;
 }
-
-/////////////////////// Tracing Methods ///////////////////////
 
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary

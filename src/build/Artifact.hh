@@ -1,18 +1,14 @@
 #pragma once
 
-#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set>
 #include <string>
 
 using std::list;
-using std::optional;
+using std::make_shared;
 using std::ostream;
-using std::reference_wrapper;
-using std::set;
 using std::shared_ptr;
 using std::string;
 
@@ -29,21 +25,14 @@ class Version;
  * artifact.
  */
 class Artifact : public std::enable_shared_from_this<Artifact> {
- private:
+ public:
   /**
    * Create a new artifact. Only accessibly to this class and Env
    * \param env This artifact is instantiated as part of this environment
    * \param ref A reference to this artifact used for pretty-printing
+   * \param v   An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, string name) : _env(env), _name(name) {}
-
-  void createInitialVersion(shared_ptr<Command> creator);
-
- public:
-  static shared_ptr<Artifact> existing(Env& env, string name);
-
-  static shared_ptr<Artifact> created(Env& env, string name, shared_ptr<Reference> ref,
-                                      shared_ptr<Command> c);
+  Artifact(Env& env, string name, shared_ptr<Version> v = make_shared<Version>());
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;

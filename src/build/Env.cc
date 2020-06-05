@@ -7,9 +7,11 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "build/Artifact.hh"
+#include "build/Build.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
 #include "data/Version.hh"
@@ -46,7 +48,7 @@ tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<
 
   } else {
     // No match found. Create a pipe artifact
-    auto artifact = Artifact::created(*this, "pipe", ref, c);
+    auto artifact = make_shared<Artifact>(*this, "pipe");
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -96,14 +98,34 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     // If the file does not exist, but O_CREAT was included, the access will succeed.
     // TODO: Check to be sure we have permission to create the file
     if (errno == ENOENT && flags.create) {
+      // We are going to create an artifact in the filesystem model, but we need to pre-load its
+      // version with manufactured stat data.
+
+      // Get the current umask
+      auto mask = umask(0);
+      umask(mask);
+
+      // Create a stat buffer
+      struct stat metadata;
+      metadata.st_uid = geteuid();
+      metadata.st_gid = getegid();
+      metadata.st_mode = S_IFREG | (flags.mode & ~mask);
+
+      // Create the initial version for this artifact
+      auto v = make_shared<Version>(metadata);
+
       // Create the artifact
-      auto artifact = Artifact::created(*this, path, ref, c);
+      auto artifact = make_shared<Artifact>(*this, path, v);
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
 
       // Also add this new artifact to the filesystem map
       _filesystem.emplace(path, artifact);
+
+      // Notify the build that the creating command wrote to this artifact
+      _build.get().observeMetadataOutput(c, artifact, v);
+      _build.get().observeContentOutput(c, artifact, v);
 
       // And finally, return success
       return {artifact, SUCCESS};
@@ -119,7 +141,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = Artifact::existing(*this, path);
+    auto artifact = make_shared<Artifact>(*this, path);
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
     // TODO: do this lazily. We have to save these here because we need to compare expected versions

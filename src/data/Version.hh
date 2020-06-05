@@ -10,6 +10,7 @@
 #include "data/serializer.hh"
 #include "util/log.hh"
 
+using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::shared_ptr;
@@ -24,8 +25,8 @@ using Fingerprint = struct stat;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Record a version that was not created by any command
-  Version() = default;
+  /// Create a new version, possibly with metadata already specified
+  Version(optional<Metadata> metadata = nullopt) : _metadata(metadata) {}
 
   // Disallow Copy
   Version(const Version&) = delete;
