@@ -37,7 +37,7 @@ class Version : public std::enable_shared_from_this<Version> {
   Version& operator=(Version&&) = default;
 
   /// Is this version saved in a way that allows us to reproduce it?
-  bool isSaved() const;
+  bool canCommit() const;
 
   /// Commit this version to the filesystem using the given reference
   void commit(shared_ptr<Reference> ref);

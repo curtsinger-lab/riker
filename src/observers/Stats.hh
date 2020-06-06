@@ -49,7 +49,7 @@ class Stats : public BuildObserver {
         for (auto& v : a->getVersions()) {
           bool metadata = v->hasMetadata();
           bool fingerprint = v->hasFingerprint();
-          bool saved = v->isSaved();
+          bool saved = v->canCommit();
 
           o << "    v" << index << ":";
           if (metadata) o << " metadata";

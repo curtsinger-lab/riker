@@ -28,145 +28,31 @@ Artifact::Artifact(Env& env, string name, bool committed, shared_ptr<Version> v)
   if (committed) _committed_versions = 1;
 }
 
-// Command c accesses this artifact's metadata
-// Return the version it observes, or nullptr if no check is necessary
-shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) {
-  // If c was the last command to modify metadata and used ref to do so, we can skip a check
-  if (options::ignore_self_reads && c == _metadata_creator && ref == _metadata_ref) return nullptr;
-
-  // Metadata has been accessed
-  _metadata_accessed = true;
-
-  // Inform the environment of this input
-  _env.getBuild().observeMetadataInput(c, shared_from_this(), _metadata_version);
-
-  // All done
-  return _metadata_version;
-}
-
-// Command c accesses this artifact's contents
-// Return the version it observes, or nullptr if no check is necessary
-shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) {
-  // If c was the last command to modify content and used ref to do so, we can skip a check
-  if (options::ignore_self_reads && c == _content_creator && ref == _content_ref) return nullptr;
-
-  // Content has been accessed
-  _content_accessed = true;
-
-  // Inform the environment of this input
-  _env.getBuild().observeContentInput(c, shared_from_this(), _content_version);
-
-  // All done
-  return _content_version;
-}
-
-// Command c sets the metadata for this artifact.
-// Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          bool committed) {
-  // We do not need to create a new version for metadata if all conditions hold:
-  // 1. Command c was the last command to modify metadata,
-  // 2. that modification was made using the same reference, and
-  // 3. no other command has accessed metadata for this artifact
-  if (options::combine_writes && c == _metadata_creator && ref == _metadata_ref &&
-      !_metadata_accessed) {
-    return nullptr;
-  }
-
-  // Create a new version, add it to this artifact, and return it
-  return setMetadata(c, ref, make_shared<Version>(), committed);
-}
-
-// Command c sets the metadata for this artifact to an existing version. Used during emulation.
-shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v, bool committed) {
-  // If this version is already committed, make sure previous version have been committed
-  // TODO: Maybe we could commit on-demand?
-  FAIL_IF(committed && !isCommitted()) << "Tried to make a committed metadata update to an "
-                                          "artifact that has not been fully committed";
-
-  // Add the new version
-  _versions.push_back(v);
-  v->identify(this);
-  _metadata_version = v;
-  _metadata_creator = c;
-  _metadata_ref = ref;
-  _metadata_accessed = false;
-
-  // If this version is committed, bump the count of committed versions
-  if (committed) _committed_versions++;
-
-  // Inform the environment of this output
-  _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
-
-  // Return the new metadata version
-  return v;
-}
-
-// Command c sets the contents of this artifact.
-// Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          bool committed) {
-  // We do not need to create a new version for content if all conditions hold:
-  // 1. Command c was the last command to modify content,
-  // 2. that modification was made using the same reference, and
-  // 3. no other command has accessed content for this artifact
-  if (options::combine_writes && c == _content_creator && ref == _content_ref &&
-      !_content_accessed) {
-    return nullptr;
-  }
-
-  // Create a new version, add it to this artifact, and return it
-  return setContents(c, ref, make_shared<Version>(), committed);
-}
-
-// Command c sets the contents of this artifact to an existing version. Used during emulation.
-shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v, bool committed) {
-  // If this version is already committed, make sure previous version have been committed
-  // TODO: Maybe we could commit on-demand?
-  FAIL_IF(committed && !isCommitted()) << "Tried to make a committed content update to an artifact "
-                                          "that has not been fully committed";
-
-  // Add the new version
-  _versions.push_back(v);
-  v->identify(this);
-  _content_version = v;
-  _content_creator = c;
-  _content_ref = ref;
-  _content_accessed = false;
-
-  // If this version is committed, bump the count of committed versions
-  if (committed) _committed_versions++;
-
-  // Inform the environment of this output
-  _env.getBuild().observeContentOutput(c, shared_from_this(), _content_version);
-
-  // Return the new content version
-  return v;
-}
-
-// Save metadata for the latest version of this artifact
-void Artifact::saveMetadata(shared_ptr<Reference> ref) {
-  _metadata_version->saveMetadata(ref);
-}
-
-// Save a fingerprint of the contents of the latest version of this artifact
-void Artifact::saveFingerprint(shared_ptr<Reference> ref) {
-  _content_version->saveFingerprint(ref);
-}
-
 // Check if this artifact can be restored to the filesystem
-bool Artifact::isSaved() const {
-  return _content_version->isSaved();
+bool Artifact::canCommit() const {
+  // Get an iterator to the first uncommitted version
+  auto iter = _versions.begin();
+  std::advance(iter, _committed_versions);
+
+  // If any of the remaining versons cannot be committed, the artifact cannot be committed
+  while (iter != _versions.end()) {
+    auto v = *iter;
+    if (!v->canCommit()) return false;
+    iter++;
+  }
+
+  return true;
 }
 
 void Artifact::commit(shared_ptr<Reference> ref) {
+  // Get an iterator to the first uncommitted version
   auto iter = _versions.begin();
   std::advance(iter, _committed_versions);
+
+  // Commit the remaining versions in sequence
   while (iter != _versions.end()) {
     auto v = *iter;
-    FAIL_IF(!v->isSaved()) << "Attempted to commit an unsaved version";
+    FAIL_IF(!v->canCommit()) << "Attempted to commit an unsaved version";
     v->commit(ref);
     _committed_versions++;
     iter++;
@@ -198,4 +84,155 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
 
   // If both contents and metadata match, we can mark this artifact as committed
   if (metadata_match && contents_match) _committed_versions = _versions.size();
+}
+
+// Save metadata for the latest version of this artifact
+void Artifact::saveMetadata(shared_ptr<Reference> ref) {
+  _metadata_version->saveMetadata(ref);
+}
+
+// Command c accesses this artifact's metadata
+// Return the version it observes, or nullptr if no check is necessary
+shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+  // Do we need to log this access?
+  if (_metadata_filter.readRequired(c, ref)) {
+    // Record the read
+    _metadata_filter.readBy(c);
+
+    // Yes. Notify the build and return the version
+    _env.getBuild().observeMetadataInput(c, shared_from_this(), _metadata_version);
+    return _metadata_version;
+
+  } else {
+    // No. Just return nullptr
+    return nullptr;
+  }
+}
+
+// Command c sets the metadata for this artifact.
+// Return the version created by this operation, or nullptr if no new version is necessary.
+shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<Version> v) {
+  // If no version was provided, the new version will represent what is currently on disk
+  if (!v) {
+    // Is a new version even required?
+    if (!_metadata_filter.writeRequired(c, ref)) return nullptr;
+
+    // If the artifact isn't fully committed, something has gone wrong
+    FAIL_IF(!isCommitted()) << "Committed metadata write to uncommitted artifact";
+
+    // Create a version to track the new on-disk state
+    v = make_shared<Version>();
+
+    // This version will also be committed, so bump the count of committed versions
+    _committed_versions++;
+  }
+
+  // Add the new version
+  _versions.push_back(v);
+  v->identify(this);
+  _metadata_version = v;
+
+  // Record the write
+  _metadata_filter.writtenBy(c, ref);
+
+  // Inform the environment of this output
+  _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
+
+  // Return the new metadata version
+  return v;
+}
+
+// Save a fingerprint of the contents of the latest version of this artifact
+void Artifact::saveFingerprint(shared_ptr<Reference> ref) {
+  _content_version->saveFingerprint(ref);
+}
+
+// Command c accesses this artifact's contents
+// Return the version it observes, or nullptr if no check is necessary
+shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+  // Do we need to log this access?
+  if (_content_filter.readRequired(c, ref)) {
+    // Record the read
+    _content_filter.readBy(c);
+
+    // Yes. Notify the build and return the version
+    _env.getBuild().observeContentInput(c, shared_from_this(), _content_version);
+    return _content_version;
+
+  } else {
+    // No. Just return nullptr
+    return nullptr;
+  }
+}
+
+// Command c sets the contents of this artifact to an existing version. Used during emulation.
+shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<Version> v) {
+  // If no version was provided, the new version will represent what is currently on disk
+  if (!v) {
+    // Is a new version even required?
+    if (!_content_filter.writeRequired(c, ref)) return nullptr;
+
+    // If the artifact isn't fully committed, something has gone wrong
+    FAIL_IF(!isCommitted()) << "Committed content write to uncommitted artifact";
+
+    // Create a version to track the new on-disk state
+    v = make_shared<Version>();
+
+    // This version will also be committed, so bump the count of committed versions
+    _committed_versions++;
+  }
+
+  // Add the new version
+  _versions.push_back(v);
+  v->identify(this);
+  _content_version = v;
+
+  // Record the write
+  _content_filter.writtenBy(c, ref);
+
+  // Inform the environment of this output
+  _env.getBuild().observeContentOutput(c, shared_from_this(), _metadata_version);
+
+  // Return the new metadata version
+  return v;
+}
+
+// Record that the given command issued a read
+void Artifact::AccessFilter::readBy(shared_ptr<Command> reader) {
+  _accessed = true;
+}
+
+// Check if a read access must be logged separately, or if it can be safely ignored
+bool Artifact::AccessFilter::readRequired(shared_ptr<Command> reader, shared_ptr<Reference> ref) {
+  // We can skip reads if:
+  // 1. The reader is the last writer
+  // 2. The read is issued with the same reference as the last write
+  if (!options::ignore_self_reads) return true;
+  if (reader != _last_writer) return true;
+  if (ref != _write_ref) return true;
+
+  return false;
+}
+
+// Record that the given command issued a write
+void Artifact::AccessFilter::writtenBy(shared_ptr<Command> writer, shared_ptr<Reference> ref) {
+  _last_writer = writer;
+  _write_ref = ref;
+  _accessed = false;
+}
+
+// Check if a write access must be logged separately, or if it can be safely ignored
+bool Artifact::AccessFilter::writeRequired(shared_ptr<Command> writer, shared_ptr<Reference> ref) {
+  // We can skip writes if:
+  // 1. The writer is the same as the last writer
+  // 2. The write is issued with the same reference
+  // 3. There have been no accesses since the last write (the intermediate state was not seen)
+  if (!options::combine_writes) return true;
+  if (writer != _last_writer) return true;
+  if (ref != _write_ref) return true;
+  if (_accessed) return true;
+
+  return false;
 }

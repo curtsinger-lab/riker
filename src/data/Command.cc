@@ -161,7 +161,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 // This command sets the metadata of a referenced artifact
 void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // Inform the artifact that this command sets its metadata
-  auto v = a->setMetadata(shared_from_this(), ref, true);
+  auto v = a->setMetadata(shared_from_this(), ref);
 
   // If we created a new version, record this action in the trace IR
   if (v) {
@@ -173,7 +173,7 @@ void Command::setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 // This command sets the contents of a referenced artifact
 void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // Inform the artifact that this command sets its contents
-  auto v = a->setContents(shared_from_this(), ref, true);
+  auto v = a->setContents(shared_from_this(), ref);
 
   // If we created a new version, record this action in the trace IR
   if (v) {

@@ -15,7 +15,7 @@ using std::dynamic_pointer_cast;
 using std::nullopt;
 using std::shared_ptr;
 
-bool Version::isSaved() const {
+bool Version::canCommit() const {
   // Empty files can be recreated
   if (_metadata.has_value() && _metadata.value().st_size == 0) {
     return true;

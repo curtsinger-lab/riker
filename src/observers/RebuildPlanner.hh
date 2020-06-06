@@ -93,7 +93,7 @@ class RebuildPlanner : public BuildObserver {
       _output_used_by[creator].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && a->isSaved()) {
+      if (options::enable_cache && a->canCommit()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
@@ -141,7 +141,7 @@ class RebuildPlanner : public BuildObserver {
     if (!a->getContentCreator()) return;
 
     // If this artifact's final version is cached, we can just stage it in
-    if (options::enable_cache && a->isSaved()) return;
+    if (options::enable_cache && a->canCommit()) return;
 
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(a->getContentCreator());
