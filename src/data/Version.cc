@@ -36,6 +36,9 @@ void Version::commit(shared_ptr<Reference> ref) {
 }
 
 bool Version::metadataMatch(shared_ptr<Version> other) const {
+  // A version always matches itself
+  if (this == other.get()) return true;
+
   // Get metadata from both versions
   auto& m1 = _metadata;
   auto& m2 = other->_metadata;
@@ -63,6 +66,9 @@ bool operator==(const timespec& t1, const timespec& t2) {
 }
 
 bool Version::contentsMatch(shared_ptr<Version> other) const {
+  // A version always matches itself
+  if (this == other.get()) return true;
+
   // Get metadata from both versions
   auto& m1 = _metadata;
   auto& m2 = other->_metadata;
