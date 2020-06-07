@@ -77,7 +77,9 @@ class Graph : public BuildObserver {
         if (_changed_versions.find(v) != _changed_versions.end()) {
           o << " bgcolor=\"yellow\"";
         }
-        o << "></td></tr>";
+        o << ">";
+        // o << "font point-size=\"10\">" << v->getTypeName() << "</font>";
+        o << "</td></tr>";
       }
 
       // Finish the vertex line
