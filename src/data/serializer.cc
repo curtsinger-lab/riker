@@ -68,10 +68,67 @@ shared_ptr<Command> load_build(string filename, bool default_fallback) {
   exit(2);
 }
 
+#ifdef SERIALIZER_STATS
+
+ofstream* output = nullptr;
+
+struct stats_node {
+ public:
+  stats_node(string name) : _name(name), _start(output->tellp()) {}
+
+  void addChild(stats_node* c) { _children.push_back(c); }
+
+  void done() { _end = output->tellp(); }
+
+  size_t totalSize() { return _end - _start; }
+
+  size_t selfSize() {
+    size_t child_size = 0;
+    for (auto c : _children) {
+      child_size += c->totalSize();
+    }
+    return totalSize() - child_size;
+  }
+
+  void print() {
+    std::map<string, std::pair<size_t, size_t>> totals;
+    tally(totals);
+
+    for (auto [name, info] : totals) {
+      auto [count, size] = info;
+      float avg = (float)size / count;
+      LOG << name << ": " << count << " objects, " << size << " bytes (" << avg << " bytes/obj)";
+    }
+  }
+
+  void tally(std::map<string, std::pair<size_t, size_t>>& totals) {
+    auto [count, size] = totals[_name];
+    totals[_name] = {count + 1, size + selfSize()};
+    for (auto c : _children) {
+      c->tally(totals);
+    }
+  }
+
+ private:
+  string _name;
+  size_t _start;
+  size_t _end;
+  list<stats_node*> _children;
+};
+
+stats_node* root_stats_node = nullptr;
+stats_node* current = nullptr;
+std::stack<stats_node*> ancestors;
+#endif
+
 // Save a build to a file
 void save_build(string filename, shared_ptr<Command> root) {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
+
+#ifdef SERIALIZER_STATS
+  output = &f;
+#endif
 
   // Initialize cereal's binary archive writer
   cereal::BinaryOutputArchive archive(f);
@@ -79,7 +136,55 @@ void save_build(string filename, shared_ptr<Command> root) {
   // Store the build
   size_t version = ArchiveVersion;
   archive(version, root);
+
+#ifdef SERIALIZER_STATS
+  output = nullptr;
+  root_stats_node->print();
+#endif
 }
+
+#ifdef SERIALIZER_STATS
+
+#define COLLECT_STATS(C)                                  \
+  namespace cereal {                                      \
+    void prologue(BinaryOutputArchive& a, C const& val) { \
+      if (output == nullptr) return;                      \
+      if (current == nullptr) {                           \
+        root_stats_node = new stats_node(#C);             \
+        current = root_stats_node;                        \
+      } else {                                            \
+        ancestors.push(current);                          \
+        current = new stats_node(#C);                     \
+      }                                                   \
+    }                                                     \
+    void epilogue(BinaryOutputArchive& a, C const& val) { \
+      if (output == nullptr) return;                      \
+      current->done();                                    \
+      if (ancestors.empty()) {                            \
+        current = nullptr;                                \
+      } else {                                            \
+        auto child = current;                             \
+        current = ancestors.top();                        \
+        ancestors.pop();                                  \
+        current->addChild(child);                         \
+      }                                                   \
+    }                                                     \
+  }
+
+COLLECT_STATS(Command);
+COLLECT_STATS(AccessFlags);
+COLLECT_STATS(InitialFD);
+COLLECT_STATS(Version);
+COLLECT_STATS(Pipe);
+COLLECT_STATS(Access);
+COLLECT_STATS(ReferenceResult);
+COLLECT_STATS(MetadataMatch);
+COLLECT_STATS(ContentsMatch);
+COLLECT_STATS(SetMetadata);
+COLLECT_STATS(SetContents);
+COLLECT_STATS(Launch);
+
+#endif
 
 /// Serialization function for struct stat
 template <class Archive>
