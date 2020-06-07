@@ -83,8 +83,18 @@ void save_build(string filename, shared_ptr<Command> root) {
 
 /// Serialization function for struct stat
 template <class Archive>
-void serialize(Archive& ar, struct stat& s) {
-  ar(s.st_mode, s.st_uid, s.st_gid, s.st_size, s.st_mtim);
+void save(Archive& ar, struct stat const& s) {
+  uint8_t sizeval = s.st_size == 0 ? 0 : 1;
+  ar((uint16_t)s.st_mode, s.st_uid, s.st_gid, sizeval, s.st_mtim);
+}
+
+template <class Archive>
+void load(Archive& ar, struct stat& s) {
+  uint8_t sizeval;
+  uint16_t mode;
+  ar(mode, s.st_uid, s.st_gid, sizeval, s.st_mtim);
+  s.st_mode = mode;
+  s.st_size = sizeval;
 }
 
 /// Serialization function for struct timespec

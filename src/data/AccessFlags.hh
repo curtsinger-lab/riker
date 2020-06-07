@@ -25,13 +25,19 @@ struct AccessFlags {
     };
     uint8_t _data = 0;
   };
-  short mode = 0;  //< The file access modifiers
+  uint16_t mode = 0;  //< The file access modifiers
 
   // Declare fields for serialization
-  SERIALIZE(_data, mode);
+  template <class Archive>
+  void serialize(Archive& archive) {
+    // Serialze the integer representation of all the relevant flags
+    archive(_data);
+    // Only include the mode field if the create flag is set
+    if (create) archive(mode);
+  }
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(int flags, short mode) {
+  static AccessFlags fromOpen(int flags, uint16_t mode) {
     return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
             .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
             .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
@@ -43,7 +49,7 @@ struct AccessFlags {
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
-  pair<int, int> toOpen() const {
+  pair<int, uint16_t> toOpen() const {
     int flags = 0;
     if (r && w) flags |= O_RDWR;
     if (r && !w) flags |= O_RDONLY;
