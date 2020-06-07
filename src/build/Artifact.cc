@@ -20,12 +20,9 @@ using std::shared_ptr;
 
 Artifact::Artifact(Env& env, string name, bool committed, shared_ptr<Version> v) :
     _env(env), _name(name) {
-  _versions.push_back(v);
-  v->identify(this);
+  appendVersion(v, committed);
   _metadata_version = v;
   _content_version = v;
-
-  if (committed) _committed_versions = 1;
 }
 
 // Check if this artifact can be restored to the filesystem
@@ -118,19 +115,17 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
     // Is a new version even required?
     if (!_metadata_filter.writeRequired(c, ref)) return nullptr;
 
-    // If the artifact isn't fully committed, something has gone wrong
-    FAIL_IF(!isCommitted()) << "Committed metadata write to uncommitted artifact";
-
     // Create a version to track the new on-disk state
     v = make_shared<Version>();
 
-    // This version will also be committed, so bump the count of committed versions
-    _committed_versions++;
+    // Append the new version and mark it as committed
+    appendVersion(v, true);
+  } else {
+    // Append the un-committed version
+    appendVersion(v, false);
   }
 
-  // Add the new version
-  _versions.push_back(v);
-  v->identify(this);
+  // Track the new metadata version
   _metadata_version = v;
 
   // Record the write
@@ -174,19 +169,17 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Refe
     // Is a new version even required?
     if (!_content_filter.writeRequired(c, ref)) return nullptr;
 
-    // If the artifact isn't fully committed, something has gone wrong
-    FAIL_IF(!isCommitted()) << "Committed content write to uncommitted artifact";
-
     // Create a version to track the new on-disk state
     v = make_shared<Version>();
 
-    // This version will also be committed, so bump the count of committed versions
-    _committed_versions++;
+    // Append the new version and mark it as committed
+    appendVersion(v, true);
+  } else {
+    // Append the new uncommitted version
+    appendVersion(v, false);
   }
 
-  // Add the new version
-  _versions.push_back(v);
-  v->identify(this);
+  // Track the new content version
   _content_version = v;
 
   // Record the write
@@ -197,6 +190,17 @@ shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Refe
 
   // Return the new metadata version
   return v;
+}
+
+void Artifact::appendVersion(shared_ptr<Version> v, bool committed) {
+  if (committed) {
+    FAIL_IF(!isCommitted()) << "Artifact is not fully committed: " << _committed_versions << ", "
+                            << _versions.size();
+    _committed_versions++;
+  }
+
+  _versions.push_back(v);
+  v->identify(this);
 }
 
 // Record that the given command issued a read

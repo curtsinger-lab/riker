@@ -62,7 +62,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Check this artifact's final state against the filesystem and report any changes
   void checkFinalState(shared_ptr<Reference> ref);
 
-  /********** Metadata **********/
+  /********** Metadata: All Artifact Types **********/
 
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getMetadataCreator() const { return _metadata_filter.getLastWriter(); }
@@ -92,7 +92,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
                                   shared_ptr<Version> v = nullptr);
 
-  /********** Content **********/
+  /********** Content: Files and Pipes **********/
 
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getContentCreator() const { return _content_filter.getLastWriter(); }
@@ -131,6 +131,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Print a pointer to an artifact
   friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
+
+ protected:
+  /// Add a version to the sequence of versions for this artifact
+  void appendVersion(shared_ptr<Version> v, bool committed);
 
   /**
    * This class captures the state and logic required to decide when reads/writes must be recorded
@@ -187,7 +191,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   list<shared_ptr<Version>> _versions;
 
   /// The number of versions in the sequence that have been committed to the filesystem
-  size_t _committed_versions;
+  size_t _committed_versions = 0;
 
   /// The latest metadata version
   shared_ptr<Version> _metadata_version;
