@@ -12,21 +12,26 @@ using std::pair;
 
 /// This struct encodes the flags specified when making an access to a particular reference
 struct AccessFlags {
-  bool r = false;          //< Does the reference require read access?
-  bool w = false;          //< Does the reference require write access?
-  bool x = false;          //< Does the reference require execute access?
-  bool nofollow = false;   //< Does the reference resolve to a symlink rather than its target?
-  bool truncate = false;   //< Does the reference truncate the artifact's contents?
-  bool create = false;     //< Does the reference create an artifact if none exists?
-  bool exclusive = false;  //< Does the reference require creation? (must also be set with .create)
-  bool append = false;     //< Is the file opened in append mode?
-  int mode = 0;            //< The file access modifiers
+  union {
+    struct {
+      bool r : 1;          //< Does the reference require read access?
+      bool w : 1;          //< Does the reference require write access?
+      bool x : 1;          //< Does the reference require execute access?
+      bool nofollow : 1;   //< Does the reference resolve to a symlink?
+      bool truncate : 1;   //< Does the reference truncate the artifact's contents?
+      bool create : 1;     //< Does the reference create an artifact if none exists?
+      bool exclusive : 1;  //< Does the reference require creation?
+      bool append : 1;     //< Is the file opened in append mode?
+    };
+    uint8_t _data = 0;
+  };
+  short mode = 0;  //< The file access modifiers
 
   // Declare fields for serialization
-  SERIALIZE(r, w, x, nofollow, truncate, create, exclusive, append, mode);
+  SERIALIZE(_data, mode);
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(int flags, int mode) {
+  static AccessFlags fromOpen(int flags, short mode) {
     return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
             .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
             .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,

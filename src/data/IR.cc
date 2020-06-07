@@ -114,9 +114,9 @@ int Access::access() const {
 /******************** Print Methods ********************/
 
 // Set up a map from return codes to names
-static map<int, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-                                  {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-                                  {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
+static map<int8_t, string> errors = {{SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
+                                     {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
+                                     {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}};
 
 /// Print a PIPE reference
 ostream& Pipe::print(ostream& o) const {

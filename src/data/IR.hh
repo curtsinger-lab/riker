@@ -17,7 +17,7 @@ using std::shared_ptr;
 using std::string;
 
 // Add a success constant so we don't have to keep returning 0 as a magic number
-enum : int { SUCCESS = 0 };
+enum : int8_t { SUCCESS = 0 };
 
 class Artifact;
 class Build;
@@ -170,7 +170,7 @@ class Predicate : public Step {
 class ReferenceResult : public Predicate, public std::enable_shared_from_this<ReferenceResult> {
  public:
   /// Create a REFERENCE_RESULT predicate
-  ReferenceResult(shared_ptr<Reference> ref, int rc) : _ref(ref), _rc(rc) {}
+  ReferenceResult(shared_ptr<Reference> ref, int8_t rc) : _ref(ref), _rc(rc) {}
 
   /// Get the reference this predicate examines
   shared_ptr<Reference> getReference() const { return _ref; }
@@ -190,7 +190,7 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
 
  private:
   shared_ptr<Reference> _ref;  //< The reference whose outcome we depend on
-  int _rc;                     //< The result of that reference
+  int8_t _rc;                  //< The result of that reference
 
   // Create default constructor and specify fields for serialization
   ReferenceResult() = default;
