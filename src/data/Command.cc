@@ -10,7 +10,7 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/AccessFlags.hh"
 #include "data/IR.hh"

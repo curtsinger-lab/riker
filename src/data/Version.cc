@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "data/IR.hh"
 #include "util/log.hh"
 

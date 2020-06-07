@@ -5,7 +5,7 @@
 
 #include <cereal/access.hpp>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "data/IR.hh"
 
 using std::ostream;

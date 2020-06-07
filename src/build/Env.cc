@@ -10,7 +10,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
+#include "artifact/File.hh"
+#include "artifact/Pipe.hh"
 #include "build/Build.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
@@ -48,7 +50,7 @@ tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<
 
   } else {
     // No match found. Create a pipe artifact
-    auto artifact = make_shared<Artifact>(*this, "pipe", true);
+    auto artifact = make_shared<PipeArtifact>(*this, true);
 
     // Add the pipe to the map
     _pipes.emplace_hint(iter, ref, artifact);
@@ -117,7 +119,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       // Create the artifact. Because it's being created, mark it as committed (even though it isn't
       // actually on-disk yet).
       // TODO: Add a just_created flag to this method so we don't have to do this hackery
-      auto artifact = make_shared<Artifact>(*this, path, true, v);
+      auto artifact = make_shared<FileArtifact>(*this, true, v);
+      artifact->setName(path);
 
       // Add this new artifact to the map of resolved references
       _files.emplace(ref, artifact);
@@ -143,7 +146,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     }
 
     // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = make_shared<Artifact>(*this, path, true);
+    auto artifact = make_shared<FileArtifact>(*this, true);
+    artifact->setName(path);
 
     // Save metadata and fingerprint for the initial version of the on-disk artifact
     // TODO: do this lazily. We have to save these here because we need to compare expected versions

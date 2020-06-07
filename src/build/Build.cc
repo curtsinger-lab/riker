@@ -4,6 +4,7 @@
 #include <memory>
 #include <ostream>
 
+#include "artifact/Artifact.hh"
 #include "data/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
@@ -17,6 +18,9 @@ void Build::run() {
   // This is a hack to resolve the stdin, stdout, and stderr pipes before starting emulation.
   for (auto& [index, info] : _root->getInitialFDs()) {
     info.getReference()->emulate(_root, *this);
+    if (index == 0) info.getReference()->getArtifact()->setName("stdin");
+    if (index == 1) info.getReference()->getArtifact()->setName("stdout");
+    if (index == 2) info.getReference()->getArtifact()->setName("stderr");
   }
 
   // Inform observers of the launch action

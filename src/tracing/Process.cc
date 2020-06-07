@@ -8,7 +8,7 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"

@@ -5,7 +5,7 @@
 #include <ostream>
 #include <set>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "build/BuildObserver.hh"
 #include "data/Command.hh"
 #include "ui/options.hh"

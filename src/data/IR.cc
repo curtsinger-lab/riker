@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
 #include "data/Command.hh"

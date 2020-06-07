@@ -18,11 +18,9 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-Artifact::Artifact(Env& env, string name, bool committed, shared_ptr<Version> v) :
-    _env(env), _name(name) {
+Artifact::Artifact(Env& env, bool committed, shared_ptr<Version> v) : _env(env) {
   appendVersion(v, committed);
   _metadata_version = v;
-  _content_version = v;
 }
 
 // Check if this artifact can be restored to the filesystem
@@ -64,23 +62,11 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   // Create a version that represents the on-disk contents reached through this reference
   auto v = make_shared<Version>();
   v->saveMetadata(ref);
-  v->saveFingerprint(ref);
-
-  bool metadata_match = _metadata_version->metadataMatch(v);
-  bool contents_match = _content_version->contentsMatch(v);
 
   // Report a metadata mismatch if necessary
-  if (!metadata_match) {
+  if (!_metadata_version->metadataMatch(v)) {
     _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
-
-  // Report a content mismatch if necessary
-  if (!contents_match) {
-    _env.getBuild().observeFinalContentMismatch(shared_from_this(), _content_version, v);
-  }
-
-  // If both contents and metadata match, we can mark this artifact as committed
-  if (metadata_match && contents_match) _committed_versions = _versions.size();
 }
 
 // Save metadata for the latest version of this artifact
@@ -133,60 +119,6 @@ shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Refe
 
   // Inform the environment of this output
   _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
-
-  // Return the new metadata version
-  return v;
-}
-
-// Save a fingerprint of the contents of the latest version of this artifact
-void Artifact::saveFingerprint(shared_ptr<Reference> ref) {
-  _content_version->saveFingerprint(ref);
-}
-
-// Command c accesses this artifact's contents
-// Return the version it observes, or nullptr if no check is necessary
-shared_ptr<Version> Artifact::accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) {
-  // Do we need to log this access?
-  if (_content_filter.readRequired(c, ref)) {
-    // Record the read
-    _content_filter.readBy(c);
-
-    // Yes. Notify the build and return the version
-    _env.getBuild().observeContentInput(c, shared_from_this(), _content_version);
-    return _content_version;
-
-  } else {
-    // No. Just return nullptr
-    return nullptr;
-  }
-}
-
-// Command c sets the contents of this artifact to an existing version. Used during emulation.
-shared_ptr<Version> Artifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v) {
-  // If no version was provided, the new version will represent what is currently on disk
-  if (!v) {
-    // Is a new version even required?
-    if (!_content_filter.writeRequired(c, ref)) return nullptr;
-
-    // Create a version to track the new on-disk state
-    v = make_shared<Version>();
-
-    // Append the new version and mark it as committed
-    appendVersion(v, true);
-  } else {
-    // Append the new uncommitted version
-    appendVersion(v, false);
-  }
-
-  // Track the new content version
-  _content_version = v;
-
-  // Record the write
-  _content_filter.writtenBy(c, ref);
-
-  // Inform the environment of this output
-  _env.getBuild().observeContentOutput(c, shared_from_this(), _metadata_version);
 
   // Return the new metadata version
   return v;

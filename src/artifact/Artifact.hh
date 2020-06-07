@@ -35,7 +35,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param committed Does the initial version of this artifact represent the filesystem state?
    * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, string name, bool committed, shared_ptr<Version> v = make_shared<Version>());
+  Artifact(Env& env, bool committed, shared_ptr<Version> v = make_shared<Version>());
+
+  // Required virtual destructor
+  virtual ~Artifact() = default;
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
@@ -43,6 +46,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get the name of this artifact used for pretty-printing
   const string& getName() const { return _name; }
+
+  /// Set the naem of this artifact used for pretty-printing
+  void setName(string name) { _name = name; }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const { return _versions.size(); }
@@ -60,7 +66,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void commit(shared_ptr<Reference> ref);
 
   /// Check this artifact's final state against the filesystem and report any changes
-  void checkFinalState(shared_ptr<Reference> ref);
+  virtual void checkFinalState(shared_ptr<Reference> ref);
 
   /********** Metadata: All Artifact Types **********/
 
@@ -95,13 +101,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /********** Content: Files and Pipes **********/
 
   /// Get the creator of the latest version of this artifact
-  shared_ptr<Command> getContentCreator() const { return _content_filter.getLastWriter(); }
+  virtual shared_ptr<Command> getContentCreator() const = 0;
 
   /**
    * Save a fingerprint of the contents of the latest version of this artifact
    * \param ref The reference to this artifact that should be used to access contents
    */
-  void saveFingerprint(shared_ptr<Reference> ref);
+  virtual void saveFingerprint(shared_ptr<Reference> ref) = 0;
 
   /**
    * Command c accesses the content of this artifact using reference ref.
@@ -110,7 +116,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the version the command observes, or nullptr if the command has already observed the
    *          latest version using this reference (no check is necessary).
    */
-  shared_ptr<Version> accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  virtual shared_ptr<Version> accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) = 0;
 
   /**
    * Command c sets the content of this artifact to version v using reference ref.
@@ -119,14 +125,21 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's content is set to, or null if the version is on disk
    * \returns the newly-assigned content version
    */
-  shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                  shared_ptr<Version> v = nullptr);
+  virtual shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<Version> v = nullptr) = 0;
 
   /****** Utility Methods ******/
 
+  /// Get the name of this artifact type
+  virtual string getTypeName() const = 0;
+
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) {
-    return o << "[Artifact " << a.getName() << "]@v" << a._versions.size() - 1;
+    o << "[" << a.getTypeName();
+    auto name = a.getName();
+    if (!name.empty()) o << " " << name;
+    o << "]@v" << a._versions.size() - 1;
+    return o;
   }
 
   /// Print a pointer to an artifact
@@ -180,10 +193,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     bool _accessed = false;
   };
 
- private:
+ protected:
   /// The environment this artifact is managed by
   Env& _env;
 
+ private:
   /// The name of this artifact used for pretty-printing
   string _name;
 
@@ -198,10 +212,4 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The access filter that controls metadata interactions
   AccessFilter _metadata_filter;
-
-  /// The latest content version
-  shared_ptr<Version> _content_version;
-
-  /// The access filter that controls content interactions
-  AccessFilter _content_filter;
 };

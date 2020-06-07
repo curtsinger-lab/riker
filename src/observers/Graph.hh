@@ -5,7 +5,7 @@
 #include <ostream>
 #include <set>
 
-#include "build/Artifact.hh"
+#include "artifact/Artifact.hh"
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "data/Command.hh"
@@ -63,11 +63,13 @@ class Graph : public BuildObserver {
       // Begin a table
       o << "<table border=\"0\" cellspacing=\"0\" cellborder=\"1\" cellpadding=\"5\">";
 
-      // Print the artifact type (not supported at the moment)
-      // o << "<tr><td border=\"0\"><sub>" << ARTIFACT_TYPE << "</sub></td></tr>";
+      // Print the artifact type
+      o << "<tr><td border=\"0\"><sub>" << artifact->getTypeName() << "</sub></td></tr>";
 
-      // Add a row with the artifact name
-      o << "<tr><td>" + artifact->getName() + "</td></tr>";
+      // Add a row with the artifact name, unless the artifact is unnamed
+      if (!artifact->getName().empty()) {
+        o << "<tr><td>" + artifact->getName() + "</td></tr>";
+      }
 
       // Add a row for each version
       for (auto v : artifact->getVersions()) {
