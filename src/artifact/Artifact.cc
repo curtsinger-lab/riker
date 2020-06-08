@@ -147,8 +147,8 @@ bool Artifact::AccessFilter::readRequired(const shared_ptr<Command>& reader,
   // 1. The reader is the last writer
   // 2. The read is issued with the same reference as the last write
   if (!options::ignore_self_reads) return true;
-  if (reader != _last_writer) return true;
-  if (ref != _write_ref) return true;
+  if (reader != _last_writer.lock()) return true;
+  if (ref != _write_ref.lock()) return true;
 
   return false;
 }
@@ -169,8 +169,8 @@ bool Artifact::AccessFilter::writeRequired(const shared_ptr<Command>& writer,
   // 2. The write is issued with the same reference
   // 3. There have been no accesses since the last write (the intermediate state was not seen)
   if (!options::combine_writes) return true;
-  if (writer != _last_writer) return true;
-  if (ref != _write_ref) return true;
+  if (writer != _last_writer.lock()) return true;
+  if (ref != _write_ref.lock()) return true;
   if (_accessed) return true;
 
   return false;

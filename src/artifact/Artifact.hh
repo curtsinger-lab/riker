@@ -14,6 +14,7 @@ using std::make_shared;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::weak_ptr;
 
 class Command;
 class ContentVersion;
@@ -200,11 +201,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     bool writeRequired(const shared_ptr<Command>& writer, const shared_ptr<Reference>& ref);
 
     /// Get the last writer
-    const shared_ptr<Command>& getLastWriter() const { return _last_writer; }
+    shared_ptr<Command> getLastWriter() const { return _last_writer.lock(); }
 
    private:
-    shared_ptr<Command> _last_writer;
-    shared_ptr<Reference> _write_ref;
+    weak_ptr<Command> _last_writer;
+    weak_ptr<Reference> _write_ref;
     bool _accessed = false;
   };
 
