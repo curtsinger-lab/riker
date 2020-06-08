@@ -158,16 +158,28 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
     // Handle filesystem types
     if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
       // Directory
+
+      // If the access flags include reading or writing, and a directory was not specifically
+      // requested, then the access fails with an error
+      if ((flags.r || flags.w) && !flags.directory) return {nullptr, EISDIR};
+
       artifact = make_shared<DirArtifact>(*this, true, make_shared<MetadataVersion>(statbuf));
 
     } else if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
       // File
+      // If the access flags include reading or writing, and a directory was requested, this fails
+      if (flags.directory) return {nullptr, ENOTDIR};
+
       artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
                                            make_shared<ContentVersion>(statbuf));
 
     } else {
       // Someting else. Just make it a file for now
       WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
+
+      // If the access flags include reading or writing, and a directory was requested, this fails
+      if (flags.directory) return {nullptr, ENOTDIR};
+
       artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
                                            make_shared<ContentVersion>(statbuf));
     }

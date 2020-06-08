@@ -22,8 +22,9 @@ struct AccessFlags {
       bool create : 1;     //< Does the reference create an artifact if none exists?
       bool exclusive : 1;  //< Does the reference require creation?
       bool append : 1;     //< Is the file opened in append mode?
+      bool directory : 1;  //< Is the open expected to return a directory?
     };
-    uint8_t _data = 0;
+    uint16_t _data = 0;
   };
   uint16_t mode = 0;  //< The file access modifiers
 
@@ -45,6 +46,7 @@ struct AccessFlags {
             .create = (flags & O_CREAT) == O_CREAT,
             .exclusive = (flags & O_EXCL) == O_EXCL,
             .append = (flags & O_APPEND) == O_APPEND,
+            .directory = (flags & O_DIRECTORY) == O_DIRECTORY,
             .mode = mode};
   }
 
@@ -59,6 +61,7 @@ struct AccessFlags {
     if (create) flags |= O_CREAT;
     if (exclusive) flags |= O_EXCL;
     if (append) flags |= O_APPEND;
+    if (directory) flags |= O_DIRECTORY;
 
     return {flags, mode};
   }
