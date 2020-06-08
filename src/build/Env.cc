@@ -154,8 +154,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(const shared_ptr<Command>& c,
 
     // Otherwise, the access succeeds. We need to stat the path to find out if it's a file or
     // directory.
-    struct stat statbuf;
-    FAIL_IF(ref->stat(&statbuf) != 0) << "Failed to stat successfully-accessed path";
+    auto [statbuf, rc] = ref->stat();
+    FAIL_IF(rc != SUCCESS) << "Failed to stat successfully-accessed path";
 
     shared_ptr<Artifact> artifact;
 

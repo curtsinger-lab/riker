@@ -3,6 +3,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,6 +14,7 @@
 #include "util/log.hh"
 
 using std::ostream;
+using std::pair;
 using std::shared_ptr;
 using std::string;
 
@@ -137,7 +139,7 @@ class Access : public Reference {
   int open() const;
 
   /// Stat this reference
-  int stat(struct stat* statbuf) const;
+  pair<struct stat, int> stat() const;
 
   /// Call access() on this reference
   int access() const;

@@ -41,10 +41,8 @@ void ContentVersion::fingerprint(const shared_ptr<Reference>& ref) {
   }
 
   // Get stat data and save it
-  struct stat statbuf;
-  if (a->stat(&statbuf) == 0) {
-    _fingerprint = statbuf;
-  }
+  auto [info, rc] = a->stat();
+  if (rc == SUCCESS) _fingerprint = info;
 }
 
 // Compare this version to another version

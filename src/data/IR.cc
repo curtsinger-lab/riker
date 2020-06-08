@@ -20,6 +20,7 @@
 
 using std::dynamic_pointer_cast;
 using std::ostream;
+using std::pair;
 using std::shared_ptr;
 
 void Reference::resolve(const shared_ptr<Command>& c, Build& build) {
@@ -104,8 +105,10 @@ int Access::open() const {
   return ::open(_path.c_str(), open_flags, open_mode);
 }
 
-int Access::stat(struct stat* statbuf) const {
-  return fstatat(AT_FDCWD, _path.c_str(), statbuf, _flags.toStat());
+pair<struct stat, int> Access::stat() const {
+  struct stat statbuf;
+  int rc = fstatat(AT_FDCWD, _path.c_str(), &statbuf, _flags.toStat());
+  return {statbuf, rc};
 }
 
 int Access::access() const {

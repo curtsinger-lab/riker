@@ -20,10 +20,8 @@ void MetadataVersion::save(const shared_ptr<Reference>& ref) {
   }
 
   // Get stat data and save it
-  struct stat statbuf;
-  if (a->stat(&statbuf) == 0) {
-    _metadata = statbuf;
-  }
+  auto [info, rc] = a->stat();
+  if (rc == SUCCESS) _metadata = info;
 }
 
 // Commit this version to the filesystem
