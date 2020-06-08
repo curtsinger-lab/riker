@@ -63,16 +63,20 @@ void Artifact::fingerprint(const shared_ptr<Reference>& ref) {
 
 // Check this artifact's contents and metadata against the filesystem state
 void Artifact::checkFinalState(const shared_ptr<Reference>& ref) {
-  // If this artifact is committed to the filesystem, we already know it matches
-  if (isCommitted()) return;
+  // We can skip checks if we already know metadata is in a committed state
+  if (!_metadata_committed) {
+    // Create a version that represents the on-disk contents reached through this reference
+    auto v = make_shared<MetadataVersion>();
+    v->fingerprint(ref);
 
-  // Create a version that represents the on-disk contents reached through this reference
-  auto v = make_shared<MetadataVersion>();
-  v->fingerprint(ref);
-
-  // Report a metadata mismatch if necessary
-  if (!_metadata_version->matches(v)) {
-    _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
+    // Report a metadata mismatch if necessary
+    if (!_metadata_version->matches(v)) {
+      _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
+    } else {
+      // Since the metadata matches what is on disk, we can treat this artifact as if it was
+      // committed
+      _metadata_committed = true;
+    }
   }
 }
 
