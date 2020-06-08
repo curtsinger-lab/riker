@@ -84,6 +84,9 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 
+  /// Has this reference been resolved to an artifact?
+  bool isResolved() const { return _artifact != nullptr; }
+
   /// Get the artifact this reference resolved to
   shared_ptr<Artifact> getArtifact() const {
     FAIL_IF(!_artifact) << "Attempted to access unresolved reference " << this;

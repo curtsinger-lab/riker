@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "data/AccessFlags.hh"
-#include "data/InitialFD.hh"
+#include "data/FileDescriptor.hh"
 #include "data/serializer.hh"
 
 using std::list;
@@ -40,7 +40,7 @@ class Command : public std::enable_shared_from_this<Command> {
   static shared_ptr<Command> createRootCommand();
 
   /// Create a new command
-  Command(string exe, vector<string> args, map<int, InitialFD> initial_fds) :
+  Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
       _exe(exe), _args(args), _initial_fds(initial_fds) {}
 
   // Disallow Copy
@@ -79,7 +79,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const vector<string>& getArguments() const { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, InitialFD>& getInitialFDs() const { return _initial_fds; }
+  const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
 
   /// Emulate the steps of this command as part of a particular build
   void emulate(Build& build);
@@ -108,7 +108,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
 
   /// This command launches a child command
-  shared_ptr<Command> launch(string exe, vector<string> args, map<int, InitialFD> fds);
+  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);
 
   /****** Utility Methods ******/
 
@@ -128,7 +128,7 @@ class Command : public std::enable_shared_from_this<Command> {
   vector<string> _args;
 
   /// The file descriptor table at the start of this command's execution
-  map<int, InitialFD> _initial_fds;
+  map<int, FileDescriptor> _initial_fds;
 
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;

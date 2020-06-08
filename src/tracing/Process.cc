@@ -11,9 +11,8 @@
 #include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/Command.hh"
+#include "data/FileDescriptor.hh"
 #include "data/IR.hh"
-#include "data/InitialFD.hh"
-#include "tracing/FDEntry.hh"
 #include "tracing/syscalls.hh"
 #include "util/log.hh"
 
@@ -368,12 +367,12 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       _command->referenceResult(ref, SUCCESS);
 
       // Get the artifact that was stat-ed
-      auto [artifact, env_rc] = _build.getEnv().get(_command, ref);
+      ref->resolve(_command, _build);
 
-      FAIL_IF(!artifact) << "Unable to locate artifact for stat-ed file";
+      FAIL_IF(!ref->isResolved()) << "Unable to locate artifact for stat-ed file";
 
       // Record the dependence on the artifact's metadata
-      _command->metadataMatch(ref, artifact);
+      _command->metadataMatch(ref, ref->getArtifact());
     } else {
       // Record the error. Negate rc because syscalls return negative errors
       _command->referenceResult(ref, -rc);
@@ -413,14 +412,14 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the process'
   // current map of file descriptors.
-  map<int, InitialFD> initial_fds;
+  map<int, FileDescriptor> initial_fds;
   list<int> to_erase;
 
   for (auto& [index, fd] : _fds) {
     if (fd.isCloexec()) {
       to_erase.push_back(index);
     } else {
-      initial_fds.emplace(index, InitialFD(fd.getReference(), fd.isWritable()));
+      initial_fds.emplace(index, FileDescriptor(fd.getReference(), fd.isWritable()));
     }
   }
   for (int index : to_erase) {
@@ -431,18 +430,22 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command = _command->launch(exe_path, args, initial_fds);
 
   // Get the executable file artifact
-  auto [exe_artifact, exe_rc] = _build.getEnv().get(_command, exe_ref);
+  exe_ref->resolve(_command, _build);
 
-  FAIL_IF(!exe_artifact) << "Failed to locate artifact for executable file";
+  FAIL_IF(!exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // The child command reads the contents of the executable file
   auto child_exe_ref = _command->access(exe_path, {.r = true});
+
+  child_exe_ref->resolve(_command, _build);
+
+  FAIL_IF(!child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // The reference to the executable file must succeed
   _command->referenceResult(child_exe_ref, SUCCESS);
 
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(child_exe_ref, exe_artifact);
+  _command->contentsMatch(child_exe_ref, child_exe_ref->getArtifact());
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
@@ -476,12 +479,12 @@ void Process::_truncate(string pathname, long length) {
   auto ref = _command->access(p, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
-  auto [artifact, env_rc] = _build.getEnv().get(_command, ref);
+  ref->resolve(_command, _build);
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
-  if (length > 0 && artifact) {
-    _command->contentsMatch(ref, artifact);
+  if (length > 0 && ref->isResolved()) {
+    _command->contentsMatch(ref, ref->getArtifact());
   }
 
   // Finish the syscall and resume the process
@@ -494,10 +497,10 @@ void Process::_truncate(string pathname, long length) {
     _command->referenceResult(ref, SUCCESS);
 
     // Make sure the artifact actually existed
-    FAIL_IF(!artifact) << "Failed to get artifact for truncated file";
+    FAIL_IF(!ref->isResolved()) << "Failed to get artifact for truncated file";
 
     // Record the update to the artifact contents
-    _command->setContents(ref, artifact);
+    _command->setContents(ref, ref->getArtifact());
 
   } else {
     // Record the failed reference
@@ -700,7 +703,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
-  auto [artifact, _] = _build.getEnv().get(_command, ref);
+  ref->resolve(_command, _build);
 
   // Allow the syscall to finish, and record the result
   int fd = finishSyscall();
@@ -713,18 +716,18 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _command->referenceResult(ref, SUCCESS);
 
-    FAIL_IF(!artifact) << "Failed to locate artifact for opened file";
+    FAIL_IF(!ref->isResolved()) << "Failed to locate artifact for opened file";
 
     // If the file is truncated by the open call, set the contents in the artifact
     if (ref_flags.truncate) {
-      _command->setContents(ref, artifact);
+      _command->setContents(ref, ref->getArtifact());
     }
 
     // Is this new descriptor closed on exec?
     bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
     // Record the reference in the correct location in this process' file descriptor table
-    _fds.emplace(fd, FDEntry(ref, artifact, ref_flags.w, cloexec));
+    _fds.emplace(fd, FileDescriptor(ref, ref_flags.w, cloexec));
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
@@ -878,12 +881,12 @@ void Process::_readlinkat(int dfd, string pathname) {
     _command->referenceResult(ref, SUCCESS);
 
     // Get the artifact that we referenced
-    auto [artifact, _] = _build.getEnv().get(_command, ref);
+    ref->resolve(_command, _build);
 
-    FAIL_IF(!artifact) << "Failed to get artifact for successfully-read link";
+    FAIL_IF(!ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
     // We depend on this artifact's contents now
-    _command->contentsMatch(ref, artifact);
+    _command->contentsMatch(ref, ref->getArtifact());
 
   } else {
     // No. Record the failure
@@ -898,12 +901,12 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   auto ref = _command->access(p, AccessFlags{});
 
   // Get the artifact that we're going to chmod
-  auto [artifact, _] = _build.getEnv().get(_command, ref);
+  ref->resolve(_command, _build);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
-  if (artifact) {
-    _command->metadataMatch(ref, artifact);
+  if (ref->isResolved()) {
+    _command->metadataMatch(ref, ref->getArtifact());
   }
 
   // Finish the syscall and then resume the process
@@ -915,10 +918,10 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
     // Yes. Record the successful reference
     _command->referenceResult(ref, SUCCESS);
 
-    FAIL_IF(!artifact) << "Failed to get artifact";
+    FAIL_IF(!ref->isResolved()) << "Failed to get artifact";
 
     // We've now set the artifact's metadata
-    _command->setMetadata(ref, artifact);
+    _command->setMetadata(ref, ref->getArtifact());
 
   } else {
     // No. Record the failure
@@ -994,19 +997,19 @@ void Process::_pipe2(int* fds, int flags) {
   resume();
 
   // Get an artifact for this pipe
-  auto [artifact, _] = _build.getEnv().get(_command, ref);
+  ref->resolve(_command, _build);
 
-  FAIL_IF(!artifact) << "Failed to get artifact for pipe";
+  FAIL_IF(!ref->isResolved()) << "Failed to get artifact for pipe";
 
   // The command sets the contents of the pipe on creation
-  _command->setContents(ref, artifact);
+  _command->setContents(ref, ref->getArtifact());
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
   // Fill in the file descriptor entries
-  _fds.emplace(read_pipefd, FDEntry(ref, artifact, false, cloexec));
-  _fds.emplace(write_pipefd, FDEntry(ref, artifact, true, cloexec));
+  _fds.emplace(read_pipefd, FileDescriptor(ref, false, cloexec));
+  _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
 }
 
 void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) {

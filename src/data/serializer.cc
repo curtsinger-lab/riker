@@ -19,9 +19,9 @@
 #include "data/AccessFlags.hh"
 #include "data/Command.hh"
 #include "data/ContentVersion.hh"
+#include "data/FileDescriptor.hh"
 #include "data/Fingerprint.hh"
 #include "data/IR.hh"
-#include "data/InitialFD.hh"
 #include "data/Metadata.hh"
 #include "data/MetadataVersion.hh"
 #include "data/Version.hh"
@@ -177,7 +177,7 @@ void save_build(string filename, shared_ptr<Command> root) {
 
 COLLECT_STATS(Command);
 COLLECT_STATS(AccessFlags);
-COLLECT_STATS(InitialFD);
+COLLECT_STATS(FileDescriptor);
 COLLECT_STATS(Version);
 COLLECT_STATS(Pipe);
 COLLECT_STATS(Access);

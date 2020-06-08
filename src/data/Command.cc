@@ -14,8 +14,8 @@
 #include "build/Build.hh"
 #include "data/AccessFlags.hh"
 #include "data/ContentVersion.hh"
+#include "data/FileDescriptor.hh"
 #include "data/IR.hh"
-#include "data/InitialFD.hh"
 #include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "ui/options.hh"
@@ -55,9 +55,9 @@ shared_ptr<Command> Command::createRootCommand() {
   auto stdout_ref = make_shared<Pipe>();
   auto stderr_ref = make_shared<Pipe>();
 
-  map<int, InitialFD> default_fds = {{0, InitialFD(stdin_ref, false)},
-                                     {1, InitialFD(stdout_ref, true)},
-                                     {2, InitialFD(stderr_ref, true)}};
+  map<int, FileDescriptor> default_fds = {{0, FileDescriptor(stdin_ref, false)},
+                                          {1, FileDescriptor(stdout_ref, true)},
+                                          {2, FileDescriptor(stderr_ref, true)}};
 
   shared_ptr<Command> root(new Command(dodo_launch, {"dodo-launch"}, default_fds));
 
@@ -185,7 +185,7 @@ void Command::setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
 }
 
 // This command launches a child command
-shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, InitialFD> fds) {
+shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
   auto child = make_shared<Command>(exe, args, fds);
 
   if (options::print_on_run) cout << child->getFullName() << endl;
