@@ -24,7 +24,7 @@ using std::to_string;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class Graph : public BuildObserver {
+class Graph final : public BuildObserver {
  public:
   /**
    * Print graphviz output for a build

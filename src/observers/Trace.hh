@@ -18,7 +18,7 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class Trace : public BuildObserver {
+class Trace final : public BuildObserver {
  public:
   /// The root command is being launched.
   virtual void launchRootCommand(const shared_ptr<Command>& root) override {

@@ -14,7 +14,7 @@ using std::string;
 
 class Reference;
 
-class ContentVersion : public Version {
+class ContentVersion final : public Version {
  public:
   /// Create a ContentVersion with no existing fingerprint
   ContentVersion() = default;

@@ -17,7 +17,7 @@ using std::shared_ptr;
  * An instance of this class is used to gather statistics as it traverses a build.
  * Usage:
  */
-class Stats : public BuildObserver {
+class Stats final : public BuildObserver {
  public:
   /**
    * Gather statistics from a build as it runs

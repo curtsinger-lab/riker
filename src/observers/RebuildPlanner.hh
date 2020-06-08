@@ -17,7 +17,7 @@ using std::set;
 using std::shared_ptr;
 
 /// This class captures all of the logic and state required to plan a rebuild.
-class RebuildPlanner : public BuildObserver {
+class RebuildPlanner final : public BuildObserver {
  public:
   /// Create a rebuild planner
   RebuildPlanner() = default;

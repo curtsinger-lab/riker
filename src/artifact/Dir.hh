@@ -13,7 +13,7 @@ class Reference;
 class Version;
 class ContentVersion;
 
-class DirArtifact : public Artifact {
+class DirArtifact final : public Artifact {
  public:
   DirArtifact(Env& env, bool committed,
               const shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>()) :

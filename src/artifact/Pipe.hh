@@ -2,7 +2,7 @@
 
 #include "artifact/File.hh"
 
-class PipeArtifact : public FileArtifact {
+class PipeArtifact final : public FileArtifact {
  public:
   using FileArtifact::FileArtifact;
 

@@ -110,7 +110,7 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
 };
 
 /// Create a reference to a new pipe
-class Pipe : public Reference {
+class Pipe final : public Reference {
  public:
   /// Create a pipe
   Pipe() = default;
@@ -124,7 +124,7 @@ class Pipe : public Reference {
 };
 
 /// Access a filesystem path with a given set of flags
-class Access : public Reference {
+class Access final : public Reference {
  public:
   /// Create an access reference to a path with given flags
   Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
@@ -174,7 +174,8 @@ class Predicate : public Step {
 /**
  * Making a reference produced a particular result (error code or success)
  */
-class ReferenceResult : public Predicate, public std::enable_shared_from_this<ReferenceResult> {
+class ReferenceResult final : public Predicate,
+                              public std::enable_shared_from_this<ReferenceResult> {
  public:
   /// Create a REFERENCE_RESULT predicate
   ReferenceResult(const shared_ptr<Reference>& ref, int8_t rc) : _ref(ref), _rc(rc) {}
@@ -207,7 +208,7 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
 /**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
-class MetadataMatch : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
+class MetadataMatch final : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(const shared_ptr<Reference>& ref, const shared_ptr<MetadataVersion>& version) :
@@ -241,7 +242,7 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
-class ContentsMatch : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
+class ContentsMatch final : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(const shared_ptr<Reference>& ref, const shared_ptr<ContentVersion>& version) :
@@ -291,7 +292,7 @@ class Action : public Step {
  * A Launch action creates a new command, which inherits some (possibly empty)
  * set of references from its parent.
  */
-class Launch : public Action, public std::enable_shared_from_this<Launch> {
+class Launch final : public Action, public std::enable_shared_from_this<Launch> {
  public:
   /// Create a LAUNCH action
   Launch(const shared_ptr<Command>& cmd) : _cmd(cmd) {}
@@ -320,7 +321,7 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata : public Action, public std::enable_shared_from_this<SetMetadata> {
+class SetMetadata final : public Action, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
   SetMetadata(const shared_ptr<Reference>& ref, const shared_ptr<MetadataVersion>& version) :
@@ -352,7 +353,7 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents : public Action, public std::enable_shared_from_this<SetContents> {
+class SetContents final : public Action, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
   SetContents(const shared_ptr<Reference>& ref, const shared_ptr<ContentVersion>& version) :

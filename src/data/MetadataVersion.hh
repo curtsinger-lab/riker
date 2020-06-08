@@ -14,7 +14,7 @@ using std::string;
 
 class Reference;
 
-class MetadataVersion : public Version {
+class MetadataVersion final : public Version {
  public:
   /// Create a new metadata version with unknown metadata
   MetadataVersion() = default;
