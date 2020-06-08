@@ -39,15 +39,17 @@ struct AccessFlags {
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
   static AccessFlags fromOpen(int flags, uint16_t mode) {
-    return {.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR,
-            .w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR,
-            .nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW,
-            .truncate = (flags & O_TRUNC) == O_TRUNC,
-            .create = (flags & O_CREAT) == O_CREAT,
-            .exclusive = (flags & O_EXCL) == O_EXCL,
-            .append = (flags & O_APPEND) == O_APPEND,
-            .directory = (flags & O_DIRECTORY) == O_DIRECTORY,
-            .mode = mode};
+    AccessFlags f;
+    f.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR;
+    f.w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR;
+    f.nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW;
+    f.truncate = (flags & O_TRUNC) == O_TRUNC;
+    f.create = (flags & O_CREAT) == O_CREAT;
+    f.exclusive = (flags & O_EXCL) == O_EXCL;
+    f.append = (flags & O_APPEND) == O_APPEND;
+    f.directory = (flags & O_DIRECTORY) == O_DIRECTORY;
+    f.mode = mode;
+    return f;
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
@@ -68,10 +70,12 @@ struct AccessFlags {
 
   /// Create an AccessFlags instance from the mode and flags parameters to the access syscall
   static AccessFlags fromAccess(int mode, int flags) {
-    return {.r = (mode & R_OK) == R_OK,
-            .w = (mode & W_OK) == W_OK,
-            .x = (mode & X_OK) == X_OK,
-            .nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
+    AccessFlags f;
+    f.r = (mode & R_OK) == R_OK;
+    f.w = (mode & W_OK) == W_OK;
+    f.x = (mode & X_OK) == X_OK;
+    f.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+    return f;
   }
 
   /// Generate mode and flags for the access() call from this AccessFlags instance
@@ -89,7 +93,9 @@ struct AccessFlags {
 
   /// Create an AccessFlags instance from the flags parameter to the stat syscall
   static AccessFlags fromStat(int flags) {
-    return {.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW};
+    AccessFlags f;
+    f.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+    return f;
   }
 
   /// Generate flags for the fstatat() call from this AccessFlags instance

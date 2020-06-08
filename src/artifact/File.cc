@@ -6,6 +6,7 @@
 #include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/ContentVersion.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 
 using std::shared_ptr;
