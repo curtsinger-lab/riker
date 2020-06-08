@@ -116,13 +116,14 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       metadata.st_gid = getegid();
       metadata.st_mode = S_IFREG | (flags.mode & ~mask);
 
-      // Create the initial version for this artifact
-      auto v = make_shared<MetadataVersion>(metadata);
+      // Create the initial versions for this artifact
+      auto mv = make_shared<MetadataVersion>(metadata);
+      auto cv = make_shared<ContentVersion>();
 
       // Create the artifact. Because it's being created, mark it as committed (even though it isn't
       // actually on-disk yet).
       // TODO: Add a just_created flag to this method so we don't have to do this hackery
-      auto artifact = make_shared<FileArtifact>(*this, true, v);
+      auto artifact = make_shared<FileArtifact>(*this, true, mv, cv);
       artifact->setName(path);
 
       // Add this new artifact to the map of resolved references
@@ -132,8 +133,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       _filesystem.emplace(path, artifact);
 
       // Notify the build that the creating command wrote to this artifact
-      _build.observeMetadataOutput(c, artifact, v);
-      _build.observeContentOutput(c, artifact, v);
+      _build.observeOutput(c, artifact, mv);
+      _build.observeOutput(c, artifact, cv);
 
       // And finally, return success
       return {artifact, SUCCESS};

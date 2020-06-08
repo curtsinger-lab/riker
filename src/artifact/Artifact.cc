@@ -72,7 +72,7 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
 
   // Report a metadata mismatch if necessary
   if (!_metadata_version->matches(v)) {
-    _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
+    _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
   }
 }
 
@@ -86,7 +86,7 @@ shared_ptr<MetadataVersion> Artifact::accessMetadata(shared_ptr<Command> c,
     _metadata_filter.readBy(c);
 
     // Yes. Notify the build and return the version
-    _env.getBuild().observeMetadataInput(c, shared_from_this(), _metadata_version);
+    _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
     return _metadata_version;
 
   } else {
@@ -123,7 +123,7 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_
   _metadata_filter.writtenBy(c, ref);
 
   // Inform the environment of this output
-  _env.getBuild().observeMetadataOutput(c, shared_from_this(), _metadata_version);
+  _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);
 
   // Return the new metadata version
   return v;

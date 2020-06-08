@@ -152,53 +152,25 @@ class Graph : public BuildObserver {
     return getArtifactID(a) + ":" + getVersionID(v);
   }
 
-  /// Command c reads metadata from artifact a
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) override {
+  /// Command c reads version v from artifact a
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
 
-  /// Command c reads the contents of artifact a
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                            shared_ptr<Version> v) override {
-    if (isSystemFile(a) && !_show_sysfiles) return;
-
-    _io_edges.emplace(getVersionID(a, v), getCommandID(c));
-  }
-
-  /// Command c changes metadata for artifact a
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                              shared_ptr<Version> v) override {
+  /// Command c appends version v to artifact a
+  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                      shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
-  /// Command c changes the contents of artifact a
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) override {
-    if (isSystemFile(a) && !_show_sysfiles) return;
-
-    _io_edges.emplace(getCommandID(c), getVersionID(a, v));
-  }
-
-  /// Command c observes a change in metadata for artifact a
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                                shared_ptr<Version> observed,
-                                shared_ptr<Version> expected) override {
-    _changed_commands.insert(c);
-
-    // The observed version is what the emulated build produced, and will appear in the graph.
-    // Mark it as changed.
-    _changed_versions.emplace(observed);
-  }
-
-  /// Command c observes a change in the contents of artifact a
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed,
-                               shared_ptr<Version> expected) override {
+  /// Command c observes a change in version v of artifact a
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                        shared_ptr<Version> expected) override {
     _changed_commands.insert(c);
 
     // The observed version is what the emulated build produced, and will appear in the graph.
@@ -220,17 +192,11 @@ class Graph : public BuildObserver {
     _command_edges.emplace(getCommandID(parent), getCommandID(child));
   }
 
-  /// The metadata for an artifact on the file system do not match its state at the end of the build
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                     shared_ptr<Version> expected) override {
-    // The expected version is what the emulated build produced. Mark it as changed.
-    _changed_versions.emplace(observed);
-  }
-
-  /// The contents of an artifact on the file system do not match its state at the end of the build
-  virtual void finalContentMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                    shared_ptr<Version> expected) override {
-    // The observed version is what the emulated build produced. Mark this as changed.
+  /// A version of artifact a on disk (observed) did not match what was produced at the end of the
+  /// build (expected)
+  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                             shared_ptr<Version> expected) override {
+    // Record the changed version
     _changed_versions.emplace(observed);
   }
 

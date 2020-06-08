@@ -88,38 +88,21 @@ class Build {
   /// Add an observer to this build
   void addObserver(shared_ptr<BuildObserver> o) { _observers.push_back(o); }
 
-  /// Inform the observer that command c modified the metadata of artifact a, creating version v
-  void observeMetadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-    for (auto& o : _observers) o->metadataOutput(c, a, v);
+  /// Inform the observer that command c modified artifact a, creating version v
+  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+    for (auto& o : _observers) o->output(c, a, v);
   }
 
-  /// Inform the observer that command c modified the contents of artifact a, creating version v
-  void observeContentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-    for (auto& o : _observers) o->contentOutput(c, a, v);
+  /// Inform the observer that command c accessed version v of artifact a
+  void observeInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+    for (auto& o : _observers) o->input(c, a, v);
   }
 
-  /// Inform the observer that command c accessed the metadata of artifact a, observing version v
-  void observeMetadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-    for (auto& o : _observers) o->metadataInput(c, a, v);
-  }
-
-  /// Inform the observer that command c accessed the contents of artifact a, observing version v
-  void observeContentInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-    for (auto& o : _observers) o->contentInput(c, a, v);
-  }
-
-  /// Inform the observer that command c did not find the expected metadata in artifact a.
+  /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
-  void observeMetadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed, shared_ptr<Version> expected) {
-    for (auto& o : _observers) o->metadataMismatch(c, a, observed, expected);
-  }
-
-  /// Inform the observer that command c did not find the expected contents in artifact a
-  /// Instead of version `expected`, the command found version `observed`
-  void observeContentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                              shared_ptr<Version> observed, shared_ptr<Version> expected) {
-    for (auto& o : _observers) o->contentMismatch(c, a, observed, expected);
+  void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                       shared_ptr<Version> expected) {
+    for (auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
 
   /// Inform observers that a command has never been run
@@ -132,18 +115,10 @@ class Build {
     for (auto& o : _observers) o->commandChanged(c, s);
   }
 
-  /// Inform the observer that an artifact's metadata does not match the expected final state
-  /// Instead of version `expected`, the command found version `observed`
-  void observeFinalMetadataMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                    shared_ptr<Version> expected) {
-    for (auto& o : _observers) o->finalMetadataMismatch(a, observed, expected);
-  }
-
-  /// Inform the observer that an artifact's contents do not match the expected final state
-  /// Instead of version `expected`, the command found version `observed`
-  void observeFinalContentMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                   shared_ptr<Version> expected) {
-    for (auto& o : _observers) o->finalContentMismatch(a, observed, expected);
+  /// Inform observers that an artifact's version does not match the expected final state
+  void observeFinalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                            shared_ptr<Version> expected) {
+    for (auto& o : _observers) o->finalMismatch(a, observed, expected);
   }
 
  private:

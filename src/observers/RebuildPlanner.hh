@@ -75,17 +75,9 @@ class RebuildPlanner : public BuildObserver {
 
   /******** BuildObserver Interface ********/
 
-  /// Command c depends on the metadata for artifact a
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) override {
-    // TODO: any check for caching/staging here?
-    // It seems like we can always stage in metadata changes, since we store all of the relevant
-    // stat fields and could put them in place for any command.
-  }
-
-  /// Command c depends on the contents of artifact a
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                            shared_ptr<Version> v) override {
+  /// Command c depends on version v of artifact a
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) override {
     // During the planning phase, record this dependency
     auto creator = a->getContentCreator();
     if (creator) {
@@ -102,21 +94,11 @@ class RebuildPlanner : public BuildObserver {
     }
   }
 
-  /// Command c did not find the expected metadata in artifact a
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                                shared_ptr<Version> observed,
-                                shared_ptr<Version> expected) override {
+  /// Command c did not find the expected version in artifact a
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                        shared_ptr<Version> expected) override {
     // Record the change
-    LOG << c << " observed metadata change in " << a;
-    _changed.insert(c);
-  }
-
-  /// Command c did not find the expected metadata in artifact a
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed,
-                               shared_ptr<Version> expected) override {
-    // Record the change
-    LOG << c << " observed content change in " << a;
+    LOG << c << " observed change in " << a;
     _changed.insert(c);
   }
 
@@ -134,9 +116,9 @@ class RebuildPlanner : public BuildObserver {
     _changed.insert(c);
   }
 
-  /// An artifact's final contents do not match what is on the filesystem
-  virtual void finalContentMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                    shared_ptr<Version> expected) override {
+  /// An artifact's final version does not match what is on the filesystem
+  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                             shared_ptr<Version> expected) override {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!a->getContentCreator()) return;
 

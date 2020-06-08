@@ -21,29 +21,15 @@ class BuildObserver {
   /// Virtual destructor
   virtual ~BuildObserver() = default;
 
-  /// Command c modifies the metadata for artifact a, creating version v
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                              shared_ptr<Version> v) {}
+  /// Command c modifies artifact a, creating version v
+  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
 
-  /// Command c modifies the contents of artifact a, creating version v
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-  }
+  /// Command c depends on artifact a, accessing version v
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
 
-  /// Command c depends on the metadata for artifact a, accessing version v
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
-  }
-
-  /// Command c depends on the contents of artifact a, accessing version v
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
-
-  /// Command c does not find the expected metadata in an artifact a
-  /// Found version `observed` rather than `expected`
-  virtual void metadataMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                                shared_ptr<Version> observed, shared_ptr<Version> expected) {}
-
-  /// Command c does not find the expected contents in an artifact a
-  virtual void contentMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed, shared_ptr<Version> expected) {}
+  /// Command c did not find the expect version of artifact a
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                        shared_ptr<Version> expected) {}
 
   /// A command has never been run
   virtual void commandNeverRun(shared_ptr<Command> c) {}
@@ -57,13 +43,8 @@ class BuildObserver {
   /// A child command is being launched
   virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) {}
 
-  /// The metadata for an artifact on the filesystem do not match its state at the end of the build.
+  /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced `observed`, which does not match the on-disk version `expected`
-  virtual void finalMetadataMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                     shared_ptr<Version> expected) {}
-
-  /// The contents of an artifact on the filesystem do not match its state at the end of the build.
-  /// Th ebuild produced `observed`, which does not match the on-disk version `expected
-  virtual void finalContentMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                                    shared_ptr<Version> expected) {}
+  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                             shared_ptr<Version> expected) {}
 };

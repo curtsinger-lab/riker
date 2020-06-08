@@ -81,26 +81,14 @@ class Stats : public BuildObserver {
   }
 
   /// Called during emulation to report an output from command c
-  virtual void metadataOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                              shared_ptr<Version> v) override {
-    _artifacts.insert(a);
-  }
-
-  /// Called during emulation to report an output from command c
-  virtual void contentOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) override {
+  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                      shared_ptr<Version> v) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void metadataInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) override {
-    _artifacts.insert(a);
-  }
-
-  /// Called during emulation to report an input to command c
-  virtual void contentInput(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                            shared_ptr<Version> v) override {
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) override {
     _artifacts.insert(a);
   }
 

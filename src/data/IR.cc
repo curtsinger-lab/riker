@@ -50,7 +50,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
-    build.observeMetadataMismatch(c, _ref->getArtifact(), v, _version);
+    build.observeMismatch(c, _ref->getArtifact(), v, _version);
   }
 }
 
@@ -66,7 +66,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
-    build.observeContentMismatch(c, _ref->getArtifact(), v, _version);
+    build.observeMismatch(c, _ref->getArtifact(), v, _version);
   }
 }
 

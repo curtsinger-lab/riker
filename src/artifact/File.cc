@@ -73,7 +73,7 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
 
   // Report a content mismatch if necessary
   if (!_content_version->matches(v)) {
-    _env.getBuild().observeFinalContentMismatch(shared_from_this(), _content_version, v);
+    _env.getBuild().observeFinalMismatch(shared_from_this(), _content_version, v);
   }
 
   // Have the artifact check final state as well
@@ -90,7 +90,7 @@ shared_ptr<ContentVersion> FileArtifact::accessContents(shared_ptr<Command> c,
     _content_filter.readBy(c);
 
     // Yes. Notify the build and return the version
-    _env.getBuild().observeContentInput(c, shared_from_this(), _content_version);
+    _env.getBuild().observeInput(c, shared_from_this(), _content_version);
     return _content_version;
 
   } else {
@@ -127,7 +127,7 @@ shared_ptr<ContentVersion> FileArtifact::setContents(shared_ptr<Command> c,
   _content_filter.writtenBy(c, ref);
 
   // Inform the environment of this output
-  _env.getBuild().observeContentOutput(c, shared_from_this(), _content_version);
+  _env.getBuild().observeOutput(c, shared_from_this(), _content_version);
 
   // Return the new metadata version
   return v;
