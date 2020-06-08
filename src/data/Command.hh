@@ -96,16 +96,16 @@ class Command : public std::enable_shared_from_this<Command> {
   void referenceResult(shared_ptr<Reference> ref, int result);
 
   /// This command depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+  void metadataMatch(shared_ptr<Reference> ref);
 
   /// This command depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+  void contentsMatch(shared_ptr<Reference> ref);
 
   /// This command sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+  void setMetadata(shared_ptr<Reference> ref);
 
   /// This command sets the contents of a referenced artifact
-  void setContents(shared_ptr<Reference> ref, shared_ptr<Artifact> a);
+  void setContents(shared_ptr<Reference> ref);
 
   /// This command launches a child command
   shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);

@@ -180,11 +180,8 @@ void Process::_read(int fd) {
   // Get the descriptor
   auto& descriptor = _fds.at(fd);
 
-  // Get the reference used to read
-  auto ref = descriptor.getReference();
-
   // The current command depends on the contents of this file
-  _command->contentsMatch(ref, descriptor.getArtifact());
+  _command->contentsMatch(descriptor.getReference());
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -204,7 +201,7 @@ void Process::_write(int fd) {
   auto ref = descriptor.getReference();
 
   // Record our dependency on the old contents of the artifact
-  _command->contentsMatch(ref, descriptor.getArtifact());
+  _command->contentsMatch(ref);
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -214,7 +211,7 @@ void Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _command->setContents(ref, descriptor.getArtifact());
+  _command->setContents(ref);
 }
 
 void Process::_close(int fd) {
@@ -252,13 +249,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _command->contentsMatch(ref, descriptor.getArtifact());
+  _command->contentsMatch(ref);
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
   bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _command->setContents(ref, descriptor.getArtifact());
+    _command->setContents(ref);
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -349,7 +346,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
     auto ref = descriptor.getReference();
 
     // Record the dependency on metadata
-    _command->metadataMatch(ref, descriptor.getArtifact());
+    _command->metadataMatch(ref);
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -372,7 +369,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       FAIL_IF(!ref->isResolved()) << "Unable to locate artifact for stat-ed file";
 
       // Record the dependence on the artifact's metadata
-      _command->metadataMatch(ref, ref->getArtifact());
+      _command->metadataMatch(ref);
     } else {
       // Record the error. Negate rc because syscalls return negative errors
       _command->referenceResult(ref, -rc);
@@ -445,7 +442,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command->referenceResult(child_exe_ref, SUCCESS);
 
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(child_exe_ref, child_exe_ref->getArtifact());
+  _command->contentsMatch(child_exe_ref);
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
@@ -484,7 +481,7 @@ void Process::_truncate(string pathname, long length) {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _command->contentsMatch(ref, ref->getArtifact());
+    _command->contentsMatch(ref);
   }
 
   // Finish the syscall and resume the process
@@ -500,7 +497,7 @@ void Process::_truncate(string pathname, long length) {
     FAIL_IF(!ref->isResolved()) << "Failed to get artifact for truncated file";
 
     // Record the update to the artifact contents
-    _command->setContents(ref, ref->getArtifact());
+    _command->setContents(ref);
 
   } else {
     // Record the failed reference
@@ -514,7 +511,7 @@ void Process::_ftruncate(int fd, long length) {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _command->contentsMatch(descriptor.getReference(), descriptor.getArtifact());
+    _command->contentsMatch(descriptor.getReference());
   }
 
   // Finish the syscall and resume the process
@@ -523,7 +520,7 @@ void Process::_ftruncate(int fd, long length) {
 
   if (rc == 0) {
     // Record the update to the artifact contents
-    _command->setContents(descriptor.getReference(), descriptor.getArtifact());
+    _command->setContents(descriptor.getReference());
   }
 }
 
@@ -720,7 +717,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
 
     // If the file is truncated by the open call, set the contents in the artifact
     if (ref_flags.truncate) {
-      _command->setContents(ref, ref->getArtifact());
+      _command->setContents(ref);
     }
 
     // Is this new descriptor closed on exec?
@@ -886,7 +883,7 @@ void Process::_readlinkat(int dfd, string pathname) {
     FAIL_IF(!ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
     // We depend on this artifact's contents now
-    _command->contentsMatch(ref, ref->getArtifact());
+    _command->contentsMatch(ref);
 
   } else {
     // No. Record the failure
@@ -906,7 +903,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _command->metadataMatch(ref, ref->getArtifact());
+    _command->metadataMatch(ref);
   }
 
   // Finish the syscall and then resume the process
@@ -921,7 +918,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
     FAIL_IF(!ref->isResolved()) << "Failed to get artifact";
 
     // We've now set the artifact's metadata
-    _command->setMetadata(ref, ref->getArtifact());
+    _command->setMetadata(ref);
 
   } else {
     // No. Record the failure
@@ -1002,7 +999,7 @@ void Process::_pipe2(int* fds, int flags) {
   FAIL_IF(!ref->isResolved()) << "Failed to get artifact for pipe";
 
   // The command sets the contents of the pipe on creation
-  _command->setContents(ref, ref->getArtifact());
+  _command->setContents(ref);
 
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;

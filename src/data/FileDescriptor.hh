@@ -26,9 +26,6 @@ class FileDescriptor {
   /// Get the reference used to open the file descriptor
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  /// Get the artifact this descriptor's reference resolved to
-  shared_ptr<Artifact> getArtifact() const { return _ref->getArtifact(); }
-
   /// Check if the file descriptor should be writable
   bool isWritable() const { return _writable; }
 
@@ -41,7 +38,7 @@ class FileDescriptor {
   /// Print a file descriptor
   friend ostream& operator<<(ostream& o, const FileDescriptor& fd) {
     o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
-    if (fd._ref->isResolved()) o << " -> " << fd.getArtifact();
+    if (fd._ref->isResolved()) o << " -> " << fd._ref->getArtifact();
     return o;
   }
 
