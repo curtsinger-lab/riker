@@ -5,14 +5,17 @@
 
 #include "artifact/Artifact.hh"
 #include "build/Build.hh"
+#include "data/ContentVersion.hh"
 #include "data/Version.hh"
 
 using std::shared_ptr;
 using std::string;
 
-FileArtifact::FileArtifact(Env& env, bool committed, shared_ptr<Version> v) :
-    Artifact(env, committed, v) {
-  _content_version = v;
+FileArtifact::FileArtifact(Env& env, bool committed, shared_ptr<MetadataVersion> mv,
+                           shared_ptr<ContentVersion> cv) :
+    Artifact(env, committed, mv) {
+  appendVersion(cv, committed);
+  _content_version = cv;
 }
 
 void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
@@ -20,11 +23,11 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
   if (isCommitted()) return;
 
   // Create a version that represents the on-disk contents reached through this reference
-  auto v = make_shared<Version>();
-  v->saveFingerprint(ref);
+  auto v = make_shared<ContentVersion>();
+  v->fingerprint(ref);
 
   // Report a content mismatch if necessary
-  if (!_content_version->contentsMatch(v)) {
+  if (!_content_version->matches(v)) {
     _env.getBuild().observeFinalContentMismatch(shared_from_this(), _content_version, v);
   }
 
@@ -34,12 +37,13 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
 
 // Save a fingerprint of the contents of the latest version of this artifact
 void FileArtifact::saveFingerprint(shared_ptr<Reference> ref) {
-  _content_version->saveFingerprint(ref);
+  _content_version->fingerprint(ref);
 }
 
 // Command c accesses this artifact's contents
 // Return the version it observes, or nullptr if no check is necessary
-shared_ptr<Version> FileArtifact::accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+shared_ptr<ContentVersion> FileArtifact::accessContents(shared_ptr<Command> c,
+                                                        shared_ptr<Reference> ref) {
   // Do we need to log this access?
   if (_content_filter.readRequired(c, ref)) {
     // Record the read
@@ -56,15 +60,16 @@ shared_ptr<Version> FileArtifact::accessContents(shared_ptr<Command> c, shared_p
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
-shared_ptr<Version> FileArtifact::setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                              shared_ptr<Version> v) {
+shared_ptr<ContentVersion> FileArtifact::setContents(shared_ptr<Command> c,
+                                                     shared_ptr<Reference> ref,
+                                                     shared_ptr<ContentVersion> v) {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
     // Is a new version even required?
     if (!_content_filter.writeRequired(c, ref)) return nullptr;
 
     // Create a version to track the new on-disk state
-    v = make_shared<Version>();
+    v = make_shared<ContentVersion>();
 
     // Append the new version and mark it as committed
     appendVersion(v, true);

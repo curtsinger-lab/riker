@@ -13,8 +13,10 @@
 #include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/AccessFlags.hh"
+#include "data/ContentVersion.hh"
 #include "data/IR.hh"
 #include "data/InitialFD.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "ui/options.hh"
 
@@ -136,7 +138,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // If v is a valid version, add this check to the trace IR
   if (v) {
     // Save the version's metadata so we can check it on rebuild
-    v->saveMetadata(ref);
+    v->fingerprint(ref);
 
     // Add the IR step
     _steps.push_back(make_shared<MetadataMatch>(ref, v));
@@ -151,7 +153,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref, shared_ptr<Artifact> a) {
   // if v is a valid version, add a contents check to the trace IR
   if (v) {
     // Save the version's finerprint so we can check it on rebuild
-    v->saveFingerprint(ref);
+    v->fingerprint(ref);
 
     // Add the IR step
     _steps.push_back(make_shared<ContentsMatch>(ref, v));

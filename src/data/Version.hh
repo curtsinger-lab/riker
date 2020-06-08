@@ -5,10 +5,10 @@
 #include <ostream>
 #include <string>
 
+#include "artifact/Artifact.hh"
 #include "data/Metadata.hh"
 #include "data/serializer.hh"
 
-using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::shared_ptr;
@@ -18,13 +18,11 @@ class Artifact;
 class Reference;
 
 /// A reference to a specific version of an artifact
-class Version : public std::enable_shared_from_this<Version> {
+class Version {
  public:
-  /// Create a new version with no known metadata
   Version() = default;
 
-  /// Create a new version from existing metadata
-  Version(Metadata&& m) : _metadata(m) {}
+  virtual ~Version() = default;
 
   // Disallow Copy
   Version(const Version&) = delete;
@@ -34,53 +32,56 @@ class Version : public std::enable_shared_from_this<Version> {
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
 
+  /// Get the name for the type of version this is
+  virtual string getTypeName() const = 0;
+
   /// Is this version saved in a way that allows us to reproduce it?
-  bool canCommit() const;
+  virtual bool isSaved() const = 0;
 
-  /// Commit this version to the filesystem using the given reference
-  void commit(shared_ptr<Reference> ref);
+  /// Save this version
+  virtual void save(shared_ptr<Reference> ref) = 0;
 
-  /// Do we have saved metadata for this version?
-  bool hasMetadata() const { return _metadata.has_value(); }
+  /// Restore this version to the filesystem
+  virtual void commit(shared_ptr<Reference> ref) const = 0;
 
-  /// Save the metadata for this version
-  void saveMetadata(shared_ptr<Reference> ref);
+  /// Is this version fingerprinted in a way that alllows us to check for a match?
+  virtual bool isFingerprinted() const = 0;
 
-  /// Compare metadata for this version to another version
-  bool metadataMatch(shared_ptr<Version> other) const;
+  /// Fingerprint this version
+  virtual void fingerprint(shared_ptr<Reference> ref) = 0;
 
-  /// Do we have a fingerprint for the contents of this version?
-  bool hasFingerprint() const { return false; }
-
-  /// Save a fingerprint of this version's contents
-  void saveFingerprint(shared_ptr<Reference> ref);
-
-  /// Compare the contents of this version to another version
-  bool contentsMatch(shared_ptr<Version> other) const;
+  /// Compare this version to another version
+  virtual bool matches(shared_ptr<Version> other) const = 0;
 
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const Version& v);
+  friend ostream& operator<<(ostream& o, const Version& v) {
+    return o << v._identity.value_or("[Unknown Version]");
+  }
 
   /// Print a Version*
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
 
  private:
-  /// Saved metadata for this version
-  optional<Metadata> _metadata;
-
-  // Specify fields for serialization
-  SERIALIZE(_metadata);
+  SERIALIZE_EMPTY();
 
   /******** Transient Fields *********/
 
   friend class Artifact;
 
+  /// A printable identity for this version
+  mutable optional<string> _identity;
+
   /// Record a printable identity for this version that has just been attached to a given artifact
-  void identify(const Artifact* a) const;
+  void identify(const Artifact* a) const {
+    _identity = string("[") + a->getName() + " v" + std::to_string(a->getVersionCount() - 1) + "]";
+  }
 
   /// Copy the identity to or from another version
-  void identify(shared_ptr<Version> other) const;
-
-  /// A printable identity for this version, if one is available
-  mutable optional<string> _identity;
+  void identify(shared_ptr<Version> other) const {
+    if (_identity.has_value()) {
+      other->_identity = _identity;
+    } else {
+      _identity = other->_identity;
+    }
+  }
 };

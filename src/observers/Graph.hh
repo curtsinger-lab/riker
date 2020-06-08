@@ -78,7 +78,7 @@ class Graph : public BuildObserver {
           o << " bgcolor=\"yellow\"";
         }
         o << ">";
-        // o << "font point-size=\"10\">" << v->getTypeName() << "</font>";
+        o << "<font point-size=\"10\">" << v->getTypeName() << "</font>";
         o << "</td></tr>";
       }
 

@@ -23,6 +23,8 @@ class Artifact;
 class Build;
 class BuildObserver;
 class Command;
+class ContentVersion;
+class MetadataVersion;
 class Version;
 
 /**
@@ -203,14 +205,14 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
 class MetadataMatch : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
-  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<Version> getVersion() const { return _version; }
+  shared_ptr<MetadataVersion> getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -223,8 +225,8 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
   virtual ostream& print(ostream& o) const override;
 
  private:
-  shared_ptr<Reference> _ref;    //< The reference being examined
-  shared_ptr<Version> _version;  //< The artifact version whose metadata the reference must match
+  shared_ptr<Reference> _ref;            //< The reference being examined
+  shared_ptr<MetadataVersion> _version;  //< The expected metadata
 
   // Create default constructor and specify fields for serialization
   MetadataMatch() = default;
@@ -237,14 +239,14 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
 class ContentsMatch : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
-  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
   shared_ptr<Reference> getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<Version> getVersion() const { return _version; }
+  shared_ptr<ContentVersion> getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -257,8 +259,8 @@ class ContentsMatch : public Predicate, public std::enable_shared_from_this<Cont
   virtual ostream& print(ostream& o) const override;
 
  private:
-  shared_ptr<Reference> _ref;    //< The reference being examined
-  shared_ptr<Version> _version;  //< The artifact version whose contents the reference must match
+  shared_ptr<Reference> _ref;           //< The reference being examined
+  shared_ptr<ContentVersion> _version;  //< The expected contents
 
   // Create default constructor and specify fields for serialization
   ContentsMatch() = default;
@@ -316,12 +318,12 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
 class SetMetadata : public Action, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+  SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
       _ref(ref), _version(version) {}
 
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  shared_ptr<Version> getVersion() const { return _version; }
+  shared_ptr<MetadataVersion> getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -335,7 +337,7 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
 
  private:
   shared_ptr<Reference> _ref;
-  shared_ptr<Version> _version;
+  shared_ptr<MetadataVersion> _version;
 
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
@@ -348,12 +350,12 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
 class SetContents : public Action, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, shared_ptr<Version> version) :
+  SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
       _ref(ref), _version(version) {}
 
   shared_ptr<Reference> getReference() const { return _ref; }
 
-  shared_ptr<Version> getVersion() const { return _version; }
+  shared_ptr<ContentVersion> getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -367,7 +369,7 @@ class SetContents : public Action, public std::enable_shared_from_this<SetConten
 
  private:
   shared_ptr<Reference> _ref;
-  shared_ptr<Version> _version;
+  shared_ptr<ContentVersion> _version;
 
   // Create default constructor and specify fields for serialization
   SetContents() = default;

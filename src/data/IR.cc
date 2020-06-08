@@ -13,6 +13,8 @@
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
 #include "data/Command.hh"
+#include "data/ContentVersion.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "util/log.hh"
 
@@ -47,7 +49,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
   auto v = _ref->getArtifact()->accessMetadata(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->metadataMatch(_version)) {
+  if (v && !v->matches(_version)) {
     build.observeMetadataMismatch(c, _ref->getArtifact(), v, _version);
   }
 }
@@ -63,7 +65,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
   auto v = _ref->getArtifact()->accessContents(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->contentsMatch(_version)) {
+  if (v && !v->matches(_version)) {
     build.observeContentMismatch(c, _ref->getArtifact(), v, _version);
   }
 }

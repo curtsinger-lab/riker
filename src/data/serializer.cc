@@ -18,8 +18,12 @@
 
 #include "data/AccessFlags.hh"
 #include "data/Command.hh"
+#include "data/ContentVersion.hh"
+#include "data/Fingerprint.hh"
 #include "data/IR.hh"
 #include "data/InitialFD.hh"
+#include "data/Metadata.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "util/log.hh"
 
@@ -193,6 +197,10 @@ void serialize(Archive& ar, struct timespec& ts) {
 }
 
 /** Register types and polymorphic relationships **/
+
+// Versions
+CEREAL_REGISTER_TYPE(MetadataVersion);
+CEREAL_REGISTER_TYPE(ContentVersion);
 
 // References
 CEREAL_REGISTER_TYPE(Pipe);

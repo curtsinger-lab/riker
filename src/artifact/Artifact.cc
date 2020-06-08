@@ -10,6 +10,7 @@
 #include "build/Env.hh"
 #include "data/Command.hh"
 #include "data/IR.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "ui/options.hh"
 
@@ -18,7 +19,7 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-Artifact::Artifact(Env& env, bool committed, shared_ptr<Version> v) : _env(env) {
+Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) : _env(env) {
   appendVersion(v, committed);
   _metadata_version = v;
 }
@@ -32,7 +33,7 @@ bool Artifact::canCommit() const {
   // If any of the remaining versons cannot be committed, the artifact cannot be committed
   while (iter != _versions.end()) {
     auto v = *iter;
-    if (!v->canCommit()) return false;
+    if (!v->isSaved()) return false;
     iter++;
   }
 
@@ -47,7 +48,6 @@ void Artifact::commit(shared_ptr<Reference> ref) {
   // Commit the remaining versions in sequence
   while (iter != _versions.end()) {
     auto v = *iter;
-    FAIL_IF(!v->canCommit()) << "Attempted to commit an unsaved version";
     v->commit(ref);
     _committed_versions++;
     iter++;
@@ -60,23 +60,24 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   if (isCommitted()) return;
 
   // Create a version that represents the on-disk contents reached through this reference
-  auto v = make_shared<Version>();
-  v->saveMetadata(ref);
+  auto v = make_shared<MetadataVersion>();
+  v->fingerprint(ref);
 
   // Report a metadata mismatch if necessary
-  if (!_metadata_version->metadataMatch(v)) {
+  if (!_metadata_version->matches(v)) {
     _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
 }
 
 // Save metadata for the latest version of this artifact
 void Artifact::saveMetadata(shared_ptr<Reference> ref) {
-  _metadata_version->saveMetadata(ref);
+  _metadata_version->save(ref);
 }
 
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary
-shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) {
+shared_ptr<MetadataVersion> Artifact::accessMetadata(shared_ptr<Command> c,
+                                                     shared_ptr<Reference> ref) {
   // Do we need to log this access?
   if (_metadata_filter.readRequired(c, ref)) {
     // Record the read
@@ -94,15 +95,15 @@ shared_ptr<Version> Artifact::accessMetadata(shared_ptr<Command> c, shared_ptr<R
 
 // Command c sets the metadata for this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<Version> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v) {
+shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                                  shared_ptr<MetadataVersion> v) {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
     // Is a new version even required?
     if (!_metadata_filter.writeRequired(c, ref)) return nullptr;
 
     // Create a version to track the new on-disk state
-    v = make_shared<Version>();
+    v = make_shared<MetadataVersion>();
 
     // Append the new version and mark it as committed
     appendVersion(v, true);

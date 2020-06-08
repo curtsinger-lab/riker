@@ -15,7 +15,9 @@
 #include "artifact/Pipe.hh"
 #include "build/Build.hh"
 #include "data/Command.hh"
+#include "data/ContentVersion.hh"
 #include "data/IR.hh"
+#include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -114,7 +116,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       metadata.st_mode = S_IFREG | (flags.mode & ~mask);
 
       // Create the initial version for this artifact
-      auto v = make_shared<Version>(metadata);
+      auto v = make_shared<MetadataVersion>(metadata);
 
       // Create the artifact. Because it's being created, mark it as committed (even though it isn't
       // actually on-disk yet).

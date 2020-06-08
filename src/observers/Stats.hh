@@ -43,23 +43,23 @@ class Stats : public BuildObserver {
       o << endl;
       o << "Artifacts:" << endl;
       for (auto& a : _artifacts) {
-        o << "  " << a->getName() << endl;
+        o << "  " << a->getName() << ": " << a->getTypeName() << endl;
 
         size_t index = 0;
         for (auto& v : a->getVersions()) {
-          bool metadata = v->hasMetadata();
-          bool fingerprint = v->hasFingerprint();
-          bool saved = v->canCommit();
+          o << "    v" << index << ": " << v->getTypeName();
 
-          o << "    v" << index << ":";
-          if (metadata) o << " metadata";
-          if (fingerprint) o << " fingerprint";
-          if (saved) o << " saved";
-          if (!metadata && !fingerprint && !saved) o << " no data";
-          o << endl;
+          if (v->isSaved()) {
+            o << " (saved)" << endl;
+          } else if (v->isFingerprinted()) {
+            o << " (fingerprinted)" << endl;
+          } else {
+            o << " (no data)" << endl;
+          }
 
           index++;
         }
+        o << endl;
       }
     }
 

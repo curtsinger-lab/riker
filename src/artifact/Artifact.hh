@@ -15,7 +15,9 @@ using std::shared_ptr;
 using std::string;
 
 class Command;
+class ContentVersion;
 class Env;
+class MetadataVersion;
 class Reference;
 class Version;
 
@@ -31,11 +33,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /**
    * Create a new artifact. Only accessibly to this class and Env
    * \param env       This artifact is instantiated as part of this environment
-   * \param name      A name for this artifact used in pretty-printing
    * \param committed Does the initial version of this artifact represent the filesystem state?
    * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, bool committed, shared_ptr<Version> v = make_shared<Version>());
+  Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v);
 
   // Required virtual destructor
   virtual ~Artifact() = default;
@@ -86,7 +87,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the version the command observes, or nullptr if the command has already observed the
    *          latest version using this reference (no check is necessary).
    */
-  shared_ptr<Version> accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  shared_ptr<MetadataVersion> accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
   /**
    * Command c sets the metadata of this artifact to version v using reference ref.
@@ -95,8 +96,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's metadata is set to, or null if the version is on disk
    * \returns the newly-assigned metadata version
    */
-  shared_ptr<Version> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                  shared_ptr<Version> v = nullptr);
+  shared_ptr<MetadataVersion> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<MetadataVersion> v = nullptr);
 
   /********** Content: Files and Pipes **********/
 
@@ -116,7 +117,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the version the command observes, or nullptr if the command has already observed the
    *          latest version using this reference (no check is necessary).
    */
-  virtual shared_ptr<Version> accessContents(shared_ptr<Command> c, shared_ptr<Reference> ref) = 0;
+  virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
+                                                    shared_ptr<Reference> ref) = 0;
 
   /**
    * Command c sets the content of this artifact to version v using reference ref.
@@ -125,8 +127,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's content is set to, or null if the version is on disk
    * \returns the newly-assigned content version
    */
-  virtual shared_ptr<Version> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<Version> v = nullptr) = 0;
+  virtual shared_ptr<ContentVersion> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                                 shared_ptr<ContentVersion> v = nullptr) = 0;
 
   /****** Utility Methods ******/
 
@@ -208,7 +210,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   size_t _committed_versions = 0;
 
   /// The latest metadata version
-  shared_ptr<Version> _metadata_version;
+  shared_ptr<MetadataVersion> _metadata_version;
 
   /// The access filter that controls metadata interactions
   AccessFilter _metadata_filter;
