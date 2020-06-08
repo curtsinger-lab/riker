@@ -14,8 +14,53 @@ using std::string;
 FileArtifact::FileArtifact(Env& env, bool committed, shared_ptr<MetadataVersion> mv,
                            shared_ptr<ContentVersion> cv) :
     Artifact(env, committed, mv) {
-  appendVersion(cv, committed);
+  appendVersion(cv);
   _content_version = cv;
+  _content_committed = committed;
+}
+
+// Check if the latest version of this artifact is saved
+bool FileArtifact::isSaved() const {
+  return _content_version->isSaved() && Artifact::isSaved();
+}
+
+// Save a copy of the latest version of this artifact
+void FileArtifact::save(shared_ptr<Reference> ref) {
+  // Save the content
+  _content_version->save(ref);
+
+  // Delegate metadata saving to the artifact
+  Artifact::save(ref);
+}
+
+// Check if the latest version of this artifact are committed to disk
+bool FileArtifact::isCommitted() const {
+  return _content_committed && Artifact::isCommitted();
+}
+
+// Commit the latest version of this artifact to the filesystem
+void FileArtifact::commit(shared_ptr<Reference> ref) {
+  if (!_content_committed) {
+    FAIL_IF(!_content_version->isSaved()) << "Attempted to commit unsaved version";
+
+    // Commit the file contents
+    _content_version->commit(ref);
+    _content_committed = true;
+  }
+
+  // Delegate metadata commits to the artifact
+  Artifact::commit(ref);
+}
+
+// Check if we have a fingerprint for the latest version of this artifact
+bool FileArtifact::hasFingerprint() const {
+  return _content_version->hasFingerprint() && Artifact::hasFingerprint();
+}
+
+// Save a fingerprint for the latest version of this artifact
+void FileArtifact::fingerprint(shared_ptr<Reference> ref) {
+  _content_version->fingerprint(ref);
+  Artifact::fingerprint(ref);
 }
 
 void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
@@ -33,11 +78,6 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) {
 
   // Have the artifact check final state as well
   Artifact::checkFinalState(ref);
-}
-
-// Save a fingerprint of the contents of the latest version of this artifact
-void FileArtifact::saveFingerprint(shared_ptr<Reference> ref) {
-  _content_version->fingerprint(ref);
 }
 
 // Command c accesses this artifact's contents
@@ -72,10 +112,12 @@ shared_ptr<ContentVersion> FileArtifact::setContents(shared_ptr<Command> c,
     v = make_shared<ContentVersion>();
 
     // Append the new version and mark it as committed
-    appendVersion(v, true);
+    appendVersion(v);
+    _content_committed = true;
   } else {
     // Append the new uncommitted version
-    appendVersion(v, false);
+    appendVersion(v);
+    _content_committed = false;
   }
 
   // Track the new content version

@@ -47,7 +47,7 @@ class Version {
   virtual void commit(shared_ptr<Reference> ref) const = 0;
 
   /// Is this version fingerprinted in a way that alllows us to check for a match?
-  virtual bool isFingerprinted() const = 0;
+  virtual bool hasFingerprint() const = 0;
 
   /// Fingerprint this version
   virtual void fingerprint(shared_ptr<Reference> ref) = 0;

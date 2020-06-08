@@ -20,38 +20,45 @@ using std::nullopt;
 using std::shared_ptr;
 
 Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) : _env(env) {
-  appendVersion(v, committed);
+  appendVersion(v);
   _metadata_version = v;
+  _metadata_committed = committed;
 }
 
 // Check if this artifact can be restored to the filesystem
-bool Artifact::canCommit() const {
-  // Get an iterator to the first uncommitted version
-  auto iter = _versions.begin();
-  std::advance(iter, _committed_versions);
-
-  // If any of the remaining versons cannot be committed, the artifact cannot be committed
-  while (iter != _versions.end()) {
-    auto v = *iter;
-    if (!v->isSaved()) return false;
-    iter++;
-  }
-
-  return true;
+bool Artifact::isSaved() const {
+  // Only the latest metadata version matters
+  return _metadata_version->isSaved();
 }
 
-void Artifact::commit(shared_ptr<Reference> ref) {
-  // Get an iterator to the first uncommitted version
-  auto iter = _versions.begin();
-  std::advance(iter, _committed_versions);
+// Save the latest metadata version
+void Artifact::save(shared_ptr<Reference> ref) {
+  _metadata_version->save(ref);
+}
 
-  // Commit the remaining versions in sequence
-  while (iter != _versions.end()) {
-    auto v = *iter;
-    v->commit(ref);
-    _committed_versions++;
-    iter++;
+// Check if the latest metadata version is committed
+bool Artifact::isCommitted() const {
+  return _metadata_committed;
+}
+
+// Commit the latest metadata version
+void Artifact::commit(shared_ptr<Reference> ref) {
+  if (!_metadata_committed) {
+    FAIL_IF(!_metadata_version->isSaved()) << "Attempted to commit unsaved version";
+
+    _metadata_version->commit(ref);
+    _metadata_committed = true;
   }
+}
+
+// Check if we have a fingerprint for the latest metadata version
+bool Artifact::hasFingerprint() const {
+  return _metadata_version->hasFingerprint();
+}
+
+// Save a fingerprint for the latest metadata version
+void Artifact::fingerprint(shared_ptr<Reference> ref) {
+  _metadata_version->fingerprint(ref);
 }
 
 // Check this artifact's contents and metadata against the filesystem state
@@ -67,11 +74,6 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   if (!_metadata_version->matches(v)) {
     _env.getBuild().observeFinalMetadataMismatch(shared_from_this(), _metadata_version, v);
   }
-}
-
-// Save metadata for the latest version of this artifact
-void Artifact::saveMetadata(shared_ptr<Reference> ref) {
-  _metadata_version->save(ref);
 }
 
 // Command c accesses this artifact's metadata
@@ -105,11 +107,13 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_
     // Create a version to track the new on-disk state
     v = make_shared<MetadataVersion>();
 
-    // Append the new version and mark it as committed
-    appendVersion(v, true);
+    // Append the new version. This version is committed.
+    appendVersion(v);
+    _metadata_committed = true;
   } else {
-    // Append the un-committed version
-    appendVersion(v, false);
+    // Append the new version. It is NOT committed
+    appendVersion(v);
+    _metadata_committed = false;
   }
 
   // Track the new metadata version
@@ -125,13 +129,7 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_
   return v;
 }
 
-void Artifact::appendVersion(shared_ptr<Version> v, bool committed) {
-  if (committed) {
-    FAIL_IF(!isCommitted()) << "Artifact is not fully committed: " << _committed_versions << ", "
-                            << _versions.size();
-    _committed_versions++;
-  }
-
+void Artifact::appendVersion(shared_ptr<Version> v) {
   _versions.push_back(v);
   v->identify(this);
 }

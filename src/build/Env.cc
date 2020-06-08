@@ -227,7 +227,6 @@ void Env::finalize() {
     a->checkFinalState(ref);
 
     // Save fingerprint and metadata for this artifact
-    a->saveMetadata(ref);
-    a->saveFingerprint(ref);
+    a->fingerprint(ref);
   }
 }

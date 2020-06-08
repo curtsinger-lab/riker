@@ -51,8 +51,8 @@ class Stats : public BuildObserver {
 
           if (v->isSaved()) {
             o << " (saved)" << endl;
-          } else if (v->isFingerprinted()) {
-            o << " (fingerprinted)" << endl;
+          } else if (v->hasFingerprint()) {
+            o << " (fingerprint)" << endl;
           } else {
             o << " (no data)" << endl;
           }

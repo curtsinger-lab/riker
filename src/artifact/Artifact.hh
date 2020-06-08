@@ -61,14 +61,23 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const { return _versions; }
 
-  /// Have all modifications to this artifact been committed to the filesystem?
-  bool isCommitted() const { return _committed_versions == _versions.size(); }
+  /// Do we have a saved copy of this artifact that can be committed to the filesystem?
+  virtual bool isSaved() const;
 
-  /// Do we have sufficient saved data to commit this artifact to the filesystem?
-  bool canCommit() const;
+  /// Save a copy of this artifact's versions so it can be restored on a future build
+  virtual void save(shared_ptr<Reference> ref);
+
+  /// Have all modifications to this artifact been committed to the filesystem?
+  virtual bool isCommitted() const;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  void commit(shared_ptr<Reference> ref);
+  virtual void commit(shared_ptr<Reference> ref);
+
+  /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
+  virtual bool hasFingerprint() const;
+
+  /// Save a fingerprint of this artifact's versions so we can check for a match
+  virtual void fingerprint(shared_ptr<Reference> ref);
 
   /// Check this artifact's final state against the filesystem and report any changes
   virtual void checkFinalState(shared_ptr<Reference> ref);
@@ -77,12 +86,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getMetadataCreator() const { return _metadata_filter.getLastWriter(); }
-
-  /**
-   * Save the metadata for the latest version of this artifact
-   * \param ref The reference to this artifact that should be used to access metadata
-   */
-  void saveMetadata(shared_ptr<Reference> ref);
 
   /**
    * Command c accesses the metadata for this artifact using reference ref.
@@ -107,16 +110,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get the creator of the latest version of this artifact
   virtual shared_ptr<Command> getContentCreator() const {
-    FAIL << "Invalid reference to contents of artifact " << this;
+    WARN << "Invalid reference to contents of artifact " << this;
     return nullptr;
-  }
-
-  /**
-   * Save a fingerprint of the contents of the latest version of this artifact
-   * \param ref The reference to this artifact that should be used to access contents
-   */
-  virtual void saveFingerprint(shared_ptr<Reference> ref) {
-    // WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
   }
 
   /**
@@ -164,7 +159,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
  protected:
   /// Add a version to the sequence of versions for this artifact
-  void appendVersion(shared_ptr<Version> v, bool committed);
+  void appendVersion(shared_ptr<Version> v);
 
   /**
    * This class captures the state and logic required to decide when reads/writes must be recorded
@@ -221,11 +216,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
 
-  /// The number of versions in the sequence that have been committed to the filesystem
-  size_t _committed_versions = 0;
-
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
+
+  /// Is the latest metadata version committed to the filesystem?
+  bool _metadata_committed;
 
   /// The access filter that controls metadata interactions
   AccessFilter _metadata_filter;

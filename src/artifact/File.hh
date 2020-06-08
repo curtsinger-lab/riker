@@ -25,7 +25,23 @@ class FileArtifact : public Artifact {
     return _content_filter.getLastWriter();
   }
 
-  virtual void saveFingerprint(shared_ptr<Reference> ref) override;
+  /// Do we have a saved copy of this artifact that can be committed to the filesystem?
+  virtual bool isSaved() const override;
+
+  /// Save a copy of this artifact's versions so it can be restored on a future build
+  virtual void save(shared_ptr<Reference> ref) override;
+
+  /// Have all modifications to this artifact been committed to the filesystem?
+  virtual bool isCommitted() const override;
+
+  /// Commit any un-committed version of this artifact using the provided reference
+  virtual void commit(shared_ptr<Reference> ref) override;
+
+  /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
+  virtual bool hasFingerprint() const override;
+
+  /// Save a fingerprint of this artifact's versions so we can check for a match
+  virtual void fingerprint(shared_ptr<Reference> ref) override;
 
   virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
                                                     shared_ptr<Reference> ref) override;
@@ -38,6 +54,9 @@ class FileArtifact : public Artifact {
  private:
   /// The latest content version
   shared_ptr<ContentVersion> _content_version;
+
+  /// Is the latest content version committed?
+  bool _content_committed;
 
   /// The access filter that controls content interactions
   AccessFilter _content_filter;

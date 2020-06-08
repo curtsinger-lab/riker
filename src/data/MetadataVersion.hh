@@ -35,7 +35,7 @@ class MetadataVersion : public Version {
   virtual void commit(shared_ptr<Reference> ref) const override;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
-  virtual bool isFingerprinted() const override { return _metadata.has_value(); }
+  virtual bool hasFingerprint() const override { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
   virtual void fingerprint(shared_ptr<Reference> ref) override { save(ref); }
