@@ -127,7 +127,7 @@ class Graph : public BuildObserver {
   string getCommandID(const shared_ptr<Command>& c) {
     // Add this command to the map of command IDs if necessary
     if (auto iter = _command_ids.find(c); iter == _command_ids.end()) {
-      _command_ids.emplace_hint(iter, c, string("c") + to_string(_command_ids.size()));
+      _command_ids.emplace_hint(iter, c, "c" + to_string(_command_ids.size()));
     }
     return _command_ids[c];
   }
@@ -135,7 +135,7 @@ class Graph : public BuildObserver {
   string getArtifactID(const shared_ptr<Artifact>& a) {
     // Add this artifact to the map of artifact IDs if necessary
     if (auto iter = _artifact_ids.find(a); iter == _artifact_ids.end()) {
-      _artifact_ids.emplace_hint(iter, a, string("a") + to_string(_artifact_ids.size()));
+      _artifact_ids.emplace_hint(iter, a, "a" + to_string(_artifact_ids.size()));
     }
 
     return _artifact_ids[a];
@@ -143,7 +143,7 @@ class Graph : public BuildObserver {
 
   string getVersionID(const shared_ptr<Version>& v) {
     if (auto iter = _version_ids.find(v); iter == _version_ids.end()) {
-      _version_ids.emplace_hint(iter, v, string("v") + to_string(_version_ids.size()));
+      _version_ids.emplace_hint(iter, v, "v" + to_string(_version_ids.size()));
     }
     return _version_ids[v];
   }
