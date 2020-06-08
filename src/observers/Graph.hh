@@ -86,24 +86,9 @@ class Graph : public BuildObserver {
       o << "</table>> shape=plain]\n";
     }
 
-    // Create I/O edges for metadata accesses
-    for (auto [src, dest] : _metadata_edges) {
-      o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2 label=\"m";
-
-      // If this edge also appears in _content_edges, label it as both metadata and contents
-      if (_content_edges.find({src, dest}) != _content_edges.end()) {
-        o << "+c";
-      }
-
-      o << "\"]\n";
-    }
-
-    // Create I/O edges for content accesses
-    for (auto [src, dest] : _content_edges) {
-      // Only print this edge if it wasn't already printed as a metadata+content edge
-      if (_metadata_edges.find({src, dest}) == _metadata_edges.end()) {
-        o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2 label=\"c\"]\n";
-      }
+    // Create I/O edges
+    for (auto [src, dest] : _io_edges) {
+      o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2]\n";
     }
 
     o << "}\n";
@@ -172,7 +157,7 @@ class Graph : public BuildObserver {
                              shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _metadata_edges.emplace(getVersionID(a, v), getCommandID(c));
+    _io_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
 
   /// Command c reads the contents of artifact a
@@ -180,7 +165,7 @@ class Graph : public BuildObserver {
                             shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _content_edges.emplace(getVersionID(a, v), getCommandID(c));
+    _io_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
 
   /// Command c changes metadata for artifact a
@@ -188,7 +173,7 @@ class Graph : public BuildObserver {
                               shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _metadata_edges.emplace(getCommandID(c), getVersionID(a, v));
+    _io_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
   /// Command c changes the contents of artifact a
@@ -196,7 +181,7 @@ class Graph : public BuildObserver {
                              shared_ptr<Version> v) override {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
-    _content_edges.emplace(getCommandID(c), getVersionID(a, v));
+    _io_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
   /// Command c observes a change in metadata for artifact a
@@ -265,11 +250,8 @@ class Graph : public BuildObserver {
   /// A set of command edges, from parent to child
   set<pair<string, string>> _command_edges;
 
-  /// Input/output edges (source -> dest) that correspond to artifact metadata
-  set<pair<string, string>> _metadata_edges;
-
-  /// Input/output edges (source -> dest) that correspond to artifact contents
-  set<pair<string, string>> _content_edges;
+  /// Input/output edges (source -> dest)
+  set<pair<string, string>> _io_edges;
 
   /// The set of commands marked as changed
   set<shared_ptr<Command>> _changed_commands;

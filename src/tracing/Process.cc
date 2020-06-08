@@ -691,6 +691,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   // Convert the path to an absolute, normalized lexical form
   auto p = resolvePath(filename, dfd);
 
+  WARN_IF(flags & O_DIRECTORY) << "Accessing directory " << p << " with openat()."
+                               << "This is not yet tracked correctly.";
+
   // The command makes a reference to a path, possibly modifying artifact f
   auto ref_flags = AccessFlags::fromOpen(flags, mode);
   auto ref = _command->access(p, ref_flags);

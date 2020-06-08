@@ -4,6 +4,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #include "artifact/Artifact.hh"
 #include "data/Metadata.hh"
@@ -11,6 +12,7 @@
 
 using std::optional;
 using std::ostream;
+using std::pair;
 using std::shared_ptr;
 using std::string;
 
@@ -55,26 +57,29 @@ class Version {
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const Version& v) {
-    return o << v._identity.value_or("[Unknown Version]");
+    if (v._identity.has_value()) {
+      auto& [a, index] = v._identity.value();
+      return o << "[" << (a->getName().empty() ? "<anon>" : a->getName()) << " v" << index << "]";
+    } else {
+      return o << "[Unknown Version]";
+    }
   }
 
   /// Print a Version*
   friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
 
- private:
+ protected:
   SERIALIZE_EMPTY();
 
   /******** Transient Fields *********/
 
   friend class Artifact;
 
-  /// A printable identity for this version
-  mutable optional<string> _identity;
+  /// The artifact this version is attached to
+  mutable optional<pair<const Artifact*, size_t>> _identity;
 
   /// Record a printable identity for this version that has just been attached to a given artifact
-  void identify(const Artifact* a) const {
-    _identity = string("[") + a->getName() + " v" + std::to_string(a->getVersionCount() - 1) + "]";
-  }
+  void identify(const Artifact* a) const { _identity = {a, a->getVersionCount() - 1}; }
 
   /// Copy the identity to or from another version
   void identify(shared_ptr<Version> other) const {

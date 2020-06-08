@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "artifact/Artifact.hh"
+#include "artifact/Dir.hh"
 #include "artifact/File.hh"
 #include "artifact/Pipe.hh"
 #include "build/Build.hh"
@@ -147,16 +148,32 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       return {nullptr, EEXIST};
     }
 
-    // Otherwise, the access succeeds. Create an artifact to track this real file.
-    auto artifact = make_shared<FileArtifact>(*this, true);
-    artifact->setName(path);
+    // Otherwise, the access succeeds. We need to stat the path to find out if it's a file or
+    // directory.
+    struct stat statbuf;
+    FAIL_IF(ref->stat(&statbuf) != 0) << "Failed to stat successfully-accessed path";
 
-    // Save metadata and fingerprint for the initial version of the on-disk artifact
-    // TODO: do this lazily. We have to save these here because we need to compare expected versions
-    // to what we find on disk. But if we know which version actually resides on the filesystem we
-    // can stat/fingerprint it on demand.
-    artifact->saveMetadata(ref);
-    artifact->saveFingerprint(ref);
+    shared_ptr<Artifact> artifact;
+
+    // Handle filesystem types
+    if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
+      // Directory
+      artifact = make_shared<DirArtifact>(*this, true, make_shared<MetadataVersion>(statbuf));
+
+    } else if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
+      // File
+      artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
+                                           make_shared<ContentVersion>(statbuf));
+
+    } else {
+      // Someting else. Just make it a file for now
+      WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
+      artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
+                                           make_shared<ContentVersion>(statbuf));
+    }
+
+    // Name the artifact
+    artifact->setName(path);
 
     // Add this new artifact to the map of resolved references
     _files.emplace(ref, artifact);

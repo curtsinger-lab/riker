@@ -7,6 +7,7 @@
 #include <string>
 
 #include "ui/options.hh"
+#include "util/log.hh"
 
 using std::list;
 using std::make_shared;
@@ -102,13 +103,18 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /********** Content: Files and Pipes **********/
 
   /// Get the creator of the latest version of this artifact
-  virtual shared_ptr<Command> getContentCreator() const = 0;
+  virtual shared_ptr<Command> getContentCreator() const {
+    FAIL << "Invalid reference to contents of artifact " << this;
+    return nullptr;
+  }
 
   /**
    * Save a fingerprint of the contents of the latest version of this artifact
    * \param ref The reference to this artifact that should be used to access contents
    */
-  virtual void saveFingerprint(shared_ptr<Reference> ref) = 0;
+  virtual void saveFingerprint(shared_ptr<Reference> ref) {
+    // WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
+  }
 
   /**
    * Command c accesses the content of this artifact using reference ref.
@@ -118,7 +124,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    *          latest version using this reference (no check is necessary).
    */
   virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref) = 0;
+                                                    shared_ptr<Reference> ref) {
+    WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
+    return nullptr;
+  }
 
   /**
    * Command c sets the content of this artifact to version v using reference ref.
@@ -128,7 +137,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the newly-assigned content version
    */
   virtual shared_ptr<ContentVersion> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                                 shared_ptr<ContentVersion> v = nullptr) = 0;
+                                                 shared_ptr<ContentVersion> v = nullptr) {
+    WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
+    return nullptr;
+  }
 
   /****** Utility Methods ******/
 
