@@ -21,10 +21,13 @@ using std::shared_ptr;
 class Trace : public BuildObserver {
  public:
   /// The root command is being launched.
-  virtual void launchRootCommand(shared_ptr<Command> root) override { _commands.insert(root); }
+  virtual void launchRootCommand(const shared_ptr<Command>& root) override {
+    _commands.insert(root);
+  }
 
   /// A child command is being launched. Record the new command.
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launchChildCommand(const shared_ptr<Command>& parent,
+                                  const shared_ptr<Command>& child) override {
     _commands.insert(child);
   }
 

@@ -33,7 +33,7 @@ using std::make_shared;
 using std::pair;
 using std::shared_ptr;
 
-void Tracer::run(shared_ptr<Command> cmd) {
+void Tracer::run(const shared_ptr<Command>& cmd) {
   // Launch the command with tracing
   launchTraced(cmd);
 
@@ -126,7 +126,7 @@ void Tracer::run(shared_ptr<Command> cmd) {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-void Tracer::launchTraced(shared_ptr<Command> cmd) {
+void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
   LOG << "Launching " << cmd;
 
   // Fill this vector in with {parent_fd, child_fd} pairs
@@ -292,7 +292,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) {
   _processes[child_pid] = make_shared<Process>(_build, child_pid, ".", cmd, fds);
 }
 
-void Tracer::handleClone(shared_ptr<Process> p, int flags) {
+void Tracer::handleClone(const shared_ptr<Process>& p, int flags) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -306,7 +306,7 @@ void Tracer::handleClone(shared_ptr<Process> p, int flags) {
   _processes[new_pid] = _processes[p->_pid];
 }
 
-void Tracer::handleFork(shared_ptr<Process> p) {
+void Tracer::handleFork(const shared_ptr<Process>& p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -326,7 +326,7 @@ void Tracer::handleFork(shared_ptr<Process> p) {
   LOG << "new process " << new_proc;
 }
 
-void Tracer::handleExit(shared_ptr<Process> p) {
+void Tracer::handleExit(const shared_ptr<Process>& p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -334,7 +334,7 @@ void Tracer::handleExit(shared_ptr<Process> p) {
   _processes.erase(p->_pid);
 }
 
-void Tracer::handleSyscall(shared_ptr<Process> p) {
+void Tracer::handleSyscall(const shared_ptr<Process>& p) {
   auto regs = p->getRegisters();
 
   // This giant switch statement invokes the appropriate system call handler on a traced

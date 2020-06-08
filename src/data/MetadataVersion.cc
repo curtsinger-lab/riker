@@ -10,7 +10,7 @@ using std::nullopt;
 using std::shared_ptr;
 
 // Save metadata
-void MetadataVersion::save(shared_ptr<Reference> ref) {
+void MetadataVersion::save(const shared_ptr<Reference>& ref) {
   // We can only stat Access references. Try to cast.
   auto a = dynamic_pointer_cast<Access>(ref);
   if (!a) {
@@ -27,13 +27,13 @@ void MetadataVersion::save(shared_ptr<Reference> ref) {
 }
 
 // Commit this version to the filesystem
-void MetadataVersion::commit(shared_ptr<Reference> ref) const {
+void MetadataVersion::commit(const shared_ptr<Reference>& ref) const {
   // TODO: Commit metadata state
   FAIL_IF(!isSaved()) << "Attempted to commit unsaved version";
 }
 
 // Compare to another version
-bool MetadataVersion::matches(shared_ptr<Version> other) const {
+bool MetadataVersion::matches(const shared_ptr<Version>& other) const {
   // If we have no saved metadata, we cannot find a match
   if (!_metadata.has_value()) return false;
 

@@ -31,7 +31,7 @@ class RebuildPlanner;
 
 class Process {
  public:
-  Process(Build& build, pid_t pid, fs::path cwd, shared_ptr<Command> command,
+  Process(Build& build, pid_t pid, fs::path cwd, const shared_ptr<Command>& command,
           map<int, FileDescriptor> fds) :
       _build(build), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
 

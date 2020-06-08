@@ -74,28 +74,29 @@ class Stats : public BuildObserver {
 
  private:
   /// Gather stats for a command
-  void processCommand(shared_ptr<Command> c) {
+  void processCommand(const shared_ptr<Command>& c) {
     // Count this command and its steps
     _command_count++;
     _step_count += c->getSteps().size();
   }
 
   /// Called during emulation to report an output from command c
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) override {
+  virtual void output(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                      const shared_ptr<Version>& v) override {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) override {
+  virtual void input(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                     const shared_ptr<Version>& v) override {
     _artifacts.insert(a);
   }
 
-  virtual void launchRootCommand(shared_ptr<Command> root) override { processCommand(root); }
+  virtual void launchRootCommand(const shared_ptr<Command>& root) override { processCommand(root); }
 
   /// Called each time a command emulates a launch step
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launchChildCommand(const shared_ptr<Command>& parent,
+                                  const shared_ptr<Command>& child) override {
     // Process the child command
     processCommand(child);
   }

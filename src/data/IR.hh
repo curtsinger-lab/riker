@@ -47,7 +47,7 @@ class Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) = 0;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) = 0;
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const = 0;
@@ -69,14 +69,14 @@ class Step {
  */
 class Reference : public Step, public std::enable_shared_from_this<Reference> {
  public:
-  void resolve(shared_ptr<Command> c, Build& build);
+  void resolve(const shared_ptr<Command>& c, Build& build);
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Get the unique ID for this reference
   size_t getID() const { return _id; }
@@ -88,7 +88,7 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
   bool isResolved() const { return _artifact != nullptr; }
 
   /// Get the artifact this reference resolved to
-  shared_ptr<Artifact> getArtifact() const {
+  const shared_ptr<Artifact>& getArtifact() const {
     FAIL_IF(!_artifact) << "Attempted to access unresolved reference " << this;
     return _artifact;
   }
@@ -175,10 +175,10 @@ class Predicate : public Step {
 class ReferenceResult : public Predicate, public std::enable_shared_from_this<ReferenceResult> {
  public:
   /// Create a REFERENCE_RESULT predicate
-  ReferenceResult(shared_ptr<Reference> ref, int8_t rc) : _ref(ref), _rc(rc) {}
+  ReferenceResult(const shared_ptr<Reference>& ref, int8_t rc) : _ref(ref), _rc(rc) {}
 
   /// Get the reference this predicate examines
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
   /// Get the expected result of the reference
   int getResult() const { return _rc; }
@@ -188,7 +188,7 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a REFERENCE_RESULT predicate
   virtual ostream& print(ostream& o) const override;
@@ -208,21 +208,21 @@ class ReferenceResult : public Predicate, public std::enable_shared_from_this<Re
 class MetadataMatch : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
-  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
+  MetadataMatch(const shared_ptr<Reference>& ref, const shared_ptr<MetadataVersion>& version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<MetadataVersion> getVersion() const { return _version; }
+  const shared_ptr<MetadataVersion>& getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a METADATA_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -242,21 +242,21 @@ class MetadataMatch : public Predicate, public std::enable_shared_from_this<Meta
 class ContentsMatch : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
-  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
+  ContentsMatch(const shared_ptr<Reference>& ref, const shared_ptr<ContentVersion>& version) :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<ContentVersion> getVersion() const { return _version; }
+  const shared_ptr<ContentVersion>& getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a CONTENTS_MATCH predicate
   virtual ostream& print(ostream& o) const override;
@@ -292,17 +292,17 @@ class Action : public Step {
 class Launch : public Action, public std::enable_shared_from_this<Launch> {
  public:
   /// Create a LAUNCH action
-  Launch(shared_ptr<Command> cmd) : _cmd(cmd) {}
+  Launch(const shared_ptr<Command>& cmd) : _cmd(cmd) {}
 
   /// Get the command this action launches
-  shared_ptr<Command> getCommand() const { return _cmd; }
+  const shared_ptr<Command>& getCommand() const { return _cmd; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const override;
@@ -321,19 +321,19 @@ class Launch : public Action, public std::enable_shared_from_this<Launch> {
 class SetMetadata : public Action, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
+  SetMetadata(const shared_ptr<Reference>& ref, const shared_ptr<MetadataVersion>& version) :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
-  shared_ptr<MetadataVersion> getVersion() const { return _version; }
+  const shared_ptr<MetadataVersion>& getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a SET_METADATA action
   virtual ostream& print(ostream& o) const override;
@@ -353,19 +353,19 @@ class SetMetadata : public Action, public std::enable_shared_from_this<SetMetada
 class SetContents : public Action, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
+  SetContents(const shared_ptr<Reference>& ref, const shared_ptr<ContentVersion>& version) :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
-  shared_ptr<ContentVersion> getVersion() const { return _version; }
+  const shared_ptr<ContentVersion>& getVersion() const { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(const shared_ptr<Command>& c, Build& build) override;
 
   /// Print a SET_CONTENTS action
   virtual ostream& print(ostream& o) const override;

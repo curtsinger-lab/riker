@@ -18,23 +18,23 @@ class Tracer {
   Tracer(Build& build) : _build(build) {}
 
   /// Run a command in this tracer
-  void run(shared_ptr<Command> cmd);
+  void run(const shared_ptr<Command>& cmd);
 
  private:
   /// Launch a command with tracing enabled
-  void launchTraced(shared_ptr<Command> cmd);
+  void launchTraced(const shared_ptr<Command>& cmd);
 
   /// Called when we catch a system call in the traced process
-  void handleSyscall(shared_ptr<Process> p);
+  void handleSyscall(const shared_ptr<Process>& p);
 
   /// Called after a traced process issues a clone system call
-  void handleClone(shared_ptr<Process> p, int flags);
+  void handleClone(const shared_ptr<Process>& p, int flags);
 
   /// Called after a traced process issues a fork system call
-  void handleFork(shared_ptr<Process> p);
+  void handleFork(const shared_ptr<Process>& p);
 
   /// Called when a traced process exits
-  void handleExit(shared_ptr<Process> p);
+  void handleExit(const shared_ptr<Process>& p);
 
  private:
   /// This tracer is executing commands on behalf of this build

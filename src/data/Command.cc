@@ -126,12 +126,12 @@ shared_ptr<Pipe> Command::pipe() {
 }
 
 // This command observes a reference resolve with a particular result
-void Command::referenceResult(shared_ptr<Reference> ref, int result) {
+void Command::referenceResult(const shared_ptr<Reference>& ref, int result) {
   _steps.push_back(make_shared<ReferenceResult>(ref, result));
 }
 
 // This command depends on the metadata of a referenced artifact
-void Command::metadataMatch(shared_ptr<Reference> ref) {
+void Command::metadataMatch(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
   // Inform the artifact that this command accesses its metadata
@@ -148,7 +148,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref) {
 }
 
 // This command depends on the contents of a referenced artifact
-void Command::contentsMatch(shared_ptr<Reference> ref) {
+void Command::contentsMatch(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
 
   // Inform the artifact that this command accesses its contents
@@ -165,7 +165,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref) {
 }
 
 // This command sets the metadata of a referenced artifact
-void Command::setMetadata(shared_ptr<Reference> ref) {
+void Command::setMetadata(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Inform the artifact that this command sets its metadata
@@ -179,7 +179,7 @@ void Command::setMetadata(shared_ptr<Reference> ref) {
 }
 
 // This command sets the contents of a referenced artifact
-void Command::setContents(shared_ptr<Reference> ref) {
+void Command::setContents(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Inform the artifact that this command sets its contents

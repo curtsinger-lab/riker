@@ -29,19 +29,19 @@ class ContentVersion : public Version {
   virtual bool isSaved() const override;
 
   /// Save this version so it can be committed later
-  virtual void save(shared_ptr<Reference> ref) override {}
+  virtual void save(const shared_ptr<Reference>& ref) override {}
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) const override;
+  virtual void commit(const shared_ptr<Reference>& ref) const override;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
   virtual bool hasFingerprint() const override { return _fingerprint.has_value(); }
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(shared_ptr<Reference> ref) override;
+  virtual void fingerprint(const shared_ptr<Reference>& ref) override;
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const override;
+  virtual bool matches(const shared_ptr<Version>& other) const override;
 
  private:
   optional<Fingerprint> _fingerprint;

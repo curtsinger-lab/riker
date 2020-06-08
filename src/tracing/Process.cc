@@ -195,13 +195,10 @@ void Process::_read(int fd) {
 
 void Process::_write(int fd) {
   // Get the descriptor
-  auto descriptor = _fds.at(fd);
-
-  // Get the reference used to write
-  auto ref = descriptor.getReference();
+  auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _command->contentsMatch(ref);
+  _command->contentsMatch(descriptor.getReference());
 
   // Finish the syscall and resume the process
   int rc = finishSyscall();
@@ -211,7 +208,7 @@ void Process::_write(int fd) {
   if (rc == -1) return;
 
   // Record the update to the artifact contents
-  _command->setContents(ref);
+  _command->setContents(descriptor.getReference());
 }
 
 void Process::_close(int fd) {
@@ -242,20 +239,17 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   }
 
   // Get the descriptor from the fd number
-  auto descriptor = _fds.at(fd);
-
-  // Get the reference for the file we just mapped
-  auto ref = descriptor.getReference();
+  auto& descriptor = _fds.at(fd);
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
-  _command->contentsMatch(ref);
+  _command->contentsMatch(descriptor.getReference());
 
   // If the mapping is writable, and the file was opened in write mode, the command
   // is also effectively setting the contents of the file.
   bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
   if (writable) {
-    _command->setContents(ref);
+    _command->setContents(descriptor.getReference());
   }
 
   // TODO: we need to track which commands have a given artifact mapped.
@@ -342,11 +336,10 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
     // This is essentially an fstat call
-    auto descriptor = _fds.at(dirfd);
-    auto ref = descriptor.getReference();
+    auto& descriptor = _fds.at(dirfd);
 
     // Record the dependency on metadata
-    _command->metadataMatch(ref);
+    _command->metadataMatch(descriptor.getReference());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -507,7 +500,7 @@ void Process::_truncate(string pathname, long length) {
 
 void Process::_ftruncate(int fd, long length) {
   // Get the descriptor
-  auto descriptor = _fds.at(fd);
+  auto& descriptor = _fds.at(fd);
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
@@ -540,9 +533,8 @@ void Process::_fchdir(int fd) {
 
   if (rc == 0) {
     // Get the path to the artifact this descriptor references
-    auto descriptor = _fds.at(fd);
-    auto ref = descriptor.getReference();
-    auto a = dynamic_pointer_cast<Access>(ref);
+    auto& descriptor = _fds.at(fd);
+    auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
 
     // Make sure there really is a path
     FAIL_IF(!a) << "fchdir to anonymous artifact succeeded";

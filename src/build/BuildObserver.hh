@@ -22,29 +22,32 @@ class BuildObserver {
   virtual ~BuildObserver() = default;
 
   /// Command c modifies artifact a, creating version v
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
+  virtual void output(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                      const shared_ptr<Version>& v) {}
 
   /// Command c depends on artifact a, accessing version v
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
+  virtual void input(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                     const shared_ptr<Version>& v) {}
 
   /// Command c did not find the expect version of artifact a
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) {}
+  virtual void mismatch(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                        const shared_ptr<Version>& observed, const shared_ptr<Version>& expected) {}
 
   /// A command has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) {}
+  virtual void commandNeverRun(const shared_ptr<Command>& c) {}
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) {}
+  virtual void commandChanged(const shared_ptr<Command>& c, const shared_ptr<const Step>& s) {}
 
   /// The root command is being launched
-  virtual void launchRootCommand(shared_ptr<Command> root) {}
+  virtual void launchRootCommand(const shared_ptr<Command>& root) {}
 
   /// A child command is being launched
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) {}
+  virtual void launchChildCommand(const shared_ptr<Command>& parent,
+                                  const shared_ptr<Command>& child) {}
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced `observed`, which does not match the on-disk version `expected`
-  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) {}
+  virtual void finalMismatch(const shared_ptr<Artifact>& a, const shared_ptr<Version>& observed,
+                             const shared_ptr<Version>& expected) {}
 };

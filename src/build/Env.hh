@@ -58,7 +58,8 @@ class Env {
    * \param ref The reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> get(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  tuple<shared_ptr<Artifact>, int> get(const shared_ptr<Command>& c,
+                                       const shared_ptr<Reference>& ref);
 
   /**
    * Get a pipe from this environment
@@ -66,7 +67,8 @@ class Env {
    * \param ref The pipe reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref);
+  tuple<shared_ptr<Artifact>, int> getPipe(const shared_ptr<Command>& c,
+                                           const shared_ptr<Pipe>& ref);
 
   /**
    * Get a file from this environment
@@ -74,7 +76,8 @@ class Env {
    * \param ref The reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
+  tuple<shared_ptr<Artifact>, int> getFile(const shared_ptr<Command>& c,
+                                           const shared_ptr<Access>& ref);
 
  private:
   /// The build this environment is attached to

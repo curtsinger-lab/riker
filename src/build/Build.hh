@@ -40,7 +40,7 @@ class Build {
    * \param c The command that should be executed rather than emulated
    * \returns true if this is a new addition to the set, or false if the command was already marked
    */
-  bool setRerun(shared_ptr<Command> c) {
+  bool setRerun(const shared_ptr<Command>& c) {
     auto [iter, added] = _rerun.insert(c);
     return added;
   }
@@ -50,7 +50,7 @@ class Build {
    * \param c The command that is being checked
    * \returns true if the command is marked for reexecution, otherwise false
    */
-  bool checkRerun(shared_ptr<Command> c) const { return _rerun.find(c) != _rerun.end(); }
+  bool checkRerun(const shared_ptr<Command>& c) const { return _rerun.find(c) != _rerun.end(); }
 
   /**
    * Get the set of commands that are marked for rerun in this build.
@@ -74,7 +74,7 @@ class Build {
    * \param parent The parent of the launched command
    * \param child  The newly-launched command
    */
-  void launch(shared_ptr<Command> parent, shared_ptr<Command> child);
+  void launch(const shared_ptr<Command>& parent, const shared_ptr<Command>& child);
 
   /// Print information about this build
   ostream& print(ostream& o) const;
@@ -89,40 +89,42 @@ class Build {
   void addObserver(shared_ptr<BuildObserver> o) { _observers.push_back(o); }
 
   /// Inform the observer that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+  void observeOutput(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                     const shared_ptr<Version>& v) {
     for (auto& o : _observers) o->output(c, a, v);
   }
 
   /// Inform the observer that command c accessed version v of artifact a
-  void observeInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+  void observeInput(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                    const shared_ptr<Version>& v) {
     for (auto& o : _observers) o->input(c, a, v);
   }
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
-  void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) {
+  void observeMismatch(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
+                       const shared_ptr<Version>& observed, const shared_ptr<Version>& expected) {
     for (auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
 
   /// Inform observers that a command has never been run
-  void observeCommandNeverRun(shared_ptr<Command> c) {
+  void observeCommandNeverRun(const shared_ptr<Command>& c) {
     for (auto& o : _observers) o->commandNeverRun(c);
   }
 
   /// Inform the observer that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
+  void observeCommandChange(const shared_ptr<Command>& c, const shared_ptr<const Step>& s) {
     for (auto& o : _observers) o->commandChanged(c, s);
   }
 
   /// Inform observers that an artifact's version does not match the expected final state
-  void observeFinalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                            shared_ptr<Version> expected) {
+  void observeFinalMismatch(const shared_ptr<Artifact>& a, const shared_ptr<Version>& observed,
+                            const shared_ptr<Version>& expected) {
     for (auto& o : _observers) o->finalMismatch(a, observed, expected);
   }
 
  private:
-  void runCommand(shared_ptr<Command> c);
+  void runCommand(const shared_ptr<Command>& c);
 
  private:
   /// The root command of this build

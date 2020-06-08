@@ -18,7 +18,7 @@ bool ContentVersion::isSaved() const {
 }
 
 // Commit this version to the filesystem
-void ContentVersion::commit(shared_ptr<Reference> ref) const {
+void ContentVersion::commit(const shared_ptr<Reference>& ref) const {
   FAIL_IF(!isSaved()) << "Attempted to commit unsaved version";
 
   if (auto a = dynamic_pointer_cast<Access>(ref)) {
@@ -31,7 +31,7 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const {
 }
 
 // Save a fingerprint of this version
-void ContentVersion::fingerprint(shared_ptr<Reference> ref) {
+void ContentVersion::fingerprint(const shared_ptr<Reference>& ref) {
   // We can only stat Access references. Try to cast.
   auto a = dynamic_pointer_cast<Access>(ref);
   if (!a) {
@@ -48,7 +48,7 @@ void ContentVersion::fingerprint(shared_ptr<Reference> ref) {
 }
 
 // Compare this version to another version
-bool ContentVersion::matches(shared_ptr<Version> other) const {
+bool ContentVersion::matches(const shared_ptr<Version>& other) const {
   // If we have no saved fingerprint, we cannot find a match
   if (!_fingerprint.has_value()) return false;
 

@@ -20,11 +20,11 @@ class FileDescriptor {
   FileDescriptor() = default;
 
   /// Create a record of an initial file descriptor
-  FileDescriptor(shared_ptr<Reference> ref, bool writable, bool cloexec = false) :
+  FileDescriptor(const shared_ptr<Reference>& ref, bool writable, bool cloexec = false) :
       _ref(ref), _writable(writable), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
-  shared_ptr<Reference> getReference() const { return _ref; }
+  const shared_ptr<Reference>& getReference() const { return _ref; }
 
   /// Check if the file descriptor should be writable
   bool isWritable() const { return _writable; }

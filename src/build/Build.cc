@@ -37,7 +37,7 @@ void Build::run() {
 }
 
 // Called when an emulated command launches another command
-void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) {
+void Build::launch(const shared_ptr<Command>& parent, const shared_ptr<Command>& child) {
   // Inform observers of the launch action
   for (auto& o : _observers) {
     o->launchChildCommand(parent, child);
@@ -47,7 +47,7 @@ void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) {
   runCommand(child);
 }
 
-void Build::runCommand(shared_ptr<Command> c) {
+void Build::runCommand(const shared_ptr<Command>& c) {
   if (checkRerun(c)) {
     // We are rerunning this command, so clear the lists of steps and children
     c->reset();

@@ -22,23 +22,23 @@ using std::dynamic_pointer_cast;
 using std::ostream;
 using std::shared_ptr;
 
-void Reference::resolve(shared_ptr<Command> c, Build& build) {
+void Reference::resolve(const shared_ptr<Command>& c, Build& build) {
   std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
 }
 
 /******* Emulation *******/
 
-void Reference::emulate(shared_ptr<Command> c, Build& build) {
+void Reference::emulate(const shared_ptr<Command>& c, Build& build) {
   // Resolve the reference
   resolve(c, build);
 }
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) {
+void ReferenceResult::emulate(const shared_ptr<Command>& c, Build& build) {
   // Check if the reference resolved as expected
   if (_ref->getResult() != _rc) build.observeCommandChange(c, shared_from_this());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
+void MetadataMatch::emulate(const shared_ptr<Command>& c, Build& build) {
   // If the reference does not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -54,7 +54,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
   }
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
+void ContentsMatch::emulate(const shared_ptr<Command>& c, Build& build) {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -70,7 +70,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
   }
 }
 
-void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
+void SetMetadata::emulate(const shared_ptr<Command>& c, Build& build) {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -81,7 +81,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
   _ref->getArtifact()->setMetadata(c, _ref, _version);
 }
 
-void SetContents::emulate(shared_ptr<Command> c, Build& build) {
+void SetContents::emulate(const shared_ptr<Command>& c, Build& build) {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -92,7 +92,7 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) {
   _ref->getArtifact()->setContents(c, _ref, _version);
 }
 
-void Launch::emulate(shared_ptr<Command> c, Build& build) {
+void Launch::emulate(const shared_ptr<Command>& c, Build& build) {
   // Tell the build to launch the child command
   build.launch(c, _cmd);
 }
