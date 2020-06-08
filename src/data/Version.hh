@@ -5,10 +5,8 @@
 #include <ostream>
 #include <string>
 
-#include <sys/stat.h>
-
+#include "data/Metadata.hh"
 #include "data/serializer.hh"
-#include "util/log.hh"
 
 using std::nullopt;
 using std::optional;
@@ -19,14 +17,14 @@ using std::string;
 class Artifact;
 class Reference;
 
-using Metadata = struct stat;
-using Fingerprint = struct stat;
-
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  /// Create a new version, possibly with metadata already specified
-  Version(optional<Metadata> metadata = nullopt) : _metadata(metadata) {}
+  /// Create a new version with no known metadata
+  Version() = default;
+
+  /// Create a new version from existing metadata
+  Version(Metadata&& m) : _metadata(m) {}
 
   // Disallow Copy
   Version(const Version&) = delete;

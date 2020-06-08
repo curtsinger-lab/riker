@@ -186,22 +186,6 @@ COLLECT_STATS(Launch);
 
 #endif
 
-/// Serialization function for struct stat
-template <class Archive>
-void save(Archive& ar, struct stat const& s) {
-  uint8_t sizeval = s.st_size == 0 ? 0 : 1;
-  ar((uint16_t)s.st_mode, s.st_uid, s.st_gid, sizeval, s.st_mtim);
-}
-
-template <class Archive>
-void load(Archive& ar, struct stat& s) {
-  uint8_t sizeval;
-  uint16_t mode;
-  ar(mode, s.st_uid, s.st_gid, sizeval, s.st_mtim);
-  s.st_mode = mode;
-  s.st_size = sizeval;
-}
-
 /// Serialization function for struct timespec
 template <class Archive>
 void serialize(Archive& ar, struct timespec& ts) {

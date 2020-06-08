@@ -9,6 +9,7 @@
 
 #include "artifact/Artifact.hh"
 #include "data/IR.hh"
+#include "data/Metadata.hh"
 #include "util/log.hh"
 
 using std::dynamic_pointer_cast;
@@ -17,7 +18,7 @@ using std::shared_ptr;
 
 bool Version::canCommit() const {
   // Empty files can be recreated
-  if (_metadata.has_value() && _metadata.value().st_size == 0) {
+  if (_metadata.has_value() && _metadata.value().empty) {
     return true;
   }
 
@@ -27,7 +28,7 @@ bool Version::canCommit() const {
 
 void Version::commit(shared_ptr<Reference> ref) {
   if (auto a = dynamic_pointer_cast<Access>(ref)) {
-    if (_metadata.has_value() && _metadata.value().st_size == 0) {
+    if (_metadata.has_value() && _metadata.value().empty) {
       int fd = a->open();
       FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
       close(fd);
@@ -39,25 +40,17 @@ bool Version::metadataMatch(shared_ptr<Version> other) const {
   // A version always matches itself
   if (this == other.get()) return true;
 
-  // Get metadata from both versions
-  auto& m1 = _metadata;
-  auto& m2 = other->_metadata;
-
   // We need metadata for both versions to compare
-  if (!m1.has_value() || !m2.has_value()) return false;
+  if (!_metadata.has_value() || !other->_metadata.has_value()) return false;
 
-  // We only compare uid, gid, and mode (which covers both type and permissions)
-  if (m1.value().st_uid != m2.value().st_uid) return false;
-
-  if (m1.value().st_gid != m2.value().st_gid) return false;
-
-  if (m1.value().st_mode != m2.value().st_mode) return false;
-
-  // Copy the identity to/from the matched version
-  identify(other);
-
-  // That's it. Metadata must match
-  return true;
+  // Compare metadata
+  if (_metadata.value() == other->_metadata.value()) {
+    // Metadata matches. Share the identity of both versions, and return true
+    identify(other);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 /// Equality function for timespec structs
@@ -79,7 +72,7 @@ bool Version::contentsMatch(shared_ptr<Version> other) const {
   }
 
   // Compare mtimes
-  if (m1.value().st_mtim == m2.value().st_mtim) {
+  if (m1.value().mtime == m2.value().mtime) {
     // The other version matched, so copy the identity between them
     identify(other);
     return true;
