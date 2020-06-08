@@ -49,8 +49,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact used for pretty-printing
   const string& getName() const { return _name; }
 
-  /// Set the naem of this artifact used for pretty-printing
-  void setName(string name) { _name = name; }
+  /// Set the name of this artifact used for pretty-printing. Prefer shorter names.
+  void setName(string newname) {
+    if (newname.empty()) return;
+    if (_name.empty() || newname.size() < _name.size()) _name = newname;
+  }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const { return _versions.size(); }

@@ -163,15 +163,29 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       // requested, then the access fails with an error
       if ((flags.r || flags.w) && !flags.directory) return {nullptr, EISDIR};
 
-      artifact = make_shared<DirArtifact>(*this, true, make_shared<MetadataVersion>(statbuf));
+      // Have we seen this directory before?
+      auto iter = _inodes.find(statbuf.st_ino);
+      if (iter != _inodes.end()) {
+        artifact = iter->second;
+      } else {
+        artifact = make_shared<DirArtifact>(*this, true, make_shared<MetadataVersion>(statbuf));
+        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
+      }
 
     } else if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
       // File
       // If the access flags include reading or writing, and a directory was requested, this fails
       if (flags.directory) return {nullptr, ENOTDIR};
 
-      artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
-                                           make_shared<ContentVersion>(statbuf));
+      // Have we seen this file before?
+      auto iter = _inodes.find(statbuf.st_ino);
+      if (iter != _inodes.end()) {
+        artifact = iter->second;
+      } else {
+        artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
+                                             make_shared<ContentVersion>(statbuf));
+        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
+      }
 
     } else {
       // Someting else. Just make it a file for now
@@ -180,8 +194,15 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<
       // If the access flags include reading or writing, and a directory was requested, this fails
       if (flags.directory) return {nullptr, ENOTDIR};
 
-      artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
-                                           make_shared<ContentVersion>(statbuf));
+      // Have we seen this inode before?
+      auto iter = _inodes.find(statbuf.st_ino);
+      if (iter != _inodes.end()) {
+        artifact = iter->second;
+      } else {
+        artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
+                                             make_shared<ContentVersion>(statbuf));
+        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
+      }
     }
 
     // Name the artifact

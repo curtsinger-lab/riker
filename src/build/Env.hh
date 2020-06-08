@@ -88,4 +88,7 @@ class Env {
 
   /// The pipe artifacts used in this environment
   map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
+
+  /// A map of artifacts identified by inode
+  map<ino_t, shared_ptr<Artifact>> _inodes;
 };
