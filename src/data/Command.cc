@@ -7,9 +7,6 @@
 #include <memory>
 #include <string>
 
-#include <limits.h>
-#include <unistd.h>
-
 #include "artifact/Artifact.hh"
 #include "build/Build.hh"
 #include "data/AccessFlags.hh"
@@ -19,6 +16,7 @@
 #include "data/MetadataVersion.hh"
 #include "data/Version.hh"
 #include "ui/options.hh"
+#include "util/path.hh"
 
 using std::cout;
 using std::endl;
@@ -28,22 +26,6 @@ using std::shared_ptr;
 using std::string;
 
 namespace fs = std::filesystem;
-
-fs::path readlink(string path) {
-  char* buffer = nullptr;
-  ssize_t capacity = 0;
-  ssize_t bytes_read = 0;
-
-  do {
-    capacity += PATH_MAX;
-    buffer = (char*)realloc(buffer, capacity);
-    bytes_read = readlink(path.c_str(), buffer, capacity);
-  } while (bytes_read == capacity);
-
-  string result(buffer, buffer + bytes_read);
-  free(buffer);
-  return result;
-}
 
 // The root command invokes "dodo launch" to run the actual build script. Construct this command.
 shared_ptr<Command> Command::createRootCommand() {

@@ -15,6 +15,7 @@
 #include "data/IR.hh"
 #include "tracing/syscalls.hh"
 #include "util/log.hh"
+#include "util/path.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;
@@ -379,25 +380,20 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // The command accesses this path with execute permissions
   auto exe_ref = _command->access(exe_path, {.x = true});
 
-  // Finish the exec syscall
+  // Finish the exec syscall and resume
   int rc = finishSyscall();
+  resume();
 
   // Not sure why, but exec returns -38 on success.
   // If we see something else, handle the error
   if (rc != -38) {
     // Failure! Record a failed reference. Negate rc because syscalls return negative errors
     _command->referenceResult(exe_ref, -rc);
-
-    // Resume the process and stop handling
-    resume();
     return;
   }
 
   // If we reached this point, the executable reference was okay
   _command->referenceResult(exe_ref, SUCCESS);
-
-  // Resume the child
-  resume();
 
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the process'
@@ -416,26 +412,33 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
     _fds.erase(index);
   }
 
-  // This process launches a new command, and is now running that command
-  _command = _command->launch(exe_path, args, initial_fds);
-
-  // Get the executable file artifact
+  // Resolve the reference to the executable
   exe_ref->resolve(_command, _build);
 
   FAIL_IF(!exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
-  // The child command reads the contents of the executable file
-  auto child_exe_ref = _command->access(exe_path, {.r = true});
-
-  child_exe_ref->resolve(_command, _build);
-
-  FAIL_IF(!child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
-
-  // The reference to the executable file must succeed
-  _command->referenceResult(child_exe_ref, SUCCESS);
+  // This process launches a new command, and is now running that command
+  _command = _command->launch(exe_path, args, initial_fds);
 
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(child_exe_ref);
+  _command->contentsMatch(exe_ref);
+
+  // Get the path to the real executable for this command. Important for #! commands.
+  auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
+
+  // If real_exe_path is not the same as exe_path, we depend on the contents there as well
+  if (exe_path != real_exe_path) {
+    // Make a reference and record a successful result
+    auto real_exe_ref = _command->access(real_exe_path, {.x = true});
+    _command->referenceResult(real_exe_ref, SUCCESS);
+
+    // Resolve the reference
+    real_exe_ref->resolve(_command, _build);
+    FAIL_IF(!real_exe_ref->isResolved()) << "Failed to resolve executable reference";
+
+    // Depend on the contents of the real executable
+    _command->contentsMatch(real_exe_ref);
+  }
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
   // participate in that command. This will require some extra bookkeeping. For now, we
