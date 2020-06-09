@@ -7,16 +7,16 @@
 #include <memory>
 #include <string>
 
-#include "artifact/Artifact.hh"
+#include "artifacts/Artifact.hh"
 #include "build/Build.hh"
-#include "data/AccessFlags.hh"
-#include "data/ContentVersion.hh"
-#include "data/FileDescriptor.hh"
-#include "data/IR.hh"
-#include "data/MetadataVersion.hh"
-#include "data/Version.hh"
+#include "core/AccessFlags.hh"
+#include "core/FileDescriptor.hh"
+#include "core/IR.hh"
 #include "ui/options.hh"
 #include "util/path.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/Version.hh"
 
 using std::cout;
 using std::endl;

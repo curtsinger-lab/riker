@@ -7,7 +7,7 @@
 
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
-#include "data/Command.hh"
+#include "core/Command.hh"
 
 using std::ostream;
 using std::set;

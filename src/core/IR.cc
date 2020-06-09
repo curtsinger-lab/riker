@@ -9,14 +9,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "artifact/Artifact.hh"
+#include "artifacts/Artifact.hh"
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
-#include "data/Command.hh"
-#include "data/ContentVersion.hh"
-#include "data/MetadataVersion.hh"
-#include "data/Version.hh"
+#include "core/Command.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::ostream;

@@ -6,9 +6,8 @@
 #include <string>
 #include <utility>
 
-#include "artifact/Artifact.hh"
-#include "data/Metadata.hh"
-#include "data/serializer.hh"
+#include "artifacts/Artifact.hh"
+#include "util/serializer.hh"
 
 using std::optional;
 using std::ostream;

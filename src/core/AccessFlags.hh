@@ -5,7 +5,7 @@
 
 #include <fcntl.h>
 
-#include "data/serializer.hh"
+#include "util/serializer.hh"
 
 using std::ostream;
 using std::pair;

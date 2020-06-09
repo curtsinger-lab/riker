@@ -3,7 +3,7 @@
 #include <memory>
 #include <optional>
 
-#include "data/IR.hh"
+#include "core/IR.hh"
 
 using std::dynamic_pointer_cast;
 using std::nullopt;

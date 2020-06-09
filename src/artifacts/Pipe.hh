@@ -1,6 +1,6 @@
 #pragma once
 
-#include "artifact/File.hh"
+#include "artifacts/File.hh"
 
 class PipeArtifact final : public FileArtifact {
  public:

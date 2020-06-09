@@ -5,8 +5,8 @@
 #include <set>
 
 #include "build/BuildObserver.hh"
-#include "data/Command.hh"
-#include "data/Version.hh"
+#include "core/Command.hh"
+#include "versions/Version.hh"
 
 using std::endl;
 using std::ostream;

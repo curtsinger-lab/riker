@@ -20,12 +20,12 @@
 #include <unistd.h>
 
 #include "build/Build.hh"
-#include "data/Command.hh"
-#include "data/FileDescriptor.hh"
-#include "data/Version.hh"
+#include "core/Command.hh"
+#include "core/FileDescriptor.hh"
 #include "tracing/Process.hh"
 #include "tracing/syscalls.hh"
 #include "util/log.hh"
+#include "versions/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::list;

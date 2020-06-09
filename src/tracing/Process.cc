@@ -8,11 +8,11 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
-#include "artifact/Artifact.hh"
+#include "artifacts/Artifact.hh"
 #include "build/Build.hh"
-#include "data/Command.hh"
-#include "data/FileDescriptor.hh"
-#include "data/IR.hh"
+#include "core/Command.hh"
+#include "core/FileDescriptor.hh"
+#include "core/IR.hh"
 #include "tracing/syscalls.hh"
 #include "util/log.hh"
 #include "util/path.hh"

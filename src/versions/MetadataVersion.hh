@@ -3,16 +3,40 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
-#include "data/Metadata.hh"
-#include "data/Version.hh"
-#include "data/serializer.hh"
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "util/serializer.hh"
+#include "versions/Version.hh"
 
 using std::optional;
 using std::shared_ptr;
 using std::string;
 
 class Reference;
+
+struct Metadata {
+ public:
+  uint16_t mode;
+  uid_t uid;
+  gid_t gid;
+
+  /// Default constructor for deserialization
+  Metadata() = default;
+
+  /// Create a Metadata object from stat data
+  Metadata(struct stat& s) : mode(s.st_mode), uid(s.st_uid), gid(s.st_gid) {}
+
+  /// Compare to another Metadata instance
+  bool operator==(const Metadata& other) const {
+    return std::tie(mode, uid, gid) == std::tie(other.mode, other.uid, other.gid);
+  }
+
+  SERIALIZE(mode, uid, gid);
+};
 
 class MetadataVersion final : public Version {
  public:

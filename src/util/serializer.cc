@@ -16,16 +16,14 @@
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "data/AccessFlags.hh"
-#include "data/Command.hh"
-#include "data/ContentVersion.hh"
-#include "data/FileDescriptor.hh"
-#include "data/Fingerprint.hh"
-#include "data/IR.hh"
-#include "data/Metadata.hh"
-#include "data/MetadataVersion.hh"
-#include "data/Version.hh"
+#include "core/AccessFlags.hh"
+#include "core/Command.hh"
+#include "core/FileDescriptor.hh"
+#include "core/IR.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/Version.hh"
 
 using std::ifstream;
 using std::ofstream;

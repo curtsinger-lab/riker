@@ -8,10 +8,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "data/AccessFlags.hh"
-#include "data/serializer.hh"
+#include "core/AccessFlags.hh"
 #include "util/UniqueID.hh"
 #include "util/log.hh"
+#include "util/serializer.hh"
 
 using std::ostream;
 using std::pair;

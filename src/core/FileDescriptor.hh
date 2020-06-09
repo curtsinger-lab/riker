@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "data/IR.hh"
-#include "data/serializer.hh"
+#include "core/IR.hh"
+#include "util/serializer.hh"
 
 using std::shared_ptr;
 

@@ -5,8 +5,8 @@
 #include <set>
 
 #include "build/BuildObserver.hh"
-#include "data/IR.hh"
-#include "data/Version.hh"
+#include "core/IR.hh"
+#include "versions/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::endl;

@@ -10,18 +10,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "artifact/Artifact.hh"
-#include "artifact/Dir.hh"
-#include "artifact/File.hh"
-#include "artifact/Pipe.hh"
+#include "artifacts/Artifact.hh"
+#include "artifacts/Dir.hh"
+#include "artifacts/File.hh"
+#include "artifacts/Pipe.hh"
 #include "build/Build.hh"
-#include "data/Command.hh"
-#include "data/ContentVersion.hh"
-#include "data/IR.hh"
-#include "data/MetadataVersion.hh"
-#include "data/Version.hh"
+#include "core/Command.hh"
+#include "core/IR.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/Version.hh"
 
 using std::dynamic_pointer_cast;
 using std::make_shared;

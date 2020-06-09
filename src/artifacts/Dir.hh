@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "artifact/Artifact.hh"
+#include "artifacts/Artifact.hh"
 
 using std::shared_ptr;
 using std::string;

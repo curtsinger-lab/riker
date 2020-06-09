@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
-#include "data/AccessFlags.hh"
-#include "data/FileDescriptor.hh"
-#include "data/serializer.hh"
+#include "core/AccessFlags.hh"
+#include "core/FileDescriptor.hh"
+#include "util/serializer.hh"
 
 using std::list;
 using std::map;

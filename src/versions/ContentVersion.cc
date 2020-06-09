@@ -5,7 +5,7 @@
 
 #include <unistd.h>
 
-#include "data/IR.hh"
+#include "core/IR.hh"
 #include "util/log.hh"
 
 using std::dynamic_pointer_cast;

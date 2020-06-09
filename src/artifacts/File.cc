@@ -3,11 +3,11 @@
 #include <memory>
 #include <string>
 
-#include "artifact/Artifact.hh"
+#include "artifacts/Artifact.hh"
 #include "build/Build.hh"
-#include "data/ContentVersion.hh"
-#include "data/MetadataVersion.hh"
-#include "data/Version.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/Version.hh"
 
 using std::shared_ptr;
 using std::string;

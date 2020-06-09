@@ -4,8 +4,8 @@
 #include <memory>
 #include <ostream>
 
-#include "artifact/Artifact.hh"
-#include "data/IR.hh"
+#include "artifacts/Artifact.hh"
+#include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
 

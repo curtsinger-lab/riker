@@ -12,13 +12,13 @@
 #include <CLI/CLI.hpp>
 
 #include "build/Build.hh"
-#include "data/serializer.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "observers/Stats.hh"
 #include "observers/Trace.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
+#include "util/serializer.hh"
 
 using std::cout;
 using std::endl;
