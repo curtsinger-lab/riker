@@ -86,7 +86,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /********** Metadata: All Artifact Types **********/
 
   /// Get the creator of the latest version of this artifact
-  shared_ptr<Command> getMetadataCreator() const { return _metadata_filter.getLastWriter(); }
+  shared_ptr<Command> getMetadataCreator() const { return _metadata_creator.lock(); }
+
+  /// Get the reference used to create the latest metadata version
+  shared_ptr<Reference> getMetadataReference() const { return _metadata_ref.lock(); }
+
+  bool isMetadataAccessed() const { return _metadata_accessed; }
+
+  shared_ptr<MetadataVersion> peekMetadata() const { return _metadata_version; }
 
   /**
    * Command c accesses the metadata for this artifact using reference ref.
@@ -113,6 +120,22 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get the creator of the latest version of this artifact
   virtual shared_ptr<Command> getContentCreator() const {
+    WARN << "Invalid reference to contents of artifact " << this;
+    return nullptr;
+  }
+
+  // Get the reference used to create the latest content version
+  virtual shared_ptr<Reference> getContentReference() const {
+    WARN << "Invalid reference to contents of artifact " << this;
+    return nullptr;
+  }
+
+  virtual bool isContentAccessed() const {
+    WARN << "Invalid reference to contents of artifact " << this;
+    return true;
+  }
+
+  virtual shared_ptr<ContentVersion> peekContent() const {
     WARN << "Invalid reference to contents of artifact " << this;
     return nullptr;
   }
@@ -165,50 +188,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Add a version to the sequence of versions for this artifact
   void appendVersion(const shared_ptr<Version>& v);
 
-  /**
-   * This class captures the state and logic required to decide when reads/writes must be recorded
-   * and when they can safely be skipped.
-   */
-  class AccessFilter {
-   public:
-    /**
-     * Update tracking data to record that the given command has made a read access
-     * \param reader The command that issued the read
-     */
-    void readBy(const shared_ptr<Command>& reader);
-
-    /**
-     * Check if a read access must be logged, or if it can safely be elided from the trace.
-     * \param reader The command that is issuing the read
-     * \param ref    The reference used for the read
-     * \returns true if the read must be logged, or false otherwise
-     */
-    bool readRequired(const shared_ptr<Command>& reader, const shared_ptr<Reference>& ref);
-
-    /**
-     * Update tracking data to record that the given command has made a write access
-     * \param writer The command that issued the write
-     * \param ref    The reference used for the write
-     */
-    void writtenBy(const shared_ptr<Command>& writer, const shared_ptr<Reference>& ref);
-
-    /**
-     * Check if a write access must be logged, or if it can safely be elided from the trace
-     * \param writer The command that issued the write
-     * \param ref    The reference used for the write
-     * \return true if the write must be logged with a new version, or false otherwise
-     */
-    bool writeRequired(const shared_ptr<Command>& writer, const shared_ptr<Reference>& ref);
-
-    /// Get the last writer
-    shared_ptr<Command> getLastWriter() const { return _last_writer.lock(); }
-
-   private:
-    weak_ptr<Command> _last_writer;
-    weak_ptr<Reference> _write_ref;
-    bool _accessed = false;
-  };
-
  protected:
   /// The environment this artifact is managed by
   Env& _env;
@@ -226,6 +205,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Is the latest metadata version committed to the filesystem?
   bool _metadata_committed;
 
-  /// The access filter that controls metadata interactions
-  AccessFilter _metadata_filter;
+  /// Metadata was last modified by this command
+  weak_ptr<Command> _metadata_creator;
+
+  /// Metadata was last modified using this reference
+  weak_ptr<Reference> _metadata_ref;
+
+  /// Has the metadata for this artifact been accessed?
+  bool _metadata_accessed;
 };

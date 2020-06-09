@@ -116,6 +116,13 @@ void Command::referenceResult(const shared_ptr<Reference>& ref, int result) {
 void Command::metadataMatch(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
+  // Has this command used this reference before?
+  auto iter = _metadata_reads.find(ref);
+  if (iter != _metadata_reads.end()) {
+    // Found a match. We can skip this read if the version is unchanged.
+    if (ref->getArtifact()->peekMetadata() == iter->second) return;
+  }
+
   // Inform the artifact that this command accesses its metadata
   auto v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
 
@@ -126,12 +133,22 @@ void Command::metadataMatch(const shared_ptr<Reference>& ref) {
 
     // Add the IR step
     _steps.push_back(make_shared<MetadataMatch>(ref, v));
+
+    // Record the metadata reference
+    _metadata_reads.emplace_hint(iter, ref, v);
   }
 }
 
 // This command depends on the contents of a referenced artifact
 void Command::contentsMatch(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
+
+  // Has this command used this reference before?
+  auto iter = _content_reads.find(ref);
+  if (iter != _content_reads.end()) {
+    // Found a match. We can skip this read if the version is unchanged.
+    if (ref->getArtifact()->peekContent() == iter->second) return;
+  }
 
   // Inform the artifact that this command accesses its contents
   auto v = ref->getArtifact()->accessContents(shared_from_this(), ref);
@@ -143,12 +160,29 @@ void Command::contentsMatch(const shared_ptr<Reference>& ref) {
 
     // Add the IR step
     _steps.push_back(make_shared<ContentsMatch>(ref, v));
+
+    // Record the content read
+    _content_reads.emplace_hint(iter, ref, v);
   }
 }
 
 // This command sets the metadata of a referenced artifact
 void Command::setMetadata(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
+
+  // Has this command used this reference before?
+  auto iter = _metadata_writes.find(ref);
+  if (iter != _metadata_writes.end()) {
+    // Found a match. Can we skip this write? Three conditions must hold:
+    // 1. Artifact was last written by this command
+    // 2. Artifact was last written with this reference
+    // 3. Artifact has not been accessed since the last write
+    if (ref->getArtifact()->getMetadataCreator() == shared_from_this() &&
+        ref->getArtifact()->getMetadataReference() == ref &&
+        !ref->getArtifact()->isMetadataAccessed()) {
+      return;
+    }
+  }
 
   // Inform the artifact that this command sets its metadata
   auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
@@ -157,12 +191,32 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   if (v) {
     // Create the SetMetadata step and add it to the command
     _steps.push_back(make_shared<SetMetadata>(ref, v));
+
+    // Record the metadata reference
+    _metadata_writes.emplace_hint(iter, ref);
+
+    // Future reads to this version can also be elided
+    _metadata_reads.emplace(ref, v);
   }
 }
 
 // This command sets the contents of a referenced artifact
 void Command::setContents(const shared_ptr<Reference>& ref) {
   FAIL_IF(!ref->isResolved()) << "Cannot set contents for an unresolved reference.";
+
+  // Has this command used this reference before?
+  auto iter = _content_writes.find(ref);
+  if (iter != _content_writes.end()) {
+    // Found a match. Can we skip this write? Three conditions must hold:
+    // 1. Artifact was last written by this command
+    // 2. Artifact was last written with this reference
+    // 3. Artifact has not been accessed since the last write
+    if (ref->getArtifact()->getContentCreator() == shared_from_this() &&
+        ref->getArtifact()->getContentReference() == ref &&
+        !ref->getArtifact()->isContentAccessed()) {
+      return;
+    }
+  }
 
   // Inform the artifact that this command sets its contents
   auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
@@ -171,11 +225,23 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
   if (v) {
     // Create the SetContents step and add it to the command
     _steps.push_back(make_shared<SetContents>(ref, v));
+
+    // Record the content write
+    _content_writes.emplace_hint(iter, ref);
+
+    // Future reads to this version can also be elided
+    _content_reads.emplace(ref, v);
   }
 }
 
 // This command launches a child command
 shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
+  // Reads and writes cannot be elided after launching a command. Clear the read/write sets
+  _metadata_reads.clear();
+  _content_reads.clear();
+  _metadata_writes.clear();
+  _content_writes.clear();
+
   auto child = make_shared<Command>(exe, args, fds);
 
   if (options::print_on_run) cout << child->getFullName() << endl;

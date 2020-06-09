@@ -84,19 +84,12 @@ void Artifact::checkFinalState(const shared_ptr<Reference>& ref) {
 // Return the version it observes, or nullptr if no check is necessary
 shared_ptr<MetadataVersion> Artifact::accessMetadata(const shared_ptr<Command>& c,
                                                      const shared_ptr<Reference>& ref) {
-  // Do we need to log this access?
-  if (_metadata_filter.readRequired(c, ref)) {
-    // Record the read
-    _metadata_filter.readBy(c);
+  // Mark the metadata as accessed
+  _metadata_accessed = true;
 
-    // Yes. Notify the build and return the version
-    _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
-    return _metadata_version;
-
-  } else {
-    // No. Just return nullptr
-    return nullptr;
-  }
+  // Yes. Notify the build and return the version
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
+  return _metadata_version;
 }
 
 // Command c sets the metadata for this artifact.
@@ -106,15 +99,13 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
                                                   const shared_ptr<MetadataVersion>& v) {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
-    // Is a new version even required?
-    if (!_metadata_filter.writeRequired(c, ref)) return nullptr;
-
     // Create a version to track the new on-disk state
     _metadata_version = make_shared<MetadataVersion>();
 
     // Append the new version. This version is committed.
     appendVersion(_metadata_version);
     _metadata_committed = true;
+
   } else {
     // Adopt v as the new metadata version
     _metadata_version = v;
@@ -124,8 +115,10 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
     _metadata_committed = false;
   }
 
-  // Record the write
-  _metadata_filter.writtenBy(c, ref);
+  // Record the required information about this metadata update
+  _metadata_creator = c;
+  _metadata_ref = ref;
+  _metadata_accessed = false;
 
   // Inform the environment of this output
   _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);
@@ -137,45 +130,4 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
 void Artifact::appendVersion(const shared_ptr<Version>& v) {
   _versions.push_back(v);
   v->identify(this);
-}
-
-// Record that the given command issued a read
-void Artifact::AccessFilter::readBy(const shared_ptr<Command>& reader) {
-  _accessed = true;
-}
-
-// Check if a read access must be logged separately, or if it can be safely ignored
-bool Artifact::AccessFilter::readRequired(const shared_ptr<Command>& reader,
-                                          const shared_ptr<Reference>& ref) {
-  // We can skip reads if:
-  // 1. The reader is the last writer
-  // 2. The read is issued with the same reference as the last write
-  if (!options::ignore_self_reads) return true;
-  if (reader != _last_writer.lock()) return true;
-  if (ref != _write_ref.lock()) return true;
-
-  return false;
-}
-
-// Record that the given command issued a write
-void Artifact::AccessFilter::writtenBy(const shared_ptr<Command>& writer,
-                                       const shared_ptr<Reference>& ref) {
-  _last_writer = writer;
-  _write_ref = ref;
-  _accessed = false;
-}
-
-// Check if a write access must be logged separately, or if it can be safely ignored
-bool Artifact::AccessFilter::writeRequired(const shared_ptr<Command>& writer,
-                                           const shared_ptr<Reference>& ref) {
-  // We can skip writes if:
-  // 1. The writer is the same as the last writer
-  // 2. The write is issued with the same reference
-  // 3. There have been no accesses since the last write (the intermediate state was not seen)
-  if (!options::combine_writes) return true;
-  if (writer != _last_writer.lock()) return true;
-  if (ref != _write_ref.lock()) return true;
-  if (_accessed) return true;
-
-  return false;
 }

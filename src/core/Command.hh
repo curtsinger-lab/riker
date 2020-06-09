@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@
 using std::list;
 using std::map;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -139,4 +141,20 @@ class Command : public std::enable_shared_from_this<Command> {
   // Create default constructor and specify fields for serialization
   Command() = default;
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
+
+  /****** Transient Data ******/
+
+  // Keep a record of the references that are used to write metadata and contents.
+  // Future writes through a stored reference can be skipped if:
+  // 1. This command is the last writer of the artifact's content/metadata
+  // 2. The same reference was last used to write the artifact's content/metadata
+  // 3. The artifact's content/metadata has not been accessed since its last write
+  set<shared_ptr<Reference>> _metadata_writes;
+  set<shared_ptr<Reference>> _content_writes;
+
+  // Keep a record of references used to read metadata and contents and the observed versions.
+  // Future reads through a stored reference can be skipped if the artifact still has the same
+  // version for its content/metadata.
+  map<shared_ptr<Reference>, shared_ptr<MetadataVersion>> _metadata_reads;
+  map<shared_ptr<Reference>, shared_ptr<ContentVersion>> _content_reads;
 };

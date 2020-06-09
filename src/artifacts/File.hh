@@ -9,9 +9,9 @@ using std::shared_ptr;
 using std::string;
 
 class Command;
+class ContentVersion;
 class Reference;
 class Version;
-class ContentVersion;
 
 class FileArtifact : public Artifact {
  public:
@@ -21,9 +21,13 @@ class FileArtifact : public Artifact {
 
   virtual void checkFinalState(const shared_ptr<Reference>& ref) override final;
 
-  virtual shared_ptr<Command> getContentCreator() const override final {
-    return _content_filter.getLastWriter();
-  }
+  virtual shared_ptr<Command> getContentCreator() const final { return _content_creator.lock(); }
+
+  virtual shared_ptr<Reference> getContentReference() const final { return _content_ref.lock(); }
+
+  virtual bool isContentAccessed() const final { return _content_accessed; }
+
+  virtual shared_ptr<ContentVersion> peekContent() const final { return _content_version; }
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
   virtual bool isSaved() const override final;
@@ -59,6 +63,12 @@ class FileArtifact : public Artifact {
   /// Is the latest content version committed?
   bool _content_committed;
 
-  /// The access filter that controls content interactions
-  AccessFilter _content_filter;
+  /// Metadata was last modified by this command
+  weak_ptr<Command> _content_creator;
+
+  /// Metadata was last modified using this reference
+  weak_ptr<Reference> _content_ref;
+
+  /// Has the metadata for this artifact been accessed?
+  bool _content_accessed;
 };

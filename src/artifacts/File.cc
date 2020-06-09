@@ -88,19 +88,11 @@ void FileArtifact::checkFinalState(const shared_ptr<Reference>& ref) {
 // Return the version it observes, or nullptr if no check is necessary
 shared_ptr<ContentVersion> FileArtifact::accessContents(const shared_ptr<Command>& c,
                                                         const shared_ptr<Reference>& ref) {
-  // Do we need to log this access?
-  if (_content_filter.readRequired(c, ref)) {
-    // Record the read
-    _content_filter.readBy(c);
+  _content_accessed = true;
 
-    // Yes. Notify the build and return the version
-    _env.getBuild().observeInput(c, shared_from_this(), _content_version);
-    return _content_version;
-
-  } else {
-    // No. Just return nullptr
-    return nullptr;
-  }
+  // Yes. Notify the build and return the version
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version);
+  return _content_version;
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
@@ -109,15 +101,13 @@ shared_ptr<ContentVersion> FileArtifact::setContents(const shared_ptr<Command>& 
                                                      const shared_ptr<ContentVersion>& v) {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
-    // Is a new version even required?
-    if (!_content_filter.writeRequired(c, ref)) return nullptr;
-
     // Create a version to track the new on-disk state
     _content_version = make_shared<ContentVersion>();
 
     // Append the new version and mark it as committed
     appendVersion(_content_version);
     _content_committed = true;
+
   } else {
     // Adopt v as the new content version
     _content_version = v;
@@ -127,8 +117,10 @@ shared_ptr<ContentVersion> FileArtifact::setContents(const shared_ptr<Command>& 
     _content_committed = false;
   }
 
-  // Record the write
-  _content_filter.writtenBy(c, ref);
+  // Update creator, ref, and accessed tracking info
+  _content_creator = c;
+  _content_ref = ref;
+  _content_accessed = false;
 
   // Inform the environment of this output
   _env.getBuild().observeOutput(c, shared_from_this(), _content_version);
