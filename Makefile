@@ -32,7 +32,7 @@ dodo-launch: launch/launch.c
 test: dodo dodo-launch
 	@echo "Running test cases"
 	@rm -f tests/*/*.t.err
-	@DODO="$(PWD)/dodo" cram --quiet tests/*/*.t || ( \
+	@DODO="$(PWD)/dodo" time -f"Tests ran in %e seconds" cram --quiet tests/*/*.t || ( \
 		echo "\nFailed tests:" && \
 		for fail in `find tests | grep .t.err | xargs -L 1 dirname | xargs -L 1 basename | uniq`; do \
 		  echo -n "  $$fail ("; \
