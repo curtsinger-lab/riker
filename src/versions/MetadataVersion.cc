@@ -32,6 +32,9 @@ void MetadataVersion::commit(const shared_ptr<Reference>& ref) const {
 
 // Compare to another version
 bool MetadataVersion::matches(const shared_ptr<Version>& other) const {
+  // A version compares equal to itself, even if we have no saved metadata
+  if (other.get() == this) return true;
+
   // If we have no saved metadata, we cannot find a match
   if (!_metadata.has_value()) return false;
 

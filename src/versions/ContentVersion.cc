@@ -47,6 +47,9 @@ void ContentVersion::fingerprint(const shared_ptr<Reference>& ref) {
 
 // Compare this version to another version
 bool ContentVersion::matches(const shared_ptr<Version>& other) const {
+  // A version compares equal to itself, even if we have no saved metadata
+  if (other.get() == this) return true;
+
   // If we have no saved fingerprint, we cannot find a match
   if (!_fingerprint.has_value()) return false;
 
