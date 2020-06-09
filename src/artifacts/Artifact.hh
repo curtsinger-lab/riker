@@ -99,8 +99,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * Command c accesses the metadata for this artifact using reference ref.
    * \param c   The command making the access
    * \param ref The referenced used to reach this artifact
-   * \returns the version the command observes, or nullptr if the command has already observed the
-   *          latest version using this reference (no check is necessary).
+   * \returns the version the command observes
    */
   shared_ptr<MetadataVersion> accessMetadata(const shared_ptr<Command>& c,
                                              const shared_ptr<Reference>& ref);

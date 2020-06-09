@@ -114,7 +114,7 @@ void Command::referenceResult(const shared_ptr<Reference>& ref, int result) {
 
 // This command depends on the metadata of a referenced artifact
 void Command::metadataMatch(const shared_ptr<Reference>& ref) {
-  FAIL_IF(!ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
+  ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
   // Has this command used this reference before?
   auto iter = _metadata_reads.find(ref);
@@ -126,22 +126,19 @@ void Command::metadataMatch(const shared_ptr<Reference>& ref) {
   // Inform the artifact that this command accesses its metadata
   auto v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
 
-  // If v is a valid version, add this check to the trace IR
-  if (v) {
-    // Save the version's metadata so we can check it on rebuild
-    v->fingerprint(ref);
+  // Save the version's metadata so we can check it on rebuild
+  v->fingerprint(ref);
 
-    // Add the IR step
-    _steps.push_back(make_shared<MetadataMatch>(ref, v));
+  // Add the IR step
+  _steps.push_back(make_shared<MetadataMatch>(ref, v));
 
-    // Record the metadata reference
-    _metadata_reads.emplace_hint(iter, ref, v);
-  }
+  // Record the metadata reference
+  if (iter == _metadata_reads.end()) _metadata_reads.emplace_hint(iter, ref, v);
 }
 
 // This command depends on the contents of a referenced artifact
 void Command::contentsMatch(const shared_ptr<Reference>& ref) {
-  FAIL_IF(!ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
+  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
 
   // Has this command used this reference before?
   auto iter = _content_reads.find(ref);
@@ -153,22 +150,24 @@ void Command::contentsMatch(const shared_ptr<Reference>& ref) {
   // Inform the artifact that this command accesses its contents
   auto v = ref->getArtifact()->accessContents(shared_from_this(), ref);
 
-  // if v is a valid version, add a contents check to the trace IR
-  if (v) {
-    // Save the version's finerprint so we can check it on rebuild
-    v->fingerprint(ref);
-
-    // Add the IR step
-    _steps.push_back(make_shared<ContentsMatch>(ref, v));
-
-    // Record the content read
-    _content_reads.emplace_hint(iter, ref, v);
+  if (!v) {
+    WARN << "Accessing contents of " << ref << " returned a null version";
+    return;
   }
+
+  // Save the version's finerprint so we can check it on rebuild
+  v->fingerprint(ref);
+
+  // Add the IR step
+  _steps.push_back(make_shared<ContentsMatch>(ref, v));
+
+  // Record the content read
+  if (iter == _content_reads.end()) _content_reads.emplace_hint(iter, ref, v);
 }
 
 // This command sets the metadata of a referenced artifact
 void Command::setMetadata(const shared_ptr<Reference>& ref) {
-  FAIL_IF(!ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
+  ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Has this command used this reference before?
   auto iter = _metadata_writes.find(ref);
@@ -187,22 +186,19 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   // Inform the artifact that this command sets its metadata
   auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
 
-  // If we created a new version, record this action in the trace IR
-  if (v) {
-    // Create the SetMetadata step and add it to the command
-    _steps.push_back(make_shared<SetMetadata>(ref, v));
+  // Create the SetMetadata step and add it to the command
+  _steps.push_back(make_shared<SetMetadata>(ref, v));
 
-    // Record the metadata reference
-    _metadata_writes.emplace_hint(iter, ref);
+  // Record the metadata reference
+  if (iter == _metadata_writes.end()) _metadata_writes.emplace_hint(iter, ref);
 
-    // Future reads to this version can also be elided
-    _metadata_reads.emplace(ref, v);
-  }
+  // Future reads to this version can also be elided
+  _metadata_reads.emplace(ref, v);
 }
 
 // This command sets the contents of a referenced artifact
 void Command::setContents(const shared_ptr<Reference>& ref) {
-  FAIL_IF(!ref->isResolved()) << "Cannot set contents for an unresolved reference.";
+  ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Has this command used this reference before?
   auto iter = _content_writes.find(ref);
@@ -221,17 +217,19 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
   // Inform the artifact that this command sets its contents
   auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
 
-  // If we created a new version, record this action in the trace IR
-  if (v) {
-    // Create the SetContents step and add it to the command
-    _steps.push_back(make_shared<SetContents>(ref, v));
-
-    // Record the content write
-    _content_writes.emplace_hint(iter, ref);
-
-    // Future reads to this version can also be elided
-    _content_reads.emplace(ref, v);
+  if (!v) {
+    WARN << "Setting contents of " << ref << " produced a null version";
+    return;
   }
+
+  // Create the SetContents step and add it to the command
+  _steps.push_back(make_shared<SetContents>(ref, v));
+
+  // Record the content write
+  if (iter == _content_writes.end()) _content_writes.emplace_hint(iter, ref);
+
+  // Future reads to this version can also be elided
+  _content_reads.emplace(ref, v);
 }
 
 // This command launches a child command

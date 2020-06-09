@@ -113,18 +113,19 @@ class logger {
   }
 };
 
+class null_logger {
+ public:
+  template <typename T>
+  null_logger& operator<<(T t) {
+    return *this;
+  }
+};
+
 // Set macros for explicit logging
 #define LOG logger(__FILE__, __LINE__, LogLevel::Verbose)
 #define INFO logger(__FILE__, __LINE__, LogLevel::Info)
 #define WARN logger(__FILE__, __LINE__, LogLevel::Warning)
 #define FAIL logger(__FILE__, __LINE__, LogLevel::Fatal)
-
-// Define an ASSERT macro, but disable checks when NDEBUG is defined
-#ifdef NDEBUG
-#define ASSERT(cond) null_logger()
-#else
-#define ASSERT(cond) (cond) ? null_logger() : FAIL
-#endif
 
 // Define conditional logging macros
 #define INFO_IF(cond) \
@@ -144,3 +145,12 @@ class logger {
 
 // Define a shortcut for printing the error message corresponding to the current errno
 #define ERR strerror(errno)
+
+// NDEBUG-controlled ASSERT and PREFER macros
+#ifdef NDEBUG
+#define ASSERT(cond) null_logger()
+#define PREFER(cond) null_logger()
+#else
+#define ASSERT(cond) FAIL_UNLESS(cond)
+#define PREFER(cond) WARN_UNLESS(cond)
+#endif
