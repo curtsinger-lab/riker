@@ -88,7 +88,19 @@ class Graph final : public BuildObserver {
 
     // Create I/O edges
     for (auto [src, dest] : _io_edges) {
-      o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2]\n";
+      // Does the reverse edges also appear in our set?
+      if (auto iter = _io_edges.find({dest, src}); iter != _io_edges.end()) {
+        // Yes. Draw this as a bidirectional edge
+        o << "  " << src << " -> " << dest
+          << " [arrowhead=empty weight=2 dir=both arrowtail=empty]\n";
+
+        // Erase the other edge, since we've already drawn it
+        _io_edges.erase(iter);
+
+      } else {
+        // No, this is just a regular input edge
+        o << "  " << src << " -> " << dest << " [arrowhead=empty weight=2]\n";
+      }
     }
 
     o << "}\n";
@@ -219,7 +231,7 @@ class Graph final : public BuildObserver {
   /// A set of command edges, from parent to child
   set<pair<string, string>> _command_edges;
 
-  /// Input/output edges (source -> dest)
+  // Command input edges (artifact -> command)
   set<pair<string, string>> _io_edges;
 
   /// The set of commands marked as changed
