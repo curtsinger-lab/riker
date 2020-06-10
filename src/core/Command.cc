@@ -116,36 +116,30 @@ void Command::referenceResult(const shared_ptr<Reference>& ref, int result) {
 void Command::metadataMatch(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
-  // Has this command used this reference before?
-  auto iter = _metadata_reads.find(ref);
-  if (iter != _metadata_reads.end()) {
-    // Found a match. We can skip this read if the version is unchanged.
-    if (ref->getArtifact()->peekMetadata() == iter->second) return;
-  }
+  // Do we have to log this read?
+  if (!_metadata_filter.readRequired(this, ref)) return;
 
   // Inform the artifact that this command accesses its metadata
   auto v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
 
-  // Save the version's metadata so we can check it on rebuild
-  v->fingerprint(ref);
+  // If the last write was from this command we don't need a fingerprint to compare.
+  if (ref->getArtifact()->getMetadataCreator() != shared_from_this()) {
+    v->fingerprint(ref);
+  }
 
   // Add the IR step
   _steps.push_back(make_shared<MetadataMatch>(ref, v));
 
-  // Record the metadata reference
-  if (iter == _metadata_reads.end()) _metadata_reads.emplace_hint(iter, ref, v);
+  // Report the read
+  _metadata_filter.read(this, ref);
 }
 
 // This command depends on the contents of a referenced artifact
 void Command::contentsMatch(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
 
-  // Has this command used this reference before?
-  auto iter = _content_reads.find(ref);
-  if (iter != _content_reads.end()) {
-    // Found a match. We can skip this read if the version is unchanged.
-    if (ref->getArtifact()->peekContent() == iter->second) return;
-  }
+  // Do we have to log this read?
+  if (!_content_filter.readRequired(this, ref)) return;
 
   // Inform the artifact that this command accesses its contents
   auto v = ref->getArtifact()->accessContents(shared_from_this(), ref);
@@ -155,33 +149,24 @@ void Command::contentsMatch(const shared_ptr<Reference>& ref) {
     return;
   }
 
-  // Save the version's finerprint so we can check it on rebuild
-  v->fingerprint(ref);
+  // If the last write was from this command, we don't need a fingerprint to compare.
+  if (ref->getArtifact()->getContentCreator() != shared_from_this()) {
+    v->fingerprint(ref);
+  }
 
   // Add the IR step
   _steps.push_back(make_shared<ContentsMatch>(ref, v));
 
-  // Record the content read
-  if (iter == _content_reads.end()) _content_reads.emplace_hint(iter, ref, v);
+  // Report the read
+  _content_filter.read(this, ref);
 }
 
 // This command sets the metadata of a referenced artifact
 void Command::setMetadata(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
-  // Has this command used this reference before?
-  auto iter = _metadata_writes.find(ref);
-  if (iter != _metadata_writes.end()) {
-    // Found a match. Can we skip this write? Three conditions must hold:
-    // 1. Artifact was last written by this command
-    // 2. Artifact was last written with this reference
-    // 3. Artifact has not been accessed since the last write
-    if (ref->getArtifact()->getMetadataCreator() == shared_from_this() &&
-        ref->getArtifact()->getMetadataReference() == ref &&
-        !ref->getArtifact()->isMetadataAccessed()) {
-      return;
-    }
-  }
+  // Do we have to log this write?
+  if (!_metadata_filter.writeRequired(this, ref, ref->getArtifact()->isContentAccessed())) return;
 
   // Inform the artifact that this command sets its metadata
   auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
@@ -189,57 +174,31 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   // Create the SetMetadata step and add it to the command
   _steps.push_back(make_shared<SetMetadata>(ref, v));
 
-  // Record the metadata reference
-  if (iter == _metadata_writes.end()) _metadata_writes.emplace_hint(iter, ref);
-
-  // Future reads to this version can also be elided
-  _metadata_reads.emplace(ref, v);
+  // Report the write
+  _metadata_filter.write(this, ref);
 }
 
 // This command sets the contents of a referenced artifact
 void Command::setContents(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
-  // Has this command used this reference before?
-  auto iter = _content_writes.find(ref);
-  if (iter != _content_writes.end()) {
-    // Found a match. Can we skip this write? Three conditions must hold:
-    // 1. Artifact was last written by this command
-    // 2. Artifact was last written with this reference
-    // 3. Artifact has not been accessed since the last write
-    if (ref->getArtifact()->getContentCreator() == shared_from_this() &&
-        ref->getArtifact()->getContentReference() == ref &&
-        !ref->getArtifact()->isContentAccessed()) {
-      return;
-    }
-  }
+  // Do we have to log this write?
+  if (!_content_filter.writeRequired(this, ref, ref->getArtifact()->isContentAccessed())) return;
 
   // Inform the artifact that this command sets its contents
   auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
 
-  if (!v) {
-    WARN << "Setting contents of " << ref << " produced a null version";
-    return;
-  }
+  ASSERT(v) << "Setting contents of " << ref << " produced a null version";
 
   // Create the SetContents step and add it to the command
   _steps.push_back(make_shared<SetContents>(ref, v));
 
-  // Record the content write
-  if (iter == _content_writes.end()) _content_writes.emplace_hint(iter, ref);
-
-  // Future reads to this version can also be elided
-  _content_reads.emplace(ref, v);
+  // Report the write
+  _content_filter.write(this, ref);
 }
 
 // This command launches a child command
 shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
-  // Reads and writes cannot be elided after launching a command. Clear the read/write sets
-  _metadata_reads.clear();
-  _content_reads.clear();
-  _metadata_writes.clear();
-  _content_writes.clear();
-
   auto child = make_shared<Command>(exe, args, fds);
 
   if (options::print_on_run) cout << child->getFullName() << endl;
@@ -248,4 +207,54 @@ shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, Fi
   _children.push_back(child);
 
   return child;
+}
+
+// Record the effect of a read by command c using reference ref
+void Command::AccessFilter::read(Command* c, shared_ptr<Reference> ref) {
+  // Command c can read through reference ref without logging until the next write
+  _observed.emplace(c, ref.get());
+}
+
+// Does command c need to add a read through reference ref to its trace?
+bool Command::AccessFilter::readRequired(Command* c, shared_ptr<Reference> ref) {
+  // If this optimization is disabled, the read is always required
+  if (!options::ignore_self_reads) return true;
+
+  // If this command has already read through this reference, the read is not required
+  if (_observed.find({c, ref.get()}) != _observed.end()) return false;
+
+  // Otherwise the read is required
+  return true;
+}
+
+// Record the effect of a write by command c using reference ref
+void Command::AccessFilter::write(Command* c, shared_ptr<Reference> ref) {
+  // All future reads could be affected by this write, so they need to be logged
+  _observed.clear();
+
+  // Keep track of the last write
+  _last_writer = c;
+  _last_write_ref = ref.get();
+
+  // The writer can observe its own written value without logging
+  _observed.emplace(c, ref.get());
+}
+
+// Does command c need to add a write through reference ref to its trace?
+bool Command::AccessFilter::writeRequired(Command* c, shared_ptr<Reference> ref, bool accessed) {
+  // If this optimization is disabled, the write is always required
+  if (!options::combine_writes) return true;
+
+  // If the last-written version has been accessed, add a new write to the trace
+  if (accessed) return true;
+
+  // If a different command is writing, add a new write to the trace
+  if (c != _last_writer) return true;
+
+  // If the same command is using a different reference to write, add a new write to the trace
+  if (ref.get() != _last_write_ref) return true;
+
+  // This write is by the same command as the last write using the same reference.
+  // The previously-written value has not been accessed, so we do not need to log a new write.
+  return false;
 }

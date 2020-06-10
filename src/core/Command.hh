@@ -144,17 +144,19 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /****** Transient Data ******/
 
-  // Keep a record of the references that are used to write metadata and contents.
-  // Future writes through a stored reference can be skipped if:
-  // 1. This command is the last writer of the artifact's content/metadata
-  // 2. The same reference was last used to write the artifact's content/metadata
-  // 3. The artifact's content/metadata has not been accessed since its last write
-  set<shared_ptr<Reference>> _metadata_writes;
-  set<shared_ptr<Reference>> _content_writes;
+  class AccessFilter {
+   public:
+    void read(Command* c, shared_ptr<Reference> ref);
+    void write(Command* c, shared_ptr<Reference> ref);
+    bool readRequired(Command* c, shared_ptr<Reference> ref);
+    bool writeRequired(Command* c, shared_ptr<Reference> ref, bool accessed);
 
-  // Keep a record of references used to read metadata and contents and the observed versions.
-  // Future reads through a stored reference can be skipped if the artifact still has the same
-  // version for its content/metadata.
-  map<shared_ptr<Reference>, shared_ptr<MetadataVersion>> _metadata_reads;
-  map<shared_ptr<Reference>, shared_ptr<ContentVersion>> _content_reads;
+   private:
+    Command* _last_writer;
+    Reference* _last_write_ref;
+    set<pair<Command*, Reference*>> _observed;
+  };
+
+  inline static AccessFilter _metadata_filter;
+  inline static AccessFilter _content_filter;
 };
