@@ -23,11 +23,7 @@ class FileArtifact : public Artifact {
 
   virtual shared_ptr<Command> getContentCreator() const final { return _content_creator.lock(); }
 
-  virtual shared_ptr<Reference> getContentReference() const final { return _content_ref.lock(); }
-
   virtual bool isContentAccessed() const final { return _content_accessed; }
-
-  virtual shared_ptr<ContentVersion> peekContent() const final { return _content_version; }
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
   virtual bool isSaved() const override final;
@@ -65,9 +61,6 @@ class FileArtifact : public Artifact {
 
   /// Metadata was last modified by this command
   weak_ptr<Command> _content_creator;
-
-  /// Metadata was last modified using this reference
-  weak_ptr<Reference> _content_ref;
 
   /// Has the metadata for this artifact been accessed?
   bool _content_accessed;

@@ -166,7 +166,7 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Do we have to log this write?
-  if (!_metadata_filter.writeRequired(this, ref, ref->getArtifact()->isContentAccessed())) return;
+  if (!_metadata_filter.metadataWriteRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its metadata
   auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
@@ -183,7 +183,7 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Do we have to log this write?
-  if (!_content_filter.writeRequired(this, ref, ref->getArtifact()->isContentAccessed())) return;
+  if (!_content_filter.contentWriteRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its contents
   auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
@@ -240,13 +240,18 @@ void Command::AccessFilter::write(Command* c, shared_ptr<Reference> ref) {
   _observed.emplace(c, ref.get());
 }
 
+bool Command::AccessFilter::metadataWriteRequired(Command* c, shared_ptr<Reference> ref) {
+  return ref->getArtifact()->isMetadataAccessed() || writeRequired(c, ref);
+}
+
+bool Command::AccessFilter::contentWriteRequired(Command* c, shared_ptr<Reference> ref) {
+  return ref->getArtifact()->isContentAccessed() || writeRequired(c, ref);
+}
+
 // Does command c need to add a write through reference ref to its trace?
-bool Command::AccessFilter::writeRequired(Command* c, shared_ptr<Reference> ref, bool accessed) {
+bool Command::AccessFilter::writeRequired(Command* c, shared_ptr<Reference> ref) {
   // If this optimization is disabled, the write is always required
   if (!options::combine_writes) return true;
-
-  // If the last-written version has been accessed, add a new write to the trace
-  if (accessed) return true;
 
   // If a different command is writing, add a new write to the trace
   if (c != _last_writer) return true;

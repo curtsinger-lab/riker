@@ -88,12 +88,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the creator of the latest version of this artifact
   shared_ptr<Command> getMetadataCreator() const { return _metadata_creator.lock(); }
 
-  /// Get the reference used to create the latest metadata version
-  shared_ptr<Reference> getMetadataReference() const { return _metadata_ref.lock(); }
-
   bool isMetadataAccessed() const { return _metadata_accessed; }
-
-  shared_ptr<MetadataVersion> peekMetadata() const { return _metadata_version; }
 
   /**
    * Command c accesses the metadata for this artifact using reference ref.
@@ -123,20 +118,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return nullptr;
   }
 
-  // Get the reference used to create the latest content version
-  virtual shared_ptr<Reference> getContentReference() const {
-    WARN << "Invalid reference to contents of artifact " << this;
-    return nullptr;
-  }
-
   virtual bool isContentAccessed() const {
     WARN << "Invalid reference to contents of artifact " << this;
     return true;
-  }
-
-  virtual shared_ptr<ContentVersion> peekContent() const {
-    WARN << "Invalid reference to contents of artifact " << this;
-    return nullptr;
   }
 
   /**
@@ -206,9 +190,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Metadata was last modified by this command
   weak_ptr<Command> _metadata_creator;
-
-  /// Metadata was last modified using this reference
-  weak_ptr<Reference> _metadata_ref;
 
   /// Has the metadata for this artifact been accessed?
   bool _metadata_accessed;

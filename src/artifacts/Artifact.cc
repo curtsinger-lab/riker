@@ -117,7 +117,6 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
 
   // Record the required information about this metadata update
   _metadata_creator = c;
-  _metadata_ref = ref;
   _metadata_accessed = false;
 
   // Inform the environment of this output

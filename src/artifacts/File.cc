@@ -119,7 +119,6 @@ shared_ptr<ContentVersion> FileArtifact::setContents(const shared_ptr<Command>& 
 
   // Update creator, ref, and accessed tracking info
   _content_creator = c;
-  _content_ref = ref;
   _content_accessed = false;
 
   // Inform the environment of this output

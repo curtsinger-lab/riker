@@ -149,7 +149,12 @@ class Command : public std::enable_shared_from_this<Command> {
     void read(Command* c, shared_ptr<Reference> ref);
     void write(Command* c, shared_ptr<Reference> ref);
     bool readRequired(Command* c, shared_ptr<Reference> ref);
-    bool writeRequired(Command* c, shared_ptr<Reference> ref, bool accessed);
+
+    bool metadataWriteRequired(Command* c, shared_ptr<Reference> ref);
+    bool contentWriteRequired(Command* c, shared_ptr<Reference> ref);
+
+   private:
+    bool writeRequired(Command* c, shared_ptr<Reference> ref);
 
    private:
     Command* _last_writer;
