@@ -238,12 +238,12 @@ int main(int argc, char* argv[]) {
          "Set the fingerprint level (default=local)")
       ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
 
-  app.add_flag_callback("--no-ignore-self-reads", [] { options::ignore_self_reads = false; })
-      ->description("Disable the ignore-self-reads optimization")
+  app.add_flag_callback("--no-read-combine", [] { options::combine_reads = false; })
+      ->description("Disable the logic to combine repeated reads in the command trace")
       ->group("Optimizations");
 
   app.add_flag_callback("--no-write-combine", [] { options::combine_writes = false; })
-      ->description("Disable the write-combining optimization")
+      ->description("Disable the logic to combine repeated writes in the command trace")
       ->group("Optimizations");
 
   app.add_flag_callback("--no-skip-repeat-checks", [] { options::skip_repeat_checks = false; })

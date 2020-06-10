@@ -218,7 +218,7 @@ void Command::AccessFilter::read(Command* c, shared_ptr<Reference> ref) {
 // Does command c need to add a read through reference ref to its trace?
 bool Command::AccessFilter::readRequired(Command* c, shared_ptr<Reference> ref) {
   // If this optimization is disabled, the read is always required
-  if (!options::ignore_self_reads) return true;
+  if (!options::combine_reads) return true;
 
   // If this command has already read through this reference, the read is not required
   if (_observed.find({c, ref.get()}) != _observed.end()) return false;

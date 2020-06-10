@@ -14,10 +14,10 @@ namespace options {
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
   /****** Optimization ******/
-  /// Any command can read the effects of its own writes without versioning or dependencies
-  inline bool ignore_self_reads = true;  // PAPER
+  /// Repeated reads can be combined into a single read
+  inline bool combine_reads = true;  // PAPER
 
-  /// Repeated writes by the same command with no interleaved read can be combined
+  /// Repeated writes with no interleaved read can be combined into a single write
   inline bool combine_writes = true;  // PAPER
 
   /// Skip repeated checks of the contents or metadata for the same reference
