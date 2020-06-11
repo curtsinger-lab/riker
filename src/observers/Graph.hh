@@ -52,7 +52,7 @@ class Graph final : public BuildObserver {
 
     // Create command edges
     for (auto& [parent, child] : _command_edges) {
-      o << "  " << parent << " -> " << child << " [style=dotted penwidth=3 weight=1]\n";
+      o << "  " << parent << " -> " << child << " [style=dotted weight=1]\n";
     }
 
     // Create artifact vertices

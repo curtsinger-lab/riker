@@ -131,7 +131,14 @@ void do_trace(string output) {
  * \param output        The name of the output file, or "-" for stdout
  * \param show_sysfiles If true, include system files in the graph
  */
-void do_graph(string output, bool show_sysfiles) {
+void do_graph(string output, string type, bool show_sysfiles, bool no_render) {
+  if (type.empty() && no_render) type = "dot";
+  if (type.empty() && !no_render) type = "png";
+  if (output.empty()) output = "out." + type;
+
+  // If the output filename is not empty, but has no extension, append one
+  if (output.find('.') == string::npos) output += "." + type;
+
   // Load the command tree
   auto root = load_build(DatabaseFilename, false);
 
@@ -145,20 +152,26 @@ void do_graph(string output, bool show_sysfiles) {
   // Run the emulated build
   b.run();
 
-  // Send graph source to a stringstream
-  stringstream ss;
-  ss << graph;
+  if (no_render) {
+    ofstream f(output);
+    f << graph;
 
-  // Write the graph output to a temporary file, then move that file to stdin
-  auto tmp = std::tmpfile();
-  std::fputs(ss.str().c_str(), tmp);
-  std::rewind(tmp);
-  dup2(fileno(tmp), STDIN_FILENO);
+  } else {
+    // Send graph source to a stringstream
+    stringstream ss;
+    ss << graph;
 
-  // Exec dot
-  execlp("dot", "dot", "-Tpng", "-o", output.c_str(), NULL);
+    // Write the graph output to a temporary file, then move that file to stdin
+    auto tmp = std::tmpfile();
+    std::fputs(ss.str().c_str(), tmp);
+    std::rewind(tmp);
+    dup2(fileno(tmp), STDIN_FILENO);
 
-  FAIL << "Failed to render graph with dot. Is graphviz installed?";
+    // Exec dot
+    execlp("dot", "dot", "-T", type.c_str(), "-o", output.c_str(), NULL);
+
+    FAIL << "Failed to render graph with dot. Is graphviz installed?";
+  }
 }
 
 /**
@@ -286,15 +299,20 @@ int main(int argc, char* argv[]) {
   trace->final_callback([&] { do_trace(trace_output); });
 
   /************* Graph Subcommand *************/
-  string graph_output = "out.png";
+  // Leave output file and type empty for later default processing
+  string graph_output;
+  string graph_type;
   bool show_sysfiles = false;
+  bool no_render = false;
 
   auto graph = app.add_subcommand("graph", "Generate a build graph");
-  graph->add_option("-o,--output", graph_output, "Output file for the graph (default: out.png)");
+  graph->add_option("-o,--output", graph_output, "Output file for the graph");
+  graph->add_option("-t,--type", graph_type, "Output format for the graph (png, pdf, jpg, etc.)");
+  graph->add_flag("-n,--no-render", no_render, "Generate graphiz source instead of rendering");
   graph->add_flag("-a,--all", show_sysfiles, "Include system files in graph output");
 
   // Set the callback fo the trace subcommand
-  graph->final_callback([&] { do_graph(graph_output, show_sysfiles); });
+  graph->final_callback([&] { do_graph(graph_output, graph_type, show_sysfiles, no_render); });
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
