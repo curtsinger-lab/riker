@@ -19,7 +19,7 @@ bool ContentVersion::isSaved() const {
 
 // Commit this version to the filesystem
 void ContentVersion::commit(const shared_ptr<Reference>& ref) const {
-  FAIL_IF(!isSaved()) << "Attempted to commit unsaved version";
+  ASSERT(isSaved()) << "Attempted to commit unsaved version";
 
   if (auto a = dynamic_pointer_cast<Access>(ref)) {
     if (_fingerprint.has_value() && _fingerprint.value().empty) {

@@ -44,7 +44,7 @@ bool Artifact::isCommitted() const {
 // Commit the latest metadata version
 void Artifact::commit(const shared_ptr<Reference>& ref) {
   if (!_metadata_committed) {
-    FAIL_IF(!_metadata_version->isSaved()) << "Attempted to commit unsaved version";
+    ASSERT(_metadata_version->isSaved()) << "Attempted to commit unsaved version";
 
     _metadata_version->commit(ref);
     _metadata_committed = true;

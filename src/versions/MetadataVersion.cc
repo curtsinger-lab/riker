@@ -27,7 +27,7 @@ void MetadataVersion::save(const shared_ptr<Reference>& ref) {
 // Commit this version to the filesystem
 void MetadataVersion::commit(const shared_ptr<Reference>& ref) const {
   // TODO: Commit metadata state
-  FAIL_IF(!isSaved()) << "Attempted to commit unsaved version";
+  ASSERT(isSaved()) << "Attempted to commit unsaved version";
 }
 
 // Compare to another version

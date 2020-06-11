@@ -75,7 +75,7 @@ fs::path Process::resolvePath(fs::path p, int at) {
       // Attempt to cast the reference this descriptor was created with to an Access
       auto a = dynamic_pointer_cast<Access>(base_fd.getReference());
 
-      FAIL_IF(!a) << "Attempted to resolve a path relative to an anonymous reference";
+      ASSERT(a) << "Attempted to resolve a path relative to an anonymous reference";
 
       base = a->getPath();
     }
@@ -360,7 +360,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
       // Get the artifact that was stat-ed
       ref->resolve(_command, _build);
 
-      FAIL_IF(!ref->isResolved()) << "Unable to locate artifact for stat-ed file";
+      ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file";
 
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref);
@@ -415,7 +415,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // Resolve the reference to the executable
   exe_ref->resolve(_command, _build);
 
-  FAIL_IF(!exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+  ASSERT(exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // This process launches a new command, and is now running that command
   _command = _command->launch(exe_path, args, initial_fds);
@@ -434,7 +434,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
 
     // Resolve the reference
     real_exe_ref->resolve(_command, _build);
-    FAIL_IF(!real_exe_ref->isResolved()) << "Failed to resolve executable reference";
+    ASSERT(real_exe_ref->isResolved()) << "Failed to resolve executable reference";
 
     // Depend on the contents of the real executable
     _command->contentsMatch(real_exe_ref);
@@ -490,7 +490,7 @@ void Process::_truncate(string pathname, long length) {
     _command->referenceResult(ref, SUCCESS);
 
     // Make sure the artifact actually existed
-    FAIL_IF(!ref->isResolved()) << "Failed to get artifact for truncated file";
+    ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
     // Record the update to the artifact contents
     _command->setContents(ref);
@@ -540,7 +540,7 @@ void Process::_fchdir(int fd) {
     auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
 
     // Make sure there really is a path
-    FAIL_IF(!a) << "fchdir to anonymous artifact succeeded";
+    ASSERT(a) << "fchdir to an artifact with no path should not succeed";
 
     // Update the working directory
     _cwd = a->getPath();
@@ -708,7 +708,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _command->referenceResult(ref, SUCCESS);
 
-    FAIL_IF(!ref->isResolved()) << "Failed to locate artifact for opened file";
+    ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file";
 
     // If the file is truncated by the open call, set the contents in the artifact
     if (ref_flags.truncate) {
@@ -875,7 +875,7 @@ void Process::_readlinkat(int dfd, string pathname) {
     // Get the artifact that we referenced
     ref->resolve(_command, _build);
 
-    FAIL_IF(!ref->isResolved()) << "Failed to get artifact for successfully-read link";
+    ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
     // We depend on this artifact's contents now
     _command->contentsMatch(ref);
@@ -910,7 +910,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
     // Yes. Record the successful reference
     _command->referenceResult(ref, SUCCESS);
 
-    FAIL_IF(!ref->isResolved()) << "Failed to get artifact";
+    ASSERT(ref->isResolved()) << "Failed to get artifact";
 
     // We've now set the artifact's metadata
     _command->setMetadata(ref);
@@ -991,7 +991,7 @@ void Process::_pipe2(int* fds, int flags) {
   // Get an artifact for this pipe
   ref->resolve(_command, _build);
 
-  FAIL_IF(!ref->isResolved()) << "Failed to get artifact for pipe";
+  ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
   // The command sets the contents of the pipe on creation
   _command->setContents(ref);

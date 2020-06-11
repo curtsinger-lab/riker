@@ -91,7 +91,7 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
 
   /// Get the artifact this reference resolved to
   const shared_ptr<Artifact>& getArtifact() const {
-    FAIL_IF(!_artifact) << "Attempted to access unresolved reference " << this;
+    ASSERT(_artifact) << "Attempted to access unresolved reference " << this;
     return _artifact;
   }
 

@@ -42,7 +42,7 @@ bool FileArtifact::isCommitted() const {
 // Commit the latest version of this artifact to the filesystem
 void FileArtifact::commit(const shared_ptr<Reference>& ref) {
   if (!_content_committed) {
-    FAIL_IF(!_content_version->isSaved()) << "Attempted to commit unsaved version";
+    ASSERT(_content_version->isSaved()) << "Attempted to commit unsaved version";
 
     // Commit the file contents
     _content_version->commit(ref);
