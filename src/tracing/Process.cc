@@ -56,24 +56,20 @@ unsigned long Process::getEventMessage() {
   return message;
 }
 
-shared_ptr<Access> Process::resolvePath(fs::path p, AccessFlags flags, int at) {
-  if (p.is_absolute()) {
-    // Get a new access relative to root. Use fs::path:relative_path() to strip the leading "/"
-    return _root->get(p.relative_path(), flags);
-  } else {
-    // Is this relative to the cwd?
-    if (at == AT_FDCWD) {
-      return _cwd->get(p, flags);
-    } else {
-      // Relative to some file descriptor. It should be an Access
-      auto base_fd = _fds.at(at);
-      auto a = dynamic_pointer_cast<Access>(base_fd.getReference());
+shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) {
+  // Absolute paths are resolved relative to the process' current root
+  if (p.is_absolute()) return _command->access(p, flags, _root);
 
-      ASSERT(a) << "Attempted to resolve a path relative to an anonymous reference";
+  // Handle the special CWD file descriptor to resolve relative to cwd
+  if (at == AT_FDCWD) return _command->access(p, flags, _cwd);
 
-      return a->get(p, flags);
-    }
-  }
+  // The path is resolved relative to some file descriptor
+  auto base_fd = _fds.at(at);
+  auto base = dynamic_pointer_cast<Access>(base_fd.getReference());
+
+  ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
+
+  return _command->access(p, flags, base);
 }
 
 string Process::readString(uintptr_t tracee_pointer) {
@@ -302,10 +298,7 @@ void Process::_sendfile(int out_fd, int in_fd) {
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
   // Create a reference
-  auto ref = resolvePath(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
-
-  // Record the command's access to this path with the given flags
-  _command->access(ref);
+  auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
   // Finish the syscall so we can see its result
   int rc = finishSyscall();
@@ -334,10 +327,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
-    auto ref = resolvePath(pathname, {}, dirfd);
-
-    // Log the access in the command
-    _command->access(ref);
+    auto ref = makeAccess(pathname, {}, dirfd);
 
     // Finish the syscall to see if the reference succeeds
     int rc = finishSyscall();
@@ -364,8 +354,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
 
 void Process::_execveat(int dfd, string filename, vector<string> args, vector<string> env) {
   // The command accesses this path with execute permissions
-  auto exe_ref = resolvePath(filename, AccessFlags{.x = true}, dfd);
-  _command->access(exe_ref);
+  auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
   // Finish the exec syscall and resume
   int rc = finishSyscall();
@@ -407,17 +396,23 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // This process launches a new command, and is now running that command
   _command = _command->launch(exe_ref->getPath(), args, initial_fds, _cwd, _root);
 
+  // The child command makes a reference to read the exe_ref
+  auto child_exe_ref = _command->access(exe_ref, AccessFlags{.r = true});
+  _command->referenceResult(child_exe_ref, SUCCESS);
+
+  // Resolve the child executable reference
+  child_exe_ref->resolve(_command, _build);
+
   // We also depend on the contents of the executable file at this point
-  _command->contentsMatch(exe_ref);
+  _command->contentsMatch(child_exe_ref);
 
   // Get the path to the real executable for this command. Important for #! commands.
   auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
 
   // If real_exe_path is not the same as exe_path, we depend on the contents there as well
-  if (exe_ref->getPath() != real_exe_path) {
+  if (child_exe_ref->getPath() != real_exe_path) {
     // Make a reference and record a successful result
-    auto real_exe_ref = resolvePath(real_exe_path, AccessFlags{.x = true});
-    _command->access(real_exe_ref);
+    auto real_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true, .x = true});
 
     _command->referenceResult(real_exe_ref, SUCCESS);
 
@@ -457,8 +452,7 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) {
 }
 
 void Process::_truncate(string pathname, long length) {
-  auto ref = resolvePath(pathname, AccessFlags{.w = true});
-  _command->access(ref);
+  auto ref = makeAccess(pathname, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
   ref->resolve(_command, _build);
@@ -515,9 +509,7 @@ void Process::_chdir(string filename) {
 
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
-    _cwd = resolvePath(filename, AccessFlags{.x = true});
-    // Record this reference in the command
-    _command->access(_cwd);
+    _cwd = makeAccess(filename, AccessFlags{.x = true});
   }
 }
 
@@ -674,9 +666,9 @@ void Process::_lgetxattr(string pathname) {
 }
 
 void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
+  LOG << "Opening " << filename;
   // Get a reference from the given path
-  auto ref = resolvePath(filename, AccessFlags::fromOpen(flags, mode), dfd);
-  _command->access(ref);
+  auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
   WARN_IF(ref->getFlags().directory)
       << "Accessing directory " << ref->getPath() << " with openat(). "
@@ -849,8 +841,7 @@ void Process::_readlinkat(int dfd, string pathname) {
   }
 
   // We're making a reference to a symlink, so don't follow links
-  auto ref = resolvePath(pathname, AccessFlags{.nofollow = true}, dfd);
-  _command->access(ref);
+  auto ref = makeAccess(pathname, AccessFlags{.nofollow = true}, dfd);
 
   // Finish the syscall and then resume the process
   int rc = finishSyscall();
@@ -878,8 +869,7 @@ void Process::_readlinkat(int dfd, string pathname) {
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // Make a reference to the file that will be chmod-ed.
   // TODO: We need permissions in the directory to chmod, right?
-  auto ref = resolvePath(filename, AccessFlags{}, dfd);
-  _command->access(ref);
+  auto ref = makeAccess(filename, AccessFlags{}, dfd);
 
   // Get the artifact that we're going to chmod
   ref->resolve(_command, _build);

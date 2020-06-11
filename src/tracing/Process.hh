@@ -62,9 +62,15 @@ class Process {
   /// Read a null-terminated array of strings
   vector<string> readArgvArray(uintptr_t tracee_pointer);
 
-  /// Resolve and normalize a path
-  /// Returns an absolute path
-  shared_ptr<Access> resolvePath(fs::path p, AccessFlags flags, int at = AT_FDCWD);
+  /**
+   * The command running in this process referenced a path. Create an Access reference to track
+   * this reference and record it in the command.
+   * \param p     The path, as retrieved from the trace (MUST NOT BE NORMALIZED)
+   * \param flags The flags that control the access mode
+   * \param at    A file descriptor this access is made relative to
+   * \returns an Access instance that has been added to the current command
+   */
+  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD);
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) {

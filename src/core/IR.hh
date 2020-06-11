@@ -147,6 +147,10 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
 
   virtual void resolve(const shared_ptr<Command>& c, Build& build) final;
 
+  shared_ptr<Access> withFlags(AccessFlags flags) {
+    return shared_ptr<Access>(new Access(_base, _path, flags));
+  }
+
   /// Get the path this ACCESS reference uses
   fs::path getPath() const {
     if (_base) {

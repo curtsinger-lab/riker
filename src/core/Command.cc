@@ -182,7 +182,29 @@ void Command::emulate(Build& build) {
 }
 
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(const shared_ptr<Access>& ref) {
+shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
+                                   const shared_ptr<Access>& base) {
+  // In path resolution, it may be helpful to store each level of the path in a new reference.
+  // Uncomment to re-enable this.
+  /*auto current = base;
+  for (auto& entry : path) {
+    if (entry != "." && entry != "/") {
+      current = current->get(entry, AccessFlags{.x = true});
+    }
+  }
+
+  auto ref = current->withFlags(flags);*/
+
+  // For now, the reference is just one level that covers all parts of the new path
+  auto ref = base->get(path, flags);
+
+  _steps.push_back(ref);
+  return ref;
+}
+
+// Make an access using a new set of flags
+shared_ptr<Access> Command::access(const shared_ptr<Access>& a, AccessFlags flags) {
+  auto ref = a->withFlags(flags);
   _steps.push_back(ref);
   return ref;
 }
@@ -223,7 +245,8 @@ void Command::metadataMatch(const shared_ptr<Reference>& ref) {
 
 // This command depends on the contents of a referenced artifact
 void Command::contentsMatch(const shared_ptr<Reference>& ref) {
-  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference.";
+  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
+                            << ref;
 
   // Do we have to log this read?
   if (!_content_filter.readRequired(this, ref)) return;

@@ -135,7 +135,7 @@ ostream& Pipe::print(ostream& o) const {
 
 /// Print an ACCESS reference
 ostream& Access::print(ostream& o) const {
-  return o << getName() << " = ACCESS(\"" << getPath() << "\", [" << getFlags() << "])";
+  return o << getName() << " = ACCESS(" << getPath() << ", [" << getFlags() << "])";
 }
 
 // Print a ReferenceResult predicate

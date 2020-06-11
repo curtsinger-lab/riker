@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <list>
 #include <map>
 #include <memory>
@@ -17,6 +18,8 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+
+namespace fs = std::filesystem;
 
 class Access;
 class Artifact;
@@ -97,8 +100,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /********* Command Tracing Operations **********/
 
-  /// This command accesses a path
-  shared_ptr<Access> access(const shared_ptr<Access>& ref);
+  /// This command accesses a path relative to some base reference, using the given flags
+  shared_ptr<Access> access(fs::path path, AccessFlags flags, const shared_ptr<Access>& base);
+
+  /// This command accesses an already-constructed reference using new flags
+  shared_ptr<Access> access(const shared_ptr<Access>& a, AccessFlags flags);
 
   /// This command creates a pipe
   shared_ptr<Pipe> pipe();
