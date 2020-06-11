@@ -21,10 +21,6 @@ class FileArtifact : public Artifact {
 
   virtual void checkFinalState(const shared_ptr<Reference>& ref) override final;
 
-  virtual shared_ptr<Command> getContentCreator() const final { return _content_creator.lock(); }
-
-  virtual bool isContentAccessed() const final { return _content_accessed; }
-
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
   virtual bool isSaved() const override final;
 
@@ -58,10 +54,4 @@ class FileArtifact : public Artifact {
 
   /// Is the latest content version committed?
   bool _content_committed;
-
-  /// Metadata was last modified by this command
-  weak_ptr<Command> _content_creator;
-
-  /// Has the metadata for this artifact been accessed?
-  bool _content_accessed;
 };

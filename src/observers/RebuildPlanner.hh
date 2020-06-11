@@ -79,17 +79,16 @@ class RebuildPlanner final : public BuildObserver {
   virtual void input(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
                      const shared_ptr<Version>& v) override {
     // During the planning phase, record this dependency
-    auto creator = a->getContentCreator();
-    if (creator) {
+    if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
-      _output_used_by[creator].insert(c);
+      _output_used_by[v->getCreator()].insert(c);
 
       // The dependency back edge depends on caching
       if (options::enable_cache && a->isSaved()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
-        _needs_output_from[c].insert(creator);
+        _needs_output_from[c].insert(v->getCreator());
       }
     }
   }
@@ -122,13 +121,13 @@ class RebuildPlanner final : public BuildObserver {
   virtual void finalMismatch(const shared_ptr<Artifact>& a, const shared_ptr<Version>& observed,
                              const shared_ptr<Version>& expected) override {
     // If this artifact was not created by any command, there's nothing we can do about it
-    if (!a->getContentCreator()) return;
+    if (!observed->getCreator()) return;
 
     // If this artifact's final version is cached, we can just stage it in
     if (options::enable_cache && a->isSaved()) return;
 
     // Otherwise we have to run the command that created this artifact
-    _output_needed.insert(a->getContentCreator());
+    _output_needed.insert(observed->getCreator());
   }
 
  private:

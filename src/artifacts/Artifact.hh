@@ -85,11 +85,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /********** Metadata: All Artifact Types **********/
 
-  /// Get the creator of the latest version of this artifact
-  shared_ptr<Command> getMetadataCreator() const { return _metadata_creator.lock(); }
-
-  bool isMetadataAccessed() const { return _metadata_accessed; }
-
   /**
    * Command c accesses the metadata for this artifact using reference ref.
    * \param c   The command making the access
@@ -111,17 +106,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                                           const shared_ptr<MetadataVersion>& v = nullptr);
 
   /********** Content: Files and Pipes **********/
-
-  /// Get the creator of the latest version of this artifact
-  virtual shared_ptr<Command> getContentCreator() const {
-    WARN << "Invalid reference to contents of artifact " << this;
-    return nullptr;
-  }
-
-  virtual bool isContentAccessed() const {
-    WARN << "Invalid reference to contents of artifact " << this;
-    return true;
-  }
 
   /**
    * Command c accesses the content of this artifact using reference ref.
@@ -187,10 +171,4 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Is the latest metadata version committed to the filesystem?
   bool _metadata_committed;
-
-  /// Metadata was last modified by this command
-  weak_ptr<Command> _metadata_creator;
-
-  /// Has the metadata for this artifact been accessed?
-  bool _metadata_accessed;
 };

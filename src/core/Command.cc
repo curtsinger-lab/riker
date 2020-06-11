@@ -123,7 +123,7 @@ void Command::metadataMatch(const shared_ptr<Reference>& ref) {
   auto v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
 
   // If the last write was from this command we don't need a fingerprint to compare.
-  if (ref->getArtifact()->getMetadataCreator() != shared_from_this()) {
+  if (v->getCreator() != shared_from_this()) {
     v->fingerprint(ref);
   }
 
@@ -150,7 +150,7 @@ void Command::contentsMatch(const shared_ptr<Reference>& ref) {
   }
 
   // If the last write was from this command, we don't need a fingerprint to compare.
-  if (ref->getArtifact()->getContentCreator() != shared_from_this()) {
+  if (v->getCreator() != shared_from_this()) {
     v->fingerprint(ref);
   }
 
@@ -166,7 +166,7 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Do we have to log this write?
-  if (!_metadata_filter.metadataWriteRequired(this, ref)) return;
+  if (!_metadata_filter.writeRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its metadata
   auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
@@ -175,7 +175,7 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
   _steps.push_back(make_shared<SetMetadata>(ref, v));
 
   // Report the write
-  _metadata_filter.write(this, ref);
+  _metadata_filter.write(this, ref, v);
 }
 
 // This command sets the contents of a referenced artifact
@@ -183,7 +183,7 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Do we have to log this write?
-  if (!_content_filter.contentWriteRequired(this, ref)) return;
+  if (!_content_filter.writeRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its contents
   auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
@@ -194,7 +194,7 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
   _steps.push_back(make_shared<SetContents>(ref, v));
 
   // Report the write
-  _content_filter.write(this, ref);
+  _content_filter.write(this, ref, v);
 }
 
 // This command launches a child command
@@ -228,30 +228,30 @@ bool Command::AccessFilter::readRequired(Command* c, shared_ptr<Reference> ref) 
 }
 
 // Record the effect of a write by command c using reference ref
-void Command::AccessFilter::write(Command* c, shared_ptr<Reference> ref) {
+void Command::AccessFilter::write(Command* c, shared_ptr<Reference> ref,
+                                  shared_ptr<Version> written) {
   // All future reads could be affected by this write, so they need to be logged
   _observed.clear();
 
   // Keep track of the last write
   _last_writer = c;
   _last_write_ref = ref.get();
+  _last_written_version = written.get();
 
   // The writer can observe its own written value without logging
   _observed.emplace(c, ref.get());
-}
-
-bool Command::AccessFilter::metadataWriteRequired(Command* c, shared_ptr<Reference> ref) {
-  return ref->getArtifact()->isMetadataAccessed() || writeRequired(c, ref);
-}
-
-bool Command::AccessFilter::contentWriteRequired(Command* c, shared_ptr<Reference> ref) {
-  return ref->getArtifact()->isContentAccessed() || writeRequired(c, ref);
 }
 
 // Does command c need to add a write through reference ref to its trace?
 bool Command::AccessFilter::writeRequired(Command* c, shared_ptr<Reference> ref) {
   // If this optimization is disabled, the write is always required
   if (!options::combine_writes) return true;
+
+  // If this is the first write through the filter, it must be added to the trace
+  if (!_last_written_version) return true;
+
+  // If the last version written through this filter was accessed, add a new write to the trace
+  if (_last_written_version->isAccessed()) return true;
 
   // If a different command is writing, add a new write to the trace
   if (c != _last_writer) return true;

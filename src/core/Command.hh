@@ -147,18 +147,14 @@ class Command : public std::enable_shared_from_this<Command> {
   class AccessFilter {
    public:
     void read(Command* c, shared_ptr<Reference> ref);
-    void write(Command* c, shared_ptr<Reference> ref);
+    void write(Command* c, shared_ptr<Reference> ref, shared_ptr<Version> v);
     bool readRequired(Command* c, shared_ptr<Reference> ref);
-
-    bool metadataWriteRequired(Command* c, shared_ptr<Reference> ref);
-    bool contentWriteRequired(Command* c, shared_ptr<Reference> ref);
-
-   private:
     bool writeRequired(Command* c, shared_ptr<Reference> ref);
 
    private:
     Command* _last_writer;
     Reference* _last_write_ref;
+    Version* _last_written_version;
     set<pair<Command*, Reference*>> _observed;
   };
 

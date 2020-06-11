@@ -85,7 +85,7 @@ void Artifact::checkFinalState(const shared_ptr<Reference>& ref) {
 shared_ptr<MetadataVersion> Artifact::accessMetadata(const shared_ptr<Command>& c,
                                                      const shared_ptr<Reference>& ref) {
   // Mark the metadata as accessed
-  _metadata_accessed = true;
+  _metadata_version->accessed();
 
   // Yes. Notify the build and return the version
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
@@ -116,8 +116,7 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
   }
 
   // Record the required information about this metadata update
-  _metadata_creator = c;
-  _metadata_accessed = false;
+  _metadata_version->createdBy(c);
 
   // Inform the environment of this output
   _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);

@@ -33,6 +33,18 @@ class Version {
   Version(Version&&) = default;
   Version& operator=(Version&&) = default;
 
+  /// Get the command that created this version
+  shared_ptr<Command> getCreator() const { return _creator; }
+
+  /// Record that this version was created by command c
+  void createdBy(shared_ptr<Command> c) { _creator = c; }
+
+  /// Check if this version has been accessed
+  bool isAccessed() const { return _accessed; }
+
+  /// Record that this version has been accessed
+  void accessed() { _accessed = true; }
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const = 0;
 
@@ -71,6 +83,12 @@ class Version {
   SERIALIZE_EMPTY();
 
   /******** Transient Fields *********/
+
+  /// The command that created this version
+  shared_ptr<Command> _creator;
+
+  /// Has this version been accessed by any command?
+  bool _accessed = false;
 
   friend class Artifact;
 

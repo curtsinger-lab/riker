@@ -88,7 +88,7 @@ void FileArtifact::checkFinalState(const shared_ptr<Reference>& ref) {
 // Return the version it observes, or nullptr if no check is necessary
 shared_ptr<ContentVersion> FileArtifact::accessContents(const shared_ptr<Command>& c,
                                                         const shared_ptr<Reference>& ref) {
-  _content_accessed = true;
+  _content_version->accessed();
 
   // Yes. Notify the build and return the version
   _env.getBuild().observeInput(c, shared_from_this(), _content_version);
@@ -118,8 +118,7 @@ shared_ptr<ContentVersion> FileArtifact::setContents(const shared_ptr<Command>& 
   }
 
   // Update creator, ref, and accessed tracking info
-  _content_creator = c;
-  _content_accessed = false;
+  _content_version->createdBy(c);
 
   // Inform the environment of this output
   _env.getBuild().observeOutput(c, shared_from_this(), _content_version);
