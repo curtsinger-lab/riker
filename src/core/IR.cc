@@ -24,11 +24,13 @@ using std::pair;
 using std::shared_ptr;
 
 void Pipe::resolve(const shared_ptr<Command>& c, Build& build) {
-  std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
+  const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
+  resolutionResult(artifact, rc);
 }
 
 void Access::resolve(const shared_ptr<Command>& c, Build& build) {
-  std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
+  const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
+  resolutionResult(artifact, rc);
 }
 
 /******* Emulation *******/

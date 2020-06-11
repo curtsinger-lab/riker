@@ -74,8 +74,6 @@ class Step {
  */
 class Reference : public Step {
  public:
-  virtual void resolve(const shared_ptr<Command>& c, Build& build) = 0;
-
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
@@ -89,6 +87,13 @@ class Reference : public Step {
   /// Get the short name for this reference
   string getName() const { return "r" + std::to_string(getID()); }
 
+  /**
+   * Resolve this reference within the context of a specific build
+   * \param c     The command that performs the resolution
+   * \param build The build that is running at the time of resolution
+   */
+  virtual void resolve(const shared_ptr<Command>& c, Build& build) = 0;
+
   /// Has this reference been resolved to an artifact?
   bool isResolved() const { return _artifact != nullptr; }
 
@@ -101,15 +106,25 @@ class Reference : public Step {
   /// Get the result of trying to resolve this reference
   int getResult() const { return _rc; }
 
+ protected:
+  /// A sub-type can report the result of resolving this artifact using this method
+  void resolutionResult(const shared_ptr<Artifact>& a, int rc) {
+    _artifact = a;
+    _rc = rc;
+  }
+
  private:
   /// Assign a unique ID to each reference
   UniqueID<Reference> _id;
 
   SERIALIZE(BASE(Step));
 
- protected:
-  // Transient fields
+  /****** Transient Fields ******/
+
+  /// The artifact this reference resolved to
   shared_ptr<Artifact> _artifact;
+
+  /// The result of resolving this reference
   int _rc;
 };
 
