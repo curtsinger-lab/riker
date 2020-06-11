@@ -4,7 +4,6 @@
 #include <map>
 #include <memory>
 #include <ostream>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -15,7 +14,6 @@
 using std::list;
 using std::map;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -141,23 +139,4 @@ class Command : public std::enable_shared_from_this<Command> {
   // Create default constructor and specify fields for serialization
   Command() = default;
   SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
-
-  /****** Transient Data ******/
-
-  class AccessFilter {
-   public:
-    void read(Command* c, shared_ptr<Reference> ref);
-    void write(Command* c, shared_ptr<Reference> ref, shared_ptr<Version> v);
-    bool readRequired(Command* c, shared_ptr<Reference> ref);
-    bool writeRequired(Command* c, shared_ptr<Reference> ref);
-
-   private:
-    Command* _last_writer;
-    Reference* _last_write_ref;
-    Version* _last_written_version;
-    set<pair<Command*, Reference*>> _observed;
-  };
-
-  inline static AccessFilter _metadata_filter;
-  inline static AccessFilter _content_filter;
 };

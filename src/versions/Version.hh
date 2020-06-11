@@ -34,7 +34,7 @@ class Version {
   Version& operator=(Version&&) = default;
 
   /// Get the command that created this version
-  shared_ptr<Command> getCreator() const { return _creator; }
+  shared_ptr<Command> getCreator() const { return _creator.lock(); }
 
   /// Record that this version was created by command c
   void createdBy(shared_ptr<Command> c) { _creator = c; }
@@ -85,7 +85,7 @@ class Version {
   /******** Transient Fields *********/
 
   /// The command that created this version
-  shared_ptr<Command> _creator;
+  weak_ptr<Command> _creator;
 
   /// Has this version been accessed by any command?
   bool _accessed = false;
