@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -17,6 +18,8 @@ using std::ostream;
 using std::pair;
 using std::shared_ptr;
 using std::string;
+
+namespace fs = std::filesystem;
 
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int8_t { SUCCESS = 0 };
@@ -69,9 +72,9 @@ class Step {
  * subclass of Reference. References do not necessarily resolve to artifacts (they could fail) but
  * we can encode predicates about the outcome of a reference.
  */
-class Reference : public Step, public std::enable_shared_from_this<Reference> {
+class Reference : public Step {
  public:
-  void resolve(const shared_ptr<Command>& c, Build& build);
+  virtual void resolve(const shared_ptr<Command>& c, Build& build) = 0;
 
   /**
    * Emulate this IR step in a given environment
@@ -104,16 +107,19 @@ class Reference : public Step, public std::enable_shared_from_this<Reference> {
 
   SERIALIZE(BASE(Step));
 
+ protected:
   // Transient fields
   shared_ptr<Artifact> _artifact;
   int _rc;
 };
 
 /// Create a reference to a new pipe
-class Pipe final : public Reference {
+class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
  public:
   /// Create a pipe
   Pipe() = default;
+
+  virtual void resolve(const shared_ptr<Command>& c, Build& build) final;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const override;
@@ -124,13 +130,31 @@ class Pipe final : public Reference {
 };
 
 /// Access a filesystem path with a given set of flags
-class Access final : public Reference {
- public:
+class Access final : public Reference, public std::enable_shared_from_this<Access> {
+ private:
   /// Create an access reference to a path with given flags
-  Access(string path, AccessFlags flags) : _path(path), _flags(flags) {}
+  Access(const shared_ptr<Access>& base, string path, AccessFlags flags) :
+      _base(base), _path(path), _flags(flags) {}
+
+ public:
+  static shared_ptr<Access> createRoot(AccessFlags flags) {
+    return shared_ptr<Access>(new Access(nullptr, "/", flags));
+  }
+
+  static shared_ptr<Access> createCwd(AccessFlags flags) {
+    return shared_ptr<Access>(new Access(nullptr, ".", flags));
+  }
+
+  virtual void resolve(const shared_ptr<Command>& c, Build& build) final;
 
   /// Get the path this ACCESS reference uses
-  const string& getPath() const { return _path; }
+  fs::path getPath() const {
+    if (_base) {
+      return _base->getPath() / _path;
+    } else {
+      return _path;
+    }
+  }
 
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const { return _flags; }
@@ -144,16 +168,27 @@ class Access final : public Reference {
   /// Call access() on this reference
   int access() const;
 
+  /// Create an access relative to this reference
+  shared_ptr<Access> get(string p, AccessFlags flags) {
+    return shared_ptr<Access>(new Access(shared_from_this(), p, flags));
+  }
+
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const override;
 
  private:
-  string _path;        //< The filesystem path that was accessed
-  AccessFlags _flags;  //< The relevant flags for the access
+  /// The base used to resolve this reference, typically either cwd or root.
+  shared_ptr<Access> _base;
+
+  /// The path being accessed
+  string _path;
+
+  /// The relevant flags for the access
+  AccessFlags _flags;
 
   // Create default constructor and specify fields for serialization
   Access() = default;
-  SERIALIZE(BASE(Reference), _path, _flags);
+  SERIALIZE(BASE(Reference), _base, _path, _flags);
 };
 
 /**

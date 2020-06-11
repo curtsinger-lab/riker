@@ -64,7 +64,7 @@ class Process {
 
   /// Resolve and normalize a path
   /// Returns an absolute path
-  fs::path resolvePath(fs::path p, int at = AT_FDCWD);
+  shared_ptr<Access> resolvePath(fs::path p, AccessFlags flags, int at = AT_FDCWD);
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) {

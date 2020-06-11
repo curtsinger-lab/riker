@@ -128,8 +128,8 @@ shared_ptr<Command> Command::createRootCommand() {
                                           {1, FileDescriptor(stdout_ref, true)},
                                           {2, FileDescriptor(stderr_ref, true)}};
 
-  auto cwd = make_shared<Access>(".", AccessFlags{.x = true});
-  auto root = make_shared<Access>("/", AccessFlags{.x = true});
+  auto cwd = Access::createCwd(AccessFlags{.x = true});
+  auto root = Access::createRoot(AccessFlags{.x = true});
 
   return shared_ptr<Command>(new Command(dodo_launch, {"dodo-launch"}, default_fds, cwd, root));
 }
@@ -182,8 +182,7 @@ void Command::emulate(Build& build) {
 }
 
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(string path, AccessFlags flags) {
-  auto ref = make_shared<Access>(path, flags);
+shared_ptr<Access> Command::access(const shared_ptr<Access>& ref) {
   _steps.push_back(ref);
   return ref;
 }

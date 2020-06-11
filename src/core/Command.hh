@@ -98,7 +98,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /********* Command Tracing Operations **********/
 
   /// This command accesses a path
-  shared_ptr<Access> access(string path, AccessFlags flags);
+  shared_ptr<Access> access(const shared_ptr<Access>& ref);
 
   /// This command creates a pipe
   shared_ptr<Pipe> pipe();

@@ -56,34 +56,24 @@ unsigned long Process::getEventMessage() {
   return message;
 }
 
-fs::path Process::resolvePath(fs::path p, int at) {
-  // TODO: Handle chroot-ed processes correctly
-  // We're going to build a full path from the reference. Simplest case is an absolute path.
-  fs::path full_path = p;
-
-  // Relative paths have to be relative to something
-  if (p.is_relative()) {
-    // By default, paths are relative to the current directory
-    fs::path base = _cwd->getPath();
-
-    // But if the file is not relative to cwd, get the path for the specified base
-    if (at != AT_FDCWD) {
-      // Get the file descriptor that serves as the base directory
+shared_ptr<Access> Process::resolvePath(fs::path p, AccessFlags flags, int at) {
+  if (p.is_absolute()) {
+    // Get a new access relative to root. Use fs::path:relative_path() to strip the leading "/"
+    return _root->get(p.relative_path(), flags);
+  } else {
+    // Is this relative to the cwd?
+    if (at == AT_FDCWD) {
+      return _cwd->get(p, flags);
+    } else {
+      // Relative to some file descriptor. It should be an Access
       auto base_fd = _fds.at(at);
-
-      // Attempt to cast the reference this descriptor was created with to an Access
       auto a = dynamic_pointer_cast<Access>(base_fd.getReference());
 
       ASSERT(a) << "Attempted to resolve a path relative to an anonymous reference";
 
-      base = a->getPath();
+      return a->get(p, flags);
     }
-
-    full_path = base / p;
   }
-
-  // Normalize path
-  return full_path.lexically_normal();
 }
 
 string Process::readString(uintptr_t tracee_pointer) {
@@ -212,7 +202,8 @@ void Process::_write(int fd) {
 }
 
 void Process::_close(int fd) {
-  // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is harmless
+  // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is
+  // harmless
 
   // Resume the process
   resume();
@@ -310,11 +301,11 @@ void Process::_sendfile(int out_fd, int in_fd) {
 }
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
-  // Generate a normalized absolute path from pathname and dirfd
-  auto p = resolvePath(pathname, dirfd);
+  // Create a reference
+  auto ref = resolvePath(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
   // Record the command's access to this path with the given flags
-  auto ref = _command->access(p, AccessFlags::fromAccess(mode, flags));
+  _command->access(ref);
 
   // Finish the syscall so we can see its result
   int rc = finishSyscall();
@@ -343,11 +334,10 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
-    auto p = resolvePath(pathname, dirfd);
+    auto ref = resolvePath(pathname, {}, dirfd);
 
-    // Create the reference
-    // TODO: handle nofollow
-    auto ref = _command->access(p, {});
+    // Log the access in the command
+    _command->access(ref);
 
     // Finish the syscall to see if the reference succeeds
     int rc = finishSyscall();
@@ -373,11 +363,9 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
 }
 
 void Process::_execveat(int dfd, string filename, vector<string> args, vector<string> env) {
-  // Get the path to the executable we will exec
-  auto exe_path = resolvePath(filename, dfd);
-
   // The command accesses this path with execute permissions
-  auto exe_ref = _command->access(exe_path, {.x = true});
+  auto exe_ref = resolvePath(filename, AccessFlags{.x = true}, dfd);
+  _command->access(exe_ref);
 
   // Finish the exec syscall and resume
   int rc = finishSyscall();
@@ -395,8 +383,8 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   _command->referenceResult(exe_ref, SUCCESS);
 
   // Build a map of the initial file descriptors for the child command
-  // As we build this map, keep track of which file descriptors have to be erased from the process'
-  // current map of file descriptors.
+  // As we build this map, keep track of which file descriptors have to be erased from the
+  // process' current map of file descriptors.
   map<int, FileDescriptor> initial_fds;
   list<int> to_erase;
 
@@ -417,7 +405,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   ASSERT(exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // This process launches a new command, and is now running that command
-  _command = _command->launch(exe_path, args, initial_fds, _cwd, _root);
+  _command = _command->launch(exe_ref->getPath(), args, initial_fds, _cwd, _root);
 
   // We also depend on the contents of the executable file at this point
   _command->contentsMatch(exe_ref);
@@ -426,9 +414,11 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
 
   // If real_exe_path is not the same as exe_path, we depend on the contents there as well
-  if (exe_path != real_exe_path) {
+  if (exe_ref->getPath() != real_exe_path) {
     // Make a reference and record a successful result
-    auto real_exe_ref = _command->access(real_exe_path, {.x = true});
+    auto real_exe_ref = resolvePath(real_exe_path, AccessFlags{.x = true});
+    _command->access(real_exe_ref);
+
     _command->referenceResult(real_exe_ref, SUCCESS);
 
     // Resolve the reference
@@ -439,8 +429,8 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
     _command->contentsMatch(real_exe_ref);
   }
 
-  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes that
-  // participate in that command. This will require some extra bookkeeping. For now, we
+  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
+  // that participate in that command. This will require some extra bookkeeping. For now, we
   // over-approximate the set of commands that have a file mmapped.
 }
 
@@ -467,8 +457,8 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) {
 }
 
 void Process::_truncate(string pathname, long length) {
-  auto p = resolvePath(pathname);
-  auto ref = _command->access(p, AccessFlags{.w = true});
+  auto ref = resolvePath(pathname, AccessFlags{.w = true});
+  _command->access(ref);
 
   // Get the artifact that's being truncated
   ref->resolve(_command, _build);
@@ -525,7 +515,9 @@ void Process::_chdir(string filename) {
 
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
-    _cwd = make_shared<Access>(resolvePath(filename), AccessFlags{.x = true});
+    _cwd = resolvePath(filename, AccessFlags{.x = true});
+    // Record this reference in the command
+    _command->access(_cwd);
   }
 }
 
@@ -682,15 +674,13 @@ void Process::_lgetxattr(string pathname) {
 }
 
 void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
-  // Convert the path to an absolute, normalized lexical form
-  auto p = resolvePath(filename, dfd);
+  // Get a reference from the given path
+  auto ref = resolvePath(filename, AccessFlags::fromOpen(flags, mode), dfd);
+  _command->access(ref);
 
-  WARN_IF(flags & O_DIRECTORY) << "Accessing directory " << p << " with openat()."
-                               << "This is not yet tracked correctly.";
-
-  // The command makes a reference to a path, possibly modifying artifact f
-  auto ref_flags = AccessFlags::fromOpen(flags, mode);
-  auto ref = _command->access(p, ref_flags);
+  WARN_IF(ref->getFlags().directory)
+      << "Accessing directory " << ref->getPath() << " with openat(). "
+      << "This is not yet tracked correctly.";
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
@@ -707,10 +697,10 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     // The command observed a successful openat, so add this predicate to the command log
     _command->referenceResult(ref, SUCCESS);
 
-    ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file";
+    ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
     // If the file is truncated by the open call, set the contents in the artifact
-    if (ref_flags.truncate) {
+    if (ref->getFlags().truncate) {
       _command->setContents(ref);
     }
 
@@ -718,7 +708,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
     bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
     // Record the reference in the correct location in this process' file descriptor table
-    _fds.emplace(fd, FileDescriptor(ref, ref_flags.w, cloexec));
+    _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
@@ -859,8 +849,8 @@ void Process::_readlinkat(int dfd, string pathname) {
   }
 
   // We're making a reference to a symlink, so don't follow links
-  auto p = resolvePath(pathname, dfd);
-  auto ref = _command->access(p, {.nofollow = true});
+  auto ref = resolvePath(pathname, AccessFlags{.nofollow = true}, dfd);
+  _command->access(ref);
 
   // Finish the syscall and then resume the process
   int rc = finishSyscall();
@@ -888,8 +878,8 @@ void Process::_readlinkat(int dfd, string pathname) {
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   // Make a reference to the file that will be chmod-ed.
   // TODO: We need permissions in the directory to chmod, right?
-  auto p = resolvePath(filename, dfd);
-  auto ref = _command->access(p, AccessFlags{});
+  auto ref = resolvePath(filename, AccessFlags{}, dfd);
+  _command->access(ref);
 
   // Get the artifact that we're going to chmod
   ref->resolve(_command, _build);

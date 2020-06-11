@@ -23,7 +23,11 @@ using std::ostream;
 using std::pair;
 using std::shared_ptr;
 
-void Reference::resolve(const shared_ptr<Command>& c, Build& build) {
+void Pipe::resolve(const shared_ptr<Command>& c, Build& build) {
+  std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
+}
+
+void Access::resolve(const shared_ptr<Command>& c, Build& build) {
   std::tie(_artifact, _rc) = build.getEnv().get(c, shared_from_this());
 }
 
@@ -102,18 +106,18 @@ void Launch::emulate(const shared_ptr<Command>& c, Build& build) {
 
 int Access::open() const {
   auto [open_flags, open_mode] = _flags.toOpen();
-  return ::open(_path.c_str(), open_flags, open_mode);
+  return ::open(getPath().c_str(), open_flags, open_mode);
 }
 
 pair<struct stat, int> Access::stat() const {
   struct stat statbuf;
-  int rc = fstatat(AT_FDCWD, _path.c_str(), &statbuf, _flags.toStat());
+  int rc = fstatat(AT_FDCWD, getPath().c_str(), &statbuf, _flags.toStat());
   return {statbuf, rc};
 }
 
 int Access::access() const {
   auto [access_mode, access_flags] = _flags.toAccess();
-  return faccessat(AT_FDCWD, _path.c_str(), access_mode, access_flags);
+  return faccessat(AT_FDCWD, getPath().c_str(), access_mode, access_flags);
 }
 
 /******************** Print Methods ********************/
@@ -131,7 +135,7 @@ ostream& Pipe::print(ostream& o) const {
 
 /// Print an ACCESS reference
 ostream& Access::print(ostream& o) const {
-  return o << getName() << " = ACCESS(\"" << _path << "\", [" << getFlags() << "])";
+  return o << getName() << " = ACCESS(\"" << getPath() << "\", [" << getFlags() << "])";
 }
 
 // Print a ReferenceResult predicate
