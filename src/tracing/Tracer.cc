@@ -129,6 +129,12 @@ void Tracer::run(const shared_ptr<Command>& cmd) {
 void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
   LOG << "Launching " << cmd;
 
+  // Get a reference to the directory where the command will be started
+  auto cwd = cmd->getInitialWorkingDirectory();
+
+  // Get a reference to the root directory in effect when the command is started
+  auto root = cmd->getInitialRoot();
+
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
@@ -178,6 +184,9 @@ void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
 
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
     }
+
+    // TODO: Change to the appropriate working directory
+    // TODO: Change to the appropriate root directory
 
     // Allow ourselves to be traced by our parent
     FAIL_IF(ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) << "Failed to start tracing: " << ERR;
@@ -289,7 +298,7 @@ void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
     fds.emplace(index, FileDescriptor(ref, initial_fd.isWritable()));
   }
 
-  _processes[child_pid] = make_shared<Process>(_build, child_pid, ".", cmd, fds);
+  _processes[child_pid] = make_shared<Process>(_build, child_pid, cwd, root, cmd, fds);
 }
 
 void Tracer::handleClone(const shared_ptr<Process>& p, int flags) {
@@ -320,7 +329,7 @@ void Tracer::handleFork(const shared_ptr<Process>& p) {
   LOG << "fork called in " << p;
 
   // Create a new process running the same command
-  auto new_proc = make_shared<Process>(_build, new_pid, p->_cwd, p->_command, p->_fds);
+  auto new_proc = make_shared<Process>(_build, new_pid, p->_cwd, p->_root, p->_command, p->_fds);
   _processes[new_pid] = new_proc;
 
   LOG << "new process " << new_proc;

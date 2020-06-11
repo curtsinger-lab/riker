@@ -128,9 +128,10 @@ shared_ptr<Command> Command::createRootCommand() {
                                           {1, FileDescriptor(stdout_ref, true)},
                                           {2, FileDescriptor(stderr_ref, true)}};
 
-  shared_ptr<Command> root(new Command(dodo_launch, {"dodo-launch"}, default_fds));
+  auto cwd = make_shared<Access>(".", AccessFlags{.x = true});
+  auto root = make_shared<Access>("/", AccessFlags{.x = true});
 
-  return root;
+  return shared_ptr<Command>(new Command(dodo_launch, {"dodo-launch"}, default_fds, cwd, root));
 }
 
 string Command::getShortName() const {
@@ -285,8 +286,9 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
 }
 
 // This command launches a child command
-shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds) {
-  auto child = make_shared<Command>(exe, args, fds);
+shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds,
+                                    const shared_ptr<Access>& cwd, const shared_ptr<Access>& root) {
+  auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
   if (options::print_on_run) cout << child->getFullName() << endl;
 

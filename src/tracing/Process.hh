@@ -15,6 +15,7 @@
 #include <sys/user.h>
 
 #include "core/FileDescriptor.hh"
+#include "core/IR.hh"
 
 using std::map;
 using std::ostream;
@@ -31,9 +32,9 @@ class RebuildPlanner;
 
 class Process {
  public:
-  Process(Build& build, pid_t pid, fs::path cwd, const shared_ptr<Command>& command,
-          map<int, FileDescriptor> fds) :
-      _build(build), _pid(pid), _cwd(cwd), _command(command), _fds(fds) {}
+  Process(Build& build, pid_t pid, const shared_ptr<Access>& cwd, const shared_ptr<Access>& root,
+          const shared_ptr<Command>& command, map<int, FileDescriptor> fds) :
+      _build(build), _pid(pid), _cwd(cwd), _root(root), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
   void resume();
@@ -162,8 +163,8 @@ class Process {
 
   Build& _build;
   pid_t _pid;
-  string _cwd;
-  string _root;
+  shared_ptr<Access> _cwd;
+  shared_ptr<Access> _root;
   shared_ptr<Command> _command;
   set<shared_ptr<Artifact>> _mmaps;
   map<int, FileDescriptor> _fds;

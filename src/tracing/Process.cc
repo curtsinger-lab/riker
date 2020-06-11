@@ -58,14 +58,13 @@ unsigned long Process::getEventMessage() {
 
 fs::path Process::resolvePath(fs::path p, int at) {
   // TODO: Handle chroot-ed processes correctly
-
   // We're going to build a full path from the reference. Simplest case is an absolute path.
   fs::path full_path = p;
 
   // Relative paths have to be relative to something
   if (p.is_relative()) {
     // By default, paths are relative to the current directory
-    fs::path base = _cwd;
+    fs::path base = _cwd->getPath();
 
     // But if the file is not relative to cwd, get the path for the specified base
     if (at != AT_FDCWD) {
@@ -418,7 +417,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   ASSERT(exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // This process launches a new command, and is now running that command
-  _command = _command->launch(exe_path, args, initial_fds);
+  _command = _command->launch(exe_path, args, initial_fds, _cwd, _root);
 
   // We also depend on the contents of the executable file at this point
   _command->contentsMatch(exe_ref);
@@ -526,7 +525,7 @@ void Process::_chdir(string filename) {
 
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
-    _cwd = resolvePath(filename);
+    _cwd = make_shared<Access>(resolvePath(filename), AccessFlags{.x = true});
   }
 }
 
@@ -543,7 +542,7 @@ void Process::_fchdir(int fd) {
     ASSERT(a) << "fchdir to an artifact with no path should not succeed";
 
     // Update the working directory
-    _cwd = a->getPath();
+    _cwd = a;
   }
 }
 

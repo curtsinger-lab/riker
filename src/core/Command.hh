@@ -40,8 +40,13 @@ class Command : public std::enable_shared_from_this<Command> {
   static shared_ptr<Command> createRootCommand();
 
   /// Create a new command
-  Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds) :
-      _exe(exe), _args(args), _initial_fds(initial_fds) {}
+  Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds,
+          const shared_ptr<Access>& initial_cwd, const shared_ptr<Access>& initial_root) :
+      _exe(exe),
+      _args(args),
+      _initial_fds(initial_fds),
+      _initial_cwd(initial_cwd),
+      _initial_root(initial_root) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -56,6 +61,12 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the full name for this command
   string getFullName() const;
+
+  /// Get the working directory where this command is started
+  const shared_ptr<Access>& getInitialWorkingDirectory() const { return _initial_cwd; }
+
+  /// Get the root directory in effect when this command is started
+  const shared_ptr<Access>& getInitialRoot() const { return _initial_root; }
 
   /// Get the list of traced steps this command runs
   const list<shared_ptr<Step>>& getSteps() const { return _steps; }
@@ -108,7 +119,8 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(const shared_ptr<Reference>& ref);
 
   /// This command launches a child command
-  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds);
+  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds,
+                             const shared_ptr<Access>& cwd, const shared_ptr<Access>& root);
 
   /****** Utility Methods ******/
 
@@ -130,6 +142,12 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The file descriptor table at the start of this command's execution
   map<int, FileDescriptor> _initial_fds;
 
+  /// A reference to the directory where this command is started
+  shared_ptr<Access> _initial_cwd;
+
+  /// A reference to the root directory in effect when this command is started
+  shared_ptr<Access> _initial_root;
+
   /// The steps performed by this command
   list<shared_ptr<Step>> _steps;
 
@@ -138,5 +156,5 @@ class Command : public std::enable_shared_from_this<Command> {
 
   // Create default constructor and specify fields for serialization
   Command() = default;
-  SERIALIZE(_exe, _args, _initial_fds, _steps, _children);
+  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _steps, _children);
 };
