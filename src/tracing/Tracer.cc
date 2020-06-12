@@ -238,7 +238,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    execv(cmd->getExecutable()->getPath().c_str(), (char* const*)args.data());
+    execv(cmd->getExecutable()->getFullPath().c_str(), (char* const*)args.data());
 
     // This is unreachable, unless execv fails
     FAIL << "Failed to start traced program: " << ERR;

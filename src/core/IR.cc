@@ -29,8 +29,14 @@ void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  const auto& [artifact, rc] = build.getEnv().getFile(c, shared_from_this());
-  resolutionResult(artifact, rc);
+  // If this access does not have a base reference, delegate resolution to the environment
+  if (_base) {
+    const auto& [artifact, rc] = _base->getArtifact()->resolvePath(c, shared_from_this());
+    resolutionResult(artifact, rc);
+  } else {
+    const auto& [artifact, rc] = build.getEnv().getFile(c, shared_from_this());
+    resolutionResult(artifact, rc);
+  }
 }
 
 /******* Emulation *******/
@@ -110,24 +116,24 @@ void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 int Access::open() const noexcept {
   auto [open_flags, open_mode] = _flags.toOpen();
-  return ::open(getPath().c_str(), open_flags, open_mode);
+  return ::open(getFullPath().c_str(), open_flags, open_mode);
 }
 
 pair<struct stat, int> Access::stat() const noexcept {
   struct stat statbuf;
-  int rc = ::stat(getPath().c_str(), &statbuf);
+  int rc = ::stat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};
 }
 
 pair<struct stat, int> Access::lstat() const noexcept {
   struct stat statbuf;
-  int rc = ::lstat(getPath().c_str(), &statbuf);
+  int rc = ::lstat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};
 }
 
 int Access::access() const noexcept {
   auto [access_mode, access_flags] = _flags.toAccess();
-  return faccessat(AT_FDCWD, getPath().c_str(), access_mode, access_flags);
+  return faccessat(AT_FDCWD, getFullPath().c_str(), access_mode, access_flags);
 }
 
 /******************** Print Methods ********************/
@@ -145,7 +151,7 @@ ostream& Pipe::print(ostream& o) const noexcept {
 
 /// Print an ACCESS reference
 ostream& Access::print(ostream& o) const noexcept {
-  return o << getName() << " = ACCESS(" << getPath() << ", [" << getFlags() << "]) -> "
+  return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "]) -> "
            << errors[getExpectedResult()];
 }
 

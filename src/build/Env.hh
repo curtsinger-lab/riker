@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include "build/BuildObserver.hh"
+#include "core/IR.hh"
 
 using std::map;
 using std::shared_ptr;

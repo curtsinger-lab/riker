@@ -2,11 +2,13 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 
 #include "artifacts/Artifact.hh"
 
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 
 class Command;
 class Reference;
@@ -20,4 +22,7 @@ class DirArtifact final : public Artifact {
       Artifact(env, committed, mv) {}
 
   virtual string getTypeName() const noexcept final { return "Dir"; }
+
+  virtual tuple<shared_ptr<Artifact>, int> resolvePath(shared_ptr<Command> c,
+                                                       shared_ptr<Access> ref) noexcept final;
 };

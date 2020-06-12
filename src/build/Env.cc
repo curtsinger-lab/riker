@@ -78,7 +78,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
   // 2. There is an on-disk file that we'll create an artifact to represent
   // 3. The resolution will fail with some error
 
-  auto path = ref->getPath();
+  auto path = ref->getFullPath();
   const auto& flags = ref->getFlags();
 
   // First, look in the filesystem map

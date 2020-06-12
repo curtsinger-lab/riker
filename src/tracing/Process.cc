@@ -166,7 +166,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
   WARN_IF(ref->getFlags().directory)
-      << "Accessing directory " << ref->getPath() << " with openat(). "
+      << "Accessing directory " << ref->getFullPath() << " with openat(). "
       << "This is not yet tracked correctly.";
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.

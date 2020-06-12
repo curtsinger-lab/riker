@@ -137,7 +137,7 @@ shared_ptr<Command> Command::createRootCommand() noexcept {
 
 string Command::getShortName() const noexcept {
   // By default, the short name is the executable
-  string result = _exe->getPath();
+  string result = _exe->getFullPath();
 
   // If we have arguments, use args[0] instead of the exe name
   if (_args.size() > 0) result = _args.front();

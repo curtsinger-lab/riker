@@ -5,6 +5,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <tuple>
 
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -14,8 +15,10 @@ using std::make_shared;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::weak_ptr;
 
+class Access;
 class Command;
 class ContentVersion;
 class Env;
@@ -131,6 +134,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
       shared_ptr<ContentVersion> v = nullptr) noexcept {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return _dummy_content_version;
+  }
+
+  /************ Directory Operations ************/
+
+  virtual tuple<shared_ptr<Artifact>, int> resolvePath(shared_ptr<Command> c,
+                                                       shared_ptr<Access> ref) noexcept {
+    return {nullptr, ENOTDIR};
   }
 
   /****** Utility Methods ******/

@@ -181,10 +181,16 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
     return shared_ptr<Access>(new Access(_base, _path, flags));
   }
 
+  /// Get the access that serves as the base for this one
+  const shared_ptr<Access>& getBase() const noexcept { return _base; }
+
+  /// Get the path of this reference, relative to the base access
+  fs::path getRelativePath() const noexcept { return _path; }
+
   /// Get the path this ACCESS reference uses
-  fs::path getPath() const noexcept {
+  fs::path getFullPath() const noexcept {
     if (_base) {
-      return _base->getPath() / _path;
+      return _base->getFullPath() / _path;
     } else {
       return _path;
     }
