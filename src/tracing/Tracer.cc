@@ -509,6 +509,10 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
       p->_mknod(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
+    case __NR_pivot_root:
+      p->_pivot_root(p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
+      break;
+
     case __NR_chroot:
       p->_chroot(p->readString(regs.SYSCALL_ARG1));
       break;
@@ -602,6 +606,10 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
 
     case __NR_pwritev2:
       p->_pwritev2(regs.SYSCALL_ARG1);
+      break;
+
+    case __NR_statx:
+      p->_statx(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
       break;
 
     default:
