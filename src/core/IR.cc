@@ -35,14 +35,16 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
 
 /******* Emulation *******/
 
-void Reference::emulate(shared_ptr<Command> c, Build& build) noexcept {
+void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Resolve the reference
   resolve(c, build);
+  if (getResult() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
 }
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // Check if the reference resolved as expected
-  if (_ref->getResult() != _rc) build.observeCommandChange(c, shared_from_this());
+void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // Resolve the reference
+  resolve(c, build);
+  if (getResult() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
@@ -113,7 +115,13 @@ int Access::open() const noexcept {
 
 pair<struct stat, int> Access::stat() const noexcept {
   struct stat statbuf;
-  int rc = fstatat(AT_FDCWD, getPath().c_str(), &statbuf, _flags.toStat());
+  int rc = ::stat(getPath().c_str(), &statbuf);
+  return {statbuf, rc};
+}
+
+pair<struct stat, int> Access::lstat() const noexcept {
+  struct stat statbuf;
+  int rc = ::lstat(getPath().c_str(), &statbuf);
   return {statbuf, rc};
 }
 
@@ -132,26 +140,13 @@ static map<int8_t, string> errors = {
 
 /// Print a PIPE reference
 ostream& Pipe::print(ostream& o) const noexcept {
-  return o << getName() << " = PIPE()";
+  return o << getName() << " = PIPE() -> " << errors[getExpectedResult()];
 }
 
 /// Print an ACCESS reference
 ostream& Access::print(ostream& o) const noexcept {
-  return o << getName() << " = ACCESS(" << getPath() << ", [" << getFlags() << "])";
-}
-
-// Print a ReferenceResult predicate
-ostream& ReferenceResult::print(ostream& o) const noexcept {
-  // If we can't identify the error code, just print "EMYSTERY"
-  string errname = "EMYSTERY";
-
-  // Look up the error name in our map
-  auto iter = errors.find(_rc);
-  if (iter != errors.end()) {
-    errname = iter->second;
-  }
-
-  return o << "REFERENCE_RESULT(" << _ref->getName() << ", " << errname << ")";
+  return o << getName() << " = ACCESS(" << getPath() << ", [" << getFlags() << "]) -> "
+           << errors[getExpectedResult()];
 }
 
 /// Print a METADATA_MATCH predicate

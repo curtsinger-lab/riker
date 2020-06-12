@@ -163,7 +163,6 @@ vector<string> Process::readArgvArray(uintptr_t tracee_pointer) noexcept {
 /************************* File Opening, Creation, and Closing ************************/
 
 void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
-  LOG << "Opening " << filename;
   // Get a reference from the given path
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
@@ -184,7 +183,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   // Check whether the openat call succeeded or failed
   if (fd >= 0) {
     // The command observed a successful openat, so add this predicate to the command log
-    _command->referenceResult(ref, SUCCESS);
+    ref->expectResult(SUCCESS);
 
     ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
@@ -202,7 +201,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
     // Negate fd because syscalls return negative errors
-    _command->referenceResult(ref, -fd);
+    ref->expectResult(-fd);
   }
 }
 
@@ -338,19 +337,16 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
   // Resume the process' execution
   resume();
 
-  // Did the access() call succeed?
-  if (rc == 0) {
-    _command->referenceResult(ref, SUCCESS);
-  } else {
-    // Record the error. We negate the return code because syscalls always return negative errors
-    _command->referenceResult(ref, -rc);
-  }
+  // Record the outcome of the reference
+  ref->expectResult(-rc);
 }
 
 void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
+    resume();
+
     // This is essentially an fstat call
     auto& descriptor = _fds.at(dirfd);
 
@@ -363,11 +359,13 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
 
     // Finish the syscall to see if the reference succeeds
     int rc = finishSyscall();
+    resume();
+
+    // Record the outcome of the syscall
+    ref->expectResult(-rc);
 
     // Log the success or failure
     if (rc == 0) {
-      _command->referenceResult(ref, SUCCESS);
-
       // Get the artifact that was stat-ed
       ref->resolve(_command, _build);
 
@@ -375,13 +373,8 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
 
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref);
-    } else {
-      // Record the error. Negate rc because syscalls return negative errors
-      _command->referenceResult(ref, -rc);
     }
   }
-
-  resume();
 }
 
 void Process::_lchown(string filename, uid_t user, gid_t group) noexcept {
@@ -425,7 +418,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // Did the call succeed?
   if (rc >= 0) {
     // Yes. Record the successful reference
-    _command->referenceResult(ref, SUCCESS);
+    ref->expectResult(SUCCESS);
 
     ASSERT(ref->isResolved()) << "Failed to get artifact";
 
@@ -434,7 +427,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
 
   } else {
     // No. Record the failure
-    _command->referenceResult(ref, -rc);
+    ref->expectResult(-rc);
   }
 }
 
@@ -541,20 +534,16 @@ void Process::_truncate(string pathname, long length) noexcept {
   int rc = finishSyscall();
   resume();
 
+  // Record the outcome of the reference
+  ref->expectResult(-rc);
+
   // Did the call succeed?
   if (rc == 0) {
-    // Record the successful reference
-    _command->referenceResult(ref, SUCCESS);
-
     // Make sure the artifact actually existed
     ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
     // Record the update to the artifact contents
     _command->setContents(ref);
-
-  } else {
-    // Record the failed reference
-    _command->referenceResult(ref, -rc);
   }
 }
 
@@ -630,7 +619,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
   // Did the call succeed?
   if (rc >= 0) {
     // Yes. Record the successful reference
-    _command->referenceResult(ref, SUCCESS);
+    ref->expectResult(SUCCESS);
 
     // Get the artifact that we referenced
     ref->resolve(_command, _build);
@@ -642,7 +631,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
 
   } else {
     // No. Record the failure
-    _command->referenceResult(ref, -rc);
+    ref->expectResult(-rc);
   }
 }
 
@@ -703,12 +692,12 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
   // If we see something else, handle the error
   if (rc != -38) {
     // Failure! Record a failed reference. Negate rc because syscalls return negative errors
-    _command->referenceResult(exe_ref, -rc);
+    exe_ref->expectResult(-rc);
     return;
   }
 
   // If we reached this point, the executable reference was okay
-  _command->referenceResult(exe_ref, SUCCESS);
+  exe_ref->expectResult(SUCCESS);
 
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
@@ -737,7 +726,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
 
   // The child command makes a reference to read the exe_ref
   auto child_exe_ref = _command->access(exe_ref, AccessFlags{.r = true});
-  _command->referenceResult(child_exe_ref, SUCCESS);
+  child_exe_ref->expectResult(SUCCESS);
 
   // Resolve the child executable reference
   child_exe_ref->resolve(_command, _build);
@@ -753,7 +742,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
     // Make a reference and record a successful result
     auto real_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true, .x = true});
 
-    _command->referenceResult(real_exe_ref, SUCCESS);
+    real_exe_ref->expectResult(SUCCESS);
 
     // Resolve the reference
     real_exe_ref->resolve(_command, _build);

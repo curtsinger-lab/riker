@@ -205,7 +205,6 @@ CEREAL_REGISTER_TYPE(Pipe);
 CEREAL_REGISTER_TYPE(Access);
 
 // Predicates
-CEREAL_REGISTER_TYPE(ReferenceResult);
 CEREAL_REGISTER_TYPE(MetadataMatch);
 CEREAL_REGISTER_TYPE(ContentsMatch);
 

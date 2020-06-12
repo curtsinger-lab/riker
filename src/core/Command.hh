@@ -109,9 +109,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command creates a pipe
   shared_ptr<Pipe> pipe() noexcept;
 
-  /// This command depends on the outcome of a reference
-  void referenceResult(shared_ptr<Reference> ref, int result) noexcept;
-
   /// This command depends on the metadata of a referenced artifact
   void metadataMatch(shared_ptr<Reference> ref) noexcept;
 

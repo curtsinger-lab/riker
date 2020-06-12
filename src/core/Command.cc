@@ -216,11 +216,6 @@ shared_ptr<Pipe> Command::pipe() noexcept {
   return ref;
 }
 
-// This command observes a reference resolve with a particular result
-void Command::referenceResult(shared_ptr<Reference> ref, int result) noexcept {
-  _steps.push_back(make_shared<ReferenceResult>(ref, result));
-}
-
 // This command depends on the metadata of a referenced artifact
 void Command::metadataMatch(shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";

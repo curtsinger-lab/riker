@@ -74,18 +74,17 @@ class Step {
  */
 class Reference : public Step {
  public:
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
-
   /// Get the unique ID for this reference
   size_t getID() const noexcept { return _id; }
 
   /// Get the short name for this reference
   string getName() const noexcept { return "r" + std::to_string(getID()); }
+
+  /// Record the result of this access from a trace
+  void expectResult(int rc) noexcept { _expected_rc = rc; }
+
+  /// Get the expected result of this access
+  int getExpectedResult() const noexcept { return _expected_rc; }
 
   /**
    * Resolve this reference within the context of a specific build
@@ -114,12 +113,15 @@ class Reference : public Step {
   }
 
  private:
-  /// Assign a unique ID to each reference
-  UniqueID<Reference> _id;
+  /// The expected result from this access
+  int _expected_rc = SUCCESS;
 
-  SERIALIZE(BASE(Step));
+  SERIALIZE(BASE(Step), _expected_rc);
 
   /****** Transient Fields ******/
+
+  /// Assign a unique ID to each reference
+  UniqueID<Reference> _id;
 
   /// The artifact this reference resolved to
   shared_ptr<Artifact> _artifact;
@@ -133,6 +135,13 @@ class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
  public:
   /// Create a pipe
   Pipe() noexcept = default;
+
+  /**
+   * Emulate this IR step in a given environment
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   */
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
 
@@ -160,6 +169,13 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
     return shared_ptr<Access>(new Access(nullptr, ".", flags));
   }
 
+  /**
+   * Emulate this IR step in a given environment
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   */
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+
   virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
 
   shared_ptr<Access> withFlags(AccessFlags flags) noexcept {
@@ -181,7 +197,10 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   /// Open this reference
   int open() const noexcept;
 
-  /// Stat this reference
+  /// Call lstat on this reference
+  pair<struct stat, int> lstat() const noexcept;
+
+  /// Call stat on this reference
   pair<struct stat, int> stat() const noexcept;
 
   /// Call access() on this reference
@@ -211,58 +230,9 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
 };
 
 /**
- * Predicates allow us to encode a command's dependencies. We will check to see whether these
- * predicates still hold true prior to a rebuild; any time a command has at least one failing
- * predicate, we know we have to rerun that command.
- *
- * There are several types of predicates:
- * - REFERECE_RESULT(r : Reference, rc : int)
- * - METADATA_MATCH(r : Reference, v : shared_ptr<Version>)
- * - CONTENTS_MATCH(r : Reference, v : shared_ptr<Version>)
- */
-class Predicate : public Step {
- private:
-  SERIALIZE(BASE(Step));
-};
-
-/**
- * Making a reference produced a particular result (error code or success)
- */
-class ReferenceResult final : public Predicate,
-                              public std::enable_shared_from_this<ReferenceResult> {
- public:
-  /// Create a REFERENCE_RESULT predicate
-  ReferenceResult(shared_ptr<Reference> ref, int8_t rc) noexcept : _ref(ref), _rc(rc) {}
-
-  /// Get the reference this predicate examines
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
-
-  /// Get the expected result of the reference
-  int getResult() const noexcept { return _rc; }
-
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
-
-  /// Print a REFERENCE_RESULT predicate
-  virtual ostream& print(ostream& o) const noexcept final;
-
- private:
-  shared_ptr<Reference> _ref;  //< The reference whose outcome we depend on
-  int8_t _rc;                  //< The result of that reference
-
-  // Create default constructor and specify fields for serialization
-  ReferenceResult() = default;
-  SERIALIZE(BASE(Predicate), _ref, _rc);
-};
-
-/**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
-class MetadataMatch final : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
+class MetadataMatch final : public Step, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
@@ -290,13 +260,13 @@ class MetadataMatch final : public Predicate, public std::enable_shared_from_thi
 
   // Create default constructor and specify fields for serialization
   MetadataMatch() = default;
-  SERIALIZE(BASE(Predicate), _ref, _version);
+  SERIALIZE(BASE(Step), _ref, _version);
 };
 
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
-class ContentsMatch final : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
+class ContentsMatch final : public Step, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
@@ -324,29 +294,14 @@ class ContentsMatch final : public Predicate, public std::enable_shared_from_thi
 
   // Create default constructor and specify fields for serialization
   ContentsMatch() = default;
-  SERIALIZE(BASE(Predicate), _ref, _version);
-};
-
-/**
- * An action describes a step taken by a command that could become visible to some other command.
- * If we are able to skip execution of a command (all its predicates match) we are responsible for
- * performing these actions on behalf of the skipped command.
- *
- * The types of actions are:
- * - LAUNCH(cmd : Command, inherited_refs : [Reference])
- * - SET_METADATA(r : Reference, v : Artifact::Version)
- * - SET_CONTENTS(r : Reference, v : Artifact::Version)
- */
-class Action : public Step {
- private:
-  SERIALIZE(BASE(Step));
+  SERIALIZE(BASE(Step), _ref, _version);
 };
 
 /**
  * A Launch action creates a new command, which inherits some (possibly empty)
  * set of references from its parent.
  */
-class Launch final : public Action, public std::enable_shared_from_this<Launch> {
+class Launch final : public Step, public std::enable_shared_from_this<Launch> {
  public:
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
@@ -369,13 +324,13 @@ class Launch final : public Action, public std::enable_shared_from_this<Launch> 
 
   // Create default constructor and specify fields for serialization
   Launch() = default;
-  SERIALIZE(BASE(Action), _cmd);
+  SERIALIZE(BASE(Step), _cmd);
 };
 
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata final : public Action, public std::enable_shared_from_this<SetMetadata> {
+class SetMetadata final : public Step, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
@@ -401,13 +356,13 @@ class SetMetadata final : public Action, public std::enable_shared_from_this<Set
 
   // Create default constructor and specify fields for serialization
   SetMetadata() = default;
-  SERIALIZE(BASE(Action), _ref, _version);
+  SERIALIZE(BASE(Step), _ref, _version);
 };
 
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents final : public Action, public std::enable_shared_from_this<SetContents> {
+class SetContents final : public Step, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
@@ -433,5 +388,5 @@ class SetContents final : public Action, public std::enable_shared_from_this<Set
 
   // Create default constructor and specify fields for serialization
   SetContents() = default;
-  SERIALIZE(BASE(Action), _ref, _version);
+  SERIALIZE(BASE(Step), _ref, _version);
 };
