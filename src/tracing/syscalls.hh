@@ -31,7 +31,7 @@ inline static map<uint32_t, string> syscalls = {
     /* 005 */ SYSCALL_ENTRY(fstat),
     /* 006 */ SYSCALL_ENTRY(lstat),
     /* 007 */  // skip poll
-    /* 008 */ SYSCALL_ENTRY(lseek),
+    /* 008 */  // skip lseek
     /* 009 */ SYSCALL_ENTRY(mmap),
     /* 010 */  // skip mprotect
     /* 011 */  // skip munmap
@@ -211,18 +211,18 @@ inline static map<uint32_t, string> syscalls = {
     /* 185 */  // skip security
     /* 186 */  // skip gettid
     /* 187 */  // skip readahead
-    /* 188 */ SYSCALL_ENTRY(setxattr),
-    /* 189 */ SYSCALL_ENTRY(lsetxattr),
-    /* 190 */ SYSCALL_ENTRY(fsetxattr),
-    /* 191 */ SYSCALL_ENTRY(getxattr),
-    /* 192 */ SYSCALL_ENTRY(lgetxattr),
-    /* 193 */ SYSCALL_ENTRY(fgetxattr),
-    /* 194 */ SYSCALL_ENTRY(listxattr),
-    /* 195 */ SYSCALL_ENTRY(llistxattr),
-    /* 196 */ SYSCALL_ENTRY(flistxattr),
-    /* 197 */ SYSCALL_ENTRY(removexattr),
-    /* 198 */ SYSCALL_ENTRY(lremovexattr),
-    /* 199 */ SYSCALL_ENTRY(fremovexattr),
+    /* 188 */  // skip setxattr
+    /* 189 */  // skip lsetxattr
+    /* 190 */  // skip fsetxattr
+    /* 191 */  // skip getxattr
+    /* 192 */  // skip lgetxattr
+    /* 193 */  // skip fgetxattr
+    /* 194 */  // skip listxattr
+    /* 195 */  // skip llistxattr
+    /* 196 */  // skip flistxattr
+    /* 197 */  // skip removexattr
+    /* 198 */  // skip lremovexattr
+    /* 199 */  // skip fremovexattr
     /* 200 */  // skip tkill
     /* 201 */  // skip time
     /* 202 */  // skip futex

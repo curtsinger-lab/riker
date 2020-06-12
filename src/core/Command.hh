@@ -44,7 +44,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Create a new command
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds,
-          const shared_ptr<Access>& initial_cwd, const shared_ptr<Access>& initial_root) :
+          shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -66,10 +66,10 @@ class Command : public std::enable_shared_from_this<Command> {
   string getFullName() const;
 
   /// Get the working directory where this command is started
-  const shared_ptr<Access>& getInitialWorkingDirectory() const { return _initial_cwd; }
+  shared_ptr<Access> getInitialWorkingDirectory() const { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  const shared_ptr<Access>& getInitialRoot() const { return _initial_root; }
+  shared_ptr<Access> getInitialRoot() const { return _initial_root; }
 
   /// Get the list of traced steps this command runs
   const list<shared_ptr<Step>>& getSteps() const { return _steps; }
@@ -101,32 +101,33 @@ class Command : public std::enable_shared_from_this<Command> {
   /********* Command Tracing Operations **********/
 
   /// This command accesses a path relative to some base reference, using the given flags
-  shared_ptr<Access> access(fs::path path, AccessFlags flags, const shared_ptr<Access>& base);
+  shared_ptr<Access> access(fs::path path, AccessFlags flags, shared_ptr<Access> base);
 
   /// This command accesses an already-constructed reference using new flags
-  shared_ptr<Access> access(const shared_ptr<Access>& a, AccessFlags flags);
+  shared_ptr<Access> access(shared_ptr<Access> a, AccessFlags flags);
 
   /// This command creates a pipe
   shared_ptr<Pipe> pipe();
 
   /// This command depends on the outcome of a reference
-  void referenceResult(const shared_ptr<Reference>& ref, int result);
+  void referenceResult(shared_ptr<Reference> ref, int result);
 
   /// This command depends on the metadata of a referenced artifact
-  void metadataMatch(const shared_ptr<Reference>& ref);
+  void metadataMatch(shared_ptr<Reference> ref);
 
   /// This command depends on the contents of a referenced artifact
-  void contentsMatch(const shared_ptr<Reference>& ref);
+  void contentsMatch(shared_ptr<Reference> ref);
 
   /// This command sets the metadata of a referenced artifact
-  void setMetadata(const shared_ptr<Reference>& ref);
+  void setMetadata(shared_ptr<Reference> ref);
 
   /// This command sets the contents of a referenced artifact
-  void setContents(const shared_ptr<Reference>& ref);
+  void setContents(shared_ptr<Reference> ref);
 
   /// This command launches a child command
-  shared_ptr<Command> launch(string exe, vector<string> args, map<int, FileDescriptor> fds,
-                             const shared_ptr<Access>& cwd, const shared_ptr<Access>& root);
+  shared_ptr<Command> launch(string exe, const vector<string>& args,
+                             const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
+                             shared_ptr<Access> root);
 
   /****** Utility Methods ******/
 

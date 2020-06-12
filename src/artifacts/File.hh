@@ -19,32 +19,32 @@ class FileArtifact : public Artifact {
                shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>(),
                shared_ptr<ContentVersion> cv = make_shared<ContentVersion>());
 
-  virtual void checkFinalState(const shared_ptr<Reference>& ref) override final;
+  virtual void checkFinalState(shared_ptr<Reference> ref) override final;
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
   virtual bool isSaved() const override final;
 
   /// Save a copy of this artifact's versions so it can be restored on a future build
-  virtual void save(const shared_ptr<Reference>& ref) override final;
+  virtual void save(shared_ptr<Reference> ref) override final;
 
   /// Have all modifications to this artifact been committed to the filesystem?
   virtual bool isCommitted() const override final;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(const shared_ptr<Reference>& ref) override final;
+  virtual void commit(shared_ptr<Reference> ref) override final;
 
   /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
   virtual bool hasFingerprint() const override final;
 
   /// Save a fingerprint of this artifact's versions so we can check for a match
-  virtual void fingerprint(const shared_ptr<Reference>& ref) override final;
+  virtual void fingerprint(shared_ptr<Reference> ref) override final;
 
-  virtual shared_ptr<ContentVersion> accessContents(
-      const shared_ptr<Command>& c, const shared_ptr<Reference>& ref) override final;
+  virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
+                                                    shared_ptr<Reference> ref) override final;
 
   virtual shared_ptr<ContentVersion> setContents(
-      const shared_ptr<Command>& c, const shared_ptr<Reference>& ref,
-      const shared_ptr<ContentVersion>& v = nullptr) override final;
+      shared_ptr<Command> c, shared_ptr<Reference> ref,
+      shared_ptr<ContentVersion> v = nullptr) override final;
 
   virtual string getTypeName() const override { return "File"; }
 

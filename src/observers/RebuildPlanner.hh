@@ -76,8 +76,8 @@ class RebuildPlanner final : public BuildObserver {
   /******** BuildObserver Interface ********/
 
   /// Command c depends on version v of artifact a
-  virtual void input(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
-                     const shared_ptr<Version>& v) override {
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) override {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
@@ -94,32 +94,30 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Command c did not find the expected version in artifact a
-  virtual void mismatch(const shared_ptr<Command>& c, const shared_ptr<Artifact>& a,
-                        const shared_ptr<Version>& observed,
-                        const shared_ptr<Version>& expected) override {
+  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                        shared_ptr<Version> expected) override {
     // Record the change
     LOG << c << " observed change in " << a;
     _changed.insert(c);
   }
 
   /// Command c has never been run
-  virtual void commandNeverRun(const shared_ptr<Command>& c) override {
+  virtual void commandNeverRun(shared_ptr<Command> c) override {
     // Record the change
     LOG << c << " never run";
     _changed.insert(c);
   }
 
   /// IR step s in command c observed a change
-  virtual void commandChanged(const shared_ptr<Command>& c,
-                              const shared_ptr<const Step>& s) override {
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
     // Record the change
     LOG << c << " changed: " << s;
     _changed.insert(c);
   }
 
   /// An artifact's final version does not match what is on the filesystem
-  virtual void finalMismatch(const shared_ptr<Artifact>& a, const shared_ptr<Version>& observed,
-                             const shared_ptr<Version>& expected) override {
+  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+                             shared_ptr<Version> expected) override {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!observed->getCreator()) return;
 
@@ -132,7 +130,7 @@ class RebuildPlanner final : public BuildObserver {
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(Build& b, const shared_ptr<Command>& c) const {
+  void mark(Build& b, shared_ptr<Command> c) const {
     // Mark command c for rerun. If the command was already marked, setRerun will return false and
     // we can stop here
     if (!b.setRerun(c)) return;

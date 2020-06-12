@@ -32,8 +32,8 @@ class RebuildPlanner;
 
 class Process {
  public:
-  Process(Build& build, pid_t pid, const shared_ptr<Access>& cwd, const shared_ptr<Access>& root,
-          const shared_ptr<Command>& command, map<int, FileDescriptor> fds) :
+  Process(Build& build, pid_t pid, shared_ptr<Access> cwd, shared_ptr<Access> root,
+          shared_ptr<Command> command, map<int, FileDescriptor> fds) :
       _build(build), _pid(pid), _cwd(cwd), _root(root), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
@@ -117,16 +117,11 @@ class Process {
   void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags);
   void _faccessat(int dirfd, string pathname, int mode, int flags);
   void _fstatat(int dirfd, string pathname, int flags);
-  void _lseek(int fd, off_t offset, int whence);
 
   /*** Syscalls that should be handled directly, but are currently aliases ***/
   void _rmdir(string p) { _unlink(p); }
   void _fchmod(int fd, mode_t mode) { _write(fd); }
   void _fchown(int fd, uid_t user, gid_t group) { _write(fd); }
-  void _fsetxattr(int fd) { _write(fd); }
-  void _fgetxattr(int fd) { _read(fd); }
-  void _flistxattr(int fd) { _read(fd); }
-  void _fremovexattr(int fd) { _write(fd); }
   void _vmsplice(int fd) { _write(fd); }
 
   /*** Syscalls that can be handled as aliases for others ***/
@@ -150,10 +145,6 @@ class Process {
   void _chmod(string filename, mode_t mode) { _fchmodat(AT_FDCWD, filename, mode, 0); }
   void _chown(string f, uid_t user, gid_t group) { _fchownat(AT_FDCWD, f, user, group, 0); }
   void _mknod(string f, mode_t mode, unsigned dev) { _mknodat(AT_FDCWD, f, mode, dev); }
-  void _listxattr(string pathname) { _getxattr(pathname); }
-  void _llistxattr(string pathname) { _lgetxattr(pathname); }
-  void _removexattr(string pathname) { _setxattr(pathname); }
-  void _lremovexattr(string pathname) { _lsetxattr(pathname); }
   void _getdents64(int fd) { _read(fd); }
   void _renameat(int d1, string n1, int d2, string n2) { _renameat2(d1, n1, d2, n2, 0); }
   void _splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out) { _tee(fd_in, fd_out); }

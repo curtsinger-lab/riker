@@ -16,7 +16,7 @@ class ContentVersion;
 class DirArtifact final : public Artifact {
  public:
   DirArtifact(Env& env, bool committed,
-              const shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>()) :
+              shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>()) :
       Artifact(env, committed, mv) {}
 
   virtual string getTypeName() const override { return "Dir"; }

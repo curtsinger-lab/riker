@@ -33,7 +33,7 @@ using std::make_shared;
 using std::pair;
 using std::shared_ptr;
 
-void Tracer::run(const shared_ptr<Command>& cmd) {
+void Tracer::run(shared_ptr<Command> cmd) {
   // Launch the command with tracing
   launchTraced(cmd);
 
@@ -88,7 +88,7 @@ void Tracer::run(const shared_ptr<Command>& cmd) {
       }
     }
 
-    auto p = _processes[child];
+    const auto& p = _processes[child];
 
     if (WIFSTOPPED(wait_status)) {
       int status = wait_status >> 8;
@@ -101,10 +101,6 @@ void Tracer::run(const shared_ptr<Command>& cmd) {
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
         // TODO: Is this called in the child just after fork()?
         handleFork(p);
-
-      } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-        // TODO: Is this called before or after exec?
-        FAIL << "handleExec is gone. I thought we wouldn't need it?";
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         // TODO: Is this called in the child just after clone()?
@@ -126,7 +122,7 @@ void Tracer::run(const shared_ptr<Command>& cmd) {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
+void Tracer::launchTraced(shared_ptr<Command> cmd) {
   LOG << "Launching " << cmd;
 
   // Get a reference to the directory where the command will be started
@@ -301,7 +297,7 @@ void Tracer::launchTraced(const shared_ptr<Command>& cmd) {
   _processes[child_pid] = make_shared<Process>(_build, child_pid, cwd, root, cmd, fds);
 }
 
-void Tracer::handleClone(const shared_ptr<Process>& p, int flags) {
+void Tracer::handleClone(shared_ptr<Process> p, int flags) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -315,7 +311,7 @@ void Tracer::handleClone(const shared_ptr<Process>& p, int flags) {
   _processes[new_pid] = _processes[p->_pid];
 }
 
-void Tracer::handleFork(const shared_ptr<Process>& p) {
+void Tracer::handleFork(shared_ptr<Process> p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -335,7 +331,7 @@ void Tracer::handleFork(const shared_ptr<Process>& p) {
   LOG << "new process " << new_proc;
 }
 
-void Tracer::handleExit(const shared_ptr<Process>& p) {
+void Tracer::handleExit(shared_ptr<Process> p) {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -343,7 +339,7 @@ void Tracer::handleExit(const shared_ptr<Process>& p) {
   _processes.erase(p->_pid);
 }
 
-void Tracer::handleSyscall(const shared_ptr<Process>& p) {
+void Tracer::handleSyscall(shared_ptr<Process> p) {
   auto regs = p->getRegisters();
 
   // This giant switch statement invokes the appropriate system call handler on a traced
@@ -517,54 +513,6 @@ void Tracer::handleSyscall(const shared_ptr<Process>& p) {
       p->_chroot(p->readString(regs.SYSCALL_ARG1));
       break;
 
-    case __NR_setxattr:
-      p->_setxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_lsetxattr:
-      p->_lsetxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_fsetxattr:
-      p->_fsetxattr(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_getxattr:
-      p->_getxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_lgetxattr:
-      p->_lgetxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_fgetxattr:
-      p->_fgetxattr(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_listxattr:
-      p->_listxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_llistxattr:
-      p->_llistxattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_flistxattr:
-      p->_flistxattr(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_removexattr:
-      p->_removexattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_lremovexattr:
-      p->_lremovexattr(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_fremovexattr:
-      p->_fremovexattr(regs.SYSCALL_ARG1);
-      break;
-
     case __NR_getdents64:
       p->_getdents64(regs.SYSCALL_ARG1);
       break;
@@ -654,10 +602,6 @@ void Tracer::handleSyscall(const shared_ptr<Process>& p) {
 
     case __NR_pwritev2:
       p->_pwritev2(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_lseek:
-      p->_lseek(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
       break;
 
     default:

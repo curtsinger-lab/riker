@@ -66,22 +66,22 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool isSaved() const;
 
   /// Save a copy of this artifact's versions so it can be restored on a future build
-  virtual void save(const shared_ptr<Reference>& ref);
+  virtual void save(shared_ptr<Reference> ref);
 
   /// Have all modifications to this artifact been committed to the filesystem?
   virtual bool isCommitted() const;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(const shared_ptr<Reference>& ref);
+  virtual void commit(shared_ptr<Reference> ref);
 
   /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
   virtual bool hasFingerprint() const;
 
   /// Save a fingerprint of this artifact's versions so we can check for a match
-  virtual void fingerprint(const shared_ptr<Reference>& ref);
+  virtual void fingerprint(shared_ptr<Reference> ref);
 
   /// Check this artifact's final state against the filesystem and report any changes
-  virtual void checkFinalState(const shared_ptr<Reference>& ref);
+  virtual void checkFinalState(shared_ptr<Reference> ref);
 
   /********** Metadata: All Artifact Types **********/
 
@@ -91,8 +91,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param ref The referenced used to reach this artifact
    * \returns the version the command observes
    */
-  shared_ptr<MetadataVersion> accessMetadata(const shared_ptr<Command>& c,
-                                             const shared_ptr<Reference>& ref);
+  shared_ptr<MetadataVersion> accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
 
   /**
    * Command c sets the metadata of this artifact to version v using reference ref.
@@ -101,9 +100,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's metadata is set to, or null if the version is on disk
    * \returns the newly-assigned metadata version
    */
-  shared_ptr<MetadataVersion> setMetadata(const shared_ptr<Command>& c,
-                                          const shared_ptr<Reference>& ref,
-                                          const shared_ptr<MetadataVersion>& v = nullptr);
+  shared_ptr<MetadataVersion> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                          shared_ptr<MetadataVersion> v = nullptr);
 
   /********** Content: Files and Pipes **********/
 
@@ -114,8 +112,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the version the command observes, or nullptr if the command has already observed the
    *          latest version using this reference (no check is necessary).
    */
-  virtual shared_ptr<ContentVersion> accessContents(const shared_ptr<Command>& c,
-                                                    const shared_ptr<Reference>& ref) {
+  virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
+                                                    shared_ptr<Reference> ref) {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return nullptr;
   }
@@ -127,9 +125,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's content is set to, or null if the version is on disk
    * \returns the newly-assigned content version
    */
-  virtual shared_ptr<ContentVersion> setContents(const shared_ptr<Command>& c,
-                                                 const shared_ptr<Reference>& ref,
-                                                 const shared_ptr<ContentVersion>& v = nullptr) {
+  virtual shared_ptr<ContentVersion> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                                 shared_ptr<ContentVersion> v = nullptr) {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return nullptr;
   }
@@ -153,7 +150,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
  protected:
   /// Add a version to the sequence of versions for this artifact
-  void appendVersion(const shared_ptr<Version>& v);
+  void appendVersion(shared_ptr<Version> v);
 
  protected:
   /// The environment this artifact is managed by

@@ -52,19 +52,19 @@ class Version {
   virtual bool isSaved() const = 0;
 
   /// Save this version
-  virtual void save(const shared_ptr<Reference>& ref) = 0;
+  virtual void save(shared_ptr<Reference> ref) = 0;
 
   /// Restore this version to the filesystem
-  virtual void commit(const shared_ptr<Reference>& ref) const = 0;
+  virtual void commit(shared_ptr<Reference> ref) const = 0;
 
   /// Is this version fingerprinted in a way that alllows us to check for a match?
   virtual bool hasFingerprint() const = 0;
 
   /// Fingerprint this version
-  virtual void fingerprint(const shared_ptr<Reference>& ref) = 0;
+  virtual void fingerprint(shared_ptr<Reference> ref) = 0;
 
   /// Compare this version to another version
-  virtual bool matches(const shared_ptr<Version>& other) const = 0;
+  virtual bool matches(shared_ptr<Version> other) const = 0;
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const Version& v) {
@@ -99,7 +99,7 @@ class Version {
   void identify(const Artifact* a) const { _identity = {a, a->getVersionCount() - 1}; }
 
   /// Copy the identity to or from another version
-  void identify(const shared_ptr<Version>& other) const {
+  void identify(shared_ptr<Version> other) const {
     if (_identity.has_value()) {
       other->_identity = _identity;
     } else {

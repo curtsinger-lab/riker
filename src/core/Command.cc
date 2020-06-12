@@ -182,8 +182,7 @@ void Command::emulate(Build& build) {
 }
 
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
-                                   const shared_ptr<Access>& base) {
+shared_ptr<Access> Command::access(fs::path path, AccessFlags flags, shared_ptr<Access> base) {
   // In path resolution, it may be helpful to store each level of the path in a new reference.
   // Uncomment to re-enable this.
   /*auto current = base;
@@ -203,7 +202,7 @@ shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
 }
 
 // Make an access using a new set of flags
-shared_ptr<Access> Command::access(const shared_ptr<Access>& a, AccessFlags flags) {
+shared_ptr<Access> Command::access(shared_ptr<Access> a, AccessFlags flags) {
   auto ref = a->withFlags(flags);
   _steps.push_back(ref);
   return ref;
@@ -217,12 +216,12 @@ shared_ptr<Pipe> Command::pipe() {
 }
 
 // This command observes a reference resolve with a particular result
-void Command::referenceResult(const shared_ptr<Reference>& ref, int result) {
+void Command::referenceResult(shared_ptr<Reference> ref, int result) {
   _steps.push_back(make_shared<ReferenceResult>(ref, result));
 }
 
 // This command depends on the metadata of a referenced artifact
-void Command::metadataMatch(const shared_ptr<Reference>& ref) {
+void Command::metadataMatch(shared_ptr<Reference> ref) {
   ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
   // Do we have to log this read?
@@ -244,7 +243,7 @@ void Command::metadataMatch(const shared_ptr<Reference>& ref) {
 }
 
 // This command depends on the contents of a referenced artifact
-void Command::contentsMatch(const shared_ptr<Reference>& ref) {
+void Command::contentsMatch(shared_ptr<Reference> ref) {
   ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
                             << ref;
 
@@ -272,7 +271,7 @@ void Command::contentsMatch(const shared_ptr<Reference>& ref) {
 }
 
 // This command sets the metadata of a referenced artifact
-void Command::setMetadata(const shared_ptr<Reference>& ref) {
+void Command::setMetadata(shared_ptr<Reference> ref) {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Do we have to log this write?
@@ -289,7 +288,7 @@ void Command::setMetadata(const shared_ptr<Reference>& ref) {
 }
 
 // This command sets the contents of a referenced artifact
-void Command::setContents(const shared_ptr<Reference>& ref) {
+void Command::setContents(shared_ptr<Reference> ref) {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Do we have to log this write?
@@ -308,8 +307,9 @@ void Command::setContents(const shared_ptr<Reference>& ref) {
 }
 
 // This command launches a child command
-shared_ptr<Command> Command::launch(string exe, vector<string> args, map<int, FileDescriptor> fds,
-                                    const shared_ptr<Access>& cwd, const shared_ptr<Access>& root) {
+shared_ptr<Command> Command::launch(string exe, const vector<string>& args,
+                                    const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
+                                    shared_ptr<Access> root) {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
   if (options::print_on_run) cout << child->getFullName() << endl;

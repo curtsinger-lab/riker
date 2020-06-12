@@ -30,8 +30,7 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-tuple<shared_ptr<Artifact>, int> Env::get(const shared_ptr<Command>& c,
-                                          const shared_ptr<Reference>& ref) {
+tuple<shared_ptr<Artifact>, int> Env::get(shared_ptr<Command> c, shared_ptr<Reference> ref) {
   // Is ref a pipe, access, or something else?
   if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
     return getPipe(c, p);
@@ -45,8 +44,7 @@ tuple<shared_ptr<Artifact>, int> Env::get(const shared_ptr<Command>& c,
   }
 }
 
-tuple<shared_ptr<Artifact>, int> Env::getPipe(const shared_ptr<Command>& c,
-                                              const shared_ptr<Pipe>& ref) {
+tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) {
   // Check the _pipes map for an existing artifact
   auto iter = _pipes.find(ref);
   if (iter != _pipes.end()) {
@@ -65,8 +63,7 @@ tuple<shared_ptr<Artifact>, int> Env::getPipe(const shared_ptr<Command>& c,
   }
 }
 
-tuple<shared_ptr<Artifact>, int> Env::getFile(const shared_ptr<Command>& c,
-                                              const shared_ptr<Access>& ref) {
+tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c, shared_ptr<Access> ref) {
   // Check the _files map to see if this reference has already been resolved
   if (auto iter = _files.find(ref); iter != _files.end()) {
     // Found a match. Return the artifact and result code

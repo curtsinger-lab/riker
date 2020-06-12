@@ -32,7 +32,7 @@ bool Artifact::isSaved() const {
 }
 
 // Save the latest metadata version
-void Artifact::save(const shared_ptr<Reference>& ref) {
+void Artifact::save(shared_ptr<Reference> ref) {
   _metadata_version->save(ref);
 }
 
@@ -42,7 +42,7 @@ bool Artifact::isCommitted() const {
 }
 
 // Commit the latest metadata version
-void Artifact::commit(const shared_ptr<Reference>& ref) {
+void Artifact::commit(shared_ptr<Reference> ref) {
   if (!_metadata_committed) {
     ASSERT(_metadata_version->isSaved()) << "Attempted to commit unsaved version";
 
@@ -57,12 +57,12 @@ bool Artifact::hasFingerprint() const {
 }
 
 // Save a fingerprint for the latest metadata version
-void Artifact::fingerprint(const shared_ptr<Reference>& ref) {
+void Artifact::fingerprint(shared_ptr<Reference> ref) {
   _metadata_version->fingerprint(ref);
 }
 
 // Check this artifact's contents and metadata against the filesystem state
-void Artifact::checkFinalState(const shared_ptr<Reference>& ref) {
+void Artifact::checkFinalState(shared_ptr<Reference> ref) {
   // We can skip checks if we already know metadata is in a committed state
   if (!_metadata_committed) {
     // Create a version that represents the on-disk contents reached through this reference
@@ -82,8 +82,8 @@ void Artifact::checkFinalState(const shared_ptr<Reference>& ref) {
 
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary
-shared_ptr<MetadataVersion> Artifact::accessMetadata(const shared_ptr<Command>& c,
-                                                     const shared_ptr<Reference>& ref) {
+shared_ptr<MetadataVersion> Artifact::accessMetadata(shared_ptr<Command> c,
+                                                     shared_ptr<Reference> ref) {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
@@ -94,9 +94,8 @@ shared_ptr<MetadataVersion> Artifact::accessMetadata(const shared_ptr<Command>& 
 
 // Command c sets the metadata for this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
-                                                  const shared_ptr<Reference>& ref,
-                                                  const shared_ptr<MetadataVersion>& v) {
+shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+                                                  shared_ptr<MetadataVersion> v) {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
     // Create a version to track the new on-disk state
@@ -125,7 +124,7 @@ shared_ptr<MetadataVersion> Artifact::setMetadata(const shared_ptr<Command>& c,
   return _metadata_version;
 }
 
-void Artifact::appendVersion(const shared_ptr<Version>& v) {
+void Artifact::appendVersion(shared_ptr<Version> v) {
   _versions.push_back(v);
   v->identify(this);
 }
