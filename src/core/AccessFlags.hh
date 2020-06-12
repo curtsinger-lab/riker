@@ -38,7 +38,7 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(int flags, uint16_t mode) {
+  static AccessFlags fromOpen(int flags, uint16_t mode) noexcept {
     AccessFlags f;
     f.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR;
     f.w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR;
@@ -53,7 +53,7 @@ struct AccessFlags {
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
-  pair<int, uint16_t> toOpen() const {
+  pair<int, uint16_t> toOpen() const noexcept {
     int flags = 0;
     if (r && w) flags |= O_RDWR;
     if (r && !w) flags |= O_RDONLY;
@@ -69,7 +69,7 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the mode and flags parameters to the access syscall
-  static AccessFlags fromAccess(int mode, int flags) {
+  static AccessFlags fromAccess(int mode, int flags) noexcept {
     AccessFlags f;
     f.r = (mode & R_OK) == R_OK;
     f.w = (mode & W_OK) == W_OK;
@@ -79,7 +79,7 @@ struct AccessFlags {
   }
 
   /// Generate mode and flags for the access() call from this AccessFlags instance
-  pair<int, int> toAccess() const {
+  pair<int, int> toAccess() const noexcept {
     int mode = 0;
     if (r) mode |= R_OK;
     if (w) mode |= W_OK;
@@ -92,17 +92,17 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the stat syscall
-  static AccessFlags fromStat(int flags) {
+  static AccessFlags fromStat(int flags) noexcept {
     AccessFlags f;
     f.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
     return f;
   }
 
   /// Generate flags for the fstatat() call from this AccessFlags instance
-  int toStat() const { return nofollow ? AT_SYMLINK_NOFOLLOW : 0; }
+  int toStat() const noexcept { return nofollow ? AT_SYMLINK_NOFOLLOW : 0; }
 
   /// Print an AccessFlags struct to an output stream
-  friend ostream& operator<<(ostream& o, const AccessFlags& f) {
+  friend ostream& operator<<(ostream& o, const AccessFlags& f) noexcept {
     o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
       << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
       << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "")

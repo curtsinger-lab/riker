@@ -29,7 +29,7 @@ class Build {
    * added later.
    * \param root  The root command of the build
    */
-  Build(shared_ptr<Command> root) : _root(root), _env(*this) {}
+  Build(shared_ptr<Command> root) noexcept : _root(root), _env(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -40,7 +40,7 @@ class Build {
    * \param c The command that should be executed rather than emulated
    * \returns true if this is a new addition to the set, or false if the command was already marked
    */
-  bool setRerun(shared_ptr<Command> c) {
+  bool setRerun(shared_ptr<Command> c) noexcept {
     auto [iter, added] = _rerun.insert(c);
     return added;
   }
@@ -50,79 +50,80 @@ class Build {
    * \param c The command that is being checked
    * \returns true if the command is marked for reexecution, otherwise false
    */
-  bool checkRerun(shared_ptr<Command> c) const { return _rerun.find(c) != _rerun.end(); }
+  bool checkRerun(shared_ptr<Command> c) const noexcept { return _rerun.find(c) != _rerun.end(); }
 
   /**
    * Get the set of commands that are marked for rerun in this build.
    * \returns a set of commands to rerun
    */
-  const set<shared_ptr<Command>>& getRerun() const { return _rerun; }
+  const set<shared_ptr<Command>>& getRerun() const noexcept { return _rerun; }
 
   /**
    * Run this build as specified
    */
-  void run();
+  void run() noexcept;
 
   /**
    * Get the environment used for this build.
    * \returns a reference to the environment in the build
    */
-  Env& getEnv() { return _env; }
+  Env& getEnv() noexcept { return _env; }
 
   /**
    * Tell the build to launch a command
    * \param parent The parent of the launched command
    * \param child  The newly-launched command
    */
-  void launch(shared_ptr<Command> parent, shared_ptr<Command> child);
+  void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept;
 
   /// Print information about this build
-  ostream& print(ostream& o) const;
+  ostream& print(ostream& o) const noexcept;
 
-  friend ostream& operator<<(ostream& o, const Build& b) { return b.print(o); }
+  friend ostream& operator<<(ostream& o, const Build& b) noexcept { return b.print(o); }
 
-  friend ostream& operator<<(ostream& o, const Build* b) { return b->print(o); }
+  friend ostream& operator<<(ostream& o, const Build* b) noexcept { return b->print(o); }
 
   /********** Observer Interface **********/
 
   /// Add an observer to this build
-  void addObserver(shared_ptr<BuildObserver> o) { _observers.push_back(o); }
+  void addObserver(shared_ptr<BuildObserver> o) noexcept { _observers.push_back(o); }
 
   /// Inform the observer that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) noexcept {
     for (auto& o : _observers) o->output(c, a, v);
   }
 
   /// Inform the observer that command c accessed version v of artifact a
-  void observeInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {
+  void observeInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
     for (auto& o : _observers) o->input(c, a, v);
   }
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
   void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) {
+                       shared_ptr<Version> expected) noexcept {
     for (auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
 
   /// Inform observers that a command has never been run
-  void observeCommandNeverRun(shared_ptr<Command> c) {
+  void observeCommandNeverRun(shared_ptr<Command> c) noexcept {
     for (auto& o : _observers) o->commandNeverRun(c);
   }
 
   /// Inform the observer that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) {
+  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {
     for (auto& o : _observers) o->commandChanged(c, s);
   }
 
   /// Inform observers that an artifact's version does not match the expected final state
   void observeFinalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                            shared_ptr<Version> expected) {
+                            shared_ptr<Version> expected) noexcept {
     for (auto& o : _observers) o->finalMismatch(a, observed, expected);
   }
 
  private:
-  void runCommand(shared_ptr<Command> c);
+  void runCommand(shared_ptr<Command> c) noexcept;
 
  private:
   /// The root command of this build

@@ -40,11 +40,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a command to invoke the provided buildfile
-  static shared_ptr<Command> createRootCommand();
+  static shared_ptr<Command> createRootCommand() noexcept;
 
   /// Create a new command
   Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds,
-          shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) :
+          shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) noexcept :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -56,88 +56,88 @@ class Command : public std::enable_shared_from_this<Command> {
   Command& operator=(const Command&) = delete;
 
   // Allow Move
-  Command(Command&&) = default;
-  Command& operator=(Command&&) = default;
+  Command(Command&&) noexcept = default;
+  Command& operator=(Command&&) noexcept = default;
 
   /// Get a short, printable name for this command
-  string getShortName() const;
+  string getShortName() const noexcept;
 
   /// Get the full name for this command
-  string getFullName() const;
+  string getFullName() const noexcept;
 
   /// Get the working directory where this command is started
-  shared_ptr<Access> getInitialWorkingDirectory() const { return _initial_cwd; }
+  shared_ptr<Access> getInitialWorkingDirectory() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  shared_ptr<Access> getInitialRoot() const { return _initial_root; }
+  shared_ptr<Access> getInitialRoot() const noexcept { return _initial_root; }
 
   /// Get the list of traced steps this command runs
-  const list<shared_ptr<Step>>& getSteps() const { return _steps; }
+  const list<shared_ptr<Step>>& getSteps() const noexcept { return _steps; }
 
   /// Get the list of this command's children
-  const list<shared_ptr<Command>>& getChildren() const { return _children; }
+  const list<shared_ptr<Command>>& getChildren() const noexcept { return _children; }
 
   /// Check if this command has never run
-  bool neverRun() const { return _steps.size() == 0; }
+  bool neverRun() const noexcept { return _steps.size() == 0; }
 
   /// Reset the record for this command in preparation for re-execution
-  void reset() {
+  void reset() noexcept {
     _steps.clear();
     _children.clear();
   }
 
   /// Get the path to the executable file this command runs
-  const string& getExecutable() const { return _exe; }
+  const string& getExecutable() const noexcept { return _exe; }
 
   /// Get the list of arguments this command was started with
-  const vector<string>& getArguments() const { return _args; }
+  const vector<string>& getArguments() const noexcept { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, FileDescriptor>& getInitialFDs() const { return _initial_fds; }
+  const map<int, FileDescriptor>& getInitialFDs() const noexcept { return _initial_fds; }
 
   /// Emulate the steps of this command as part of a particular build
-  void emulate(Build& build);
+  void emulate(Build& build) noexcept;
 
   /********* Command Tracing Operations **********/
 
   /// This command accesses a path relative to some base reference, using the given flags
-  shared_ptr<Access> access(fs::path path, AccessFlags flags, shared_ptr<Access> base);
+  shared_ptr<Access> access(fs::path path, AccessFlags flags, shared_ptr<Access> base) noexcept;
 
   /// This command accesses an already-constructed reference using new flags
-  shared_ptr<Access> access(shared_ptr<Access> a, AccessFlags flags);
+  shared_ptr<Access> access(shared_ptr<Access> a, AccessFlags flags) noexcept;
 
   /// This command creates a pipe
-  shared_ptr<Pipe> pipe();
+  shared_ptr<Pipe> pipe() noexcept;
 
   /// This command depends on the outcome of a reference
-  void referenceResult(shared_ptr<Reference> ref, int result);
+  void referenceResult(shared_ptr<Reference> ref, int result) noexcept;
 
   /// This command depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Reference> ref);
+  void metadataMatch(shared_ptr<Reference> ref) noexcept;
 
   /// This command depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Reference> ref);
+  void contentsMatch(shared_ptr<Reference> ref) noexcept;
 
   /// This command sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Reference> ref);
+  void setMetadata(shared_ptr<Reference> ref) noexcept;
 
   /// This command sets the contents of a referenced artifact
-  void setContents(shared_ptr<Reference> ref);
+  void setContents(shared_ptr<Reference> ref) noexcept;
 
   /// This command launches a child command
   shared_ptr<Command> launch(string exe, const vector<string>& args,
                              const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
-                             shared_ptr<Access> root);
+                             shared_ptr<Access> root) noexcept;
 
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
-  friend ostream& operator<<(ostream& o, const Command& c) {
+  friend ostream& operator<<(ostream& o, const Command& c) noexcept {
     return o << "[Command " << c.getShortName() << "]";
   }
 
   /// Print a Command* to an output stream
-  friend ostream& operator<<(ostream& o, const Command* c) { return o << *c; }
+  friend ostream& operator<<(ostream& o, const Command* c) noexcept { return o << *c; }
 
  private:
   /// The executable file this command runs

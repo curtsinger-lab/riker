@@ -17,26 +17,26 @@ class Reference;
 class FileDescriptor {
  public:
   /// Default constructor, used only for serialization
-  FileDescriptor() = default;
+  FileDescriptor() noexcept = default;
 
   /// Create a record of an initial file descriptor
-  FileDescriptor(shared_ptr<Reference> ref, bool writable, bool cloexec = false) :
+  FileDescriptor(shared_ptr<Reference> ref, bool writable, bool cloexec = false) noexcept :
       _ref(ref), _writable(writable), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
   /// Check if the file descriptor should be writable
-  bool isWritable() const { return _writable; }
+  bool isWritable() const noexcept { return _writable; }
 
   /// Check if the file descriptor should be closed on exec
-  bool isCloexec() const { return _cloexec; }
+  bool isCloexec() const noexcept { return _cloexec; }
 
   /// Change the cloexec flag for this descriptor
-  void setCloexec(bool c) { _cloexec = c; }
+  void setCloexec(bool c) noexcept { _cloexec = c; }
 
   /// Print a file descriptor
-  friend ostream& operator<<(ostream& o, const FileDescriptor& fd) {
+  friend ostream& operator<<(ostream& o, const FileDescriptor& fd) noexcept {
     o << fd._ref << (fd._cloexec ? " (cloexec)" : "");
     if (fd._ref->isResolved()) o << " -> " << fd._ref->getArtifact();
     return o;

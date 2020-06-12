@@ -42,7 +42,7 @@ const fs::path DatabaseFilename = ".dodo/db";
  * \param fingerprint The type of fingerprinting to use, "none", "local", or "all".
  *                    The value is checked by the command line parsing code.
  */
-void do_build(int jobs) {
+void do_build(int jobs) noexcept {
   // Load a build, or set up a default build if necessary
   auto root = load_build(DatabaseFilename, true);
 
@@ -75,7 +75,7 @@ void do_build(int jobs) {
 /**
  * Run the `check` subcommand
  */
-void do_check() {
+void do_check() noexcept {
   // Load a build, or set up a default build if necessary
   auto root = load_build(DatabaseFilename, true);
 
@@ -104,7 +104,7 @@ void do_check() {
  * Run the `trace` subcommand
  * \param output  The name of the output file, or "-" for stdout
  */
-void do_trace(string output) {
+void do_trace(string output) noexcept {
   // Load the root command
   auto root = load_build(DatabaseFilename, false);
 
@@ -131,7 +131,7 @@ void do_trace(string output) {
  * \param output        The name of the output file, or "-" for stdout
  * \param show_sysfiles If true, include system files in the graph
  */
-void do_graph(string output, string type, bool show_sysfiles, bool no_render) {
+void do_graph(string output, string type, bool show_sysfiles, bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -178,7 +178,7 @@ void do_graph(string output, string type, bool show_sysfiles, bool no_render) {
  * Run the `stats` subcommand
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(bool list_artifacts) {
+void do_stats(bool list_artifacts) noexcept {
   // Load the serialized command tree
   auto root = load_build(DatabaseFilename, false);
 
@@ -199,14 +199,14 @@ void do_stats(bool list_artifacts) {
 /**
  * Check if the current terminal supports color output.
  */
-static bool stderr_supports_colors() {
+static bool stderr_supports_colors() noexcept {
   return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
 }
 
 /**
  * This is the entry point for the dodo command line tool
  */
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)
   if (!stderr_supports_colors()) logger::disable_color = true;
 

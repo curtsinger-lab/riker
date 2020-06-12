@@ -45,23 +45,23 @@ class Version;
 class Step {
  public:
   /// Use a default virtual destructor
-  virtual ~Step() = default;
+  virtual ~Step() noexcept = default;
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) = 0;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept = 0;
 
   /// Print this Step to an output stream
-  virtual ostream& print(ostream& o) const = 0;
+  virtual ostream& print(ostream& o) const noexcept = 0;
 
   /// Stream print wrapper for Step references
-  friend ostream& operator<<(ostream& o, const Step& s) { return s.print(o); }
+  friend ostream& operator<<(ostream& o, const Step& s) noexcept { return s.print(o); }
 
   /// Stream print wrapper for Step pointers
-  friend ostream& operator<<(ostream& o, const Step* s) { return o << *s; }
+  friend ostream& operator<<(ostream& o, const Step* s) noexcept { return o << *s; }
 
  private:
   SERIALIZE_EMPTY();
@@ -79,36 +79,36 @@ class Reference : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Get the unique ID for this reference
-  size_t getID() const { return _id; }
+  size_t getID() const noexcept { return _id; }
 
   /// Get the short name for this reference
-  string getName() const { return "r" + std::to_string(getID()); }
+  string getName() const noexcept { return "r" + std::to_string(getID()); }
 
   /**
    * Resolve this reference within the context of a specific build
    * \param c     The command that performs the resolution
    * \param build The build that is running at the time of resolution
    */
-  virtual void resolve(shared_ptr<Command> c, Build& build) = 0;
+  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept = 0;
 
   /// Has this reference been resolved to an artifact?
-  bool isResolved() const { return _artifact != nullptr; }
+  bool isResolved() const noexcept { return _artifact != nullptr; }
 
   /// Get the artifact this reference resolved to
-  shared_ptr<Artifact> getArtifact() const {
+  shared_ptr<Artifact> getArtifact() const noexcept {
     ASSERT(_artifact) << "Attempted to access unresolved reference " << this;
     return _artifact;
   }
 
   /// Get the result of trying to resolve this reference
-  int getResult() const { return _rc; }
+  int getResult() const noexcept { return _rc; }
 
  protected:
   /// A sub-type can report the result of resolving this artifact using this method
-  void resolutionResult(shared_ptr<Artifact> a, int rc) {
+  void resolutionResult(shared_ptr<Artifact> a, int rc) noexcept {
     _artifact = a;
     _rc = rc;
   }
@@ -132,12 +132,12 @@ class Reference : public Step {
 class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
  public:
   /// Create a pipe
-  Pipe() = default;
+  Pipe() noexcept = default;
 
-  virtual void resolve(shared_ptr<Command> c, Build& build) final;
+  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a PIPE reference
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   // Specify fields for serialization
@@ -148,26 +148,26 @@ class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
 class Access final : public Reference, public std::enable_shared_from_this<Access> {
  private:
   /// Create an access reference to a path with given flags
-  Access(shared_ptr<Access> base, string path, AccessFlags flags) :
+  Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
  public:
-  static shared_ptr<Access> createRoot(AccessFlags flags) {
+  static shared_ptr<Access> createRoot(AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(nullptr, "/", flags));
   }
 
-  static shared_ptr<Access> createCwd(AccessFlags flags) {
+  static shared_ptr<Access> createCwd(AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(nullptr, ".", flags));
   }
 
-  virtual void resolve(shared_ptr<Command> c, Build& build) final;
+  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
 
-  shared_ptr<Access> withFlags(AccessFlags flags) {
+  shared_ptr<Access> withFlags(AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(_base, _path, flags));
   }
 
   /// Get the path this ACCESS reference uses
-  fs::path getPath() const {
+  fs::path getPath() const noexcept {
     if (_base) {
       return _base->getPath() / _path;
     } else {
@@ -176,24 +176,24 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   }
 
   /// Get the flags used to create this reference
-  const AccessFlags& getFlags() const { return _flags; }
+  const AccessFlags& getFlags() const noexcept { return _flags; }
 
   /// Open this reference
-  int open() const;
+  int open() const noexcept;
 
   /// Stat this reference
-  pair<struct stat, int> stat() const;
+  pair<struct stat, int> stat() const noexcept;
 
   /// Call access() on this reference
-  int access() const;
+  int access() const noexcept;
 
   /// Create an access relative to this reference
-  shared_ptr<Access> get(string p, AccessFlags flags) {
+  shared_ptr<Access> get(string p, AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(shared_from_this(), p, flags));
   }
 
   /// Print an ACCESS reference
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   /// The base used to resolve this reference, typically either cwd or root.
@@ -232,23 +232,23 @@ class ReferenceResult final : public Predicate,
                               public std::enable_shared_from_this<ReferenceResult> {
  public:
   /// Create a REFERENCE_RESULT predicate
-  ReferenceResult(shared_ptr<Reference> ref, int8_t rc) : _ref(ref), _rc(rc) {}
+  ReferenceResult(shared_ptr<Reference> ref, int8_t rc) noexcept : _ref(ref), _rc(rc) {}
 
   /// Get the reference this predicate examines
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
   /// Get the expected result of the reference
-  int getResult() const { return _rc; }
+  int getResult() const noexcept { return _rc; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a REFERENCE_RESULT predicate
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Reference> _ref;  //< The reference whose outcome we depend on
@@ -265,24 +265,24 @@ class ReferenceResult final : public Predicate,
 class MetadataMatch final : public Predicate, public std::enable_shared_from_this<MetadataMatch> {
  public:
   /// Create a METADATA_MATCH predicate
-  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
+  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<MetadataVersion> getVersion() const { return _version; }
+  shared_ptr<MetadataVersion> getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a METADATA_MATCH predicate
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Reference> _ref;            //< The reference being examined
@@ -299,24 +299,24 @@ class MetadataMatch final : public Predicate, public std::enable_shared_from_thi
 class ContentsMatch final : public Predicate, public std::enable_shared_from_this<ContentsMatch> {
  public:
   /// Create a CONTENTS_MATCH predicate
-  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
+  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<ContentVersion> getVersion() const { return _version; }
+  shared_ptr<ContentVersion> getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a CONTENTS_MATCH predicate
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Reference> _ref;           //< The reference being examined
@@ -349,20 +349,20 @@ class Action : public Step {
 class Launch final : public Action, public std::enable_shared_from_this<Launch> {
  public:
   /// Create a LAUNCH action
-  Launch(shared_ptr<Command> cmd) : _cmd(cmd) {}
+  Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
 
   /// Get the command this action launches
-  shared_ptr<Command> getCommand() const { return _cmd; }
+  shared_ptr<Command> getCommand() const noexcept { return _cmd; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
@@ -378,22 +378,22 @@ class Launch final : public Action, public std::enable_shared_from_this<Launch> 
 class SetMetadata final : public Action, public std::enable_shared_from_this<SetMetadata> {
  public:
   /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) :
+  SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
-  shared_ptr<MetadataVersion> getVersion() const { return _version; }
+  shared_ptr<MetadataVersion> getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a SET_METADATA action
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Reference> _ref;
@@ -410,22 +410,22 @@ class SetMetadata final : public Action, public std::enable_shared_from_this<Set
 class SetContents final : public Action, public std::enable_shared_from_this<SetContents> {
  public:
   /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) :
+  SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const { return _ref; }
+  shared_ptr<Reference> getReference() const noexcept { return _ref; }
 
-  shared_ptr<ContentVersion> getVersion() const { return _version; }
+  shared_ptr<ContentVersion> getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) override;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   /// Print a SET_CONTENTS action
-  virtual ostream& print(ostream& o) const override;
+  virtual ostream& print(ostream& o) const noexcept final;
 
  private:
   shared_ptr<Reference> _ref;

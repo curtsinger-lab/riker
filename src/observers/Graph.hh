@@ -30,10 +30,10 @@ class Graph final : public BuildObserver {
    * Print graphviz output for a build
    * \param show_sysfiles  If true, include artifacts that are system files
    */
-  Graph(bool show_sysfiles) : _show_sysfiles(show_sysfiles) {}
+  Graph(bool show_sysfiles) noexcept : _show_sysfiles(show_sysfiles) {}
 
   /// Print the results of our stats gathering
-  ostream& print(ostream& o) {
+  ostream& print(ostream& o) noexcept {
     o << "digraph {\n";
     o << "  graph [rankdir=LR]\n";
 
@@ -109,14 +109,14 @@ class Graph final : public BuildObserver {
   }
 
   /// Print a Graph reference
-  friend ostream& operator<<(ostream& o, Graph& g) { return g.print(o); }
+  friend ostream& operator<<(ostream& o, Graph& g) noexcept { return g.print(o); }
 
   /// Print a Graph pointer
-  friend ostream& operator<<(ostream& o, Graph* g) { return g->print(o); }
+  friend ostream& operator<<(ostream& o, Graph* g) noexcept { return g->print(o); }
 
  private:
   /// Escape a string for safe printing inside a graphviz string
-  string escape(string s) {
+  string escape(string s) noexcept {
     auto pos = s.find('"');
     if (pos == string::npos)
       return s;
@@ -125,7 +125,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Check if an artifact appears to be a system file
-  bool isSystemFile(shared_ptr<Artifact> a) {
+  bool isSystemFile(shared_ptr<Artifact> a) noexcept {
     auto path = a->getName();
 
     for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
@@ -136,7 +136,7 @@ class Graph final : public BuildObserver {
     return false;
   }
 
-  string getCommandID(shared_ptr<Command> c) {
+  string getCommandID(shared_ptr<Command> c) noexcept {
     // Add this command to the map of command IDs if necessary
     if (auto iter = _command_ids.find(c); iter == _command_ids.end()) {
       _command_ids.emplace_hint(iter, c, "c" + to_string(_command_ids.size()));
@@ -144,7 +144,7 @@ class Graph final : public BuildObserver {
     return _command_ids[c];
   }
 
-  string getArtifactID(shared_ptr<Artifact> a) {
+  string getArtifactID(shared_ptr<Artifact> a) noexcept {
     // Add this artifact to the map of artifact IDs if necessary
     if (auto iter = _artifact_ids.find(a); iter == _artifact_ids.end()) {
       _artifact_ids.emplace_hint(iter, a, "a" + to_string(_artifact_ids.size()));
@@ -153,20 +153,20 @@ class Graph final : public BuildObserver {
     return _artifact_ids[a];
   }
 
-  string getVersionID(shared_ptr<Version> v) {
+  string getVersionID(shared_ptr<Version> v) noexcept {
     if (auto iter = _version_ids.find(v); iter == _version_ids.end()) {
       _version_ids.emplace_hint(iter, v, "v" + to_string(_version_ids.size()));
     }
     return _version_ids[v];
   }
 
-  string getVersionID(shared_ptr<Artifact> a, shared_ptr<Version> v) {
+  string getVersionID(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
     return getArtifactID(a) + ":" + getVersionID(v);
   }
 
   /// Command c reads version v from artifact a
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) override {
+                     shared_ptr<Version> v) noexcept final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getVersionID(a, v), getCommandID(c));
@@ -174,7 +174,7 @@ class Graph final : public BuildObserver {
 
   /// Command c appends version v to artifact a
   virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) override {
+                      shared_ptr<Version> v) noexcept final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getCommandID(c), getVersionID(a, v));
@@ -182,7 +182,7 @@ class Graph final : public BuildObserver {
 
   /// Command c observes a change in version v of artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) override {
+                        shared_ptr<Version> expected) noexcept final {
     _changed_commands.insert(c);
 
     // The observed version is what the emulated build produced, and will appear in the graph.
@@ -191,15 +191,16 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c observes a change when executing an IR step
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept final {
     _changed_commands.insert(c);
   }
 
   /// The root command is starting
-  virtual void launchRootCommand(shared_ptr<Command> root) override { getCommandID(root); }
+  virtual void launchRootCommand(shared_ptr<Command> root) noexcept final { getCommandID(root); }
 
   /// A child command is starting
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launchChildCommand(shared_ptr<Command> parent,
+                                  shared_ptr<Command> child) noexcept final {
     // Add the edge from parent to child
     _command_edges.emplace(getCommandID(parent), getCommandID(child));
   }
@@ -207,7 +208,7 @@ class Graph final : public BuildObserver {
   /// A version of artifact a on disk (observed) did not match what was produced at the end of the
   /// build (expected)
   virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) override {
+                             shared_ptr<Version> expected) noexcept final {
     // Record the changed version
     _changed_versions.emplace(observed);
   }

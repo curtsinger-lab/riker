@@ -32,7 +32,7 @@ using std::string;
 enum : size_t { ArchiveVersion = 13 };
 
 /// Try to load a build. Exit with an error if loading fails.
-shared_ptr<Command> load_build(string filename, bool default_fallback) {
+shared_ptr<Command> load_build(string filename, bool default_fallback) noexcept {
   try {
     // Open the file for reading. Must pass std::ios::binary!
     ifstream f(filename, std::ios::binary);
@@ -124,7 +124,7 @@ std::stack<stats_node*> ancestors;
 #endif
 
 // Save a build to a file
-void save_build(string filename, shared_ptr<Command> root) {
+void save_build(string filename, shared_ptr<Command> root) noexcept {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 
@@ -190,7 +190,7 @@ COLLECT_STATS(Launch);
 
 /// Serialization function for struct timespec
 template <class Archive>
-void serialize(Archive& ar, struct timespec& ts) {
+void serialize(Archive& ar, struct timespec& ts) noexcept {
   ar(ts.tv_sec, ts.tv_nsec);
 }
 

@@ -40,7 +40,8 @@ class logger {
   bool _done;       // Is this the final command in the log output?
 
  public:
-  logger(const char* source_file, int source_line, LogLevel level) : _level(level), _done(true) {
+  logger(const char* source_file, int source_line, LogLevel level) noexcept :
+      _level(level), _done(true) {
     // Only log things if they're at or above our log threshold
     if (_level <= log_level) {
       // Print source information, if enabled
@@ -64,13 +65,13 @@ class logger {
     }
   }
 
-  logger(logger&& other) {
+  logger(logger&& other) noexcept {
     _level = other._level;
     _done = other._done;
     other._done = false;
   }
 
-  ~logger() {
+  ~logger() noexcept {
     if (_done) {
       // If this log message is being displayed, end color output and print a newline
       if (static_cast<int>(_level) <= static_cast<int>(log_level)) {
@@ -89,13 +90,13 @@ class logger {
     }
   }
 
-  void operator=(logger&& other) {
+  void operator=(logger&& other) noexcept {
     _level = other._level;
     _done = other._done;
     other._done = false;
   }
 
-  logger&& indent(size_t n, size_t tab_size = 2) {
+  logger&& indent(size_t n, size_t tab_size = 2) noexcept {
     if (_level <= log_level) {
       for (size_t i = 0; i < n; i++) {
         for (size_t j = 0; j < tab_size; j++) {
@@ -107,7 +108,7 @@ class logger {
   }
 
   template <typename T>
-  logger&& operator<<(T t) {
+  logger&& operator<<(T t) noexcept {
     if (_level <= log_level) cerr << t;
     return move(*this);
   }
@@ -116,7 +117,7 @@ class logger {
 class null_logger {
  public:
   template <typename T>
-  null_logger& operator<<(T t) {
+  null_logger& operator<<(T t) noexcept {
     return *this;
   }
 };

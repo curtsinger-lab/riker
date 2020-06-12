@@ -23,10 +23,10 @@ class Stats final : public BuildObserver {
    * Gather statistics from a build as it runs
    * \param list_artifacts  If true, include a list of artifacts and versions in the final output
    */
-  Stats(bool list_artifacts) : _list_artifacts(list_artifacts) {}
+  Stats(bool list_artifacts) noexcept : _list_artifacts(list_artifacts) {}
 
   /// Print the results of our stats gathering
-  ostream& print(ostream& o) {
+  ostream& print(ostream& o) noexcept {
     // Total versions for all artifacts
     size_t version_count = 0;
     for (auto& a : _artifacts) {
@@ -67,14 +67,14 @@ class Stats final : public BuildObserver {
   }
 
   /// Print a Stats reference
-  friend ostream& operator<<(ostream& o, Stats& s) { return s.print(o); }
+  friend ostream& operator<<(ostream& o, Stats& s) noexcept { return s.print(o); }
 
   /// Print a Stats pointer
-  friend ostream& operator<<(ostream& o, Stats* s) { return s->print(o); }
+  friend ostream& operator<<(ostream& o, Stats* s) noexcept { return s->print(o); }
 
  private:
   /// Gather stats for a command
-  void processCommand(shared_ptr<Command> c) {
+  void processCommand(shared_ptr<Command> c) noexcept {
     // Count this command and its steps
     _command_count++;
     _step_count += c->getSteps().size();
@@ -82,20 +82,21 @@ class Stats final : public BuildObserver {
 
   /// Called during emulation to report an output from command c
   virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) override {
+                      shared_ptr<Version> v) noexcept final {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) override {
+                     shared_ptr<Version> v) noexcept final {
     _artifacts.insert(a);
   }
 
-  virtual void launchRootCommand(shared_ptr<Command> root) override { processCommand(root); }
+  virtual void launchRootCommand(shared_ptr<Command> root) noexcept final { processCommand(root); }
 
   /// Called each time a command emulates a launch step
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launchChildCommand(shared_ptr<Command> parent,
+                                  shared_ptr<Command> child) noexcept final {
     // Process the child command
     processCommand(child);
   }

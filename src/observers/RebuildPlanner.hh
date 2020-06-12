@@ -20,21 +20,21 @@ using std::shared_ptr;
 class RebuildPlanner final : public BuildObserver {
  public:
   /// Create a rebuild planner
-  RebuildPlanner() = default;
+  RebuildPlanner() noexcept = default;
 
   // Disallow Copy
   RebuildPlanner(const RebuildPlanner&) = delete;
   RebuildPlanner& operator=(const RebuildPlanner&) = delete;
 
   // Allow Move
-  RebuildPlanner(RebuildPlanner&&) = default;
-  RebuildPlanner& operator=(RebuildPlanner&&) = default;
+  RebuildPlanner(RebuildPlanner&&) noexcept = default;
+  RebuildPlanner& operator=(RebuildPlanner&&) noexcept = default;
 
   /**
    * Identify the commands that must rerun and mark them in the given Build
    * \param b The build that will be used to execute any commands this rebuild marks for rerun
    */
-  void planBuild(Build& b) const {
+  void planBuild(Build& b) const noexcept {
     // Mark all the commands with changed inputs
     for (auto& c : _changed) {
       mark(b, c);
@@ -47,7 +47,7 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Print information about the rebuild state
-  ostream& print(ostream& o) const {
+  ostream& print(ostream& o) const noexcept {
     if (_changed.size() > 0) {
       o << "Commands with changed inputs:" << endl;
       for (auto& c : _changed) {
@@ -68,16 +68,16 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Print a RebuildPlanner reference
-  friend ostream& operator<<(ostream& o, const RebuildPlanner& r) { return r.print(o); }
+  friend ostream& operator<<(ostream& o, const RebuildPlanner& r) noexcept { return r.print(o); }
 
   /// Print a RebuildPlanner pointer
-  friend ostream& operator<<(ostream& o, const RebuildPlanner* r) { return r->print(o); }
+  friend ostream& operator<<(ostream& o, const RebuildPlanner* r) noexcept { return r->print(o); }
 
   /******** BuildObserver Interface ********/
 
   /// Command c depends on version v of artifact a
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) override {
+                     shared_ptr<Version> v) noexcept final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
@@ -95,21 +95,21 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Command c did not find the expected version in artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) override {
+                        shared_ptr<Version> expected) noexcept final {
     // Record the change
     LOG << c << " observed change in " << a;
     _changed.insert(c);
   }
 
   /// Command c has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) override {
+  virtual void commandNeverRun(shared_ptr<Command> c) noexcept final {
     // Record the change
     LOG << c << " never run";
     _changed.insert(c);
   }
 
   /// IR step s in command c observed a change
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) override {
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept final {
     // Record the change
     LOG << c << " changed: " << s;
     _changed.insert(c);
@@ -117,7 +117,7 @@ class RebuildPlanner final : public BuildObserver {
 
   /// An artifact's final version does not match what is on the filesystem
   virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) override {
+                             shared_ptr<Version> expected) noexcept final {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!observed->getCreator()) return;
 
@@ -130,7 +130,7 @@ class RebuildPlanner final : public BuildObserver {
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(Build& b, shared_ptr<Command> c) const {
+  void mark(Build& b, shared_ptr<Command> c) const noexcept {
     // Mark command c for rerun. If the command was already marked, setRerun will return false and
     // we can stop here
     if (!b.setRerun(c)) return;

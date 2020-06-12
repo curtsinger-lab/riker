@@ -14,7 +14,7 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-void Build::run() {
+void Build::run() noexcept {
   // This is a hack to resolve the stdin, stdout, and stderr pipes before starting emulation.
   for (auto& [index, info] : _root->getInitialFDs()) {
     info.getReference()->emulate(_root, *this);
@@ -37,7 +37,7 @@ void Build::run() {
 }
 
 // Called when an emulated command launches another command
-void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) {
+void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {
   // Inform observers of the launch action
   for (auto& o : _observers) {
     o->launchChildCommand(parent, child);
@@ -47,7 +47,7 @@ void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) {
   runCommand(child);
 }
 
-void Build::runCommand(shared_ptr<Command> c) {
+void Build::runCommand(shared_ptr<Command> c) noexcept {
   if (checkRerun(c)) {
     // We are rerunning this command, so clear the lists of steps and children
     c->reset();
@@ -66,7 +66,7 @@ void Build::runCommand(shared_ptr<Command> c) {
   }
 }
 
-ostream& Build::print(ostream& o) const {
+ostream& Build::print(ostream& o) const noexcept {
   if (_rerun.size() > 0) {
     o << "The following commands will be rerun:" << endl;
     for (auto& c : _rerun) {

@@ -48,13 +48,13 @@ namespace fs = std::filesystem;
 class AccessFilter {
  public:
   // Record the effect of a read by command c using reference ref
-  void read(Command* c, shared_ptr<Reference> ref) {
+  void read(Command* c, shared_ptr<Reference> ref) noexcept {
     // Command c can read through reference ref without logging until the next write
     _observed.emplace(c, ref.get());
   }
 
   // Record the effect of a write by command c using reference ref
-  void write(Command* c, shared_ptr<Reference> ref, shared_ptr<Version> written) {
+  void write(Command* c, shared_ptr<Reference> ref, shared_ptr<Version> written) noexcept {
     // All future reads could be affected by this write, so they need to be logged
     _observed.clear();
 
@@ -68,7 +68,7 @@ class AccessFilter {
   }
 
   // Does command c need to add a read through reference ref to its trace?
-  bool readRequired(Command* c, shared_ptr<Reference> ref) {
+  bool readRequired(Command* c, shared_ptr<Reference> ref) noexcept {
     // If this optimization is disabled, the read is always required
     if (!options::combine_reads) return true;
 
@@ -80,7 +80,7 @@ class AccessFilter {
   }
 
   // Does command c need to add a write through reference ref to its trace?
-  bool writeRequired(Command* c, shared_ptr<Reference> ref) {
+  bool writeRequired(Command* c, shared_ptr<Reference> ref) noexcept {
     // If this optimization is disabled, the write is always required
     if (!options::combine_writes) return true;
 
@@ -115,7 +115,7 @@ static AccessFilter _metadata_filter;
 static AccessFilter _content_filter;
 
 // The root command invokes "dodo launch" to run the actual build script. Construct this command.
-shared_ptr<Command> Command::createRootCommand() {
+shared_ptr<Command> Command::createRootCommand() noexcept {
   // We need to get the path to dodo. Use readlink for this.
   fs::path dodo = readlink("/proc/self/exe");
   fs::path dodo_launch = dodo.parent_path() / "dodo-launch";
@@ -134,7 +134,7 @@ shared_ptr<Command> Command::createRootCommand() {
   return shared_ptr<Command>(new Command(dodo_launch, {"dodo-launch"}, default_fds, cwd, root));
 }
 
-string Command::getShortName() const {
+string Command::getShortName() const noexcept {
   // By default, the short name is the executable
   auto result = _exe;
 
@@ -161,7 +161,7 @@ string Command::getShortName() const {
   return result;
 }
 
-string Command::getFullName() const {
+string Command::getFullName() const noexcept {
   string result;
   bool first = true;
   for (const string& arg : _args) {
@@ -172,7 +172,7 @@ string Command::getFullName() const {
   return result;
 }
 
-void Command::emulate(Build& build) {
+void Command::emulate(Build& build) noexcept {
   // If this command has never run, report it as changed
   if (_steps.empty()) build.observeCommandNeverRun(shared_from_this());
 
@@ -182,7 +182,8 @@ void Command::emulate(Build& build) {
 }
 
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(fs::path path, AccessFlags flags, shared_ptr<Access> base) {
+shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
+                                   shared_ptr<Access> base) noexcept {
   // In path resolution, it may be helpful to store each level of the path in a new reference.
   // Uncomment to re-enable this.
   /*auto current = base;
@@ -202,26 +203,26 @@ shared_ptr<Access> Command::access(fs::path path, AccessFlags flags, shared_ptr<
 }
 
 // Make an access using a new set of flags
-shared_ptr<Access> Command::access(shared_ptr<Access> a, AccessFlags flags) {
+shared_ptr<Access> Command::access(shared_ptr<Access> a, AccessFlags flags) noexcept {
   auto ref = a->withFlags(flags);
   _steps.push_back(ref);
   return ref;
 }
 
 // This command creates a reference to a new pipe
-shared_ptr<Pipe> Command::pipe() {
+shared_ptr<Pipe> Command::pipe() noexcept {
   auto ref = make_shared<Pipe>();
   _steps.push_back(ref);
   return ref;
 }
 
 // This command observes a reference resolve with a particular result
-void Command::referenceResult(shared_ptr<Reference> ref, int result) {
+void Command::referenceResult(shared_ptr<Reference> ref, int result) noexcept {
   _steps.push_back(make_shared<ReferenceResult>(ref, result));
 }
 
 // This command depends on the metadata of a referenced artifact
-void Command::metadataMatch(shared_ptr<Reference> ref) {
+void Command::metadataMatch(shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
   // Do we have to log this read?
@@ -243,7 +244,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref) {
 }
 
 // This command depends on the contents of a referenced artifact
-void Command::contentsMatch(shared_ptr<Reference> ref) {
+void Command::contentsMatch(shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
                             << ref;
 
@@ -271,7 +272,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref) {
 }
 
 // This command sets the metadata of a referenced artifact
-void Command::setMetadata(shared_ptr<Reference> ref) {
+void Command::setMetadata(shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Do we have to log this write?
@@ -288,7 +289,7 @@ void Command::setMetadata(shared_ptr<Reference> ref) {
 }
 
 // This command sets the contents of a referenced artifact
-void Command::setContents(shared_ptr<Reference> ref) {
+void Command::setContents(shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Do we have to log this write?
@@ -309,7 +310,7 @@ void Command::setContents(shared_ptr<Reference> ref) {
 // This command launches a child command
 shared_ptr<Command> Command::launch(string exe, const vector<string>& args,
                                     const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
-                                    shared_ptr<Access> root) {
+                                    shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
   if (options::print_on_run) cout << child->getFullName() << endl;

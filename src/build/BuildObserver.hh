@@ -19,32 +19,34 @@ class Version;
 class BuildObserver {
  public:
   /// Virtual destructor
-  virtual ~BuildObserver() = default;
+  virtual ~BuildObserver() noexcept = default;
 
   /// Command c modifies artifact a, creating version v
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
+  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                      shared_ptr<Version> v) noexcept {}
 
   /// Command c depends on artifact a, accessing version v
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) {}
+  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) noexcept {}
 
   /// Command c did not find the expect version of artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) {}
+                        shared_ptr<Version> expected) noexcept {}
 
   /// A command has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) {}
+  virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) {}
+  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {}
 
   /// The root command is being launched
-  virtual void launchRootCommand(shared_ptr<Command> root) {}
+  virtual void launchRootCommand(shared_ptr<Command> root) noexcept {}
 
   /// A child command is being launched
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) {}
+  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced `observed`, which does not match the on-disk version `expected`
   virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) {}
+                             shared_ptr<Version> expected) noexcept {}
 };

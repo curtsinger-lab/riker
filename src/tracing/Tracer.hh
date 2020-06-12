@@ -15,26 +15,26 @@ class Process;
 class Tracer {
  public:
   /// Create a tracer linked to a specific rebuild environment
-  Tracer(Build& build) : _build(build) {}
+  Tracer(Build& build) noexcept : _build(build) {}
 
   /// Run a command in this tracer
-  void run(shared_ptr<Command> cmd);
+  void run(shared_ptr<Command> cmd) noexcept;
 
  private:
   /// Launch a command with tracing enabled
-  void launchTraced(shared_ptr<Command> cmd);
+  void launchTraced(shared_ptr<Command> cmd) noexcept;
 
   /// Called when we catch a system call in the traced process
-  void handleSyscall(shared_ptr<Process> p);
+  void handleSyscall(shared_ptr<Process> p) noexcept;
 
   /// Called after a traced process issues a clone system call
-  void handleClone(shared_ptr<Process> p, int flags);
+  void handleClone(shared_ptr<Process> p, int flags) noexcept;
 
   /// Called after a traced process issues a fork system call
-  void handleFork(shared_ptr<Process> p);
+  void handleFork(shared_ptr<Process> p) noexcept;
 
   /// Called when a traced process exits
-  void handleExit(shared_ptr<Process> p);
+  void handleExit(shared_ptr<Process> p) noexcept;
 
  private:
   /// This tracer is executing commands on behalf of this build

@@ -26,17 +26,17 @@ namespace fs = std::filesystem;
 /********** Utilities for tracing **********/
 /*******************************************/
 
-user_regs_struct Process::getRegisters() {
+user_regs_struct Process::getRegisters() noexcept {
   struct user_regs_struct regs;
   FAIL_IF(ptrace(PTRACE_GETREGS, _pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
   return regs;
 }
 
-void Process::resume() {
+void Process::resume() noexcept {
   FAIL_IF(ptrace(PTRACE_CONT, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 }
 
-long Process::finishSyscall() {
+long Process::finishSyscall() noexcept {
   FAIL_IF(ptrace(PTRACE_SYSCALL, _pid, nullptr, 0)) << "Failed to finish syscall: " << ERR;
   FAIL_IF(waitpid(_pid, nullptr, 0) != _pid) << "Unexpected child process stop";
 
@@ -48,7 +48,7 @@ long Process::finishSyscall() {
   return result;
 }
 
-unsigned long Process::getEventMessage() {
+unsigned long Process::getEventMessage() noexcept {
   // Get the id of the new process
   unsigned long message;
   FAIL_IF(ptrace(PTRACE_GETEVENTMSG, _pid, nullptr, &message))
@@ -56,7 +56,7 @@ unsigned long Process::getEventMessage() {
   return message;
 }
 
-shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) {
+shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) return _command->access(p, flags, _root);
 
@@ -72,7 +72,7 @@ shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) {
   return _command->access(p, flags, base);
 }
 
-string Process::readString(uintptr_t tracee_pointer) {
+string Process::readString(uintptr_t tracee_pointer) noexcept {
   // Strings are just char arrays terminated by '\0'
   auto data = readTerminatedArray<char, '\0'>(tracee_pointer);
 
@@ -82,7 +82,7 @@ string Process::readString(uintptr_t tracee_pointer) {
 
 // Read a value of type T from this process
 template <typename T>
-T Process::readData(uintptr_t tracee_pointer) {
+T Process::readData(uintptr_t tracee_pointer) noexcept {
   // Reserve space for the value we will read
   T result;
 
@@ -101,7 +101,7 @@ T Process::readData(uintptr_t tracee_pointer) {
 
 // Read an array of values up to a terminating value
 template <typename T, T Terminator, size_t BatchSize>
-vector<T> Process::readTerminatedArray(uintptr_t tracee_pointer) {
+vector<T> Process::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
   // We will read BatchSize values at a time into this buffer
   T buffer[BatchSize];
 
@@ -146,7 +146,7 @@ vector<T> Process::readTerminatedArray(uintptr_t tracee_pointer) {
   }
 }
 
-vector<string> Process::readArgvArray(uintptr_t tracee_pointer) {
+vector<string> Process::readArgvArray(uintptr_t tracee_pointer) noexcept {
   auto arg_pointers = readTerminatedArray<uintptr_t, 0>(tracee_pointer);
 
   vector<string> args;
@@ -162,7 +162,7 @@ vector<string> Process::readArgvArray(uintptr_t tracee_pointer) {
 
 // Some system calls are handled as aliases for these. See inline definitions in Tracer.hh.
 
-void Process::_read(int fd) {
+void Process::_read(int fd) noexcept {
   // Get the descriptor
   auto& descriptor = _fds.at(fd);
 
@@ -179,7 +179,7 @@ void Process::_read(int fd) {
   resume();
 }
 
-void Process::_write(int fd) {
+void Process::_write(int fd) noexcept {
   // Get the descriptor
   auto& descriptor = _fds.at(fd);
 
@@ -197,7 +197,7 @@ void Process::_write(int fd) {
   _command->setContents(descriptor.getReference());
 }
 
-void Process::_close(int fd) {
+void Process::_close(int fd) noexcept {
   // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is
   // harmless
 
@@ -208,7 +208,7 @@ void Process::_close(int fd) {
   _fds.erase(fd);
 }
 
-void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
+void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept {
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
   if (fd == -1) {
@@ -253,7 +253,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   resume();
 }
 
-int Process::_dup(int fd) {
+int Process::_dup(int fd) noexcept {
   // Finish the syscall to get the new file descriptor, then resume the process
   int newfd = finishSyscall();
   resume();
@@ -272,7 +272,7 @@ int Process::_dup(int fd) {
   return newfd;
 }
 
-void Process::_sendfile(int out_fd, int in_fd) {
+void Process::_sendfile(int out_fd, int in_fd) noexcept {
   WARN << "sendfile syscall is not updated";
   resume();
   /*
@@ -296,7 +296,7 @@ void Process::_sendfile(int out_fd, int in_fd) {
     out_f->writtenBy(_command);*/
 }
 
-void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
+void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
   // Create a reference
   auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
@@ -315,7 +315,7 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) {
   }
 }
 
-void Process::_fstatat(int dirfd, string pathname, int flags) {
+void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
@@ -352,7 +352,8 @@ void Process::_fstatat(int dirfd, string pathname, int flags) {
   resume();
 }
 
-void Process::_execveat(int dfd, string filename, vector<string> args, vector<string> env) {
+void Process::_execveat(int dfd, string filename, vector<string> args,
+                        vector<string> env) noexcept {
   // The command accesses this path with execute permissions
   auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
@@ -429,7 +430,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args, vector<st
   // over-approximate the set of commands that have a file mmapped.
 }
 
-void Process::_fcntl(int fd, int cmd, unsigned long arg) {
+void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
     _dup(fd);  // _dup will resume the process and return the new fd to us
@@ -451,7 +452,7 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) {
   }
 }
 
-void Process::_truncate(string pathname, long length) {
+void Process::_truncate(string pathname, long length) noexcept {
   auto ref = makeAccess(pathname, AccessFlags{.w = true});
 
   // Get the artifact that's being truncated
@@ -484,7 +485,7 @@ void Process::_truncate(string pathname, long length) {
   }
 }
 
-void Process::_ftruncate(int fd, long length) {
+void Process::_ftruncate(int fd, long length) noexcept {
   // Get the descriptor
   auto& descriptor = _fds.at(fd);
 
@@ -503,7 +504,7 @@ void Process::_ftruncate(int fd, long length) {
   }
 }
 
-void Process::_chdir(string filename) {
+void Process::_chdir(string filename) noexcept {
   int rc = finishSyscall();
   resume();
 
@@ -513,7 +514,7 @@ void Process::_chdir(string filename) {
   }
 }
 
-void Process::_fchdir(int fd) {
+void Process::_fchdir(int fd) noexcept {
   int rc = finishSyscall();
   resume();
 
@@ -530,7 +531,7 @@ void Process::_fchdir(int fd) {
   }
 }
 
-void Process::_lchown(string filename, uid_t user, gid_t group) {
+void Process::_lchown(string filename, uid_t user, gid_t group) noexcept {
   WARN << "lchown syscall is not updated";
   resume();
   /*
@@ -556,7 +557,7 @@ void Process::_lchown(string filename, uid_t user, gid_t group) {
   */
 }
 
-void Process::_chroot(string filename) {
+void Process::_chroot(string filename) noexcept {
   WARN << "chroot is not updated";
   resume();
   /*
@@ -581,7 +582,7 @@ void Process::_chroot(string filename) {
   */
 }
 
-void Process::_setxattr(string pathname) {
+void Process::_setxattr(string pathname) noexcept {
   WARN << "setxattr syscall is not updated";
   resume();
   /*
@@ -603,7 +604,7 @@ void Process::_setxattr(string pathname) {
   */
 }
 
-void Process::_lsetxattr(string pathname) {
+void Process::_lsetxattr(string pathname) noexcept {
   WARN << "lsetxattr syscall is not updated";
   resume();
   /*
@@ -626,7 +627,7 @@ void Process::_lsetxattr(string pathname) {
   */
 }
 
-void Process::_getxattr(string pathname) {
+void Process::_getxattr(string pathname) noexcept {
   WARN << "getxattr syscall is not updated";
   resume();
   /*
@@ -645,7 +646,7 @@ void Process::_getxattr(string pathname) {
   */
 }
 
-void Process::_lgetxattr(string pathname) {
+void Process::_lgetxattr(string pathname) noexcept {
   WARN << "lgetxattr syscall is not updated";
   resume();
   /*
@@ -665,7 +666,7 @@ void Process::_lgetxattr(string pathname) {
   */
 }
 
-void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
+void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
   LOG << "Opening " << filename;
   // Get a reference from the given path
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
@@ -709,7 +710,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) {
   }
 }
 
-void Process::_mkdirat(int dfd, string pathname, mode_t mode) {
+void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
   WARN << "mkdirat syscall is not updated";
   resume();
   /*
@@ -737,7 +738,7 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) {
   // TODO: if creation failed, does this command now depend on the directory that already exists?
 }
 
-void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
+void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept {
   WARN << "mknodat syscall is not updated";
   resume();
   /*
@@ -760,7 +761,7 @@ void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) {
   */
 }
 
-void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) {
+void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
   WARN << "fchownat syscall is not updated";
   resume();
   /*
@@ -796,7 +797,7 @@ void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int f
   */
 }
 
-void Process::_unlinkat(int dfd, string pathname, int flags) {
+void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   WARN << "unlinkat syscall is not updated";
   resume();
   /*
@@ -815,7 +816,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) {
   */
 }
 
-void Process::_symlinkat(string oldname, int newdfd, string newname) {
+void Process::_symlinkat(string oldname, int newdfd, string newname) noexcept {
   WARN << "symlinkat syscall is not updated";
   resume();
   /*
@@ -832,7 +833,7 @@ void Process::_symlinkat(string oldname, int newdfd, string newname) {
   */
 }
 
-void Process::_readlinkat(int dfd, string pathname) {
+void Process::_readlinkat(int dfd, string pathname) noexcept {
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
   if (pathname.find("/proc/self") != string::npos) {
@@ -866,7 +867,7 @@ void Process::_readlinkat(int dfd, string pathname) {
   }
 }
 
-void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
+void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept {
   // Make a reference to the file that will be chmod-ed.
   // TODO: We need permissions in the directory to chmod, right?
   auto ref = makeAccess(filename, AccessFlags{}, dfd);
@@ -900,7 +901,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) {
   }
 }
 
-void Process::_tee(int fd_in, int fd_out) {
+void Process::_tee(int fd_in, int fd_out) noexcept {
   WARN << "tee syscall is not updated";
   resume();
   /*
@@ -929,7 +930,7 @@ void Process::_tee(int fd_in, int fd_out) {
   */
 }
 
-void Process::_dup3(int oldfd, int newfd, int flags) {
+void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
   int rc = finishSyscall();
@@ -948,7 +949,7 @@ void Process::_dup3(int oldfd, int newfd, int flags) {
   _fds.at(rc).setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
 }
 
-void Process::_pipe2(int* fds, int flags) {
+void Process::_pipe2(int* fds, int flags) noexcept {
   int rc = finishSyscall();
 
   // There is nothing to do if the syscall fails, but why would that ever happen?
@@ -983,7 +984,8 @@ void Process::_pipe2(int* fds, int flags) {
   _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
 }
 
-void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) {
+void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
+                         int flags) noexcept {
   WARN << "renameat2 syscall is not updated";
   resume();
 }

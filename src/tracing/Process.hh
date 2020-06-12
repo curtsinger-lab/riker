@@ -33,34 +33,34 @@ class RebuildPlanner;
 class Process {
  public:
   Process(Build& build, pid_t pid, shared_ptr<Access> cwd, shared_ptr<Access> root,
-          shared_ptr<Command> command, map<int, FileDescriptor> fds) :
+          shared_ptr<Command> command, map<int, FileDescriptor> fds) noexcept :
       _build(build), _pid(pid), _cwd(cwd), _root(root), _command(command), _fds(fds) {}
 
   /// Resume a traced process that is currently stopped
-  void resume();
+  void resume() noexcept;
 
   /// Resume a traced process so it can execute a system call, then stop it and return
-  long finishSyscall();
+  long finishSyscall() noexcept;
 
   /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
-  unsigned long getEventMessage();
+  unsigned long getEventMessage() noexcept;
 
   /// Get the current register state for this process
-  user_regs_struct getRegisters();
+  user_regs_struct getRegisters() noexcept;
 
   /// Read a string from this process' memory
-  string readString(uintptr_t tracee_pointer);
+  string readString(uintptr_t tracee_pointer) noexcept;
 
   /// Read a value from this process' memory
   template <typename T = uintptr_t>
-  T readData(uintptr_t tracee_pointer);
+  T readData(uintptr_t tracee_pointer) noexcept;
 
   /// Read a terminated array from this process' memory
   template <typename T, T Terminator, size_t BatchSize = 128>
-  vector<T> readTerminatedArray(uintptr_t tracee_pointer);
+  vector<T> readTerminatedArray(uintptr_t tracee_pointer) noexcept;
 
   /// Read a null-terminated array of strings
-  vector<string> readArgvArray(uintptr_t tracee_pointer);
+  vector<string> readArgvArray(uintptr_t tracee_pointer) noexcept;
 
   /**
    * The command running in this process referenced a path. Create an Access reference to track
@@ -70,10 +70,10 @@ class Process {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD);
+  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
 
   /// Print a process to an output stream
-  friend ostream& operator<<(ostream& o, const Process& p) {
+  friend ostream& operator<<(ostream& o, const Process& p) noexcept {
     o << p._pid << ": " << p._command << "\n";
     for (auto& e : p._fds) {
       o << "  " << e.first << ": " << e.second << "\n";
@@ -82,81 +82,85 @@ class Process {
   }
 
   /// Print a process pointer
-  friend ostream& operator<<(ostream& o, const Process* p) { return o << *p; }
+  friend ostream& operator<<(ostream& o, const Process* p) noexcept { return o << *p; }
 
   /*** Handling for specific system calls ***/
-  void _read(int fd);
-  void _write(int fd);
-  void _close(int fd);
-  void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off);
-  int _dup(int fd);
-  void _sendfile(int out_fd, int in_fd);
-  void _execveat(int dfd, string filename, vector<string> args, vector<string> env);
-  void _fcntl(int fd, int cmd, unsigned long arg);
-  void _truncate(string path, long length);
-  void _ftruncate(int fd, long length);
-  void _chdir(string filename);
-  void _fchdir(int fd);
-  void _lchown(string filename, uid_t user, gid_t group);
-  void _chroot(string filename);
-  void _setxattr(string pathname);
-  void _lsetxattr(string pathname);
-  void _getxattr(string pathname);
-  void _lgetxattr(string pathname);
-  void _openat(int dfd, string filename, int flags, mode_t mode);
-  void _mkdirat(int dfd, string pathname, mode_t mode);
-  void _mknodat(int dfd, string filename, mode_t mode, unsigned dev);
-  void _fchownat(int dfd, string filename, uid_t user, gid_t group, int flag);
-  void _unlinkat(int dfd, string pathname, int flag);
-  void _symlinkat(string oldname, int newdfd, string newname);
-  void _readlinkat(int dfd, string pathname);
-  void _fchmodat(int dfd, string filename, mode_t mode, int flags);
-  void _tee(int fd_in, int fd_out);
-  void _dup3(int oldfd, int newfd, int flags);
-  void _pipe2(int* fds, int flags);
-  void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags);
-  void _faccessat(int dirfd, string pathname, int mode, int flags);
-  void _fstatat(int dirfd, string pathname, int flags);
+  void _read(int fd) noexcept;
+  void _write(int fd) noexcept;
+  void _close(int fd) noexcept;
+  void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept;
+  int _dup(int fd) noexcept;
+  void _sendfile(int out_fd, int in_fd) noexcept;
+  void _execveat(int dfd, string filename, vector<string> args, vector<string> env) noexcept;
+  void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
+  void _truncate(string path, long length) noexcept;
+  void _ftruncate(int fd, long length) noexcept;
+  void _chdir(string filename) noexcept;
+  void _fchdir(int fd) noexcept;
+  void _lchown(string filename, uid_t user, gid_t group) noexcept;
+  void _chroot(string filename) noexcept;
+  void _setxattr(string pathname) noexcept;
+  void _lsetxattr(string pathname) noexcept;
+  void _getxattr(string pathname) noexcept;
+  void _lgetxattr(string pathname) noexcept;
+  void _openat(int dfd, string filename, int flags, mode_t mode) noexcept;
+  void _mkdirat(int dfd, string pathname, mode_t mode) noexcept;
+  void _mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept;
+  void _fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) noexcept;
+  void _unlinkat(int dfd, string pathname, int flag) noexcept;
+  void _symlinkat(string oldname, int newdfd, string newname) noexcept;
+  void _readlinkat(int dfd, string pathname) noexcept;
+  void _fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept;
+  void _tee(int fd_in, int fd_out) noexcept;
+  void _dup3(int oldfd, int newfd, int flags) noexcept;
+  void _pipe2(int* fds, int flags) noexcept;
+  void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept;
+  void _faccessat(int dirfd, string pathname, int mode, int flags) noexcept;
+  void _fstatat(int dirfd, string pathname, int flags) noexcept;
 
   /*** Syscalls that should be handled directly, but are currently aliases ***/
-  void _rmdir(string p) { _unlink(p); }
-  void _fchmod(int fd, mode_t mode) { _write(fd); }
-  void _fchown(int fd, uid_t user, gid_t group) { _write(fd); }
-  void _vmsplice(int fd) { _write(fd); }
+  void _rmdir(string p) noexcept { _unlink(p); }
+  void _fchmod(int fd, mode_t mode) noexcept { _write(fd); }
+  void _fchown(int fd, uid_t user, gid_t group) noexcept { _write(fd); }
+  void _vmsplice(int fd) noexcept { _write(fd); }
 
   /*** Syscalls that can be handled as aliases for others ***/
-  void _open(string f, int flags, mode_t mode) { _openat(AT_FDCWD, f, flags, mode); }
-  void _pread64(int fd) { _read(fd); }
-  void _pwrite64(int fd) { _write(fd); }
-  void _readv(int fd) { _read(fd); }
-  void _writev(int fd) { _write(fd); }
-  void _pipe(int* fds) { _pipe2(fds, 0); }
-  void _dup2(int oldfd, int newfd) { _dup3(oldfd, newfd, 0); }
-  void _execve(string filename, vector<string> args, vector<string> env) {
+  void _open(string f, int flags, mode_t mode) noexcept { _openat(AT_FDCWD, f, flags, mode); }
+  void _pread64(int fd) noexcept { _read(fd); }
+  void _pwrite64(int fd) noexcept { _write(fd); }
+  void _readv(int fd) noexcept { _read(fd); }
+  void _writev(int fd) noexcept { _write(fd); }
+  void _pipe(int* fds) noexcept { _pipe2(fds, 0); }
+  void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, 0); }
+  void _execve(string filename, vector<string> args, vector<string> env) noexcept {
     _execveat(AT_FDCWD, filename, args, env);
   }
-  void _getdents(int fd) { _read(fd); }
-  void _rename(string n1, string n2) { _renameat(AT_FDCWD, n1, AT_FDCWD, n2); }
-  void _mkdir(string p, mode_t mode) { _mkdirat(AT_FDCWD, p, mode); }
-  void _creat(string p, mode_t mode) { _open(p, O_CREAT | O_WRONLY | O_TRUNC, mode); }
-  void _unlink(string pathname) { _unlinkat(AT_FDCWD, pathname, 0); }
-  void _symlink(string oldname, string newname) { _symlinkat(oldname, AT_FDCWD, newname); }
-  void _readlink(string path) { _readlinkat(AT_FDCWD, path); }
-  void _chmod(string filename, mode_t mode) { _fchmodat(AT_FDCWD, filename, mode, 0); }
-  void _chown(string f, uid_t user, gid_t group) { _fchownat(AT_FDCWD, f, user, group, 0); }
-  void _mknod(string f, mode_t mode, unsigned dev) { _mknodat(AT_FDCWD, f, mode, dev); }
-  void _getdents64(int fd) { _read(fd); }
-  void _renameat(int d1, string n1, int d2, string n2) { _renameat2(d1, n1, d2, n2, 0); }
-  void _splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out) { _tee(fd_in, fd_out); }
-  void _copy_file_range(int fd_in, int _, int fd_out) { _tee(fd_in, fd_out); }
-  void _preadv2(int fd) { _read(fd); }
-  void _pwritev2(int fd) { _write(fd); }
-  void _access(string pathname, int mode) { _faccessat(AT_FDCWD, pathname, mode, 0); }
-  void _preadv(int fd) { _read(fd); }
-  void _pwritev(int fd) { _write(fd); }
-  void _stat(string pathname) { _fstatat(AT_FDCWD, pathname, 0); }
-  void _fstat(int fd) { _fstatat(fd, "", AT_EMPTY_PATH); }
-  void _lstat(string pathname) { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
+  void _getdents(int fd) noexcept { _read(fd); }
+  void _rename(string n1, string n2) noexcept { _renameat(AT_FDCWD, n1, AT_FDCWD, n2); }
+  void _mkdir(string p, mode_t mode) noexcept { _mkdirat(AT_FDCWD, p, mode); }
+  void _creat(string p, mode_t mode) noexcept { _open(p, O_CREAT | O_WRONLY | O_TRUNC, mode); }
+  void _unlink(string pathname) noexcept { _unlinkat(AT_FDCWD, pathname, 0); }
+  void _symlink(string oldname, string newname) noexcept { _symlinkat(oldname, AT_FDCWD, newname); }
+  void _readlink(string path) noexcept { _readlinkat(AT_FDCWD, path); }
+  void _chmod(string filename, mode_t mode) noexcept { _fchmodat(AT_FDCWD, filename, mode, 0); }
+  void _chown(string f, uid_t user, gid_t group) noexcept {
+    _fchownat(AT_FDCWD, f, user, group, 0);
+  }
+  void _mknod(string f, mode_t mode, unsigned dev) noexcept { _mknodat(AT_FDCWD, f, mode, dev); }
+  void _getdents64(int fd) noexcept { _read(fd); }
+  void _renameat(int d1, string n1, int d2, string n2) noexcept { _renameat2(d1, n1, d2, n2, 0); }
+  void _splice(int fd_in, loff_t off_in, int fd_out, loff_t off_out) noexcept {
+    _tee(fd_in, fd_out);
+  }
+  void _copy_file_range(int fd_in, int _, int fd_out) noexcept { _tee(fd_in, fd_out); }
+  void _preadv2(int fd) noexcept { _read(fd); }
+  void _pwritev2(int fd) noexcept { _write(fd); }
+  void _access(string pathname, int mode) noexcept { _faccessat(AT_FDCWD, pathname, mode, 0); }
+  void _preadv(int fd) noexcept { _read(fd); }
+  void _pwritev(int fd) noexcept { _write(fd); }
+  void _stat(string pathname) noexcept { _fstatat(AT_FDCWD, pathname, 0); }
+  void _fstat(int fd) noexcept { _fstatat(fd, "", AT_EMPTY_PATH); }
+  void _lstat(string pathname) noexcept { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
 
   Build& _build;
   pid_t _pid;

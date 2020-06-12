@@ -21,15 +21,18 @@ using std::shared_ptr;
 class Trace final : public BuildObserver {
  public:
   /// The root command is being launched.
-  virtual void launchRootCommand(shared_ptr<Command> root) override { _commands.insert(root); }
+  virtual void launchRootCommand(shared_ptr<Command> root) noexcept final {
+    _commands.insert(root);
+  }
 
   /// A child command is being launched. Record the new command.
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) override {
+  virtual void launchChildCommand(shared_ptr<Command> parent,
+                                  shared_ptr<Command> child) noexcept final {
     _commands.insert(child);
   }
 
   /// Print the trace from the given build
-  ostream& print(ostream& o) const {
+  ostream& print(ostream& o) const noexcept {
     for (auto& c : _commands) {
       o << c << endl;
       for (auto& s : c->getSteps()) {
@@ -40,10 +43,10 @@ class Trace final : public BuildObserver {
   }
 
   /// Print a Trace reference
-  friend ostream& operator<<(ostream& o, Trace& t) { return t.print(o); }
+  friend ostream& operator<<(ostream& o, Trace& t) noexcept { return t.print(o); }
 
   // Print a Trace pointer
-  friend ostream& operator<<(ostream& o, Trace* t) { return t->print(o); }
+  friend ostream& operator<<(ostream& o, Trace* t) noexcept { return t->print(o); }
 
  private:
   /// The set of all commands

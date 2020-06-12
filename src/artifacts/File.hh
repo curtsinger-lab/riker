@@ -17,36 +17,36 @@ class FileArtifact : public Artifact {
  public:
   FileArtifact(Env& env, bool committed,
                shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>(),
-               shared_ptr<ContentVersion> cv = make_shared<ContentVersion>());
+               shared_ptr<ContentVersion> cv = make_shared<ContentVersion>()) noexcept;
 
-  virtual void checkFinalState(shared_ptr<Reference> ref) override final;
+  virtual void checkFinalState(shared_ptr<Reference> ref) noexcept final;
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
-  virtual bool isSaved() const override final;
+  virtual bool isSaved() const noexcept final;
 
   /// Save a copy of this artifact's versions so it can be restored on a future build
-  virtual void save(shared_ptr<Reference> ref) override final;
+  virtual void save(shared_ptr<Reference> ref) noexcept final;
 
   /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const override final;
+  virtual bool isCommitted() const noexcept final;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) override final;
+  virtual void commit(shared_ptr<Reference> ref) noexcept final;
 
   /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
-  virtual bool hasFingerprint() const override final;
+  virtual bool hasFingerprint() const noexcept final;
 
   /// Save a fingerprint of this artifact's versions so we can check for a match
-  virtual void fingerprint(shared_ptr<Reference> ref) override final;
+  virtual void fingerprint(shared_ptr<Reference> ref) noexcept final;
 
   virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref) override final;
+                                                    shared_ptr<Reference> ref) noexcept final;
 
   virtual shared_ptr<ContentVersion> setContents(
       shared_ptr<Command> c, shared_ptr<Reference> ref,
-      shared_ptr<ContentVersion> v = nullptr) override final;
+      shared_ptr<ContentVersion> v = nullptr) noexcept final;
 
-  virtual string getTypeName() const override { return "File"; }
+  virtual string getTypeName() const noexcept override { return "File"; }
 
  private:
   /// The latest content version

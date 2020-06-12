@@ -10,7 +10,7 @@ using std::string;
 
 namespace fs = std::filesystem;
 
-inline fs::path readlink(string path) {
+inline fs::path readlink(string path) noexcept {
   char* buffer = nullptr;
   ssize_t capacity = 0;
   ssize_t bytes_read = 0;

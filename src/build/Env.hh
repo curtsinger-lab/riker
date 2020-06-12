@@ -33,7 +33,7 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) : _build(build) {}
+  Env(Build& build) noexcept : _build(build) {}
 
   // Disallow Copy
   Env(const Env&) = delete;
@@ -42,7 +42,7 @@ class Env {
   /**
    * Get the Build instance this environment is part of
    */
-  Build& getBuild() const { return _build; }
+  Build& getBuild() const noexcept { return _build; }
 
   /**
    * Check and save data for any artifacts left in the environment.
@@ -50,7 +50,7 @@ class Env {
    * produced, and saves fingerprints and metadata for artifacts that were modified by executed
    * commands.
    */
-  void finalize();
+  void finalize() noexcept;
 
   /**
    * Get an artifact from this environment
@@ -58,7 +58,7 @@ class Env {
    * \param ref The reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> get(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  tuple<shared_ptr<Artifact>, int> get(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
 
   /**
    * Get a pipe from this environment
@@ -66,7 +66,7 @@ class Env {
    * \param ref The pipe reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref);
+  tuple<shared_ptr<Artifact>, int> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
 
   /**
    * Get a file from this environment
@@ -74,7 +74,7 @@ class Env {
    * \param ref The reference used to reach the artifact
    * \returns an artifact and a result code
    */
-  tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref);
+  tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
 
  private:
   /// The build this environment is attached to

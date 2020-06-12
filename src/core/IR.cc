@@ -23,29 +23,29 @@ using std::ostream;
 using std::pair;
 using std::shared_ptr;
 
-void Pipe::resolve(shared_ptr<Command> c, Build& build) {
+void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
   const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
   resolutionResult(artifact, rc);
 }
 
-void Access::resolve(shared_ptr<Command> c, Build& build) {
+void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
   resolutionResult(artifact, rc);
 }
 
 /******* Emulation *******/
 
-void Reference::emulate(shared_ptr<Command> c, Build& build) {
+void Reference::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Resolve the reference
   resolve(c, build);
 }
 
-void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) {
+void ReferenceResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Check if the reference resolved as expected
   if (_ref->getResult() != _rc) build.observeCommandChange(c, shared_from_this());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
+void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference does not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -61,7 +61,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) {
   }
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
+void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -77,7 +77,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) {
   }
 }
 
-void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
+void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -88,7 +88,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Build& build) {
   _ref->getArtifact()->setMetadata(c, _ref, _version);
 }
 
-void SetContents::emulate(shared_ptr<Command> c, Build& build) {
+void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
   if (_ref->getResult() != SUCCESS) {
     build.observeCommandChange(c, shared_from_this());
@@ -99,25 +99,25 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) {
   _ref->getArtifact()->setContents(c, _ref, _version);
 }
 
-void Launch::emulate(shared_ptr<Command> c, Build& build) {
+void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Tell the build to launch the child command
   build.launch(c, _cmd);
 }
 
 /******************* Access Methods ********************/
 
-int Access::open() const {
+int Access::open() const noexcept {
   auto [open_flags, open_mode] = _flags.toOpen();
   return ::open(getPath().c_str(), open_flags, open_mode);
 }
 
-pair<struct stat, int> Access::stat() const {
+pair<struct stat, int> Access::stat() const noexcept {
   struct stat statbuf;
   int rc = fstatat(AT_FDCWD, getPath().c_str(), &statbuf, _flags.toStat());
   return {statbuf, rc};
 }
 
-int Access::access() const {
+int Access::access() const noexcept {
   auto [access_mode, access_flags] = _flags.toAccess();
   return faccessat(AT_FDCWD, getPath().c_str(), access_mode, access_flags);
 }
@@ -131,17 +131,17 @@ static map<int8_t, string> errors = {
     {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
 
 /// Print a PIPE reference
-ostream& Pipe::print(ostream& o) const {
+ostream& Pipe::print(ostream& o) const noexcept {
   return o << getName() << " = PIPE()";
 }
 
 /// Print an ACCESS reference
-ostream& Access::print(ostream& o) const {
+ostream& Access::print(ostream& o) const noexcept {
   return o << getName() << " = ACCESS(" << getPath() << ", [" << getFlags() << "])";
 }
 
 // Print a ReferenceResult predicate
-ostream& ReferenceResult::print(ostream& o) const {
+ostream& ReferenceResult::print(ostream& o) const noexcept {
   // If we can't identify the error code, just print "EMYSTERY"
   string errname = "EMYSTERY";
 
@@ -155,27 +155,27 @@ ostream& ReferenceResult::print(ostream& o) const {
 }
 
 /// Print a METADATA_MATCH predicate
-ostream& MetadataMatch::print(ostream& o) const {
+ostream& MetadataMatch::print(ostream& o) const noexcept {
   return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a CONTENTS_MATCH predicate
-ostream& ContentsMatch::print(ostream& o) const {
+ostream& ContentsMatch::print(ostream& o) const noexcept {
   return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_METADATA action
-ostream& SetMetadata::print(ostream& o) const {
+ostream& SetMetadata::print(ostream& o) const noexcept {
   return o << "SET_METADATA(" << getReference()->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_CONTENTS action
-ostream& SetContents::print(ostream& o) const {
+ostream& SetContents::print(ostream& o) const noexcept {
   return o << "SET_CONTENTS(" << getReference()->getName() << ", " << _version << ")";
 }
 
 // Print a launch action
-ostream& Launch::print(ostream& o) const {
+ostream& Launch::print(ostream& o) const noexcept {
   o << "LAUNCH(" << _cmd << ", [";
   bool first = true;
   for (auto& entry : _cmd->getInitialFDs()) {

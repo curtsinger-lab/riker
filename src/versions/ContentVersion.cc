@@ -13,12 +13,12 @@ using std::nullopt;
 using std::shared_ptr;
 
 // Is this version saved in a way that can be committed?
-bool ContentVersion::isSaved() const {
+bool ContentVersion::isSaved() const noexcept {
   return _fingerprint.has_value() && _fingerprint.value().empty;
 }
 
 // Commit this version to the filesystem
-void ContentVersion::commit(shared_ptr<Reference> ref) const {
+void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
   ASSERT(isSaved()) << "Attempted to commit unsaved version";
 
   if (auto a = dynamic_pointer_cast<Access>(ref)) {
@@ -31,7 +31,7 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const {
 }
 
 // Save a fingerprint of this version
-void ContentVersion::fingerprint(shared_ptr<Reference> ref) {
+void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
   // We can only stat Access references. Try to cast.
   auto a = dynamic_pointer_cast<Access>(ref);
   if (!a) {
@@ -46,7 +46,7 @@ void ContentVersion::fingerprint(shared_ptr<Reference> ref) {
 }
 
 // Compare this version to another version
-bool ContentVersion::matches(shared_ptr<Version> other) const {
+bool ContentVersion::matches(shared_ptr<Version> other) const noexcept {
   // A version compares equal to itself, even if we have no saved metadata
   if (other.get() == this) return true;
 

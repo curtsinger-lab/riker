@@ -38,50 +38,50 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param committed Does the initial version of this artifact represent the filesystem state?
    * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v);
+  Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noexcept;
 
   // Required virtual destructor
-  virtual ~Artifact() = default;
+  virtual ~Artifact() noexcept = default;
 
   // Disallow Copy
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
 
   /// Get the name of this artifact used for pretty-printing
-  const string& getName() const { return _name; }
+  const string& getName() const noexcept { return _name; }
 
   /// Set the name of this artifact used for pretty-printing. Prefer shorter names.
-  void setName(string newname) {
+  void setName(string newname) noexcept {
     if (newname.empty()) return;
     if (_name.empty() || newname.size() < _name.size()) _name = newname;
   }
 
   /// Get the number of versions of this artifact
-  size_t getVersionCount() const { return _versions.size(); }
+  size_t getVersionCount() const noexcept { return _versions.size(); }
 
   /// Get the list of versions of this artifact
-  const list<shared_ptr<Version>>& getVersions() const { return _versions; }
+  const list<shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
-  virtual bool isSaved() const;
+  virtual bool isSaved() const noexcept;
 
   /// Save a copy of this artifact's versions so it can be restored on a future build
-  virtual void save(shared_ptr<Reference> ref);
+  virtual void save(shared_ptr<Reference> ref) noexcept;
 
   /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const;
+  virtual bool isCommitted() const noexcept;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref);
+  virtual void commit(shared_ptr<Reference> ref) noexcept;
 
   /// Do we have a fingerprint of this artifact's versions that will allow us to check for a match?
-  virtual bool hasFingerprint() const;
+  virtual bool hasFingerprint() const noexcept;
 
   /// Save a fingerprint of this artifact's versions so we can check for a match
-  virtual void fingerprint(shared_ptr<Reference> ref);
+  virtual void fingerprint(shared_ptr<Reference> ref) noexcept;
 
   /// Check this artifact's final state against the filesystem and report any changes
-  virtual void checkFinalState(shared_ptr<Reference> ref);
+  virtual void checkFinalState(shared_ptr<Reference> ref) noexcept;
 
   /********** Metadata: All Artifact Types **********/
 
@@ -91,7 +91,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param ref The referenced used to reach this artifact
    * \returns the version the command observes
    */
-  shared_ptr<MetadataVersion> accessMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref);
+  shared_ptr<MetadataVersion> accessMetadata(shared_ptr<Command> c,
+                                             shared_ptr<Reference> ref) noexcept;
 
   /**
    * Command c sets the metadata of this artifact to version v using reference ref.
@@ -101,7 +102,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the newly-assigned metadata version
    */
   shared_ptr<MetadataVersion> setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                          shared_ptr<MetadataVersion> v = nullptr);
+                                          shared_ptr<MetadataVersion> v = nullptr) noexcept;
 
   /********** Content: Files and Pipes **********/
 
@@ -113,7 +114,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    *          latest version using this reference (no check is necessary).
    */
   virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref) {
+                                                    shared_ptr<Reference> ref) noexcept {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return nullptr;
   }
@@ -126,7 +127,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the newly-assigned content version
    */
   virtual shared_ptr<ContentVersion> setContents(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                                 shared_ptr<ContentVersion> v = nullptr) {
+                                                 shared_ptr<ContentVersion> v = nullptr) noexcept {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return nullptr;
   }
@@ -134,10 +135,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /****** Utility Methods ******/
 
   /// Get the name of this artifact type
-  virtual string getTypeName() const = 0;
+  virtual string getTypeName() const noexcept = 0;
 
   /// Print this artifact
-  friend ostream& operator<<(ostream& o, const Artifact& a) {
+  friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {
     o << "[" << a.getTypeName();
     auto name = a.getName();
     if (!name.empty()) o << " " << name;
@@ -146,11 +147,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Print a pointer to an artifact
-  friend ostream& operator<<(ostream& o, const Artifact* a) { return o << *a; }
+  friend ostream& operator<<(ostream& o, const Artifact* a) noexcept { return o << *a; }
 
  protected:
   /// Add a version to the sequence of versions for this artifact
-  void appendVersion(shared_ptr<Version> v);
+  void appendVersion(shared_ptr<Version> v) noexcept;
 
  protected:
   /// The environment this artifact is managed by

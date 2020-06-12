@@ -21,53 +21,53 @@ class Reference;
 /// A reference to a specific version of an artifact
 class Version {
  public:
-  Version() = default;
+  Version() noexcept = default;
 
-  virtual ~Version() = default;
+  virtual ~Version() noexcept = default;
 
   // Disallow Copy
   Version(const Version&) = delete;
   Version& operator=(const Version&) = delete;
 
   // Allow Move
-  Version(Version&&) = default;
-  Version& operator=(Version&&) = default;
+  Version(Version&&) noexcept = default;
+  Version& operator=(Version&&) noexcept = default;
 
   /// Get the command that created this version
-  shared_ptr<Command> getCreator() const { return _creator.lock(); }
+  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<Command> c) { _creator = c; }
+  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
 
   /// Check if this version has been accessed
-  bool isAccessed() const { return _accessed; }
+  bool isAccessed() const noexcept { return _accessed; }
 
   /// Record that this version has been accessed
-  void accessed() { _accessed = true; }
+  void accessed() noexcept { _accessed = true; }
 
   /// Get the name for the type of version this is
-  virtual string getTypeName() const = 0;
+  virtual string getTypeName() const noexcept = 0;
 
   /// Is this version saved in a way that allows us to reproduce it?
-  virtual bool isSaved() const = 0;
+  virtual bool isSaved() const noexcept = 0;
 
   /// Save this version
-  virtual void save(shared_ptr<Reference> ref) = 0;
+  virtual void save(shared_ptr<Reference> ref) noexcept = 0;
 
   /// Restore this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) const = 0;
+  virtual void commit(shared_ptr<Reference> ref) const noexcept = 0;
 
   /// Is this version fingerprinted in a way that alllows us to check for a match?
-  virtual bool hasFingerprint() const = 0;
+  virtual bool hasFingerprint() const noexcept = 0;
 
   /// Fingerprint this version
-  virtual void fingerprint(shared_ptr<Reference> ref) = 0;
+  virtual void fingerprint(shared_ptr<Reference> ref) noexcept = 0;
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const = 0;
+  virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
 
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const Version& v) {
+  friend ostream& operator<<(ostream& o, const Version& v) noexcept {
     if (v._identity.has_value()) {
       auto& [a, index] = v._identity.value();
       return o << "[" << (a->getName().empty() ? "<anon>" : a->getName()) << " v" << index << "]";
@@ -77,7 +77,7 @@ class Version {
   }
 
   /// Print a Version*
-  friend ostream& operator<<(ostream& o, const Version* v) { return o << *v; }
+  friend ostream& operator<<(ostream& o, const Version* v) noexcept { return o << *v; }
 
  protected:
   SERIALIZE_EMPTY();
@@ -96,10 +96,10 @@ class Version {
   mutable optional<pair<const Artifact*, size_t>> _identity;
 
   /// Record a printable identity for this version that has just been attached to a given artifact
-  void identify(const Artifact* a) const { _identity = {a, a->getVersionCount() - 1}; }
+  void identify(const Artifact* a) const noexcept { _identity = {a, a->getVersionCount() - 1}; }
 
   /// Copy the identity to or from another version
-  void identify(shared_ptr<Version> other) const {
+  void identify(shared_ptr<Version> other) const noexcept {
     if (_identity.has_value()) {
       other->_identity = _identity;
     } else {
