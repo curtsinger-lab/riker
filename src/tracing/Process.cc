@@ -717,7 +717,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
   }
 
   // This process launches a new command
-  _command = _command->launch(exe_ref->getPath(), args, initial_fds, _cwd, _root);
+  _command = _command->launch(exe_ref, args, initial_fds, _cwd, _root);
 
   // The child command depends on the contents of its executable. First, we need to know what the
   // actual executable is. Read /proc/<pid>/exe to find it

@@ -155,12 +155,11 @@ class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
 
 /// Access a filesystem path with a given set of flags
 class Access final : public Reference, public std::enable_shared_from_this<Access> {
- private:
+ public:
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
- public:
   static shared_ptr<Access> createRoot(AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(nullptr, "/", flags));
   }

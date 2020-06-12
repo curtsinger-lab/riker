@@ -130,13 +130,14 @@ shared_ptr<Command> Command::createRootCommand() noexcept {
 
   auto cwd = Access::createCwd(AccessFlags{.x = true});
   auto root = Access::createRoot(AccessFlags{.x = true});
+  auto exe = make_shared<Access>(root, dodo_launch, AccessFlags{.r = true});
 
-  return shared_ptr<Command>(new Command(dodo_launch, {"dodo-launch"}, default_fds, cwd, root));
+  return shared_ptr<Command>(new Command(exe, {"dodo-launch"}, default_fds, cwd, root));
 }
 
 string Command::getShortName() const noexcept {
   // By default, the short name is the executable
-  auto result = _exe;
+  string result = _exe->getPath();
 
   // If we have arguments, use args[0] instead of the exe name
   if (_args.size() > 0) result = _args.front();
@@ -175,6 +176,9 @@ string Command::getFullName() const noexcept {
 void Command::emulate(Build& build) noexcept {
   // If this command has never run, report it as changed
   if (_steps.empty()) build.observeCommandNeverRun(shared_from_this());
+
+  // Resolve the reference to this command's executable
+  _exe->resolve(shared_from_this(), build);
 
   for (auto step : _steps) {
     step->emulate(shared_from_this(), build);
@@ -303,7 +307,7 @@ void Command::setContents(shared_ptr<Reference> ref) noexcept {
 }
 
 // This command launches a child command
-shared_ptr<Command> Command::launch(string exe, const vector<string>& args,
+shared_ptr<Command> Command::launch(shared_ptr<Access> exe, const vector<string>& args,
                                     const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
                                     shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);

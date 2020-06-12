@@ -43,7 +43,7 @@ class Command : public std::enable_shared_from_this<Command> {
   static shared_ptr<Command> createRootCommand() noexcept;
 
   /// Create a new command
-  Command(string exe, vector<string> args, map<int, FileDescriptor> initial_fds,
+  Command(shared_ptr<Access> exe, vector<string> args, map<int, FileDescriptor> initial_fds,
           shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) noexcept :
       _exe(exe),
       _args(args),
@@ -87,7 +87,7 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// Get the path to the executable file this command runs
-  const string& getExecutable() const noexcept { return _exe; }
+  shared_ptr<Access> getExecutable() const noexcept { return _exe; }
 
   /// Get the list of arguments this command was started with
   const vector<string>& getArguments() const noexcept { return _args; }
@@ -122,7 +122,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(shared_ptr<Reference> ref) noexcept;
 
   /// This command launches a child command
-  shared_ptr<Command> launch(string exe, const vector<string>& args,
+  shared_ptr<Command> launch(shared_ptr<Access> exe, const vector<string>& args,
                              const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
                              shared_ptr<Access> root) noexcept;
 
@@ -138,7 +138,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// The executable file this command runs
-  string _exe;
+  shared_ptr<Access> _exe;
 
   /// The arguments passed to this command on startup
   vector<string> _args;
