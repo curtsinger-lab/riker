@@ -75,8 +75,8 @@ class Process {
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
     o << p._pid << ": " << p._command << "\n";
-    for (auto& e : p._fds) {
-      o << "  " << e.first << ": " << e.second << "\n";
+    for (const auto& [index, descriptor] : p._fds) {
+      o << "  " << index << ": " << descriptor << "\n";
     }
     return o;
   }

@@ -180,7 +180,7 @@ void Command::emulate(Build& build) noexcept {
   // Resolve the reference to this command's executable
   _exe->resolve(shared_from_this(), build);
 
-  for (auto step : _steps) {
+  for (const auto& step : _steps) {
     step->emulate(shared_from_this(), build);
   }
 }
@@ -191,7 +191,7 @@ shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
   // In path resolution, it may be helpful to store each level of the path in a new reference.
   // Uncomment to re-enable this.
   /*auto current = base;
-  for (auto& entry : path) {
+  for (const auto& entry : path) {
     if (entry != "." && entry != "/") {
       current = current->get(entry, AccessFlags{.x = true});
     }
@@ -201,22 +201,21 @@ shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
 
   // For now, the reference is just one level that covers all parts of the new path
   auto ref = base->get(path, flags);
-
-  _steps.push_back(ref);
+  _steps.emplace_back(ref);
   return ref;
 }
 
 // Make an access using a new set of flags
 shared_ptr<Access> Command::access(shared_ptr<Access> a, AccessFlags flags) noexcept {
   auto ref = a->withFlags(flags);
-  _steps.push_back(ref);
+  _steps.emplace_back(ref);
   return ref;
 }
 
 // This command creates a reference to a new pipe
 shared_ptr<Pipe> Command::pipe() noexcept {
   auto ref = make_shared<Pipe>();
-  _steps.push_back(ref);
+  _steps.emplace_back(ref);
   return ref;
 }
 
@@ -228,7 +227,7 @@ void Command::metadataMatch(shared_ptr<Reference> ref) noexcept {
   if (!_metadata_filter.readRequired(this, ref)) return;
 
   // Inform the artifact that this command accesses its metadata
-  auto v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
+  const auto& v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
 
   // If the last write was from this command we don't need a fingerprint to compare.
   if (v->getCreator() != shared_from_this()) {
@@ -251,7 +250,7 @@ void Command::contentsMatch(shared_ptr<Reference> ref) noexcept {
   if (!_content_filter.readRequired(this, ref)) return;
 
   // Inform the artifact that this command accesses its contents
-  auto v = ref->getArtifact()->accessContents(shared_from_this(), ref);
+  const auto& v = ref->getArtifact()->accessContents(shared_from_this(), ref);
 
   if (!v) {
     WARN << "Accessing contents of " << ref << " returned a null version";
@@ -278,7 +277,7 @@ void Command::setMetadata(shared_ptr<Reference> ref) noexcept {
   if (!_metadata_filter.writeRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its metadata
-  auto v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
+  const auto& v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
 
   // Create the SetMetadata step and add it to the command
   _steps.push_back(make_shared<SetMetadata>(ref, v));
@@ -295,7 +294,7 @@ void Command::setContents(shared_ptr<Reference> ref) noexcept {
   if (!_content_filter.writeRequired(this, ref)) return;
 
   // Inform the artifact that this command sets its contents
-  auto v = ref->getArtifact()->setContents(shared_from_this(), ref);
+  const auto& v = ref->getArtifact()->setContents(shared_from_this(), ref);
 
   ASSERT(v) << "Setting contents of " << ref << " produced a null version";
 
@@ -307,15 +306,13 @@ void Command::setContents(shared_ptr<Reference> ref) noexcept {
 }
 
 // This command launches a child command
-shared_ptr<Command> Command::launch(shared_ptr<Access> exe, const vector<string>& args,
-                                    const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
-                                    shared_ptr<Access> root) noexcept {
+const shared_ptr<Command>& Command::launch(shared_ptr<Access> exe, vector<string> args,
+                                           map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
+                                           shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
   if (options::print_on_run) cout << child->getFullName() << endl;
 
-  _steps.push_back(make_shared<Launch>(child));
-  _children.push_back(child);
-
-  return child;
+  _steps.emplace_back(make_shared<Launch>(child));
+  return _children.emplace_back(child);
 }

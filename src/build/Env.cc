@@ -79,7 +79,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
   // 3. The resolution will fail with some error
 
   auto path = ref->getPath();
-  auto flags = ref->getFlags();
+  const auto& flags = ref->getFlags();
 
   // First, look in the filesystem map
   // TODO: handle nofollow in the filesystem map
@@ -226,7 +226,7 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
 // Check all remaining artifacts for changes and save updated fingerprints and metadata
 void Env::finalize() noexcept {
   // Loop over all the artifacts
-  for (auto& [ref, a] : _files) {
+  for (const auto& [ref, a] : _files) {
     // Check the artifact's final contents and metadata against the filesystem
     a->checkFinalState(ref);
 

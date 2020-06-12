@@ -39,10 +39,10 @@ class FileArtifact : public Artifact {
   /// Save a fingerprint of this artifact's versions so we can check for a match
   virtual void fingerprint(shared_ptr<Reference> ref) noexcept final;
 
-  virtual shared_ptr<ContentVersion> accessContents(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref) noexcept final;
+  virtual const shared_ptr<ContentVersion>& accessContents(
+      shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept final;
 
-  virtual shared_ptr<ContentVersion> setContents(
+  virtual const shared_ptr<ContentVersion>& setContents(
       shared_ptr<Command> c, shared_ptr<Reference> ref,
       shared_ptr<ContentVersion> v = nullptr) noexcept final;
 

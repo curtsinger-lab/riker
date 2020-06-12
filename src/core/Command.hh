@@ -65,11 +65,14 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the full name for this command
   string getFullName() const noexcept;
 
+  /// Get the reference to the executable file this command runs
+  const shared_ptr<Access>& getExecutable() const noexcept { return _exe; }
+
   /// Get the working directory where this command is started
-  shared_ptr<Access> getInitialWorkingDirectory() const noexcept { return _initial_cwd; }
+  const shared_ptr<Access>& getInitialWorkingDirectory() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  shared_ptr<Access> getInitialRoot() const noexcept { return _initial_root; }
+  const shared_ptr<Access>& getInitialRoot() const noexcept { return _initial_root; }
 
   /// Get the list of traced steps this command runs
   const list<shared_ptr<Step>>& getSteps() const noexcept { return _steps; }
@@ -85,9 +88,6 @@ class Command : public std::enable_shared_from_this<Command> {
     _steps.clear();
     _children.clear();
   }
-
-  /// Get the path to the executable file this command runs
-  shared_ptr<Access> getExecutable() const noexcept { return _exe; }
 
   /// Get the list of arguments this command was started with
   const vector<string>& getArguments() const noexcept { return _args; }
@@ -122,9 +122,9 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(shared_ptr<Reference> ref) noexcept;
 
   /// This command launches a child command
-  shared_ptr<Command> launch(shared_ptr<Access> exe, const vector<string>& args,
-                             const map<int, FileDescriptor>& fds, shared_ptr<Access> cwd,
-                             shared_ptr<Access> root) noexcept;
+  const shared_ptr<Command>& launch(shared_ptr<Access> exe, vector<string> args,
+                                    map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
+                                    shared_ptr<Access> root) noexcept;
 
   /****** Utility Methods ******/
 

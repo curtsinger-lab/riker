@@ -64,8 +64,7 @@ shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) no
   if (at == AT_FDCWD) return _command->access(p, flags, _cwd);
 
   // The path is resolved relative to some file descriptor
-  auto base_fd = _fds.at(at);
-  auto base = dynamic_pointer_cast<Access>(base_fd.getReference());
+  auto base = dynamic_pointer_cast<Access>(_fds.at(at).getReference());
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
@@ -150,7 +149,7 @@ vector<string> Process::readArgvArray(uintptr_t tracee_pointer) noexcept {
   auto arg_pointers = readTerminatedArray<uintptr_t, 0>(tracee_pointer);
 
   vector<string> args;
-  for (auto arg_ptr : arg_pointers) {
+  for (const auto& arg_ptr : arg_pointers) {
     args.push_back(readString(arg_ptr));
   }
   return args;
@@ -348,10 +347,8 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
     resume();
 
     // This is essentially an fstat call
-    auto& descriptor = _fds.at(dirfd);
-
     // Record the dependency on metadata
-    _command->metadataMatch(descriptor.getReference());
+    _command->metadataMatch(_fds.at(dirfd).getReference());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -435,7 +432,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
 
 void Process::_read(int fd) noexcept {
   // Get the descriptor
-  auto& descriptor = _fds.at(fd);
+  const auto& descriptor = _fds.at(fd);
 
   // The current command depends on the contents of this file
   _command->contentsMatch(descriptor.getReference());
@@ -452,7 +449,7 @@ void Process::_read(int fd) noexcept {
 
 void Process::_write(int fd) noexcept {
   // Get the descriptor
-  auto& descriptor = _fds.at(fd);
+  const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
   _command->contentsMatch(descriptor.getReference());
@@ -486,7 +483,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   }
 
   // Get the descriptor from the fd number
-  auto& descriptor = _fds.at(fd);
+  const auto& descriptor = _fds.at(fd);
 
   // By mmapping a file, the command implicitly depends on its contents at the time of
   // mapping.
@@ -549,7 +546,7 @@ void Process::_truncate(string pathname, long length) noexcept {
 
 void Process::_ftruncate(int fd, long length) noexcept {
   // Get the descriptor
-  auto& descriptor = _fds.at(fd);
+  const auto& descriptor = _fds.at(fd);
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
@@ -668,7 +665,7 @@ void Process::_fchdir(int fd) noexcept {
 
   if (rc == 0) {
     // Get the path to the artifact this descriptor references
-    auto& descriptor = _fds.at(fd);
+    const auto& descriptor = _fds.at(fd);
     auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
 
     // Make sure there really is a path
@@ -705,7 +702,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
   map<int, FileDescriptor> initial_fds;
   list<int> to_erase;
 
-  for (auto& [index, fd] : _fds) {
+  for (const auto& [index, fd] : _fds) {
     if (fd.isCloexec()) {
       to_erase.push_back(index);
     } else {

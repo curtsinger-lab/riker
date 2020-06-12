@@ -29,7 +29,7 @@ class Stats final : public BuildObserver {
   ostream& print(ostream& o) noexcept {
     // Total versions for all artifacts
     size_t version_count = 0;
-    for (auto& a : _artifacts) {
+    for (const auto& a : _artifacts) {
       version_count += a->getVersionCount();
     }
 
@@ -42,11 +42,11 @@ class Stats final : public BuildObserver {
     if (_list_artifacts) {
       o << endl;
       o << "Artifacts:" << endl;
-      for (auto& a : _artifacts) {
+      for (const auto& a : _artifacts) {
         o << "  " << a->getName() << ": " << a->getTypeName() << endl;
 
         size_t index = 0;
-        for (auto& v : a->getVersions()) {
+        for (const auto& v : a->getVersions()) {
           o << "    v" << index << ": " << v->getTypeName();
 
           if (v->isSaved()) {

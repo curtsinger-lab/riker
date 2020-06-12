@@ -86,8 +86,8 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) noexcept {
 
 // Command c accesses this artifact's contents
 // Return the version it observes, or nullptr if no check is necessary
-shared_ptr<ContentVersion> FileArtifact::accessContents(shared_ptr<Command> c,
-                                                        shared_ptr<Reference> ref) noexcept {
+const shared_ptr<ContentVersion>& FileArtifact::accessContents(shared_ptr<Command> c,
+                                                               shared_ptr<Reference> ref) noexcept {
   _content_version->accessed();
 
   // Yes. Notify the build and return the version
@@ -96,9 +96,9 @@ shared_ptr<ContentVersion> FileArtifact::accessContents(shared_ptr<Command> c,
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
-shared_ptr<ContentVersion> FileArtifact::setContents(shared_ptr<Command> c,
-                                                     shared_ptr<Reference> ref,
-                                                     shared_ptr<ContentVersion> v) noexcept {
+const shared_ptr<ContentVersion>& FileArtifact::setContents(shared_ptr<Command> c,
+                                                            shared_ptr<Reference> ref,
+                                                            shared_ptr<ContentVersion> v) noexcept {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
     // Create a version to track the new on-disk state

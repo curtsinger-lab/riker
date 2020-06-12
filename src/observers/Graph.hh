@@ -38,7 +38,7 @@ class Graph final : public BuildObserver {
     o << "  graph [rankdir=LR]\n";
 
     // Create command vertices
-    for (auto& [c, id] : _command_ids) {
+    for (const auto& [c, id] : _command_ids) {
       o << "  " << id << " [";
       o << "label=\"" << escape(c->getShortName()) << "\" ";
       o << "tooltip=\"" << escape(c->getFullName()) << "\" ";
@@ -51,12 +51,12 @@ class Graph final : public BuildObserver {
     }
 
     // Create command edges
-    for (auto& [parent, child] : _command_edges) {
+    for (const auto& [parent, child] : _command_edges) {
       o << "  " << parent << " -> " << child << " [style=dotted weight=1]\n";
     }
 
     // Create artifact vertices
-    for (auto& [artifact, artifact_id] : _artifact_ids) {
+    for (const auto& [artifact, artifact_id] : _artifact_ids) {
       // Start the vertex with HTML output
       o << "  " << artifact_id << " [label=<";
 
@@ -72,7 +72,7 @@ class Graph final : public BuildObserver {
       }
 
       // Add a row for each version
-      for (auto v : artifact->getVersions()) {
+      for (const auto& v : artifact->getVersions()) {
         o << "<tr><td port=\"" + getVersionID(v) + "\"";
         if (_changed_versions.find(v) != _changed_versions.end()) {
           o << " bgcolor=\"yellow\"";
@@ -87,7 +87,7 @@ class Graph final : public BuildObserver {
     }
 
     // Create I/O edges
-    for (auto [src, dest] : _io_edges) {
+    for (const auto& [src, dest] : _io_edges) {
       // Does the reverse edges also appear in our set?
       if (auto iter = _io_edges.find({dest, src}); iter != _io_edges.end()) {
         // Yes. Draw this as a bidirectional edge
@@ -128,7 +128,7 @@ class Graph final : public BuildObserver {
   bool isSystemFile(shared_ptr<Artifact> a) noexcept {
     auto path = a->getName();
 
-    for (auto p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
+    for (const auto& p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
       // Check if the path begins with one of our prefixes.
       // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
       if (path.rfind(p, 0) != string::npos) return true;

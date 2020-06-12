@@ -82,8 +82,8 @@ void Artifact::checkFinalState(shared_ptr<Reference> ref) noexcept {
 
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary
-shared_ptr<MetadataVersion> Artifact::accessMetadata(shared_ptr<Command> c,
-                                                     shared_ptr<Reference> ref) noexcept {
+const shared_ptr<MetadataVersion>& Artifact::accessMetadata(shared_ptr<Command> c,
+                                                            shared_ptr<Reference> ref) noexcept {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
@@ -94,8 +94,9 @@ shared_ptr<MetadataVersion> Artifact::accessMetadata(shared_ptr<Command> c,
 
 // Command c sets the metadata for this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<MetadataVersion> Artifact::setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
-                                                  shared_ptr<MetadataVersion> v) noexcept {
+const shared_ptr<MetadataVersion>& Artifact::setMetadata(shared_ptr<Command> c,
+                                                         shared_ptr<Reference> ref,
+                                                         shared_ptr<MetadataVersion> v) noexcept {
   // If no version was provided, the new version will represent what is currently on disk
   if (!v) {
     // Create a version to track the new on-disk state

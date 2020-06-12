@@ -16,7 +16,7 @@ using std::shared_ptr;
 
 void Build::run() noexcept {
   // This is a hack to resolve the stdin, stdout, and stderr pipes before starting emulation.
-  for (auto& [index, info] : _root->getInitialFDs()) {
+  for (const auto& [index, info] : _root->getInitialFDs()) {
     info.getReference()->emulate(_root, *this);
     if (index == 0) info.getReference()->getArtifact()->setName("stdin");
     if (index == 1) info.getReference()->getArtifact()->setName("stdout");
@@ -24,7 +24,7 @@ void Build::run() noexcept {
   }
 
   // Inform observers of the launch action
-  for (auto& o : _observers) {
+  for (const auto& o : _observers) {
     o->launchRootCommand(_root);
   }
 
@@ -39,7 +39,7 @@ void Build::run() noexcept {
 // Called when an emulated command launches another command
 void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {
   // Inform observers of the launch action
-  for (auto& o : _observers) {
+  for (const auto& o : _observers) {
     o->launchChildCommand(parent, child);
   }
 
@@ -69,7 +69,7 @@ void Build::runCommand(shared_ptr<Command> c) noexcept {
 ostream& Build::print(ostream& o) const noexcept {
   if (_rerun.size() > 0) {
     o << "The following commands will be rerun:" << endl;
-    for (auto& c : _rerun) {
+    for (const auto& c : _rerun) {
       o << "  " << c << endl;
     }
 

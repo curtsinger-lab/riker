@@ -24,7 +24,7 @@ class FileDescriptor {
       _ref(ref), _writable(writable), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
 
   /// Check if the file descriptor should be writable
   bool isWritable() const noexcept { return _writable; }

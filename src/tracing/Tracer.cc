@@ -49,7 +49,7 @@ void Tracer::run(shared_ptr<Command> cmd) noexcept {
     bool have_event = false;
 
     // Check if any queued events are ready to be processed
-    for (auto iter = event_queue.begin(); iter != event_queue.end(); iter++) {
+    for (auto iter = event_queue.cbegin(); iter != event_queue.cend(); iter++) {
       // If the current entry's pid is now a known process, process it
       if (_processes.find(iter->first) != _processes.end()) {
         // Pull out the child and status values
@@ -138,7 +138,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   LOG << "Initial FDs:";
 
   // Loop over the initial fds for the command we are launching
-  for (auto& [child_fd, info] : cmd->getInitialFDs()) {
+  for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
     LOG << "  " << child_fd << ": " << info.getReference();
 
     // For now, only handle Access references
@@ -146,7 +146,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     if (!ref) continue;
 
     // Get the artifact from the environment
-    auto [artifact, rc] = _build.getEnv().getFile(cmd, ref);
+    const auto& [artifact, rc] = _build.getEnv().getFile(cmd, ref);
 
     // Make sure the artifact is committed to the filesystem
     artifact->commit(ref);
@@ -173,7 +173,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     // Set up FDs as requested. We assume that all parent FDs are marked CLOEXEC if
     // necessary and that there are no ordering constraints on duping (e.g. if the
     // child fd for one entry matches the parent fd of another).
-    for (auto [parent_fd, child_fd] : initial_fds) {
+    for (const auto& [parent_fd, child_fd] : initial_fds) {
       int rc = dup2(parent_fd, child_fd);
 
       LOG << "Duped parent fd " << parent_fd << " to " << child_fd;
@@ -197,7 +197,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 
     // Loop over syscalls
-    for (auto& entry : syscalls) {
+    for (const auto& entry : syscalls) {
       uint32_t syscall_nr = entry.first;
       // Check if the syscall matches the current entry
       filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_nr, 0, 1));
@@ -230,7 +230,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     raise(SIGSTOP);
 
     vector<const char*> args;
-    for (auto& s : cmd->getArguments()) {
+    for (const auto& s : cmd->getArguments()) {
       args.push_back(s.c_str());
     }
 
@@ -285,9 +285,9 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   map<int, FileDescriptor> fds;
 
   // Loop over the references the command expects to have in its FD table
-  for (auto& [index, initial_fd] : cmd->getInitialFDs()) {
-    auto ref = initial_fd.getReference();
-    auto [artifact, rc] = _build.getEnv().get(cmd, ref);
+  for (const auto& [index, initial_fd] : cmd->getInitialFDs()) {
+    const auto& ref = initial_fd.getReference();
+    const auto& [artifact, rc] = _build.getEnv().get(cmd, ref);
 
     FAIL_IF(!artifact || rc != SUCCESS) << "Failed to get artifact for initial file descriptor";
 

@@ -33,9 +33,9 @@ class Trace final : public BuildObserver {
 
   /// Print the trace from the given build
   ostream& print(ostream& o) const noexcept {
-    for (auto& c : _commands) {
+    for (const auto& c : _commands) {
       o << c << endl;
-      for (auto& s : c->getSteps()) {
+      for (const auto& s : c->getSteps()) {
         o << "  " << s << endl;
       }
     }

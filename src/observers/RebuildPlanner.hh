@@ -36,12 +36,12 @@ class RebuildPlanner final : public BuildObserver {
    */
   void planBuild(Build& b) const noexcept {
     // Mark all the commands with changed inputs
-    for (auto& c : _changed) {
+    for (const auto& c : _changed) {
       mark(b, c);
     }
 
     // Mark all the commands whose output is required
-    for (auto& c : _output_needed) {
+    for (const auto& c : _output_needed) {
       mark(b, c);
     }
   }
@@ -50,7 +50,7 @@ class RebuildPlanner final : public BuildObserver {
   ostream& print(ostream& o) const noexcept {
     if (_changed.size() > 0) {
       o << "Commands with changed inputs:" << endl;
-      for (auto& c : _changed) {
+      for (const auto& c : _changed) {
         o << "  " << c << endl;
       }
       o << endl;
@@ -58,7 +58,7 @@ class RebuildPlanner final : public BuildObserver {
 
     if (_output_needed.size() > 0) {
       o << "Commands whose output is missing or modified:" << endl;
-      for (auto& c : _output_needed) {
+      for (const auto& c : _output_needed) {
         o << "  " << c << endl;
       }
       o << endl;
@@ -136,20 +136,20 @@ class RebuildPlanner final : public BuildObserver {
     if (!b.setRerun(c)) return;
 
     // Mark this command's children
-    for (auto& child : c->getChildren()) {
+    for (const auto& child : c->getChildren()) {
       mark(b, child);
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
-      for (auto& other : iter->second) {
+      for (const auto& other : iter->second) {
         mark(b, other);
       }
     }
 
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
-      for (auto& other : iter->second) {
+      for (const auto& other : iter->second) {
         mark(b, other);
       }
     }

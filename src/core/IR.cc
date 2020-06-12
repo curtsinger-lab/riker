@@ -55,7 +55,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   }
 
   // Get the latest metadata version. The returned version will be nullptr if no check is necessary.
-  auto v = _ref->getArtifact()->accessMetadata(c, _ref);
+  const auto& v = _ref->getArtifact()->accessMetadata(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
@@ -71,7 +71,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   }
 
   // Get the latest content version. The returned version will be nullptr if no check is necessary.
-  auto v = _ref->getArtifact()->accessContents(c, _ref);
+  const auto& v = _ref->getArtifact()->accessContents(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
@@ -173,7 +173,7 @@ ostream& SetContents::print(ostream& o) const noexcept {
 ostream& Launch::print(ostream& o) const noexcept {
   o << "LAUNCH(" << _cmd << ", [";
   bool first = true;
-  for (auto& entry : _cmd->getInitialFDs()) {
+  for (const auto& entry : _cmd->getInitialFDs()) {
     if (!first) o << ", ";
     first = false;
     o << entry.second.getReference()->getName();

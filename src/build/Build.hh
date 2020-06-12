@@ -41,7 +41,7 @@ class Build {
    * \returns true if this is a new addition to the set, or false if the command was already marked
    */
   bool setRerun(shared_ptr<Command> c) noexcept {
-    auto [iter, added] = _rerun.insert(c);
+    auto [iter, added] = _rerun.emplace(c);
     return added;
   }
 
@@ -91,35 +91,35 @@ class Build {
   /// Inform the observer that command c modified artifact a, creating version v
   void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept {
-    for (auto& o : _observers) o->output(c, a, v);
+    for (const auto& o : _observers) o->output(c, a, v);
   }
 
   /// Inform the observer that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
-    for (auto& o : _observers) o->input(c, a, v);
+    for (const auto& o : _observers) o->input(c, a, v);
   }
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
   void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
                        shared_ptr<Version> expected) noexcept {
-    for (auto& o : _observers) o->mismatch(c, a, observed, expected);
+    for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
 
   /// Inform observers that a command has never been run
   void observeCommandNeverRun(shared_ptr<Command> c) noexcept {
-    for (auto& o : _observers) o->commandNeverRun(c);
+    for (const auto& o : _observers) o->commandNeverRun(c);
   }
 
   /// Inform the observer that a given command's IR action would detect a change in the build env
   void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {
-    for (auto& o : _observers) o->commandChanged(c, s);
+    for (const auto& o : _observers) o->commandChanged(c, s);
   }
 
   /// Inform observers that an artifact's version does not match the expected final state
   void observeFinalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
                             shared_ptr<Version> expected) noexcept {
-    for (auto& o : _observers) o->finalMismatch(a, observed, expected);
+    for (const auto& o : _observers) o->finalMismatch(a, observed, expected);
   }
 
  private:

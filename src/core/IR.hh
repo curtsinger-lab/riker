@@ -238,10 +238,10 @@ class MetadataMatch final : public Step, public std::enable_shared_from_this<Met
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<MetadataVersion> getVersion() const noexcept { return _version; }
+  const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -272,10 +272,10 @@ class ContentsMatch final : public Step, public std::enable_shared_from_this<Con
       _ref(ref), _version(version) {}
 
   /// Get the reference used for this predicate
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
 
   /// Get the expected artifact version
-  shared_ptr<ContentVersion> getVersion() const noexcept { return _version; }
+  const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -335,9 +335,9 @@ class SetMetadata final : public Step, public std::enable_shared_from_this<SetMe
   SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
 
-  shared_ptr<MetadataVersion> getVersion() const noexcept { return _version; }
+  const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
@@ -367,9 +367,9 @@ class SetContents final : public Step, public std::enable_shared_from_this<SetCo
   SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  shared_ptr<Reference> getReference() const noexcept { return _ref; }
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
 
-  shared_ptr<ContentVersion> getVersion() const noexcept { return _version; }
+  const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
 
   /**
    * Emulate this IR step in a given environment
