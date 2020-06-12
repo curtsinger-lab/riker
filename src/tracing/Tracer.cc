@@ -126,10 +126,10 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   LOG << "Launching " << cmd;
 
   // Get a reference to the directory where the command will be started
-  auto cwd = cmd->getInitialWorkingDirectory();
+  auto cwd = cmd->getInitialWorkingDir();
 
   // Get a reference to the root directory in effect when the command is started
-  auto root = cmd->getInitialRoot();
+  auto root = cmd->getInitialRootDir();
 
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place

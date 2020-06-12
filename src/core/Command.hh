@@ -69,10 +69,10 @@ class Command : public std::enable_shared_from_this<Command> {
   const shared_ptr<Access>& getExecutable() const noexcept { return _exe; }
 
   /// Get the working directory where this command is started
-  const shared_ptr<Access>& getInitialWorkingDirectory() const noexcept { return _initial_cwd; }
+  const shared_ptr<Access>& getInitialWorkingDir() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  const shared_ptr<Access>& getInitialRoot() const noexcept { return _initial_root; }
+  const shared_ptr<Access>& getInitialRootDir() const noexcept { return _initial_root; }
 
   /// Get the list of traced steps this command runs
   const list<shared_ptr<Step>>& getSteps() const noexcept { return _steps; }

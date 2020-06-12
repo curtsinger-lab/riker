@@ -23,6 +23,11 @@ void Build::run() noexcept {
     if (index == 2) info.getReference()->getArtifact()->setName("stderr");
   }
 
+  // Resolve the root directory, working directory, and executable references
+  _root->getInitialRootDir()->resolve(_root, *this);
+  _root->getInitialWorkingDir()->resolve(_root, *this);
+  _root->getExecutable()->resolve(_root, *this);
+
   // Inform observers of the launch action
   for (const auto& o : _observers) {
     o->launchRootCommand(_root);

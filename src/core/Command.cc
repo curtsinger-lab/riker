@@ -177,9 +177,6 @@ void Command::emulate(Build& build) noexcept {
   // If this command has never run, report it as changed
   if (_steps.empty()) build.observeCommandNeverRun(shared_from_this());
 
-  // Resolve the reference to this command's executable
-  _exe->resolve(shared_from_this(), build);
-
   for (const auto& step : _steps) {
     step->emulate(shared_from_this(), build);
   }

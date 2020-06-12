@@ -24,12 +24,12 @@ using std::pair;
 using std::shared_ptr;
 
 void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
+  const auto& [artifact, rc] = build.getEnv().getPipe(c, shared_from_this());
   resolutionResult(artifact, rc);
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  const auto& [artifact, rc] = build.getEnv().get(c, shared_from_this());
+  const auto& [artifact, rc] = build.getEnv().getFile(c, shared_from_this());
   resolutionResult(artifact, rc);
 }
 
