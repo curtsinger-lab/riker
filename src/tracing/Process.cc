@@ -681,7 +681,7 @@ void Process::_fchdir(int fd) noexcept {
 
 void Process::_execveat(int dfd, string filename, vector<string> args,
                         vector<string> env) noexcept {
-  // The command accesses this path with execute permissions
+  // The parent command needs execute access to the exec-ed path
   auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
   // Finish the exec syscall and resume
@@ -716,41 +716,23 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
     _fds.erase(index);
   }
 
-  // Resolve the reference to the executable
-  exe_ref->resolve(_command, _build);
-
-  ASSERT(exe_ref->isResolved()) << "Failed to locate artifact for executable file";
-
-  // This process launches a new command, and is now running that command
+  // This process launches a new command
   _command = _command->launch(exe_ref->getPath(), args, initial_fds, _cwd, _root);
 
-  // The child command makes a reference to read the exe_ref
-  auto child_exe_ref = _command->access(exe_ref, AccessFlags{.r = true});
+  // The child command depends on the contents of its executable. First, we need to know what the
+  // actual executable is. Read /proc/<pid>/exe to find it
+  auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
+
+  // Now make the reference and expect success
+  auto child_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true});
   child_exe_ref->expectResult(SUCCESS);
 
   // Resolve the child executable reference
   child_exe_ref->resolve(_command, _build);
+  ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
-  // We also depend on the contents of the executable file at this point
+  // The child command depends on the contents of the executable
   _command->contentsMatch(child_exe_ref);
-
-  // Get the path to the real executable for this command. Important for #! commands.
-  auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
-
-  // If real_exe_path is not the same as exe_path, we depend on the contents there as well
-  if (child_exe_ref->getPath() != real_exe_path) {
-    // Make a reference and record a successful result
-    auto real_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true, .x = true});
-
-    real_exe_ref->expectResult(SUCCESS);
-
-    // Resolve the reference
-    real_exe_ref->resolve(_command, _build);
-    ASSERT(real_exe_ref->isResolved()) << "Failed to resolve executable reference";
-
-    // Depend on the contents of the real executable
-    _command->contentsMatch(real_exe_ref);
-  }
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we

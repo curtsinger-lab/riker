@@ -8,13 +8,11 @@
 #define ShellCommand "/bin/sh"
 
 int main() {
-  // Check if the buildfile is executable
-  if (faccessat(AT_FDCWD, RootBuildCommand, X_OK, AT_EACCESS) == 0) {
-    // It is. Directly execute the buildfile
-    execl(RootBuildCommand, RootBuildCommand, NULL);
-    fprintf(stderr, "Failed to run " RootBuildCommand ": %s\n", strerror(errno));
+  // First, try to execute the root build file
+  execl(RootBuildCommand, RootBuildCommand, NULL);
 
-  } else if (faccessat(AT_FDCWD, RootBuildCommand, R_OK, AT_EACCESS) == 0) {
+  // If we reach this point, the buildfile was not executable. Is it readable?
+  if (faccessat(AT_FDCWD, RootBuildCommand, R_OK, AT_EACCESS) == 0) {
     // The buildfile is not executable, but we have read access. Run it with /bin/sh
     execl(ShellCommand, ShellCommand, RootBuildCommand, NULL);
     fprintf(stderr, "Failed to run " RootBuildCommand " with shell " ShellCommand ": %s\n",
