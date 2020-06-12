@@ -3,7 +3,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
-#include <utility>
+#include <tuple>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -20,23 +20,19 @@
 
 using std::dynamic_pointer_cast;
 using std::ostream;
-using std::pair;
 using std::shared_ptr;
+using std::tuple;
 
 void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  const auto& [artifact, rc] = build.getEnv().getPipe(c, shared_from_this());
-  resolutionResult(artifact, rc);
+  resolvesTo(build.getEnv().getPipe(c, shared_from_this()));
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  // If this access does not have a base reference, delegate resolution to the environment
-  if (_base) {
-    const auto& [artifact, rc] = _base->getArtifact()->resolvePath(c, shared_from_this());
-    resolutionResult(artifact, rc);
-  } else {
-    const auto& [artifact, rc] = build.getEnv().getFile(c, shared_from_this());
-    resolutionResult(artifact, rc);
-  }
+  // The base reference must be resolved already.
+  ASSERT(!_base || _base->isResolved()) << "Attempted to resolve reference " << this
+                                        << " without first resolving base reference " << _base;
+
+  resolvesTo(_base->getArtifact()->resolvePath(c, shared_from_this()));
 }
 
 /******* Emulation *******/
@@ -119,13 +115,13 @@ int Access::open() const noexcept {
   return ::open(getFullPath().c_str(), open_flags, open_mode);
 }
 
-pair<struct stat, int> Access::stat() const noexcept {
+tuple<struct stat, int> Access::stat() const noexcept {
   struct stat statbuf;
   int rc = ::stat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};
 }
 
-pair<struct stat, int> Access::lstat() const noexcept {
+tuple<struct stat, int> Access::lstat() const noexcept {
   struct stat statbuf;
   int rc = ::lstat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};

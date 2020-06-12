@@ -338,6 +338,13 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
 
   // Record the outcome of the reference
   ref->expectResult(-rc);
+
+  if (rc == 0) {
+    ref->resolve(_command, _build);
+    PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
+    // Don't abort here becaues the dodo self-build accesses /proc/self.
+    // We need to fix these references for real at some point.
+  }
 }
 
 void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
@@ -646,6 +653,9 @@ void Process::_chdir(string filename) noexcept {
   // Update the current working directory if the chdir call succeeded
   if (rc == 0) {
     _cwd = makeAccess(filename, AccessFlags{.x = true});
+    _cwd->expectResult(SUCCESS);
+    _cwd->resolve(_command, _build);
+    ASSERT(_cwd->isResolved()) << "Failed to resolve current working directory";
   }
 }
 
@@ -695,6 +705,10 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
 
   // If we reached this point, the executable reference was okay
   exe_ref->expectResult(SUCCESS);
+
+  // Resolve the reference to the executable file
+  exe_ref->resolve(_command, _build);
+  ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
 
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the

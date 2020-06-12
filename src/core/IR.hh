@@ -4,7 +4,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
-#include <utility>
+#include <tuple>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -15,9 +15,9 @@
 #include "util/serializer.hh"
 
 using std::ostream;
-using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -105,11 +105,9 @@ class Reference : public Step {
   /// Get the result of trying to resolve this reference
   int getResult() const noexcept { return _rc; }
 
- protected:
   /// A sub-type can report the result of resolving this artifact using this method
-  void resolutionResult(shared_ptr<Artifact> a, int rc) noexcept {
-    _artifact = a;
-    _rc = rc;
+  void resolvesTo(tuple<shared_ptr<Artifact>, int> result) noexcept {
+    std::tie(_artifact, _rc) = result;
   }
 
  private:
@@ -158,7 +156,9 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
  public:
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
-      _base(base), _path(path), _flags(flags) {}
+      _base(base), _path(path), _flags(flags) {
+    INFO << this;
+  }
 
   static shared_ptr<Access> createRoot(AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(nullptr, "/", flags));
@@ -203,10 +203,10 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   int open() const noexcept;
 
   /// Call lstat on this reference
-  pair<struct stat, int> lstat() const noexcept;
+  tuple<struct stat, int> lstat() const noexcept;
 
   /// Call stat on this reference
-  pair<struct stat, int> stat() const noexcept;
+  tuple<struct stat, int> stat() const noexcept;
 
   /// Call access() on this reference
   int access() const noexcept;
