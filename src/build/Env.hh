@@ -84,12 +84,6 @@ class Env {
   /// An emulated filesystem for artifacts in this environment
   map<string, shared_ptr<Artifact>> _filesystem;
 
-  /// The file artifacts that have been resolved in this artifact
-  map<shared_ptr<Access>, shared_ptr<Artifact>> _files;
-
-  /// The pipe artifacts used in this environment
-  map<shared_ptr<Pipe>, shared_ptr<Artifact>> _pipes;
-
   /// A map of artifacts identified by inode
   map<ino_t, shared_ptr<Artifact>> _inodes;
 };

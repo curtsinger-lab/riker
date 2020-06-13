@@ -47,32 +47,15 @@ tuple<shared_ptr<Artifact>, int> Env::get(shared_ptr<Command> c,
 
 tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c,
                                               shared_ptr<Pipe> ref) noexcept {
-  // Check the _pipes map for an existing artifact
-  auto iter = _pipes.find(ref);
-  if (iter != _pipes.end()) {
-    // Found a match. Return the artifact and result code
-    return {iter->second, SUCCESS};
+  // No match found. Create a pipe artifact
+  auto artifact = make_shared<PipeArtifact>(*this, true);
 
-  } else {
-    // No match found. Create a pipe artifact
-    auto artifact = make_shared<PipeArtifact>(*this, true);
-
-    // Add the pipe to the map
-    _pipes.emplace_hint(iter, ref, artifact);
-
-    // Return the artifact and result code
-    return {artifact, SUCCESS};
-  }
+  // Return the artifact and result code
+  return {artifact, SUCCESS};
 }
 
 tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
                                               shared_ptr<Access> ref) noexcept {
-  // Check the _files map to see if this reference has already been resolved
-  if (auto iter = _files.find(ref); iter != _files.end()) {
-    // Found a match. Return the artifact and result code
-    return {iter->second, SUCCESS};
-  }
-
   // At this point, we know this is a new reference. There are three possible outcomes:
   // 1. There is an artifact in the _filesystem map that matches this reference's path
   // 2. There is an on-disk file that we'll create an artifact to represent
@@ -90,9 +73,6 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
     if (flags.create && flags.exclusive) {
       return {nullptr, EEXIST};
     }
-
-    // Otherwise, the access will succeed. Save this in the map of resolved references
-    _files.emplace(ref, iter->second);
 
     // Return the artifact and success code
     return {iter->second, SUCCESS};
@@ -128,9 +108,6 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
       // TODO: Add a just_created flag to this method so we don't have to do this hackery
       auto artifact = make_shared<FileArtifact>(*this, true, mv, cv);
       artifact->setName(path);
-
-      // Add this new artifact to the map of resolved references
-      _files.emplace(ref, artifact);
 
       // Also add this new artifact to the filesystem map
       _filesystem.emplace(path, artifact);
@@ -213,9 +190,6 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
     // Name the artifact
     artifact->setName(path);
 
-    // Add this new artifact to the map of resolved references
-    _files.emplace(ref, artifact);
-
     // Also add this new artifact to the filesystem map
     _filesystem.emplace(path, artifact);
 
@@ -227,8 +201,11 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
 // Check all remaining artifacts for changes and save updated fingerprints and metadata
 void Env::finalize() noexcept {
   // Loop over all the artifacts
-  for (const auto& [ref, a] : _files) {
-    // Check the artifact's final contents and metadata against the filesystem
+  for (const auto& [path, a] : _filesystem) {
+    // Fake a reference to the file in our hacky filesystem model
+    auto ref = make_shared<Access>(nullptr, path, AccessFlags{});
+
+    // Check the artifact's final contents and metadata against the actual filesystem
     a->checkFinalState(ref);
 
     // Save fingerprint and metadata for this artifact

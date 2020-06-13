@@ -24,6 +24,9 @@ tuple<shared_ptr<Artifact>, int> DirArtifact::resolvePath(shared_ptr<Command> c,
   auto subref = ref->getBase();
 
   const auto& fullpath = ref->getRelativePath();
+
+  if (fullpath.empty()) return {shared_from_this(), SUCCESS};
+
   auto iter = fullpath.begin();
 
   shared_ptr<Artifact> a;

@@ -373,7 +373,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
       // Get the artifact that was stat-ed
       ref->resolve(_command, _build);
 
-      ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file";
+      ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
       // Record the dependence on the artifact's metadata
       _command->metadataMatch(ref);
