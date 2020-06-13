@@ -281,20 +281,8 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  // Build the file descriptor table for the running process
-  map<int, FileDescriptor> fds;
-
-  // Loop over the references the command expects to have in its FD table
-  for (const auto& [index, initial_fd] : cmd->getInitialFDs()) {
-    const auto& ref = initial_fd.getReference();
-    const auto& [artifact, rc] = _build.getEnv().get(cmd, ref);
-
-    FAIL_IF(!artifact || rc != SUCCESS) << "Failed to get artifact for initial file descriptor";
-
-    fds.emplace(index, FileDescriptor(ref, initial_fd.isWritable()));
-  }
-
-  _processes[child_pid] = make_shared<Process>(_build, child_pid, cwd, root, cmd, fds);
+  _processes[child_pid] =
+      make_shared<Process>(_build, child_pid, cwd, root, cmd, cmd->getInitialFDs());
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
