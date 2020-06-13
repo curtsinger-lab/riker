@@ -165,8 +165,8 @@ tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
 
       // If the access flags include reading or writing, and a directory was not specifically
       // requested, then the access fails with an error
-      // if ((flags.r || flags.w) && !flags.directory) return {nullptr, EISDIR};
-      // Nope. This only applies to the open() call, not all references.
+      if ((flags.r || flags.w) && !flags.directory) return {nullptr, EISDIR};
+      // TODO: Make sure this still makes sense once we have support for getdents, linkat, etc.
 
       // Have we seen this directory before?
       auto iter = _inodes.find(statbuf.st_ino);
