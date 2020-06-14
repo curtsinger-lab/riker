@@ -51,16 +51,25 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   auto dir = _base->getArtifact();
   auto dir_path = _base->getFullPath();
 
+  // Keep a human-readable name for the artifact based on the name assigned to the base directory
+  fs::path dir_name = dir->getName();
+
   // Loop forever. The exit condition is inside the loop
   while (true) {
     // Get the current entry name, then advance the path iterator
     auto entry = *path_iter;
     path_iter++;
 
+    // Update the human-readable name we will assign to the resolved artifact
+    dir_name /= entry;
+
     // Are we processing the final entry in the path?
     if (path_iter == path.end()) {
       // Yes. Make the access with the flags for this reference
       auto [artifact, rc] = dir->getEntry(dir_path, entry);
+
+      // If there's an artifact, set its name
+      if (artifact) artifact->setName(dir_name.lexically_normal());
 
       if (_flags.create && _flags.exclusive && rc == SUCCESS) {
         // The access was required to create the file, but it already exists

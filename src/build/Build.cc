@@ -30,6 +30,7 @@ void Build::run() noexcept {
 
   // Pre-resolve the reference to the current working directory
   auto cwd = _env.getPath(_root->getInitialWorkingDir()->getFullPath());
+  cwd->setName(".");
   ASSERT(cwd) << "Unable to resolve reference to initial working directory";
   _root->getInitialWorkingDir()->resolvesTo(cwd, SUCCESS);
 
