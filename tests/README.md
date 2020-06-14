@@ -3,29 +3,17 @@ This file describes the test suite for dodo, and the process for creating new te
 
 ## Existing Tests
 
-`simple`                
-: Compile a hello world program with gcc
+`ABbuild`
+: Generate output with a sequence of shell commands
 
-`incremental`           
-: Compile a hello world program to .o, then link
+`buildfile`
+: Test builds with executable and non-executable build files, as well as a build file that does not run with /bin/sh.
 
-`readonly-Dodofile`     
-: Check if dodo correctly runs read-only Dodofiles with sh
+`graph`
+: Test output and options for the graph subcommand
 
-`non-sh-Dodofile`       
-: Check if dodo correctly runs a Dodofile that is not a shell script
-
-`inaccessible-Dodofile` 
-: Check if dodo fails with an error when Dodofile is not accessible
-
-`ABbuild-nocache`       
-: Generate output by running a sequence of shell commands with caching disabled
-
-`ABbuild-cache`         
-: Generate output by running a sequence of shell commands with caching enabled
-
-`graph`                 
-: Generate and render graphviz output
+`hello`
+: Test builds of a simple hello world C program compiled with gcc
 
 `stats`                 
 : Generate build stats output
