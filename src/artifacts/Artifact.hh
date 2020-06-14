@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <list>
 #include <memory>
 #include <optional>
@@ -7,6 +8,7 @@
 #include <string>
 #include <tuple>
 
+#include "core/AccessFlags.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 
@@ -17,6 +19,8 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 using std::weak_ptr;
+
+namespace fs = std::filesystem;
 
 class Access;
 class Command;
@@ -83,8 +87,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Save a fingerprint of this artifact's versions so we can check for a match
   virtual void fingerprint(shared_ptr<Reference> ref) noexcept;
 
-  /// Check this artifact's final state against the filesystem and report any changes
-  virtual void checkFinalState(shared_ptr<Reference> ref) noexcept;
+  /// Check the final state of this artifact and save any necessary final fingerprints
+  virtual void finalize(shared_ptr<Reference> ref) noexcept;
 
   /********** Metadata: All Artifact Types **********/
 
@@ -106,6 +110,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   const shared_ptr<MetadataVersion>& setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
                                                  shared_ptr<MetadataVersion> v = nullptr) noexcept;
+
+  /**
+   * Check if an access to this artifact with the provided flags is allowed.
+   * \param flags The flags that encode whether this is a read, write, and/or execute access
+   * \returns true if the access is allowed, or false otherwise
+   */
+  bool checkAccess(AccessFlags flags) noexcept;
 
   /********** Content: Files and Pipes **********/
 
@@ -138,10 +149,18 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Directory Operations ************/
 
-  virtual tuple<shared_ptr<Artifact>, int> resolvePath(shared_ptr<Command> c,
-                                                       shared_ptr<Access> ref) noexcept {
+  /**
+   * Attempt to access a directory entry in the current artifact.
+   * \param self  The path that was used to reach this artifact
+   * \param entry The name of the entry being requested
+   * \returns a tuple of the resulting artifact (possibly nullptr) and a result code
+   */
+  virtual tuple<shared_ptr<Artifact>, int> getEntry(fs::path self, string entry) noexcept {
+    // This is not a directory, so the access always fails
     return {nullptr, ENOTDIR};
   }
+
+  virtual void setEntry(string entry, shared_ptr<Artifact> target) noexcept {}
 
   /****** Utility Methods ******/
 

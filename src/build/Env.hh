@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <string>
@@ -8,6 +9,7 @@
 #include <sys/types.h>
 
 #include "build/BuildObserver.hh"
+#include "core/AccessFlags.hh"
 #include "core/IR.hh"
 
 using std::map;
@@ -15,11 +17,14 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
+namespace fs = std::filesystem;
+
 class Access;
 class Artifact;
 class Build;
 class Command;
 class Pipe;
+class PipeArtifact;
 class Reference;
 
 /**
@@ -54,36 +59,40 @@ class Env {
   void finalize() noexcept;
 
   /**
-   * Get an artifact from this environment
-   * \param c   The command that makes this access
-   * \param ref The reference used to reach the artifact
-   * \returns an artifact and a result code
+   * Create a pipe artifact
+   * \param c The command that creates the pipe
+   * \returns a pipe artifact
    */
-  tuple<shared_ptr<Artifact>, int> get(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+  shared_ptr<PipeArtifact> getPipe(shared_ptr<Command> c) noexcept;
 
   /**
-   * Get a pipe from this environment
-   * \param c   The command that makes this access
-   * \param ref The pipe reference used to reach the artifact
-   * \returns an artifact and a result code
+   * Get an artifact corresponding to a path on the filesystem
+   * \param path  The path to check
+   * \returns an artifact, or nullptr if no path exists
    */
-  tuple<shared_ptr<Artifact>, int> getPipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
+  shared_ptr<Artifact> getPath(fs::path path) noexcept;
 
   /**
-   * Get a file from this environment
-   * \param c   The command that makes this access
-   * \param ref The reference used to reach the artifact
-   * \returns an artifact and a result code
+   * Get the root directory
    */
-  tuple<shared_ptr<Artifact>, int> getFile(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
+  shared_ptr<Artifact> getRootDir() noexcept;
+
+  /**
+   * Create a file artifact that exists only in the filesystem model
+   * \param path    The path where this file will eventually appear
+   * \param creator The command that creates this file
+   * \returns a file artifact
+   */
+  shared_ptr<Artifact> createFile(fs::path path, shared_ptr<Command> creator,
+                                  AccessFlags flags) noexcept;
 
  private:
   /// The build this environment is attached to
   Build& _build;
 
-  /// An emulated filesystem for artifacts in this environment
-  map<string, shared_ptr<Artifact>> _filesystem;
-
   /// A map of artifacts identified by inode
-  map<ino_t, shared_ptr<Artifact>> _inodes;
+  map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
+
+  /// An artifact that corresponds to the root directory
+  shared_ptr<Artifact> _root_dir;
 };

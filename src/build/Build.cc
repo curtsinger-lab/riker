@@ -24,13 +24,19 @@ void Build::run() noexcept {
   }
 
   // Pre-resolve the reference to the root directory
-  _root->getInitialRootDir()->resolvesTo(_env.getFile(nullptr, _root->getInitialRootDir()));
+  auto root_dir = _env.getRootDir();
+  ASSERT(root_dir) << "Unable to resolve reference to root directory";
+  _root->getInitialRootDir()->resolvesTo(root_dir, SUCCESS);
 
   // Pre-resolve the reference to the current working directory
-  _root->getInitialWorkingDir()->resolvesTo(_env.getFile(nullptr, _root->getInitialWorkingDir()));
+  auto cwd = _env.getPath(_root->getInitialWorkingDir()->getFullPath());
+  ASSERT(cwd) << "Unable to resolve reference to initial working directory";
+  _root->getInitialWorkingDir()->resolvesTo(cwd, SUCCESS);
 
   // Pre-resolve the reference to the main executable
-  _root->getExecutable()->resolvesTo(_env.getFile(nullptr, _root->getExecutable()));
+  auto exe = _env.getPath(_root->getExecutable()->getFullPath());
+  ASSERT(exe) << "Unable to resolve reference to executable file";
+  _root->getExecutable()->resolvesTo(exe, SUCCESS);
 
   // Inform observers of the launch action
   for (const auto& o : _observers) {

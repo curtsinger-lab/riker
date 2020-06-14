@@ -19,7 +19,8 @@ class FileArtifact : public Artifact {
                shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>(),
                shared_ptr<ContentVersion> cv = make_shared<ContentVersion>()) noexcept;
 
-  virtual void checkFinalState(shared_ptr<Reference> ref) noexcept final;
+  /// Check the final state of this artifact and save any necessary final fingerprints
+  virtual void finalize(shared_ptr<Reference> ref) noexcept final;
 
   /// Do we have a saved copy of this artifact that can be committed to the filesystem?
   virtual bool isSaved() const noexcept final;

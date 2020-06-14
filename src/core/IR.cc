@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/Pipe.hh"
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
 #include "core/Command.hh"
@@ -24,7 +25,7 @@ using std::shared_ptr;
 using std::tuple;
 
 void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  resolvesTo(build.getEnv().getPipe(c, shared_from_this()));
+  resolvesTo(build.getEnv().getPipe(c), SUCCESS);
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
@@ -32,7 +33,82 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   ASSERT(!_base || _base->isResolved()) << "Attempted to resolve reference " << this
                                         << " without first resolving base reference " << _base;
 
-  resolvesTo(_base->getArtifact()->resolvePath(c, shared_from_this()));
+  // Get the relative part of the path and start an iterator
+  auto path = getRelativePath();
+  auto path_iter = path.begin();
+
+  // If the relative path is empty, we can stop immediately
+  if (path_iter == path.end()) {
+    auto a = _base->getArtifact();
+    if (!a->checkAccess(_flags)) {
+      resolvesTo(nullptr, EACCES);
+    } else {
+      resolvesTo(a, SUCCESS);
+    }
+    return;
+  }
+
+  auto dir = _base->getArtifact();
+  auto dir_path = _base->getFullPath();
+
+  // Loop forever. The exit condition is inside the loop
+  while (true) {
+    // Get the current entry name, then advance the path iterator
+    auto entry = *path_iter;
+    path_iter++;
+
+    // Are we processing the final entry in the path?
+    if (path_iter == path.end()) {
+      // Yes. Make the access with the flags for this reference
+      auto [artifact, rc] = dir->getEntry(dir_path, entry);
+
+      if (_flags.create && _flags.exclusive && rc == SUCCESS) {
+        // The access was required to create the file, but it already exists
+        resolvesTo(nullptr, EEXIST);
+      } else if (_flags.create && rc == ENOENT) {
+        // No entry exists, but it is being created by this access
+        artifact = build.getEnv().createFile(getFullPath(), c, _flags);
+        dir->setEntry(entry, artifact);
+        // TODO: what happens if open creates a read-only file, but the open call is accessing it in
+        // writable mode? Is the file created?
+        resolvesTo(artifact, SUCCESS);
+
+      } else if (rc != SUCCESS) {
+        // The access failed for some other reason
+        resolvesTo(nullptr, rc);
+      } else if (!artifact->checkAccess(_flags)) {
+        // The entry exists, but the requested access is not allowed
+        resolvesTo(nullptr, EACCES);
+      } else {
+        // Resolution succeeded
+        resolvesTo(artifact, SUCCESS);
+      }
+
+      // All done
+      return;
+
+    } else {
+      // This is NOT the last entry along the path. First, make sure we have permission to access
+      // entries in this directory (requires execute permissions)
+      if (!dir->checkAccess(AccessFlags{.x = true})) {
+        resolvesTo(nullptr, EACCES);
+        return;
+      }
+
+      // Now ask the directory for the entry we want
+      auto [artifact, rc] = dir->getEntry(dir_path, entry);
+
+      // If the access failed, record the result and return
+      if (rc != SUCCESS) {
+        resolvesTo(artifact, rc);
+        return;
+      }
+
+      // Otherwise, move on to the next directory and update our record of its path
+      dir = artifact;
+      dir_path /= entry;
+    }
+  }
 }
 
 /******* Emulation *******/
@@ -56,7 +132,8 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
     return;
   }
 
-  // Get the latest metadata version. The returned version will be nullptr if no check is necessary.
+  // Get the latest metadata version. The returned version will be nullptr if no check is
+  // necessary.
   const auto& v = _ref->getArtifact()->accessMetadata(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
@@ -72,7 +149,8 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
     return;
   }
 
-  // Get the latest content version. The returned version will be nullptr if no check is necessary.
+  // Get the latest content version. The returned version will be nullptr if no check is
+  // necessary.
   const auto& v = _ref->getArtifact()->accessContents(c, _ref);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch

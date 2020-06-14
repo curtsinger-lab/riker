@@ -186,6 +186,10 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
     ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
+    // TODO: Inform the artifact that it is now committed. This should add it as an entry to the Env
+    // inode map if it was created. Right now, created artifacts are considered committed even
+    // before they are actually on the filesystem.
+
     // If the file is truncated by the open call, set the contents in the artifact
     if (ref->getFlags().truncate) {
       _command->setContents(ref);

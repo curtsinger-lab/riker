@@ -64,10 +64,14 @@ void FileArtifact::fingerprint(shared_ptr<Reference> ref) noexcept {
   Artifact::fingerprint(ref);
 }
 
-void FileArtifact::checkFinalState(shared_ptr<Reference> ref) noexcept {
-  // If we already know the file contents are committed, we can skip content checks
-  if (!_content_committed) {
-    // Create a version that represents the on-disk contents reached through this reference
+void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
+  // Are all content versions committed?
+  if (_content_committed) {
+    // Yes. Just make sure we have a saved fingerprint
+    _content_version->fingerprint(ref);
+
+  } else {
+    // No. Check the on-disk version against the modeled version
     auto v = make_shared<ContentVersion>();
     v->fingerprint(ref);
 
@@ -81,7 +85,7 @@ void FileArtifact::checkFinalState(shared_ptr<Reference> ref) noexcept {
   }
 
   // Check metadata in the top-level artifact
-  Artifact::checkFinalState(ref);
+  Artifact::finalize(ref);
 }
 
 // Command c accesses this artifact's contents

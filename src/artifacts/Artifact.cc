@@ -25,6 +25,11 @@ Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noex
   _metadata_committed = committed;
 }
 
+// Check if an access is allowed by the metadata for this artifact
+bool Artifact::checkAccess(AccessFlags flags) noexcept {
+  return _metadata_version->checkAccess(flags);
+}
+
 // Check if this artifact can be restored to the filesystem
 bool Artifact::isSaved() const noexcept {
   // Only the latest metadata version matters
@@ -61,20 +66,25 @@ void Artifact::fingerprint(shared_ptr<Reference> ref) noexcept {
   _metadata_version->fingerprint(ref);
 }
 
-// Check this artifact's contents and metadata against the filesystem state
-void Artifact::checkFinalState(shared_ptr<Reference> ref) noexcept {
-  // We can skip checks if we already know metadata is in a committed state
-  if (!_metadata_committed) {
-    // Create a version that represents the on-disk contents reached through this reference
+// Check the final state of this artifact, and save its fingerprint if necessary
+void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
+  // Is the metadata for this artifact committed?
+  if (_metadata_committed) {
+    // Yes. We know the on-disk state already matches the latest version.
+    // Make sure we have a fingerprint for the metadata version
+    _metadata_version->fingerprint(ref);
+
+  } else {
+    // No. Check the on-disk version against the expected version
     auto v = make_shared<MetadataVersion>();
     v->fingerprint(ref);
 
-    // Report a metadata mismatch if necessary
+    // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
+      // Yes. Report the mismatch
       _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
     } else {
-      // Since the metadata matches what is on disk, we can treat this artifact as if it was
-      // committed
+      // No. We can treat this artifact as if we committed it
       _metadata_committed = true;
     }
   }

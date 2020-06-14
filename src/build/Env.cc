@@ -30,185 +30,103 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-tuple<shared_ptr<Artifact>, int> Env::get(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref) noexcept {
-  // Is ref a pipe, access, or something else?
-  if (auto p = dynamic_pointer_cast<Pipe>(ref)) {
-    return getPipe(c, p);
+shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
+  auto mv = make_shared<MetadataVersion>();
+  mv->createdBy(c);
 
-  } else if (auto a = dynamic_pointer_cast<Access>(ref)) {
-    return getFile(c, a);
+  auto cv = make_shared<ContentVersion>();
+  cv->createdBy(c);
 
-  } else {
-    WARN << "Unsupported reference type: " << ref;
-    return {nullptr, ENOENT};
-  }
+  return make_shared<PipeArtifact>(*this, true, mv, cv);
 }
 
-tuple<shared_ptr<Artifact>, int> Env::getPipe(shared_ptr<Command> c,
-                                              shared_ptr<Pipe> ref) noexcept {
-  // No match found. Create a pipe artifact
-  auto artifact = make_shared<PipeArtifact>(*this, true);
+shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
+  // Try to stat the path
+  struct stat statbuf;
+  int rc = ::stat(path.c_str(), &statbuf);
 
-  // Return the artifact and result code
-  return {artifact, SUCCESS};
-}
+  // If stat failed, there is no artifact
+  if (rc) return nullptr;
 
-tuple<shared_ptr<Artifact>, int> Env::getFile(shared_ptr<Command> c,
-                                              shared_ptr<Access> ref) noexcept {
-  // At this point, we know this is a new reference. There are three possible outcomes:
-  // 1. There is an artifact in the _filesystem map that matches this reference's path
-  // 2. There is an on-disk file that we'll create an artifact to represent
-  // 3. The resolution will fail with some error
-
-  auto path = ref->getFullPath();
-  const auto& flags = ref->getFlags();
-
-  // First, look in the filesystem map
-  // TODO: handle nofollow in the filesystem map
-  if (auto iter = _filesystem.find(path); iter != _filesystem.end()) {
-    // Found a match
-
-    // If the access was required to create the file, return an error
-    if (flags.create && flags.exclusive) {
-      return {nullptr, EEXIST};
-    }
-
-    // Return the artifact and success code
-    return {iter->second, SUCCESS};
+  // Does the inode for this path match an artifact we've already created?
+  auto inode_iter = _inodes.find({statbuf.st_dev, statbuf.st_ino});
+  if (inode_iter != _inodes.end()) {
+    // Found a match. Return it now.
+    inode_iter->second->setName(path);
+    return inode_iter->second;
   }
 
-  // Use the access() system call to check the reference
-  int rc = ref->access();
+  auto mv = make_shared<MetadataVersion>(statbuf);
 
-  // Check if the access() call failed for some reason
-  if (rc) {
-    // If the file does not exist, but O_CREAT was included, the access will succeed.
-    // TODO: Check to be sure we have permission to create the file
-    if (errno == ENOENT && flags.create) {
-      // We are going to create an artifact in the filesystem model, but we need to pre-load its
-      // version with manufactured stat data.
+  // Create a new artifact for this inode
+  shared_ptr<Artifact> a;
+  if (statbuf.st_mode & S_IFREG) {
+    // The path refers to a regular file
+    auto cv = make_shared<ContentVersion>(statbuf);
+    a = make_shared<FileArtifact>(*this, true, mv, cv);
 
-      // Get the current umask
-      auto mask = umask(0);
-      umask(mask);
-
-      // Create a stat buffer
-      struct stat metadata;
-      metadata.st_uid = geteuid();
-      metadata.st_gid = getegid();
-      metadata.st_mode = S_IFREG | (flags.mode & ~mask);
-
-      // Create the initial versions for this artifact
-      auto mv = make_shared<MetadataVersion>(metadata);
-      auto cv = make_shared<ContentVersion>();
-
-      // Create the artifact. Because it's being created, mark it as committed (even though it isn't
-      // actually on-disk yet).
-      // TODO: Add a just_created flag to this method so we don't have to do this hackery
-      auto artifact = make_shared<FileArtifact>(*this, true, mv, cv);
-      artifact->setName(path);
-
-      // Also add this new artifact to the filesystem map
-      _filesystem.emplace(path, artifact);
-
-      // Notify the build that the creating command wrote to this artifact
-      _build.observeOutput(c, artifact, mv);
-      _build.observeOutput(c, artifact, cv);
-
-      // And finally, return success
-      return {artifact, SUCCESS};
-    }
-
-    // If we hit this point, it's a normal access and errno has the right code.
-    return {nullptr, errno};
+  } else if (statbuf.st_mode & S_IFDIR) {
+    // The path refers to a directory
+    a = make_shared<DirArtifact>(*this, true, mv);
 
   } else {
-    // If the file exists, but O_CREAT and O_EXCL were passed, the reference will fail
-    if (flags.create && flags.exclusive) {
-      return {nullptr, EEXIST};
-    }
-
-    // Otherwise, the access succeeds. We need to stat the path to find out if it's a file or
-    // directory.
-    auto [statbuf, rc] = ref->stat();
-    ASSERT(rc == SUCCESS) << "Failed to stat successfully-accessed path";
-
-    shared_ptr<Artifact> artifact;
-
-    // Handle filesystem types
-    if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-      // Directory
-
-      // If the access flags include reading or writing, and a directory was not specifically
-      // requested, then the access fails with an error
-      if ((flags.r || flags.w) && !flags.directory) return {nullptr, EISDIR};
-      // TODO: Make sure this still makes sense once we have support for getdents, linkat, etc.
-
-      // Have we seen this directory before?
-      auto iter = _inodes.find(statbuf.st_ino);
-      if (iter != _inodes.end()) {
-        artifact = iter->second;
-      } else {
-        artifact = make_shared<DirArtifact>(*this, true, make_shared<MetadataVersion>(statbuf));
-        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
-      }
-
-    } else if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
-      // File
-      // If the access flags include reading or writing, and a directory was requested, this fails
-      if (flags.directory) return {nullptr, ENOTDIR};
-
-      // Have we seen this file before?
-      auto iter = _inodes.find(statbuf.st_ino);
-      if (iter != _inodes.end()) {
-        artifact = iter->second;
-      } else {
-        artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
-                                             make_shared<ContentVersion>(statbuf));
-        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
-      }
-
-    } else {
-      // Someting else. Just make it a file for now
-      WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-
-      // If the access flags include reading or writing, and a directory was requested, this fails
-      if (flags.directory) return {nullptr, ENOTDIR};
-
-      // Have we seen this inode before?
-      auto iter = _inodes.find(statbuf.st_ino);
-      if (iter != _inodes.end()) {
-        artifact = iter->second;
-      } else {
-        artifact = make_shared<FileArtifact>(*this, true, make_shared<MetadataVersion>(statbuf),
-                                             make_shared<ContentVersion>(statbuf));
-        _inodes.emplace_hint(iter, statbuf.st_ino, artifact);
-      }
-    }
-
-    // Name the artifact
-    artifact->setName(path);
-
-    // Also add this new artifact to the filesystem map
-    _filesystem.emplace(path, artifact);
-
-    // And finally, return success
-    return {artifact, SUCCESS};
+    // The path refers to something else
+    WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
+    auto cv = make_shared<ContentVersion>(statbuf);
+    a = make_shared<FileArtifact>(*this, true, mv, cv);
   }
+
+  // Add the new artifact to the inode map
+  _inodes.emplace_hint(inode_iter, pair{statbuf.st_dev, statbuf.st_ino}, a);
+
+  a->setName(path);
+
+  // Return the artifact
+  return a;
+}
+
+shared_ptr<Artifact> Env::createFile(fs::path path, shared_ptr<Command> creator,
+                                     AccessFlags flags) noexcept {
+  // Get the current umask
+  auto mask = umask(0);
+  umask(mask);
+
+  // Create uid, gid, and mode values for this new file
+  uid_t uid = getuid();
+  gid_t gid = getgid();
+  mode_t mode = S_IFREG | (flags.mode & ~mask);
+
+  // Create an initial metadata version
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  mv->createdBy(creator);
+  ASSERT(mv->isSaved()) << "UH OH";
+
+  // Create an initial content version
+  auto cv = make_shared<ContentVersion>();
+  cv->createdBy(creator);
+
+  // Create the artifact and return it
+  auto artifact = make_shared<FileArtifact>(*this, true, mv, cv);
+  artifact->setName(path);
+
+  // Observe output to metadata and content for the new file
+  _build.observeOutput(creator, artifact, mv);
+  _build.observeOutput(creator, artifact, cv);
+
+  return artifact;
+}
+
+// Get the root directory artifact
+shared_ptr<Artifact> Env::getRootDir() noexcept {
+  if (!_root_dir) _root_dir = getPath("/");
+  return _root_dir;
 }
 
 // Check all remaining artifacts for changes and save updated fingerprints and metadata
 void Env::finalize() noexcept {
-  // Loop over all the artifacts
-  for (const auto& [path, a] : _filesystem) {
-    // Fake a reference to the file in our hacky filesystem model
-    auto ref = make_shared<Access>(nullptr, path, AccessFlags{});
-
-    // Check the artifact's final contents and metadata against the actual filesystem
-    a->checkFinalState(ref);
-
-    // Save fingerprint and metadata for this artifact
-    a->fingerprint(ref);
+  if (_root_dir) {
+    auto root_ref = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
+    root_ref->resolvesTo(_root_dir, SUCCESS);
+    _root_dir->finalize(root_ref);
   }
 }

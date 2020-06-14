@@ -84,9 +84,11 @@ class RebuildPlanner final : public BuildObserver {
       _output_used_by[v->getCreator()].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && a->isSaved()) {
+      if (options::enable_cache && v->isSaved()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
+        INFO << c << " needs unsaved output " << v << " from " << v->getCreator();
+
         // Otherwise, if c has to run then we also need to run creator to produce this input
         _needs_output_from[c].insert(v->getCreator());
       }
@@ -137,12 +139,14 @@ class RebuildPlanner final : public BuildObserver {
 
     // Mark this command's children
     for (const auto& child : c->getChildren()) {
+      INFO << c << " marking child " << child;
       mark(b, child);
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
       for (const auto& other : iter->second) {
+        INFO << c << " marking producer " << other;
         mark(b, other);
       }
     }
@@ -150,6 +154,7 @@ class RebuildPlanner final : public BuildObserver {
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
       for (const auto& other : iter->second) {
+        INFO << c << " marking consumer " << other;
         mark(b, other);
       }
     }

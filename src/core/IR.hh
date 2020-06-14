@@ -106,8 +106,9 @@ class Reference : public Step {
   int getResult() const noexcept { return _rc; }
 
   /// A sub-type can report the result of resolving this artifact using this method
-  void resolvesTo(tuple<shared_ptr<Artifact>, int> result) noexcept {
-    std::tie(_artifact, _rc) = result;
+  void resolvesTo(shared_ptr<Artifact> artifact, int rc) noexcept {
+    _artifact = artifact;
+    _rc = rc;
   }
 
  private:
@@ -157,14 +158,6 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
-
-  static shared_ptr<Access> createRoot(AccessFlags flags) noexcept {
-    return shared_ptr<Access>(new Access(nullptr, "/", flags));
-  }
-
-  static shared_ptr<Access> createCwd(AccessFlags flags) noexcept {
-    return shared_ptr<Access>(new Access(nullptr, ".", flags));
-  }
 
   /**
    * Emulate this IR step in a given environment

@@ -20,22 +20,25 @@ class Reference;
 
 struct Metadata {
  public:
-  uint16_t mode;
   uid_t uid;
   gid_t gid;
+  uint16_t mode;
 
   /// Default constructor for deserialization
   Metadata() noexcept = default;
 
   /// Create a Metadata object from stat data
-  Metadata(struct stat& s) noexcept : mode(s.st_mode), uid(s.st_uid), gid(s.st_gid) {}
+  Metadata(struct stat& s) noexcept : uid(s.st_uid), gid(s.st_gid), mode(s.st_mode) {}
+
+  /// Create a Metadata object from specific uid, gid, and mode values
+  Metadata(uid_t uid, gid_t gid, mode_t mode) : uid(uid), gid(gid), mode(mode) {}
 
   /// Compare to another Metadata instance
   bool operator==(const Metadata& other) const noexcept {
-    return std::tie(mode, uid, gid) == std::tie(other.mode, other.uid, other.gid);
+    return std::tie(uid, gid, mode) == std::tie(other.uid, other.gid, other.mode);
   }
 
-  SERIALIZE(mode, uid, gid);
+  SERIALIZE(uid, gid, mode);
 };
 
 class MetadataVersion final : public Version {
@@ -45,6 +48,9 @@ class MetadataVersion final : public Version {
 
   /// Cerate a new metadata version with existing metadata
   MetadataVersion(Metadata&& m) noexcept : _metadata(m) {}
+
+  /// Check if a given access is allowed by the mode bits in this metadata record
+  bool checkAccess(AccessFlags flags) noexcept;
 
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept final { return "metadata"; }

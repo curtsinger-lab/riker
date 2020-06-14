@@ -128,8 +128,8 @@ shared_ptr<Command> Command::createRootCommand() noexcept {
                                           {1, FileDescriptor(stdout_ref, true)},
                                           {2, FileDescriptor(stderr_ref, true)}};
 
-  auto cwd = Access::createCwd(AccessFlags{.x = true});
-  auto root = Access::createRoot(AccessFlags{.x = true});
+  auto root = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
+  auto cwd = make_shared<Access>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
   auto exe = make_shared<Access>(root, dodo_launch, AccessFlags{.r = true});
 
   return shared_ptr<Command>(new Command(exe, {"dodo-launch"}, default_fds, cwd, root));
