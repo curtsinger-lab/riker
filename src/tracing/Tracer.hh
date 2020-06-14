@@ -5,6 +5,8 @@
 
 #include <sys/types.h>
 
+#include "util/log.hh"
+
 using std::map;
 using std::shared_ptr;
 
@@ -15,10 +17,16 @@ class Process;
 class Tracer {
  public:
   /// Create a tracer linked to a specific rebuild environment
-  Tracer(Build& build) noexcept : _build(build) {}
+  Tracer(Build& build) noexcept;
+
+  /// Destroy thsi tracer
+  ~Tracer() noexcept;
 
   /// Run a command in this tracer
   void run(shared_ptr<Command> cmd) noexcept;
+
+  /// Try to clean up any remaining processes managed by this tracer
+  void cleanup() noexcept;
 
  private:
   /// Launch a command with tracing enabled

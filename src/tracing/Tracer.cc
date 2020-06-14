@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <list>
 #include <memory>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -31,7 +32,47 @@ using std::dynamic_pointer_cast;
 using std::list;
 using std::make_shared;
 using std::pair;
+using std::set;
 using std::shared_ptr;
+
+/// A single global instance of this class is used to clean up tracers when there is a fatal error
+class TracerCleanup {
+ public:
+  /// Run cleanup actions for all known tracers
+  ~TracerCleanup() {
+    for (auto t : _tracers) {
+      t->cleanup();
+    }
+  }
+
+  /// Add a tracer to the set of tracers to clean up on exit
+  void add(Tracer* t) { _tracers.emplace(t); }
+
+  /// Remove a tracer from the set of tracers to clean up on exit
+  void remove(Tracer* t) { _tracers.erase(t); }
+
+ private:
+  set<Tracer*> _tracers;
+};
+
+TracerCleanup cleaner;
+
+// Create a tracer and keep a record of it in the cleanup object
+Tracer::Tracer(Build& build) noexcept : _build(build) {
+  cleaner.add(this);
+}
+
+// Remove this tracers from the cleanup object when it is destroyed
+Tracer::~Tracer() noexcept {
+  cleaner.remove(this);
+}
+
+// Clean up any processes left in this tracer
+void Tracer::cleanup() noexcept {
+  for (auto [pid, process] : _processes) {
+    kill(pid, SIGKILL);
+  }
+}
 
 void Tracer::run(shared_ptr<Command> cmd) noexcept {
   // Launch the command with tracing
@@ -95,7 +136,11 @@ void Tracer::run(shared_ptr<Command> cmd) noexcept {
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        handleSyscall(p);
+        try {
+          handleSyscall(p);
+        } catch (int& i) {
+          p->resume();
+        }
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
@@ -145,11 +190,12 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     auto ref = dynamic_pointer_cast<Access>(info.getReference());
     if (!ref) continue;
 
-    // Get the artifact from the environment
-    const auto& [artifact, rc] = _build.getEnv().getFile(cmd, ref);
+    // Make sure the reference has already been resolved
+    ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
+                                 "initial file descriptor table";
 
-    // Make sure the artifact is committed to the filesystem
-    artifact->commit(ref);
+    // Commit any emulated modifications to this artifact to the filesystem
+    ref->getArtifact()->commit(ref);
 
     // Use the reference to open the file
     int parent_fd = ref->open();
