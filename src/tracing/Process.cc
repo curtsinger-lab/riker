@@ -199,7 +199,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
     bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
     // Record the reference in the correct location in this process' file descriptor table
-    _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
+    auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
+
+    ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
 
   } else {
     // The command observed a failed openat, so add the error predicate to the command log
@@ -257,8 +259,10 @@ void Process::_pipe2(int* fds, int flags) noexcept {
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
   // Fill in the file descriptor entries
-  _fds.emplace(read_pipefd, FileDescriptor(ref, false, cloexec));
-  _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
+  auto [iter1, inserted1] = _fds.emplace(read_pipefd, FileDescriptor(ref, false, cloexec));
+  auto [iter2, inserted2] = _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
+
+  ASSERT(inserted1 && inserted2) << "Pipe file descriptors conflicted with existing entries";
 }
 
 /************************ File Descriptor Manipulation ************************/
@@ -272,8 +276,7 @@ int Process::_dup(int fd) noexcept {
   if (newfd == -1) return newfd;
 
   // Add the new entry for the duped fd
-  _fds.erase(newfd);
-  _fds.emplace(newfd, _fds.at(fd));
+  _fds[newfd] = _fds.at(fd);
 
   // Duped fds do not inherit the cloexec flag
   _fds.at(newfd).setCloexec(false);
@@ -283,6 +286,7 @@ int Process::_dup(int fd) noexcept {
 }
 
 void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
+  INFO << _command << ", " << _pid << ": dup3(" << oldfd << ", " << newfd << ", " << flags << ")";
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
   int rc = finishSyscall();
@@ -293,8 +297,8 @@ void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
   //       by the state of the filesystem, so we don't have to log it.
   if (rc == -1) return;
 
-  // Add the entry for the duped fd
-  _fds.emplace(rc, _fds.at(oldfd));
+  // Duplicate the file descriptor
+  _fds[rc] = _fds.at(oldfd);
 
   // If the flags include O_CLOEXEC, we have to set that property on the new file descriptor
   // If O_CLOEXEC is not set, any dup-ed fd is NOT cloexec
