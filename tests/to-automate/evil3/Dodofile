@@ -1,5 +1,0 @@
-#!/bin/bash
-
-g++ -o evil evil.cc
-./evil log.txt
-

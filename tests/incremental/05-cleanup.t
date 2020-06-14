@@ -1,7 +1,0 @@
-Move to test directory
-  $ cd $TESTDIR
-
-Clean up
-  $ rm -rf .dodo
-  $ rm -f hello hello.o
-  $ cp file_versions/hello-original.c hello.c

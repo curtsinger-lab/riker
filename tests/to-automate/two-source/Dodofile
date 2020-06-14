@@ -1,6 +1,0 @@
-gcc -c -o main.o main.c
-gcc -c -o second.o second.c
-gcc -o program main.o second.o
-rm main.o
-# If you uncomment the line below, dodo always rebuilds
-#rm second.o
