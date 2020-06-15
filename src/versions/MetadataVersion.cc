@@ -51,8 +51,6 @@ void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
     // Get stat data and save it
     auto [info, rc] = a->stat();
     if (rc == SUCCESS) _metadata = info;
-  } else {
-    INFO << "Not saving metadata for reference " << ref;
   }
 }
 

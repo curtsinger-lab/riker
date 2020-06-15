@@ -37,8 +37,6 @@ void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
     // Get stat data and save it
     auto [info, rc] = a->stat();
     if (rc == SUCCESS) _fingerprint = info;
-  } else {
-    INFO << "Not saving fingerprint for reference " << ref;
   }
 }
 

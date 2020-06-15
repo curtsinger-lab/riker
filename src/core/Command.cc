@@ -185,17 +185,6 @@ void Command::emulate(Build& build) noexcept {
 // This command accesses an artifact by path.
 shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
                                    shared_ptr<Access> base) noexcept {
-  // In path resolution, it may be helpful to store each level of the path in a new reference.
-  // Uncomment to re-enable this.
-  /*auto current = base;
-  for (const auto& entry : path) {
-    if (entry != "." && entry != "/") {
-      current = current->get(entry, AccessFlags{.x = true});
-    }
-  }
-
-  auto ref = current->withFlags(flags);*/
-
   // For now, the reference is just one level that covers all parts of the new path
   auto ref = base->get(path, flags);
   _steps.emplace_back(ref);
