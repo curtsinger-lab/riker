@@ -99,7 +99,7 @@ class RebuildPlanner final : public BuildObserver {
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept final {
     // Record the change
-    LOG << c << " observed change in " << a;
+    LOG << c << " observed change in " << a << " version " << observed << ", expected " << expected;
     _changed.insert(c);
   }
 
@@ -139,14 +139,12 @@ class RebuildPlanner final : public BuildObserver {
 
     // Mark this command's children
     for (const auto& child : c->getChildren()) {
-      INFO << c << " marking child " << child;
       mark(b, child);
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
       for (const auto& other : iter->second) {
-        INFO << c << " marking producer " << other;
         mark(b, other);
       }
     }
@@ -154,7 +152,6 @@ class RebuildPlanner final : public BuildObserver {
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
       for (const auto& other : iter->second) {
-        INFO << c << " marking consumer " << other;
         mark(b, other);
       }
     }

@@ -31,13 +31,21 @@ using std::string;
 using std::tuple;
 
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
-  auto mv = make_shared<MetadataVersion>();
+  // Create a manufactured stat buffer for the new pipe
+  uid_t uid = getuid();
+  gid_t gid = getgid();
+  mode_t mode = S_IFIFO | 0600;
+
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   mv->createdBy(c);
 
-  auto cv = make_shared<ContentVersion>();
+  auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
   cv->createdBy(c);
 
-  return make_shared<PipeArtifact>(*this, true, mv, cv);
+  auto p = make_shared<PipeArtifact>(*this, true, mv, cv);
+  p->setName(std::to_string(_pipe_count++));
+
+  return p;
 }
 
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {

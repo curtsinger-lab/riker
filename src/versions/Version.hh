@@ -70,10 +70,18 @@ class Version {
   friend ostream& operator<<(ostream& o, const Version& v) noexcept {
     if (v._identity.has_value()) {
       auto& [a, index] = v._identity.value();
-      return o << "[" << (a->getName().empty() ? "<anon>" : a->getName()) << " v" << index << "]";
+      o << "[" << a->getTypeName() << " " << (a->getName().empty() ? "<anon>" : a->getName())
+        << " v" << index;
     } else {
-      return o << "[Unknown Version]";
+      o << "[Unknown Version";
     }
+    if (v.isSaved()) {
+      o << " (saved)";
+    } else if (v.hasFingerprint()) {
+      o << " (fingerprint)";
+    }
+    o << "]";
+    return o;
   }
 
   /// Print a Version*

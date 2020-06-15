@@ -32,17 +32,14 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
 
 // Save a fingerprint of this version
 void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
-  // We can only stat Access references. Try to cast.
-  auto a = dynamic_pointer_cast<Access>(ref);
-  if (!a) {
-    // Not an Access reference, so we have no saved metadata
-    _fingerprint = nullopt;
-    return;
+  // Check the reference type
+  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+    // Get stat data and save it
+    auto [info, rc] = a->stat();
+    if (rc == SUCCESS) _fingerprint = info;
+  } else {
+    INFO << "Not saving fingerprint for reference " << ref;
   }
-
-  // Get stat data and save it
-  auto [info, rc] = a->stat();
-  if (rc == SUCCESS) _fingerprint = info;
 }
 
 // Compare this version to another version

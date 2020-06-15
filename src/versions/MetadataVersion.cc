@@ -46,17 +46,14 @@ bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
 
 // Save metadata
 void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
-  // We can only stat Access references. Try to cast.
-  auto a = dynamic_pointer_cast<Access>(ref);
-  if (!a) {
-    // Not an Access reference, so we have no saved metadata
-    _metadata = nullopt;
-    return;
+  // Check the reference type
+  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+    // Get stat data and save it
+    auto [info, rc] = a->stat();
+    if (rc == SUCCESS) _metadata = info;
+  } else {
+    INFO << "Not saving metadata for reference " << ref;
   }
-
-  // Get stat data and save it
-  auto [info, rc] = a->stat();
-  if (rc == SUCCESS) _metadata = info;
 }
 
 // Commit this version to the filesystem

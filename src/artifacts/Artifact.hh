@@ -172,7 +172,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     o << "[" << a.getTypeName();
     auto name = a.getName();
     if (!name.empty()) o << " " << name;
-    o << "]@v" << a._versions.size() - 1;
+    o << "]";
     return o;
   }
 

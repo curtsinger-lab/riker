@@ -252,9 +252,6 @@ void Process::_pipe2(int* fds, int flags) noexcept {
 
   ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
-  // The command sets the contents of the pipe on creation
-  _command->setContents(ref);
-
   // Check if this pipe is closed on exec
   bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
@@ -286,7 +283,6 @@ int Process::_dup(int fd) noexcept {
 }
 
 void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
-  INFO << _command << ", " << _pid << ": dup3(" << oldfd << ", " << newfd << ", " << flags << ")";
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
   int rc = finishSyscall();

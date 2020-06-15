@@ -95,4 +95,6 @@ class Env {
 
   /// An artifact that corresponds to the root directory
   shared_ptr<Artifact> _root_dir;
+
+  size_t _pipe_count = 0;
 };

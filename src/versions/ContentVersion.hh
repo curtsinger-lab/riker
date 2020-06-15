@@ -29,10 +29,21 @@ struct ContentFingerprint {
   /// Create a fingerprint from stat data
   ContentFingerprint(struct stat& s) noexcept : empty(s.st_size == 0), mtime(s.st_mtim) {}
 
+  /// Create a fingerprint for an empty file
+  static ContentFingerprint makeEmpty() noexcept {
+    ContentFingerprint f;
+    f.empty = true;
+    return f;
+  }
+
   /// Compare to another fingerprint instance
   bool operator==(const ContentFingerprint& other) const noexcept {
-    return std::tie(empty, mtime.tv_sec, mtime.tv_nsec) ==
-           std::tie(other.empty, other.mtime.tv_sec, other.mtime.tv_nsec);
+    // Two empty files are always equivalent
+    if (empty && other.empty) return true;
+
+    // Otherwise compare mtimes
+    return std::tie(mtime.tv_sec, mtime.tv_nsec) ==
+           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
   }
 
   SERIALIZE(empty, mtime);
