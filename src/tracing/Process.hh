@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -17,6 +18,7 @@
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
 
+using std::function;
 using std::map;
 using std::ostream;
 using std::set;
@@ -39,8 +41,12 @@ class Process {
   /// Resume a traced process that is currently stopped
   void resume() noexcept;
 
-  /// Resume a traced process so it can execute a system call, then stop it and return
-  long finishSyscall() noexcept;
+  /// Resume a process that has stopped before a syscall, and run the provided handler when the
+  /// syscall finishes
+  void finishSyscall(function<void(long)> handler) noexcept;
+
+  /// Run the registered post-syscall handler
+  void syscallFinished() noexcept;
 
   /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
   unsigned long getEventMessage() noexcept;
@@ -99,7 +105,7 @@ class Process {
   void _pipe2(int* fds, int flags) noexcept;
 
   // File Descriptor Manipulation
-  int _dup(int fd) noexcept;
+  void _dup(int fd) noexcept;
   void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, 0); }
   void _dup3(int oldfd, int newfd, int flags) noexcept;
   void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
@@ -175,4 +181,6 @@ class Process {
   shared_ptr<Command> _command;
   set<shared_ptr<Artifact>> _mmaps;
   map<int, FileDescriptor> _fds;
+
+  function<void(long)> _post_syscall_handler;
 };

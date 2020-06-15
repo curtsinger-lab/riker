@@ -1,5 +1,6 @@
 #include "Process.hh"
 
+#include <functional>
 #include <memory>
 
 #include <sys/mman.h>
@@ -18,6 +19,7 @@
 #include "util/path.hh"
 
 using std::dynamic_pointer_cast;
+using std::function;
 using std::make_shared;
 
 namespace fs = std::filesystem;
@@ -36,16 +38,36 @@ void Process::resume() noexcept {
   FAIL_IF(ptrace(PTRACE_CONT, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 }
 
-long Process::finishSyscall() noexcept {
-  FAIL_IF(ptrace(PTRACE_SYSCALL, _pid, nullptr, 0)) << "Failed to finish syscall: " << ERR;
-  FAIL_IF(waitpid(_pid, nullptr, 0) != _pid) << "Unexpected child process stop";
+void Process::finishSyscall(function<void(long)> handler) noexcept {
+  INFO << _pid << ": setting handler";
+  ASSERT(!_post_syscall_handler) << "Process already has an unexecuted post-syscall handler";
+
+  // Set the post-syscall handler
+  _post_syscall_handler = handler;
+
+  // Allow the tracee to resume until its syscall finishes
+  FAIL_IF(ptrace(PTRACE_SYSCALL, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+}
+
+void Process::syscallFinished() noexcept {
+  INFO << _pid << ": running handler";
+  ASSERT(_post_syscall_handler) << "Process does not have a post-syscall handler";
+
+  // Set up an empty handler
+  function<void(long)> handler;
+
+  // Swap it with the registered handler (to clear the registered one)
+  _post_syscall_handler.swap(handler);
+
+  // Now extract the return code from the syscall
 
   // Clear errno so we can check for errors
   errno = 0;
   long result = ptrace(PTRACE_PEEKUSER, _pid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
   FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
 
-  return result;
+  // Run the handler
+  handler(result);
 }
 
 unsigned long Process::getEventMessage() noexcept {
@@ -173,41 +195,41 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   // This will ensure the environment knows whether or not this artifact is created
   ref->resolve(_command, _build);
 
-  // Allow the syscall to finish, and record the result
-  int fd = finishSyscall();
+  // Allow the syscall to finish
+  finishSyscall([=](long fd) {
+    // Let the process continue
+    resume();
 
-  // Let the process continue
-  resume();
+    // Check whether the openat call succeeded or failed
+    if (fd >= 0) {
+      // The command observed a successful openat, so add this predicate to the command log
+      ref->expectResult(SUCCESS);
 
-  // Check whether the openat call succeeded or failed
-  if (fd >= 0) {
-    // The command observed a successful openat, so add this predicate to the command log
-    ref->expectResult(SUCCESS);
+      ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
-    ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
+      // TODO: Inform the artifact that it is now committed. This should add it as an entry to the
+      // Env inode map if it was created. Right now, created artifacts are considered committed even
+      // before they are actually on the filesystem.
 
-    // TODO: Inform the artifact that it is now committed. This should add it as an entry to the Env
-    // inode map if it was created. Right now, created artifacts are considered committed even
-    // before they are actually on the filesystem.
+      // If the file is truncated by the open call, set the contents in the artifact
+      if (ref->getFlags().truncate) {
+        _command->setContents(ref);
+      }
 
-    // If the file is truncated by the open call, set the contents in the artifact
-    if (ref->getFlags().truncate) {
-      _command->setContents(ref);
+      // Is this new descriptor closed on exec?
+      bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
+
+      // Record the reference in the correct location in this process' file descriptor table
+      auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
+
+      ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
+
+    } else {
+      // The command observed a failed openat, so add the error predicate to the command log
+      // Negate fd because syscalls return negative errors
+      ref->expectResult(-fd);
     }
-
-    // Is this new descriptor closed on exec?
-    bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
-
-    // Record the reference in the correct location in this process' file descriptor table
-    auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
-
-    ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
-
-  } else {
-    // The command observed a failed openat, so add the error predicate to the command log
-    // Negate fd because syscalls return negative errors
-    ref->expectResult(-fd);
-  }
+  });
 }
 
 void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept {
@@ -229,76 +251,75 @@ void Process::_close(int fd) noexcept {
 /************************ Pipes ************************/
 
 void Process::_pipe2(int* fds, int flags) noexcept {
-  int rc = finishSyscall();
+  finishSyscall([this, fds, flags](long rc) {
+    // There is nothing to do if the syscall fails, but why would that ever happen?
+    if (rc) {
+      resume();
+      return;
+    }
 
-  // There is nothing to do if the syscall fails, but why would that ever happen?
-  if (rc) {
+    // Create a reference to the pipe
+    auto ref = _command->pipe();
+
+    // Read the file descriptors
+    int read_pipefd = readData((uintptr_t)fds);
+    int write_pipefd = readData((uintptr_t)fds + sizeof(int));
+
+    // The command can continue
     resume();
-    return;
-  }
 
-  // Create a reference to the pipe
-  auto ref = _command->pipe();
+    // Get an artifact for this pipe
+    ref->resolve(_command, _build);
 
-  // Read the file descriptors
-  int read_pipefd = readData((uintptr_t)fds);
-  int write_pipefd = readData((uintptr_t)fds + sizeof(int));
+    ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
-  // The command can continue
-  resume();
+    // Check if this pipe is closed on exec
+    bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
-  // Get an artifact for this pipe
-  ref->resolve(_command, _build);
+    // Fill in the file descriptor entries
+    auto [iter1, inserted1] = _fds.emplace(read_pipefd, FileDescriptor(ref, false, cloexec));
+    auto [iter2, inserted2] = _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
 
-  ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
-
-  // Check if this pipe is closed on exec
-  bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
-
-  // Fill in the file descriptor entries
-  auto [iter1, inserted1] = _fds.emplace(read_pipefd, FileDescriptor(ref, false, cloexec));
-  auto [iter2, inserted2] = _fds.emplace(write_pipefd, FileDescriptor(ref, true, cloexec));
-
-  ASSERT(inserted1 && inserted2) << "Pipe file descriptors conflicted with existing entries";
+    ASSERT(inserted1 && inserted2) << "Pipe file descriptors conflicted with existing entries";
+  });
 }
 
 /************************ File Descriptor Manipulation ************************/
 
-int Process::_dup(int fd) noexcept {
+void Process::_dup(int fd) noexcept {
   // Finish the syscall to get the new file descriptor, then resume the process
-  int newfd = finishSyscall();
-  resume();
+  finishSyscall([=](int newfd) {
+    resume();
 
-  // If the syscall failed, do nothing
-  if (newfd == -1) return newfd;
+    // If the syscall failed, do nothing
+    if (newfd == -1) return;
 
-  // Add the new entry for the duped fd
-  _fds[newfd] = _fds.at(fd);
+    // Add the new entry for the duped fd
+    _fds[newfd] = _fds.at(fd);
 
-  // Duped fds do not inherit the cloexec flag
-  _fds.at(newfd).setCloexec(false);
-
-  // Return the new fd. This is helpful for handling some of the fcntl variants
-  return newfd;
+    // Duped fds do not inherit the cloexec flag
+    _fds.at(newfd).setCloexec(false);
+  });
 }
 
 void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // If the syscall failed, we have nothing more to do
-  // Note: this is different than a failed file access. This failure should not be affected
-  //       by the state of the filesystem, so we don't have to log it.
-  if (rc == -1) return;
+    // If the syscall failed, we have nothing more to do
+    // Note: this is different than a failed file access. This failure should not be affected
+    //       by the state of the filesystem, so we don't have to log it.
+    if (rc == -1) return;
 
-  // Duplicate the file descriptor
-  _fds[rc] = _fds.at(oldfd);
+    // Duplicate the file descriptor
+    _fds[rc] = _fds.at(oldfd);
 
-  // If the flags include O_CLOEXEC, we have to set that property on the new file descriptor
-  // If O_CLOEXEC is not set, any dup-ed fd is NOT cloexec
-  _fds.at(rc).setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
+    // If the flags include O_CLOEXEC, we have to set that property on the new file descriptor
+    // If O_CLOEXEC is not set, any dup-ed fd is NOT cloexec
+    _fds.at(rc).setCloexec((flags & O_CLOEXEC) == O_CLOEXEC);
+  });
 }
 
 void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
@@ -308,8 +329,9 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 
   } else if (cmd == F_DUPFD_CLOEXEC) {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
-    int newfd = _dup(fd);  // _dup will resume the process and return the new fd to us
-    _fds.at(newfd).setCloexec(true);
+    // int newfd = _dup(fd);  // _dup will resume the process and return the new fd to us
+    // _fds.at(newfd).setCloexec(true);
+    _dup3(fd, -1, FD_CLOEXEC);
 
   } else if (cmd == F_SETFD) {
     resume();
@@ -317,9 +339,9 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
     _fds.at(fd).setCloexec(arg & FD_CLOEXEC);
 
   } else {
+    resume();
     // Some other operation we do not need to handle
     // TODO: Filter these stops out with BPF/seccomp
-    resume();
   }
 }
 
@@ -335,20 +357,20 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
   auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
   // Finish the syscall so we can see its result
-  int rc = finishSyscall();
+  finishSyscall([=](long rc) {
+    // Resume the process' execution
+    resume();
 
-  // Resume the process' execution
-  resume();
+    // Record the outcome of the reference
+    ref->expectResult(-rc);
 
-  // Record the outcome of the reference
-  ref->expectResult(-rc);
-
-  if (rc == 0) {
-    ref->resolve(_command, _build);
-    PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
-    // Don't abort here becaues the dodo self-build accesses /proc/self.
-    // We need to fix these references for real at some point.
-  }
+    if (rc == 0) {
+      ref->resolve(_command, _build);
+      PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
+      // Don't abort here becaues the dodo self-build accesses /proc/self.
+      // We need to fix these references for real at some point.
+    }
+  });
 }
 
 void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
@@ -366,22 +388,23 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
     auto ref = makeAccess(pathname, {}, dirfd);
 
     // Finish the syscall to see if the reference succeeds
-    int rc = finishSyscall();
-    resume();
+    finishSyscall([=](long rc) {
+      resume();
 
-    // Record the outcome of the syscall
-    ref->expectResult(-rc);
+      // Record the outcome of the syscall
+      ref->expectResult(-rc);
 
-    // Log the success or failure
-    if (rc == 0) {
-      // Get the artifact that was stat-ed
-      ref->resolve(_command, _build);
+      // Log the success or failure
+      if (rc == 0) {
+        // Get the artifact that was stat-ed
+        ref->resolve(_command, _build);
 
-      ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
+        ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
-      // Record the dependence on the artifact's metadata
-      _command->metadataMatch(ref);
-    }
+        // Record the dependence on the artifact's metadata
+        _command->metadataMatch(ref);
+      }
+    });
   }
 }
 
@@ -420,23 +443,24 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   }
 
   // Finish the syscall and then resume the process
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // Did the call succeed?
-  if (rc >= 0) {
-    // Yes. Record the successful reference
-    ref->expectResult(SUCCESS);
+    // Did the call succeed?
+    if (rc >= 0) {
+      // Yes. Record the successful reference
+      ref->expectResult(SUCCESS);
 
-    ASSERT(ref->isResolved()) << "Failed to get artifact";
+      ASSERT(ref->isResolved()) << "Failed to get artifact";
 
-    // We've now set the artifact's metadata
-    _command->setMetadata(ref);
+      // We've now set the artifact's metadata
+      _command->setMetadata(ref);
 
-  } else {
-    // No. Record the failure
-    ref->expectResult(-rc);
-  }
+    } else {
+      // No. Record the failure
+      ref->expectResult(-rc);
+    }
+  });
 }
 
 /************************ File Content Operations ************************/
@@ -466,14 +490,15 @@ void Process::_write(int fd) noexcept {
   _command->contentsMatch(descriptor.getReference());
 
   // Finish the syscall and resume the process
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // If the write syscall failed, there's no need to log a write
-  if (rc == -1) return;
+    // If the write syscall failed, there's no need to log a write
+    if (rc == -1) return;
 
-  // Record the update to the artifact contents
-  _command->setContents(descriptor.getReference());
+    // Record the update to the artifact contents
+    _command->setContents(descriptor.getReference());
+  });
 }
 
 void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept {
@@ -485,40 +510,42 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   }
 
   // Run the syscall to find out if the mmap succeeded
-  void* rc = (void*)finishSyscall();
+  finishSyscall([=](long rc) {
+    void* result = (void*)rc;
 
-  // If the map failed there's nothing to log
-  if (rc == MAP_FAILED) {
+    // If the map failed there's nothing to log
+    if (result == MAP_FAILED) {
+      resume();
+      return;
+    }
+
+    // Get the descriptor from the fd number
+    const auto& descriptor = _fds.at(fd);
+
+    // By mmapping a file, the command implicitly depends on its contents at the time of
+    // mapping.
+    _command->contentsMatch(descriptor.getReference());
+
+    // If the mapping is writable, and the file was opened in write mode, the command
+    // is also effectively setting the contents of the file.
+    bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
+    if (writable) {
+      _command->setContents(descriptor.getReference());
+    }
+
+    // TODO: we need to track which commands have a given artifact mapped.
+    // Any time that artifact is modified, all commands that have it mapped will get an
+    // implicit CONTENTS_MATCH line added because they could see the new version.
+    // Also, any commands with writable mappings of a file could be setting the contents
+    // of the file at any time.
+    // Any artifact with multiple mappers, at least one of whom has a writable mapping,
+    // creates a cycle. All commands involved in that cycle must be collapsed.
+
+    // Resume the process here, because the command *could* immediately write to the file.
+    // We may have needed to take a fingerprint of the old, unwritten version, so we can't
+    // resume immediately after a writable mapping.
     resume();
-    return;
-  }
-
-  // Get the descriptor from the fd number
-  const auto& descriptor = _fds.at(fd);
-
-  // By mmapping a file, the command implicitly depends on its contents at the time of
-  // mapping.
-  _command->contentsMatch(descriptor.getReference());
-
-  // If the mapping is writable, and the file was opened in write mode, the command
-  // is also effectively setting the contents of the file.
-  bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
-  if (writable) {
-    _command->setContents(descriptor.getReference());
-  }
-
-  // TODO: we need to track which commands have a given artifact mapped.
-  // Any time that artifact is modified, all commands that have it mapped will get an
-  // implicit CONTENTS_MATCH line added because they could see the new version.
-  // Also, any commands with writable mappings of a file could be setting the contents
-  // of the file at any time.
-  // Any artifact with multiple mappers, at least one of whom has a writable mapping,
-  // creates a cycle. All commands involved in that cycle must be collapsed.
-
-  // Resume the process here, because the command *could* immediately write to the file.
-  // We may have needed to take a fingerprint of the old, unwritten version, so we can't
-  // resume immediately after a writable mapping.
-  resume();
+  });
 }
 
 void Process::_sendfile(int out_fd, int in_fd) noexcept {
@@ -539,20 +566,21 @@ void Process::_truncate(string pathname, long length) noexcept {
   }
 
   // Finish the syscall and resume the process
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // Record the outcome of the reference
-  ref->expectResult(-rc);
+    // Record the outcome of the reference
+    ref->expectResult(-rc);
 
-  // Did the call succeed?
-  if (rc == 0) {
-    // Make sure the artifact actually existed
-    ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
+    // Did the call succeed?
+    if (rc == 0) {
+      // Make sure the artifact actually existed
+      ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
-    // Record the update to the artifact contents
-    _command->setContents(ref);
-  }
+      // Record the update to the artifact contents
+      _command->setContents(ref);
+    }
+  });
 }
 
 void Process::_ftruncate(int fd, long length) noexcept {
@@ -565,13 +593,14 @@ void Process::_ftruncate(int fd, long length) noexcept {
   }
 
   // Finish the syscall and resume the process
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  if (rc == 0) {
-    // Record the update to the artifact contents
-    _command->setContents(descriptor.getReference());
-  }
+    if (rc == 0) {
+      // Record the update to the artifact contents
+      _command->setContents(descriptor.getReference());
+    }
+  });
 }
 
 void Process::_vmsplice(int fd) noexcept {
@@ -621,26 +650,27 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
   auto ref = makeAccess(pathname, AccessFlags{.nofollow = true}, dfd);
 
   // Finish the syscall and then resume the process
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // Did the call succeed?
-  if (rc >= 0) {
-    // Yes. Record the successful reference
-    ref->expectResult(SUCCESS);
+    // Did the call succeed?
+    if (rc >= 0) {
+      // Yes. Record the successful reference
+      ref->expectResult(SUCCESS);
 
-    // Get the artifact that we referenced
-    ref->resolve(_command, _build);
+      // Get the artifact that we referenced
+      ref->resolve(_command, _build);
 
-    ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
+      ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
-    // We depend on this artifact's contents now
-    _command->contentsMatch(ref);
+      // We depend on this artifact's contents now
+      _command->contentsMatch(ref);
 
-  } else {
-    // No. Record the failure
-    ref->expectResult(-rc);
-  }
+    } else {
+      // No. Record the failure
+      ref->expectResult(-rc);
+    }
+  });
 }
 
 void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
@@ -651,16 +681,17 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
 /************************ Process State Operations ************************/
 
 void Process::_chdir(string filename) noexcept {
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // Update the current working directory if the chdir call succeeded
-  if (rc == 0) {
-    _cwd = makeAccess(filename, AccessFlags{.x = true});
-    _cwd->expectResult(SUCCESS);
-    _cwd->resolve(_command, _build);
-    ASSERT(_cwd->isResolved()) << "Failed to resolve current working directory";
-  }
+    // Update the current working directory if the chdir call succeeded
+    if (rc == 0) {
+      _cwd = makeAccess(filename, AccessFlags{.x = true});
+      _cwd->expectResult(SUCCESS);
+      _cwd->resolve(_command, _build);
+      ASSERT(_cwd->isResolved()) << "Failed to resolve current working directory";
+    }
+  });
 }
 
 void Process::_chroot(string filename) noexcept {
@@ -674,20 +705,21 @@ void Process::_pivot_root(string new_root, string put_old) noexcept {
 }
 
 void Process::_fchdir(int fd) noexcept {
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  if (rc == 0) {
-    // Get the path to the artifact this descriptor references
-    const auto& descriptor = _fds.at(fd);
-    auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
+    if (rc == 0) {
+      // Get the path to the artifact this descriptor references
+      const auto& descriptor = _fds.at(fd);
+      auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
 
-    // Make sure there really is a path
-    ASSERT(a) << "fchdir to an artifact with no path should not succeed";
+      // Make sure there really is a path
+      ASSERT(a) << "fchdir to an artifact with no path should not succeed";
 
-    // Update the working directory
-    _cwd = a;
-  }
+      // Update the working directory
+      _cwd = a;
+    }
+  });
 }
 
 void Process::_execveat(int dfd, string filename, vector<string> args,
@@ -696,60 +728,61 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
   auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
   // Finish the exec syscall and resume
-  int rc = finishSyscall();
-  resume();
+  finishSyscall([=](long rc) {
+    resume();
 
-  // Not sure why, but exec returns -38 on success.
-  // If we see something else, handle the error
-  if (rc != -38) {
-    // Failure! Record a failed reference. Negate rc because syscalls return negative errors
-    exe_ref->expectResult(-rc);
-    return;
-  }
-
-  // If we reached this point, the executable reference was okay
-  exe_ref->expectResult(SUCCESS);
-
-  // Resolve the reference to the executable file
-  exe_ref->resolve(_command, _build);
-  ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
-
-  // Build a map of the initial file descriptors for the child command
-  // As we build this map, keep track of which file descriptors have to be erased from the
-  // process' current map of file descriptors.
-  map<int, FileDescriptor> initial_fds;
-  list<int> to_erase;
-
-  for (const auto& [index, fd] : _fds) {
-    if (fd.isCloexec()) {
-      to_erase.push_back(index);
-    } else {
-      initial_fds.emplace(index, FileDescriptor(fd.getReference(), fd.isWritable()));
+    // Not sure why, but exec returns -38 on success.
+    // If we see something else, handle the error
+    if (rc != -38) {
+      // Failure! Record a failed reference. Negate rc because syscalls return negative errors
+      exe_ref->expectResult(-rc);
+      return;
     }
-  }
-  for (int index : to_erase) {
-    _fds.erase(index);
-  }
 
-  // This process launches a new command
-  _command = _command->launch(exe_ref, args, initial_fds, _cwd, _root);
+    // If we reached this point, the executable reference was okay
+    exe_ref->expectResult(SUCCESS);
 
-  // The child command depends on the contents of its executable. First, we need to know what the
-  // actual executable is. Read /proc/<pid>/exe to find it
-  auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
+    // Resolve the reference to the executable file
+    exe_ref->resolve(_command, _build);
+    ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
 
-  // Now make the reference and expect success
-  auto child_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true});
-  child_exe_ref->expectResult(SUCCESS);
+    // Build a map of the initial file descriptors for the child command
+    // As we build this map, keep track of which file descriptors have to be erased from the
+    // process' current map of file descriptors.
+    map<int, FileDescriptor> initial_fds;
+    list<int> to_erase;
 
-  // Resolve the child executable reference
-  child_exe_ref->resolve(_command, _build);
-  ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+    for (const auto& [index, fd] : _fds) {
+      if (fd.isCloexec()) {
+        to_erase.push_back(index);
+      } else {
+        initial_fds.emplace(index, FileDescriptor(fd.getReference(), fd.isWritable()));
+      }
+    }
+    for (int index : to_erase) {
+      _fds.erase(index);
+    }
 
-  // The child command depends on the contents of the executable
-  _command->contentsMatch(child_exe_ref);
+    // This process launches a new command
+    _command = _command->launch(exe_ref, args, initial_fds, _cwd, _root);
 
-  // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
-  // that participate in that command. This will require some extra bookkeeping. For now, we
-  // over-approximate the set of commands that have a file mmapped.
+    // The child command depends on the contents of its executable. First, we need to know what the
+    // actual executable is. Read /proc/<pid>/exe to find it
+    auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
+
+    // Now make the reference and expect success
+    auto child_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true});
+    child_exe_ref->expectResult(SUCCESS);
+
+    // Resolve the child executable reference
+    child_exe_ref->resolve(_command, _build);
+    ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+
+    // The child command depends on the contents of the executable
+    _command->contentsMatch(child_exe_ref);
+
+    // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
+    // that participate in that command. This will require some extra bookkeeping. For now, we
+    // over-approximate the set of commands that have a file mmapped.
+  });
 }

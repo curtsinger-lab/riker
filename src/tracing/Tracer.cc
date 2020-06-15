@@ -153,6 +153,15 @@ void Tracer::run(shared_ptr<Command> cmd) noexcept {
         auto regs = p->getRegisters();
         handleClone(p, regs.SYSCALL_ARG1);
 
+      } else if (status == (SIGTRAP | 0x80)) {
+        // This is a stop at the end of a system call that was resumed.
+        p->syscallFinished();
+
+      } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
+        // This is a stop after an exec finishes. The process that called exec must have set a
+        // post-syscall handler
+        p->syscallFinished();
+
       } else {
         // The traced process received a signal. Just pass it along.
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
@@ -399,6 +408,8 @@ void Tracer::handleExit(shared_ptr<Process> p) noexcept {
 
 void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   auto regs = p->getRegisters();
+
+  LOG << p->_pid << ": " << syscalls[regs.SYSCALL_NUMBER];
 
   // This giant switch statement invokes the appropriate system call handler on a traced
   // process after decoding the syscall arguments.
