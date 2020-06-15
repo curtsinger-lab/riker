@@ -43,7 +43,11 @@ class Stats final : public BuildObserver {
       o << endl;
       o << "Artifacts:" << endl;
       for (const auto& a : _artifacts) {
-        o << "  " << a->getName() << ": " << a->getTypeName() << endl;
+        if (a->getName().empty()) {
+          o << "  " << a->getTypeName() << ": <anonymous>" << endl;
+        } else {
+          o << "  " << a->getTypeName() << ": " << a->getName() << endl;
+        }
 
         size_t index = 0;
         for (const auto& v : a->getVersions()) {

@@ -42,10 +42,7 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
   cv->createdBy(c);
 
-  auto p = make_shared<PipeArtifact>(*this, true, mv, cv);
-  p->setName(std::to_string(_pipe_count++));
-
-  return p;
+  return make_shared<PipeArtifact>(*this, true, mv, cv);
 }
 
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
