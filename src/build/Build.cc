@@ -5,11 +5,13 @@
 #include <ostream>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/Pipe.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
 
 using std::cout;
+using std::dynamic_pointer_cast;
 using std::endl;
 using std::ostream;
 using std::shared_ptr;
@@ -18,9 +20,24 @@ void Build::run() noexcept {
   // This is a hack to resolve the stdin, stdout, and stderr pipes before starting emulation.
   for (const auto& [index, info] : _root->getInitialFDs()) {
     info.getReference()->emulate(_root, *this);
-    if (index == 0) info.getReference()->getArtifact()->setName("stdin");
-    if (index == 1) info.getReference()->getArtifact()->setName("stdout");
-    if (index == 2) info.getReference()->getArtifact()->setName("stderr");
+
+    if (index == 0) {
+      info.getReference()->getArtifact()->setName("stdin");
+      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
+      pipe->setFDs(0, -1);
+    }
+
+    if (index == 1) {
+      info.getReference()->getArtifact()->setName("stdout");
+      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
+      pipe->setFDs(-1, 1);
+    }
+
+    if (index == 2) {
+      info.getReference()->getArtifact()->setName("stderr");
+      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
+      pipe->setFDs(-1, 2);
+    }
   }
 
   // Pre-resolve the reference to the root directory

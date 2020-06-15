@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "artifacts/Pipe.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
@@ -186,21 +187,37 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
     LOG << "  " << child_fd << ": " << info.getReference();
 
-    // For now, only handle Access references
-    auto ref = dynamic_pointer_cast<Access>(info.getReference());
-    if (!ref) continue;
-
     // Make sure the reference has already been resolved
-    ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
-                                 "initial file descriptor table";
+    ASSERT(info.getReference()->isResolved())
+        << "Tried to launch a command with an unresolved reference in its "
+           "initial file descriptor table";
 
-    // Commit any emulated modifications to this artifact to the filesystem
-    ref->getArtifact()->commit(ref);
+    // Handle reference types
+    if (auto ref = dynamic_pointer_cast<Access>(info.getReference())) {
+      // This is an access, so we have a path
 
-    // Use the reference to open the file
-    int parent_fd = ref->open();
-    FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
-    initial_fds.emplace_back(parent_fd, child_fd);
+      // Commit any emulated modifications to this artifact to the filesystem
+      ref->getArtifact()->commit(ref);
+
+      // Use the reference to open the file
+      int parent_fd = ref->open();
+      FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
+      initial_fds.emplace_back(parent_fd, child_fd);
+
+    } else if (auto ref = dynamic_pointer_cast<Pipe>(info.getReference())) {
+      // This is a pipe. Get the artifact.
+      auto pipe = dynamic_pointer_cast<PipeArtifact>(ref->getArtifact());
+
+      // Does the descriptor refer to the writing end of the pipe?
+      if (info.isWritable()) {
+        initial_fds.emplace_back(pipe->getWriteFD(), child_fd);
+      } else {
+        initial_fds.emplace_back(pipe->getReadFD(), child_fd);
+      }
+
+    } else {
+      WARN << "Skipping expected file descriptor " << child_fd << ": " << info;
+    }
   }
 
   // In terms of overall structure, this is a bog standard fork/exec spawning function.
@@ -212,6 +229,13 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // SECCOMP_RET_TRACE when we want a stop.
   pid_t child_pid = fork();
   FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
+
+  // Close FDs in the parent
+  if (child_pid > 0) {
+    for (auto [parent_fd, child_fd] : initial_fds) {
+      if (parent_fd != child_fd) close(parent_fd);
+    }
+  }
 
   if (child_pid == 0) {
     // This is the child
