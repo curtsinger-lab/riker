@@ -60,7 +60,7 @@ class Command : public std::enable_shared_from_this<Command> {
   Command& operator=(Command&&) noexcept = default;
 
   /// Get a short, printable name for this command
-  string getShortName() const noexcept;
+  string getShortName(size_t limit = 20) const noexcept;
 
   /// Get the full name for this command
   string getFullName() const noexcept;

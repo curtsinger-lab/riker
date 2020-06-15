@@ -135,28 +135,28 @@ shared_ptr<Command> Command::createRootCommand() noexcept {
   return shared_ptr<Command>(new Command(exe, {"dodo-launch"}, default_fds, cwd, root));
 }
 
-string Command::getShortName() const noexcept {
+string Command::getShortName(size_t limit) const noexcept {
   // By default, the short name is the executable
-  string result = _exe->getFullPath();
+  auto exe_path = _exe->getFullPath();
 
   // If we have arguments, use args[0] instead of the exe name
-  if (_args.size() > 0) result = _args.front();
+  if (_args.size() > 0) exe_path = _args.front();
 
-  // Strip path from the base name
-  auto pos = result.rfind('/');
-  if (pos != string::npos) {
-    result = result.substr(pos + 1);
-  }
+  // If the exe_path is an absolute path, use the filename
+  if (exe_path.is_absolute()) exe_path = exe_path.filename();
 
-  // Add arguments up to a length of 20 characters
+  // The output starts with the executable name
+  string result = exe_path;
+
+  // Add arguments up to the length limit
   size_t index = 1;
-  while (index < _args.size() && result.length() < 20) {
+  while (index < _args.size() && result.length() < limit) {
     result += " " + _args[index];
     index++;
   }
 
-  if (result.length() >= 20) {
-    result = result.substr(0, 17) + "...";
+  if (result.length() >= limit) {
+    result = result.substr(0, limit - 3) + "...";
   }
 
   return result;
