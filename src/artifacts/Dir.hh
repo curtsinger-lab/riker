@@ -12,6 +12,7 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -41,6 +42,6 @@ class DirArtifact final : public Artifact {
   virtual void setEntry(string entry, shared_ptr<Artifact> target) noexcept final;
 
  private:
-  map<string, shared_ptr<Artifact>> _entries;
+  map<string, weak_ptr<Artifact>> _entries;
   bool _finalized = false;
 };

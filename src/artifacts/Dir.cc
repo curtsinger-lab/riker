@@ -27,7 +27,8 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   ASSERT(a) << "Somehow a directory was reached without a path";
 
   // Walk through and finalize each directory entry
-  for (auto& [name, artifact] : _entries) {
+  for (auto& [name, wp] : _entries) {
+    auto artifact = wp.lock();
     if (name == "." || name == "..") continue;
     if (artifact) artifact->finalize(a->get(name, AccessFlags{}));
   }
@@ -37,6 +38,9 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
 }
 
 tuple<shared_ptr<Artifact>, int> DirArtifact::getEntry(fs::path self, string entry) noexcept {
+  if (entry == ".") return {shared_from_this(), SUCCESS};
+  if (entry == "..") return {_env.getPath(self / entry), SUCCESS};
+
   // If there is no record of this entry, look on the filesystem
   auto iter = _entries.find(entry);
   if (iter == _entries.end()) {
@@ -44,8 +48,10 @@ tuple<shared_ptr<Artifact>, int> DirArtifact::getEntry(fs::path self, string ent
     iter = _entries.emplace_hint(iter, entry, _env.getPath(self / entry));
   }
 
-  if (iter->second) {
-    return {iter->second, SUCCESS};
+  auto artifact = iter->second.lock();
+
+  if (artifact) {
+    return {artifact, SUCCESS};
   } else {
     return {nullptr, ENOENT};
   }
