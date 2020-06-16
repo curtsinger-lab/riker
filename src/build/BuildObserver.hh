@@ -39,11 +39,8 @@ class BuildObserver {
   /// The outcome of an IR step has changed since the build trace was collected
   virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {}
 
-  /// The root command is being launched
-  virtual void launchRootCommand(shared_ptr<Command> root) noexcept {}
-
-  /// A child command is being launched
-  virtual void launchChildCommand(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
+  /// A command is being launched. The parent will be null if this is the root command.
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced `observed`, which does not match the on-disk version `expected`

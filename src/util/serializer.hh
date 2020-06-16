@@ -7,13 +7,13 @@
 using std::shared_ptr;
 using std::string;
 
-class Command;
+class Trace;
 
-/// Try to load a build. Exit with an error if loading fails.
-shared_ptr<Command> load_build(string filename, bool default_fallback) noexcept;
+/// Try to load a build trace. Exit with an error if loading fails.
+shared_ptr<Trace> load_build(string filename, bool default_fallback) noexcept;
 
-/// Save a build to a file
-void save_build(string filename, shared_ptr<Command> root) noexcept;
+/// Save a build trace to a file
+void save_build(string filename, shared_ptr<Trace> trace) noexcept;
 
 namespace cereal {
   class access;

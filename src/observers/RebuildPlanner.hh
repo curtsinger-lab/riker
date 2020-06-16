@@ -77,7 +77,7 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Command c depends on version v of artifact a
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept final {
+                     shared_ptr<Version> v) noexcept override final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
@@ -97,21 +97,22 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Command c did not find the expected version in artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) noexcept final {
+                        shared_ptr<Version> expected) noexcept override final {
     // Record the change
     LOG << c << " observed change in " << a << " version " << observed << ", expected " << expected;
     _changed.insert(c);
   }
 
   /// Command c has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) noexcept final {
+  virtual void commandNeverRun(shared_ptr<Command> c) noexcept override final {
     // Record the change
     LOG << c << " never run";
     _changed.insert(c);
   }
 
   /// IR step s in command c observed a change
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept final {
+  virtual void commandChanged(shared_ptr<Command> c,
+                              shared_ptr<const Step> s) noexcept override final {
     // Record the change
     LOG << c << " changed: " << s;
     _changed.insert(c);
@@ -119,7 +120,7 @@ class RebuildPlanner final : public BuildObserver {
 
   /// An artifact's final version does not match what is on the filesystem
   virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) noexcept final {
+                             shared_ptr<Version> expected) noexcept override final {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!observed->getCreator()) return;
 

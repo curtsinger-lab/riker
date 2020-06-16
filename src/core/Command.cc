@@ -114,27 +114,6 @@ static AccessFilter _metadata_filter;
 /// The access filter used for content accesses
 static AccessFilter _content_filter;
 
-// The root command invokes "dodo launch" to run the actual build script. Construct this command.
-shared_ptr<Command> Command::createRootCommand() noexcept {
-  // We need to get the path to dodo. Use readlink for this.
-  fs::path dodo = readlink("/proc/self/exe");
-  fs::path dodo_launch = dodo.parent_path() / "dodo-launch";
-
-  auto stdin_ref = make_shared<Pipe>();
-  auto stdout_ref = make_shared<Pipe>();
-  auto stderr_ref = make_shared<Pipe>();
-
-  map<int, FileDescriptor> default_fds = {{0, FileDescriptor(stdin_ref, false)},
-                                          {1, FileDescriptor(stdout_ref, true)},
-                                          {2, FileDescriptor(stderr_ref, true)}};
-
-  auto root = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
-  auto cwd = make_shared<Access>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
-  auto exe = make_shared<Access>(root, dodo_launch, AccessFlags{.r = true});
-
-  return shared_ptr<Command>(new Command(exe, {"dodo-launch"}, default_fds, cwd, root));
-}
-
 string Command::getShortName(size_t limit) const noexcept {
   // By default, the short name is the executable
   auto exe_path = _exe->getFullPath();
@@ -173,40 +152,31 @@ string Command::getFullName() const noexcept {
   return result;
 }
 
-void Command::emulate(Build& build) noexcept {
-  // If this command has never run, report it as changed
-  if (_steps.empty()) build.observeCommandNeverRun(shared_from_this());
-
-  for (const auto& step : _steps) {
-    step->emulate(shared_from_this(), build);
-  }
-}
-
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(fs::path path, AccessFlags flags,
+shared_ptr<Access> Command::access(Build& build, fs::path path, AccessFlags flags,
                                    shared_ptr<Access> base) noexcept {
   // For now, the reference is just one level that covers all parts of the new path
   auto ref = base->get(path, flags);
-  _steps.emplace_back(ref);
+  build.addStep(shared_from_this(), ref);
   return ref;
 }
 
 // Make an access using a new set of flags
-shared_ptr<Access> Command::access(shared_ptr<Access> a, AccessFlags flags) noexcept {
+shared_ptr<Access> Command::access(Build& build, shared_ptr<Access> a, AccessFlags flags) noexcept {
   auto ref = a->withFlags(flags);
-  _steps.emplace_back(ref);
+  build.addStep(shared_from_this(), ref);
   return ref;
 }
 
 // This command creates a reference to a new pipe
-shared_ptr<Pipe> Command::pipe() noexcept {
+shared_ptr<Pipe> Command::pipe(Build& build) noexcept {
   auto ref = make_shared<Pipe>();
-  _steps.emplace_back(ref);
+  build.addStep(shared_from_this(), ref);
   return ref;
 }
 
 // This command depends on the metadata of a referenced artifact
-void Command::metadataMatch(shared_ptr<Reference> ref) noexcept {
+void Command::metadataMatch(Build& build, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
 
   // Do we have to log this read?
@@ -221,14 +191,14 @@ void Command::metadataMatch(shared_ptr<Reference> ref) noexcept {
   }
 
   // Add the IR step
-  _steps.push_back(make_shared<MetadataMatch>(ref, v));
+  build.addStep(shared_from_this(), make_shared<MetadataMatch>(ref, v));
 
   // Report the read
   _metadata_filter.read(this, ref);
 }
 
 // This command depends on the contents of a referenced artifact
-void Command::contentsMatch(shared_ptr<Reference> ref) noexcept {
+void Command::contentsMatch(Build& build, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
                             << ref;
 
@@ -249,14 +219,14 @@ void Command::contentsMatch(shared_ptr<Reference> ref) noexcept {
   }
 
   // Add the IR step
-  _steps.push_back(make_shared<ContentsMatch>(ref, v));
+  build.addStep(shared_from_this(), make_shared<ContentsMatch>(ref, v));
 
   // Report the read
   _content_filter.read(this, ref);
 }
 
 // This command sets the metadata of a referenced artifact
-void Command::setMetadata(shared_ptr<Reference> ref) noexcept {
+void Command::setMetadata(Build& build, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
 
   // Do we have to log this write?
@@ -266,14 +236,14 @@ void Command::setMetadata(shared_ptr<Reference> ref) noexcept {
   const auto& v = ref->getArtifact()->setMetadata(shared_from_this(), ref);
 
   // Create the SetMetadata step and add it to the command
-  _steps.push_back(make_shared<SetMetadata>(ref, v));
+  build.addStep(shared_from_this(), make_shared<SetMetadata>(ref, v));
 
   // Report the write
   _metadata_filter.write(this, ref, v);
 }
 
 // This command sets the contents of a referenced artifact
-void Command::setContents(shared_ptr<Reference> ref) noexcept {
+void Command::setContents(Build& build, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
 
   // Do we have to log this write?
@@ -285,31 +255,34 @@ void Command::setContents(shared_ptr<Reference> ref) noexcept {
   ASSERT(v) << "Setting contents of " << ref << " produced a null version";
 
   // Create the SetContents step and add it to the command
-  _steps.push_back(make_shared<SetContents>(ref, v));
+  build.addStep(shared_from_this(), make_shared<SetContents>(ref, v));
 
   // Report the write
   _content_filter.write(this, ref, v);
 }
 
 // This command launches a child command
-const shared_ptr<Command>& Command::launch(shared_ptr<Access> exe, vector<string> args,
-                                           map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
+const shared_ptr<Command>& Command::launch(Build& build, shared_ptr<Access> exe,
+                                           vector<string> args, map<int, FileDescriptor> fds,
+                                           shared_ptr<Access> cwd,
                                            shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
   if (options::print_on_run) cout << child->getFullName() << endl;
 
-  _steps.emplace_back(make_shared<Launch>(child));
+  child->setExecuted();
+
+  build.addStep(shared_from_this(), make_shared<Launch>(child));
   return _children.emplace_back(child);
 }
 
 // This command joined with a child command
-void Command::join(shared_ptr<Command> child, int exit_status) noexcept {
+void Command::join(Build& build, shared_ptr<Command> child, int exit_status) noexcept {
   LOG << this << " joined command " << child << " with exit status " << exit_status;
 
   // Save the exit status in the child
   child->_exit_status = exit_status;
 
   // Add a join action to this command's steps
-  _steps.emplace_back(make_shared<Join>(child, exit_status));
+  build.addStep(shared_from_this(), make_shared<Join>(child, exit_status));
 }

@@ -39,9 +39,6 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class RebuildPlanner;
 
  public:
-  /// Create a command to invoke the provided buildfile
-  static shared_ptr<Command> createRootCommand() noexcept;
-
   /// Create a new command
   Command(shared_ptr<Access> exe, vector<string> args, map<int, FileDescriptor> initial_fds,
           shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) noexcept :
@@ -74,11 +71,14 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the root directory in effect when this command is started
   const shared_ptr<Access>& getInitialRootDir() const noexcept { return _initial_root; }
 
-  /// Get the list of traced steps this command runs
-  const list<shared_ptr<Step>>& getSteps() const noexcept { return _steps; }
-
   /// Get the list of this command's children
   const list<shared_ptr<Command>>& getChildren() const noexcept { return _children; }
+
+  /// Check if this command has ever executed
+  bool hasExecuted() const noexcept { return _executed; }
+
+  /// Record that this command has now run
+  void setExecuted() noexcept { _executed = true; }
 
   /// Get this command's exit status
   int getExitStatus() const noexcept { return _exit_status; }
@@ -86,14 +86,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Set this command's exit status, and record that it has exited
   void setExitStatus(int status) noexcept { _exit_status = status; }
 
-  /// Check if this command has never run
-  bool neverRun() const noexcept { return _steps.size() == 0; }
-
   /// Reset the record for this command in preparation for re-execution
-  void reset() noexcept {
-    _steps.clear();
-    _children.clear();
-  }
+  void reset() noexcept { _children.clear(); }
 
   /// Get the list of arguments this command was started with
   const vector<string>& getArguments() const noexcept { return _args; }
@@ -101,39 +95,37 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, FileDescriptor>& getInitialFDs() const noexcept { return _initial_fds; }
 
-  /// Emulate the steps of this command as part of a particular build
-  void emulate(Build& build) noexcept;
-
   /********* Command Tracing Operations **********/
 
   /// This command accesses a path relative to some base reference, using the given flags
-  shared_ptr<Access> access(fs::path path, AccessFlags flags, shared_ptr<Access> base) noexcept;
+  shared_ptr<Access> access(Build& build, fs::path path, AccessFlags flags,
+                            shared_ptr<Access> base) noexcept;
 
   /// This command accesses an already-constructed reference using new flags
-  shared_ptr<Access> access(shared_ptr<Access> a, AccessFlags flags) noexcept;
+  shared_ptr<Access> access(Build& build, shared_ptr<Access> a, AccessFlags flags) noexcept;
 
   /// This command creates a pipe
-  shared_ptr<Pipe> pipe() noexcept;
+  shared_ptr<Pipe> pipe(Build& build) noexcept;
 
   /// This command depends on the metadata of a referenced artifact
-  void metadataMatch(shared_ptr<Reference> ref) noexcept;
+  void metadataMatch(Build& build, shared_ptr<Reference> ref) noexcept;
 
   /// This command depends on the contents of a referenced artifact
-  void contentsMatch(shared_ptr<Reference> ref) noexcept;
+  void contentsMatch(Build& build, shared_ptr<Reference> ref) noexcept;
 
   /// This command sets the metadata of a referenced artifact
-  void setMetadata(shared_ptr<Reference> ref) noexcept;
+  void setMetadata(Build& build, shared_ptr<Reference> ref) noexcept;
 
   /// This command sets the contents of a referenced artifact
-  void setContents(shared_ptr<Reference> ref) noexcept;
+  void setContents(Build& build, shared_ptr<Reference> ref) noexcept;
 
   /// This command launches a child command
-  const shared_ptr<Command>& launch(shared_ptr<Access> exe, vector<string> args,
+  const shared_ptr<Command>& launch(Build& build, shared_ptr<Access> exe, vector<string> args,
                                     map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
                                     shared_ptr<Access> root) noexcept;
 
   /// This command joined with a child command
-  void join(shared_ptr<Command> child, int exit_status) noexcept;
+  void join(Build& build, shared_ptr<Command> child, int exit_status) noexcept;
 
   /****** Utility Methods ******/
 
@@ -161,17 +153,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// A reference to the root directory in effect when this command is started
   shared_ptr<Access> _initial_root;
 
-  /// The steps performed by this command
-  list<shared_ptr<Step>> _steps;
-
   /// The list of this command's children, in order of creation
   list<shared_ptr<Command>> _children;
+
+  /// Has this command ever run?
+  bool _executed = false;
 
   /// The exit status recorded for this command after its last execution
   int _exit_status;
 
   // Create default constructor and specify fields for serialization
   Command() = default;
-  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _steps, _children,
+  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _children, _executed,
             _exit_status);
 };

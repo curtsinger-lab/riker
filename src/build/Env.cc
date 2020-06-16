@@ -37,10 +37,10 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   mode_t mode = S_IFIFO | 0600;
 
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
-  mv->createdBy(c);
+  if (c) mv->createdBy(c);
 
   auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
-  cv->createdBy(c);
+  if (c) cv->createdBy(c);
 
   return make_shared<PipeArtifact>(*this, true, mv, cv);
 }

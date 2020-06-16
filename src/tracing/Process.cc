@@ -78,17 +78,17 @@ unsigned long Process::getEventMessage() noexcept {
 
 shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
   // Absolute paths are resolved relative to the process' current root
-  if (p.is_absolute()) return _command->access(p.relative_path(), flags, _root);
+  if (p.is_absolute()) return _command->access(_build, p.relative_path(), flags, _root);
 
   // Handle the special CWD file descriptor to resolve relative to cwd
-  if (at == AT_FDCWD) return _command->access(p.relative_path(), flags, _cwd);
+  if (at == AT_FDCWD) return _command->access(_build, p.relative_path(), flags, _cwd);
 
   // The path is resolved relative to some file descriptor
   auto base = dynamic_pointer_cast<Access>(_fds.at(at).getReference());
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
-  return _command->access(p.relative_path(), flags, base);
+  return _command->access(_build, p.relative_path(), flags, base);
 }
 
 string Process::readString(uintptr_t tracee_pointer) noexcept {
@@ -211,7 +211,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       // If the file is truncated by the open call, set the contents in the artifact
       if (ref->getFlags().truncate) {
-        _command->setContents(ref);
+        _command->setContents(_build, ref);
       }
 
       // Is this new descriptor closed on exec?
@@ -257,7 +257,7 @@ void Process::_pipe2(int* fds, int flags) noexcept {
     }
 
     // Create a reference to the pipe
-    auto ref = _command->pipe();
+    auto ref = _command->pipe(_build);
 
     // Read the file descriptors
     int read_pipefd = readData((uintptr_t)fds);
@@ -379,7 +379,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
 
     // This is essentially an fstat call
     // Record the dependency on metadata
-    _command->metadataMatch(_fds.at(dirfd).getReference());
+    _command->metadataMatch(_build, _fds.at(dirfd).getReference());
 
   } else {
     // This is a regular stat call (with an optional base directory descriptor)
@@ -400,7 +400,7 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
-        _command->metadataMatch(ref);
+        _command->metadataMatch(_build, ref);
       }
     });
   }
@@ -437,7 +437,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _command->metadataMatch(ref);
+    _command->metadataMatch(_build, ref);
   }
 
   // Finish the syscall and then resume the process
@@ -452,7 +452,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _command->setMetadata(ref);
+      _command->setMetadata(_build, ref);
 
     } else {
       // No. Record the failure
@@ -468,7 +468,7 @@ void Process::_read(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // The current command depends on the contents of this file
-  _command->contentsMatch(descriptor.getReference());
+  _command->contentsMatch(_build, descriptor.getReference());
 
   // We can't wait for the syscall to finish here because of this scenario:
   //  fd may be the read end of a pipe that is currently empty. The process that will write to the
@@ -485,7 +485,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _command->contentsMatch(descriptor.getReference());
+  _command->contentsMatch(_build, descriptor.getReference());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -495,7 +495,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _command->setContents(descriptor.getReference());
+    _command->setContents(_build, descriptor.getReference());
   });
 }
 
@@ -522,13 +522,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _command->contentsMatch(descriptor.getReference());
+    _command->contentsMatch(_build, descriptor.getReference());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _command->setContents(descriptor.getReference());
+      _command->setContents(_build, descriptor.getReference());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -560,7 +560,7 @@ void Process::_truncate(string pathname, long length) noexcept {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _command->contentsMatch(ref);
+    _command->contentsMatch(_build, ref);
   }
 
   // Finish the syscall and resume the process
@@ -576,7 +576,7 @@ void Process::_truncate(string pathname, long length) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
-      _command->setContents(ref);
+      _command->setContents(_build, ref);
     }
   });
 }
@@ -587,7 +587,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _command->contentsMatch(descriptor.getReference());
+    _command->contentsMatch(_build, descriptor.getReference());
   }
 
   // Finish the syscall and resume the process
@@ -596,7 +596,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _command->setContents(descriptor.getReference());
+      _command->setContents(_build, descriptor.getReference());
     }
   });
 }
@@ -662,7 +662,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      _command->contentsMatch(ref);
+      _command->contentsMatch(_build, ref);
 
     } else {
       // No. Record the failure
@@ -762,7 +762,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
     }
 
     // This process launches a new command
-    _command = _command->launch(exe_ref, args, initial_fds, _cwd, _root);
+    _command = _command->launch(_build, exe_ref, args, initial_fds, _cwd, _root);
 
     // The child command depends on the contents of its executable. First, we need to know what the
     // actual executable is. Read /proc/<pid>/exe to find it
@@ -777,7 +777,7 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _command->contentsMatch(child_exe_ref);
+    _command->contentsMatch(_build, child_exe_ref);
 
     // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
     // that participate in that command. This will require some extra bookkeeping. For now, we
@@ -800,10 +800,10 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
 
     if (p->_command != _command) {
       if (WIFEXITED(status)) {
-        _command->join(p->_command, WEXITSTATUS(status));
+        _command->join(_build, p->_command, WEXITSTATUS(status));
       } else if (WIFSIGNALED(status)) {
         // TODO: Should we encode termination by signal in some other way?
-        _command->join(p->_command, status);
+        _command->join(_build, p->_command, status);
       }
     }
   });

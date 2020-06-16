@@ -81,26 +81,24 @@ class Stats final : public BuildObserver {
   void processCommand(shared_ptr<Command> c) noexcept {
     // Count this command and its steps
     _command_count++;
-    _step_count += c->getSteps().size();
+    //_step_count += c->getSteps().size();
   }
 
   /// Called during emulation to report an output from command c
   virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) noexcept final {
+                      shared_ptr<Version> v) noexcept override final {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept final {
+                     shared_ptr<Version> v) noexcept override final {
     _artifacts.insert(a);
   }
 
-  virtual void launchRootCommand(shared_ptr<Command> root) noexcept final { processCommand(root); }
-
   /// Called each time a command emulates a launch step
-  virtual void launchChildCommand(shared_ptr<Command> parent,
-                                  shared_ptr<Command> child) noexcept final {
+  virtual void launch(shared_ptr<Command> parent,
+                      shared_ptr<Command> child) noexcept override final {
     // Process the child command
     processCommand(child);
   }

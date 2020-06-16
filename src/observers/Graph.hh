@@ -166,7 +166,7 @@ class Graph final : public BuildObserver {
 
   /// Command c reads version v from artifact a
   virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept final {
+                     shared_ptr<Version> v) noexcept override final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getVersionID(a, v), getCommandID(c));
@@ -174,7 +174,7 @@ class Graph final : public BuildObserver {
 
   /// Command c appends version v to artifact a
   virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) noexcept final {
+                      shared_ptr<Version> v) noexcept override final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getCommandID(c), getVersionID(a, v));
@@ -182,7 +182,7 @@ class Graph final : public BuildObserver {
 
   /// Command c observes a change in version v of artifact a
   virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) noexcept final {
+                        shared_ptr<Version> expected) noexcept override final {
     _changed_commands.insert(c);
 
     // The observed version is what the emulated build produced, and will appear in the graph.
@@ -191,24 +191,28 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c observes a change when executing an IR step
-  virtual void commandChanged(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept final {
+  virtual void commandChanged(shared_ptr<Command> c,
+                              shared_ptr<const Step> s) noexcept override final {
     _changed_commands.insert(c);
   }
 
-  /// The root command is starting
-  virtual void launchRootCommand(shared_ptr<Command> root) noexcept final { getCommandID(root); }
-
-  /// A child command is starting
-  virtual void launchChildCommand(shared_ptr<Command> parent,
-                                  shared_ptr<Command> child) noexcept final {
-    // Add the edge from parent to child
-    _command_edges.emplace(getCommandID(parent), getCommandID(child));
+  /// A command is starting
+  virtual void launch(shared_ptr<Command> parent,
+                      shared_ptr<Command> child) noexcept override final {
+    // Is there a parent command?
+    if (parent) {
+      // Yes. Add the edge from parent to child
+      _command_edges.emplace(getCommandID(parent), getCommandID(child));
+    } else {
+      // No. Just get the child's ID so we have a record of it
+      getCommandID(child);
+    }
   }
 
   /// A version of artifact a on disk (observed) did not match what was produced at the end of the
   /// build (expected)
   virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) noexcept final {
+                             shared_ptr<Version> expected) noexcept override final {
     // Record the changed version
     _changed_versions.emplace(observed);
   }

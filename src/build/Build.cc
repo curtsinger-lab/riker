@@ -16,53 +16,34 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
+void Build::printTrace(ostream& o) const noexcept {
+  for (auto& [c, s] : _trace->getSteps()) {
+    if (c) {
+      o << c << ": " << s << endl;
+    } else {
+      o << s << endl;
+    }
+  }
+}
+
 void Build::run() noexcept {
-  // This is a hack to resolve the stdin, stdout, and stderr pipes before starting emulation.
-  for (const auto& [index, info] : _root->getInitialFDs()) {
-    info.getReference()->emulate(_root, *this);
+  // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
+  _trace->resolveReferences(_env);
 
-    if (index == 0) {
-      info.getReference()->getArtifact()->setName("stdin");
-      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
-      pipe->setFDs(0, -1);
-    }
+  // Empty the trace's list of steps, saving the old list for emulation
+  auto steps = _trace->reset();
 
-    if (index == 1) {
-      info.getReference()->getArtifact()->setName("stdout");
-      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
-      pipe->setFDs(-1, 1);
-    }
-
-    if (index == 2) {
-      info.getReference()->getArtifact()->setName("stderr");
-      auto pipe = dynamic_pointer_cast<PipeArtifact>(info.getReference()->getArtifact());
-      pipe->setFDs(-1, 2);
+  // Walk through the steps in the trace
+  for (auto& [cmd, step] : steps) {
+    // Is this step from a command we are re-executing?
+    if (checkRerun(cmd)) {
+      // Do nothing!
+    } else {
+      // No. Emulate the step and re-add it to the trace
+      step->emulate(cmd, *this);
+      _trace->addStep(cmd, step);
     }
   }
-
-  // Pre-resolve the reference to the root directory
-  auto root_dir = _env.getRootDir();
-  ASSERT(root_dir) << "Unable to resolve reference to root directory";
-  _root->getInitialRootDir()->resolvesTo(root_dir, SUCCESS);
-
-  // Pre-resolve the reference to the current working directory
-  auto cwd = _env.getPath(_root->getInitialWorkingDir()->getFullPath());
-  cwd->setName(".");
-  ASSERT(cwd) << "Unable to resolve reference to initial working directory";
-  _root->getInitialWorkingDir()->resolvesTo(cwd, SUCCESS);
-
-  // Pre-resolve the reference to the main executable
-  auto exe = _env.getPath(_root->getExecutable()->getFullPath());
-  ASSERT(exe) << "Unable to resolve reference to executable file";
-  _root->getExecutable()->resolvesTo(exe, SUCCESS);
-
-  // Inform observers of the launch action
-  for (const auto& o : _observers) {
-    o->launchRootCommand(_root);
-  }
-
-  // Start the build by running the root command
-  runCommand(_root);
 
   // Wait for all remaining processes to exit
   _tracer.wait();
@@ -74,13 +55,33 @@ void Build::run() noexcept {
 
 // Called when an emulated command launches another command
 void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {
-  // Inform observers of the launch action
-  for (const auto& o : _observers) {
-    o->launchChildCommand(parent, child);
+  // If this child hasn't run before, let the observers know
+  if (!child->hasExecuted()) {
+    for (const auto& o : _observers) {
+      o->commandNeverRun(child);
+    }
   }
 
-  // Now actually run the command
-  runCommand(child);
+  // Inform observers of the launch action
+  for (const auto& o : _observers) {
+    o->launch(parent, child);
+  }
+
+  // If the child command must be rerun, start it in the tracer now
+  if (checkRerun(child)) {
+    // We are rerunning this command, so clear its list of children
+    child->reset();
+
+    // Show the command if printing is on, or if this is a dry run
+    if (options::print_on_run || options::dry_run) cout << child->getShortName(80) << endl;
+
+    // Actually run the command, unless this is a dry run
+    if (!options::dry_run) {
+      // Start the command in the tracer
+      _running[child] = _tracer.start(child);
+      child->setExecuted();
+    }
+  }
 }
 
 void Build::join(shared_ptr<Command> child) noexcept {
@@ -88,25 +89,6 @@ void Build::join(shared_ptr<Command> child) noexcept {
   if (checkRerun(child)) {
     INFO << "Waiting for process running " << child;
     _tracer.wait(_running[child]);
-  }
-}
-
-void Build::runCommand(shared_ptr<Command> c) noexcept {
-  if (checkRerun(c)) {
-    // We are rerunning this command, so clear the lists of steps and children
-    c->reset();
-
-    // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run) cout << c->getShortName(80) << endl;
-
-    // Actually run the command, unless this is a dry run
-    if (!options::dry_run) {
-      // Start the command in the tracer
-      _running[c] = _tracer.start(c);
-    }
-
-  } else {
-    c->emulate(*this);
   }
 }
 

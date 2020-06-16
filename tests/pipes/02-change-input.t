@@ -46,6 +46,3 @@ Make sure the output is unchanged
 Clean up
   $ rm -rf .dodo output
   $ cp input1 input
-
-SKIP! This test does not work at the moment
-  $ exit 80

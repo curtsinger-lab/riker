@@ -44,10 +44,10 @@ const fs::path DatabaseFilename = ".dodo/db";
  */
 void do_build(int jobs) noexcept {
   // Load a build, or set up a default build if necessary
-  auto root = load_build(DatabaseFilename, true);
+  auto trace = load_build(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tree
-  Build phase1(root);
+  Build phase1(trace);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -57,7 +57,7 @@ void do_build(int jobs) noexcept {
   phase1.run();
 
   // Now create a build to run the second phase, the actual build execution
-  Build phase2(root);
+  Build phase2(trace);
 
   // Prepare the build to execute the necessary commands
   rebuild->planBuild(phase2);
@@ -65,11 +65,13 @@ void do_build(int jobs) noexcept {
   // Execute the planned build
   phase2.run();
 
+  // phase2.printTrace(cout);
+
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
   // Serialize the build
-  save_build(DatabaseFilename, root);
+  save_build(DatabaseFilename, trace);
 }
 
 /**
@@ -77,10 +79,10 @@ void do_build(int jobs) noexcept {
  */
 void do_check() noexcept {
   // Load a build, or set up a default build if necessary
-  auto root = load_build(DatabaseFilename, true);
+  auto trace = load_build(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tryy
-  Build phase1(root);
+  Build phase1(trace);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -93,7 +95,7 @@ void do_check() noexcept {
   cout << rebuild;
 
   // Plan a build
-  Build phase2(root);
+  Build phase2(trace);
   rebuild->planBuild(phase2);
 
   // Print the planned build
@@ -106,24 +108,24 @@ void do_check() noexcept {
  */
 void do_trace(string output) noexcept {
   // Load the root command
-  auto root = load_build(DatabaseFilename, false);
+  auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
-  Build b(root);
+  Build b(trace);
 
   // Set the trace printer as an observer on the build
-  auto trace = make_shared<Trace>();
-  b.addObserver(trace);
+  // auto trace = make_shared<TraceObserver>();
+  // b.addObserver(trace);
 
   // Run the emulated build
   b.run();
 
-  if (output == "-") {
+  /*if (output == "-") {
     cout << trace;
   } else {
     ofstream f(output);
     f << trace;
-  }
+  }*/
 }
 
 /**
@@ -140,10 +142,10 @@ void do_graph(string output, string type, bool show_sysfiles, bool no_render) no
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the command tree
-  auto root = load_build(DatabaseFilename, false);
+  auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
-  Build b(root);
+  Build b(trace);
 
   // Create the Graph observer and attach it to the build
   auto graph = make_shared<Graph>(show_sysfiles);
@@ -180,10 +182,10 @@ void do_graph(string output, string type, bool show_sysfiles, bool no_render) no
  */
 void do_stats(bool list_artifacts) noexcept {
   // Load the serialized command tree
-  auto root = load_build(DatabaseFilename, false);
+  auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the commands
-  Build b(root);
+  Build b(trace);
 
   // Create a stats observer and attach it to the build
   auto stats = make_shared<Stats>(list_artifacts);

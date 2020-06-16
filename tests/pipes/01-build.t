@@ -29,6 +29,3 @@ Check the output again
 
 Clean up
   $ rm -rf .dodo output
-
-SKIP! This test does not work yet
-  $ exit 80

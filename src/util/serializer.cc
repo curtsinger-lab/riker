@@ -14,12 +14,14 @@
 #include <cereal/types/memory.hpp>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/polymorphic.hpp>
+#include <cereal/types/tuple.hpp>
 #include <cereal/types/vector.hpp>
 
 #include "core/AccessFlags.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "core/Trace.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -31,8 +33,8 @@ using std::string;
 
 enum : size_t { ArchiveVersion = 13 };
 
-/// Try to load a build. Exit with an error if loading fails.
-shared_ptr<Command> load_build(string filename, bool default_fallback) noexcept {
+/// Try to load a build trace
+shared_ptr<Trace> load_build(string filename, bool default_fallback) noexcept {
   try {
     // Open the file for reading. Must pass std::ios::binary!
     ifstream f(filename, std::ios::binary);
@@ -42,28 +44,28 @@ shared_ptr<Command> load_build(string filename, bool default_fallback) noexcept 
 
     // Set up root fields for the load
     size_t version;
-    shared_ptr<Command> root;
+    shared_ptr<Trace> trace;
 
     // Attempt to load the build
-    archive(version, root);
+    archive(version, trace);
 
     // Is there a version mismatch?
     if (version != ArchiveVersion) {
       // Is default fallback enabled?
       if (default_fallback) {
         WARN << "Build database is outdated. Initializing a default build.";
-        return Command::createRootCommand();
+        return Trace::getDefault();
       } else {
         FAIL << "Build database is outdated. Rerun the build to create a new build database.";
       }
     }
 
     // If the version matches, return the root of the build
-    return root;
+    return trace;
 
   } catch (cereal::Exception& e) {
     // If fallback to a default is allowed, get a default build
-    if (default_fallback) return Command::createRootCommand();
+    if (default_fallback) return Trace::getDefault();
     FAIL << "Failed to load the build database. Have you run a build yet?";
   }
   // Unreachable, but silences warnings
@@ -124,7 +126,7 @@ std::stack<stats_node*> ancestors;
 #endif
 
 // Save a build to a file
-void save_build(string filename, shared_ptr<Command> root) noexcept {
+void save_build(string filename, shared_ptr<Trace> trace) noexcept {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 
@@ -137,7 +139,7 @@ void save_build(string filename, shared_ptr<Command> root) noexcept {
 
   // Store the build
   size_t version = ArchiveVersion;
-  archive(version, root);
+  archive(version, trace);
 
 #ifdef SERIALIZER_STATS
   output = nullptr;

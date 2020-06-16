@@ -8,6 +8,7 @@
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
+#include "core/Trace.hh"
 #include "tracing/Tracer.hh"
 
 using std::ostream;
@@ -30,11 +31,15 @@ class Build {
    * added later.
    * \param root  The root command of the build
    */
-  Build(shared_ptr<Command> root) noexcept : _root(root), _env(*this), _tracer(*this) {}
+  Build(shared_ptr<Trace> trace) noexcept : _trace(trace), _env(*this), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
+
+  void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _trace->addStep(c, s); }
+
+  void printTrace(ostream& o) const noexcept;
 
   /**
    * Mark a command for re-execution rather than emulation
@@ -51,7 +56,9 @@ class Build {
    * \param c The command that is being checked
    * \returns true if the command is marked for reexecution, otherwise false
    */
-  bool checkRerun(shared_ptr<Command> c) const noexcept { return _rerun.find(c) != _rerun.end(); }
+  bool checkRerun(shared_ptr<Command> c) const noexcept {
+    return c && _rerun.find(c) != _rerun.end();
+  }
 
   /**
    * Get the set of commands that are marked for rerun in this build.
@@ -114,11 +121,6 @@ class Build {
     for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
 
-  /// Inform observers that a command has never been run
-  void observeCommandNeverRun(shared_ptr<Command> c) noexcept {
-    for (const auto& o : _observers) o->commandNeverRun(c);
-  }
-
   /// Inform the observer that a given command's IR action would detect a change in the build env
   void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {
     for (const auto& o : _observers) o->commandChanged(c, s);
@@ -131,11 +133,8 @@ class Build {
   }
 
  private:
-  void runCommand(shared_ptr<Command> c) noexcept;
-
- private:
-  /// The root command of this build
-  shared_ptr<Command> _root;
+  /// The trace of steps in this build
+  shared_ptr<Trace> _trace;
 
   /// The environment in which this build executes
   Env _env;
