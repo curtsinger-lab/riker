@@ -344,8 +344,24 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 }
 
 void Process::_tee(int fd_in, int fd_out) noexcept {
-  WARN << "tee syscall is not updated";
-  resume();
+  // Get the descriptors
+  const auto& in_desc = _fds.at(fd_in);
+  const auto& out_desc = _fds.at(fd_out);
+
+  // The command depends on the contents of the output file, unless it is totally overwritten (not
+  // checked yet)
+  _command->contentsMatch(_build, out_desc.getReference());
+
+  // Finish the syscall and resume
+  finishSyscall([=](long rc) {
+    resume();
+
+    // The command has now read the input file, so it depends on the contents there
+    _command->contentsMatch(_build, in_desc.getReference());
+
+    // The command has now set the contents of the output file
+    _command->setContents(_build, out_desc.getReference());
+  });
 }
 
 /************************ Metadata Operations ************************/
@@ -365,7 +381,7 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
     if (rc == 0) {
       ref->resolve(_command, _build);
       PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
-      // Don't abort here becaues the dodo self-build accesses /proc/self.
+      // Don't abort here because the dodo self-build accesses /proc/self.
       // We need to fix these references for real at some point.
     }
   });
@@ -406,30 +422,48 @@ void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
   }
 }
 
-void Process::_lchown(string filename, uid_t user, gid_t group) noexcept {
-  WARN << "lchown syscall is not updated";
-  resume();
-}
-
 void Process::_fchown(int fd, uid_t user, gid_t group) noexcept {
-  WARN << "fchown syscall is not update";
-  resume();
+  // Metadata is updated in bulk, so this is equivalent to fchmod.
+  // If partial metadata updates are ever versioned, this will need to change
+  _fchmod(fd, 0);
 }
 
 void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
-  WARN << "fchownat syscall is not updated";
-  resume();
+  // Metadata is updated in bulk, so this is equivalent to fchmodat.
+  // If partial metadata updates are ever versioned, this will need to change
+  _fchmodat(dfd, filename, 0, flags);
 }
 
 void Process::_fchmod(int fd, mode_t mode) noexcept {
-  WARN << "fchmod syscall is not updated";
-  resume();
+  // Look for the descriptor. If it doesn't exist, resume the process and return
+  auto iter = _fds.find(fd);
+  if (iter == _fds.end()) {
+    resume();
+    return;
+  }
+
+  // Get the descriptor
+  auto& descriptor = iter->second;
+
+  // The command depends on the old metadata
+  _command->metadataMatch(_build, descriptor.getReference());
+
+  // Finish the sycall and resume the process
+  finishSyscall([=](long rc) {
+    resume();
+
+    // If the syscall failed, there's nothing to do
+    if (rc) return;
+
+    // The command updates the metadata
+    _command->setMetadata(_build, descriptor.getReference());
+  });
 }
 
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept {
   // Make a reference to the file that will be chmod-ed.
-  // TODO: We need permissions in the directory to chmod, right?
-  auto ref = makeAccess(filename, AccessFlags{}, dfd);
+  bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+  auto ref = makeAccess(filename, AccessFlags{.nofollow = nofollow}, dfd);
 
   // Get the artifact that we're going to chmod
   ref->resolve(_command, _build);
@@ -464,20 +498,14 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
 /************************ File Content Operations ************************/
 
 void Process::_read(int fd) noexcept {
-  // Get the descriptor
-  const auto& descriptor = _fds.at(fd);
+  // Finish the syscall and resume
+  finishSyscall([=](long rc) {
+    resume();
 
-  // The current command depends on the contents of this file
-  _command->contentsMatch(_build, descriptor.getReference());
-
-  // We can't wait for the syscall to finish here because of this scenario:
-  //  fd may be the read end of a pipe that is currently empty. The process that will write to the
-  //  pipe is also blocked, but we're not handling it now. In that case, the syscall will not
-  //  finish until we resume the *other* process. To handle this case correctly we'd need to place
-  //  a wait for any child after resuming the blocked process. pre_ and post_ hooks for syscalls
-  //  would work, but we don't always need them. Threads would also work, btu that creates other
-  //  problems.
-  resume();
+    // Create a dependency on the artifact's contents
+    const auto& descriptor = _fds.at(fd);
+    _command->contentsMatch(_build, descriptor.getReference());
+  });
 }
 
 void Process::_write(int fd) noexcept {
@@ -547,8 +575,24 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 }
 
 void Process::_sendfile(int out_fd, int in_fd) noexcept {
-  WARN << "sendfile syscall is not updated";
-  resume();
+  // Get the descriptors
+  const auto& in_desc = _fds.at(in_fd);
+  const auto& out_desc = _fds.at(out_fd);
+
+  // The command depends on the contents of the output file, unless it is totally overwritten (not
+  // checked yet)
+  _command->contentsMatch(_build, out_desc.getReference());
+
+  // Finish the syscall and resume
+  finishSyscall([=](long rc) {
+    resume();
+
+    // The command has now read the input file, so it depends on the contents there
+    _command->contentsMatch(_build, in_desc.getReference());
+
+    // The command has now set the contents of the output file
+    _command->setContents(_build, out_desc.getReference());
+  });
 }
 
 void Process::_truncate(string pathname, long length) noexcept {

@@ -139,7 +139,9 @@ class Process {
   void _fstatat(int dirfd, string pathname, int flags) noexcept;
   void _statx(int dfd, string pathname, int flags) noexcept { _fstatat(dfd, pathname, flags); }
   void _chown(string f, uid_t usr, gid_t grp) noexcept { _fchownat(AT_FDCWD, f, usr, grp, 0); }
-  void _lchown(string filename, uid_t user, gid_t group) noexcept;
+  void _lchown(string f, uid_t usr, gid_t grp) noexcept {
+    _fchownat(AT_FDCWD, f, usr, grp, AT_SYMLINK_NOFOLLOW);
+  }
   void _fchown(int fd, uid_t user, gid_t group) noexcept;
   void _fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) noexcept;
   void _chmod(string filename, mode_t mode) noexcept { _fchmodat(AT_FDCWD, filename, mode, 0); }
