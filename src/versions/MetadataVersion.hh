@@ -35,7 +35,10 @@ struct Metadata {
 
   /// Compare to another Metadata instance
   bool operator==(const Metadata& other) const noexcept {
-    return std::tie(uid, gid, mode) == std::tie(other.uid, other.gid, other.mode);
+    if (uid != other.uid) return false;
+    if (gid != other.gid) return false;
+    if ((mode & S_IFMT) != (other.mode & S_IFMT)) return false;
+    return true;
   }
 
   SERIALIZE(uid, gid, mode);
