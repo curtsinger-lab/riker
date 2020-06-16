@@ -8,6 +8,7 @@
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
+#include "tracing/Tracer.hh"
 
 using std::ostream;
 using std::set;
@@ -29,7 +30,7 @@ class Build {
    * added later.
    * \param root  The root command of the build
    */
-  Build(shared_ptr<Command> root) noexcept : _root(root), _env(*this) {}
+  Build(shared_ptr<Command> root) noexcept : _root(root), _env(*this), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -75,6 +76,13 @@ class Build {
    * \param child  The newly-launched command
    */
   void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept;
+
+  /**
+   * Tell the build to join with a command
+   * \param parent The command that is waiting
+   * \param child  The child being joined
+   */
+  void join(shared_ptr<Command> child) noexcept;
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
@@ -131,6 +139,12 @@ class Build {
 
   /// The environment in which this build executes
   Env _env;
+
+  /// The tracer that will be used to execute any commands that must rerun
+  Tracer _tracer;
+
+  /// A map of running commands to their root processes
+  map<shared_ptr<Command>, shared_ptr<Process>> _running;
 
   /// Commands that should be executed rather than emulated
   set<shared_ptr<Command>> _rerun;

@@ -75,15 +75,21 @@ void Tracer::cleanup() noexcept {
   }
 }
 
-void Tracer::run(shared_ptr<Command> cmd) noexcept {
+shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
   // Launch the command with tracing
-  launchTraced(cmd);
+  return launchTraced(cmd);
+}
 
+void Tracer::wait(shared_ptr<Process> p) noexcept {
+  // Process events until the given command has exited
   // Sometime we get tracing events before we can process them. This queue holds that list
   list<pair<pid_t, int>> event_queue;
 
   // Process tracaing events
   while (true) {
+    // If we're waiting for a specific process, and that process has exited, return now
+    if (p && p->hasExited()) return;
+
     int wait_status;
     pid_t child;
 
@@ -109,7 +115,7 @@ void Tracer::run(shared_ptr<Command> cmd) noexcept {
 
     // If we didn't pull an event from the queue, wait for one
     while (!have_event) {
-      child = wait(&wait_status);
+      child = ::wait(&wait_status);
 
       // Handle errors
       if (child == -1) {
@@ -177,7 +183,7 @@ void Tracer::run(shared_ptr<Command> cmd) noexcept {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
+shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   LOG << "Launching " << cmd;
 
   // Get a reference to the directory where the command will be started
@@ -338,6 +344,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   options |= PTRACE_O_TRACEEXEC;     // Handle execs more reliably
   options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
   options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
+  options |= PTRACE_O_TRACEEXIT;     // Trace exits
 
   FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
       << "Failed to set ptrace options: " << ERR;
@@ -360,8 +367,11 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  _processes[child_pid] =
-      make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
+  auto p = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
+
+  _processes[child_pid] = p;
+
+  return p;
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
@@ -395,10 +405,11 @@ void Tracer::handleFork(shared_ptr<Process> p) noexcept {
 
 void Tracer::handleExit(shared_ptr<Process> p) noexcept {
   _processes.erase(p->_pid);
+  p->setExited();
   _exited.emplace(p->_pid, p);
 }
 
-shared_ptr<Process> Tracer::join(pid_t pid) noexcept {
+shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
   auto result = _exited[pid];
   _exited.erase(pid);
   return result;

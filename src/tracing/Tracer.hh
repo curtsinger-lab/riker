@@ -15,25 +15,27 @@ class Command;
 class Process;
 
 class Tracer {
+  friend class Process;
+
  public:
   /// Create a tracer linked to a specific rebuild environment
   Tracer(Build& build) noexcept;
 
-  /// Destroy thsi tracer
+  /// Destroy this tracer
   ~Tracer() noexcept;
 
-  /// Run a command in this tracer
-  void run(shared_ptr<Command> cmd) noexcept;
+  /// Start a command in this tracer
+  shared_ptr<Process> start(shared_ptr<Command> cmd) noexcept;
+
+  /// Wait for a specific process to exit, or all processes if unspecified
+  void wait(shared_ptr<Process> p = nullptr) noexcept;
 
   /// Try to clean up any remaining processes managed by this tracer
   void cleanup() noexcept;
 
-  /// Join an exited process
-  shared_ptr<Process> join(pid_t pid) noexcept;
-
  private:
   /// Launch a command with tracing enabled
-  void launchTraced(shared_ptr<Command> cmd) noexcept;
+  shared_ptr<Process> launchTraced(shared_ptr<Command> cmd) noexcept;
 
   /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Process> p) noexcept;
@@ -46,6 +48,9 @@ class Tracer {
 
   /// Called when a traced process exits
   void handleExit(shared_ptr<Process> p) noexcept;
+
+  /// Claim a process from the set of exited processes
+  shared_ptr<Process> getExited(pid_t pid) noexcept;
 
  private:
   /// This tracer is executing commands on behalf of this build

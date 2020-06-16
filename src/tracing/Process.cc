@@ -794,7 +794,7 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
     if (rc <= 0) return;
 
     // Get the process that was returned
-    auto p = _tracer.join(rc);
+    auto p = _tracer.getExited(rc);
 
     ASSERT(p) << "wait4 syscall returned an untracked PID " << rc;
 

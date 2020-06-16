@@ -83,6 +83,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get this command's exit status
   int getExitStatus() const noexcept { return _exit_status; }
 
+  /// Set this command's exit status, and record that it has exited
+  void setExitStatus(int status) noexcept { _exit_status = status; }
+
   /// Check if this command has never run
   bool neverRun() const noexcept { return _steps.size() == 0; }
 

@@ -50,6 +50,11 @@ class Process {
     return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
   }
 
+  /// Has this process exited?
+  bool hasExited() const noexcept { return _exited; }
+
+  void setExited() noexcept { _exited = true; }
+
   /// Resume a traced process that is currently stopped
   void resume() noexcept;
 
@@ -196,6 +201,9 @@ class Process {
 
   /// The command this process is running
   shared_ptr<Command> _command;
+
+  /// Has this process exited?
+  bool _exited = false;
 
   pid_t _pid;                     //< This process' PID
   shared_ptr<Access> _cwd;        //< A reference to this process' current working directory

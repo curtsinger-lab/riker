@@ -196,6 +196,9 @@ void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // Inform the build that it should join the child command
+  build.join(_cmd);
+
   // Did the child command's exit status match the expected result?
   if (_cmd->getExitStatus() != _exit_status) {
     build.observeCommandChange(c, shared_from_this());

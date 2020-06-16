@@ -64,6 +64,9 @@ void Build::run() noexcept {
   // Start the build by running the root command
   runCommand(_root);
 
+  // Wait for all remaining processes to exit
+  _tracer.wait();
+
   // Ask the environment to check remaining artifacts for changes, and to save metadata and
   // fingerprints for artifacts that were created during the build
   _env.finalize();
@@ -80,6 +83,14 @@ void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexce
   runCommand(child);
 }
 
+void Build::join(shared_ptr<Command> child) noexcept {
+  // If the command is in the rerun set, tell the tracer to wait for it
+  if (checkRerun(child)) {
+    INFO << "Waiting for process running " << child;
+    _tracer.wait(_running[child]);
+  }
+}
+
 void Build::runCommand(shared_ptr<Command> c) noexcept {
   if (checkRerun(c)) {
     // We are rerunning this command, so clear the lists of steps and children
@@ -90,8 +101,8 @@ void Build::runCommand(shared_ptr<Command> c) noexcept {
 
     // Actually run the command, unless this is a dry run
     if (!options::dry_run) {
-      // Set up a tracing context and run the command
-      Tracer(*this).run(c);
+      // Start the command in the tracer
+      _running[c] = _tracer.start(c);
     }
 
   } else {
