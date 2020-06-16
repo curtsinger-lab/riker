@@ -16,16 +16,6 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-void Build::printTrace(ostream& o) const noexcept {
-  for (auto& [c, s] : _trace->getSteps()) {
-    if (c) {
-      o << c << ": " << s << endl;
-    } else {
-      o << s << endl;
-    }
-  }
-}
-
 void Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveReferences(_env);

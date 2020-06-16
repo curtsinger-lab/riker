@@ -39,8 +39,6 @@ class Build {
 
   void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _trace->addStep(c, s); }
 
-  void printTrace(ostream& o) const noexcept;
-
   /**
    * Mark a command for re-execution rather than emulation
    * \param c The command that should be executed rather than emulated

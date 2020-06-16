@@ -15,7 +15,6 @@
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "observers/Stats.hh"
-#include "observers/Trace.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
@@ -113,19 +112,15 @@ void do_trace(string output) noexcept {
   // Set up a build to emulate the command tree
   Build b(trace);
 
-  // Set the trace printer as an observer on the build
-  // auto trace = make_shared<TraceObserver>();
-  // b.addObserver(trace);
-
-  // Run the emulated build
+  // Run the emulated build to assign names to versions
   b.run();
 
-  /*if (output == "-") {
+  if (output == "-") {
     cout << trace;
   } else {
     ofstream f(output);
     f << trace;
-  }*/
+  }
 }
 
 /**

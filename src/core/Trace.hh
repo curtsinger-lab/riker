@@ -2,12 +2,14 @@
 
 #include <list>
 #include <memory>
+#include <ostream>
 #include <tuple>
 
 #include "util/log.hh"
 #include "util/serializer.hh"
 
 using std::list;
+using std::ostream;
 using std::shared_ptr;
 using std::tuple;
 
@@ -52,6 +54,13 @@ class Trace {
   /// Get the list of IR steps in this trace
   const StepList& getSteps() const noexcept { return _steps; }
 
+  /// Print this trace
+  ostream& print(ostream& o) const noexcept;
+
+  friend ostream& operator<<(ostream& o, const Trace& t) noexcept { return t.print(o); }
+
+  friend ostream& operator<<(ostream& o, const Trace* t) noexcept { return t->print(o); }
+
  private:
   /// Initialize this trace as a default trace
   void init() noexcept;
@@ -74,5 +83,5 @@ class Trace {
   StepList _steps;
 
   Trace() = default;
-  SERIALIZE(_root, _cwd, _exe, _stdin, _stdout, _stderr, _steps);
+  SERIALIZE(_stdin, _stdout, _stderr, _root, _cwd, _exe, _steps);
 };

@@ -239,7 +239,14 @@ static map<int8_t, string> errors = {
 
 /// Print a PIPE reference
 ostream& Pipe::print(ostream& o) const noexcept {
-  return o << getName() << " = PIPE() -> " << errors[getExpectedResult()];
+  o << getName() << " = PIPE()";
+  if (isResolved()) {
+    // Print the artifact this pipe resolves to
+    o << " -> " << getArtifact();
+  } else {
+    o << " expect " << errors[getResult()];
+  }
+  return o;
 }
 
 /// Print an ACCESS reference
@@ -270,14 +277,14 @@ ostream& SetContents::print(ostream& o) const noexcept {
 
 // Print a launch action
 ostream& Launch::print(ostream& o) const noexcept {
-  o << "LAUNCH(" << _cmd << ", [";
+  o << "LAUNCH(" << _cmd << ", fds={";
   bool first = true;
   for (const auto& entry : _cmd->getInitialFDs()) {
     if (!first) o << ", ";
     first = false;
-    o << entry.second.getReference()->getName();
+    o << entry.first << ": " << entry.second.getReference()->getName();
   }
-  return o << "])";
+  return o << "})";
 }
 
 // Print a join action
