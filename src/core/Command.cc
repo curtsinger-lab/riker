@@ -302,3 +302,14 @@ const shared_ptr<Command>& Command::launch(shared_ptr<Access> exe, vector<string
   _steps.emplace_back(make_shared<Launch>(child));
   return _children.emplace_back(child);
 }
+
+// This command joined with a child command
+void Command::join(shared_ptr<Command> child, int exit_status) noexcept {
+  LOG << this << " joined command " << child << " with exit status " << exit_status;
+
+  // Save the exit status in the child
+  child->_exit_status = exit_status;
+
+  // Add a join action to this command's steps
+  _steps.emplace_back(make_shared<Join>(child, exit_status));
+}

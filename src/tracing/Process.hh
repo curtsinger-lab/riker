@@ -14,11 +14,13 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/user.h>
+#include <sys/wait.h>
 
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
 
 using std::function;
+using std::make_shared;
 using std::map;
 using std::ostream;
 using std::set;
@@ -30,13 +32,23 @@ namespace fs = std::filesystem;
 
 class Build;
 class Command;
-class RebuildPlanner;
+class Tracer;
 
 class Process {
  public:
-  Process(Build& build, pid_t pid, shared_ptr<Access> cwd, shared_ptr<Access> root,
-          shared_ptr<Command> command, map<int, FileDescriptor> fds) noexcept :
-      _build(build), _pid(pid), _cwd(cwd), _root(root), _command(command), _fds(fds) {}
+  Process(Build& build, Tracer& tracer, shared_ptr<Command> command, pid_t pid,
+          shared_ptr<Access> cwd, shared_ptr<Access> root, map<int, FileDescriptor> fds) noexcept :
+      _build(build),
+      _tracer(tracer),
+      _command(command),
+      _pid(pid),
+      _cwd(cwd),
+      _root(root),
+      _fds(fds) {}
+
+  shared_ptr<Process> fork(pid_t child_pid) noexcept {
+    return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
+  }
 
   /// Resume a traced process that is currently stopped
   void resume() noexcept;
@@ -173,14 +185,23 @@ class Process {
     _execveat(AT_FDCWD, filename, args, env);
   }
   void _execveat(int dfd, string filename, vector<string> args, vector<string> env) noexcept;
+  void _wait4(pid_t pid, int* wstatus, int options) noexcept;
+  void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 
+  /// The build this process is running as a part of
   Build& _build;
-  pid_t _pid;
-  shared_ptr<Access> _cwd;
-  shared_ptr<Access> _root;
-  shared_ptr<Command> _command;
-  set<shared_ptr<Artifact>> _mmaps;
-  map<int, FileDescriptor> _fds;
 
+  /// The tracer tha manages this process
+  Tracer& _tracer;
+
+  /// The command this process is running
+  shared_ptr<Command> _command;
+
+  pid_t _pid;                     //< This process' PID
+  shared_ptr<Access> _cwd;        //< A reference to this process' current working directory
+  shared_ptr<Access> _root;       //< A reference to this process' current root directory
+  map<int, FileDescriptor> _fds;  //< This process' file descriptor table
+
+  /// The handler function that should run when the next system call is finished
   function<void(long)> _post_syscall_handler;
 };

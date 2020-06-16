@@ -28,6 +28,9 @@ class Tracer {
   /// Try to clean up any remaining processes managed by this tracer
   void cleanup() noexcept;
 
+  /// Join an exited process
+  shared_ptr<Process> join(pid_t pid) noexcept;
+
  private:
   /// Launch a command with tracing enabled
   void launchTraced(shared_ptr<Command> cmd) noexcept;
@@ -51,4 +54,7 @@ class Tracer {
   /// A map from process IDs to processes. Note that a process will appear multiple times if it uses
   /// multiple threads; all entries will point to the same Process instance.
   map<pid_t, shared_ptr<Process>> _processes;
+
+  /// The map of processes that have exited
+  map<pid_t, shared_ptr<Process>> _exited;
 };

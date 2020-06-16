@@ -324,6 +324,40 @@ class Launch final : public Step, public std::enable_shared_from_this<Launch> {
 };
 
 /**
+ * A Join action records when a parent command joins with a specific child, and saves the exit
+ * status from that child.
+ */
+class Join final : public Step, public std::enable_shared_from_this<Join> {
+ public:
+  /// Create a JOIN action
+  Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
+
+  /// Get the command that was joined with
+  shared_ptr<Command> getCommand() const noexcept { return _cmd; }
+
+  /// Get the exit status for the child command
+  int getExitStatus() const noexcept { return _exit_status; }
+
+  /**
+   * Emulate this IR step in a given environment
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   */
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+
+  /// Print a LAUNCH action
+  virtual ostream& print(ostream& o) const noexcept final;
+
+ private:
+  shared_ptr<Command> _cmd;  //< The command that was joined with
+  int _exit_status;          //< The exit status of the child
+
+  // Create default constructor and specify fields for serialization
+  Join() = default;
+  SERIALIZE(BASE(Step), _cmd, _exit_status);
+};
+
+/**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
 class SetMetadata final : public Step, public std::enable_shared_from_this<SetMetadata> {

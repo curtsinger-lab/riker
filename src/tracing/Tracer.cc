@@ -361,7 +361,7 @@ void Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   _processes[child_pid] =
-      make_shared<Process>(_build, child_pid, cwd, root, cmd, cmd->getInitialFDs());
+      make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
 }
 
 void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
@@ -389,27 +389,23 @@ void Tracer::handleFork(shared_ptr<Process> p) noexcept {
   // If the call failed, do nothing
   if (new_pid == -1) return;
 
-  LOG << "fork called in " << p;
-
   // Create a new process running the same command
-  auto new_proc = make_shared<Process>(_build, new_pid, p->_cwd, p->_root, p->_command, p->_fds);
-  _processes[new_pid] = new_proc;
-
-  LOG << "new process " << new_proc;
+  _processes[new_pid] = p->fork(new_pid);
 }
 
 void Tracer::handleExit(shared_ptr<Process> p) noexcept {
-  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
-  // the syscall has done most of the work
-
-  // Remove the process. No need to resume, since the process has exited
   _processes.erase(p->_pid);
+  _exited.emplace(p->_pid, p);
+}
+
+shared_ptr<Process> Tracer::join(pid_t pid) noexcept {
+  auto result = _exited[pid];
+  _exited.erase(pid);
+  return result;
 }
 
 void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   auto regs = p->getRegisters();
-
-  LOG << p->_pid << ": " << syscalls[regs.SYSCALL_NUMBER];
 
   // This giant switch statement invokes the appropriate system call handler on a traced
   // process after decoding the syscall arguments.
@@ -422,6 +418,15 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
     case __NR_execveat:
       p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
                    p->readArgvArray(regs.SYSCALL_ARG3), p->readArgvArray(regs.SYSCALL_ARG4));
+      break;
+
+    case __NR_wait4:
+      p->_wait4(regs.SYSCALL_ARG1, (int*)regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
+      break;
+
+    case __NR_waitid:
+      p->_waitid((idtype_t)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, (siginfo_t*)regs.SYSCALL_ARG3,
+                 regs.SYSCALL_ARG4);
       break;
 
     case __NR_stat:

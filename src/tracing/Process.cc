@@ -14,13 +14,13 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "tracing/Tracer.hh"
 #include "tracing/syscalls.hh"
 #include "util/log.hh"
 #include "util/path.hh"
 
 using std::dynamic_pointer_cast;
 using std::function;
-using std::make_shared;
 
 namespace fs = std::filesystem;
 
@@ -39,7 +39,6 @@ void Process::resume() noexcept {
 }
 
 void Process::finishSyscall(function<void(long)> handler) noexcept {
-  INFO << _pid << ": setting handler";
   ASSERT(!_post_syscall_handler) << "Process already has an unexecuted post-syscall handler";
 
   // Set the post-syscall handler
@@ -50,7 +49,6 @@ void Process::finishSyscall(function<void(long)> handler) noexcept {
 }
 
 void Process::syscallFinished() noexcept {
-  INFO << _pid << ": running handler";
   ASSERT(_post_syscall_handler) << "Process does not have a post-syscall handler";
 
   // Set up an empty handler
@@ -785,4 +783,33 @@ void Process::_execveat(int dfd, string filename, vector<string> args,
     // that participate in that command. This will require some extra bookkeeping. For now, we
     // over-approximate the set of commands that have a file mmapped.
   });
+}
+
+void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
+  finishSyscall([=](long rc) {
+    int status = readData<int>((uintptr_t)wstatus);
+    resume();
+
+    // If the syscall failed or returned immediately after WNOHANG, stop processing
+    if (rc <= 0) return;
+
+    // Get the process that was returned
+    auto p = _tracer.join(rc);
+
+    ASSERT(p) << "wait4 syscall returned an untracked PID " << rc;
+
+    if (p->_command != _command) {
+      if (WIFEXITED(status)) {
+        _command->join(p->_command, WEXITSTATUS(status));
+      } else if (WIFSIGNALED(status)) {
+        // TODO: Should we encode termination by signal in some other way?
+        _command->join(p->_command, status);
+      }
+    }
+  });
+}
+
+void Process::_waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept {
+  WARN << "waitid syscall is not handled yet";
+  resume();
 }

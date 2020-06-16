@@ -84,7 +84,7 @@ inline static map<uint32_t, string> syscalls = {
     /* 058 */  // skip vfork
     /* 059 */ SYSCALL_ENTRY(execve),
     /* 060 */  // skip exit
-    /* 061 */  // skip wait4
+    /* 061 */ SYSCALL_ENTRY(wait4),
     /* 062 */  // skip kill
     /* 063 */  // skip uname
     /* 064 */  // skip semget
@@ -270,7 +270,7 @@ inline static map<uint32_t, string> syscalls = {
     /* 244 */  // skip mq_notify
     /* 245 */  // skip mq_getsetattr
     /* 246 */  // skip kexec_load
-    /* 247 */  // skip waitid
+    /* 247 */ SYSCALL_ENTRY(waitid),
     /* 248 */  // skip add_key
     /* 249 */  // skip request_key
     /* 250 */  // skip keyctl

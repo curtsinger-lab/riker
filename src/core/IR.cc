@@ -195,6 +195,13 @@ void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.launch(c, _cmd);
 }
 
+void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // Did the child command's exit status match the expected result?
+  if (_cmd->getExitStatus() != _exit_status) {
+    build.observeCommandChange(c, shared_from_this());
+  }
+}
+
 /******************* Access Methods ********************/
 
 int Access::open() const noexcept {
@@ -268,4 +275,9 @@ ostream& Launch::print(ostream& o) const noexcept {
     o << entry.second.getReference()->getName();
   }
   return o << "])";
+}
+
+// Print a join action
+ostream& Join::print(ostream& o) const noexcept {
+  return o << "JOIN(" << _cmd << ", " << _exit_status << ")";
 }

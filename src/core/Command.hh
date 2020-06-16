@@ -80,6 +80,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the list of this command's children
   const list<shared_ptr<Command>>& getChildren() const noexcept { return _children; }
 
+  /// Get this command's exit status
+  int getExitStatus() const noexcept { return _exit_status; }
+
   /// Check if this command has never run
   bool neverRun() const noexcept { return _steps.size() == 0; }
 
@@ -126,6 +129,9 @@ class Command : public std::enable_shared_from_this<Command> {
                                     map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
                                     shared_ptr<Access> root) noexcept;
 
+  /// This command joined with a child command
+  void join(shared_ptr<Command> child, int exit_status) noexcept;
+
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
@@ -158,7 +164,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The list of this command's children, in order of creation
   list<shared_ptr<Command>> _children;
 
+  /// The exit status recorded for this command after its last execution
+  int _exit_status;
+
   // Create default constructor and specify fields for serialization
   Command() = default;
-  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _steps, _children);
+  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _steps, _children,
+            _exit_status);
 };
