@@ -6,8 +6,8 @@
 #include <optional>
 #include <ostream>
 #include <string>
-#include <tuple>
 
+#include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -17,7 +17,6 @@ using std::make_shared;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 using std::weak_ptr;
 
 namespace fs = std::filesystem;
@@ -153,11 +152,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * Attempt to access a directory entry in the current artifact.
    * \param self  The path that was used to reach this artifact
    * \param entry The name of the entry being requested
-   * \returns a tuple of the resulting artifact (possibly nullptr) and a result code
+   * \returns a resolution result, holding either an artifact or error code
    */
-  virtual tuple<shared_ptr<Artifact>, int> getEntry(fs::path self, string entry) noexcept {
+  virtual Resolution getEntry(fs::path self, string entry) noexcept {
     // This is not a directory, so the access always fails
-    return {nullptr, ENOTDIR};
+    return ENOTDIR;
   }
 
   virtual void setEntry(string entry, shared_ptr<Artifact> target) noexcept {}

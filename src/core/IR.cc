@@ -27,7 +27,7 @@ using std::shared_ptr;
 using std::tuple;
 
 void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  resolvesTo(build.getEnv().getPipe(c), SUCCESS);
+  resolvesTo(build.getEnv().getPipe(c));
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
@@ -43,9 +43,9 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   if (path_iter == path.end()) {
     auto a = _base->getArtifact();
     if (!a->checkAccess(_flags)) {
-      resolvesTo(nullptr, EACCES);
+      resolvesTo(EACCES);
     } else {
-      resolvesTo(a, SUCCESS);
+      resolvesTo(a);
     }
     return;
   }
@@ -68,38 +68,38 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
     // Are we processing the final entry in the path?
     if (path_iter == path.end()) {
       // Yes. Make the access with the flags for this reference
-      auto [artifact, rc] = dir->getEntry(dir_path, entry);
+      auto res = dir->getEntry(dir_path, entry);
 
       // If there's an artifact, set its name
-      if (artifact) artifact->setName(dir_name.lexically_normal());
+      if (res) res->setName(dir_name.lexically_normal());
 
-      if (_flags.create && _flags.exclusive && rc == SUCCESS) {
+      if (_flags.create && _flags.exclusive && res) {
         // The access was required to create the file, but it already exists
-        resolvesTo(nullptr, EEXIST);
+        resolvesTo(EEXIST);
         return;
 
-      } else if (_flags.create && rc == ENOENT) {
+      } else if (_flags.create && res == ENOENT) {
         // No entry exists, but it is being created by this access
-        artifact = build.getEnv().createFile(getFullPath(), c, _flags);
+        auto artifact = build.getEnv().createFile(getFullPath(), c, _flags);
         dir->setEntry(entry, artifact);
         // TODO: what happens if open creates a read-only file, but the open call is accessing it in
         // writable mode? Is the file created?
-        resolvesTo(artifact, SUCCESS);
+        resolvesTo(artifact);
         return;
 
-      } else if (rc != SUCCESS) {
+      } else if (!res) {
         // The access failed for some other reason
-        resolvesTo(nullptr, rc);
+        resolvesTo(res);
         return;
 
-      } else if (!artifact->checkAccess(_flags)) {
+      } else if (!res->checkAccess(_flags)) {
         // The entry exists, but the requested access is not allowed
-        resolvesTo(nullptr, EACCES);
+        resolvesTo(EACCES);
         return;
 
       } else {
         // Resolution succeeded
-        resolvesTo(artifact, SUCCESS);
+        resolvesTo(res);
         return;
       }
 
@@ -107,18 +107,18 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
       // This is NOT the last entry along the path. First, make sure we have permission to access
       // entries in this directory (requires execute permissions)
       if (!dir->checkAccess(AccessFlags{.x = true})) {
-        resolvesTo(nullptr, EACCES);
+        resolvesTo(EACCES);
         return;
       }
 
       // Now ask the directory for the entry we want
-      auto [artifact, rc] = dir->getEntry(dir_path, entry);
+      auto res = dir->getEntry(dir_path, entry);
 
       // If the access failed, record the result and return
-      if (rc != SUCCESS) {
-        resolvesTo(artifact, rc);
+      if (res != SUCCESS) {
+        resolvesTo(res);
         return;
-      } else if (auto symlink = dynamic_pointer_cast<SymlinkArtifact>(artifact)) {
+      } else if (auto symlink = res.as<SymlinkArtifact>()) {
         auto link_dest = symlink->readlink();
         shared_ptr<Access> link_ref;
 
@@ -126,7 +126,7 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
           // Resolve the symlink relative to the directory that holds it
           auto dir_ref =
               make_shared<Access>(build.getEnv().getRootRef(), dir_path, AccessFlags{.x = true});
-          dir_ref->resolvesTo(dir, SUCCESS);
+          dir_ref->resolvesTo(dir);
 
           link_ref = make_shared<Access>(dir_ref, link_dest, AccessFlags{.x = true});
 
@@ -140,17 +140,17 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
         link_ref->resolve(c, build);
 
         // If the symlink did not resolve, return the error
-        if (!link_ref->isResolved()) {
-          resolvesTo(nullptr, link_ref->getResult());
+        if (!link_ref->getResolution()) {
+          resolvesTo(link_ref->getResolution());
           return;
         }
 
         // The link resolved, so the current directory is going to be the target of the link
-        artifact = link_ref->getArtifact();
+        res = link_ref->getResolution();
       }
 
       // Otherwise, move on to the next directory and update our record of its path
-      dir = artifact;
+      dir = res;
       dir_path /= entry;
     }
   }
@@ -161,18 +161,18 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
 void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Resolve the reference
   resolve(c, build);
-  if (getResult() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
+  if (getResolution() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
 }
 
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // Resolve the reference
   resolve(c, build);
-  if (getResult() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
+  if (getResolution() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference does not resolve, report a change
-  if (_ref->getResult() != SUCCESS) {
+  if (!_ref->getResolution()) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
@@ -189,7 +189,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
-  if (_ref->getResult() != SUCCESS) {
+  if (!_ref->getResolution()) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
@@ -206,7 +206,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
-  if (_ref->getResult() != SUCCESS) {
+  if (!_ref->getResolution()) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
@@ -217,7 +217,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
-  if (_ref->getResult() != SUCCESS) {
+  if (!_ref->getResolution()) {
     build.observeCommandChange(c, shared_from_this());
     return;
   }
@@ -269,7 +269,8 @@ ostream& Pipe::print(ostream& o) const noexcept {
     // Print the artifact this pipe resolves to
     o << " -> " << getArtifact();
   } else {
-    o << " expect " << errors[getResult()];
+    int rc = getResolution();
+    o << " expect " << errors[rc];
   }
   return o;
 }

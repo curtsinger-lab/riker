@@ -4,14 +4,13 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <tuple>
 
 #include "artifacts/Artifact.hh"
+#include "build/Resolution.hh"
 
 using std::map;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 using std::weak_ptr;
 
 namespace fs = std::filesystem;
@@ -35,9 +34,9 @@ class DirArtifact final : public Artifact {
    * Attempt to access a directory entry in the current artifact.
    * \param self  The path that was used to reach this directory
    * \param entry The name of the entry being requested
-   * \returns a tuple of the resulting artifact (possibly nullptr) and a result code
+   * \returns a resolution result, either an artifact or an error code
    */
-  virtual tuple<shared_ptr<Artifact>, int> getEntry(fs::path self, string entry) noexcept final;
+  virtual Resolution getEntry(fs::path self, string entry) noexcept final;
 
   virtual void setEntry(string entry, shared_ptr<Artifact> target) noexcept final;
 

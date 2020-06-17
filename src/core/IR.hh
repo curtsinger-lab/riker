@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
 #include "util/UniqueID.hh"
 #include "util/log.hh"
@@ -20,9 +21,6 @@ using std::string;
 using std::tuple;
 
 namespace fs = std::filesystem;
-
-// Add a success constant so we don't have to keep returning 0 as a magic number
-enum : int8_t { SUCCESS = 0 };
 
 class Artifact;
 class Build;
@@ -93,23 +91,17 @@ class Reference : public Step {
    */
   virtual void resolve(shared_ptr<Command> c, Build& build) noexcept = 0;
 
-  /// Has this reference been resolved to an artifact?
-  bool isResolved() const noexcept { return _artifact != nullptr; }
+  /// Get the result of resolving this reference
+  Resolution getResolution() const noexcept { return _res; }
+
+  /// Check if this reference is resolved
+  bool isResolved() const noexcept { return _res; }
 
   /// Get the artifact this reference resolved to
-  shared_ptr<Artifact> getArtifact() const noexcept {
-    ASSERT(_artifact) << "Attempted to access unresolved reference " << this;
-    return _artifact;
-  }
-
-  /// Get the result of trying to resolve this reference
-  int getResult() const noexcept { return _rc; }
+  shared_ptr<Artifact> getArtifact() const noexcept { return _res; }
 
   /// A sub-type can report the result of resolving this artifact using this method
-  void resolvesTo(shared_ptr<Artifact> artifact, int rc) noexcept {
-    _artifact = artifact;
-    _rc = rc;
-  }
+  void resolvesTo(Resolution res) noexcept { _res = res; }
 
  private:
   /// The expected result from this access
@@ -122,11 +114,8 @@ class Reference : public Step {
   /// Assign a unique ID to each reference
   UniqueID<Reference> _id;
 
-  /// The artifact this reference resolved to
-  shared_ptr<Artifact> _artifact;
-
   /// The result of resolving this reference
-  int _rc;
+  Resolution _res;
 };
 
 /// Create a reference to a new pipe
@@ -197,7 +186,7 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   tuple<struct stat, int> lstat() const noexcept;
 
   /// Call stat on this reference
-  //tuple<struct stat, int> stat() const noexcept;
+  // tuple<struct stat, int> stat() const noexcept;
 
   /// Create an access relative to this reference
   shared_ptr<Access> get(string p, AccessFlags flags) noexcept {

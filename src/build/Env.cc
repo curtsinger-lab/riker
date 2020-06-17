@@ -3,7 +3,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <tuple>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -30,7 +29,6 @@ using std::make_shared;
 using std::map;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe
@@ -138,7 +136,7 @@ shared_ptr<Artifact> Env::getRootDir() noexcept {
 // Get a reference to the root directory
 shared_ptr<Access> Env::getRootRef(AccessFlags flags) noexcept {
   auto ref = make_shared<Access>(nullptr, "/", flags);
-  ref->resolvesTo(getRootDir(), SUCCESS);
+  ref->resolvesTo(getRootDir());
   return ref;
 }
 
@@ -146,7 +144,7 @@ shared_ptr<Access> Env::getRootRef(AccessFlags flags) noexcept {
 void Env::finalize() noexcept {
   if (_root_dir) {
     auto root_ref = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
-    root_ref->resolvesTo(_root_dir, SUCCESS);
+    root_ref->resolvesTo(_root_dir);
     _root_dir->finalize(root_ref);
   }
 }

@@ -3,9 +3,9 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-#include <tuple>
 
 #include "build/Env.hh"
+#include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "util/log.hh"
 
@@ -13,7 +13,6 @@ using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -37,9 +36,9 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   Artifact::finalize(ref);
 }
 
-tuple<shared_ptr<Artifact>, int> DirArtifact::getEntry(fs::path self, string entry) noexcept {
-  if (entry == ".") return {shared_from_this(), SUCCESS};
-  if (entry == "..") return {_env.getPath(self / entry), SUCCESS};
+Resolution DirArtifact::getEntry(fs::path self, string entry) noexcept {
+  if (entry == ".") return shared_from_this();
+  if (entry == "..") return _env.getPath(self / entry);
 
   // If there is no record of this entry, look on the filesystem
   auto iter = _entries.find(entry);
@@ -51,9 +50,9 @@ tuple<shared_ptr<Artifact>, int> DirArtifact::getEntry(fs::path self, string ent
   auto artifact = iter->second.lock();
 
   if (artifact) {
-    return {artifact, SUCCESS};
+    return artifact;
   } else {
-    return {nullptr, ENOENT};
+    return ENOENT;
   }
 }
 
