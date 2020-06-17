@@ -11,8 +11,10 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/Pipe.hh"
+#include "artifacts/Symlink.hh"
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
+#include "build/Env.hh"
 #include "core/Command.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
@@ -116,6 +118,35 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
       if (rc != SUCCESS) {
         resolvesTo(artifact, rc);
         return;
+      } else if (auto symlink = dynamic_pointer_cast<SymlinkArtifact>(artifact)) {
+        auto link_dest = symlink->readlink();
+        shared_ptr<Access> link_ref;
+
+        if (link_dest.is_relative()) {
+          // Resolve the symlink relative to the directory that holds it
+          auto dir_ref =
+              make_shared<Access>(build.getEnv().getRootRef(), dir_path, AccessFlags{.x = true});
+          dir_ref->resolvesTo(dir, SUCCESS);
+
+          link_ref = make_shared<Access>(dir_ref, link_dest, AccessFlags{.x = true});
+
+        } else {
+          // Resolve the symlink relative to the root directory
+          link_ref =
+              make_shared<Access>(build.getEnv().getRootRef(), link_dest, AccessFlags{.x = true});
+        }
+
+        // Resolve the symlink
+        link_ref->resolve(c, build);
+
+        // If the symlink did not resolve, return the error
+        if (!link_ref->isResolved()) {
+          resolvesTo(nullptr, link_ref->getResult());
+          return;
+        }
+
+        // The link resolved, so the current directory is going to be the target of the link
+        artifact = link_ref->getArtifact();
       }
 
       // Otherwise, move on to the next directory and update our record of its path

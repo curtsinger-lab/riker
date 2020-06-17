@@ -737,13 +737,11 @@ void Process::_chdir(string filename) noexcept {
 }
 
 void Process::_chroot(string filename) noexcept {
-  WARN << "chroot syscall is not updated";
-  resume();
+  FAIL << "Builds that use chroot are not supported.";
 }
 
 void Process::_pivot_root(string new_root, string put_old) noexcept {
-  WARN << "pivot_root syscall is not updated";
-  resume();
+  FAIL << "Builds that use pivot_root are not supported.";
 }
 
 void Process::_fchdir(int fd) noexcept {
