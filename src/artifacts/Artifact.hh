@@ -120,10 +120,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /**
    * Check if an access to this artifact with the provided flags is allowed.
+   * \param c     The command that depends on this access check
    * \param flags The flags that encode whether this is a read, write, and/or execute access
    * \returns true if the access is allowed, or false otherwise
    */
-  bool checkAccess(AccessFlags flags) noexcept;
+  bool checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept;
 
   /********** Content: Files and Pipes **********/
 

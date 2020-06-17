@@ -43,7 +43,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
   // Is the path empty?
   if (path.begin() == path.end()) {
     // Yes. The resolution reaches the base artifact. Do we have access?
-    if (base->checkAccess(flags)) {
+    if (base->checkAccess(cmd, flags)) {
       return base;
     } else {
       return EACCES;
@@ -54,7 +54,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
   if (!base->as<DirArtifact>()) return ENOTDIR;
 
   // If we don't have execute access on the base part of the path, fail
-  if (!base->checkAccess({.x = true})) return EACCES;
+  if (!base->checkAccess(cmd, {.x = true})) return EACCES;
 
   // Get the first part of the path, then advance the iterator so we can check for additional parts
   auto iter = path.begin();
@@ -77,7 +77,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
     // If no matching file exists but this resolution can create it, do so
     if (flags.create && result == ENOENT) {
       // Make sure we have write access in the base directory
-      if (!base->checkAccess({.w = true})) return EACCES;
+      if (!base->checkAccess(cmd, {.w = true})) return EACCES;
 
       // Create the file and give it a concise name
       auto newfile = createFile(base_path / entry, cmd, flags);
@@ -109,7 +109,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
     }
 
     // Check the final artifact to see if we have permission to access it
-    if (!result->checkAccess(flags)) return EACCES;
+    if (!result->checkAccess(cmd, flags)) return EACCES;
 
     // Success. Return the result
     return result;
