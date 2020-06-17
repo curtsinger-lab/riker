@@ -343,27 +343,6 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
   }
 }
 
-void Process::_tee(int fd_in, int fd_out) noexcept {
-  // Get the descriptors
-  const auto& in_desc = _fds.at(fd_in);
-  const auto& out_desc = _fds.at(fd_out);
-
-  // The command depends on the contents of the output file, unless it is totally overwritten (not
-  // checked yet)
-  _command->contentsMatch(_build, out_desc.getReference());
-
-  // Finish the syscall and resume
-  finishSyscall([=](long rc) {
-    resume();
-
-    // The command has now read the input file, so it depends on the contents there
-    _command->contentsMatch(_build, in_desc.getReference());
-
-    // The command has now set the contents of the output file
-    _command->setContents(_build, out_desc.getReference());
-  });
-}
-
 /************************ Metadata Operations ************************/
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
@@ -574,27 +553,6 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   });
 }
 
-void Process::_sendfile(int out_fd, int in_fd) noexcept {
-  // Get the descriptors
-  const auto& in_desc = _fds.at(in_fd);
-  const auto& out_desc = _fds.at(out_fd);
-
-  // The command depends on the contents of the output file, unless it is totally overwritten (not
-  // checked yet)
-  _command->contentsMatch(_build, out_desc.getReference());
-
-  // Finish the syscall and resume
-  finishSyscall([=](long rc) {
-    resume();
-
-    // The command has now read the input file, so it depends on the contents there
-    _command->contentsMatch(_build, in_desc.getReference());
-
-    // The command has now set the contents of the output file
-    _command->setContents(_build, out_desc.getReference());
-  });
-}
-
 void Process::_truncate(string pathname, long length) noexcept {
   auto ref = makeAccess(pathname, AccessFlags{.w = true});
 
@@ -645,9 +603,25 @@ void Process::_ftruncate(int fd, long length) noexcept {
   });
 }
 
-void Process::_vmsplice(int fd) noexcept {
-  WARN << "vmsplice syscall is not updated";
-  resume();
+void Process::_tee(int fd_in, int fd_out) noexcept {
+  // Get the descriptors
+  const auto& in_desc = _fds.at(fd_in);
+  const auto& out_desc = _fds.at(fd_out);
+
+  // The command depends on the contents of the output file, unless it is totally overwritten (not
+  // checked yet)
+  _command->contentsMatch(_build, out_desc.getReference());
+
+  // Finish the syscall and resume
+  finishSyscall([=](long rc) {
+    resume();
+
+    // The command has now read the input file, so it depends on the contents there
+    _command->contentsMatch(_build, in_desc.getReference());
+
+    // The command has now set the contents of the output file
+    _command->setContents(_build, out_desc.getReference());
+  });
 }
 
 /************************ Directory Operations ************************/

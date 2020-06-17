@@ -126,9 +126,6 @@ class Process {
   void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, 0); }
   void _dup3(int oldfd, int newfd, int flags) noexcept;
   void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
-  void _tee(int fd_in, int fd_out) noexcept;
-  void _splice(int in, loff_t off_in, int out, loff_t off_out) noexcept { _tee(in, out); }
-  void _copy_file_range(int fd_in, int _, int fd_out) noexcept { _tee(fd_in, fd_out); }
 
   // Metadata Operations
   void _access(string pathname, int mode) noexcept { _faccessat(AT_FDCWD, pathname, mode, 0); }
@@ -160,10 +157,13 @@ class Process {
   void _pwritev2(int fd) noexcept { _write(fd); }
   void _pwrite64(int fd) noexcept { _write(fd); }
   void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept;
-  void _sendfile(int out_fd, int in_fd) noexcept;
   void _truncate(string path, long length) noexcept;
   void _ftruncate(int fd, long length) noexcept;
-  void _vmsplice(int fd) noexcept;
+  void _tee(int fd_in, int fd_out) noexcept;
+  void _splice(int in, loff_t off_in, int out, loff_t off_out) noexcept { _tee(in, out); }
+  void _copy_file_range(int fd_in, int _, int fd_out) noexcept { _tee(fd_in, fd_out); }
+  void _sendfile(int out_fd, int in_fd) noexcept { _tee(in_fd, out_fd); }
+  void _vmsplice(int fd) noexcept { _write(fd); }
 
   // Directory Operations
   void _mkdir(string p, mode_t mode) noexcept { _mkdirat(AT_FDCWD, p, mode); }
