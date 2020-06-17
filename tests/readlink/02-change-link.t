@@ -25,7 +25,6 @@ Change the link destination
 
 Rerun the build
   $ $DODO --show
-  Dodofile
   readlink link
 
 Check the output
