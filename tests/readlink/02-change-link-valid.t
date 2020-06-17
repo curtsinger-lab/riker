@@ -22,13 +22,33 @@ Check the output
   HELLO
   $ cat output2
 
-Run a rebuild, which should do nothing
+Change the link destination
+  $ unlink link
+  $ ln -s GOODBYE link
+
+Rerun the build
+  $ $DODO --show
+  readlink link
+  cat link
+
+Check the output
+  $ cat output1
+  GOODBYE
+  $ cat output2
+  FAREWELL
+
+Rebuild again, which should do nothing
   $ $DODO --show
 
 Check the output again
   $ cat output1
-  HELLO
+  GOODBYE
   $ cat output2
+  FAREWELL
+
+Restore the link state
+  $ unlink link
+  $ ln -s HELLO link
 
 Clean up
   $ rm -rf .dodo

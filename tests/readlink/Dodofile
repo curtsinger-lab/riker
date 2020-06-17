@@ -1,3 +1,4 @@
 #!/bin/sh
 
-readlink link > output
+readlink link > output1
+cat link > output2
