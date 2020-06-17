@@ -36,8 +36,13 @@ class Tracer;
 
 class Process {
  public:
-  Process(Build& build, Tracer& tracer, shared_ptr<Command> command, pid_t pid,
-          shared_ptr<Access> cwd, shared_ptr<Access> root, map<int, FileDescriptor> fds) noexcept :
+  Process(Build& build,
+          Tracer& tracer,
+          shared_ptr<Command> command,
+          pid_t pid,
+          shared_ptr<Access> cwd,
+          shared_ptr<Access> root,
+          map<int, FileDescriptor> fds) noexcept :
       _build(build),
       _tracer(tracer),
       _command(command),

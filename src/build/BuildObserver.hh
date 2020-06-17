@@ -22,15 +22,19 @@ class BuildObserver {
   virtual ~BuildObserver() noexcept = default;
 
   /// Command c modifies artifact a, creating version v
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void output(shared_ptr<Command> c,
+                      shared_ptr<Artifact> a,
                       shared_ptr<Version> v) noexcept {}
 
   /// Command c depends on artifact a, accessing version v
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void input(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept {}
 
   /// Command c did not find the expect version of artifact a
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void mismatch(shared_ptr<Command> c,
+                        shared_ptr<Artifact> a,
+                        shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept {}
 
   /// A command has never been run
@@ -44,6 +48,7 @@ class BuildObserver {
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced `observed`, which does not match the on-disk version `expected`
-  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void finalMismatch(shared_ptr<Artifact> a,
+                             shared_ptr<Version> observed,
                              shared_ptr<Version> expected) noexcept {}
 };

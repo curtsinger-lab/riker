@@ -16,7 +16,9 @@ namespace fs = std::filesystem;
 
 class SymlinkArtifact final : public Artifact {
  public:
-  SymlinkArtifact(Env& env, bool committed, shared_ptr<MetadataVersion> mv,
+  SymlinkArtifact(Env& env,
+                  bool committed,
+                  shared_ptr<MetadataVersion> mv,
                   fs::path dest) noexcept :
       Artifact(env, committed, mv), _dest(dest) {}
 

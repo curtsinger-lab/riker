@@ -85,13 +85,15 @@ class Stats final : public BuildObserver {
   }
 
   /// Called during emulation to report an output from command c
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void output(shared_ptr<Command> c,
+                      shared_ptr<Artifact> a,
                       shared_ptr<Version> v) noexcept override final {
     _artifacts.insert(a);
   }
 
   /// Called during emulation to report an input to command c
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void input(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept override final {
     _artifacts.insert(a);
   }

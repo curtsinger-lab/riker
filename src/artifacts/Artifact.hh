@@ -113,7 +113,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param v   The version this artifact's metadata is set to, or null if the version is on disk
    * \returns the newly-assigned metadata version
    */
-  const shared_ptr<MetadataVersion>& setMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref,
+  const shared_ptr<MetadataVersion>& setMetadata(shared_ptr<Command> c,
+                                                 shared_ptr<Reference> ref,
                                                  shared_ptr<MetadataVersion> v = nullptr) noexcept;
 
   /**
@@ -146,7 +147,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns the newly-assigned content version
    */
   virtual const shared_ptr<ContentVersion>& setContents(
-      shared_ptr<Command> c, shared_ptr<Reference> ref,
+      shared_ptr<Command> c,
+      shared_ptr<Reference> ref,
       shared_ptr<ContentVersion> v = nullptr) noexcept {
     WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
     return _dummy_content_version;

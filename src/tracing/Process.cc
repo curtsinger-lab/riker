@@ -635,7 +635,10 @@ void Process::_rmdir(string p) noexcept {
   resume();
 }
 
-void Process::_renameat2(int old_dfd, string oldpath, int new_dfd, string newpath,
+void Process::_renameat2(int old_dfd,
+                         string oldpath,
+                         int new_dfd,
+                         string newpath,
                          int flags) noexcept {
   WARN << "renameat2 syscall is not updated";
   resume();
@@ -735,7 +738,9 @@ void Process::_fchdir(int fd) noexcept {
   });
 }
 
-void Process::_execveat(int dfd, string filename, vector<string> args,
+void Process::_execveat(int dfd,
+                        string filename,
+                        vector<string> args,
                         vector<string> env) noexcept {
   // The parent command needs execute access to the exec-ed path
   auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);

@@ -102,7 +102,8 @@ class Build {
   void addObserver(shared_ptr<BuildObserver> o) noexcept { _observers.push_back(o); }
 
   /// Inform the observer that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  void observeOutput(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept {
     for (const auto& o : _observers) o->output(c, a, v);
   }
@@ -114,7 +115,9 @@ class Build {
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
-  void observeMismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  void observeMismatch(shared_ptr<Command> c,
+                       shared_ptr<Artifact> a,
+                       shared_ptr<Version> observed,
                        shared_ptr<Version> expected) noexcept {
     for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
   }
@@ -125,7 +128,8 @@ class Build {
   }
 
   /// Inform observers that an artifact's version does not match the expected final state
-  void observeFinalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  void observeFinalMismatch(shared_ptr<Artifact> a,
+                            shared_ptr<Version> observed,
                             shared_ptr<Version> expected) noexcept {
     for (const auto& o : _observers) o->finalMismatch(a, observed, expected);
   }

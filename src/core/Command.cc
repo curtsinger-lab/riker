@@ -153,7 +153,9 @@ string Command::getFullName() const noexcept {
 }
 
 // This command accesses an artifact by path.
-shared_ptr<Access> Command::access(Build& build, fs::path path, AccessFlags flags,
+shared_ptr<Access> Command::access(Build& build,
+                                   fs::path path,
+                                   AccessFlags flags,
                                    shared_ptr<Access> base) noexcept {
   // For now, the reference is just one level that covers all parts of the new path
   auto ref = base->get(path, flags);
@@ -255,8 +257,10 @@ void Command::setContents(Build& build, shared_ptr<Reference> ref) noexcept {
 }
 
 // This command launches a child command
-const shared_ptr<Command>& Command::launch(Build& build, shared_ptr<Access> exe,
-                                           vector<string> args, map<int, FileDescriptor> fds,
+const shared_ptr<Command>& Command::launch(Build& build,
+                                           shared_ptr<Access> exe,
+                                           vector<string> args,
+                                           map<int, FileDescriptor> fds,
                                            shared_ptr<Access> cwd,
                                            shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);

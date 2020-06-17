@@ -5,9 +5,14 @@ DerivePointerAlignment: false
 PointerAlignment: Left
 AlignOperands: true
 BreakConstructorInitializers: AfterColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
 AllowShortFunctionsOnASingleLine: Inline
 FixNamespaceComments: false
 NamespaceIndentation: All
+BinPackArguments: true
+BinPackParameters: false
+AlignAfterOpenBracket: Align
+AllowAllParametersOfDeclarationOnNextLine: false
 
 # Regroup includes by category
 IncludeBlocks: Regroup

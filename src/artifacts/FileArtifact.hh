@@ -15,7 +15,8 @@ class Version;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(Env& env, bool committed,
+  FileArtifact(Env& env,
+               bool committed,
                shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>(),
                shared_ptr<ContentVersion> cv = make_shared<ContentVersion>()) noexcept;
 
@@ -41,10 +42,12 @@ class FileArtifact : public Artifact {
   virtual void fingerprint(shared_ptr<Reference> ref) noexcept final;
 
   virtual const shared_ptr<ContentVersion>& accessContents(
-      shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept final;
+      shared_ptr<Command> c,
+      shared_ptr<Reference> ref) noexcept final;
 
   virtual const shared_ptr<ContentVersion>& setContents(
-      shared_ptr<Command> c, shared_ptr<Reference> ref,
+      shared_ptr<Command> c,
+      shared_ptr<Reference> ref,
       shared_ptr<ContentVersion> v = nullptr) noexcept final;
 
   virtual string getTypeName() const noexcept override { return "File"; }

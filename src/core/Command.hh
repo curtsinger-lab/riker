@@ -40,8 +40,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a new command
-  Command(shared_ptr<Access> exe, vector<string> args, map<int, FileDescriptor> initial_fds,
-          shared_ptr<Access> initial_cwd, shared_ptr<Access> initial_root) noexcept :
+  Command(shared_ptr<Access> exe,
+          vector<string> args,
+          map<int, FileDescriptor> initial_fds,
+          shared_ptr<Access> initial_cwd,
+          shared_ptr<Access> initial_root) noexcept :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -98,7 +101,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /********* Command Tracing Operations **********/
 
   /// This command accesses a path relative to some base reference, using the given flags
-  shared_ptr<Access> access(Build& build, fs::path path, AccessFlags flags,
+  shared_ptr<Access> access(Build& build,
+                            fs::path path,
+                            AccessFlags flags,
                             shared_ptr<Access> base) noexcept;
 
   /// This command creates a pipe
@@ -117,8 +122,11 @@ class Command : public std::enable_shared_from_this<Command> {
   void setContents(Build& build, shared_ptr<Reference> ref) noexcept;
 
   /// This command launches a child command
-  const shared_ptr<Command>& launch(Build& build, shared_ptr<Access> exe, vector<string> args,
-                                    map<int, FileDescriptor> fds, shared_ptr<Access> cwd,
+  const shared_ptr<Command>& launch(Build& build,
+                                    shared_ptr<Access> exe,
+                                    vector<string> args,
+                                    map<int, FileDescriptor> fds,
+                                    shared_ptr<Access> cwd,
                                     shared_ptr<Access> root) noexcept;
 
   /// This command joined with a child command
@@ -161,6 +169,12 @@ class Command : public std::enable_shared_from_this<Command> {
 
   // Create default constructor and specify fields for serialization
   Command() = default;
-  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _children, _executed,
+  SERIALIZE(_exe,
+            _args,
+            _initial_fds,
+            _initial_cwd,
+            _initial_root,
+            _children,
+            _executed,
             _exit_status);
 };

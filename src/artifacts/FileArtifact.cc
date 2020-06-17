@@ -12,7 +12,9 @@
 using std::shared_ptr;
 using std::string;
 
-FileArtifact::FileArtifact(Env& env, bool committed, shared_ptr<MetadataVersion> mv,
+FileArtifact::FileArtifact(Env& env,
+                           bool committed,
+                           shared_ptr<MetadataVersion> mv,
                            shared_ptr<ContentVersion> cv) noexcept :
     Artifact(env, committed, mv) {
   appendVersion(cv);

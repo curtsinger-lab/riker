@@ -164,7 +164,8 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c reads version v from artifact a
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void input(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept override final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
@@ -172,7 +173,8 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c appends version v to artifact a
-  virtual void output(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void output(shared_ptr<Command> c,
+                      shared_ptr<Artifact> a,
                       shared_ptr<Version> v) noexcept override final {
     if (isSystemFile(a) && !_show_sysfiles) return;
 
@@ -180,7 +182,9 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c observes a change in version v of artifact a
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void mismatch(shared_ptr<Command> c,
+                        shared_ptr<Artifact> a,
+                        shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept override final {
     _changed_commands.insert(c);
 
@@ -210,7 +214,8 @@ class Graph final : public BuildObserver {
 
   /// A version of artifact a on disk (observed) did not match what was produced at the end of the
   /// build (expected)
-  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void finalMismatch(shared_ptr<Artifact> a,
+                             shared_ptr<Version> observed,
                              shared_ptr<Version> expected) noexcept override final {
     // Record the changed version
     _changed_versions.emplace(observed);

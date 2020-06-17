@@ -76,7 +76,8 @@ class RebuildPlanner final : public BuildObserver {
   /******** BuildObserver Interface ********/
 
   /// Command c depends on version v of artifact a
-  virtual void input(shared_ptr<Command> c, shared_ptr<Artifact> a,
+  virtual void input(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
                      shared_ptr<Version> v) noexcept override final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
@@ -96,7 +97,9 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Command c did not find the expected version in artifact a
-  virtual void mismatch(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void mismatch(shared_ptr<Command> c,
+                        shared_ptr<Artifact> a,
+                        shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept override final {
     // Record the change
     LOG << c << " observed change in " << a << " version " << observed << ", expected " << expected;
@@ -119,7 +122,8 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// An artifact's final version does not match what is on the filesystem
-  virtual void finalMismatch(shared_ptr<Artifact> a, shared_ptr<Version> observed,
+  virtual void finalMismatch(shared_ptr<Artifact> a,
+                             shared_ptr<Version> observed,
                              shared_ptr<Version> expected) noexcept override final {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!observed->getCreator()) return;

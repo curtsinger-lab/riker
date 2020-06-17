@@ -29,8 +29,11 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-Resolution Env::resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags,
-                            fs::path base_path, shared_ptr<Artifact> base) noexcept {
+Resolution Env::resolvePath(shared_ptr<Command> cmd,
+                            fs::path path,
+                            AccessFlags flags,
+                            fs::path base_path,
+                            shared_ptr<Artifact> base) noexcept {
   ASSERT(base) << "Resolution was requested relative to a null base artifact";
 
   // If the path is absolute, strip off the leading slash
@@ -204,7 +207,8 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   return a;
 }
 
-shared_ptr<Artifact> Env::createFile(fs::path path, shared_ptr<Command> creator,
+shared_ptr<Artifact> Env::createFile(fs::path path,
+                                     shared_ptr<Command> creator,
                                      AccessFlags flags) noexcept {
   // Get the current umask
   auto mask = umask(0);
