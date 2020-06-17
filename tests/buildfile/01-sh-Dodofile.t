@@ -26,7 +26,7 @@ Make the build file non-executable
 Run a build
   $ $DODO --show
   dodo-launch
-  /bin/sh Dodofile
+  sh Dodofile
 
 Check the output
   $ cat output

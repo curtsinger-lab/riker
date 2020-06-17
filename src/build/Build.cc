@@ -61,7 +61,8 @@ void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexce
     child->reset();
 
     // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run) cout << child->getShortName(80) << endl;
+    if (options::print_on_run || options::dry_run)
+      cout << child->getShortName(options::command_length) << endl;
 
     // Actually run the command, unless this is a dry run
     if (!options::dry_run) {
@@ -84,7 +85,7 @@ ostream& Build::print(ostream& o) const noexcept {
   if (_rerun.size() > 0) {
     o << "The following commands will be rerun:" << endl;
     for (const auto& c : _rerun) {
-      o << "  " << c->getShortName(78) << endl;
+      o << "  " << c->getShortName(options::command_length) << endl;
     }
 
   } else {

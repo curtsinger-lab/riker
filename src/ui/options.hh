@@ -13,6 +13,9 @@ namespace options {
   /// Which files should be fingerprinted instead of just checked for mtime?
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
+  /// The maximum length of a command when printed
+  inline size_t command_length = 80;
+
   /****** Optimization ******/
   /// Repeated reads can be combined into a single read
   inline bool combine_reads = true;  // PAPER

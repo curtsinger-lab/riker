@@ -286,7 +286,7 @@ const shared_ptr<Command>& Command::launch(Build& build,
                                            shared_ptr<Access> root) noexcept {
   auto child = make_shared<Command>(exe, args, fds, cwd, root);
 
-  if (options::print_on_run) cout << child->getFullName() << endl;
+  if (options::print_on_run) cout << child->getShortName(options::command_length) << endl;
 
   child->setExecuted();
 

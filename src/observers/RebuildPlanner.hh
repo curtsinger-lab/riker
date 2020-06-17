@@ -51,7 +51,7 @@ class RebuildPlanner final : public BuildObserver {
     if (_changed.size() > 0) {
       o << "Commands with changed inputs:" << endl;
       for (const auto& c : _changed) {
-        o << "  " << c->getShortName(78) << endl;
+        o << "  " << c->getShortName(options::command_length) << endl;
       }
       o << endl;
     }
@@ -59,7 +59,7 @@ class RebuildPlanner final : public BuildObserver {
     if (_output_needed.size() > 0) {
       o << "Commands whose output is missing or modified:" << endl;
       for (const auto& c : _output_needed) {
-        o << "  " << c->getShortName(78) << endl;
+        o << "  " << c->getShortName(options::command_length) << endl;
       }
       o << endl;
     }
