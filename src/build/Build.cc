@@ -5,7 +5,6 @@
 #include <ostream>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/Pipe.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"

@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/Pipe.hh"
-#include "artifacts/Symlink.hh"
+#include "artifacts/PipeArtifact.hh"
+#include "artifacts/SymlinkArtifact.hh"
 #include "build/Build.hh"
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"

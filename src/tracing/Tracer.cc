@@ -20,7 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "artifacts/Pipe.hh"
+#include "artifacts/PipeArtifact.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"

@@ -10,10 +10,10 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/Dir.hh"
-#include "artifacts/File.hh"
-#include "artifacts/Pipe.hh"
-#include "artifacts/Symlink.hh"
+#include "artifacts/DirArtifact.hh"
+#include "artifacts/FileArtifact.hh"
+#include "artifacts/PipeArtifact.hh"
+#include "artifacts/SymlinkArtifact.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"

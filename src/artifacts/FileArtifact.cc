@@ -1,4 +1,4 @@
-#include "File.hh"
+#include "FileArtifact.hh"
 
 #include <memory>
 #include <string>

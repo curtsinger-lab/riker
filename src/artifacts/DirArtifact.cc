@@ -1,4 +1,4 @@
-#include "Dir.hh"
+#include "DirArtifact.hh"
 
 #include <filesystem>
 #include <memory>

@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/Pipe.hh"
+#include "artifacts/PipeArtifact.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"

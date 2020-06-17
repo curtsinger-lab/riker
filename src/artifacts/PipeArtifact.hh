@@ -2,7 +2,7 @@
 
 #include <unistd.h>
 
-#include "artifacts/File.hh"
+#include "artifacts/FileArtifact.hh"
 
 class PipeArtifact final : public FileArtifact {
  public:
