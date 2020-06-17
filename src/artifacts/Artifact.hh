@@ -27,6 +27,7 @@ class ContentVersion;
 class Env;
 class MetadataVersion;
 class Reference;
+class SymlinkVersion;
 class Version;
 
 /**
@@ -154,6 +155,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return _dummy_content_version;
   }
 
+  /************ Symlink Operations ************/
+
+  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c) noexcept {
+    WARN << "Invalid readlink call on non-symlink artifact";
+    return _dummy_symlink_version;
+  }
+
   /************ Directory Operations ************/
 
   /**
@@ -208,5 +216,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   bool _metadata_committed;
 
   /// Create a dummy content version pointer so we can still return references
-  shared_ptr<ContentVersion> _dummy_content_version;
+  inline static shared_ptr<ContentVersion> _dummy_content_version;
+
+  // Create a dummy symlink version pointer so we can still return references
+  inline static shared_ptr<SymlinkVersion> _dummy_symlink_version;
 };

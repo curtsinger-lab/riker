@@ -19,13 +19,16 @@ class SymlinkArtifact final : public Artifact {
   SymlinkArtifact(Env& env,
                   bool committed,
                   shared_ptr<MetadataVersion> mv,
-                  fs::path dest) noexcept :
-      Artifact(env, committed, mv), _dest(dest) {}
+                  shared_ptr<SymlinkVersion> sv) noexcept;
 
   virtual string getTypeName() const noexcept final { return "Symlink"; }
 
-  fs::path readlink() const noexcept { return _dest; }
+  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c) noexcept;
 
  private:
-  fs::path _dest;
+  /// The currrent version of this symlink
+  shared_ptr<SymlinkVersion> _symlink_version;
+
+  // Is the current sylink version committed to the filesystem?
+  bool _symlink_committed;
 };

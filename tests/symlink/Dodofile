@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cat input1 > output
+cat input2 > dir/link/output
+cat input3 >> output

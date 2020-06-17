@@ -22,6 +22,7 @@
 #include "util/path.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
 
 using std::make_shared;
@@ -94,7 +95,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
 
     // If the result is a symlink, we may need to follow it
     if (auto symlink = result->as<SymlinkArtifact>(); symlink && !flags.nofollow) {
-      auto symlink_path = symlink->readlink();
+      auto symlink_path = symlink->readlink(cmd)->getDestination();
       if (symlink_path.is_relative()) {
         // Resolve the symlink relative to its containing directory
         result = resolvePath(cmd, symlink_path, flags, base_path, base);
@@ -121,7 +122,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
 
   // If the result is a symlink, we always follow it
   if (auto symlink = result->as<SymlinkArtifact>()) {
-    auto symlink_path = symlink->readlink();
+    auto symlink_path = symlink->readlink(cmd)->getDestination();
     if (symlink_path.is_relative()) {
       // Resolve the symlink relative to its containing directory
       result = resolvePath(cmd, symlink_path, flags, base_path, base);
@@ -189,7 +190,8 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
     a = make_shared<DirArtifact>(*this, true, mv);
 
   } else if ((statbuf.st_mode & S_IFMT) == S_IFLNK) {
-    a = make_shared<SymlinkArtifact>(*this, true, mv, readlink(path));
+    auto sv = make_shared<SymlinkVersion>(readlink(path));
+    a = make_shared<SymlinkArtifact>(*this, true, mv, sv);
 
   } else {
     // The path refers to something else
