@@ -30,6 +30,118 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+Resolution Env::resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags,
+                            fs::path base_path, shared_ptr<Artifact> base) noexcept {
+  ASSERT(base) << "Resolution was requested relative to a null base artifact";
+
+  // If the path is absolute, strip off the leading slash
+  if (path.is_absolute()) path = path.relative_path();
+
+  // Is the path empty?
+  if (path.begin() == path.end()) {
+    // Yes. The resolution reaches the base artifact. Do we have access?
+    if (base->checkAccess(flags)) {
+      return base;
+    } else {
+      return EACCES;
+    }
+  }
+
+  // If the base is not a directory, fail
+  if (!dynamic_pointer_cast<DirArtifact>(base)) return ENOTDIR;
+
+  // If we don't have execute access on the base part of the path, fail
+  if (!base->checkAccess({.x = true})) return EACCES;
+
+  // Get the first part of the path, then advance the iterator so we can check for additional parts
+  auto iter = path.begin();
+  auto entry = *iter;
+  iter++;
+
+  // Try to get the named entry from base
+  auto result = base->getEntry(base_path, entry);
+
+  // If the resolution succeeded, updated the name for the resulting artifact
+  if (result) result->setName((fs::path(base->getName()) / entry).lexically_normal());
+
+  // Does the path have just one part?
+  if (iter == path.end()) {
+    // Yes. We have some extra work to do.
+
+    // If this resolution was meant to create a file, fail with an error
+    if (flags.create && flags.exclusive && result) return EEXIST;
+
+    // If no matching file exists but this resolution can create it, do so
+    if (flags.create && result == ENOENT) {
+      // Make sure we have write access in the base directory
+      if (!base->checkAccess({.w = true})) return EACCES;
+
+      // Create the file and give it a concise name
+      auto newfile = createFile(base_path / entry, cmd, flags);
+      newfile->setName((fs::path(base->getName()) / entry).lexically_normal());
+
+      // Add the new file to the directory
+      base->setEntry(entry, newfile);
+
+      // Return the new file
+      return newfile;
+    }
+
+    // Otherwise, if the directory access failed, return the error
+    if (!result) return result;
+
+    // If the result is a symlink, we may need to follow it
+    if (auto symlink = result.as<SymlinkArtifact>(); symlink && !flags.nofollow) {
+      auto symlink_path = symlink->readlink();
+      if (symlink_path.is_relative()) {
+        // Resolve the symlink relative to its containing directory
+        result = resolvePath(cmd, symlink_path, flags, base_path, base);
+      } else {
+        // Resolve the symlink as an absolute path
+        result = resolvePath(cmd, symlink_path, flags);
+      }
+
+      // If the symlink resolution failed, return the error
+      if (!result) return result;
+    }
+
+    // Check the final artifact to see if we have permission to access it
+    if (!result->checkAccess(flags)) return EACCES;
+
+    // Success. Return the result
+    return result;
+  }
+
+  // At this point, result holds the outcome of getting the next entry from the base directory
+
+  // If that access failed, return failure
+  if (!result) return result;
+
+  // If the result is a symlink, we always follow it
+  if (auto symlink = result.as<SymlinkArtifact>()) {
+    auto symlink_path = symlink->readlink();
+    if (symlink_path.is_relative()) {
+      // Resolve the symlink relative to its containing directory
+      result = resolvePath(cmd, symlink_path, flags, base_path, base);
+    } else {
+      // Resolve the symlink as an absolute path
+      result = resolvePath(cmd, symlink_path, flags);
+    }
+
+    // If the symlink resolution failed, return the error
+    if (!result) return result;
+  }
+
+  // fs::path doesn't have a convenient way to pull off the front component, so do that here
+  fs::path newpath = *(iter++);
+  while (iter != path.end()) {
+    newpath /= *(iter++);
+  }
+
+  // Now make a recursive call to resolve the rest of the path
+  return resolvePath(cmd, newpath, flags, base_path / entry, result);
+}
+
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe
   uid_t uid = getuid();
@@ -107,7 +219,6 @@ shared_ptr<Artifact> Env::createFile(fs::path path, shared_ptr<Command> creator,
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   mv->createdBy(creator);
-  ASSERT(mv->isSaved()) << "UH OH";
 
   // Create an initial content version
   auto cv = make_shared<ContentVersion>();
@@ -122,15 +233,6 @@ shared_ptr<Artifact> Env::createFile(fs::path path, shared_ptr<Command> creator,
   _build.observeOutput(creator, artifact, cv);
 
   return artifact;
-}
-
-// Get the root directory artifact
-shared_ptr<Artifact> Env::getRootDir() noexcept {
-  if (!_root_dir) {
-    _root_dir = getPath("/");
-  }
-
-  return _root_dir;
 }
 
 // Get a reference to the root directory

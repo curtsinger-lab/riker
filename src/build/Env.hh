@@ -37,7 +37,7 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept : _build(build) {}
+  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")) {}
 
   // Disallow Copy
   Env(const Env&) = delete;
@@ -57,6 +57,29 @@ class Env {
   void finalize() noexcept;
 
   /**
+   * Resolve a path relative to some base artifact
+   * \param cmd   The command performing the resolution
+   * \param path  The path to resolve
+   * \param flags The access requirements for the artifact reached via the path
+   * \param base_path The path to the directory where resolution should begin
+   * \param base      The directory artifact where resolution should begin
+   * \returns a resultion result, which holds either an artifact or an error code
+   */
+  Resolution resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags,
+                         fs::path base_path, shared_ptr<Artifact> base) noexcept;
+
+  /**
+   * Resolve a path relative to the root directory
+   * \param cmd   The command performing the resolution
+   * \param path  The path to resolve
+   * \param flags The access requirements for the artifact reached via the path
+   * \returns a resultion result, which holds either an artifact or an error code
+   */
+  Resolution resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags) noexcept {
+    return resolvePath(cmd, path, flags, "/", _root_dir);
+  }
+
+  /**
    * Create a pipe artifact
    * \param c The command that creates the pipe
    * \returns a pipe artifact
@@ -73,7 +96,7 @@ class Env {
   /**
    * Get the root directory
    */
-  shared_ptr<Artifact> getRootDir() noexcept;
+  shared_ptr<Artifact> getRootDir() const noexcept { return _root_dir; }
 
   /**
    * Get a reference to the root directory
