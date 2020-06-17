@@ -23,7 +23,10 @@ class SymlinkArtifact final : public Artifact {
 
   virtual string getTypeName() const noexcept final { return "Symlink"; }
 
-  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c) noexcept;
+  /// The provided command depends on all current versions of this artifact
+  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
+
+  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c) noexcept override;
 
  private:
   /// The currrent version of this symlink

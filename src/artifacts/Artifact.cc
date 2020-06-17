@@ -24,6 +24,10 @@ Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noex
   _metadata_committed = committed;
 }
 
+void Artifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
+}
+
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   // We really should report this edge here, since some other command may have set the latest

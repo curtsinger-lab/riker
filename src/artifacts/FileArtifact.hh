@@ -52,6 +52,9 @@ class FileArtifact : public Artifact {
 
   virtual string getTypeName() const noexcept override { return "File"; }
 
+  /// The provided command depends on all current versions of this artifact
+  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
+
  private:
   /// The latest content version
   shared_ptr<ContentVersion> _content_version;

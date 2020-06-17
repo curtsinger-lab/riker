@@ -288,6 +288,11 @@ const shared_ptr<Command>& Command::launch(Build& build,
 
   if (options::print_on_run) cout << child->getShortName(options::command_length) << endl;
 
+  // The child command depends on all current versions of the artifacts in its fd table
+  for (auto& [index, desc] : fds) {
+    desc.getReference()->getArtifact()->needsCurrentVersions(child);
+  }
+
   child->setExecuted();
 
   build.addStep(shared_from_this(), make_shared<Launch>(child));

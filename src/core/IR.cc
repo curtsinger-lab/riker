@@ -128,6 +128,11 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // The child command depends on all current versions of the artifacts in its fd table
+  for (auto& [index, desc] : _cmd->getInitialFDs()) {
+    desc.getReference()->getArtifact()->needsCurrentVersions(_cmd);
+  }
+
   // Tell the build to launch the child command
   build.launch(c, _cmd);
 }

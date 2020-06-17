@@ -17,6 +17,11 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
   _symlink_committed = committed;
 }
 
+void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version);
+  Artifact::needsCurrentVersions(c);
+}
+
 const shared_ptr<SymlinkVersion>& SymlinkArtifact::readlink(shared_ptr<Command> c) noexcept {
   _env.getBuild().observeInput(c, shared_from_this(), _symlink_version);
   return _symlink_version;

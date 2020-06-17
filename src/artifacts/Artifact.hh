@@ -96,6 +96,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Check the final state of this artifact and save any necessary final fingerprints
   virtual void finalize(shared_ptr<Reference> ref) noexcept;
 
+  /**
+   * The provided command depends on all current versions of this artifact.
+   * This method is used when a command launches with this artifact reachable through one of its
+   * initial file desecriptors. The added dependency edges will ensure the artifact is in place or
+   * can be committed.
+   */
+  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
+
   /********** Metadata: All Artifact Types **********/
 
   /**

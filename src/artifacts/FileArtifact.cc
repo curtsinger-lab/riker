@@ -90,6 +90,11 @@ void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   Artifact::finalize(ref);
 }
 
+void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version);
+  Artifact::needsCurrentVersions(c);
+}
+
 // Command c accesses this artifact's contents
 // Return the version it observes, or nullptr if no check is necessary
 const shared_ptr<ContentVersion>& FileArtifact::accessContents(shared_ptr<Command> c,
