@@ -19,7 +19,6 @@
 #include "util/log.hh"
 #include "util/path.hh"
 
-using std::dynamic_pointer_cast;
 using std::function;
 
 namespace fs = std::filesystem;
@@ -84,7 +83,7 @@ shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) no
   if (at == AT_FDCWD) return _command->access(_build, p.relative_path(), flags, _cwd);
 
   // The path is resolved relative to some file descriptor
-  auto base = dynamic_pointer_cast<Access>(_fds.at(at).getReference());
+  auto base = _fds.at(at).getReference()->as<Access>();
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
@@ -725,7 +724,7 @@ void Process::_fchdir(int fd) noexcept {
     if (rc == 0) {
       // Get the path to the artifact this descriptor references
       const auto& descriptor = _fds.at(fd);
-      auto a = dynamic_pointer_cast<Access>(descriptor.getReference());
+      auto a = descriptor.getReference()->as<Access>();
 
       // Make sure there really is a path
       ASSERT(a) << "fchdir to an artifact with no path should not succeed";

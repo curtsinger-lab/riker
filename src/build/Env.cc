@@ -24,7 +24,6 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
 
-using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::map;
 using std::shared_ptr;
@@ -48,7 +47,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags 
   }
 
   // If the base is not a directory, fail
-  if (!dynamic_pointer_cast<DirArtifact>(base)) return ENOTDIR;
+  if (!base->as<DirArtifact>()) return ENOTDIR;
 
   // If we don't have execute access on the base part of the path, fail
   if (!base->checkAccess({.x = true})) return EACCES;
@@ -91,7 +90,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags 
     if (!result) return result;
 
     // If the result is a symlink, we may need to follow it
-    if (auto symlink = result.as<SymlinkArtifact>(); symlink && !flags.nofollow) {
+    if (auto symlink = result->as<SymlinkArtifact>(); symlink && !flags.nofollow) {
       auto symlink_path = symlink->readlink();
       if (symlink_path.is_relative()) {
         // Resolve the symlink relative to its containing directory
@@ -118,7 +117,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags 
   if (!result) return result;
 
   // If the result is a symlink, we always follow it
-  if (auto symlink = result.as<SymlinkArtifact>()) {
+  if (auto symlink = result->as<SymlinkArtifact>()) {
     auto symlink_path = symlink->readlink();
     if (symlink_path.is_relative()) {
       // Resolve the symlink relative to its containing directory

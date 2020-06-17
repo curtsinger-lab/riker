@@ -4,7 +4,6 @@
 
 #include "util/log.hh"
 
-using std::dynamic_pointer_cast;
 using std::shared_ptr;
 
 class Artifact;
@@ -44,12 +43,6 @@ class Resolution {
 
   /// Access the artifact in this result as a pointer
   shared_ptr<Artifact> operator->() const noexcept { return _artifact; }
-
-  /// Attempt to cast the artifact to a specific artifact type
-  template <class T>
-  shared_ptr<T> as() const noexcept {
-    return dynamic_pointer_cast<T>(_artifact);
-  }
 
  private:
   shared_ptr<Artifact> _artifact;

@@ -8,7 +8,6 @@
 #include "core/IR.hh"
 #include "util/log.hh"
 
-using std::dynamic_pointer_cast;
 using std::nullopt;
 using std::shared_ptr;
 
@@ -21,7 +20,7 @@ bool ContentVersion::isSaved() const noexcept {
 void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
   ASSERT(isSaved()) << "Attempted to commit unsaved version";
 
-  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+  if (auto a = ref->as<Access>()) {
     if (_fingerprint.has_value() && _fingerprint.value().empty) {
       int fd = a->open();
       FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
@@ -33,7 +32,7 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
 // Save a fingerprint of this version
 void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
   // Check the reference type
-  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+  if (auto a = ref->as<Access>()) {
     // Get stat data and save it
     auto [info, rc] = a->lstat();
     if (rc == SUCCESS) _fingerprint = info;
@@ -49,7 +48,7 @@ bool ContentVersion::matches(shared_ptr<Version> other) const noexcept {
   if (!_fingerprint.has_value()) return false;
 
   // Make sure the other version is a ContentVersion
-  auto v = dynamic_pointer_cast<ContentVersion>(other);
+  auto v = other->as<ContentVersion>();
   if (!v) return false;
 
   // Compare. If the other version does not have a fingerprint, optional will compare false

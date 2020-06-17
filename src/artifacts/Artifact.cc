@@ -14,7 +14,6 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
 
-using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;

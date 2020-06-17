@@ -15,7 +15,6 @@
 #include "core/IR.hh"
 #include "util/path.hh"
 
-using std::dynamic_pointer_cast;
 using std::endl;
 using std::make_shared;
 using std::map;
@@ -66,19 +65,19 @@ void Trace::resolveReferences(Env& env) noexcept {
   // Resolve stdin
   _stdin->resolvesTo(env.getPipe(nullptr));
   _stdin->getArtifact()->setName("stdin");
-  auto stdin_pipe = dynamic_pointer_cast<PipeArtifact>(_stdin->getArtifact());
+  auto stdin_pipe = _stdin->getArtifact()->as<PipeArtifact>();
   stdin_pipe->setFDs(0, -1);
 
   // Resolve stdout
   _stdout->resolvesTo(env.getPipe(nullptr));
   _stdout->getArtifact()->setName("stdout");
-  auto stdout_pipe = dynamic_pointer_cast<PipeArtifact>(_stdout->getArtifact());
+  auto stdout_pipe = _stdout->getArtifact()->as<PipeArtifact>();
   stdout_pipe->setFDs(-1, 1);
 
   // Resolve stderr
   _stderr->resolvesTo(env.getPipe(nullptr));
   _stderr->getArtifact()->setName("stderr");
-  auto stderr_pipe = dynamic_pointer_cast<PipeArtifact>(_stderr->getArtifact());
+  auto stderr_pipe = _stderr->getArtifact()->as<PipeArtifact>();
   stderr_pipe->setFDs(-1, 2);
 
   // Resolve the root directory

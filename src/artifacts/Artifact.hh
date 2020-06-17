@@ -53,6 +53,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   Artifact(const Artifact&) = delete;
   Artifact& operator=(const Artifact&) = delete;
 
+  /// Try to cast this artifact to some subtype
+  template <class T>
+  shared_ptr<T> as() noexcept {
+    return std::dynamic_pointer_cast<T>(shared_from_this());
+  }
+
   /// Get the name of this artifact used for pretty-printing
   const string& getName() const noexcept { return _name; }
 

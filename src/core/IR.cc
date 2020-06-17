@@ -21,7 +21,6 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
 
-using std::dynamic_pointer_cast;
 using std::ostream;
 using std::shared_ptr;
 using std::tuple;

@@ -40,7 +40,7 @@ class Version;
  * - Predicate: a statement about a reference that was true on the example build
  * - Action: a modification to system state performed by the command
  */
-class Step {
+class Step : public std::enable_shared_from_this<Step> {
  public:
   /// Use a default virtual destructor
   virtual ~Step() noexcept = default;
@@ -51,6 +51,12 @@ class Step {
    * \param env The environment this step should be emulated in
    */
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept = 0;
+
+  /// Try to cast this IR step to an instance of a specific IR step type.
+  template <class T>
+  shared_ptr<T> as() noexcept {
+    return std::dynamic_pointer_cast<T>(shared_from_this());
+  }
 
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const noexcept = 0;
@@ -119,7 +125,7 @@ class Reference : public Step {
 };
 
 /// Create a reference to a new pipe
-class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
+class Pipe final : public Reference {
  public:
   /// Create a pipe
   Pipe() noexcept = default;
@@ -142,7 +148,7 @@ class Pipe final : public Reference, public std::enable_shared_from_this<Pipe> {
 };
 
 /// Access a filesystem path with a given set of flags
-class Access final : public Reference, public std::enable_shared_from_this<Access> {
+class Access final : public Reference {
  public:
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
@@ -156,10 +162,6 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
 
   virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
-
-  shared_ptr<Access> withFlags(AccessFlags flags) noexcept {
-    return shared_ptr<Access>(new Access(_base, _path, flags));
-  }
 
   /// Get the access that serves as the base for this one
   const shared_ptr<Access>& getBase() const noexcept { return _base; }
@@ -190,7 +192,7 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
 
   /// Create an access relative to this reference
   shared_ptr<Access> get(string p, AccessFlags flags) noexcept {
-    return shared_ptr<Access>(new Access(shared_from_this(), p, flags));
+    return shared_ptr<Access>(new Access(as<Access>(), p, flags));
   }
 
   /// Print an ACCESS reference
@@ -214,7 +216,7 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
 /**
  * Require that the metadata accessed through a reference matches that of an artifact version
  */
-class MetadataMatch final : public Step, public std::enable_shared_from_this<MetadataMatch> {
+class MetadataMatch final : public Step {
  public:
   /// Create a METADATA_MATCH predicate
   MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
@@ -248,7 +250,7 @@ class MetadataMatch final : public Step, public std::enable_shared_from_this<Met
 /**
  * Require that the contents accessed through a reference match that of an artifact version
  */
-class ContentsMatch final : public Step, public std::enable_shared_from_this<ContentsMatch> {
+class ContentsMatch final : public Step {
  public:
   /// Create a CONTENTS_MATCH predicate
   ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
@@ -283,7 +285,7 @@ class ContentsMatch final : public Step, public std::enable_shared_from_this<Con
  * A Launch action creates a new command, which inherits some (possibly empty)
  * set of references from its parent.
  */
-class Launch final : public Step, public std::enable_shared_from_this<Launch> {
+class Launch final : public Step {
  public:
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
@@ -313,7 +315,7 @@ class Launch final : public Step, public std::enable_shared_from_this<Launch> {
  * A Join action records when a parent command joins with a specific child, and saves the exit
  * status from that child.
  */
-class Join final : public Step, public std::enable_shared_from_this<Join> {
+class Join final : public Step {
  public:
   /// Create a JOIN action
   Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
@@ -346,7 +348,7 @@ class Join final : public Step, public std::enable_shared_from_this<Join> {
 /**
  * A SetMetadata action indicates that a command set the metadata for an artifact.
  */
-class SetMetadata final : public Step, public std::enable_shared_from_this<SetMetadata> {
+class SetMetadata final : public Step {
  public:
   /// Create a SET_METADATA action
   SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
@@ -378,7 +380,7 @@ class SetMetadata final : public Step, public std::enable_shared_from_this<SetMe
 /**
  * A SetContents action records that a command set the contents of an artifact.
  */
-class SetContents final : public Step, public std::enable_shared_from_this<SetContents> {
+class SetContents final : public Step {
  public:
   /// Create a SET_CONTENTS action
   SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :

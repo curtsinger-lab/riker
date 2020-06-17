@@ -19,7 +19,7 @@ class Artifact;
 class Reference;
 
 /// A reference to a specific version of an artifact
-class Version {
+class Version : public std::enable_shared_from_this<Version> {
  public:
   Version() noexcept = default;
 
@@ -32,6 +32,12 @@ class Version {
   // Allow Move
   Version(Version&&) noexcept = default;
   Version& operator=(Version&&) noexcept = default;
+
+  /// Try to cast this version to one of its subtypes
+  template <class T>
+  shared_ptr<T> as() noexcept {
+    return std::dynamic_pointer_cast<T>(shared_from_this());
+  }
 
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }

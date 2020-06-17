@@ -29,7 +29,6 @@
 #include "util/log.hh"
 #include "versions/Version.hh"
 
-using std::dynamic_pointer_cast;
 using std::list;
 using std::make_shared;
 using std::pair;
@@ -208,7 +207,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto ref = dynamic_pointer_cast<Access>(info.getReference())) {
+    if (auto ref = info.getReference()->as<Access>()) {
       // This is an access, so we have a path
 
       // Commit any emulated modifications to this artifact to the filesystem
@@ -219,9 +218,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
       initial_fds.emplace_back(parent_fd, child_fd);
 
-    } else if (auto ref = dynamic_pointer_cast<Pipe>(info.getReference())) {
+    } else if (auto ref = info.getReference()->as<Pipe>()) {
       // This is a pipe. Get the artifact.
-      auto pipe = dynamic_pointer_cast<PipeArtifact>(ref->getArtifact());
+      auto pipe = ref->getArtifact()->as<PipeArtifact>();
 
       // Does the descriptor refer to the writing end of the pipe?
       if (info.isWritable()) {

@@ -9,7 +9,6 @@
 #include "core/IR.hh"
 #include "util/log.hh"
 
-using std::dynamic_pointer_cast;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
@@ -22,7 +21,7 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   _finalized = true;
 
   // Coerce the reference to one that has a path
-  auto a = dynamic_pointer_cast<Access>(ref);
+  auto a = ref->as<Access>();
   ASSERT(a) << "Somehow a directory was reached without a path";
 
   // Walk through and finalize each directory entry

@@ -11,7 +11,6 @@
 #include "core/Command.hh"
 #include "versions/Version.hh"
 
-using std::dynamic_pointer_cast;
 using std::endl;
 using std::map;
 using std::ostream;

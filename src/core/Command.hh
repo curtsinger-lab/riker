@@ -101,9 +101,6 @@ class Command : public std::enable_shared_from_this<Command> {
   shared_ptr<Access> access(Build& build, fs::path path, AccessFlags flags,
                             shared_ptr<Access> base) noexcept;
 
-  /// This command accesses an already-constructed reference using new flags
-  shared_ptr<Access> access(Build& build, shared_ptr<Access> a, AccessFlags flags) noexcept;
-
   /// This command creates a pipe
   shared_ptr<Pipe> pipe(Build& build) noexcept;
 

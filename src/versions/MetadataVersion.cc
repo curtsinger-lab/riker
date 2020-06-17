@@ -5,7 +5,6 @@
 
 #include "core/IR.hh"
 
-using std::dynamic_pointer_cast;
 using std::nullopt;
 using std::shared_ptr;
 
@@ -47,7 +46,7 @@ bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
 // Save metadata
 void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
   // Check the reference type
-  if (auto a = dynamic_pointer_cast<Access>(ref)) {
+  if (auto a = ref->as<Access>()) {
     // Get stat data and save it
     auto [info, rc] = a->lstat();
     if (rc == SUCCESS) _metadata = info;
@@ -69,7 +68,7 @@ bool MetadataVersion::matches(shared_ptr<Version> other) const noexcept {
   if (!_metadata.has_value()) return false;
 
   // Make sure the other version is a MetadataVersion
-  auto v = dynamic_pointer_cast<MetadataVersion>(other);
+  auto v = other->as<MetadataVersion>();
   if (!v) return false;
 
   // Compare. If the other version does not have metadata, optional will compare false

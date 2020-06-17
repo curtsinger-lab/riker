@@ -10,7 +10,6 @@
 #include "ui/options.hh"
 
 using std::cout;
-using std::dynamic_pointer_cast;
 using std::endl;
 using std::ostream;
 using std::shared_ptr;

@@ -161,13 +161,6 @@ shared_ptr<Access> Command::access(Build& build, fs::path path, AccessFlags flag
   return ref;
 }
 
-// Make an access using a new set of flags
-shared_ptr<Access> Command::access(Build& build, shared_ptr<Access> a, AccessFlags flags) noexcept {
-  auto ref = a->withFlags(flags);
-  build.addStep(shared_from_this(), ref);
-  return ref;
-}
-
 // This command creates a reference to a new pipe
 shared_ptr<Pipe> Command::pipe(Build& build) noexcept {
   auto ref = make_shared<Pipe>();
