@@ -1,3 +1,7 @@
+This test builds on the previous test by updating the symlink destination to a valid path.
+The first access sees updated contents and reruns.
+The second access now reaches a file, so that reruns as well.
+
 Move to test directory
   $ cd $TESTDIR
 

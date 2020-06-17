@@ -1,3 +1,8 @@
+This test accesses a symlink in two ways:
+1. Read the destination of a symlink, then write that out to another file
+2. Access through a symlink, then write the contents of the reached file to another output
+The symlink references a non-existent path, so the first access succeeds and the second fails.
+
 Move to test directory
   $ cd $TESTDIR
 

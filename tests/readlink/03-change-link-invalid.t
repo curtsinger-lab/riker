@@ -1,3 +1,8 @@
+This test builds on the first test in this directory. Like the change-link-valid test, the symlink
+is updated between runs. Unlike that test, it is updated to a different invalid path. As a result, 
+the first access has to rerun, but because the result of the second access (trying to resolve the 
+symlink) is unchanged, the second command does not rerun.
+
 Move to test directory
   $ cd $TESTDIR
 
