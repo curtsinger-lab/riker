@@ -151,13 +151,21 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   gid_t gid = getgid();
   mode_t mode = S_IFIFO | 0600;
 
+  // Create initial versions and the pipe artifact
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
-  if (c) mv->createdBy(c);
-
   auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
-  if (c) cv->createdBy(c);
+  auto pipe = make_shared<PipeArtifact>(*this, true, mv, cv);
 
-  return make_shared<PipeArtifact>(*this, true, mv, cv);
+  // If a command was provided, report the outputs to the build
+  if (c) {
+    mv->createdBy(c);
+    _build.observeOutput(c, pipe, mv);
+
+    cv->createdBy(c);
+    _build.observeOutput(c, pipe, cv);
+  }
+
+  return pipe;
 }
 
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
