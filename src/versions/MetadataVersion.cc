@@ -49,7 +49,7 @@ void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
   // Check the reference type
   if (auto a = dynamic_pointer_cast<Access>(ref)) {
     // Get stat data and save it
-    auto [info, rc] = a->stat();
+    auto [info, rc] = a->lstat();
     if (rc == SUCCESS) _metadata = info;
   }
 }

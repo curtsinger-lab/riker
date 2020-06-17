@@ -14,11 +14,13 @@
 #include "artifacts/Dir.hh"
 #include "artifacts/File.hh"
 #include "artifacts/Pipe.hh"
+#include "artifacts/Symlink.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
+#include "util/path.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
@@ -48,7 +50,7 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   // Try to stat the path
   struct stat statbuf;
-  int rc = ::stat(path.c_str(), &statbuf);
+  int rc = ::lstat(path.c_str(), &statbuf);
 
   // If stat failed, there is no artifact
   if (rc) return nullptr;
@@ -65,14 +67,17 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
 
   // Create a new artifact for this inode
   shared_ptr<Artifact> a;
-  if (statbuf.st_mode & S_IFREG) {
+  if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
     auto cv = make_shared<ContentVersion>(statbuf);
     a = make_shared<FileArtifact>(*this, true, mv, cv);
 
-  } else if (statbuf.st_mode & S_IFDIR) {
+  } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
     a = make_shared<DirArtifact>(*this, true, mv);
+
+  } else if ((statbuf.st_mode & S_IFMT) == S_IFLNK) {
+    a = make_shared<SymlinkArtifact>(*this, true, mv, readlink(path));
 
   } else {
     // The path refers to something else

@@ -197,10 +197,7 @@ class Access final : public Reference, public std::enable_shared_from_this<Acces
   tuple<struct stat, int> lstat() const noexcept;
 
   /// Call stat on this reference
-  tuple<struct stat, int> stat() const noexcept;
-
-  /// Call access() on this reference
-  int access() const noexcept;
+  //tuple<struct stat, int> stat() const noexcept;
 
   /// Create an access relative to this reference
   shared_ptr<Access> get(string p, AccessFlags flags) noexcept {

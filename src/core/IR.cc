@@ -74,6 +74,8 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
       if (_flags.create && _flags.exclusive && rc == SUCCESS) {
         // The access was required to create the file, but it already exists
         resolvesTo(nullptr, EEXIST);
+        return;
+
       } else if (_flags.create && rc == ENOENT) {
         // No entry exists, but it is being created by this access
         artifact = build.getEnv().createFile(getFullPath(), c, _flags);
@@ -81,20 +83,23 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
         // TODO: what happens if open creates a read-only file, but the open call is accessing it in
         // writable mode? Is the file created?
         resolvesTo(artifact, SUCCESS);
+        return;
 
       } else if (rc != SUCCESS) {
         // The access failed for some other reason
         resolvesTo(nullptr, rc);
+        return;
+
       } else if (!artifact->checkAccess(_flags)) {
         // The entry exists, but the requested access is not allowed
         resolvesTo(nullptr, EACCES);
+        return;
+
       } else {
         // Resolution succeeded
         resolvesTo(artifact, SUCCESS);
+        return;
       }
-
-      // All done
-      return;
 
     } else {
       // This is NOT the last entry along the path. First, make sure we have permission to access
@@ -212,21 +217,10 @@ int Access::open() const noexcept {
   return ::open(getFullPath().c_str(), open_flags, open_mode);
 }
 
-tuple<struct stat, int> Access::stat() const noexcept {
-  struct stat statbuf;
-  int rc = ::stat(getFullPath().c_str(), &statbuf);
-  return {statbuf, rc};
-}
-
 tuple<struct stat, int> Access::lstat() const noexcept {
   struct stat statbuf;
   int rc = ::lstat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};
-}
-
-int Access::access() const noexcept {
-  auto [access_mode, access_flags] = _flags.toAccess();
-  return faccessat(AT_FDCWD, getFullPath().c_str(), access_mode, access_flags);
 }
 
 /******************** Print Methods ********************/
