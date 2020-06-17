@@ -99,11 +99,6 @@ class Env {
   shared_ptr<Artifact> getRootDir() const noexcept { return _root_dir; }
 
   /**
-   * Get a reference to the root directory
-   */
-  shared_ptr<Access> getRootRef(AccessFlags flags = {.x = true}) noexcept;
-
-  /**
    * Create a file artifact that exists only in the filesystem model
    * \param path    The path where this file will eventually appear
    * \param creator The command that creates this file

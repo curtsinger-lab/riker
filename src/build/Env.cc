@@ -248,13 +248,6 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
   return artifact;
 }
 
-// Get a reference to the root directory
-shared_ptr<Access> Env::getRootRef(AccessFlags flags) noexcept {
-  auto ref = make_shared<Access>(nullptr, "/", flags);
-  ref->resolvesTo(getRootDir());
-  return ref;
-}
-
 // Check all remaining artifacts for changes and save updated fingerprints and metadata
 void Env::finalize() noexcept {
   if (_root_dir) {
