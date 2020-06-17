@@ -3,40 +3,30 @@ This file describes the test suite for dodo, and the process for creating new te
 
 ## Existing Tests
 
-`ABbuild`
-: Generate output with a sequence of shell commands
+**`ABbuild`** 
+Generate output with a sequence of shell commands
 
-`buildfile`
-: Test builds with executable and non-executable build files, as well as a build file that does not run with /bin/sh.
+**`buildfile`** 
+Test builds with executable and non-executable build files, as well as a build file that does not run with /bin/sh.
 
-`graph`
-: Test output and options for the graph subcommand
+**`graph`** 
+Test output and options for the graph subcommand
 
-`hello`
-: Test builds of a simple hello world C program compiled with gcc
+**`hello`** 
+Test builds of a simple hello world C program compiled with gcc
 
-`stats`                 
-: Generate build stats output
+**`readlink`** 
+Test explicit dependencies on the contents of symbolic links. The test uses the destination of a link both as raw input (like file contents) and to resolve to another file.
 
-Becasue Dodo is primarily a command-line tool, all tests are driven through the command line. Test cases use the [cram](https://pypi.org/project/cram/) tool to run commands and validate their output. This is not an introduction to cram, although the test cases in the `simple` directory demonstrate a number of useful features of cram.
+**`stats`** 
+Generate build stats output
 
-## Organizing Tests
-Dodo is meant to run and update builds, so most test programs will have multiple test cases. For example, the `simple` directory defines a one-source hello world program, and has five test cases:
+**`symlink`** 
+Make sure we are resolving paths with symlinks correctly. The test covers what happens when a symlink changes how artifacts resolve between builds.
 
-1. Build the program from scratch and verify that it runs.
-2. Run a rebuild without modifying any source files. Verify that no commands are run.
-3. Add a comment to the program. Verify that rebuilding stops after the first stage of compilation.
-4. Modify the message printed by the program. Verify that the program is rebuilt and prints the new message.
-5. Clean up after previous test cases.
+## Writing Tests
+Becasue Dodo is primarily a command-line tool, all tests are driven through the command line. Test cases use the [cram](https://pypi.org/project/cram/) tool to run commands and validate their output.
 
-Test cases are stored in `.t` files, with names that use a number prefix. This prefix indicates the order tests should be run (they are matched with a shell wildcard). This allows you to assume that build tests will run in a specific order, which saves some duplicated effort when writing tests.
-
-For the sake of consistency, tests should always begin with code that clears any previous Dodo builds and build products, and should end with a cleanup task to remove build products. This will make it easier to rerun tests correctly after manual testing or debugging in the test directories.
-
-## Registering New Tests
-Once you have added at least one `.t` file to a test directory, add the name of that directory to the `TESTS` variable defined in the top-level `Makefile`. Tests will be run in the order they are listed, generally from less complex to more complex examples.
-
-## Writing `cram` Tests
 The `cram` tool has a few quirks, so here's some information on workarounds.
 
 ### Running Tests in the Right Directory
