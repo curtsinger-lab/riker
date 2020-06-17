@@ -19,6 +19,7 @@
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
 
 using std::ostream;
@@ -84,6 +85,22 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
+    build.observeMismatch(c, _ref->getArtifact(), v, _version);
+  }
+}
+
+void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // If the reference did not resolve, report a change
+  if (!_ref->getResolution()) {
+    build.observeCommandChange(c, shared_from_this());
+    return;
+  }
+
+  // Get the latest symlink version
+  const auto& v = _ref->getArtifact()->readlink(c);
+
+  // If the returned version doesn't match the expected version, report a mismatch
+  if (!v->matches(_version)) {
     build.observeMismatch(c, _ref->getArtifact(), v, _version);
   }
 }
@@ -173,6 +190,11 @@ ostream& MetadataMatch::print(ostream& o) const noexcept {
 /// Print a CONTENTS_MATCH predicate
 ostream& ContentsMatch::print(ostream& o) const noexcept {
   return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
+}
+
+/// Print a CONTENTS_MATCH predicate
+ostream& SymlinkMatch::print(ostream& o) const noexcept {
+  return o << "SYMLINK_MATCH(" << _ref->getName() << ", " << _version << ")";
 }
 
 /// Print a SET_METADATA action

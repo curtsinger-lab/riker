@@ -28,6 +28,7 @@ class BuildObserver;
 class Command;
 class ContentVersion;
 class MetadataVersion;
+class SymlinkVersion;
 class Version;
 
 /**
@@ -151,7 +152,7 @@ class Pipe final : public Reference {
 class Access final : public Reference {
  public:
   /// Create an access reference to a path with given flags
-  Access(shared_ptr<Access> base, string path, AccessFlags flags) noexcept :
+  Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
   /**
@@ -191,7 +192,7 @@ class Access final : public Reference {
   // tuple<struct stat, int> stat() const noexcept;
 
   /// Create an access relative to this reference
-  shared_ptr<Access> get(string p, AccessFlags flags) noexcept {
+  shared_ptr<Access> get(fs::path p, AccessFlags flags) noexcept {
     return shared_ptr<Access>(new Access(as<Access>(), p, flags));
   }
 
@@ -203,7 +204,7 @@ class Access final : public Reference {
   shared_ptr<Access> _base;
 
   /// The path being accessed
-  string _path;
+  fs::path _path;
 
   /// The relevant flags for the access
   AccessFlags _flags;
@@ -278,6 +279,40 @@ class ContentsMatch final : public Step {
 
   // Create default constructor and specify fields for serialization
   ContentsMatch() = default;
+  SERIALIZE(BASE(Step), _ref, _version);
+};
+
+/**
+ * Require that a symlink targets a specific path
+ */
+class SymlinkMatch final : public Step {
+ public:
+  /// Create a SYMLINK_MATCH predicate
+  SymlinkMatch(shared_ptr<Reference> ref, shared_ptr<SymlinkVersion> version) noexcept :
+      _ref(ref), _version(version) {}
+
+  /// Get the reference used for this predicate
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
+
+  /// Get the expected version
+  const shared_ptr<SymlinkVersion>& getVersion() const noexcept { return _version; }
+
+  /**
+   * Emulate this IR step in a given environment
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   */
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a SYMLINK_MATCH predicate
+  virtual ostream& print(ostream& o) const noexcept override;
+
+ private:
+  shared_ptr<Reference> _ref;           //< The reference being examined
+  shared_ptr<SymlinkVersion> _version;  //< The expected symlink version
+
+  // Create default constructor and specify fields for serialization
+  SymlinkMatch() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 

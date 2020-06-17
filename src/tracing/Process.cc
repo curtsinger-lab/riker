@@ -682,7 +682,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      _command->contentsMatch(_build, ref);
+      _command->symlinkMatch(_build, ref);
 
     } else {
       // No. Record the failure

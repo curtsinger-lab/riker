@@ -17,6 +17,7 @@
 #include "util/path.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
 
 using std::cout;
@@ -218,6 +219,26 @@ void Command::contentsMatch(Build& build, shared_ptr<Reference> ref) noexcept {
 
   // Report the read
   _content_filter.read(this, ref);
+}
+
+// This command depends on the destination of a symlink
+void Command::symlinkMatch(Build& build, shared_ptr<Reference> ref) noexcept {
+  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
+                            << ref;
+
+  // Inform the artifact that this command accesses its contents
+  const auto& v = ref->getArtifact()->readlink(shared_from_this());
+
+  if (!v) {
+    WARN << "Readlink on " << ref << " returned a null version";
+    return;
+  }
+
+  // Take a fingerprint for consistency, although symlinks are always fully saved
+  v->fingerprint(ref);
+
+  // Add the IR step
+  build.addStep(shared_from_this(), make_shared<SymlinkMatch>(ref, v));
 }
 
 // This command sets the metadata of a referenced artifact

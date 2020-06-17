@@ -115,6 +115,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command depends on the contents of a referenced artifact
   void contentsMatch(Build& build, shared_ptr<Reference> ref) noexcept;
 
+  /// This command depends on the target of a referenced symlink
+  void symlinkMatch(Build& build, shared_ptr<Reference> ref) noexcept;
+
   /// This command sets the metadata of a referenced artifact
   void setMetadata(Build& build, shared_ptr<Reference> ref) noexcept;
 

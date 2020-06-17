@@ -1,5 +1,6 @@
 #include "serializer.hh"
 
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
 
 using std::ifstream;
@@ -196,6 +198,23 @@ void serialize(Archive& ar, struct timespec& ts) noexcept {
   ar(ts.tv_sec, ts.tv_nsec);
 }
 
+/// Serialization function for std::filesystem::path
+namespace std {
+  namespace filesystem {
+    template <class Archive>
+    void load(Archive& ar, path& p) {
+      string s;
+      ar(s);
+      p = s;
+    }
+
+    template <class Archive>
+    void save(Archive& ar, const path& p) {
+      ar(string(p));
+    }
+  }
+}
+
 /** Register types and polymorphic relationships **/
 
 // Versions
@@ -209,6 +228,7 @@ CEREAL_REGISTER_TYPE(Access);
 // Predicates
 CEREAL_REGISTER_TYPE(MetadataMatch);
 CEREAL_REGISTER_TYPE(ContentsMatch);
+CEREAL_REGISTER_TYPE(SymlinkMatch);
 
 // Actions
 CEREAL_REGISTER_TYPE(Launch);

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 
+#include "util/serializer.hh"
 #include "versions/Version.hh"
 
 using std::shared_ptr;
@@ -40,4 +41,8 @@ class SymlinkVersion : public Version {
 
  private:
   fs::path _dest;
+
+  // Create a default constructor and declare fields for serialization
+  SymlinkVersion() = default;
+  SERIALIZE(BASE(Version), _dest);
 };
