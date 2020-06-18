@@ -31,6 +31,8 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
 
 // Save a fingerprint of this version
 void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
+  if (hasFingerprint()) return;
+
   // Check the reference type
   if (auto a = ref->as<Access>()) {
     // Get stat data and save it

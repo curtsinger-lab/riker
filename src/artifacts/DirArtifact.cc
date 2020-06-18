@@ -37,7 +37,6 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
 
 Resolution DirArtifact::getEntry(fs::path self, string entry) noexcept {
   if (entry == ".") return shared_from_this();
-  if (entry == "..") return _env.getPath(self / entry);
 
   // If there is no record of this entry, look on the filesystem
   auto iter = _entries.find(entry);
