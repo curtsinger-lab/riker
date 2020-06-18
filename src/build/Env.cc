@@ -105,7 +105,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
         result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
       } else {
         // Resolve the symlink as an absolute path
-        result = resolvePath(cmd, ref, symlink_path, flags);
+        result = resolvePath(cmd, ref, symlink_path, flags, "/", _root_dir);
       }
 
       // If the symlink resolution failed, return the error
@@ -132,7 +132,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
       result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
     } else {
       // Resolve the symlink as an absolute path
-      result = resolvePath(cmd, ref, symlink_path, flags);
+      result = resolvePath(cmd, ref, symlink_path, flags, "/", _root_dir);
     }
 
     // If the symlink resolution failed, return the error

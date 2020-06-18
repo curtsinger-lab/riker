@@ -73,20 +73,6 @@ class Env {
                          shared_ptr<Artifact> base) noexcept;
 
   /**
-   * Resolve a path relative to the root directory
-   * \param cmd   The command performing the resolution
-   * \param path  The path to resolve
-   * \param flags The access requirements for the artifact reached via the path
-   * \returns a resultion result, which holds either an artifact or an error code
-   */
-  Resolution resolvePath(shared_ptr<Command> cmd,
-                         shared_ptr<Reference> ref,
-                         fs::path path,
-                         AccessFlags flags) noexcept {
-    return resolvePath(cmd, ref, path, flags, "/", _root_dir);
-  }
-
-  /**
    * Create a pipe artifact
    * \param c The command that creates the pipe
    * \returns a pipe artifact
