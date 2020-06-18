@@ -17,8 +17,8 @@ class FileArtifact : public Artifact {
  public:
   FileArtifact(Env& env,
                bool committed,
-               shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>(),
-               shared_ptr<ContentVersion> cv = make_shared<ContentVersion>()) noexcept;
+               shared_ptr<MetadataVersion> mv,
+               shared_ptr<ContentVersion> cv) noexcept;
 
   /// Check the final state of this artifact and save any necessary final fingerprints
   virtual void finalize(shared_ptr<Reference> ref) noexcept final;

@@ -15,6 +15,7 @@
 #include <cereal/types/memory.hpp>
 #include <cereal/types/optional.hpp>
 #include <cereal/types/polymorphic.hpp>
+#include <cereal/types/set.hpp>
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/vector.hpp>
 
@@ -25,6 +26,7 @@
 #include "core/Trace.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
+#include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
@@ -220,6 +222,8 @@ namespace std {
 // Versions
 CEREAL_REGISTER_TYPE(MetadataVersion);
 CEREAL_REGISTER_TYPE(ContentVersion);
+CEREAL_REGISTER_TYPE(SymlinkVersion);
+CEREAL_REGISTER_TYPE(ListedDirVersion);
 
 // References
 CEREAL_REGISTER_TYPE(Pipe);

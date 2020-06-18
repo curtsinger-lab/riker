@@ -7,6 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/Resolution.hh"
+#include "versions/DirVersion.hh"
 
 using std::map;
 using std::shared_ptr;
@@ -24,8 +25,8 @@ class DirArtifact final : public Artifact {
  public:
   DirArtifact(Env& env,
               bool committed,
-              shared_ptr<MetadataVersion> mv = make_shared<MetadataVersion>()) noexcept :
-      Artifact(env, committed, mv) {}
+              shared_ptr<MetadataVersion> mv,
+              shared_ptr<DirVersion> dv) noexcept;
 
   virtual string getTypeName() const noexcept final { return "Dir"; }
 
@@ -37,11 +38,16 @@ class DirArtifact final : public Artifact {
    * \param entry The name of the entry being requested
    * \returns a resolution result, either an artifact or an error code
    */
-  virtual Resolution getEntry(fs::path self, string entry) noexcept final;
+  virtual Resolution getEntry(fs::path self, fs::path entry) noexcept override;
 
-  virtual void setEntry(string entry, shared_ptr<Artifact> target) noexcept final;
+  virtual void setEntry(fs::path entry, shared_ptr<Artifact> target) noexcept override;
 
  private:
-  map<string, weak_ptr<Artifact>> _entries;
+  map<fs::path, weak_ptr<Artifact>> _resolved;
+
+  list<shared_ptr<DirVersion>> _dir_versions;
+
+  bool _dir_committed;
+
   bool _finalized = false;
 };
