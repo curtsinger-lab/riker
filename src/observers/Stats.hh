@@ -94,7 +94,8 @@ class Stats final : public BuildObserver {
   /// Called during emulation to report an input to command c
   virtual void input(shared_ptr<Command> c,
                      shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept override final {
+                     shared_ptr<Version> v,
+                     InputType t) noexcept override final {
     _artifacts.insert(a);
   }
 

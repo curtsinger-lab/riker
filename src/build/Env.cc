@@ -95,7 +95,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
 
     // If the result is a symlink, we may need to follow it
     if (auto symlink = result->as<SymlinkArtifact>(); symlink && !flags.nofollow) {
-      auto symlink_path = symlink->readlink(cmd)->getDestination();
+      auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
       if (symlink_path.is_relative()) {
         // Resolve the symlink relative to its containing directory
         result = resolvePath(cmd, symlink_path, flags, base_path, base);
@@ -122,7 +122,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
 
   // If the result is a symlink, we always follow it
   if (auto symlink = result->as<SymlinkArtifact>()) {
-    auto symlink_path = symlink->readlink(cmd)->getDestination();
+    auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
     if (symlink_path.is_relative()) {
       // Resolve the symlink relative to its containing directory
       result = resolvePath(cmd, symlink_path, flags, base_path, base);

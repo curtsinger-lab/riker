@@ -179,7 +179,7 @@ void Command::metadataMatch(Build& build, shared_ptr<Reference> ref) noexcept {
   if (!_metadata_filter.readRequired(this, ref)) return;
 
   // Inform the artifact that this command accesses its metadata
-  const auto& v = ref->getArtifact()->accessMetadata(shared_from_this(), ref);
+  const auto& v = ref->getArtifact()->accessMetadata(shared_from_this(), ref, InputType::Accessed);
 
   // If the last write was from this command we don't need a fingerprint to compare.
   if (v->getCreator() != shared_from_this()) {
@@ -227,7 +227,7 @@ void Command::symlinkMatch(Build& build, shared_ptr<Reference> ref) noexcept {
                             << ref;
 
   // Inform the artifact that this command accesses its contents
-  const auto& v = ref->getArtifact()->readlink(shared_from_this());
+  const auto& v = ref->getArtifact()->readlink(shared_from_this(), InputType::Accessed);
 
   if (!v) {
     WARN << "Readlink on " << ref << " returned a null version";

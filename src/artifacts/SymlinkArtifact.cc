@@ -18,11 +18,12 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
 }
 
 void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::Inherited);
   Artifact::needsCurrentVersions(c);
 }
 
-const shared_ptr<SymlinkVersion>& SymlinkArtifact::readlink(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version);
+const shared_ptr<SymlinkVersion>& SymlinkArtifact::readlink(shared_ptr<Command> c,
+                                                            InputType t) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, t);
   return _symlink_version;
 }

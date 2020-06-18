@@ -7,6 +7,7 @@
 #include <ostream>
 #include <string>
 
+#include "build/AccessTypes.hh"
 #include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
 #include "ui/options.hh"
@@ -110,10 +111,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * Command c accesses the metadata for this artifact using reference ref.
    * \param c   The command making the access
    * \param ref The referenced used to reach this artifact
+   * \param t   The type of action that led to this input
    * \returns the version the command observes
    */
   const shared_ptr<MetadataVersion>& accessMetadata(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref) noexcept;
+                                                    shared_ptr<Reference> ref,
+                                                    InputType t) noexcept;
 
   /**
    * Command c sets the metadata of this artifact to version v using reference ref.
@@ -166,7 +169,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Symlink Operations ************/
 
-  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c) noexcept {
+  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c, InputType t) noexcept {
     WARN << "Invalid readlink call on non-symlink artifact";
     return _dummy_symlink_version;
   }

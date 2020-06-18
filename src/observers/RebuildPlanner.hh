@@ -78,7 +78,8 @@ class RebuildPlanner final : public BuildObserver {
   /// Command c depends on version v of artifact a
   virtual void input(shared_ptr<Command> c,
                      shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept override final {
+                     shared_ptr<Version> v,
+                     InputType t) noexcept override final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.

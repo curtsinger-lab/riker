@@ -64,7 +64,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
   // Get the latest metadata version. The returned version will be nullptr if no check is
   // necessary.
-  const auto& v = _ref->getArtifact()->accessMetadata(c, _ref);
+  const auto& v = _ref->getArtifact()->accessMetadata(c, _ref, InputType::Accessed);
 
   // If a version was returned and it doesn't match the expected version, report a mismatch
   if (v && !v->matches(_version)) {
@@ -97,7 +97,7 @@ void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   }
 
   // Get the latest symlink version
-  const auto& v = _ref->getArtifact()->readlink(c);
+  const auto& v = _ref->getArtifact()->readlink(c, InputType::Accessed);
 
   // If the returned version doesn't match the expected version, report a mismatch
   if (!v->matches(_version)) {

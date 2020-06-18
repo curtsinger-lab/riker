@@ -25,7 +25,7 @@ Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noex
 }
 
 void Artifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Inherited);
 }
 
 // Check if an access is allowed by the metadata for this artifact
@@ -101,12 +101,13 @@ void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary
 const shared_ptr<MetadataVersion>& Artifact::accessMetadata(shared_ptr<Command> c,
-                                                            shared_ptr<Reference> ref) noexcept {
+                                                            shared_ptr<Reference> ref,
+                                                            InputType t) noexcept {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
   // Yes. Notify the build and return the version
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
   return _metadata_version;
 }
 

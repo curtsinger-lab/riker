@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include "build/AccessTypes.hh"
+
 using std::shared_ptr;
 
 class Artifact;
@@ -11,10 +13,10 @@ class Step;
 class Version;
 
 /**
- * This serves as a base class for any utility that needs dependency and change information produced
- * by walking through a build trace. The primary use of this visitor is for the RebuildPlanner
- * class; this class tracks command dependencies and changed predicates to select the set of
- * commands that will run during a rebuild.
+ * This serves as a base class for any utility that needs dependency and change information
+ * produced by walking through a build trace. The primary use of this visitor is for the
+ * RebuildPlanner class; this class tracks command dependencies and changed predicates to select
+ * the set of commands that will run during a rebuild.
  */
 class BuildObserver {
  public:
@@ -29,7 +31,8 @@ class BuildObserver {
   /// Command c depends on artifact a, accessing version v
   virtual void input(shared_ptr<Command> c,
                      shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept {}
+                     shared_ptr<Version> v,
+                     InputType t) noexcept {}
 
   /// Command c did not find the expect version of artifact a
   virtual void mismatch(shared_ptr<Command> c,

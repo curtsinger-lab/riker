@@ -166,7 +166,11 @@ class Graph final : public BuildObserver {
   /// Command c reads version v from artifact a
   virtual void input(shared_ptr<Command> c,
                      shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept override final {
+                     shared_ptr<Version> v,
+                     InputType t) noexcept override final {
+    // Only include explicitly-accessed inputs
+    if (t != InputType::Accessed) return;
+
     if (isSystemFile(a) && !_show_sysfiles) return;
 
     _io_edges.emplace(getVersionID(a, v), getCommandID(c));

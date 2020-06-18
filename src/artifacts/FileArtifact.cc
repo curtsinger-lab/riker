@@ -91,7 +91,7 @@ void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
 }
 
 void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Inherited);
   Artifact::needsCurrentVersions(c);
 }
 
@@ -102,7 +102,7 @@ const shared_ptr<ContentVersion>& FileArtifact::accessContents(shared_ptr<Comman
   _content_version->accessed();
 
   // Yes. Notify the build and return the version
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
   return _content_version;
 }
 
