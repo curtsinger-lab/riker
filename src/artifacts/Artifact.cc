@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "build/AccessTypes.hh"
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
@@ -33,7 +34,7 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   // We really should report this edge here, since some other command may have set the latest
   // metadata version. Disabling this for now because it makes the graph unreadable.
 
-  //_env.getBuild().observeInput(c, shared_from_this(), _metadata_version);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
 
   return _metadata_version->checkAccess(flags);
 }
