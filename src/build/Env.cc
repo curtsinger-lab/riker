@@ -31,6 +31,7 @@ using std::shared_ptr;
 using std::string;
 
 Resolution Env::resolvePath(shared_ptr<Command> cmd,
+                            shared_ptr<Reference> ref,
                             fs::path path,
                             AccessFlags flags,
                             fs::path base_path,
@@ -62,7 +63,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
   iter++;
 
   // Try to get the named entry from base
-  auto result = base->getEntry(base_path, entry);
+  auto result = base->getEntry(cmd, base_path, entry);
 
   // If the resolution succeeded, updated the name for the resulting artifact
   if (result) result->setName((fs::path(base->getName()) / entry).lexically_normal());
@@ -83,8 +84,11 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
       auto newfile = createFile(base_path / entry, cmd, flags);
       newfile->setName((fs::path(base->getName()) / entry).lexically_normal());
 
+      // Record the resolution
+      ref->resolvesTo(newfile);
+
       // Add the new file to the directory
-      base->setEntry(entry, newfile);
+      base->addEntry(cmd, base_path, entry, ref);
 
       // Return the new file
       return newfile;
@@ -98,10 +102,10 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
       auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
       if (symlink_path.is_relative()) {
         // Resolve the symlink relative to its containing directory
-        result = resolvePath(cmd, symlink_path, flags, base_path, base);
+        result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
       } else {
         // Resolve the symlink as an absolute path
-        result = resolvePath(cmd, symlink_path, flags);
+        result = resolvePath(cmd, ref, symlink_path, flags);
       }
 
       // If the symlink resolution failed, return the error
@@ -125,10 +129,10 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
     auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
     if (symlink_path.is_relative()) {
       // Resolve the symlink relative to its containing directory
-      result = resolvePath(cmd, symlink_path, flags, base_path, base);
+      result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
     } else {
       // Resolve the symlink as an absolute path
-      result = resolvePath(cmd, symlink_path, flags);
+      result = resolvePath(cmd, ref, symlink_path, flags);
     }
 
     // If the symlink resolution failed, return the error
@@ -142,7 +146,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
   }
 
   // Now make a recursive call to resolve the rest of the path
-  return resolvePath(cmd, newpath, flags, base_path / entry, result);
+  return resolvePath(cmd, ref, newpath, flags, base_path / entry, result);
 }
 
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {

@@ -38,9 +38,14 @@ class DirArtifact final : public Artifact {
    * \param entry The name of the entry being requested
    * \returns a resolution result, either an artifact or an error code
    */
-  virtual Resolution getEntry(fs::path self, fs::path entry) noexcept override;
+  virtual Resolution getEntry(shared_ptr<Command> c,
+                              fs::path dirpath,
+                              fs::path entry) noexcept override;
 
-  virtual void setEntry(fs::path entry, shared_ptr<Artifact> target) noexcept override;
+  virtual void addEntry(shared_ptr<Command> c,
+                        fs::path self,
+                        fs::path entry,
+                        shared_ptr<Reference> target) noexcept override;
 
  private:
   map<fs::path, weak_ptr<Artifact>> _resolved;

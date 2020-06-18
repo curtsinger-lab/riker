@@ -38,7 +38,8 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   fs::path base_path = _base->getFullPath();
   shared_ptr<Artifact> base_artifact = _base->getResolution();
 
-  resolvesTo(build.getEnv().resolvePath(c, _path, _flags, base_path, base_artifact));
+  resolvesTo(build.getEnv().resolvePath(c, shared_from_this()->as<Access>(), _path, _flags,
+                                        base_path, base_artifact));
 }
 
 /******* Emulation *******/

@@ -65,8 +65,12 @@ class Env {
    * \param base      The directory artifact where resolution should begin
    * \returns a resultion result, which holds either an artifact or an error code
    */
-  Resolution resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags,
-                         fs::path base_path, shared_ptr<Artifact> base) noexcept;
+  Resolution resolvePath(shared_ptr<Command> cmd,
+                         shared_ptr<Reference> ref,
+                         fs::path path,
+                         AccessFlags flags,
+                         fs::path base_path,
+                         shared_ptr<Artifact> base) noexcept;
 
   /**
    * Resolve a path relative to the root directory
@@ -75,8 +79,11 @@ class Env {
    * \param flags The access requirements for the artifact reached via the path
    * \returns a resultion result, which holds either an artifact or an error code
    */
-  Resolution resolvePath(shared_ptr<Command> cmd, fs::path path, AccessFlags flags) noexcept {
-    return resolvePath(cmd, path, flags, "/", _root_dir);
+  Resolution resolvePath(shared_ptr<Command> cmd,
+                         shared_ptr<Reference> ref,
+                         fs::path path,
+                         AccessFlags flags) noexcept {
+    return resolvePath(cmd, ref, path, flags, "/", _root_dir);
   }
 
   /**
@@ -104,7 +111,8 @@ class Env {
    * \param creator The command that creates this file
    * \returns a file artifact
    */
-  shared_ptr<Artifact> createFile(fs::path path, shared_ptr<Command> creator,
+  shared_ptr<Artifact> createFile(fs::path path,
+                                  shared_ptr<Command> creator,
                                   AccessFlags flags) noexcept;
 
  private:

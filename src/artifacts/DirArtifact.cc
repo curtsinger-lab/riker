@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 
+#include "build/Build.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
 #include "core/IR.hh"
@@ -52,56 +53,71 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   Artifact::finalize(ref);
 }
 
-Resolution DirArtifact::getEntry(fs::path self, fs::path entry) noexcept {
-  // Look in the cache of resolved artifacts
-  auto iter = _resolved.find(entry);
-  if (iter != _resolved.end()) {
-    return iter->second.lock();
-  }
-
-  // If we're looking for ., cache it and return
-  if (entry == ".") {
-    _resolved.emplace(".", shared_from_this());
-    return shared_from_this();
-  }
-
-  // If we find an entry, the artifact will go here
-  shared_ptr<Artifact> artifact;
+Resolution DirArtifact::getEntry(shared_ptr<Command> c, fs::path dirpath, fs::path entry) noexcept {
+  // If we're looking for ".", return immediately
+  if (entry == ".") return shared_from_this();
 
   // Loop through versions until we get a definite answer about the entry
   Lookup found;
   for (auto& v : _dir_versions) {
     // Ask the specific version
-    found = v->hasEntry(_env, self, entry);
+    found = v->hasEntry(_env, dirpath, entry);
 
     // Handle the result
     if (found == Lookup::No) {
-      // No entry, so return an error
+      // No entry. Record the dependency and return an error
+      _env.getBuild().observeInput(c, shared_from_this(), v, InputType::PathResolution);
       return ENOENT;
-    } else if (found == Lookup::Yes) {
-      // Ask the version to provide the artifact if it can
-      artifact = v->getEntry(entry);
 
-      // Found the entry, so break out of the loop
-      break;
+    } else if (found == Lookup::Yes) {
+      // Found an entry. Record the dependency
+      _env.getBuild().observeInput(c, shared_from_this(), v, InputType::PathResolution);
+
+      // Look in the cache of resolved artifacts
+      auto iter = _resolved.find(entry);
+      if (iter != _resolved.end()) {
+        // Found a match. Return it now.
+        return iter->second.lock();
+      } else {
+        // Ask the version to provide the artifact if it can
+        auto artifact = v->getEntry(entry);
+
+        // If the version did not provide an artifact, look in the environment
+        if (!artifact) {
+          artifact = _env.getPath(dirpath / entry);
+          ASSERT(artifact) << "Failed to locate artifact for existing entry at "
+                           << (dirpath / entry);
+        }
+
+        // Save the resolved artifact in the cache and return
+        _resolved.emplace_hint(iter, entry, artifact);
+        return artifact;
+      }
     }
   }
 
   // This should never happen...
-  ASSERT(found != Lookup::Maybe) << "Directory lookup concluded without a definite answer";
-
-  // If the artifact is null at this point, we're supposed to look on the filesystem
-  if (!artifact) {
-    artifact = _env.getPath(self / entry);
-    ASSERT(artifact) << "Failed to locate artifact for existing entry at " << (self / entry);
-  }
-
-  // Cache the resolved artifact
-  _resolved.emplace_hint(iter, entry, artifact);
-
-  return artifact;
+  FAIL_IF(found == Lookup::Maybe) << "Directory lookup concluded without a definite answer";
+  return ENOENT;
 }
 
-void DirArtifact::setEntry(fs::path entry, shared_ptr<Artifact> target) noexcept {
-  _resolved[entry] = target;
+void DirArtifact::addEntry(shared_ptr<Command> c,
+                           fs::path dirpath,
+                           fs::path entry,
+                           shared_ptr<Reference> target) noexcept {
+  // Create a new version to encode the linking operation
+  auto v = make_shared<LinkDirVersion>(entry, target);
+  v->createdBy(c);
+
+  // Notify the build of this output
+  _env.getBuild().observeOutput(c, shared_from_this(), v);
+
+  // Add this to the front of the directory version list
+  _dir_versions.push_front(v);
+
+  // Record this version in the artifact as well
+  appendVersion(v);
+
+  // Cache the result of the resolution
+  _resolved[entry] = target->getArtifact();
 }
