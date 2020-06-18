@@ -195,7 +195,7 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
 
   } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
-    auto dv = make_shared<ListedDirVersion>(path);
+    auto dv = make_shared<ExistingDirVersion>();
     a = make_shared<DirArtifact>(*this, true, mv, dv);
 
   } else if ((statbuf.st_mode & S_IFMT) == S_IFLNK) {

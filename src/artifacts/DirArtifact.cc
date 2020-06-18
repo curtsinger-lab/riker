@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <dirent.h>
 #include <sys/types.h>
@@ -17,6 +18,7 @@ using std::list;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
+using std::tie;
 
 namespace fs = std::filesystem;
 
@@ -63,27 +65,36 @@ Resolution DirArtifact::getEntry(fs::path self, fs::path entry) noexcept {
     return shared_from_this();
   }
 
+  // If we find an entry, the artifact will go here
+  shared_ptr<Artifact> artifact;
+
   // Loop through versions until we get a definite answer about the entry
-  Lookup result;
+  Lookup found;
   for (auto& v : _dir_versions) {
     // Ask the specific version
-    result = v->hasEntry(entry);
+    found = v->hasEntry(_env, self, entry);
 
     // Handle the result
-    if (result == Lookup::No) {
+    if (found == Lookup::No) {
       // No entry, so return an error
       return ENOENT;
-    } else if (result == Lookup::Yes) {
+    } else if (found == Lookup::Yes) {
+      // Ask the version to provide the artifact if it can
+      artifact = v->getEntry(entry);
+
       // Found the entry, so break out of the loop
       break;
     }
   }
 
   // This should never happen...
-  ASSERT(result != Lookup::Maybe) << "Directory lookup concluded without a definite answer";
+  ASSERT(found != Lookup::Maybe) << "Directory lookup concluded without a definite answer";
 
-  // The entry exists, so now try to resolve it
-  auto artifact = _env.getPath(self / entry);
+  // If the artifact is null at this point, we're supposed to look on the filesystem
+  if (!artifact) {
+    artifact = _env.getPath(self / entry);
+    ASSERT(artifact) << "Failed to locate artifact for existing entry at " << (self / entry);
+  }
 
   // Cache the resolved artifact
   _resolved.emplace_hint(iter, entry, artifact);
