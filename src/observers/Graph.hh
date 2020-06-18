@@ -27,9 +27,9 @@ class Graph final : public BuildObserver {
  public:
   /**
    * Print graphviz output for a build
-   * \param show_sysfiles  If true, include artifacts that are system files
+   * \param show_all  If true, show all artifacts
    */
-  Graph(bool show_sysfiles) noexcept : _show_sysfiles(show_sysfiles) {}
+  Graph(bool show_all) noexcept : _show_all(show_all) {}
 
   /// Print the results of our stats gathering
   ostream& print(ostream& o) noexcept {
@@ -123,18 +123,6 @@ class Graph final : public BuildObserver {
       return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
   }
 
-  /// Check if an artifact appears to be a system file
-  bool isSystemFile(shared_ptr<Artifact> a) noexcept {
-    auto path = a->getName();
-
-    for (const auto& p : {"/usr/", "/lib/", "/etc/", "/dev/", "/proc/", "/bin/"}) {
-      // Check if the path begins with one of our prefixes.
-      // Using rfind with a starting index of 0 is equivalent to starts_with (coming in C++20)
-      if (path.rfind(p, 0) != string::npos) return true;
-    }
-    return false;
-  }
-
   string getCommandID(shared_ptr<Command> c) noexcept {
     // Add this command to the map of command IDs if necessary
     if (auto iter = _command_ids.find(c); iter == _command_ids.end()) {
@@ -171,7 +159,7 @@ class Graph final : public BuildObserver {
     // Only include explicitly-accessed inputs
     if (t != InputType::Accessed) return;
 
-    if (isSystemFile(a) && !_show_sysfiles) return;
+    if (fs::path(a->getName()).is_absolute() && !_show_all) return;
 
     _io_edges.emplace(getVersionID(a, v), getCommandID(c));
   }
@@ -180,7 +168,7 @@ class Graph final : public BuildObserver {
   virtual void output(shared_ptr<Command> c,
                       shared_ptr<Artifact> a,
                       shared_ptr<Version> v) noexcept override final {
-    if (isSystemFile(a) && !_show_sysfiles) return;
+    if (fs::path(a->getName()).is_absolute() && !_show_all) return;
 
     _io_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
@@ -226,8 +214,8 @@ class Graph final : public BuildObserver {
   }
 
  private:
-  /// Should the graph output include system files?
-  bool _show_sysfiles;
+  /// Should the graph output include all artifacts?
+  bool _show_all;
 
   /// A map from commands to their IDs in the graph output
   map<shared_ptr<Command>, string> _command_ids;

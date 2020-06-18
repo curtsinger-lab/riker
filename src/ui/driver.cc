@@ -128,7 +128,7 @@ void do_trace(string output) noexcept {
  * \param output        The name of the output file, or "-" for stdout
  * \param show_sysfiles If true, include system files in the graph
  */
-void do_graph(string output, string type, bool show_sysfiles, bool no_render) noexcept {
+void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -143,7 +143,7 @@ void do_graph(string output, string type, bool show_sysfiles, bool no_render) no
   Build b(trace);
 
   // Create the Graph observer and attach it to the build
-  auto graph = make_shared<Graph>(show_sysfiles);
+  auto graph = make_shared<Graph>(show_all);
   b.addObserver(graph);
 
   // Run the emulated build
@@ -299,17 +299,17 @@ int main(int argc, char* argv[]) noexcept {
   // Leave output file and type empty for later default processing
   string graph_output;
   string graph_type;
-  bool show_sysfiles = false;
+  bool show_all = false;
   bool no_render = false;
 
   auto graph = app.add_subcommand("graph", "Generate a build graph");
   graph->add_option("-o,--output", graph_output, "Output file for the graph");
   graph->add_option("-t,--type", graph_type, "Output format for the graph (png, pdf, jpg, etc.)");
   graph->add_flag("-n,--no-render", no_render, "Generate graphiz source instead of rendering");
-  graph->add_flag("-a,--all", show_sysfiles, "Include system files in graph output");
+  graph->add_flag("-a,--all", show_all, "Include all files in the graph");
 
   // Set the callback fo the trace subcommand
-  graph->final_callback([&] { do_graph(graph_output, graph_type, show_sysfiles, no_render); });
+  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
