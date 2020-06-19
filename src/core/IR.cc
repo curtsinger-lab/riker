@@ -127,6 +127,23 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
   _ref->getArtifact()->setContents(c, _ref, _version);
 }
 
+void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // If the reference did not resolve, report a change
+  if (!_ref->getResolution()) {
+    build.observeCommandChange(c, shared_from_this());
+    return;
+  }
+
+  // Check the target reference as well
+  if (!_target->getResolution()) {
+    build.observeCommandChange(c, shared_from_this());
+    return;
+  }
+
+  // Perform the unlink
+  _ref->getArtifact()->addEntry(c, _ref, _entry, _target);
+}
+
 void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // If the reference did not resolve, report a change
   if (!_ref->getResolution()) {
@@ -221,6 +238,11 @@ ostream& SetMetadata::print(ostream& o) const noexcept {
 /// Print a SET_CONTENTS action
 ostream& SetContents::print(ostream& o) const noexcept {
   return o << "SET_CONTENTS(" << getReference()->getName() << ", " << _version << ")";
+}
+
+/// Print a LINK action
+ostream& Link::print(ostream& o) const noexcept {
+  return o << "LINK(" << _ref->getName() << ", " << _entry << ", " << _target->getName() << ")";
 }
 
 /// Print an UNLINK action

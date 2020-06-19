@@ -450,6 +450,36 @@ class SetContents final : public Step {
   SERIALIZE(BASE(Step), _ref, _version);
 };
 
+class Link final : public Step {
+ public:
+  Link(shared_ptr<Reference> ref, string entry, shared_ptr<Reference> target) noexcept :
+      _ref(ref), _entry(entry), _target(target) {}
+
+  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
+
+  string getEntry() const noexcept { return _entry; }
+
+  const shared_ptr<Reference>& getTarget() const noexcept { return _target; }
+
+  /**
+   * Emulate this IR step in a given environment
+   * \param c   The command that contains the IR step
+   * \param env The environment this step should be emulated in
+   */
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print an UNLINK action
+  virtual ostream& print(ostream& o) const noexcept override;
+
+ private:
+  shared_ptr<Reference> _ref;
+  string _entry;
+  shared_ptr<Reference> _target;
+
+  Link() = default;
+  SERIALIZE(BASE(Step), _ref, _entry, _target);
+};
+
 class Unlink final : public Step {
  public:
   Unlink(shared_ptr<Reference> ref, string entry) noexcept : _ref(ref), _entry(entry) {}

@@ -656,8 +656,33 @@ void Process::_linkat(int old_dfd,
                       int new_dfd,
                       string newpath,
                       int flags) noexcept {
-  WARN << "linkat syscall is not updated";
-  resume();
+  // Split the pathname into the parent and entry
+  auto path = fs::path(oldpath);
+  auto dir_path = path.parent_path();
+  auto entry = path.filename();
+
+  // Get a reference to the directory, which we will be writing
+  auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, old_dfd);
+
+  // Get a reference to the artifact we are linking into the directory
+  auto target_ref = makeAccess(newpath, AccessFlags{}, new_dfd);
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the call succeed?
+    if (rc == 0) {
+      dir_ref->expectResult(SUCCESS);
+      dir_ref->resolve(_command, _build);
+      target_ref->resolve(_command, _build);
+      _command->link(_build, dir_ref, entry, target_ref);
+
+    } else {
+      // TODO: Record the failure. This is a bit tricky because we have to attribute it to some
+      // particular access
+      return;
+    }
+  });
 }
 
 void Process::_symlinkat(string oldname, int newdfd, string newname) noexcept {
@@ -709,14 +734,11 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   // Get a reference to the directory, which we will be writing
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
 
-  INFO << _command << ": unlink " << entry << " from " << dir_ref;
-
   finishSyscall([=](long rc) {
     resume();
 
     // Did the call succeed?
     if (rc == 0) {
-      INFO << "  SUCCESS";
       dir_ref->expectResult(SUCCESS);
       dir_ref->resolve(_command, _build);
       _command->unlink(_build, dir_ref, entry);

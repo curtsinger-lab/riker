@@ -277,6 +277,19 @@ void Command::setContents(Build& build, shared_ptr<Reference> ref) noexcept {
   _content_filter.write(this, ref, v);
 }
 
+// This command adds an entry to a directory
+void Command::link(Build& build,
+                   shared_ptr<Reference> ref,
+                   string entry,
+                   shared_ptr<Reference> target) noexcept {
+  ASSERT(ref->isResolved()) << "Cannot remove an entry from an unresolved directory";
+  ASSERT(target->isResolved()) << "Cannot link an unresolved reference into a directory";
+
+  ref->getArtifact()->addEntry(shared_from_this(), ref, entry, target);
+
+  build.addStep(shared_from_this(), make_shared<Link>(ref, entry, target));
+}
+
 // This command removes an entry from a directory
 void Command::unlink(Build& build, shared_ptr<Reference> ref, string entry) noexcept {
   ASSERT(ref->isResolved()) << "Cannot remove an entry from an unresolved directory";

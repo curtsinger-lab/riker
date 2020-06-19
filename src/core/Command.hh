@@ -124,6 +124,12 @@ class Command : public std::enable_shared_from_this<Command> {
   /// This command sets the contents of a referenced artifact
   void setContents(Build& build, shared_ptr<Reference> ref) noexcept;
 
+  /// This command adds an entry to a directory
+  void link(Build& build,
+            shared_ptr<Reference> ref,
+            string entry,
+            shared_ptr<Reference> target) noexcept;
+
   /// This command removes an entry from a directory
   void unlink(Build& build, shared_ptr<Reference> ref, string entry) noexcept;
 
