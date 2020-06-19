@@ -8,7 +8,7 @@ class PipeArtifact final : public FileArtifact {
  public:
   using FileArtifact::FileArtifact;
 
-  virtual string getTypeName() const noexcept final { return "Pipe"; }
+  virtual string getTypeName() const noexcept override { return "Pipe"; }
 
   void open() noexcept {
     if (_read_fd == -1 && _write_fd == -1) {

@@ -28,9 +28,9 @@ class DirArtifact final : public Artifact {
               shared_ptr<MetadataVersion> mv,
               shared_ptr<DirVersion> dv) noexcept;
 
-  virtual string getTypeName() const noexcept final { return "Dir"; }
+  virtual string getTypeName() const noexcept override { return "Dir"; }
 
-  virtual void finalize(shared_ptr<Reference> ref) noexcept final;
+  virtual void finalize(shared_ptr<Reference> ref) noexcept override;
 
   /**
    * Attempt to access a directory entry in the current artifact.

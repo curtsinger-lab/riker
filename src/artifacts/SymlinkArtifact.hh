@@ -21,7 +21,7 @@ class SymlinkArtifact final : public Artifact {
                   shared_ptr<MetadataVersion> mv,
                   shared_ptr<SymlinkVersion> sv) noexcept;
 
-  virtual string getTypeName() const noexcept final { return "Symlink"; }
+  virtual string getTypeName() const noexcept override { return "Symlink"; }
 
   /// The provided command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;

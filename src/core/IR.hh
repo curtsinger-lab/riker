@@ -142,12 +142,12 @@ class Pipe final : public Reference {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a PIPE reference
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   // Specify fields for serialization
@@ -166,9 +166,9 @@ class Access final : public Reference {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Get the access that serves as the base for this one
   const shared_ptr<Access>& getBase() const noexcept { return _base; }
@@ -203,7 +203,7 @@ class Access final : public Reference {
   }
 
   /// Print an ACCESS reference
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   /// The base used to resolve this reference, typically either cwd or root.
@@ -240,10 +240,10 @@ class MetadataMatch final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a METADATA_MATCH predicate
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Reference> _ref;            //< The reference being examined
@@ -274,10 +274,10 @@ class ContentsMatch final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a CONTENTS_MATCH predicate
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Reference> _ref;           //< The reference being examined
@@ -339,10 +339,10 @@ class Launch final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
@@ -372,10 +372,10 @@ class Join final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Command> _cmd;  //< The command that was joined with
@@ -404,10 +404,10 @@ class SetMetadata final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SET_METADATA action
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Reference> _ref;
@@ -436,10 +436,10 @@ class SetContents final : public Step {
    * \param c   The command that contains the IR step
    * \param env The environment this step should be emulated in
    */
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept final;
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SET_CONTENTS action
-  virtual ostream& print(ostream& o) const noexcept final;
+  virtual ostream& print(ostream& o) const noexcept override;
 
  private:
   shared_ptr<Reference> _ref;

@@ -56,25 +56,25 @@ class MetadataVersion final : public Version {
   bool checkAccess(AccessFlags flags) noexcept;
 
   /// Get the name for this type of version
-  virtual string getTypeName() const noexcept final { return "metadata"; }
+  virtual string getTypeName() const noexcept override { return "metadata"; }
 
   /// Is this version saved in a way that can be committed?
-  virtual bool isSaved() const noexcept final { return _metadata.has_value(); }
+  virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
 
   /// Save this version so it can be committed later
-  virtual void save(shared_ptr<Reference> ref) noexcept final;
+  virtual void save(shared_ptr<Reference> ref) noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) const noexcept final;
+  virtual void commit(shared_ptr<Reference> ref) const noexcept override;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
-  virtual bool hasFingerprint() const noexcept final { return _metadata.has_value(); }
+  virtual bool hasFingerprint() const noexcept override { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept final { save(ref); }
+  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override { save(ref); }
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept final;
+  virtual bool matches(shared_ptr<Version> other) const noexcept override;
 
  private:
   optional<Metadata> _metadata;
