@@ -30,94 +30,122 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-Resolution Env::resolvePath(shared_ptr<Command> cmd,
-                            shared_ptr<Reference> ref,
-                            fs::path path,
-                            AccessFlags flags,
-                            fs::path base_path,
-                            shared_ptr<Artifact> base) noexcept {
-  ASSERT(base) << "Resolution was requested relative to a null base artifact";
+Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noexcept {
+  LOG << "Resolving reference " << ref;
 
-  // If the path is absolute, strip off the leading slash
-  if (path.is_absolute()) path = path.relative_path();
+  ASSERT(ref->getBase()) << "Cannot resolve a reference relative to a null base";
+  ASSERT(ref->getBase()->isResolved()) << "Cannot resolve a reference with an unresolved base";
 
-  // Is the path empty?
-  if (path.begin() == path.end()) {
-    // Yes. The resolution reaches the base artifact. Do we have access?
-    if (base->checkAccess(cmd, flags)) {
-      return base;
+  // Get the relative part of the path that we need to resolve
+  auto path = ref->getRelativePath();
+  auto flags = ref->getFlags();
+
+  // Resolution begins at the base of the reference
+  auto dir_ref = ref->getBase();
+  auto dir = dir_ref->getArtifact();
+
+  // If the path is empty, check access and return the base
+  if (path.empty()) {
+    if (dir->checkAccess(cmd, ref->getFlags())) {
+      return dir;
     } else {
       return EACCES;
     }
   }
 
-  // If the base is not a directory, fail
-  if (!base->as<DirArtifact>()) return ENOTDIR;
+  // Loop over the pieces of the path
+  auto path_iter = path.begin();
+  while (path_iter != path.end()) {
+    // Get the next part of the path
+    auto entry = *path_iter;
+    path_iter++;
 
-  // If we don't have execute access on the base part of the path, fail
-  if (!base->checkAccess(cmd, {.x = true})) return EACCES;
+    // Make sure we have permission to access the directory
+    if (!dir->checkAccess(cmd, {.x = true})) return EACCES;
 
-  // Get the first part of the path, then advance the iterator so we can check for additional parts
-  auto iter = path.begin();
-  auto entry = *iter;
-  iter++;
+    // Try to get the next entry
+    auto result = dir->getEntry(cmd, dir_ref->getFullPath(), entry);
 
-  // Try to get the named entry from base
-  auto result = base->getEntry(cmd, base_path, entry);
+    // If the resolution succeeded, update the name of the resolved artifact
+    if (result) result->setName((fs::path(dir->getName()) / entry).lexically_normal());
 
-  // If the resolution succeeded, updated the name for the resulting artifact
-  if (result) result->setName((fs::path(base->getName()) / entry).lexically_normal());
+    // If result returned a symlink, we may need to resolve it
+    if (result) {
+      auto symlink = result->as<SymlinkArtifact>();
+      if (symlink && (path_iter != path.end() || !ref->getFlags().nofollow)) {
+        // Get the symlink path
+        auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
 
-  // Does the path have just one part?
-  if (iter == path.end()) {
-    // Yes. We have some extra work to do.
+        // If the symlink path is absolute, resolution continues relative to /
+        if (symlink_path.is_absolute()) {
+          dir = getRootDir();
+          dir_ref = make_shared<Access>(nullptr, "/", AccessFlags{});
+          dir_ref->resolvesTo(dir);
+        }
 
-    // If this resolution was meant to create a file, fail with an error
-    if (flags.create && flags.exclusive && result) return EEXIST;
+        // Resolution will continue with a new path. That path is the symlink path, followed by the
+        // remaining elements from the existing path
+        fs::path new_path = symlink_path;
+        while (path_iter != path.end()) {
+          new_path /= *path_iter;
+          path_iter++;
+        }
 
-    // If no matching file exists but this resolution can create it, do so
-    if (flags.create && result == ENOENT) {
-      // Make sure we have write access in the base directory
-      if (!base->checkAccess(cmd, {.w = true})) return EACCES;
+        // Swap in the new path, and start the iterator at its beginning
+        path = new_path;
+        path_iter = path.begin();
 
-      // Create the file and give it a concise name
-      auto newfile = createFile(base_path / entry, cmd, flags);
-      newfile->setName((fs::path(base->getName()) / entry).lexically_normal());
-
-      // Record the resolution
-      ref->resolvesTo(newfile);
-
-      // Add the new file to the directory
-      base->addEntry(cmd, base_path, entry, ref);
-
-      // Return the new file
-      return newfile;
+        // Jump back to the top of the loop to begin resolving the new path
+        continue;
+      }
     }
 
-    // Otherwise, if the directory access failed, return the error
-    if (!result) return result;
+    // Is this entry the last part of the path?
+    if (path_iter == path.end()) {
+      // If this resolution was required to create a file, but one already exists, fail
+      if (flags.create && flags.exclusive && result) return EEXIST;
 
-    // If the result is a symlink, we may need to follow it
-    if (auto symlink = result->as<SymlinkArtifact>(); symlink && !flags.nofollow) {
-      auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
-      if (symlink_path.is_relative()) {
-        // Resolve the symlink relative to its containing directory
-        result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
-      } else {
-        // Resolve the symlink as an absolute path
-        result = resolvePath(cmd, ref, symlink_path, flags, "/", _root_dir);
+      // If no matching file exists but this resolution can create it, do so
+      if (flags.create && result == ENOENT) {
+        // Make sure we have write access into the directory
+        if (!dir->checkAccess(cmd, {.w = true})) return EACCES;
+
+        // Create the new file and give it a name
+        auto newfile = createFile(dir_ref->getFullPath() / entry, cmd, flags);
+        newfile->setName((fs::path(dir->getName()) / entry).lexically_normal());
+
+        // Record the resolution to the new file
+        ref->resolvesTo(newfile);
+
+        // Add the new file to its directory
+        dir->addEntry(cmd, dir_ref->getFullPath(), entry, ref);
+
+        // Return the resolution result
+        return newfile;
       }
 
-      // If the symlink resolution failed, return the error
-      if (!result) return result;
+      // If the entry exists, make sure we have access
+      if (result && !result->checkAccess(cmd, flags)) return EACCES;
+
+      // Return the result
+      return result;
     }
 
-    // Check the final artifact to see if we have permission to access it
-    if (!result->checkAccess(cmd, flags)) return EACCES;
+    // This is not the last step along the path. If it failed, return the error
+    if (!result) return result;
 
-    // Success. Return the result
-    return result;
+    // Otherwise, advance the current directory and directory reference
+    dir = result;
+    dir_ref = dir_ref->get(entry, {});
+    dir_ref->resolvesTo(dir);
   }
+
+  FAIL << "Unreachable";
+  return ENOENT;
+}
+
+/*
+
 
   // At this point, result holds the outcome of getting the next entry from the base directory
 
@@ -147,7 +175,7 @@ Resolution Env::resolvePath(shared_ptr<Command> cmd,
 
   // Now make a recursive call to resolve the rest of the path
   return resolvePath(cmd, ref, newpath, flags, base_path / entry, result);
-}
+}*/
 
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe

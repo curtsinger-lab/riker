@@ -32,14 +32,13 @@ void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   // The base reference must be resolved already.
-  ASSERT(!_base || _base->isResolved()) << "Attempted to resolve reference " << this
-                                        << " without first resolving base reference " << _base;
+  ASSERT(_base) << "Cannot resolve a reference with no base";
+  ASSERT(_base->isResolved()) << "Cannot resolve a reference with an unresolved base";
 
   fs::path base_path = _base->getFullPath();
   shared_ptr<Artifact> base_artifact = _base->getResolution();
 
-  resolvesTo(build.getEnv().resolvePath(c, shared_from_this()->as<Access>(), _path, _flags,
-                                        base_path, base_artifact));
+  resolvesTo(build.getEnv().resolveRef(c, shared_from_this()->as<Access>()));
 }
 
 /******* Emulation *******/
