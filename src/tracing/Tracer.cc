@@ -179,6 +179,59 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
   }
 }
 
+void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+
+  // Get the new thread id and then resume execution
+  pid_t new_pid = p->getEventMessage();
+  p->resume();
+
+  // TODO: Handle flags
+
+  // Threads in the same process just appear as pid references to the same process
+  _processes[new_pid] = _processes[p->_pid];
+}
+
+void Tracer::handleFork(shared_ptr<Process> p) noexcept {
+  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
+  // the syscall has done most of the work
+
+  // Get the new process id and resume execution
+  pid_t new_pid = p->getEventMessage();
+  p->resume();
+
+  // If the call failed, do nothing
+  if (new_pid == -1) return;
+
+  // Create a new process running the same command
+  _processes[new_pid] = p->fork(new_pid);
+}
+
+void Tracer::handleExit(shared_ptr<Process> p) noexcept {
+  _processes.erase(p->_pid);
+  p->setExited();
+  _exited.emplace(p->_pid, p);
+}
+
+shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
+  auto result = _exited[pid];
+  _exited.erase(pid);
+  return result;
+}
+
+void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
+  auto regs = p->getRegisters();
+
+  const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
+  if (entry.isTraced()) {
+    entry.runHandler(p, regs);
+  } else {
+    WARN << "Unexpected system call number " << regs.SYSCALL_NUMBER;
+    p->resume();
+  }
+}
+
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
@@ -372,58 +425,4 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   _processes[child_pid] = p;
 
   return p;
-}
-
-void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
-  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
-  // the syscall has done most of the work
-
-  // Get the new thread id and then resume execution
-  pid_t new_pid = p->getEventMessage();
-  p->resume();
-
-  // TODO: Handle flags
-
-  // Threads in the same process just appear as pid references to the same process
-  _processes[new_pid] = _processes[p->_pid];
-}
-
-void Tracer::handleFork(shared_ptr<Process> p) noexcept {
-  // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
-  // the syscall has done most of the work
-
-  // Get the new process id and resume execution
-  pid_t new_pid = p->getEventMessage();
-  p->resume();
-
-  // If the call failed, do nothing
-  if (new_pid == -1) return;
-
-  // Create a new process running the same command
-  _processes[new_pid] = p->fork(new_pid);
-}
-
-void Tracer::handleExit(shared_ptr<Process> p) noexcept {
-  _processes.erase(p->_pid);
-  p->setExited();
-  _exited.emplace(p->_pid, p);
-}
-
-shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
-  auto result = _exited[pid];
-  _exited.erase(pid);
-  return result;
-}
-
-void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
-  auto regs = p->getRegisters();
-
-  const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
-  if (entry.isTraced()) {
-    INFO << "Handling " << entry.getName() << " with new table";
-    entry.runHandler(p, regs);
-  } else {
-    WARN << "Unexpected system call number " << regs.SYSCALL_NUMBER;
-    p->resume();
-  }
 }

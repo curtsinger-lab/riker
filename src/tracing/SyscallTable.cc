@@ -8,6 +8,7 @@
 #include <syscall.h>
 
 #include "tracing/Process.hh"
+#include "util/log.hh"
 
 using std::array;
 using std::map;
@@ -47,13 +48,13 @@ class SyscallArgWrapper {
 
 // Invoke a single-argument syscall handler
 template <class T1>
-void invoke_handler(void (Process::*handler)(T1 a1), Process& proc, user_regs_struct regs) {
+void invoke_handler(void (Process::*handler)(T1 a1), Process& proc, user_regs_struct& regs) {
   (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1));
 }
 
 // Invoke a two-argument syscall handler
 template <class T1, class T2>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2), Process& proc, user_regs_struct regs) {
+void invoke_handler(void (Process::*handler)(T1 a1, T2 a2), Process& proc, user_regs_struct& regs) {
   (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1),
                     SyscallArgWrapper(proc, regs.SYSCALL_ARG2));
 }
@@ -62,7 +63,7 @@ void invoke_handler(void (Process::*handler)(T1 a1, T2 a2), Process& proc, user_
 template <class T1, class T2, class T3>
 void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3),
                     Process& proc,
-                    user_regs_struct regs) {
+                    user_regs_struct& regs) {
   (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1),
                     SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
                     SyscallArgWrapper(proc, regs.SYSCALL_ARG3));
@@ -72,7 +73,7 @@ void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3),
 template <class T1, class T2, class T3, class T4>
 void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
                     Process& proc,
-                    user_regs_struct regs) {
+                    user_regs_struct& regs) {
   (proc.*(handler))(
       SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
       SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4));
@@ -82,7 +83,7 @@ void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
 template <class T1, class T2, class T3, class T4, class T5>
 void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
                     Process& proc,
-                    user_regs_struct regs) {
+                    user_regs_struct& regs) {
   (proc.*(handler))(
       SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
       SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4),
@@ -93,7 +94,7 @@ void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
 template <class T1, class T2, class T3, class T4, class T5, class T6>
 void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
                     Process& proc,
-                    user_regs_struct regs) {
+                    user_regs_struct& regs) {
   (proc.*(handler))(
       SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
       SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4),
@@ -101,11 +102,10 @@ void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, 
 }
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                 \
-  _syscalls[__NR_##name] =                                                          \
-      SyscallEntry(#name, [](shared_ptr<Process> __proc, user_regs_struct __regs) { \
-        invoke_handler(&Process::_##name, *__proc, __regs);                         \
-      });
+#define TRACE(name)                                                                            \
+  _syscalls[__NR_##name] = SyscallEntry(#name, [](Process& __proc, user_regs_struct& __regs) { \
+    invoke_handler(&Process::_##name, __proc, __regs);                                         \
+  });
 
 /// The maximum number of system calls
 #define SYSCALL_COUNT 512
