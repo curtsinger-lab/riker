@@ -69,15 +69,15 @@ class SyscallEntry {
  * Create a system call table that specifies names and handlers for traced system calls
  */
 class SyscallTable {
- public:
+ private:
   constexpr SyscallTable();
+  static const SyscallTable _the_table;
 
-  const SyscallEntry& operator[](int i) const { return _syscalls[i]; }
+ public:
+  static constexpr const SyscallEntry& get(int i) { return _the_table._syscalls[i]; }
 
-  constexpr size_t size() const { return _syscalls.size(); }
+  static constexpr size_t size() { return _the_table._syscalls.size(); }
 
  private:
   array<SyscallEntry, SYSCALL_COUNT> _syscalls;
 };
-
-extern SyscallTable syscall_table;

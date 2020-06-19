@@ -281,8 +281,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 
     // Loop over syscalls
-    for (uint32_t i = 0; i < syscall_table.size(); i++) {
-      if (syscall_table[i].isTraced()) {
+    for (uint32_t i = 0; i < SyscallTable::size(); i++) {
+      if (SyscallTable::get(i).isTraced()) {
         // Check if the syscall matches the current entry
         filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
 
@@ -418,7 +418,7 @@ shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
 void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   auto regs = p->getRegisters();
 
-  const auto& entry = syscall_table[regs.SYSCALL_NUMBER];
+  const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
   if (entry.isTraced()) {
     INFO << "Handling " << entry.getName() << " with new table";
     entry.runHandler(p, regs);
