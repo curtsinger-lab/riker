@@ -1,6 +1,5 @@
 #include "DirArtifact.hh"
 
-#include <filesystem>
 #include <list>
 #include <memory>
 #include <string>
@@ -20,8 +19,6 @@ using std::make_shared;
 using std::shared_ptr;
 using std::string;
 using std::tie;
-
-namespace fs = std::filesystem;
 
 DirArtifact::DirArtifact(Env& env,
                          bool committed,
@@ -53,7 +50,9 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   Artifact::finalize(ref);
 }
 
-Resolution DirArtifact::getEntry(shared_ptr<Command> c, fs::path dirpath, fs::path entry) noexcept {
+Resolution DirArtifact::getEntry(shared_ptr<Command> c,
+                                 shared_ptr<Access> ref,
+                                 string entry) noexcept {
   // If we're looking for ".", return immediately
   if (entry == ".") return shared_from_this();
 
@@ -61,7 +60,7 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c, fs::path dirpath, fs::pa
   Lookup found;
   for (auto& v : _dir_versions) {
     // Ask the specific version
-    found = v->hasEntry(_env, dirpath, entry);
+    found = v->hasEntry(_env, ref, entry);
 
     // Handle the result
     if (found == Lookup::No) {
@@ -84,9 +83,9 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c, fs::path dirpath, fs::pa
 
         // If the version did not provide an artifact, look in the environment
         if (!artifact) {
-          artifact = _env.getPath(dirpath / entry);
-          ASSERT(artifact) << "Failed to locate artifact for existing entry at "
-                           << (dirpath / entry);
+          artifact = _env.getPath(ref->getFullPath() / entry);
+          ASSERT(artifact) << "Failed to locate artifact for existing entry " << entry << " in "
+                           << ref;
         }
 
         // Save the resolved artifact in the cache and return
@@ -102,9 +101,9 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c, fs::path dirpath, fs::pa
 }
 
 void DirArtifact::addEntry(shared_ptr<Command> c,
-                           fs::path dirpath,
-                           fs::path entry,
-                           shared_ptr<Reference> target) noexcept {
+                           shared_ptr<Access> ref,
+                           string entry,
+                           shared_ptr<Access> target) noexcept {
   // Create a new version to encode the linking operation
   auto v = make_shared<LinkDirVersion>(entry, target);
   v->createdBy(c);

@@ -178,19 +178,29 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /**
    * Attempt to access a directory entry in the current artifact.
-   * \param self  The path that was used to reach this artifact
+   * \param c     The command making the access
+   * \param ref   A reference that was used to reach this directory
    * \param entry The name of the entry being requested
    * \returns a resolution result, holding either an artifact or error code
    */
-  virtual Resolution getEntry(shared_ptr<Command> c, fs::path dirpath, fs::path entry) noexcept {
+  virtual Resolution getEntry(shared_ptr<Command> c,
+                              shared_ptr<Access> ref,
+                              string entry) noexcept {
     // This is not a directory, so the access always fails
     return ENOTDIR;
   }
 
+  /**
+   * Add an entry to this directory
+   * \param c      The command making the access
+   * \param ref    A reference that was used to reach this directory
+   * \param entry  The name of the directory entry
+   * \param target A reference to the artifact that is being linked into the directory
+   */
   virtual void addEntry(shared_ptr<Command> c,
-                        fs::path dirpath,
-                        fs::path entry,
-                        shared_ptr<Reference> target) noexcept {}
+                        shared_ptr<Access> ref,
+                        string entry,
+                        shared_ptr<Access> target) noexcept {}
 
   /****** Utility Methods ******/
 

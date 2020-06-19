@@ -1,6 +1,5 @@
 #pragma once
 
-#include <filesystem>
 #include <map>
 #include <memory>
 #include <string>
@@ -13,8 +12,6 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 using std::weak_ptr;
-
-namespace fs = std::filesystem;
 
 class Command;
 class Reference;
@@ -34,21 +31,29 @@ class DirArtifact final : public Artifact {
 
   /**
    * Attempt to access a directory entry in the current artifact.
-   * \param self  The path that was used to reach this directory
+   * \param c     The command making the access
+   * \param ref   A reference that was used to reach this directory
    * \param entry The name of the entry being requested
-   * \returns a resolution result, either an artifact or an error code
+   * \returns a resolution result, holding either an artifact or error code
    */
   virtual Resolution getEntry(shared_ptr<Command> c,
-                              fs::path dirpath,
-                              fs::path entry) noexcept override;
+                              shared_ptr<Access> ref,
+                              string entry) noexcept override;
 
+  /**
+   * Add an entry to this directory
+   * \param c      The command making the access
+   * \param ref    A reference that was used to reach this directory
+   * \param entry  The name of the directory entry
+   * \param target A reference to the artifact that is being linked into the directory
+   */
   virtual void addEntry(shared_ptr<Command> c,
-                        fs::path self,
-                        fs::path entry,
-                        shared_ptr<Reference> target) noexcept override;
+                        shared_ptr<Access> ref,
+                        string entry,
+                        shared_ptr<Access> target) noexcept override;
 
  private:
-  map<fs::path, weak_ptr<Artifact>> _resolved;
+  map<string, weak_ptr<Artifact>> _resolved;
 
   list<shared_ptr<DirVersion>> _dir_versions;
 

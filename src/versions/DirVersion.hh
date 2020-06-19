@@ -31,13 +31,13 @@ class DirVersion : public Version {
    * A yes or no answer is definite, but partial versions can return "maybe", indicating that
    * checking should continue on to additional version.
    */
-  virtual Lookup hasEntry(Env& env, fs::path dirpath, fs::path name) noexcept = 0;
+  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept = 0;
 
   /**
    * Get the artifact corresponding to a named entry.
    * Returning nullptr indicates that the directory should get the artifact from the filesystem.
    */
-  virtual shared_ptr<Artifact> getEntry(fs::path name) const noexcept { return nullptr; }
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept { return nullptr; }
 
  private:
   SERIALIZE_EMPTY();
@@ -51,7 +51,7 @@ class DirVersion : public Version {
 class LinkDirVersion : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  LinkDirVersion(fs::path entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
+  LinkDirVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
@@ -77,13 +77,13 @@ class LinkDirVersion : public DirVersion {
     return false;
   }
 
-  virtual Lookup hasEntry(Env& env, fs::path dirpath, fs::path name) noexcept override {
+  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::Yes;
     return Lookup::Maybe;
   }
 
-  virtual shared_ptr<Artifact> getEntry(fs::path name) const noexcept override {
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
     // If the lookup is searching for the linke entry, return the corresponding artifact.
     if (name == _entry) return _target->getArtifact();
 
@@ -91,7 +91,7 @@ class LinkDirVersion : public DirVersion {
   }
 
  private:
-  fs::path _entry;
+  string _entry;
   shared_ptr<Reference> _target;
 
   // Create default constructor and declare fields for serialization
@@ -130,14 +130,14 @@ class ExistingDirVersion : public DirVersion {
   }
 
   /// Check if this version has a specific entry
-  virtual Lookup hasEntry(Env& env, fs::path dirpath, fs::path name) noexcept override;
+  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
 
  private:
   /// Entries that are known to be in this directory
-  set<fs::path> _present;
+  set<string> _present;
 
   /// Entries that are known NOT to be in this directory
-  set<fs::path> _absent;
+  set<string> _absent;
 
   // Declare fields for serialization
   SERIALIZE(BASE(DirVersion), _present, _absent);
@@ -182,12 +182,12 @@ class ListedDirVersion : public DirVersion {
   }
 
   /// Check if this version has a specific entry
-  virtual Lookup hasEntry(Env& env, fs::path dirpath, fs::path name) noexcept override {
+  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     return _entries.find(name) == _entries.end() ? Lookup::No : Lookup::Yes;
   }
 
  private:
-  set<fs::path> _entries;
+  set<string> _entries;
 
   // Specify fields for serialization
   SERIALIZE(BASE(DirVersion), _entries);

@@ -64,7 +64,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
     if (!dir->checkAccess(cmd, {.x = true})) return EACCES;
 
     // Try to get the next entry
-    auto result = dir->getEntry(cmd, dir_ref->getFullPath(), entry);
+    auto result = dir->getEntry(cmd, dir_ref, entry);
 
     // If the resolution succeeded, update the name of the resolved artifact
     if (result) result->setName((fs::path(dir->getName()) / entry).lexically_normal());
@@ -118,7 +118,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
         ref->resolvesTo(newfile);
 
         // Add the new file to its directory
-        dir->addEntry(cmd, dir_ref->getFullPath(), entry, ref);
+        dir->addEntry(cmd, dir_ref, entry, ref);
 
         // Return the resolution result
         return newfile;
