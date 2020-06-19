@@ -100,6 +100,56 @@ class LinkDirVersion : public DirVersion {
 };
 
 /**
+ * A link directory version encodes a single linking operation, which adds an entry to the
+ * directory. This is a partial version, so any attempt to resolve entries other than the linked one
+ * will fall through to other versions.
+ */
+class UnlinkDirVersion : public DirVersion {
+ public:
+  /// Create a new version of a directory that adds a named entry to the directory
+  UnlinkDirVersion(string entry) : _entry(entry) {}
+
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
+
+  /// Directory links are never saved (at least for now)
+  virtual bool isSaved() const noexcept override { return false; }
+
+  /// Do nothing when asked to save this version
+  virtual void save(shared_ptr<Reference> ref) noexcept override {}
+
+  /// Do nothing when asked to commit this version
+  virtual void commit(shared_ptr<Reference> ref) const noexcept override {}
+
+  /// Directory links are always fingerprinted
+  virtual bool hasFingerprint() const noexcept override { return true; }
+
+  /// Do nothing when asked to fingerprint the link
+  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override {}
+
+  /// Compare this version to another version
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    WARN << "Unimplemented directory version comparion!";
+    return false;
+  }
+
+  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
+    // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
+    if (_entry == name) return Lookup::No;
+    return Lookup::Maybe;
+  }
+
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+
+ private:
+  string _entry;
+
+  // Create default constructor and declare fields for serialization
+  UnlinkDirVersion() = default;
+  SERIALIZE(BASE(DirVersion), _entry);
+};
+
+/**
  * An existing directory version is a lazily-populated set of entries that are known to be present
  * or absent. The version looks for entries using a provided environment.
  */

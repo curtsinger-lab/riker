@@ -127,6 +127,17 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
   _ref->getArtifact()->setContents(c, _ref, _version);
 }
 
+void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  // If the reference did not resolve, report a change
+  if (!_ref->getResolution()) {
+    build.observeCommandChange(c, shared_from_this());
+    return;
+  }
+
+  // Perform the unlink
+  _ref->getArtifact()->removeEntry(c, _ref, _entry);
+}
+
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   // The child command depends on all current versions of the artifacts in its fd table
   for (auto& [index, desc] : _cmd->getInitialFDs()) {
@@ -210,6 +221,11 @@ ostream& SetMetadata::print(ostream& o) const noexcept {
 /// Print a SET_CONTENTS action
 ostream& SetContents::print(ostream& o) const noexcept {
   return o << "SET_CONTENTS(" << getReference()->getName() << ", " << _version << ")";
+}
+
+/// Print an UNLINK action
+ostream& Unlink::print(ostream& o) const noexcept {
+  return o << "UNLINK(" << _ref->getName() << ", " << _entry << ")";
 }
 
 // Print a launch action

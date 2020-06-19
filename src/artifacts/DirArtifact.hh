@@ -37,7 +37,7 @@ class DirArtifact final : public Artifact {
    * \returns a resolution result, holding either an artifact or error code
    */
   virtual Resolution getEntry(shared_ptr<Command> c,
-                              shared_ptr<Access> ref,
+                              shared_ptr<Reference> ref,
                               string entry) noexcept override;
 
   /**
@@ -48,9 +48,19 @@ class DirArtifact final : public Artifact {
    * \param target A reference to the artifact that is being linked into the directory
    */
   virtual void addEntry(shared_ptr<Command> c,
-                        shared_ptr<Access> ref,
+                        shared_ptr<Reference> ref,
                         string entry,
-                        shared_ptr<Access> target) noexcept override;
+                        shared_ptr<Reference> target) noexcept override;
+
+  /**
+   * Remove an entry from this directory
+   * \param c      The command making the access
+   * \param ref    A reference that was used to reach this directory
+   * \param entry  The name of the directory entry
+   */
+  virtual void removeEntry(shared_ptr<Command> c,
+                           shared_ptr<Reference> ref,
+                           string entry) noexcept override;
 
  private:
   map<string, weak_ptr<Artifact>> _resolved;

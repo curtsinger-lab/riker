@@ -51,16 +51,19 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
 }
 
 Resolution DirArtifact::getEntry(shared_ptr<Command> c,
-                                 shared_ptr<Access> ref,
+                                 shared_ptr<Reference> ref,
                                  string entry) noexcept {
   // If we're looking for ".", return immediately
   if (entry == ".") return shared_from_this();
+
+  auto access = ref->as<Access>();
+  ASSERT(access) << "Program somehow reached a directory without a path";
 
   // Loop through versions until we get a definite answer about the entry
   Lookup found;
   for (auto& v : _dir_versions) {
     // Ask the specific version
-    found = v->hasEntry(_env, ref, entry);
+    found = v->hasEntry(_env, access, entry);
 
     // Handle the result
     if (found == Lookup::No) {
@@ -83,7 +86,7 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
 
         // If the version did not provide an artifact, look in the environment
         if (!artifact) {
-          artifact = _env.getPath(ref->getFullPath() / entry);
+          artifact = _env.getPath(access->getFullPath() / entry);
           ASSERT(artifact) << "Failed to locate artifact for existing entry " << entry << " in "
                            << ref;
         }
@@ -101,9 +104,9 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
 }
 
 void DirArtifact::addEntry(shared_ptr<Command> c,
-                           shared_ptr<Access> ref,
+                           shared_ptr<Reference> ref,
                            string entry,
-                           shared_ptr<Access> target) noexcept {
+                           shared_ptr<Reference> target) noexcept {
   // Create a new version to encode the linking operation
   auto v = make_shared<LinkDirVersion>(entry, target);
   v->createdBy(c);
@@ -119,4 +122,24 @@ void DirArtifact::addEntry(shared_ptr<Command> c,
 
   // Cache the result of the resolution
   _resolved[entry] = target->getArtifact();
+}
+
+void DirArtifact::removeEntry(shared_ptr<Command> c,
+                              shared_ptr<Reference> ref,
+                              string entry) noexcept {
+  // Create a new version to encode the linking operation
+  auto v = make_shared<UnlinkDirVersion>(entry);
+  v->createdBy(c);
+
+  // Notify the build of this output
+  _env.getBuild().observeOutput(c, shared_from_this(), v);
+
+  // Add this to the front of the directory version list
+  _dir_versions.push_front(v);
+
+  // Record this version in the artifact as well
+  appendVersion(v);
+
+  // Remove this resolution result from the cache
+  _resolved.erase(entry);
 }

@@ -184,7 +184,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns a resolution result, holding either an artifact or error code
    */
   virtual Resolution getEntry(shared_ptr<Command> c,
-                              shared_ptr<Access> ref,
+                              shared_ptr<Reference> ref,
                               string entry) noexcept {
     // This is not a directory, so the access always fails
     return ENOTDIR;
@@ -198,9 +198,19 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param target A reference to the artifact that is being linked into the directory
    */
   virtual void addEntry(shared_ptr<Command> c,
-                        shared_ptr<Access> ref,
+                        shared_ptr<Reference> ref,
                         string entry,
-                        shared_ptr<Access> target) noexcept {}
+                        shared_ptr<Reference> target) noexcept {}
+
+  /**
+   * Remove an entry from this directory
+   * \param c      The command making the access
+   * \param ref    A reference that was used to reach this directory
+   * \param entry  The name of the directory entry
+   */
+  virtual void removeEntry(shared_ptr<Command> c,
+                           shared_ptr<Reference> ref,
+                           string entry) noexcept {}
 
   /****** Utility Methods ******/
 

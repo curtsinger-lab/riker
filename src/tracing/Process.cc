@@ -692,8 +692,32 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
 }
 
 void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
-  WARN << "unlinkat syscall is not updated";
-  resume();
+  // Split the pathname into the parent and entry
+  auto path = fs::path(pathname);
+  auto dir_path = path.parent_path();
+  auto entry = path.filename();
+
+  // Get a reference to the directory, which we will be writing
+  auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
+
+  INFO << _command << ": unlink " << entry << " from " << dir_ref;
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the call succeed?
+    if (rc == 0) {
+      INFO << "  SUCCESS";
+      dir_ref->expectResult(SUCCESS);
+      dir_ref->resolve(_command, _build);
+      _command->unlink(_build, dir_ref, entry);
+
+    } else {
+      // TODO: Record the failure. This is a bit tricky because we have to attribute it to some
+      // particular access
+      return;
+    }
+  });
 }
 
 /************************ Process State Operations ************************/
@@ -784,8 +808,8 @@ void Process::_execveat(int dfd,
     // This process launches a new command
     _command = _command->launch(_build, exe_ref, args, initial_fds, _cwd, _root);
 
-    // The child command depends on the contents of its executable. First, we need to know what the
-    // actual executable is. Read /proc/<pid>/exe to find it
+    // The child command depends on the contents of its executable. First, we need to know what
+    // the actual executable is. Read /proc/<pid>/exe to find it
     auto real_exe_path = readlink("/proc/" + std::to_string(_pid) + "/exe");
 
     // Now make the reference and expect success
