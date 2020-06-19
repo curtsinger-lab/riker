@@ -25,7 +25,7 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "tracing/Process.hh"
-#include "tracing/syscalls.hh"
+#include "tracing/SyscallTable.hh"
 #include "util/log.hh"
 #include "versions/Version.hh"
 
@@ -281,13 +281,14 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 
     // Loop over syscalls
-    for (const auto& entry : syscalls) {
-      uint32_t syscall_nr = entry.first;
-      // Check if the syscall matches the current entry
-      filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_nr, 0, 1));
+    for (uint32_t i = 0; i < syscall_table.size(); i++) {
+      if (syscall_table[i].isTraced()) {
+        // Check if the syscall matches the current entry
+        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
 
-      // On a match, return trace
-      filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+        // On a match, return trace
+        filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+      }
     }
 
     // Default case allows the syscall
@@ -417,292 +418,12 @@ shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
 void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   auto regs = p->getRegisters();
 
-  // This giant switch statement invokes the appropriate system call handler on a traced
-  // process after decoding the syscall arguments.
-  switch (regs.SYSCALL_NUMBER) {
-    case __NR_execve:
-      p->_execve(p->readString(regs.SYSCALL_ARG1), p->readArgvArray(regs.SYSCALL_ARG2),
-                 p->readArgvArray(regs.SYSCALL_ARG3));
-      break;
-
-    case __NR_execveat:
-      p->_execveat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2),
-                   p->readArgvArray(regs.SYSCALL_ARG3), p->readArgvArray(regs.SYSCALL_ARG4));
-      break;
-
-    case __NR_wait4:
-      p->_wait4(regs.SYSCALL_ARG1, (int*)regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_waitid:
-      p->_waitid((idtype_t)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, (siginfo_t*)regs.SYSCALL_ARG3,
-                 regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_stat:
-      p->_stat(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_newfstatat:
-      p->_fstatat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_fstat:
-      p->_fstat(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_lstat:
-      p->_lstat(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_access:
-      p->_access(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_faccessat:
-      p->_faccessat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                    regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_read:
-      p->_read(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_write:
-      p->_write(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_open:
-      p->_open(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_close:
-      p->_close(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_mmap:
-      p->_mmap((void*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4,
-               regs.SYSCALL_ARG5, regs.SYSCALL_ARG6);
-      break;
-
-    case __NR_pread64:
-      p->_pread64(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_pwrite64:
-      p->_pwrite64(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_readv:
-      p->_readv(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_writev:
-      p->_writev(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_pipe:
-      p->_pipe((int*)regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_dup:
-      p->_dup(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_dup2:
-      p->_dup2(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_sendfile:
-      p->_sendfile(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_fcntl:
-      p->_fcntl(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_truncate:
-      p->_truncate(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_ftruncate:
-      p->_ftruncate(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_getdents:
-      p->_getdents(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_chdir:
-      p->_chdir(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_fchdir:
-      p->_fchdir(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_rename:
-      p->_rename(p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
-      break;
-
-    case __NR_mkdir:
-      p->_mkdir(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_rmdir:
-      p->_rmdir(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_creat:
-      p->_creat(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_unlink:
-      p->_unlink(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_symlink:
-      p->_symlink(p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
-      break;
-
-    case __NR_readlink:
-      p->_readlink(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_chmod:
-      p->_chmod(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_fchmod:
-      p->_fchmod(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_chown:
-      p->_chown(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_fchown:
-      p->_fchown(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_lchown:
-      p->_lchown(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_mknod:
-      p->_mknod(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_pivot_root:
-      p->_pivot_root(p->readString(regs.SYSCALL_ARG1), p->readString(regs.SYSCALL_ARG2));
-      break;
-
-    case __NR_chroot:
-      p->_chroot(p->readString(regs.SYSCALL_ARG1));
-      break;
-
-    case __NR_getdents64:
-      p->_getdents64(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_openat:
-      p->_openat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                 regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_mkdirat:
-      p->_mkdirat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_mknodat:
-      p->_mknodat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                  regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_fchownat:
-      p->_fchownat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                   regs.SYSCALL_ARG4, regs.SYSCALL_ARG5);
-      break;
-
-    case __NR_unlinkat:
-      p->_unlinkat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_renameat:
-      p->_renameat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                   p->readString(regs.SYSCALL_ARG4));
-      break;
-
-    case __NR_symlinkat:
-      p->_symlinkat(p->readString(regs.SYSCALL_ARG1), regs.SYSCALL_ARG2,
-                    p->readString(regs.SYSCALL_ARG3));
-      break;
-
-    case __NR_readlinkat:
-      p->_readlinkat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2));
-      break;
-
-    case __NR_fchmodat:
-      p->_fchmodat(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                   regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_splice:
-      p->_splice(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3, regs.SYSCALL_ARG4);
-      break;
-
-    case __NR_tee:
-      p->_tee(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2 /*, regs.SYSCALL_ARG3*/);  // Omitting length
-      break;
-
-    case __NR_vmsplice:
-      p->_vmsplice(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_dup3:
-      p->_dup3(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_pipe2:
-      p->_pipe2((int*)regs.SYSCALL_ARG1, regs.SYSCALL_ARG2);
-      break;
-
-    case __NR_preadv:
-      p->_preadv(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_pwritev:
-      p->_pwritev(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_renameat2:
-      p->_renameat2(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3,
-                    p->readString(regs.SYSCALL_ARG4), regs.SYSCALL_ARG5);
-      break;
-
-    case __NR_copy_file_range:
-      p->_copy_file_range(regs.SYSCALL_ARG1, regs.SYSCALL_ARG2, regs.SYSCALL_ARG3);
-      break;
-
-    case __NR_preadv2:
-      p->_preadv2(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_pwritev2:
-      p->_pwritev2(regs.SYSCALL_ARG1);
-      break;
-
-    case __NR_statx:
-      p->_statx(regs.SYSCALL_ARG1, p->readString(regs.SYSCALL_ARG2), regs.SYSCALL_ARG3);
-      break;
-
-    default:
-      auto iter = syscalls.find(regs.SYSCALL_NUMBER);
-      if (iter == syscalls.end()) {
-        FAIL << "Unexpected system call number: " << regs.SYSCALL_NUMBER;
-      } else {
-        WARN << "Missing case for syscall: " << syscalls[regs.SYSCALL_NUMBER];
-        p->resume();
-      }
+  const auto& entry = syscall_table[regs.SYSCALL_NUMBER];
+  if (entry.isTraced()) {
+    INFO << "Handling " << entry.getName() << " with new table";
+    entry.runHandler(p, regs);
+  } else {
+    WARN << "Unexpected system call number " << regs.SYSCALL_NUMBER;
+    p->resume();
   }
 }

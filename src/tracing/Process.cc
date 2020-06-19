@@ -14,8 +14,8 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
+#include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
-#include "tracing/syscalls.hh"
 #include "util/log.hh"
 #include "util/path.hh"
 
@@ -365,7 +365,7 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
   });
 }
 
-void Process::_fstatat(int dirfd, string pathname, int flags) noexcept {
+void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
@@ -650,6 +650,15 @@ void Process::_getdents(int fd) noexcept {
 }
 
 /************************ Link and Symlink Operations ************************/
+
+void Process::_linkat(int old_dfd,
+                      string oldpath,
+                      int new_dfd,
+                      string newpath,
+                      int flags) noexcept {
+  WARN << "linkat syscall is not updated";
+  resume();
+}
 
 void Process::_symlinkat(string oldname, int newdfd, string newname) noexcept {
   WARN << "symlinkat syscall is not updated";

@@ -135,11 +135,20 @@ class Process {
   // Metadata Operations
   void _access(string pathname, int mode) noexcept { _faccessat(AT_FDCWD, pathname, mode, 0); }
   void _faccessat(int dirfd, string pathname, int mode, int flags) noexcept;
-  void _stat(string pathname) noexcept { _fstatat(AT_FDCWD, pathname, 0); }
-  void _lstat(string pathname) noexcept { _fstatat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW); }
-  void _fstat(int fd) noexcept { _fstatat(fd, "", AT_EMPTY_PATH); }
-  void _fstatat(int dirfd, string pathname, int flags) noexcept;
-  void _statx(int dfd, string pathname, int flags) noexcept { _fstatat(dfd, pathname, flags); }
+  void _stat(string pathname, struct stat* statbuf) noexcept {
+    _fstatat(AT_FDCWD, pathname, statbuf, 0);
+  }
+  void _lstat(string pathname, struct stat* statbuf) noexcept {
+    _fstatat(AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW);
+  }
+  void _fstat(int fd, struct stat* statbuf) noexcept { _fstatat(fd, "", statbuf, AT_EMPTY_PATH); }
+  void _fstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept;
+  void _newfstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
+    _fstatat(dirfd, pathname, statbuf, flags);
+  }
+  void _statx(int dfd, string pathname, int flags) noexcept {
+    _fstatat(dfd, pathname, nullptr, flags);
+  }
   void _chown(string f, uid_t usr, gid_t grp) noexcept { _fchownat(AT_FDCWD, f, usr, grp, 0); }
   void _lchown(string f, uid_t usr, gid_t grp) noexcept {
     _fchownat(AT_FDCWD, f, usr, grp, AT_SYMLINK_NOFOLLOW);
@@ -181,6 +190,8 @@ class Process {
   void _getdents64(int fd) noexcept { _getdents(fd); }
 
   // Link and Symlink Operations
+  void _link(string oldname, string newname) { _linkat(AT_FDCWD, oldname, AT_FDCWD, newname, 0); }
+  void _linkat(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept;
   void _symlink(string oldname, string newname) noexcept { _symlinkat(oldname, AT_FDCWD, newname); }
   void _symlinkat(string oldname, int newdfd, string newname) noexcept;
   void _readlink(string path) noexcept { _readlinkat(AT_FDCWD, path); }
