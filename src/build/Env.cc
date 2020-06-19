@@ -31,8 +31,6 @@ using std::shared_ptr;
 using std::string;
 
 Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noexcept {
-  LOG << "Resolving reference " << ref;
-
   ASSERT(ref->getBase()) << "Cannot resolve a reference relative to a null base";
   ASSERT(ref->getBase()->isResolved()) << "Cannot resolve a reference with an unresolved base";
 
@@ -143,39 +141,6 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
   FAIL << "Unreachable";
   return ENOENT;
 }
-
-/*
-
-
-  // At this point, result holds the outcome of getting the next entry from the base directory
-
-  // If that access failed, return failure
-  if (!result) return result;
-
-  // If the result is a symlink, we always follow it
-  if (auto symlink = result->as<SymlinkArtifact>()) {
-    auto symlink_path = symlink->readlink(cmd, InputType::PathResolution)->getDestination();
-    if (symlink_path.is_relative()) {
-      // Resolve the symlink relative to its containing directory
-      result = resolvePath(cmd, ref, symlink_path, flags, base_path, base);
-    } else {
-      // Resolve the symlink as an absolute path
-      result = resolvePath(cmd, ref, symlink_path, flags, "/", _root_dir);
-    }
-
-    // If the symlink resolution failed, return the error
-    if (!result) return result;
-  }
-
-  // fs::path doesn't have a convenient way to pull off the front component, so do that here
-  fs::path newpath = *(iter++);
-  while (iter != path.end()) {
-    newpath /= *(iter++);
-  }
-
-  // Now make a recursive call to resolve the rest of the path
-  return resolvePath(cmd, ref, newpath, flags, base_path / entry, result);
-}*/
 
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe
