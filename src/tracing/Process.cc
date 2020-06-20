@@ -184,9 +184,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   // Get a reference from the given path
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
-  WARN_IF(ref->getFlags().directory)
-      << "Accessing directory " << ref->getFullPath() << " with openat(). "
-      << "This is not yet tracked correctly.";
+  // WARN_IF(ref->getFlags().directory)
+  //    << "Accessing directory " << ref->getFullPath() << " with openat(). "
+  //    << "This is not yet tracked correctly.";
 
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
@@ -636,12 +636,85 @@ void Process::_rmdir(string p) noexcept {
 }
 
 void Process::_renameat2(int old_dfd,
-                         string oldpath,
+                         string old_name,
                          int new_dfd,
-                         string newpath,
+                         string new_name,
                          int flags) noexcept {
-  WARN << "renameat2 syscall is not updated";
-  resume();
+  INFO << "rename " << old_name << " to " << new_name;
+
+  // Break the path to the existing file into directory and entry parts
+  auto old_path = fs::path(old_name);
+  auto old_dir = old_path.parent_path();
+  auto old_entry = old_path.filename();
+
+  // Make references to the old directory and entry
+  auto old_dir_ref = makeAccess(old_dir, AccessFlags{.w = true}, old_dfd);
+  auto old_entry_ref = makeAccess(old_path, AccessFlags{}, old_dfd);
+
+  // Break the path to the new file into directory and entry parts
+  auto new_path = fs::path(new_name);
+  auto new_dir = new_path.parent_path();
+  auto new_entry = new_path.filename();
+
+  // Make a reference to the new directory
+  auto new_dir_ref = makeAccess(new_dir, AccessFlags{.w = true}, new_dfd);
+
+  // Resolve all three references
+  old_dir_ref->resolve(_command, _build);
+  old_entry_ref->resolve(_command, _build);
+  new_dir_ref->resolve(_command, _build);
+
+  // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
+  shared_ptr<Access> new_entry_ref;
+  if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
+    new_entry_ref = makeAccess(new_path, AccessFlags{}, new_dfd);
+    new_entry_ref->resolve(_command, _build);
+  }
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the syscall succeed?
+    if (rc == 0) {
+      // The accesses to the old directory and entry must have succeeded
+      old_dir_ref->expectResult(SUCCESS);
+      old_entry_ref->expectResult(SUCCESS);
+
+      // Unlink the old entry
+      _command->unlink(_build, old_dir_ref, old_entry);
+
+      // The access to the new directory must also have succeeded
+      new_dir_ref->expectResult(SUCCESS);
+
+      // Is this an exchange or noreplace option?
+      if (flags & RENAME_EXCHANGE) {
+        // This is an exchange, so the new_entry_ref must exist
+        new_entry_ref->expectResult(SUCCESS);
+
+        // Unlink the new entry
+        _command->unlink(_build, new_dir_ref, new_entry);
+
+      } else if (flags & RENAME_NOREPLACE) {
+        // This is a noreplace rename, so new_entry_ref must not exist
+        new_entry_ref->expectResult(ENOENT);
+      }
+
+      // Link into the new entry
+      _command->link(_build, new_dir_ref, new_entry, old_entry_ref);
+
+      // If this is an exchange, we also have to perform the swapped link
+      if (flags & RENAME_EXCHANGE) {
+        _command->link(_build, old_dir_ref, old_entry, new_entry_ref);
+      }
+    } else {
+      // The syscall failed. Be conservative and save the result of all references. If any of them
+      // change, that COULD change the syscall outcome.
+      old_dir_ref->expectResult(old_dir_ref->getResolution());
+      old_entry_ref->expectResult(old_entry_ref->getResolution());
+      new_dir_ref->expectResult(new_dir_ref->getResolution());
+      if (new_entry_ref) new_entry_ref->expectResult(new_entry_ref->getResolution());
+    }
+  });
 }
 
 void Process::_getdents(int fd) noexcept {
@@ -672,13 +745,13 @@ void Process::_linkat(int old_dfd,
   if (flags & AT_SYMLINK_FOLLOW) target_flags.nofollow = false;
   auto target_ref = makeAccess(oldpath, target_flags, old_dfd);
 
+  // Resolve all three references
+  dir_ref->resolve(_command, _build);
+  entry_ref->resolve(_command, _build);
+  target_ref->resolve(_command, _build);
+
   finishSyscall([=](long rc) {
     resume();
-
-    // Resolve all three references
-    dir_ref->resolve(_command, _build);
-    entry_ref->resolve(_command, _build);
-    target_ref->resolve(_command, _build);
 
     // Did the call succeed?
     if (rc == 0) {
@@ -756,12 +829,12 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   // Get a reference to the entry itself
   auto entry_ref = dir_ref->get(entry, AccessFlags{});
 
+  // Resolve both references
+  dir_ref->resolve(_command, _build);
+  entry_ref->resolve(_command, _build);
+
   finishSyscall([=](long rc) {
     resume();
-
-    // Resolve both references
-    dir_ref->resolve(_command, _build);
-    entry_ref->resolve(_command, _build);
 
     // Did the call succeed?
     if (rc == 0) {

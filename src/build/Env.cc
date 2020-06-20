@@ -232,7 +232,7 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
   mv->createdBy(creator);
 
   // Create an initial content version
-  auto cv = make_shared<ContentVersion>();
+  auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
   cv->createdBy(creator);
 
   // Create the artifact and return it

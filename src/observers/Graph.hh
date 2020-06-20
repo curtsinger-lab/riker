@@ -156,8 +156,8 @@ class Graph final : public BuildObserver {
                      shared_ptr<Artifact> a,
                      shared_ptr<Version> v,
                      InputType t) noexcept override final {
-    // Only include explicitly-accessed inputs
-    if (t != InputType::Accessed) return;
+    // Only include explicitly-accessed inputs or inputs created by the build
+    if (t != InputType::Accessed && !v->getCreator()) return;
 
     if (fs::path(a->getName()).is_absolute() && !_show_all) return;
 
