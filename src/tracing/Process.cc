@@ -753,19 +753,29 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   // Get a reference to the directory, which we will be writing
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
 
+  // Get a reference to the entry itself
+  auto entry_ref = dir_ref->get(entry, AccessFlags{});
+
   finishSyscall([=](long rc) {
     resume();
 
+    // Resolve both references
+    dir_ref->resolve(_command, _build);
+    entry_ref->resolve(_command, _build);
+
     // Did the call succeed?
     if (rc == 0) {
+      // Both references must have succeeded
       dir_ref->expectResult(SUCCESS);
-      dir_ref->resolve(_command, _build);
+      entry_ref->expectResult(SUCCESS);
+
+      // Perform the unlink
       _command->unlink(_build, dir_ref, entry);
 
     } else {
-      // TODO: Record the failure. This is a bit tricky because we have to attribute it to some
-      // particular access
-      return;
+      // The failure could be caused by either references. Record the outcome of both.
+      dir_ref->expectResult(dir_ref->getResolution());
+      entry_ref->expectResult(entry_ref->getResolution());
     }
   });
 }
