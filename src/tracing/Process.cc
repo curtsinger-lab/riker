@@ -656,31 +656,50 @@ void Process::_linkat(int old_dfd,
                       int new_dfd,
                       string newpath,
                       int flags) noexcept {
-  // Split the pathname into the parent and entry
-  auto path = fs::path(oldpath);
-  auto dir_path = path.parent_path();
-  auto entry = path.filename();
+  // The newpath string is the path to the new link. Split that into the directory and entry.
+  auto link_path = fs::path(newpath);
+  auto dir_path = link_path.parent_path();
+  auto entry = link_path.filename();
 
   // Get a reference to the directory, which we will be writing
-  auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, old_dfd);
+  auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, new_dfd);
+
+  // Get a reference to the link we are creating
+  auto entry_ref = dir_ref->get(entry, AccessFlags{});
 
   // Get a reference to the artifact we are linking into the directory
-  auto target_ref = makeAccess(newpath, AccessFlags{}, new_dfd);
+  AccessFlags target_flags = {.nofollow = true};
+  if (flags & AT_SYMLINK_FOLLOW) target_flags.nofollow = false;
+  auto target_ref = makeAccess(oldpath, target_flags, old_dfd);
 
   finishSyscall([=](long rc) {
     resume();
 
+    // Resolve all three references
+    dir_ref->resolve(_command, _build);
+    entry_ref->resolve(_command, _build);
+    target_ref->resolve(_command, _build);
+
     // Did the call succeed?
     if (rc == 0) {
+      // Write access to the directory must succeed
       dir_ref->expectResult(SUCCESS);
-      dir_ref->resolve(_command, _build);
-      target_ref->resolve(_command, _build);
+
+      // The link must not exist prior to this call
+      entry_ref->expectResult(ENOENT);
+
+      // The reference to the link target must succeed
+      target_ref->expectResult(SUCCESS);
+
+      // Record the link operation
       _command->link(_build, dir_ref, entry, target_ref);
 
     } else {
-      // TODO: Record the failure. This is a bit tricky because we have to attribute it to some
-      // particular access
-      return;
+      // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
+      // record the result of resolving each of them.
+      dir_ref->expectResult(dir_ref->getResolution());
+      entry_ref->expectResult(entry_ref->getResolution());
+      target_ref->expectResult(target_ref->getResolution());
     }
   });
 }
