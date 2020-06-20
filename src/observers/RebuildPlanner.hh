@@ -89,8 +89,6 @@ class RebuildPlanner final : public BuildObserver {
       if (options::enable_cache && v->isSaved()) {
         // If this artifact is cached, we could restore it before c runs.
       } else {
-        INFO << c << " needs unsaved output " << v << " from " << v->getCreator();
-
         // Otherwise, if c has to run then we also need to run creator to produce this input
         _needs_output_from[c].insert(v->getCreator());
       }
