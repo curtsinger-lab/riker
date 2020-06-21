@@ -167,53 +167,48 @@ void Build::setMetadata(shared_ptr<Command> c,
   _metadata_filter.write(c.get(), ref, written);
 }
 
-// Command c acceses file content while being traced
-void Build::traceContentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
-                            << ref;
+// Command c accesses an artifact's contents
+void Build::contentsMatch(shared_ptr<Command> c,
+                          shared_ptr<Reference> ref,
+                          shared_ptr<ContentVersion> expected,
+                          shared_ptr<ContentsMatch> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command accesses an artifact through an unresolved reference";
 
-  // Do we have to log this read?
-  if (!_content_filter.readRequired(c.get(), ref)) return;
+    // Report the change
+    observeCommandChange(c, emulating);
 
-  // Inform the artifact that this command accesses its contents
-  const auto& v = ref->getArtifact()->accessContents(c, ref);
-
-  if (!v) {
-    WARN << "Accessing contents of " << ref << " returned a null version";
+    // Add the step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating);
     return;
   }
 
-  // If the last write was from this command, we don't need a fingerprint to compare.
-  if (v->getCreator() != c) v->fingerprint(ref);
+  // If this command does not need to trace the metadata access, return immediately
+  if (!_content_filter.readRequired(c.get(), ref)) return;
 
-  // Add the IR step
-  _trace->addStep(c, make_shared<ContentsMatch>(ref, v));
+  // Get a metadata version from the artifact
+  auto observed = ref->getArtifact()->accessContents(c, ref);
 
-  // Report the read
-  _content_filter.read(c.get(), ref);
-}
+  // Is this step being emulated or run?
+  if (emulating) {
+    // If we are emulating, compare the observed version with the expected version
+    if (!observed->matches(expected)) observeMismatch(c, ref->getArtifact(), observed, expected);
 
-// Command c accesses file content while being emulated
-void Build::emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch> step) noexcept {
-  auto ref = step->getReference();
-  auto version = step->getVersion();
+    // Add the existing MetadataMatch step to the new trace
+    _trace->addStep(c, emulating);
 
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
+  } else {
+    // If we are tracing, we need to access metadata and save it for later comparison
+    // We can skip the fingerprint if this command also created the version
+    if (observed->getCreator() != c) observed->fingerprint(ref);
 
-  // Get the latest content version. The returned version will be nullptr if no check is
-  // necessary.
-  const auto& v = ref->getArtifact()->accessContents(c, ref);
-
-  // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->matches(version)) {
-    observeMismatch(c, ref->getArtifact(), v, version);
+    // Add a new MetadataMatch step to the trace, which expects to find the version we observed
+    _trace->addStep(c, make_shared<ContentsMatch>(ref, observed));
   }
 
   // Report the read
   _content_filter.read(c.get(), ref);
-
-  _trace->addStep(c, step);
 }
 
 // Command c sets file content while being traced

@@ -78,7 +78,10 @@ class Build {
                    shared_ptr<SetMetadata> emulating = nullptr) noexcept;
 
   /// A traced command accesses file content through a reference
-  void traceContentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+  void contentsMatch(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<ContentVersion> expected = nullptr,
+                     shared_ptr<ContentsMatch> emulating = nullptr) noexcept;
 
   /// An emulated command accesses file contents
   void emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch> step) noexcept;

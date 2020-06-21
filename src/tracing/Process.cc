@@ -470,7 +470,7 @@ void Process::_read(int fd) noexcept {
 
     // Create a dependency on the artifact's contents
     const auto& descriptor = _fds.at(fd);
-    _build.traceContentsMatch(_command, descriptor.getReference());
+    _build.contentsMatch(_command, descriptor.getReference());
   });
 }
 
@@ -479,7 +479,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _build.traceContentsMatch(_command, descriptor.getReference());
+  _build.contentsMatch(_command, descriptor.getReference());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -516,7 +516,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _build.traceContentsMatch(_command, descriptor.getReference());
+    _build.contentsMatch(_command, descriptor.getReference());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
@@ -547,7 +547,7 @@ void Process::_truncate(string pathname, long length) noexcept {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _build.traceContentsMatch(_command, ref);
+    _build.contentsMatch(_command, ref);
   }
 
   // Finish the syscall and resume the process
@@ -574,7 +574,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.traceContentsMatch(_command, descriptor.getReference());
+    _build.contentsMatch(_command, descriptor.getReference());
   }
 
   // Finish the syscall and resume the process
@@ -595,14 +595,14 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 
   // The command depends on the contents of the output file, unless it is totally overwritten (not
   // checked yet)
-  _build.traceContentsMatch(_command, out_desc.getReference());
+  _build.contentsMatch(_command, out_desc.getReference());
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     // The command has now read the input file, so it depends on the contents there
-    _build.traceContentsMatch(_command, in_desc.getReference());
+    _build.contentsMatch(_command, in_desc.getReference());
 
     // The command has now set the contents of the output file
     _build.traceSetContents(_command, out_desc.getReference());
@@ -923,7 +923,7 @@ void Process::_execveat(int dfd,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _build.traceContentsMatch(_command, child_exe_ref);
+    _build.contentsMatch(_command, child_exe_ref);
 
     // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
     // that participate in that command. This will require some extra bookkeeping. For now, we

@@ -41,7 +41,7 @@ void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateContentsMatch(c, as<ContentsMatch>());
+  build.contentsMatch(c, _ref, _version, as<ContentsMatch>());
 }
 
 void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
