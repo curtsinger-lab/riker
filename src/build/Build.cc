@@ -407,6 +407,9 @@ void Build::join(shared_ptr<Command> c,
       observeCommandChange(c, emulating);
     }
 
+    // Add the emulated step to the new trace
+    _trace->addStep(c, emulating);
+
   } else {
     // Save the exit status in the child
     child->setExitStatus(exit_status);
