@@ -88,47 +88,48 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   return ref;
 }
 
-// Command c accesses metadata while being traced
-void Build::traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot check for a metadata match on an unresolved reference.";
+// Command c accesses an artifact's metadata
+void Build::metadataMatch(shared_ptr<Command> c,
+                          shared_ptr<Reference> ref,
+                          shared_ptr<MetadataVersion> expected,
+                          shared_ptr<MetadataMatch> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command accesses metadata through an unresolved reference";
 
-  // Do we have to log this read?
+    // Report the change
+    observeCommandChange(c, emulating);
+
+    // Add the step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating);
+    return;
+  }
+
+  // If this command does not need to trace the metadata access, return immediately
   if (!_metadata_filter.readRequired(c.get(), ref)) return;
 
-  // Inform the artifact that this command accesses its metadata
-  const auto& v = ref->getArtifact()->accessMetadata(c, ref, InputType::Accessed);
+  // Get a metadata version from the artifact
+  auto observed = ref->getArtifact()->accessMetadata(c, ref, InputType::Accessed);
 
-  // If the last write was from this command we don't need a fingerprint to compare.
-  if (v->getCreator() != c) v->fingerprint(ref);
+  // Is this step being emulated or run?
+  if (emulating) {
+    // If we are emulating, compare the observed version with the expected version
+    if (!observed->matches(expected)) observeMismatch(c, ref->getArtifact(), observed, expected);
 
-  // Add the IR step
-  _trace->addStep(c, make_shared<MetadataMatch>(ref, v));
+    // Add the existing MetadataMatch step to the new trace
+    _trace->addStep(c, emulating);
 
-  // Report the read
-  _metadata_filter.read(c.get(), ref);
-}
+  } else {
+    // If we are tracing, we need to access metadata and save it for later comparison
+    // We can skip the fingerprint if this command also created the version
+    if (observed->getCreator() != c) observed->fingerprint(ref);
 
-// Command c accesses metadata during emulation
-void Build::emulateMetadataMatch(shared_ptr<Command> c, shared_ptr<MetadataMatch> step) noexcept {
-  auto ref = step->getReference();
-  auto version = step->getVersion();
-
-  // If the reference does not resolve, report a change
-  if (!ref->getResolution()) return;
-
-  // Get the latest metadata version. The returned version will be nullptr if no check is
-  // necessary.
-  const auto& v = ref->getArtifact()->accessMetadata(c, ref, InputType::Accessed);
-
-  // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->matches(version)) {
-    observeMismatch(c, ref->getArtifact(), v, version);
+    // Add a new MetadataMatch step to the trace, which expects to find the version we observed
+    _trace->addStep(c, make_shared<MetadataMatch>(ref, observed));
   }
 
   // Report the read
   _metadata_filter.read(c.get(), ref);
-
-  _trace->addStep(c, step);
 }
 
 // Command c sets metadata while being traced

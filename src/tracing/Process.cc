@@ -367,7 +367,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
 
     // This is essentially an fstat call
     // Record the dependency on metadata
-    _build.traceMetadataMatch(_command, _fds.at(dirfd).getReference());
+    _build.metadataMatch(_command, _fds.at(dirfd).getReference());
 
   } else {
     // Finish the syscall to see if the reference succeeds
@@ -385,7 +385,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
-        _build.traceMetadataMatch(_command, ref);
+        _build.metadataMatch(_command, ref);
       }
     });
   }
@@ -415,7 +415,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
   auto& descriptor = iter->second;
 
   // The command depends on the old metadata
-  _build.traceMetadataMatch(_command, descriptor.getReference());
+  _build.metadataMatch(_command, descriptor.getReference());
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -437,7 +437,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _build.traceMetadataMatch(_command, ref);
+    _build.metadataMatch(_command, ref);
   }
 
   // Finish the syscall and then resume the process

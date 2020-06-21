@@ -65,11 +65,11 @@ class Build {
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
-  /// A traced command accesses metadata through a reference
-  void traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
-
-  /// An emulated command accesses an artifact's metadata
-  void emulateMetadataMatch(shared_ptr<Command> c, shared_ptr<MetadataMatch> step) noexcept;
+  /// A command accesses an artifact's metadata
+  void metadataMatch(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<MetadataVersion> expected = nullptr,
+                     shared_ptr<MetadataMatch> emulating = nullptr) noexcept;
 
   /// A traced command modifies metadata through a reference
   void traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;

@@ -37,7 +37,7 @@ void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateMetadataMatch(c, as<MetadataMatch>());
+  build.metadataMatch(c, _ref, _version, as<MetadataMatch>());
 }
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
