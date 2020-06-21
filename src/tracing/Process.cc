@@ -182,15 +182,13 @@ vector<string> Process::readArgvArray(uintptr_t tracee_pointer) noexcept {
 
 void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
   // Get a reference from the given path
+  // Attempt to get an artifact using this reference *BEFORE* running the syscall.
+  // This will ensure the environment knows whether or not this artifact is created
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
   // WARN_IF(ref->getFlags().directory)
   //    << "Accessing directory " << ref->getFullPath() << " with openat(). "
   //    << "This is not yet tracked correctly.";
-
-  // Attempt to get an artifact using this reference *BEFORE* running the syscall.
-  // This will ensure the environment knows whether or not this artifact is created
-  ref->resolve(_command, _build);
 
   // Allow the syscall to finish
   finishSyscall([=](long fd) {
@@ -255,9 +253,6 @@ void Process::_pipe2(int* fds, int flags) noexcept {
       return;
     }
 
-    // Create a reference to the pipe
-    auto ref = _build.tracePipe(_command);
-
     // Read the file descriptors
     int read_pipefd = readData((uintptr_t)fds);
     int write_pipefd = readData((uintptr_t)fds + sizeof(int));
@@ -265,8 +260,8 @@ void Process::_pipe2(int* fds, int flags) noexcept {
     // The command can continue
     resume();
 
-    // Get an artifact for this pipe
-    ref->resolve(_command, _build);
+    // Make a reference to a pipe
+    auto ref = _build.tracePipe(_command);
 
     ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
@@ -345,19 +340,20 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 /************************ Metadata Operations ************************/
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
-  // Create a reference
-  auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
+  LOG << "HERE";
 
   // Finish the syscall so we can see its result
   finishSyscall([=](long rc) {
     // Resume the process' execution
     resume();
 
+    // Create a reference
+    auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
+
     // Record the outcome of the reference
     ref->expectResult(-rc);
 
     if (rc == 0) {
-      ref->resolve(_command, _build);
       PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
       // Don't abort here because the dodo self-build accesses /proc/self.
       // We need to fix these references for real at some point.
@@ -376,21 +372,18 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
     _build.traceMetadataMatch(_command, _fds.at(dirfd).getReference());
 
   } else {
-    // This is a regular stat call (with an optional base directory descriptor)
-    auto ref = makeAccess(pathname, {}, dirfd);
-
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
       resume();
+
+      // This is a regular stat call (with an optional base directory descriptor)
+      auto ref = makeAccess(pathname, {}, dirfd);
 
       // Record the outcome of the syscall
       ref->expectResult(-rc);
 
       // Log the success or failure
       if (rc == 0) {
-        // Get the artifact that was stat-ed
-        ref->resolve(_command, _build);
-
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
@@ -442,9 +435,6 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // Make a reference to the file that will be chmod-ed.
   bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
   auto ref = makeAccess(filename, AccessFlags{.nofollow = nofollow}, dfd);
-
-  // Get the artifact that we're going to chmod
-  ref->resolve(_command, _build);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -553,10 +543,8 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 }
 
 void Process::_truncate(string pathname, long length) noexcept {
+  // Make an access to the reference that will be truncated
   auto ref = makeAccess(pathname, AccessFlags{.w = true});
-
-  // Get the artifact that's being truncated
-  ref->resolve(_command, _build);
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
@@ -659,16 +647,10 @@ void Process::_renameat2(int old_dfd,
   // Make a reference to the new directory
   auto new_dir_ref = makeAccess(new_dir, AccessFlags{.w = true}, new_dfd);
 
-  // Resolve all three references
-  old_dir_ref->resolve(_command, _build);
-  old_entry_ref->resolve(_command, _build);
-  new_dir_ref->resolve(_command, _build);
-
   // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
   shared_ptr<Access> new_entry_ref;
   if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
     new_entry_ref = makeAccess(new_path, AccessFlags{}, new_dfd);
-    new_entry_ref->resolve(_command, _build);
   }
 
   finishSyscall([=](long rc) {
@@ -738,17 +720,12 @@ void Process::_linkat(int old_dfd,
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, new_dfd);
 
   // Get a reference to the link we are creating
-  auto entry_ref = dir_ref->get(entry, AccessFlags{});
+  auto entry_ref = makeAccess(link_path, AccessFlags{}, new_dfd);
 
   // Get a reference to the artifact we are linking into the directory
   AccessFlags target_flags = {.nofollow = true};
   if (flags & AT_SYMLINK_FOLLOW) target_flags.nofollow = false;
   auto target_ref = makeAccess(oldpath, target_flags, old_dfd);
-
-  // Resolve all three references
-  dir_ref->resolve(_command, _build);
-  entry_ref->resolve(_command, _build);
-  target_ref->resolve(_command, _build);
 
   finishSyscall([=](long rc) {
     resume();
@@ -790,20 +767,17 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
     return;
   }
 
-  // We're making a reference to a symlink, so don't follow links
-  auto ref = makeAccess(pathname, AccessFlags{.nofollow = true}, dfd);
-
   // Finish the syscall and then resume the process
   finishSyscall([=](long rc) {
     resume();
+
+    // We're making a reference to a symlink, so don't follow links
+    auto ref = makeAccess(pathname, AccessFlags{.nofollow = true}, dfd);
 
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
       ref->expectResult(SUCCESS);
-
-      // Get the artifact that we referenced
-      ref->resolve(_command, _build);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
@@ -827,11 +801,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref = dir_ref->get(entry, AccessFlags{});
-
-  // Resolve both references
-  dir_ref->resolve(_command, _build);
-  entry_ref->resolve(_command, _build);
+  auto entry_ref = makeAccess(path, AccessFlags{}, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -863,7 +833,6 @@ void Process::_chdir(string filename) noexcept {
     if (rc == 0) {
       _cwd = makeAccess(filename, AccessFlags{.x = true});
       _cwd->expectResult(SUCCESS);
-      _cwd->resolve(_command, _build);
       ASSERT(_cwd->isResolved()) << "Failed to resolve current working directory";
     }
   });
@@ -899,12 +868,12 @@ void Process::_execveat(int dfd,
                         string filename,
                         vector<string> args,
                         vector<string> env) noexcept {
-  // The parent command needs execute access to the exec-ed path
-  auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
-
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {
     resume();
+
+    // The parent command needs execute access to the exec-ed path
+    auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
     // Not sure why, but exec returns -38 on success.
     // If we see something else, handle the error
@@ -917,8 +886,6 @@ void Process::_execveat(int dfd,
     // If we reached this point, the executable reference was okay
     exe_ref->expectResult(SUCCESS);
 
-    // Resolve the reference to the executable file
-    exe_ref->resolve(_command, _build);
     ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
 
     // Build a map of the initial file descriptors for the child command
@@ -955,8 +922,6 @@ void Process::_execveat(int dfd,
     auto child_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true});
     child_exe_ref->expectResult(SUCCESS);
 
-    // Resolve the child executable reference
-    child_exe_ref->resolve(_command, _build);
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable

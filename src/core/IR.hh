@@ -46,11 +46,7 @@ class Step : public std::enable_shared_from_this<Step> {
   /// Use a default virtual destructor
   virtual ~Step() noexcept = default;
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept = 0;
 
   /// Try to cast this IR step to an instance of a specific IR step type.
@@ -97,13 +93,6 @@ class Reference : public Step {
   /// Get the expected result of this access
   int getExpectedResult() const noexcept { return _expected_rc; }
 
-  /**
-   * Resolve this reference within the context of a specific build
-   * \param c     The command that performs the resolution
-   * \param build The build that is running at the time of resolution
-   */
-  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept = 0;
-
   /// Get the result of resolving this reference
   Resolution getResolution() const noexcept { return _res; }
 
@@ -137,14 +126,8 @@ class Pipe final : public Reference {
   /// Create a pipe
   Pipe() noexcept = default;
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override;
@@ -161,14 +144,8 @@ class Access final : public Reference {
   Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  virtual void resolve(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Get the access that serves as the base for this one
   const shared_ptr<Access>& getBase() const noexcept { return _base; }
@@ -235,11 +212,7 @@ class MetadataMatch final : public Step {
   /// Get the expected artifact version
   const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a METADATA_MATCH predicate
@@ -269,11 +242,7 @@ class ContentsMatch final : public Step {
   /// Get the expected artifact version
   const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a CONTENTS_MATCH predicate
@@ -303,11 +272,7 @@ class SymlinkMatch final : public Step {
   /// Get the expected version
   const shared_ptr<SymlinkVersion>& getVersion() const noexcept { return _version; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SYMLINK_MATCH predicate
@@ -334,11 +299,7 @@ class Launch final : public Step {
   /// Get the command this action launches
   shared_ptr<Command> getCommand() const noexcept { return _cmd; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a LAUNCH action
@@ -367,11 +328,7 @@ class Join final : public Step {
   /// Get the exit status for the child command
   int getExitStatus() const noexcept { return _exit_status; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a LAUNCH action
@@ -399,11 +356,7 @@ class SetMetadata final : public Step {
 
   const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SET_METADATA action
@@ -431,11 +384,7 @@ class SetContents final : public Step {
 
   const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SET_CONTENTS action
@@ -461,11 +410,7 @@ class Link final : public Step {
 
   const shared_ptr<Reference>& getTarget() const noexcept { return _target; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an UNLINK action
@@ -488,11 +433,7 @@ class Unlink final : public Step {
 
   string getEntry() const noexcept { return _entry; }
 
-  /**
-   * Emulate this IR step in a given environment
-   * \param c   The command that contains the IR step
-   * \param env The environment this step should be emulated in
-   */
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an UNLINK action

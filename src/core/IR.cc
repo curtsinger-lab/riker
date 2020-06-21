@@ -26,150 +26,50 @@ using std::ostream;
 using std::shared_ptr;
 using std::tuple;
 
-void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  resolvesTo(build.resolve(c, shared_from_this()->as<Pipe>()));
-}
-
-void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  // The base reference must be resolved already.
-  ASSERT(_base) << "Cannot resolve a reference with no base";
-  ASSERT(_base->isResolved()) << "Cannot resolve a reference with an unresolved base";
-
-  resolvesTo(build.resolve(c, shared_from_this()->as<Access>()));
-}
-
 /******* Emulation *******/
 
 void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // Resolve the reference
-  resolve(c, build);
-  if (getResolution() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
+  build.emulatePipe(c, as<Pipe>());
 }
 
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // Resolve the reference
-  resolve(c, build);
-  if (getResolution() != getExpectedResult()) build.observeCommandChange(c, shared_from_this());
+  build.emulateAccess(c, as<Access>());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference does not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Get the latest metadata version. The returned version will be nullptr if no check is
-  // necessary.
-  const auto& v = _ref->getArtifact()->accessMetadata(c, _ref, InputType::Accessed);
-
-  // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->matches(_version)) {
-    build.observeMismatch(c, _ref->getArtifact(), v, _version);
-  }
+  build.emulateMetadataMatch(c, as<MetadataMatch>());
 }
 
 void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Get the latest content version. The returned version will be nullptr if no check is
-  // necessary.
-  const auto& v = _ref->getArtifact()->accessContents(c, _ref);
-
-  // If a version was returned and it doesn't match the expected version, report a mismatch
-  if (v && !v->matches(_version)) {
-    build.observeMismatch(c, _ref->getArtifact(), v, _version);
-  }
+  build.emulateContentsMatch(c, as<ContentsMatch>());
 }
 
 void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Get the latest symlink version
-  const auto& v = _ref->getArtifact()->readlink(c, InputType::Accessed);
-
-  // If the returned version doesn't match the expected version, report a mismatch
-  if (!v->matches(_version)) {
-    build.observeMismatch(c, _ref->getArtifact(), v, _version);
-  }
+  build.emulateSymlinkMatch(c, as<SymlinkMatch>());
 }
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Add the assigned version to the artifact
-  _ref->getArtifact()->setMetadata(c, _ref, _version);
+  build.emulateSetMetadata(c, as<SetMetadata>());
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Add the assigned version to the artifact
-  _ref->getArtifact()->setContents(c, _ref, _version);
+  build.emulateSetContents(c, as<SetContents>());
 }
 
 void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Check the target reference as well
-  if (!_target->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Perform the unlink
-  _ref->getArtifact()->addEntry(c, _ref, _entry, _target);
+  build.emulateLink(c, as<Link>());
 }
 
 void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // If the reference did not resolve, report a change
-  if (!_ref->getResolution()) {
-    build.observeCommandChange(c, shared_from_this());
-    return;
-  }
-
-  // Perform the unlink
-  _ref->getArtifact()->removeEntry(c, _ref, _entry);
+  build.emulateUnlink(c, as<Unlink>());
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // The child command depends on all current versions of the artifacts in its fd table
-  for (auto& [index, desc] : _cmd->getInitialFDs()) {
-    desc.getReference()->getArtifact()->needsCurrentVersions(_cmd);
-  }
-
-  // Tell the build to launch the child command
-  build.launch(c, _cmd);
+  build.emulateLaunch(c, as<Launch>());
 }
 
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  // Inform the build that it should join the child command
-  build.join(_cmd);
-
-  // Did the child command's exit status match the expected result?
-  if (_cmd->getExitStatus() != _exit_status) {
-    build.observeCommandChange(c, shared_from_this());
-  }
+  build.emulateJoin(c, as<Join>());
 }
 
 /******************* Access Methods ********************/

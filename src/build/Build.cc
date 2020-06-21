@@ -7,6 +7,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "build/AccessFilter.hh"
+#include "build/Env.hh"
 #include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
@@ -25,16 +26,6 @@ static AccessFilter _metadata_filter;
 
 /// The access filter used for content accesses
 static AccessFilter _content_filter;
-
-// Resolve a pipe reference on behalf of command c
-Resolution Build::resolve(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept {
-  return _env.getPipe(c);
-}
-
-// Resolve an access reference on behalf of command c
-Resolution Build::resolve(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept {
-  return _env.resolveRef(c, ref);
-}
 
 void Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
@@ -63,11 +54,32 @@ void Build::run() noexcept {
   _env.finalize();
 }
 
+/************************ Reference Resolution ************************/
+
+// Resolve a pipe reference on behalf of command c
+Resolution Build::resolvePipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept {
+  return _env.getPipe(c);
+}
+
+// Resolve an access reference on behalf of command c
+Resolution Build::resolveAccess(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept {
+  return _env.resolveRef(c, ref);
+}
+
+/************************ Command Tracing and Emulation ************************/
+
 // Command c issued a pipe reference while being traced
 shared_ptr<Pipe> Build::tracePipe(shared_ptr<Command> c) noexcept {
   auto ref = make_shared<Pipe>();
+  ref->resolvesTo(_env.getPipe(c));
   _trace->addStep(c, ref);
   return ref;
+}
+
+// Command c issued a pipe reference while being traced
+void Build::emulatePipe(shared_ptr<Command> c, shared_ptr<Pipe> step) noexcept {
+  step->resolvesTo(_env.getPipe(c));
+  if (step->getResolution() != step->getExpectedResult()) observeCommandChange(c, step);
 }
 
 // Command c accessed a path while being traced
@@ -77,8 +89,14 @@ shared_ptr<Access> Build::traceAccess(shared_ptr<Command> c,
                                       shared_ptr<Access> base) noexcept {
   // For now, the reference is just one level that covers all parts of the new path
   auto ref = base->get(path, flags);
+  ref->resolvesTo(_env.resolveRef(c, ref));
   _trace->addStep(c, ref);
   return ref;
+}
+
+void Build::emulateAccess(shared_ptr<Command> c, shared_ptr<Access> step) noexcept {
+  step->resolvesTo(_env.resolveRef(c, step));
+  if (step->getResolution() != step->getExpectedResult()) observeCommandChange(c, step);
 }
 
 // Command c accesses metadata while being traced
@@ -101,6 +119,27 @@ void Build::traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref)
   _metadata_filter.read(c.get(), ref);
 }
 
+// Command c accesses metadata during emulation
+void Build::emulateMetadataMatch(shared_ptr<Command> c, shared_ptr<MetadataMatch> step) noexcept {
+  auto ref = step->getReference();
+  auto version = step->getVersion();
+
+  // If the reference does not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Get the latest metadata version. The returned version will be nullptr if no check is
+  // necessary.
+  const auto& v = ref->getArtifact()->accessMetadata(c, ref, InputType::Accessed);
+
+  // If a version was returned and it doesn't match the expected version, report a mismatch
+  if (v && !v->matches(version)) {
+    observeMismatch(c, ref->getArtifact(), v, version);
+  }
+
+  // Report the read
+  _metadata_filter.read(c.get(), ref);
+}
+
 // Command c sets metadata while being traced
 void Build::traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
@@ -116,6 +155,21 @@ void Build::traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) n
 
   // Report the write
   _metadata_filter.write(c.get(), ref, v);
+}
+
+// Command c sets metadata during emulation
+void Build::emulateSetMetadata(shared_ptr<Command> c, shared_ptr<SetMetadata> step) noexcept {
+  auto ref = step->getReference();
+  auto version = step->getVersion();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Add the assigned version to the artifact
+  ref->getArtifact()->setMetadata(c, ref, version);
+
+  // Report the write
+  _metadata_filter.write(c.get(), ref, version);
 }
 
 // Command c acceses file content while being traced
@@ -144,6 +198,27 @@ void Build::traceContentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref)
   _content_filter.read(c.get(), ref);
 }
 
+// Command c accesses file content while being emulated
+void Build::emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch> step) noexcept {
+  auto ref = step->getReference();
+  auto version = step->getVersion();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Get the latest content version. The returned version will be nullptr if no check is
+  // necessary.
+  const auto& v = ref->getArtifact()->accessContents(c, ref);
+
+  // If a version was returned and it doesn't match the expected version, report a mismatch
+  if (v && !v->matches(version)) {
+    observeMismatch(c, ref->getArtifact(), v, version);
+  }
+
+  // Report the read
+  _content_filter.read(c.get(), ref);
+}
+
 // Command c sets file content while being traced
 void Build::traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
   ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
@@ -161,6 +236,21 @@ void Build::traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) n
 
   // Report the write
   _content_filter.write(c.get(), ref, v);
+}
+
+// Command c sets file content while being emulated
+void Build::emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> step) noexcept {
+  auto ref = step->getReference();
+  auto version = step->getVersion();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Add the assigned version to the artifact
+  ref->getArtifact()->setContents(c, ref, version);
+
+  // Report the write
+  _content_filter.write(c.get(), ref, version);
 }
 
 // Command c accesses the contents of a symlink while being traced
@@ -183,6 +273,23 @@ void Build::traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) 
   _trace->addStep(c, make_shared<SymlinkMatch>(ref, v));
 }
 
+// Command c accesses the contents of a symlink while being emulated
+void Build::emulateSymlinkMatch(shared_ptr<Command> c, shared_ptr<SymlinkMatch> step) noexcept {
+  auto ref = step->getReference();
+  auto version = step->getVersion();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Get the latest symlink version
+  const auto& v = ref->getArtifact()->readlink(c, InputType::Accessed);
+
+  // If the returned version doesn't match the expected version, report a mismatch
+  if (!v->matches(version)) {
+    observeMismatch(c, ref->getArtifact(), v, version);
+  }
+}
+
 // Command c adds an entry to a directory
 void Build::traceLink(shared_ptr<Command> c,
                       shared_ptr<Reference> ref,
@@ -196,6 +303,22 @@ void Build::traceLink(shared_ptr<Command> c,
   _trace->addStep(c, make_shared<Link>(ref, entry, target));
 }
 
+// An emulated command removes an entry from a directory
+void Build::emulateLink(shared_ptr<Command> c, shared_ptr<Link> step) noexcept {
+  auto ref = step->getReference();
+  auto entry = step->getEntry();
+  auto target = step->getTarget();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Check the target reference as well
+  if (!target->getResolution()) return;
+
+  // Perform the unlink
+  ref->getArtifact()->addEntry(c, ref, entry, target);
+}
+
 // Command c removes an entry from a directory
 void Build::traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept {
   ASSERT(ref->isResolved()) << "Cannot remove an entry from an unresolved directory";
@@ -203,6 +326,18 @@ void Build::traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string
   ref->getArtifact()->removeEntry(c, ref, entry);
 
   _trace->addStep(c, make_shared<Unlink>(ref, entry));
+}
+
+// An emulated command removes an entry from a directory
+void Build::emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexcept {
+  auto ref = step->getReference();
+  auto entry = step->getEntry();
+
+  // If the reference did not resolve, report a change
+  if (!ref->getResolution()) return;
+
+  // Perform the unlink
+  ref->getArtifact()->removeEntry(c, ref, entry);
 }
 
 // This command launches a child command
@@ -219,6 +354,42 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
   _trace->addStep(c, make_shared<Launch>(child));
 }
 
+// An emulated command launches a child command
+void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexcept {
+  auto cmd = step->getCommand();
+
+  // The child command depends on all current versions of the artifacts in its fd table
+  for (auto& [index, desc] : cmd->getInitialFDs()) {
+    desc.getReference()->getArtifact()->needsCurrentVersions(cmd);
+  }
+
+  // If this child hasn't run before, let the observers know
+  if (!cmd->hasExecuted()) {
+    for (const auto& o : _observers) {
+      o->commandNeverRun(cmd);
+    }
+  }
+
+  // Inform observers of the launch action
+  for (const auto& o : _observers) {
+    o->launch(c, cmd);
+  }
+
+  // If the child command must be rerun, start it in the tracer now
+  if (checkRerun(cmd)) {
+    // Show the command if printing is on, or if this is a dry run
+    if (options::print_on_run || options::dry_run)
+      cout << cmd->getShortName(options::command_length) << endl;
+
+    // Actually run the command, unless this is a dry run
+    if (!options::dry_run) {
+      // Start the command in the tracer
+      _running[cmd] = _tracer.start(cmd);
+      cmd->setExecuted();
+    }
+  }
+}
+
 // This command joined with a child command
 void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept {
   LOG << c << " joined command " << child << " with exit status " << exit_status;
@@ -230,40 +401,20 @@ void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit
   _trace->addStep(c, make_shared<Join>(child, exit_status));
 }
 
-// Called when an emulated command launches another command
-void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {
-  // If this child hasn't run before, let the observers know
-  if (!child->hasExecuted()) {
-    for (const auto& o : _observers) {
-      o->commandNeverRun(child);
-    }
-  }
+// An emulated command joins with a child command
+void Build::emulateJoin(shared_ptr<Command> c, shared_ptr<Join> step) noexcept {
+  auto cmd = step->getCommand();
+  auto exit_status = step->getExitStatus();
 
-  // Inform observers of the launch action
-  for (const auto& o : _observers) {
-    o->launch(parent, child);
-  }
-
-  // If the child command must be rerun, start it in the tracer now
-  if (checkRerun(child)) {
-    // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run)
-      cout << child->getShortName(options::command_length) << endl;
-
-    // Actually run the command, unless this is a dry run
-    if (!options::dry_run) {
-      // Start the command in the tracer
-      _running[child] = _tracer.start(child);
-      child->setExecuted();
-    }
-  }
-}
-
-void Build::join(shared_ptr<Command> child) noexcept {
   // If the command is in the rerun set, tell the tracer to wait for it
-  if (checkRerun(child)) {
-    INFO << "Waiting for process running " << child;
-    _tracer.wait(_running[child]);
+  if (checkRerun(cmd)) {
+    INFO << "Waiting for process running " << cmd;
+    _tracer.wait(_running[cmd]);
+  }
+
+  // Did the child command's exit status match the expected result?
+  if (cmd->getExitStatus() != exit_status) {
+    observeCommandChange(c, step);
   }
 }
 

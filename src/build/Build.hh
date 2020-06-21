@@ -53,19 +53,21 @@ class Build {
   /// Run this build
   void run() noexcept;
 
+  /****** Reference Resolution ******/
+
   /// Resolve a pipe reference on behalf of command c
-  Resolution resolve(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
+  Resolution resolvePipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
 
   /// Resolve an access reference on behalf of command c
-  Resolution resolve(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
+  Resolution resolveAccess(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
 
-  /// Add an IR step to the trace this build is executing
-  void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _trace->addStep(c, s); }
-
-  /****** Tracing Methods ******/
+  /****** Tracing and Emulation Methods ******/
 
   /// A traced command is issuing a pipe reference
   shared_ptr<Pipe> tracePipe(shared_ptr<Command> c) noexcept;
+
+  /// An emulated command issues a pipe reference
+  void emulatePipe(shared_ptr<Command> c, shared_ptr<Pipe> step) noexcept;
 
   /// A traced command made an access to a path
   shared_ptr<Access> traceAccess(shared_ptr<Command> c,
@@ -73,20 +75,38 @@ class Build {
                                  AccessFlags flags,
                                  shared_ptr<Access> base) noexcept;
 
+  /// An emulated command made an access to a path
+  void emulateAccess(shared_ptr<Command> c, shared_ptr<Access> step) noexcept;
+
   /// A traced command accesses metadata through a reference
   void traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// An emulated command accesses an artifact's metadata
+  void emulateMetadataMatch(shared_ptr<Command> c, shared_ptr<MetadataMatch> step) noexcept;
 
   /// A traced command modifies metadata through a reference
   void traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
 
+  /// An emulated command modifies an artifact's metadata
+  void emulateSetMetadata(shared_ptr<Command> c, shared_ptr<SetMetadata> step) noexcept;
+
   /// A traced command accesses file content through a reference
   void traceContentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// An emulated command accesses file contents
+  void emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch> step) noexcept;
 
   /// A traced command modifies file content through a reference
   void traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
 
+  /// An emulated command modifies an artifact's contents
+  void emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> step) noexcept;
+
   /// A traced command accesses the contents of a symlink
   void traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// An emulated command accesses the contents of a symlink
+  void emulateSymlinkMatch(shared_ptr<Command> c, shared_ptr<SymlinkMatch> step) noexcept;
 
   /// A traced command adds an entry to a directory
   void traceLink(shared_ptr<Command> c,
@@ -94,28 +114,26 @@ class Build {
                  string entry,
                  shared_ptr<Reference> target) noexcept;
 
+  /// An emulated command adds an entry to a directory
+  void emulateLink(shared_ptr<Command> c, shared_ptr<Link> step) noexcept;
+
   /// A traced command removes an entry from a directory
   void traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept;
+
+  /// An emulated command removes an entry from a directory
+  void emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexcept;
 
   /// A traced command launches a child command
   void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
 
+  /// An emulated command launches a child command
+  void emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexcept;
+
   /// A traced command joins with a child command
   void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
 
-  /**
-   * Tell the build to launch a command
-   * \param parent The parent of the launched command
-   * \param child  The newly-launched command
-   */
-  void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept;
-
-  /**
-   * Tell the build to join with a command
-   * \param parent The command that is waiting
-   * \param child  The child being joined
-   */
-  void join(shared_ptr<Command> child) noexcept;
+  /// An emulated command joins with a child command
+  void emulateJoin(shared_ptr<Command> c, shared_ptr<Join> step) noexcept;
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;

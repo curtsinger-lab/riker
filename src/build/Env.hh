@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include "build/BuildObserver.hh"
+#include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
 #include "core/IR.hh"
 
