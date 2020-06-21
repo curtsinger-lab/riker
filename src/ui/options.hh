@@ -2,9 +2,6 @@
 
 // Namespace to contain global flags that control build behavior
 namespace options {
-  /// The maximum length of a command when printed
-  inline size_t command_length = 80;
-
   /****** Optimization ******/
   /// Repeated reads can be combined into a single read
   inline bool combine_reads = true;  // PAPER
