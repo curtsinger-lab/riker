@@ -49,7 +49,7 @@ void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateSetMetadata(c, as<SetMetadata>());
+  build.setMetadata(c, _ref, _version, as<SetMetadata>());
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {

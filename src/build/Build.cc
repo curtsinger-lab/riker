@@ -132,38 +132,39 @@ void Build::metadataMatch(shared_ptr<Command> c,
   _metadata_filter.read(c.get(), ref);
 }
 
-// Command c sets metadata while being traced
-void Build::traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot set metadata for an unresolved reference.";
+// Command c sets sets the metadata for an artifact
+void Build::setMetadata(shared_ptr<Command> c,
+                        shared_ptr<Reference> ref,
+                        shared_ptr<MetadataVersion> written,
+                        shared_ptr<SetMetadata> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command tried to set metadata through an unresolved reference";
+
+    // Record the change
+    observeCommandChange(c, emulating);
+
+    // Add the IR step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating);
+    return;
+  }
 
   // Do we have to log this write?
   if (!_metadata_filter.writeRequired(c.get(), ref)) return;
 
-  // Inform the artifact that this command sets its metadata
-  const auto& v = ref->getArtifact()->setMetadata(c, ref);
+  // Apply the new version to the artifact's metadata.
+  // The written version will be null when tracing, so save the returned version
+  written = ref->getArtifact()->setMetadata(c, ref, written);
 
-  // Create the SetMetadata step and add it to the command
-  _trace->addStep(c, make_shared<SetMetadata>(ref, v));
-
-  // Report the write
-  _metadata_filter.write(c.get(), ref, v);
-}
-
-// Command c sets metadata during emulation
-void Build::emulateSetMetadata(shared_ptr<Command> c, shared_ptr<SetMetadata> step) noexcept {
-  auto ref = step->getReference();
-  auto version = step->getVersion();
-
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
-
-  // Add the assigned version to the artifact
-  ref->getArtifact()->setMetadata(c, ref, version);
+  // If we're emulating, add the existing IR step to the trace. Otherwise record a new IR step.
+  if (emulating) {
+    _trace->addStep(c, emulating);
+  } else {
+    _trace->addStep(c, make_shared<SetMetadata>(ref, written));
+  }
 
   // Report the write
-  _metadata_filter.write(c.get(), ref, version);
-
-  _trace->addStep(c, step);
+  _metadata_filter.write(c.get(), ref, written);
 }
 
 // Command c acceses file content while being traced

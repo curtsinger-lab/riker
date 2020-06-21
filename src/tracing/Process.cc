@@ -425,7 +425,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.traceSetMetadata(_command, descriptor.getReference());
+    _build.setMetadata(_command, descriptor.getReference());
   });
 }
 
@@ -452,7 +452,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _build.traceSetMetadata(_command, ref);
+      _build.setMetadata(_command, ref);
 
     } else {
       // No. Record the failure
