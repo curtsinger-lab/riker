@@ -54,18 +54,6 @@ void Build::run() noexcept {
   _env.finalize();
 }
 
-/************************ Reference Resolution ************************/
-
-// Resolve a pipe reference on behalf of command c
-Resolution Build::resolvePipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept {
-  return _env.getPipe(c);
-}
-
-// Resolve an access reference on behalf of command c
-Resolution Build::resolveAccess(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept {
-  return _env.resolveRef(c, ref);
-}
-
 /************************ Command Tracing and Emulation ************************/
 
 // Command c issued a pipe reference while being traced

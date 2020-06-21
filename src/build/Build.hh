@@ -53,14 +53,6 @@ class Build {
   /// Run this build
   void run() noexcept;
 
-  /****** Reference Resolution ******/
-
-  /// Resolve a pipe reference on behalf of command c
-  Resolution resolvePipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
-
-  /// Resolve an access reference on behalf of command c
-  Resolution resolveAccess(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
-
   /****** Tracing and Emulation Methods ******/
 
   /// A traced command is issuing a pipe reference
