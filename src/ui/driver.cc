@@ -37,16 +37,17 @@ const fs::path DatabaseFilename = ".dodo/db";
 
 /**
  * Run the `build` subcommand.
- * \param jobs        The maximum number of concurrent jobs to run
- * \param fingerprint The type of fingerprinting to use, "none", "local", or "all".
- *                    The value is checked by the command line parsing code.
+ * \param fingerprint   The type of fingerprinting to use, "none", "local", or "all".
+ *                      The value is checked by the command line parsing code.
+ * \param print_on_run  Should the build print commands as they are executed?
+ * \param dry_run       Should the build JUST print commands instead of running them?
  */
-void do_build(int jobs) noexcept {
-  // Load a build, or set up a default build if necessary
+void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noexcept {
+  // Load a trace, or set up a default build if necessary
   auto trace = load_build(DatabaseFilename, true);
 
-  // Set up a build to emulate the loaded command tree
-  Build phase1(trace);
+  // Set up a build to emulate the loaded command tree.
+  Build phase1(trace, fingerprint);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -56,7 +57,8 @@ void do_build(int jobs) noexcept {
   phase1.run();
 
   // Now create a build to run the second phase, the actual build execution
-  Build phase2(trace);
+  // Pass in the print_on_run and dry_run options this time
+  Build phase2(trace, fingerprint, print_on_run, dry_run);
 
   // Prepare the build to execute the necessary commands
   rebuild->planBuild(phase2);
@@ -75,13 +77,14 @@ void do_build(int jobs) noexcept {
 
 /**
  * Run the `check` subcommand
+ * \param fingerprint The configuration the build should use for fingerprinting artifacts
  */
-void do_check() noexcept {
+void do_check(FingerprintLevel fingerprint) noexcept {
   // Load a build, or set up a default build if necessary
   auto trace = load_build(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tryy
-  Build phase1(trace);
+  Build phase1(trace, fingerprint);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -94,7 +97,7 @@ void do_check() noexcept {
   cout << rebuild;
 
   // Plan a build
-  Build phase2(trace);
+  Build phase2(trace, fingerprint);
   rebuild->planBuild(phase2);
 
   // Print the planned build
@@ -103,14 +106,15 @@ void do_check() noexcept {
 
 /**
  * Run the `trace` subcommand
+ * \param fingerprint The configuration the build should use for fingerprinting artifacts
  * \param output  The name of the output file, or "-" for stdout
  */
-void do_trace(string output) noexcept {
+void do_trace(FingerprintLevel fingerprint, string output) noexcept {
   // Load the root command
   auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
-  Build b(trace);
+  Build b(trace, fingerprint);
 
   // Run the emulated build to assign names to versions
   b.run();
@@ -125,10 +129,17 @@ void do_trace(string output) noexcept {
 
 /**
  * Run the `graph` subcommand
- * \param output        The name of the output file, or "-" for stdout
- * \param show_sysfiles If true, include system files in the graph
+ * \param fingerprint The configuration the build should use for fingerprinting artifacts
+ * \param output      The name of the output file, or "-" for stdout
+ * \param type        The type of output to produce
+ * \param show_all    If true, include system files in the graph
+ * \param no_render   If set, generate graphviz source instead of a rendered graph
  */
-void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
+void do_graph(FingerprintLevel fingerprint,
+              string output,
+              string type,
+              bool show_all,
+              bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -140,7 +151,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
-  Build b(trace);
+  Build b(trace, fingerprint);
 
   // Create the Graph observer and attach it to the build
   auto graph = make_shared<Graph>(show_all);
@@ -173,14 +184,15 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
 
 /**
  * Run the `stats` subcommand
+ * \param fingerprint     The configuration the build should use for fingerprinting artifacts
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(bool list_artifacts) noexcept {
+void do_stats(FingerprintLevel fingerprint, bool list_artifacts) noexcept {
   // Load the serialized command tree
   auto trace = load_build(DatabaseFilename, false);
 
   // Set up a build to emulate the commands
-  Build b(trace);
+  Build b(trace, fingerprint);
 
   // Create a stats observer and attach it to the build
   auto stats = make_shared<Stats>(list_artifacts);
@@ -217,6 +229,8 @@ int main(int argc, char* argv[]) noexcept {
   app.fallthrough();
 
   /************* Global Options *************/
+  FingerprintLevel fingerprint = FingerprintLevel::Local;
+
   app.add_flag("--debug", logger::debug, "Print source locations with log messages");
   app.add_flag("--no-color", logger::disable_color, "Disable color terminal output");
   app.add_flag(
@@ -236,13 +250,13 @@ int main(int argc, char* argv[]) noexcept {
 
   app.add_option_function<string>(
          "--fingerprint",
-         [](string opt) {
+         [&](string opt) {
            if (opt == "all") {
-             options::fingerprint_level = FingerprintLevel::All;
+             fingerprint = FingerprintLevel::All;
            } else if (opt == "local") {
-             options::fingerprint_level = FingerprintLevel::Local;
+             fingerprint = FingerprintLevel::Local;
            } else {
-             options::fingerprint_level = FingerprintLevel::None;
+             fingerprint = FingerprintLevel::None;
            }
          },
          "Set the fingerprint level (default=local)")
@@ -265,26 +279,24 @@ int main(int argc, char* argv[]) noexcept {
       ->group("Optimizations");
 
   /************* Build Subcommand *************/
-  int jobs = 0;
+  bool print_on_run = false;
+  bool dry_run = false;
 
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
-  build->add_flag("--show", options::print_on_run, "Show commands as they are run");
+  build->add_flag("--show", print_on_run, "Show commands as they are run");
 
-  build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
-
-  build->add_option("-j,--jobs", jobs, "Max concurrent jobs (0 is unlimited)")
-      ->check(CLI::NonNegativeNumber);
+  build->add_flag("-n,--dry-run", dry_run, "Do not run any build commands");
 
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(jobs); });
+  build->final_callback([&] { do_build(fingerprint, print_on_run, dry_run); });
 
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
-  check->final_callback([&] { do_check(); });
+  check->final_callback([&] { do_check(fingerprint); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
@@ -293,7 +305,7 @@ int main(int argc, char* argv[]) noexcept {
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
 
   // Set the callback fo the trace subcommand
-  trace->final_callback([&] { do_trace(trace_output); });
+  trace->final_callback([&] { do_trace(fingerprint, trace_output); });
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -309,7 +321,8 @@ int main(int argc, char* argv[]) noexcept {
   graph->add_flag("-a,--all", show_all, "Include all files in the graph");
 
   // Set the callback fo the trace subcommand
-  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
+  graph->final_callback(
+      [&] { do_graph(fingerprint, graph_output, graph_type, show_all, no_render); });
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
@@ -317,7 +330,7 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  stats->final_callback([&] { do_stats(list_artifacts); });
+  stats->final_callback([&] { do_stats(fingerprint, list_artifacts); });
 
   /************* Argument Parsing *************/
 

@@ -20,6 +20,8 @@ using std::vector;
 
 class Version;
 
+enum class FingerprintLevel { None, Local, All };
+
 /**
  * A Build instance manages the execution of a build. This instance is responsible for setting up
  * the build environment, emulating or running each of the commands, and notifying any observers of
@@ -33,7 +35,16 @@ class Build {
    * added later.
    * \param root  The root command of the build
    */
-  Build(shared_ptr<Trace> trace) noexcept : _trace(trace), _env(*this), _tracer(*this) {}
+  Build(shared_ptr<Trace> trace,
+        FingerprintLevel fingerprint,
+        bool print_on_run = false,
+        bool dry_run = false) noexcept :
+      _trace(trace),
+      _fingerprint(fingerprint),
+      _print_on_run(print_on_run),
+      _dry_run(dry_run),
+      _env(*this),
+      _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -170,6 +181,15 @@ class Build {
  private:
   /// The trace of steps in this build
   shared_ptr<Trace> _trace;
+
+  /// Where should the build use fingerprints for content comparisons?
+  FingerprintLevel _fingerprint;
+
+  /// Should this build print every command as it is executed?
+  bool _print_on_run;
+
+  /// Should this build just print commands instead of running them?
+  bool _dry_run;
 
   /// The environment in which this build executes
   Env _env;

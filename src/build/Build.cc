@@ -11,7 +11,6 @@
 #include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
-#include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
@@ -366,12 +365,12 @@ void Build::launch(shared_ptr<Command> c,
   // Should this command rerun? Yes, if we're either tracing the launch, or the command is marked
   if (!emulating || checkRerun(child)) {
     // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run) {
+    if (_print_on_run || _dry_run) {
       cout << child->getShortName(options::command_length) << endl;
     }
 
     // Is this a real execution and not a dry run?
-    if (!options::dry_run) {
+    if (!_dry_run) {
       // Yes. The child will be executed
       child->setExecuted();
 

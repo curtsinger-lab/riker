@@ -1,18 +1,7 @@
 #pragma once
 
-enum class FingerprintLevel { None, Local, All };
-
 // Namespace to contain global flags that control build behavior
 namespace options {
-  /// Should the build print commands as they are run?
-  inline bool print_on_run = false;
-
-  /// Is this a dry run?
-  inline bool dry_run = false;
-
-  /// Which files should be fingerprinted instead of just checked for mtime?
-  inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
-
   /// The maximum length of a command when printed
   inline size_t command_length = 80;
 
