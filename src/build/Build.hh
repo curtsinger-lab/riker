@@ -60,9 +60,9 @@ class Build {
 
   /// A command makes a reference with a path
   shared_ptr<Access> access(shared_ptr<Command> c,
+                            shared_ptr<Access> base,
                             fs::path path,
                             AccessFlags flags,
-                            shared_ptr<Access> base,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
   /// A traced command accesses metadata through a reference

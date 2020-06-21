@@ -33,7 +33,7 @@ void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.access(c, _path, _flags, _base, as<Access>());
+  build.access(c, _base, _path, _flags, as<Access>());
 }
 
 void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {

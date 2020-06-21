@@ -64,11 +64,11 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
   return ref;
 }
 
-// Command c accessed a path while being traced
+// Command c accesses a path
 shared_ptr<Access> Build::access(shared_ptr<Command> c,
+                                 shared_ptr<Access> base,
                                  fs::path path,
                                  AccessFlags flags,
-                                 shared_ptr<Access> base,
                                  shared_ptr<Access> emulating) noexcept {
   // Get a reference, either using the existing one we are emulating, or creating a new one
   auto ref = emulating;

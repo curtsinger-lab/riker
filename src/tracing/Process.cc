@@ -77,17 +77,17 @@ unsigned long Process::getEventMessage() noexcept {
 
 shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
   // Absolute paths are resolved relative to the process' current root
-  if (p.is_absolute()) return _build.access(_command, p.relative_path(), flags, _root);
+  if (p.is_absolute()) return _build.access(_command, _root, p.relative_path(), flags);
 
   // Handle the special CWD file descriptor to resolve relative to cwd
-  if (at == AT_FDCWD) return _build.access(_command, p.relative_path(), flags, _cwd);
+  if (at == AT_FDCWD) return _build.access(_command, _cwd, p.relative_path(), flags);
 
   // The path is resolved relative to some file descriptor
   auto base = _fds.at(at).getReference()->as<Access>();
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
-  return _build.access(_command, p.relative_path(), flags, base);
+  return _build.access(_command, base, p.relative_path(), flags);
 }
 
 string Process::readString(uintptr_t tracee_pointer) noexcept {
