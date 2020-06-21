@@ -65,7 +65,7 @@ void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateLaunch(c, as<Launch>());
+  build.launch(c, _cmd, as<Launch>());
 }
 
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {

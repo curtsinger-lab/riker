@@ -907,7 +907,7 @@ void Process::_execveat(int dfd,
     auto child = make_shared<Command>(exe_ref, args, initial_fds, _cwd, _root);
 
     // Inform the build of the launch action
-    _build.traceLaunch(_command, child);
+    _build.launch(_command, child);
 
     // This process is now running the child
     _command = child;

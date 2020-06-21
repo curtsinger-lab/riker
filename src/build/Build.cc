@@ -340,54 +340,49 @@ void Build::emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexce
 }
 
 // This command launches a child command
-void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
-  if (options::print_on_run) cout << child->getShortName(options::command_length) << endl;
-
+void Build::launch(shared_ptr<Command> c,
+                   shared_ptr<Command> child,
+                   shared_ptr<Launch> emulating) noexcept {
   // The child command depends on all current versions of the artifacts in its fd table
   for (auto& [index, desc] : child->getInitialFDs()) {
     desc.getReference()->getArtifact()->needsCurrentVersions(child);
   }
 
-  child->setExecuted();
-
-  _trace->addStep(c, make_shared<Launch>(child));
-}
-
-// An emulated command launches a child command
-void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexcept {
-  auto cmd = step->getCommand();
-
-  // The child command depends on all current versions of the artifacts in its fd table
-  for (auto& [index, desc] : cmd->getInitialFDs()) {
-    desc.getReference()->getArtifact()->needsCurrentVersions(cmd);
-  }
-
-  // If this child hasn't run before, let the observers know
-  if (!cmd->hasExecuted()) {
+  // If we're emulating the launch of an unexecuted command, notify observers
+  if (emulating && !child->hasExecuted()) {
+    // If we're emulating, we need to let the observers know if the child has not been run before
     for (const auto& o : _observers) {
-      o->commandNeverRun(cmd);
+      o->commandNeverRun(child);
     }
   }
 
-  // Inform observers of the launch action
+  // Inform observers of the launch
   for (const auto& o : _observers) {
-    o->launch(c, cmd);
+    o->launch(c, child);
   }
 
-  // If the child command must be rerun, start it in the tracer now
-  if (checkRerun(cmd)) {
+  // Should this command rerun? Yes, if we're either tracing the launch, or the command is marked
+  if (!emulating || checkRerun(child)) {
     // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run)
-      cout << cmd->getShortName(options::command_length) << endl;
+    if (options::print_on_run || options::dry_run) {
+      cout << child->getShortName(options::command_length) << endl;
+    }
 
-    // Actually run the command, unless this is a dry run
+    // Is this a real execution and not a dry run?
     if (!options::dry_run) {
-      // Start the command in the tracer
-      _running[cmd] = _tracer.start(cmd);
-      cmd->setExecuted();
+      // Yes. The child will be executed
+      child->setExecuted();
+
+      // If we are emulating the launch of the child command, tell the tracer to start it
+      if (emulating) _running[child] = _tracer.start(child);
     }
   }
 
+  // Make sure we have a launch IR step to record
+  auto step = emulating;
+  if (!step) step = make_shared<Launch>(child);
+
+  // Add the launch step to the trace
   _trace->addStep(c, step);
 }
 

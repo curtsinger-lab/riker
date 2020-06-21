@@ -89,9 +89,6 @@ class Build {
                    shared_ptr<ContentVersion> written = nullptr,
                    shared_ptr<SetContents> emulating = nullptr) noexcept;
 
-  /// An emulated command modifies an artifact's contents
-  void emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> step) noexcept;
-
   /// A traced command accesses the contents of a symlink
   void traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
 
@@ -113,11 +110,10 @@ class Build {
   /// An emulated command removes an entry from a directory
   void emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexcept;
 
-  /// A traced command launches a child command
-  void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
-
-  /// An emulated command launches a child command
-  void emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexcept;
+  /// A command is launching a child command
+  void launch(shared_ptr<Command> c,
+              shared_ptr<Command> child,
+              shared_ptr<Launch> emulating = nullptr) noexcept;
 
   /// A command is joining with a child command
   void join(shared_ptr<Command> c,
