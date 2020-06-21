@@ -56,29 +56,36 @@ void Build::run() noexcept {
 /************************ Command Tracing and Emulation ************************/
 
 // Command c issued a pipe reference while being traced
-shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept {
-  if (!ref) ref = make_shared<Pipe>();
+shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Pipe>();
   ref->resolvesTo(_env.getPipe(c));
   _trace->addStep(c, ref);
   return ref;
 }
 
 // Command c accessed a path while being traced
-shared_ptr<Access> Build::traceAccess(shared_ptr<Command> c,
-                                      fs::path path,
-                                      AccessFlags flags,
-                                      shared_ptr<Access> base) noexcept {
-  // For now, the reference is just one level that covers all parts of the new path
-  auto ref = base->get(path, flags);
-  ref->resolvesTo(_env.resolveRef(c, ref));
-  _trace->addStep(c, ref);
-  return ref;
-}
+shared_ptr<Access> Build::access(shared_ptr<Command> c,
+                                 fs::path path,
+                                 AccessFlags flags,
+                                 shared_ptr<Access> base,
+                                 shared_ptr<Access> emulating) noexcept {
+  // Get a reference, either using the existing one we are emulating, or creating a new one
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Access>(base, path, flags);
 
-void Build::emulateAccess(shared_ptr<Command> c, shared_ptr<Access> step) noexcept {
-  step->resolvesTo(_env.resolveRef(c, step));
-  if (step->getResolution() != step->getExpectedResult()) observeCommandChange(c, step);
-  _trace->addStep(c, step);
+  // Resolve the reference
+  ref->resolvesTo(_env.resolveRef(c, ref));
+
+  // If the access is being emulated, check the result
+  if (emulating && ref->getResolution() != ref->getExpectedResult()) {
+    observeCommandChange(c, emulating);
+  }
+
+  // Add the reference to the new build trace
+  _trace->addStep(c, ref);
+
+  return ref;
 }
 
 // Command c accesses metadata while being traced

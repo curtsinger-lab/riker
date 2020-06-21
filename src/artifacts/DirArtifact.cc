@@ -43,7 +43,7 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   for (auto& [name, wp] : _resolved) {
     auto artifact = wp.lock();
     if (name == "." || name == "..") continue;
-    if (artifact) artifact->finalize(a->get(name, AccessFlags{}));
+    if (artifact) artifact->finalize(make_shared<Access>(a, name, AccessFlags{}));
   }
 
   // Allow the artifact to finalize metadata

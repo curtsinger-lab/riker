@@ -134,7 +134,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
 
     // Otherwise, advance the current directory and directory reference
     dir = result;
-    dir_ref = dir_ref->get(entry, {});
+    dir_ref = make_shared<Access>(dir_ref, entry, AccessFlags{});
     dir_ref->resolvesTo(dir);
   }
 

@@ -171,14 +171,6 @@ class Access final : public Reference {
   /// Call lstat on this reference
   tuple<struct stat, int> lstat() const noexcept;
 
-  /// Call stat on this reference
-  // tuple<struct stat, int> stat() const noexcept;
-
-  /// Create an access relative to this reference
-  shared_ptr<Access> get(fs::path p, AccessFlags flags) noexcept {
-    return shared_ptr<Access>(new Access(as<Access>(), p, flags));
-  }
-
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override;
 

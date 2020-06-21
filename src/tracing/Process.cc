@@ -77,17 +77,17 @@ unsigned long Process::getEventMessage() noexcept {
 
 shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
   // Absolute paths are resolved relative to the process' current root
-  if (p.is_absolute()) return _build.traceAccess(_command, p.relative_path(), flags, _root);
+  if (p.is_absolute()) return _build.access(_command, p.relative_path(), flags, _root);
 
   // Handle the special CWD file descriptor to resolve relative to cwd
-  if (at == AT_FDCWD) return _build.traceAccess(_command, p.relative_path(), flags, _cwd);
+  if (at == AT_FDCWD) return _build.access(_command, p.relative_path(), flags, _cwd);
 
   // The path is resolved relative to some file descriptor
   auto base = _fds.at(at).getReference()->as<Access>();
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
-  return _build.traceAccess(_command, p.relative_path(), flags, base);
+  return _build.access(_command, p.relative_path(), flags, base);
 }
 
 string Process::readString(uintptr_t tracee_pointer) noexcept {
@@ -340,8 +340,6 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 /************************ Metadata Operations ************************/
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
-  LOG << "HERE";
-
   // Finish the syscall so we can see its result
   finishSyscall([=](long rc) {
     // Resume the process' execution

@@ -58,14 +58,12 @@ class Build {
   /// A command is creating a pipe
   shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;
 
-  /// A traced command made an access to a path
-  shared_ptr<Access> traceAccess(shared_ptr<Command> c,
-                                 fs::path path,
-                                 AccessFlags flags,
-                                 shared_ptr<Access> base) noexcept;
-
-  /// An emulated command made an access to a path
-  void emulateAccess(shared_ptr<Command> c, shared_ptr<Access> step) noexcept;
+  /// A command makes a reference with a path
+  shared_ptr<Access> access(shared_ptr<Command> c,
+                            fs::path path,
+                            AccessFlags flags,
+                            shared_ptr<Access> base,
+                            shared_ptr<Access> emulating = nullptr) noexcept;
 
   /// A traced command accesses metadata through a reference
   void traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
