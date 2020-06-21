@@ -191,9 +191,6 @@ class Build {
   /// Should this build just print commands instead of running them?
   bool _dry_run;
 
-  /// The maximum length when printing commands
-  size_t _command_length = 80;
-
   /// The environment in which this build executes
   Env _env;
 

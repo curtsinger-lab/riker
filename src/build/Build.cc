@@ -11,6 +11,7 @@
 #include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
+#include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
@@ -366,7 +367,7 @@ void Build::launch(shared_ptr<Command> c,
   if (!emulating || checkRerun(child)) {
     // Show the command if printing is on, or if this is a dry run
     if (_print_on_run || _dry_run) {
-      cout << child->getShortName(_command_length) << endl;
+      cout << child->getShortName(options::command_length) << endl;
     }
 
     // Is this a real execution and not a dry run?
@@ -422,7 +423,7 @@ ostream& Build::print(ostream& o) const noexcept {
   if (_rerun.size() > 0) {
     o << "The following commands will be rerun:" << endl;
     for (const auto& c : _rerun) {
-      o << "  " << c->getShortName(_command_length) << endl;
+      o << "  " << c->getShortName(options::command_length) << endl;
     }
 
   } else {

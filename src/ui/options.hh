@@ -2,6 +2,9 @@
 
 // Namespace to contain global flags that control build behavior
 namespace options {
+  // The length limit for commands printed to the terminal
+  enum { command_length = 80 };
+
   /****** Optimization ******/
   /// Repeated reads can be combined into a single read
   inline bool combine_reads = true;  // PAPER
