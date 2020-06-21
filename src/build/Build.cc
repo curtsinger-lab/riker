@@ -211,40 +211,39 @@ void Build::contentsMatch(shared_ptr<Command> c,
   _content_filter.read(c.get(), ref);
 }
 
-// Command c sets file content while being traced
-void Build::traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot set contents for an unresolved reference.";
+// Command c sets the contents of an artifact
+void Build::setContents(shared_ptr<Command> c,
+                        shared_ptr<Reference> ref,
+                        shared_ptr<ContentVersion> written,
+                        shared_ptr<SetContents> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command tried to set contents through an unresolved reference";
+
+    // Record the change
+    observeCommandChange(c, emulating);
+
+    // Add the IR step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating);
+    return;
+  }
 
   // Do we have to log this write?
   if (!_content_filter.writeRequired(c.get(), ref)) return;
 
-  // Inform the artifact that this command sets its contents
-  const auto& v = ref->getArtifact()->setContents(c, ref);
+  // Apply the new version to the artifact's metadata.
+  // The written version will be null when tracing, so save the returned version
+  written = ref->getArtifact()->setContents(c, ref, written);
 
-  ASSERT(v) << "Setting contents of " << ref << " produced a null version";
-
-  // Create the SetContents step and add it to the command
-  _trace->addStep(c, make_shared<SetContents>(ref, v));
-
-  // Report the write
-  _content_filter.write(c.get(), ref, v);
-}
-
-// Command c sets file content while being emulated
-void Build::emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> step) noexcept {
-  auto ref = step->getReference();
-  auto version = step->getVersion();
-
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
-
-  // Add the assigned version to the artifact
-  ref->getArtifact()->setContents(c, ref, version);
+  // If we're emulating, add the existing IR step to the trace. Otherwise record a new IR step.
+  if (emulating) {
+    _trace->addStep(c, emulating);
+  } else {
+    _trace->addStep(c, make_shared<SetContents>(ref, written));
+  }
 
   // Report the write
-  _content_filter.write(c.get(), ref, version);
-
-  _trace->addStep(c, step);
+  _content_filter.write(c.get(), ref, written);
 }
 
 // Command c accesses the contents of a symlink while being traced

@@ -208,7 +208,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       // If the file is truncated by the open call, set the contents in the artifact
       if (ref->getFlags().truncate) {
-        _build.traceSetContents(_command, ref);
+        _build.setContents(_command, ref);
       }
 
       // Is this new descriptor closed on exec?
@@ -489,7 +489,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _build.traceSetContents(_command, descriptor.getReference());
+    _build.setContents(_command, descriptor.getReference());
   });
 }
 
@@ -522,7 +522,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _build.traceSetContents(_command, descriptor.getReference());
+      _build.setContents(_command, descriptor.getReference());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -563,7 +563,7 @@ void Process::_truncate(string pathname, long length) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
-      _build.traceSetContents(_command, ref);
+      _build.setContents(_command, ref);
     }
   });
 }
@@ -583,7 +583,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.traceSetContents(_command, descriptor.getReference());
+      _build.setContents(_command, descriptor.getReference());
     }
   });
 }
@@ -605,7 +605,7 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
     _build.contentsMatch(_command, in_desc.getReference());
 
     // The command has now set the contents of the output file
-    _build.traceSetContents(_command, out_desc.getReference());
+    _build.setContents(_command, out_desc.getReference());
   });
 }
 

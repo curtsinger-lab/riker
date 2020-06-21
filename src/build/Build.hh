@@ -77,17 +77,17 @@ class Build {
                    shared_ptr<MetadataVersion> written = nullptr,
                    shared_ptr<SetMetadata> emulating = nullptr) noexcept;
 
-  /// A traced command accesses file content through a reference
+  /// A command accesses an artifact's contents
   void contentsMatch(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
                      shared_ptr<ContentVersion> expected = nullptr,
                      shared_ptr<ContentsMatch> emulating = nullptr) noexcept;
 
-  /// An emulated command accesses file contents
-  void emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch> step) noexcept;
-
-  /// A traced command modifies file content through a reference
-  void traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+  /// A command modifies an artifact's contents
+  void setContents(shared_ptr<Command> c,
+                   shared_ptr<Reference> ref,
+                   shared_ptr<ContentVersion> written = nullptr,
+                   shared_ptr<SetContents> emulating = nullptr) noexcept;
 
   /// An emulated command modifies an artifact's contents
   void emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> step) noexcept;

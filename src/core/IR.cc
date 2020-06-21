@@ -53,7 +53,7 @@ void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateSetContents(c, as<SetContents>());
+  build.setContents(c, _ref, _version, as<SetContents>());
 }
 
 void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
