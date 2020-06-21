@@ -27,7 +27,7 @@ using std::shared_ptr;
 using std::tuple;
 
 void Pipe::resolve(shared_ptr<Command> c, Build& build) noexcept {
-  resolvesTo(build.getEnv().getPipe(c));
+  resolvesTo(build.resolve(c, shared_from_this()->as<Pipe>()));
 }
 
 void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
@@ -35,10 +35,7 @@ void Access::resolve(shared_ptr<Command> c, Build& build) noexcept {
   ASSERT(_base) << "Cannot resolve a reference with no base";
   ASSERT(_base->isResolved()) << "Cannot resolve a reference with an unresolved base";
 
-  fs::path base_path = _base->getFullPath();
-  shared_ptr<Artifact> base_artifact = _base->getResolution();
-
-  resolvesTo(build.getEnv().resolveRef(c, shared_from_this()->as<Access>()));
+  resolvesTo(build.resolve(c, shared_from_this()->as<Access>()));
 }
 
 /******* Emulation *******/

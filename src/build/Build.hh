@@ -7,7 +7,9 @@
 
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
+#include "build/Resolution.hh"
 #include "core/Command.hh"
+#include "core/IR.hh"
 #include "core/Trace.hh"
 #include "tracing/Tracer.hh"
 
@@ -37,43 +39,74 @@ class Build {
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
 
-  void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _trace->addStep(c, s); }
-
-  /**
-   * Mark a command for re-execution rather than emulation
-   * \param c The command that should be executed rather than emulated
-   * \returns true if this is a new addition to the set, or false if the command was already marked
-   */
+  /// Mark command c for re-execution rather than emulation
   bool setRerun(shared_ptr<Command> c) noexcept {
     auto [iter, added] = _rerun.emplace(c);
     return added;
   }
 
-  /**
-   * Check if a command is marked for re-execution rather than emulation
-   * \param c The command that is being checked
-   * \returns true if the command is marked for reexecution, otherwise false
-   */
+  /// Check if command c is marked for re-execution rather than emulation
   bool checkRerun(shared_ptr<Command> c) const noexcept {
     return c && _rerun.find(c) != _rerun.end();
   }
 
-  /**
-   * Get the set of commands that are marked for rerun in this build.
-   * \returns a set of commands to rerun
-   */
-  const set<shared_ptr<Command>>& getRerun() const noexcept { return _rerun; }
-
-  /**
-   * Run this build as specified
-   */
+  /// Run this build
   void run() noexcept;
 
-  /**
-   * Get the environment used for this build.
-   * \returns a reference to the environment in the build
-   */
-  Env& getEnv() noexcept { return _env; }
+  /// Resolve a pipe reference on behalf of command c
+  Resolution resolve(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept;
+
+  /// Resolve an access reference on behalf of command c
+  Resolution resolve(shared_ptr<Command> c, shared_ptr<Access> ref) noexcept;
+
+  /// Add an IR step to the trace this build is executing
+  void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _trace->addStep(c, s); }
+
+  /****** Tracing Methods ******/
+
+  /// A traced command is issuing a pipe reference
+  shared_ptr<Pipe> tracePipe(shared_ptr<Command> c) noexcept;
+
+  /// A traced command made an access to a path
+  shared_ptr<Access> traceAccess(shared_ptr<Command> c,
+                                 fs::path path,
+                                 AccessFlags flags,
+                                 shared_ptr<Access> base) noexcept;
+
+  /// A traced command accesses metadata through a reference
+  void traceMetadataMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// A traced command modifies metadata through a reference
+  void traceSetMetadata(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// A traced command accesses file content through a reference
+  void traceContentsMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// A traced command modifies file content through a reference
+  void traceSetContents(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// A traced command accesses the contents of a symlink
+  void traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+
+  /// A traced command adds an entry to a directory
+  void traceLink(shared_ptr<Command> c,
+                 shared_ptr<Reference> ref,
+                 string entry,
+                 shared_ptr<Reference> target) noexcept;
+
+  /// A traced command removes an entry from a directory
+  void traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept;
+
+  /// A traced command launches a child command
+  shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
+                                  shared_ptr<Access> exe,
+                                  vector<string> args,
+                                  map<int, FileDescriptor> fds,
+                                  shared_ptr<Access> cwd,
+                                  shared_ptr<Access> root) noexcept;
+
+  /// A traced command joins with a child command
+  void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
 
   /**
    * Tell the build to launch a command

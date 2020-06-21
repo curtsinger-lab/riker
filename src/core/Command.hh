@@ -77,6 +77,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the list of this command's children
   const list<shared_ptr<Command>>& getChildren() const noexcept { return _children; }
 
+  /// Add a child to this command
+  void addChild(shared_ptr<Command> c) noexcept { _children.push_back(c); }
+
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
 
@@ -97,52 +100,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, FileDescriptor>& getInitialFDs() const noexcept { return _initial_fds; }
-
-  /********* Command Tracing Operations **********/
-
-  /// This command accesses a path relative to some base reference, using the given flags
-  shared_ptr<Access> access(Build& build,
-                            fs::path path,
-                            AccessFlags flags,
-                            shared_ptr<Access> base) noexcept;
-
-  /// This command creates a pipe
-  shared_ptr<Pipe> pipe(Build& build) noexcept;
-
-  /// This command depends on the metadata of a referenced artifact
-  void metadataMatch(Build& build, shared_ptr<Reference> ref) noexcept;
-
-  /// This command depends on the contents of a referenced artifact
-  void contentsMatch(Build& build, shared_ptr<Reference> ref) noexcept;
-
-  /// This command depends on the target of a referenced symlink
-  void symlinkMatch(Build& build, shared_ptr<Reference> ref) noexcept;
-
-  /// This command sets the metadata of a referenced artifact
-  void setMetadata(Build& build, shared_ptr<Reference> ref) noexcept;
-
-  /// This command sets the contents of a referenced artifact
-  void setContents(Build& build, shared_ptr<Reference> ref) noexcept;
-
-  /// This command adds an entry to a directory
-  void link(Build& build,
-            shared_ptr<Reference> ref,
-            string entry,
-            shared_ptr<Reference> target) noexcept;
-
-  /// This command removes an entry from a directory
-  void unlink(Build& build, shared_ptr<Reference> ref, string entry) noexcept;
-
-  /// This command launches a child command
-  const shared_ptr<Command>& launch(Build& build,
-                                    shared_ptr<Access> exe,
-                                    vector<string> args,
-                                    map<int, FileDescriptor> fds,
-                                    shared_ptr<Access> cwd,
-                                    shared_ptr<Access> root) noexcept;
-
-  /// This command joined with a child command
-  void join(Build& build, shared_ptr<Command> child, int exit_status) noexcept;
 
   /****** Utility Methods ******/
 
