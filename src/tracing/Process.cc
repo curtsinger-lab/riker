@@ -938,8 +938,14 @@ void Process::_execveat(int dfd,
       _fds.erase(index);
     }
 
-    // This process launches a new command
-    _command = _build.traceLaunch(_command, exe_ref, args, initial_fds, _cwd, _root);
+    // Create the child command
+    auto child = make_shared<Command>(exe_ref, args, initial_fds, _cwd, _root);
+
+    // Inform the build of the launch action
+    _build.traceLaunch(_command, child);
+
+    // This process is now running the child
+    _command = child;
 
     // The child command depends on the contents of its executable. First, we need to know what
     // the actual executable is. Read /proc/<pid>/exe to find it

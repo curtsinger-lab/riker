@@ -98,12 +98,7 @@ class Build {
   void traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept;
 
   /// A traced command launches a child command
-  shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
-                                  shared_ptr<Access> exe,
-                                  vector<string> args,
-                                  map<int, FileDescriptor> fds,
-                                  shared_ptr<Access> cwd,
-                                  shared_ptr<Access> root) noexcept;
+  void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
 
   /// A traced command joins with a child command
   void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;

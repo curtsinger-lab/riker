@@ -74,12 +74,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the root directory in effect when this command is started
   const shared_ptr<Access>& getInitialRootDir() const noexcept { return _initial_root; }
 
-  /// Get the list of this command's children
-  const list<shared_ptr<Command>>& getChildren() const noexcept { return _children; }
-
-  /// Add a child to this command
-  void addChild(shared_ptr<Command> c) noexcept { _children.push_back(c); }
-
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
 
@@ -91,9 +85,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Set this command's exit status, and record that it has exited
   void setExitStatus(int status) noexcept { _exit_status = status; }
-
-  /// Reset the record for this command in preparation for re-execution
-  void reset() noexcept { _children.clear(); }
 
   /// Get the list of arguments this command was started with
   const vector<string>& getArguments() const noexcept { return _args; }
@@ -127,9 +118,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// A reference to the root directory in effect when this command is started
   shared_ptr<Access> _initial_root;
 
-  /// The list of this command's children, in order of creation
-  list<shared_ptr<Command>> _children;
-
   /// Has this command ever run?
   bool _executed = false;
 
@@ -138,12 +126,5 @@ class Command : public std::enable_shared_from_this<Command> {
 
   // Create default constructor and specify fields for serialization
   Command() = default;
-  SERIALIZE(_exe,
-            _args,
-            _initial_fds,
-            _initial_cwd,
-            _initial_root,
-            _children,
-            _executed,
-            _exit_status);
+  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _executed, _exit_status);
 };

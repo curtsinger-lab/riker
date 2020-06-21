@@ -11,7 +11,7 @@ Run the build
   $ $DODO --show
   dodo-launch
   Dodofile
-  make --always-make --quiet
+  make --always-make --quiet -j1
   gcc -o hello hello.c
   cc1 * (glob)
   as * (glob)

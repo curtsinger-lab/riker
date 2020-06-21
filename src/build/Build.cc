@@ -206,27 +206,17 @@ void Build::traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string
 }
 
 // This command launches a child command
-shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
-                                       shared_ptr<Access> exe,
-                                       vector<string> args,
-                                       map<int, FileDescriptor> fds,
-                                       shared_ptr<Access> cwd,
-                                       shared_ptr<Access> root) noexcept {
-  auto child = make_shared<Command>(exe, args, fds, cwd, root);
-
+void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   if (options::print_on_run) cout << child->getShortName(options::command_length) << endl;
 
   // The child command depends on all current versions of the artifacts in its fd table
-  for (auto& [index, desc] : fds) {
+  for (auto& [index, desc] : child->getInitialFDs()) {
     desc.getReference()->getArtifact()->needsCurrentVersions(child);
   }
 
-  c->addChild(child);
   child->setExecuted();
 
   _trace->addStep(c, make_shared<Launch>(child));
-
-  return child;
 }
 
 // This command joined with a child command
@@ -256,9 +246,6 @@ void Build::launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexce
 
   // If the child command must be rerun, start it in the tracer now
   if (checkRerun(child)) {
-    // We are rerunning this command, so clear its list of children
-    child->reset();
-
     // Show the command if printing is on, or if this is a dry run
     if (options::print_on_run || options::dry_run)
       cout << child->getShortName(options::command_length) << endl;

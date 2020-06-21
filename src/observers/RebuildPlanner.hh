@@ -135,6 +135,12 @@ class RebuildPlanner final : public BuildObserver {
     _output_needed.insert(observed->getCreator());
   }
 
+  /// A command is being launched. The parent will be null if this is the root command.
+  virtual void launch(shared_ptr<Command> parent,
+                      shared_ptr<Command> child) noexcept override final {
+    if (parent) _children[parent].insert(child);
+  }
+
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
   void mark(Build& b, shared_ptr<Command> c) const noexcept {
@@ -143,8 +149,10 @@ class RebuildPlanner final : public BuildObserver {
     if (!b.setRerun(c)) return;
 
     // Mark this command's children
-    for (const auto& child : c->getChildren()) {
-      mark(b, child);
+    if (auto iter = _children.find(c); iter != _children.end()) {
+      for (const auto& child : iter->second) {
+        mark(b, child);
+      }
     }
 
     // Mark any commands that produce output that this command needs
@@ -163,6 +171,9 @@ class RebuildPlanner final : public BuildObserver {
   }
 
  private:
+  /// Track each command's children
+  map<shared_ptr<Command>, set<shared_ptr<Command>>> _children;
+
   /// Track commands with changed inputs
   set<shared_ptr<Command>> _changed;
 
