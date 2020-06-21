@@ -29,7 +29,7 @@ using std::tuple;
 /******* Emulation *******/
 
 void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulatePipe(c, as<Pipe>());
+  build.pipe(c, as<Pipe>());
 }
 
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
@@ -69,7 +69,7 @@ void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateJoin(c, as<Join>());
+  build.join(c, _cmd, _exit_status, as<Join>());
 }
 
 /******************* Access Methods ********************/

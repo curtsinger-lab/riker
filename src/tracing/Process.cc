@@ -261,7 +261,7 @@ void Process::_pipe2(int* fds, int flags) noexcept {
     resume();
 
     // Make a reference to a pipe
-    auto ref = _build.tracePipe(_command);
+    auto ref = _build.pipe(_command);
 
     ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
@@ -948,10 +948,10 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
 
     if (p->_command != _command) {
       if (WIFEXITED(status)) {
-        _build.traceJoin(_command, p->_command, WEXITSTATUS(status));
+        _build.join(_command, p->_command, WEXITSTATUS(status));
       } else if (WIFSIGNALED(status)) {
         // TODO: Should we encode termination by signal in some other way?
-        _build.traceJoin(_command, p->_command, status);
+        _build.join(_command, p->_command, status);
       }
     }
   });

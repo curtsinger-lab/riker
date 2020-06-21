@@ -40,9 +40,8 @@ void Build::run() noexcept {
     if (checkRerun(cmd)) {
       // Do nothing!
     } else {
-      // No. Emulate the step and re-add it to the trace
+      // No. Emulate the step, which will also add it into the new trace
       step->emulate(cmd, *this);
-      _trace->addStep(cmd, step);
     }
   }
 
@@ -57,17 +56,11 @@ void Build::run() noexcept {
 /************************ Command Tracing and Emulation ************************/
 
 // Command c issued a pipe reference while being traced
-shared_ptr<Pipe> Build::tracePipe(shared_ptr<Command> c) noexcept {
-  auto ref = make_shared<Pipe>();
+shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> ref) noexcept {
+  if (!ref) ref = make_shared<Pipe>();
   ref->resolvesTo(_env.getPipe(c));
   _trace->addStep(c, ref);
   return ref;
-}
-
-// Command c issued a pipe reference while being traced
-void Build::emulatePipe(shared_ptr<Command> c, shared_ptr<Pipe> step) noexcept {
-  step->resolvesTo(_env.getPipe(c));
-  if (step->getResolution() != step->getExpectedResult()) observeCommandChange(c, step);
 }
 
 // Command c accessed a path while being traced
@@ -85,6 +78,7 @@ shared_ptr<Access> Build::traceAccess(shared_ptr<Command> c,
 void Build::emulateAccess(shared_ptr<Command> c, shared_ptr<Access> step) noexcept {
   step->resolvesTo(_env.resolveRef(c, step));
   if (step->getResolution() != step->getExpectedResult()) observeCommandChange(c, step);
+  _trace->addStep(c, step);
 }
 
 // Command c accesses metadata while being traced
@@ -126,6 +120,8 @@ void Build::emulateMetadataMatch(shared_ptr<Command> c, shared_ptr<MetadataMatch
 
   // Report the read
   _metadata_filter.read(c.get(), ref);
+
+  _trace->addStep(c, step);
 }
 
 // Command c sets metadata while being traced
@@ -158,6 +154,8 @@ void Build::emulateSetMetadata(shared_ptr<Command> c, shared_ptr<SetMetadata> st
 
   // Report the write
   _metadata_filter.write(c.get(), ref, version);
+
+  _trace->addStep(c, step);
 }
 
 // Command c acceses file content while being traced
@@ -205,6 +203,8 @@ void Build::emulateContentsMatch(shared_ptr<Command> c, shared_ptr<ContentsMatch
 
   // Report the read
   _content_filter.read(c.get(), ref);
+
+  _trace->addStep(c, step);
 }
 
 // Command c sets file content while being traced
@@ -239,6 +239,8 @@ void Build::emulateSetContents(shared_ptr<Command> c, shared_ptr<SetContents> st
 
   // Report the write
   _content_filter.write(c.get(), ref, version);
+
+  _trace->addStep(c, step);
 }
 
 // Command c accesses the contents of a symlink while being traced
@@ -276,6 +278,8 @@ void Build::emulateSymlinkMatch(shared_ptr<Command> c, shared_ptr<SymlinkMatch> 
   if (!v->matches(version)) {
     observeMismatch(c, ref->getArtifact(), v, version);
   }
+
+  _trace->addStep(c, step);
 }
 
 // Command c adds an entry to a directory
@@ -305,6 +309,8 @@ void Build::emulateLink(shared_ptr<Command> c, shared_ptr<Link> step) noexcept {
 
   // Perform the unlink
   ref->getArtifact()->addEntry(c, ref, entry, target);
+
+  _trace->addStep(c, step);
 }
 
 // Command c removes an entry from a directory
@@ -326,6 +332,8 @@ void Build::emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexce
 
   // Perform the unlink
   ref->getArtifact()->removeEntry(c, ref, entry);
+
+  _trace->addStep(c, step);
 }
 
 // This command launches a child command
@@ -376,33 +384,35 @@ void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexce
       cmd->setExecuted();
     }
   }
+
+  _trace->addStep(c, step);
 }
 
 // This command joined with a child command
-void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept {
+void Build::join(shared_ptr<Command> c,
+                 shared_ptr<Command> child,
+                 int exit_status,
+                 shared_ptr<Join> emulating) noexcept {
   LOG << c << " joined command " << child << " with exit status " << exit_status;
 
-  // Save the exit status in the child
-  child->setExitStatus(exit_status);
+  if (emulating) {
+    // If the command is in the rerun set, tell the tracer to wait for it
+    if (checkRerun(child)) {
+      INFO << "Waiting for process running " << child;
+      _tracer.wait(_running[child]);
+    }
 
-  // Add a join action to this command's steps
-  _trace->addStep(c, make_shared<Join>(child, exit_status));
-}
+    // Did the child command's exit status match the expected result?
+    if (child->getExitStatus() != exit_status) {
+      observeCommandChange(c, emulating);
+    }
 
-// An emulated command joins with a child command
-void Build::emulateJoin(shared_ptr<Command> c, shared_ptr<Join> step) noexcept {
-  auto cmd = step->getCommand();
-  auto exit_status = step->getExitStatus();
+  } else {
+    // Save the exit status in the child
+    child->setExitStatus(exit_status);
 
-  // If the command is in the rerun set, tell the tracer to wait for it
-  if (checkRerun(cmd)) {
-    INFO << "Waiting for process running " << cmd;
-    _tracer.wait(_running[cmd]);
-  }
-
-  // Did the child command's exit status match the expected result?
-  if (cmd->getExitStatus() != exit_status) {
-    observeCommandChange(c, step);
+    // Add a join action to this command's steps
+    _trace->addStep(c, make_shared<Join>(child, exit_status));
   }
 }
 

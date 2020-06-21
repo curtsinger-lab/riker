@@ -55,11 +55,8 @@ class Build {
 
   /****** Tracing and Emulation Methods ******/
 
-  /// A traced command is issuing a pipe reference
-  shared_ptr<Pipe> tracePipe(shared_ptr<Command> c) noexcept;
-
-  /// An emulated command issues a pipe reference
-  void emulatePipe(shared_ptr<Command> c, shared_ptr<Pipe> step) noexcept;
+  /// A command is creating a pipe
+  shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;
 
   /// A traced command made an access to a path
   shared_ptr<Access> traceAccess(shared_ptr<Command> c,
@@ -121,11 +118,11 @@ class Build {
   /// An emulated command launches a child command
   void emulateLaunch(shared_ptr<Command> c, shared_ptr<Launch> step) noexcept;
 
-  /// A traced command joins with a child command
-  void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
-
-  /// An emulated command joins with a child command
-  void emulateJoin(shared_ptr<Command> c, shared_ptr<Join> step) noexcept;
+  /// A command is joining with a child command
+  void join(shared_ptr<Command> c,
+            shared_ptr<Command> child,
+            int exit_status,
+            shared_ptr<Join> emulating = nullptr) noexcept;
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
