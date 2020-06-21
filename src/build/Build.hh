@@ -89,26 +89,24 @@ class Build {
                    shared_ptr<ContentVersion> written = nullptr,
                    shared_ptr<SetContents> emulating = nullptr) noexcept;
 
-  /// A traced command accesses the contents of a symlink
-  void traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
+  /// A command accesses the contents of a symlink (its destination)
+  void symlinkMatch(shared_ptr<Command> c,
+                    shared_ptr<Reference> ref,
+                    shared_ptr<SymlinkVersion> expected = nullptr,
+                    shared_ptr<SymlinkMatch> emulating = nullptr) noexcept;
 
-  /// An emulated command accesses the contents of a symlink
-  void emulateSymlinkMatch(shared_ptr<Command> c, shared_ptr<SymlinkMatch> step) noexcept;
+  /// A command links an artifact into a directory
+  void link(shared_ptr<Command> c,
+            shared_ptr<Reference> dir_ref,
+            string entry,
+            shared_ptr<Reference> target,
+            shared_ptr<Link> emulating = nullptr) noexcept;
 
-  /// A traced command adds an entry to a directory
-  void traceLink(shared_ptr<Command> c,
-                 shared_ptr<Reference> ref,
-                 string entry,
-                 shared_ptr<Reference> target) noexcept;
-
-  /// An emulated command adds an entry to a directory
-  void emulateLink(shared_ptr<Command> c, shared_ptr<Link> step) noexcept;
-
-  /// A traced command removes an entry from a directory
-  void traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept;
-
-  /// An emulated command removes an entry from a directory
-  void emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexcept;
+  /// A command unlinks an artifact from a directory
+  void unlink(shared_ptr<Command> c,
+              shared_ptr<Reference> dir_ref,
+              string entry,
+              shared_ptr<Unlink> emulating = nullptr) noexcept;
 
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,

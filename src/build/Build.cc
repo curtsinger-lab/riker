@@ -199,7 +199,7 @@ void Build::contentsMatch(shared_ptr<Command> c,
     _trace->addStep(c, emulating);
 
   } else {
-    // If we are tracing, we need to access metadata and save it for later comparison
+    // If we are tracing, we need to access the artifact and fingerprint the version for comparison.
     // We can skip the fingerprint if this command also created the version
     if (observed->getCreator() != c) observed->fingerprint(ref);
 
@@ -247,94 +247,96 @@ void Build::setContents(shared_ptr<Command> c,
 }
 
 // Command c accesses the contents of a symlink while being traced
-void Build::traceSymlinkMatch(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot check for a content match on an unresolved reference: "
-                            << ref;
+void Build::symlinkMatch(shared_ptr<Command> c,
+                         shared_ptr<Reference> ref,
+                         shared_ptr<SymlinkVersion> expected,
+                         shared_ptr<SymlinkMatch> emulating) noexcept {
+  // If the reference is not resolved, report a change
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command accessed an unresolved reference to a symlink";
 
-  // Inform the artifact that this command accesses its contents
-  const auto& v = ref->getArtifact()->readlink(c, InputType::Accessed);
+    // Report the change
+    observeCommandChange(c, emulating);
 
-  if (!v) {
-    WARN << "Readlink on " << ref << " returned a null version";
+    // Add the step and return. Nothing else can be done because we have no reachable artifact.
+    _trace->addStep(c, emulating);
     return;
   }
 
-  // Take a fingerprint for consistency, although symlinks are always fully saved
-  v->fingerprint(ref);
+  // Make the access
+  auto observed = ref->getArtifact()->readlink(c, InputType::Accessed);
 
-  // Add the IR step
-  _trace->addStep(c, make_shared<SymlinkMatch>(ref, v));
-}
+  // Is this step being emulated or run?
+  if (emulating) {
+    // We are emulating this action, so compare the observed and expected versions
+    if (!observed->matches(expected)) {
+      observeMismatch(c, ref->getArtifact(), observed, expected);
+    }
 
-// Command c accesses the contents of a symlink while being emulated
-void Build::emulateSymlinkMatch(shared_ptr<Command> c, shared_ptr<SymlinkMatch> step) noexcept {
-  auto ref = step->getReference();
-  auto version = step->getVersion();
+    // Add the existing IR step to the trace
+    _trace->addStep(c, emulating);
 
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
+  } else {
+    // Save a fingerprint from the link so we can compare to this version later
+    observed->fingerprint(ref);
 
-  // Get the latest symlink version
-  const auto& v = ref->getArtifact()->readlink(c, InputType::Accessed);
-
-  // If the returned version doesn't match the expected version, report a mismatch
-  if (!v->matches(version)) {
-    observeMismatch(c, ref->getArtifact(), v, version);
+    // Add a new step to the trace
+    _trace->addStep(c, make_shared<SymlinkMatch>(ref, observed));
   }
-
-  _trace->addStep(c, step);
 }
 
 // Command c adds an entry to a directory
-void Build::traceLink(shared_ptr<Command> c,
-                      shared_ptr<Reference> ref,
-                      string entry,
-                      shared_ptr<Reference> target) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot remove an entry from an unresolved directory";
-  ASSERT(target->isResolved()) << "Cannot link an unresolved reference into a directory";
+void Build::link(shared_ptr<Command> c,
+                 shared_ptr<Reference> dir_ref,
+                 string entry,
+                 shared_ptr<Reference> target,
+                 shared_ptr<Link> emulating) noexcept {
+  // If either reference is unresolved, something must have changed
+  if (!dir_ref->isResolved() || !target->isResolved()) {
+    ASSERT(emulating) << "A traced command attempted to use an unresolved reference";
 
-  ref->getArtifact()->addEntry(c, ref, entry, target);
+    // Report the change
+    observeCommandChange(c, emulating);
 
-  _trace->addStep(c, make_shared<Link>(ref, entry, target));
-}
+    // Add the step to the trace, then return.
+    _trace->addStep(c, emulating);
+    return;
+  }
 
-// An emulated command removes an entry from a directory
-void Build::emulateLink(shared_ptr<Command> c, shared_ptr<Link> step) noexcept {
-  auto ref = step->getReference();
-  auto entry = step->getEntry();
-  auto target = step->getTarget();
+  // Perform the link on the directory artifact
+  dir_ref->getArtifact()->addEntry(c, dir_ref, entry, target);
 
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
+  // Make sure we have a trace step to record
+  auto step = emulating;
+  if (!step) step = make_shared<Link>(dir_ref, entry, target);
 
-  // Check the target reference as well
-  if (!target->getResolution()) return;
-
-  // Perform the unlink
-  ref->getArtifact()->addEntry(c, ref, entry, target);
-
+  // Add the trace step
   _trace->addStep(c, step);
 }
 
 // Command c removes an entry from a directory
-void Build::traceUnlink(shared_ptr<Command> c, shared_ptr<Reference> ref, string entry) noexcept {
-  ASSERT(ref->isResolved()) << "Cannot remove an entry from an unresolved directory";
+void Build::unlink(shared_ptr<Command> c,
+                   shared_ptr<Reference> dir_ref,
+                   string entry,
+                   shared_ptr<Unlink> emulating) noexcept {
+  // If the directory reference is unresolved, something must have changed
+  if (!dir_ref->isResolved()) {
+    ASSERT(emulating) << "A traced command attempted to use an unresolved reference";
 
-  ref->getArtifact()->removeEntry(c, ref, entry);
+    // Report the change
+    observeCommandChange(c, emulating);
 
-  _trace->addStep(c, make_shared<Unlink>(ref, entry));
-}
+    // Add the step to the trace, then return.
+    _trace->addStep(c, emulating);
+    return;
+  }
 
-// An emulated command removes an entry from a directory
-void Build::emulateUnlink(shared_ptr<Command> c, shared_ptr<Unlink> step) noexcept {
-  auto ref = step->getReference();
-  auto entry = step->getEntry();
+  // Perform the unlink on the directory artifact
+  dir_ref->getArtifact()->removeEntry(c, dir_ref, entry);
 
-  // If the reference did not resolve, report a change
-  if (!ref->getResolution()) return;
-
-  // Perform the unlink
-  ref->getArtifact()->removeEntry(c, ref, entry);
+  // Make sure we have a step to record
+  auto step = emulating;
+  if (!step) step = make_shared<Unlink>(dir_ref, entry);
 
   _trace->addStep(c, step);
 }

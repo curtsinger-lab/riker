@@ -45,7 +45,7 @@ void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateSymlinkMatch(c, as<SymlinkMatch>());
+  build.symlinkMatch(c, _ref, _version, as<SymlinkMatch>());
 }
 
 void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
@@ -57,11 +57,11 @@ void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateLink(c, as<Link>());
+  build.link(c, _ref, _entry, _target, as<Link>());
 }
 
 void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateUnlink(c, as<Unlink>());
+  build.unlink(c, _ref, _entry, as<Unlink>());
 }
 
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
