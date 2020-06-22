@@ -88,11 +88,16 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   return ref;
 }
 
+// Templated access filter that monitors accesses by type
+template <class VersionType>
+AccessFilter filter;
+
 // Command c accesses an artifact's metadata
-void Build::metadataMatch(shared_ptr<Command> c,
-                          shared_ptr<Reference> ref,
-                          shared_ptr<MetadataVersion> expected,
-                          shared_ptr<MetadataMatch> emulating) noexcept {
+template <class VersionType>
+void Build::match(shared_ptr<Command> c,
+                  shared_ptr<Reference> ref,
+                  shared_ptr<VersionType> expected,
+                  shared_ptr<Match<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command accesses metadata through an unresolved reference";
@@ -106,10 +111,10 @@ void Build::metadataMatch(shared_ptr<Command> c,
   }
 
   // If this command does not need to trace the metadata access, return immediately
-  if (!_metadata_filter.readRequired(c.get(), ref)) return;
+  if (!filter<VersionType>.readRequired(c.get(), ref)) return;
 
   // Get a metadata version from the artifact
-  auto observed = ref->getArtifact()->accessMetadata(c, ref, InputType::Accessed);
+  auto observed = ref->getArtifact()->read(c, ref, expected, InputType::Accessed);
 
   // Is this step being emulated or run?
   if (emulating) {
@@ -125,18 +130,34 @@ void Build::metadataMatch(shared_ptr<Command> c,
     if (observed->getCreator() != c) observed->fingerprint(ref);
 
     // Add a new MetadataMatch step to the trace, which expects to find the version we observed
-    _trace->addStep(c, make_shared<MetadataMatch>(ref, observed));
+    _trace->addStep(c, make_shared<Match<VersionType>>(ref, observed));
   }
 
   // Report the read
-  _metadata_filter.read(c.get(), ref);
+  filter<VersionType>.read(c.get(), ref);
 }
 
+template void Build::match<MetadataVersion>(shared_ptr<Command> c,
+                                            shared_ptr<Reference> ref,
+                                            shared_ptr<MetadataVersion> expected,
+                                            shared_ptr<Match<MetadataVersion>> emulating) noexcept;
+
+template void Build::match<ContentVersion>(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<ContentVersion> expected,
+                                           shared_ptr<Match<ContentVersion>> emulating) noexcept;
+
+template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<SymlinkVersion> expected,
+                                           shared_ptr<Match<SymlinkVersion>> emulating) noexcept;
+
 // Command c sets sets the metadata for an artifact
-void Build::setMetadata(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        shared_ptr<MetadataVersion> written,
-                        shared_ptr<SetMetadata> emulating) noexcept {
+template <class VersionType>
+void Build::write(shared_ptr<Command> c,
+                  shared_ptr<Reference> ref,
+                  shared_ptr<VersionType> written,
+                  shared_ptr<Set<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command tried to set metadata through an unresolved reference";
@@ -150,104 +171,35 @@ void Build::setMetadata(shared_ptr<Command> c,
   }
 
   // Do we have to log this write?
-  if (!_metadata_filter.writeRequired(c.get(), ref)) return;
+  if (!filter<VersionType>.writeRequired(c.get(), ref)) return;
 
   // Apply the new version to the artifact's metadata.
   // The written version will be null when tracing, so save the returned version
-  written = ref->getArtifact()->setMetadata(c, ref, written);
+  written = ref->getArtifact()->write(c, ref, written);
 
   // If we're emulating, add the existing IR step to the trace. Otherwise record a new IR step.
   if (emulating) {
     _trace->addStep(c, emulating);
   } else {
-    _trace->addStep(c, make_shared<SetMetadata>(ref, written));
+    _trace->addStep(c, make_shared<Set<VersionType>>(ref, written));
   }
 
   // Report the write
-  _metadata_filter.write(c.get(), ref, written);
+  filter<VersionType>.write(c.get(), ref, written);
 }
 
-// Command c accesses an artifact's contents
-void Build::contentsMatch(shared_ptr<Command> c,
-                          shared_ptr<Reference> ref,
-                          shared_ptr<ContentVersion> expected,
-                          shared_ptr<ContentsMatch> emulating) noexcept {
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command accesses an artifact through an unresolved reference";
+template void Build::write<MetadataVersion>(shared_ptr<Command> c,
+                                            shared_ptr<Reference> ref,
+                                            shared_ptr<MetadataVersion> written,
+                                            shared_ptr<Set<MetadataVersion>> emulating) noexcept;
 
-    // Report the change
-    observeCommandChange(c, emulating);
-
-    // Add the step and return. Nothing else to do, since there's no artifact
-    _trace->addStep(c, emulating);
-    return;
-  }
-
-  // If this command does not need to trace the metadata access, return immediately
-  if (!_content_filter.readRequired(c.get(), ref)) return;
-
-  // Get a metadata version from the artifact
-  auto observed = ref->getArtifact()->accessContents(c, ref);
-
-  // Is this step being emulated or run?
-  if (emulating) {
-    // If we are emulating, compare the observed version with the expected version
-    if (!observed->matches(expected)) observeMismatch(c, ref->getArtifact(), observed, expected);
-
-    // Add the existing MetadataMatch step to the new trace
-    _trace->addStep(c, emulating);
-
-  } else {
-    // If we are tracing, we need to access the artifact and fingerprint the version for comparison.
-    // We can skip the fingerprint if this command also created the version
-    if (observed->getCreator() != c) observed->fingerprint(ref);
-
-    // Add a new MetadataMatch step to the trace, which expects to find the version we observed
-    _trace->addStep(c, make_shared<ContentsMatch>(ref, observed));
-  }
-
-  // Report the read
-  _content_filter.read(c.get(), ref);
-}
-
-// Command c sets the contents of an artifact
-void Build::setContents(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        shared_ptr<ContentVersion> written,
-                        shared_ptr<SetContents> emulating) noexcept {
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command tried to set contents through an unresolved reference";
-
-    // Record the change
-    observeCommandChange(c, emulating);
-
-    // Add the IR step and return. Nothing else to do, since there's no artifact
-    _trace->addStep(c, emulating);
-    return;
-  }
-
-  // Do we have to log this write?
-  if (!_content_filter.writeRequired(c.get(), ref)) return;
-
-  // Apply the new version to the artifact's metadata.
-  // The written version will be null when tracing, so save the returned version
-  written = ref->getArtifact()->setContents(c, ref, written);
-
-  // If we're emulating, add the existing IR step to the trace. Otherwise record a new IR step.
-  if (emulating) {
-    _trace->addStep(c, emulating);
-  } else {
-    _trace->addStep(c, make_shared<SetContents>(ref, written));
-  }
-
-  // Report the write
-  _content_filter.write(c.get(), ref, written);
-}
+template void Build::write<ContentVersion>(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<ContentVersion> written,
+                                           shared_ptr<Set<ContentVersion>> emulating) noexcept;
 
 // Command c accesses the contents of a symlink while being traced
-void Build::symlinkMatch(shared_ptr<Command> c,
+/*void Build::symlinkMatch(shared_ptr<Command> c,
                          shared_ptr<Reference> ref,
                          shared_ptr<SymlinkVersion> expected,
                          shared_ptr<SymlinkMatch> emulating) noexcept {
@@ -283,7 +235,7 @@ void Build::symlinkMatch(shared_ptr<Command> c,
     // Add a new step to the trace
     _trace->addStep(c, make_shared<SymlinkMatch>(ref, observed));
   }
-}
+}*/
 
 // Command c adds an entry to a directory
 void Build::link(shared_ptr<Command> c,

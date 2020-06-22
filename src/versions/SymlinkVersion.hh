@@ -39,6 +39,8 @@ class SymlinkVersion : public Version {
   /// Get the destination of this symlink
   const fs::path& getDestination() const noexcept { return _dest; }
 
+  inline static const char* TYPE_NAME = "SYMLINK";
+
  private:
   fs::path _dest;
 

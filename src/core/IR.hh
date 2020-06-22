@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -15,6 +16,7 @@
 #include "util/log.hh"
 #include "util/serializer.hh"
 
+using std::map;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -24,12 +26,17 @@ namespace fs = std::filesystem;
 
 class Artifact;
 class Build;
-class BuildObserver;
 class Command;
 class ContentVersion;
 class MetadataVersion;
 class SymlinkVersion;
 class Version;
+
+// Set up a map from return codes to names
+inline static map<int8_t, string> errors = {
+    {SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
+    {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
+    {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
 
 /**
  * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation
@@ -130,7 +137,17 @@ class Pipe final : public Reference {
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a PIPE reference
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = PIPE()";
+    if (isResolved()) {
+      // Print the artifact this pipe resolves to
+      o << " -> " << getArtifact();
+    } else {
+      int rc = getResolution();
+      o << " expect " << errors[rc];
+    }
+    return o;
+  }
 
  private:
   // Specify fields for serialization
@@ -172,7 +189,10 @@ class Access final : public Reference {
   tuple<struct stat, int> lstat() const noexcept;
 
   /// Print an ACCESS reference
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "]) -> "
+             << errors[getExpectedResult()];
+  }
 
  private:
   /// The base used to resolve this reference, typically either cwd or root.
@@ -190,92 +210,30 @@ class Access final : public Reference {
 };
 
 /**
- * Require that the metadata accessed through a reference matches that of an artifact version
+ * A command with this predicate expects an artifact reached through a reference to match a
+ * particular version.
  */
-class MetadataMatch final : public Step {
+template <class VersionType>
+class Match final : public Step {
  public:
-  /// Create a METADATA_MATCH predicate
-  MetadataMatch(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
+  /// Create a MATCH predicate
+  Match(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
       _ref(ref), _version(version) {}
-
-  /// Get the reference used for this predicate
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  /// Get the expected artifact version
-  const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a METADATA_MATCH predicate
-  virtual ostream& print(ostream& o) const noexcept override;
+  /// Print a MATCH predicate
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << VersionType::TYPE_NAME << "_MATCH(" << _ref->getName() << ", " << _version << ")";
+  }
 
  private:
-  shared_ptr<Reference> _ref;            //< The reference being examined
-  shared_ptr<MetadataVersion> _version;  //< The expected metadata
+  shared_ptr<Reference> _ref;        //< The reference being examined
+  shared_ptr<VersionType> _version;  //< The expected metadata
 
   // Create default constructor and specify fields for serialization
-  MetadataMatch() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
-};
-
-/**
- * Require that the contents accessed through a reference match that of an artifact version
- */
-class ContentsMatch final : public Step {
- public:
-  /// Create a CONTENTS_MATCH predicate
-  ContentsMatch(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
-      _ref(ref), _version(version) {}
-
-  /// Get the reference used for this predicate
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  /// Get the expected artifact version
-  const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  /// Print a CONTENTS_MATCH predicate
-  virtual ostream& print(ostream& o) const noexcept override;
-
- private:
-  shared_ptr<Reference> _ref;           //< The reference being examined
-  shared_ptr<ContentVersion> _version;  //< The expected contents
-
-  // Create default constructor and specify fields for serialization
-  ContentsMatch() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
-};
-
-/**
- * Require that a symlink targets a specific path
- */
-class SymlinkMatch final : public Step {
- public:
-  /// Create a SYMLINK_MATCH predicate
-  SymlinkMatch(shared_ptr<Reference> ref, shared_ptr<SymlinkVersion> version) noexcept :
-      _ref(ref), _version(version) {}
-
-  /// Get the reference used for this predicate
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  /// Get the expected version
-  const shared_ptr<SymlinkVersion>& getVersion() const noexcept { return _version; }
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  /// Print a SYMLINK_MATCH predicate
-  virtual ostream& print(ostream& o) const noexcept override;
-
- private:
-  shared_ptr<Reference> _ref;           //< The reference being examined
-  shared_ptr<SymlinkVersion> _version;  //< The expected symlink version
-
-  // Create default constructor and specify fields for serialization
-  SymlinkMatch() = default;
+  Match() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 
@@ -288,14 +246,13 @@ class Launch final : public Step {
   /// Create a LAUNCH action
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
 
-  /// Get the command this action launches
-  shared_ptr<Command> getCommand() const noexcept { return _cmd; }
-
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "LAUNCH(" << _cmd << ")";
+  }
 
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
@@ -314,17 +271,13 @@ class Join final : public Step {
   /// Create a JOIN action
   Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
-  /// Get the command that was joined with
-  shared_ptr<Command> getCommand() const noexcept { return _cmd; }
-
-  /// Get the exit status for the child command
-  int getExitStatus() const noexcept { return _exit_status; }
-
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a LAUNCH action
-  virtual ostream& print(ostream& o) const noexcept override;
+  /// Print a JOIN action
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "JOIN(" << _cmd << ", " << _exit_status << ")";
+  }
 
  private:
   shared_ptr<Command> _cmd;  //< The command that was joined with
@@ -336,58 +289,30 @@ class Join final : public Step {
 };
 
 /**
- * A SetMetadata action indicates that a command set the metadata for an artifact.
+ * A command writes a version to an artifact reached via a reference
  */
-class SetMetadata final : public Step {
+template <class VersionType>
+class Set final : public Step {
  public:
-  /// Create a SET_METADATA action
-  SetMetadata(shared_ptr<Reference> ref, shared_ptr<MetadataVersion> version) noexcept :
+  /// Create a SET action
+  Set(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
       _ref(ref), _version(version) {}
-
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  const shared_ptr<MetadataVersion>& getVersion() const noexcept { return _version; }
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a SET_METADATA action
-  virtual ostream& print(ostream& o) const noexcept override;
+  /// Print a SET action
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "SET_" << VersionType::TYPE_NAME << "(" << _ref->getName() << ", " << _version
+             << ")";
+  }
 
  private:
   shared_ptr<Reference> _ref;
-  shared_ptr<MetadataVersion> _version;
+  shared_ptr<VersionType> _version;
 
   // Create default constructor and specify fields for serialization
-  SetMetadata() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
-};
-
-/**
- * A SetContents action records that a command set the contents of an artifact.
- */
-class SetContents final : public Step {
- public:
-  /// Create a SET_CONTENTS action
-  SetContents(shared_ptr<Reference> ref, shared_ptr<ContentVersion> version) noexcept :
-      _ref(ref), _version(version) {}
-
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  const shared_ptr<ContentVersion>& getVersion() const noexcept { return _version; }
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  /// Print a SET_CONTENTS action
-  virtual ostream& print(ostream& o) const noexcept override;
-
- private:
-  shared_ptr<Reference> _ref;
-  shared_ptr<ContentVersion> _version;
-
-  // Create default constructor and specify fields for serialization
-  SetContents() = default;
+  Set() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 
@@ -396,17 +321,13 @@ class Link final : public Step {
   Link(shared_ptr<Reference> ref, string entry, shared_ptr<Reference> target) noexcept :
       _ref(ref), _entry(entry), _target(target) {}
 
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  string getEntry() const noexcept { return _entry; }
-
-  const shared_ptr<Reference>& getTarget() const noexcept { return _target; }
-
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an UNLINK action
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "LINK(" << _ref->getName() << ", " << _entry << ", " << _target->getName() << ")";
+  }
 
  private:
   shared_ptr<Reference> _ref;
@@ -421,15 +342,13 @@ class Unlink final : public Step {
  public:
   Unlink(shared_ptr<Reference> ref, string entry) noexcept : _ref(ref), _entry(entry) {}
 
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
-
-  string getEntry() const noexcept { return _entry; }
-
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an UNLINK action
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "UNLINK(" << _ref->getName() << ", " << _entry << ")";
+  }
 
  private:
   shared_ptr<Reference> _ref;

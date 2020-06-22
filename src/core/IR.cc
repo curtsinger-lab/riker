@@ -28,46 +28,59 @@ using std::tuple;
 
 /******* Emulation *******/
 
+// Emulate a pipe reference
 void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.pipe(c, as<Pipe>());
 }
 
+// Emulate a path access reference
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());
 }
 
-void MetadataMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.metadataMatch(c, _ref, _version, as<MetadataMatch>());
+// Emulate a match predicate
+template <class VersionType>
+void Match<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.match(c, _ref, _version, as<Match<VersionType>>());
 }
 
-void ContentsMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.contentsMatch(c, _ref, _version, as<ContentsMatch>());
+// Explicitly instantiate Match for metadata versions
+template void Match<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+
+// Explicitly instantiate Match for content versions
+template void Match<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+
+// Explicitly instantiate Match for symlink versions
+template void Match<SymlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+
+// Emulate a set action
+template <class VersionType>
+void Set<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.write(c, _ref, _version, as<Set<VersionType>>());
 }
 
-void SymlinkMatch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.symlinkMatch(c, _ref, _version, as<SymlinkMatch>());
-}
+// Explicitly instantiate Set for metadata versions
+template void Set<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-void SetMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.setMetadata(c, _ref, _version, as<SetMetadata>());
-}
+// Explicitly instantiate Set for content versions
+template void Set<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-void SetContents::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.setContents(c, _ref, _version, as<SetContents>());
-}
-
+// Emulate a link action
 void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.link(c, _ref, _entry, _target, as<Link>());
 }
 
+// Emulate an unlink action
 void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.unlink(c, _ref, _entry, as<Unlink>());
 }
 
+// Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.launch(c, _cmd, as<Launch>());
 }
 
+// Emulate a join action
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.join(c, _cmd, _exit_status, as<Join>());
 }
@@ -83,83 +96,4 @@ tuple<struct stat, int> Access::lstat() const noexcept {
   struct stat statbuf;
   int rc = ::lstat(getFullPath().c_str(), &statbuf);
   return {statbuf, rc};
-}
-
-/******************** Print Methods ********************/
-
-// Set up a map from return codes to names
-static map<int8_t, string> errors = {
-    {SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-    {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-    {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
-
-/// Print a PIPE reference
-ostream& Pipe::print(ostream& o) const noexcept {
-  o << getName() << " = PIPE()";
-  if (isResolved()) {
-    // Print the artifact this pipe resolves to
-    o << " -> " << getArtifact();
-  } else {
-    int rc = getResolution();
-    o << " expect " << errors[rc];
-  }
-  return o;
-}
-
-/// Print an ACCESS reference
-ostream& Access::print(ostream& o) const noexcept {
-  return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "]) -> "
-           << errors[getExpectedResult()];
-}
-
-/// Print a METADATA_MATCH predicate
-ostream& MetadataMatch::print(ostream& o) const noexcept {
-  return o << "METADATA_MATCH(" << _ref->getName() << ", " << _version << ")";
-}
-
-/// Print a CONTENTS_MATCH predicate
-ostream& ContentsMatch::print(ostream& o) const noexcept {
-  return o << "CONTENTS_MATCH(" << _ref->getName() << ", " << _version << ")";
-}
-
-/// Print a CONTENTS_MATCH predicate
-ostream& SymlinkMatch::print(ostream& o) const noexcept {
-  return o << "SYMLINK_MATCH(" << _ref->getName() << ", " << _version << ")";
-}
-
-/// Print a SET_METADATA action
-ostream& SetMetadata::print(ostream& o) const noexcept {
-  return o << "SET_METADATA(" << getReference()->getName() << ", " << _version << ")";
-}
-
-/// Print a SET_CONTENTS action
-ostream& SetContents::print(ostream& o) const noexcept {
-  return o << "SET_CONTENTS(" << getReference()->getName() << ", " << _version << ")";
-}
-
-/// Print a LINK action
-ostream& Link::print(ostream& o) const noexcept {
-  return o << "LINK(" << _ref->getName() << ", " << _entry << ", " << _target->getName() << ")";
-}
-
-/// Print an UNLINK action
-ostream& Unlink::print(ostream& o) const noexcept {
-  return o << "UNLINK(" << _ref->getName() << ", " << _entry << ")";
-}
-
-// Print a launch action
-ostream& Launch::print(ostream& o) const noexcept {
-  o << "LAUNCH(" << _cmd << ", fds={";
-  bool first = true;
-  for (const auto& entry : _cmd->getInitialFDs()) {
-    if (!first) o << ", ";
-    first = false;
-    o << entry.first << ": " << entry.second.getReference()->getName();
-  }
-  return o << "})";
-}
-
-// Print a join action
-ostream& Join::print(ostream& o) const noexcept {
-  return o << "JOIN(" << _cmd << ", " << _exit_status << ")";
 }

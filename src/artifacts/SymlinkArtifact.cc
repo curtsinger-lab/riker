@@ -22,8 +22,10 @@ void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
   Artifact::needsCurrentVersions(c);
 }
 
-const shared_ptr<SymlinkVersion>& SymlinkArtifact::readlink(shared_ptr<Command> c,
-                                                            InputType t) noexcept {
+shared_ptr<SymlinkVersion> SymlinkArtifact::read(shared_ptr<Command> c,
+                                                 shared_ptr<Reference> ref,
+                                                 shared_ptr<SymlinkVersion> expected,
+                                                 InputType t) noexcept {
   _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, t);
   return _symlink_version;
 }

@@ -97,8 +97,10 @@ void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
 
 // Command c accesses this artifact's contents
 // Return the version it observes, or nullptr if no check is necessary
-const shared_ptr<ContentVersion>& FileArtifact::accessContents(shared_ptr<Command> c,
-                                                               shared_ptr<Reference> ref) noexcept {
+shared_ptr<ContentVersion> FileArtifact::read(shared_ptr<Command> c,
+                                              shared_ptr<Reference> ref,
+                                              shared_ptr<ContentVersion> expected,
+                                              InputType t) noexcept {
   _content_version->accessed();
 
   // Yes. Notify the build and return the version
@@ -107,11 +109,11 @@ const shared_ptr<ContentVersion>& FileArtifact::accessContents(shared_ptr<Comman
 }
 
 // Command c sets the contents of this artifact to an existing version. Used during emulation.
-const shared_ptr<ContentVersion>& FileArtifact::setContents(shared_ptr<Command> c,
-                                                            shared_ptr<Reference> ref,
-                                                            shared_ptr<ContentVersion> v) noexcept {
+shared_ptr<ContentVersion> FileArtifact::write(shared_ptr<Command> c,
+                                               shared_ptr<Reference> ref,
+                                               shared_ptr<ContentVersion> writing) noexcept {
   // If no version was provided, the new version will represent what is currently on disk
-  if (!v) {
+  if (!writing) {
     // Create a version to track the new on-disk state
     _content_version = make_shared<ContentVersion>();
 
@@ -121,7 +123,7 @@ const shared_ptr<ContentVersion>& FileArtifact::setContents(shared_ptr<Command> 
 
   } else {
     // Adopt v as the new content version
-    _content_version = v;
+    _content_version = writing;
 
     // Append the new uncommitted version
     appendVersion(_content_version);

@@ -40,7 +40,7 @@ class Build {
         bool print_on_run = false,
         bool dry_run = false) noexcept :
       _trace(trace),
-      _fingerprint(fingerprint),
+      //_fingerprint(fingerprint),
       _print_on_run(print_on_run),
       _dry_run(dry_run),
       _env(*this),
@@ -76,35 +76,19 @@ class Build {
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
-  /// A command accesses an artifact's metadata
-  void metadataMatch(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<MetadataVersion> expected = nullptr,
-                     shared_ptr<MetadataMatch> emulating = nullptr) noexcept;
+  /// A command accesses an artifact expecting to find a specific version
+  template <class VersionType>
+  void match(shared_ptr<Command> c,
+             shared_ptr<Reference> ref,
+             shared_ptr<VersionType> expected = nullptr,
+             shared_ptr<Match<VersionType>> emulating = nullptr) noexcept;
 
-  /// A command modifies an artifact's metadata
-  void setMetadata(shared_ptr<Command> c,
-                   shared_ptr<Reference> ref,
-                   shared_ptr<MetadataVersion> written = nullptr,
-                   shared_ptr<SetMetadata> emulating = nullptr) noexcept;
-
-  /// A command accesses an artifact's contents
-  void contentsMatch(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> expected = nullptr,
-                     shared_ptr<ContentsMatch> emulating = nullptr) noexcept;
-
-  /// A command modifies an artifact's contents
-  void setContents(shared_ptr<Command> c,
-                   shared_ptr<Reference> ref,
-                   shared_ptr<ContentVersion> written = nullptr,
-                   shared_ptr<SetContents> emulating = nullptr) noexcept;
-
-  /// A command accesses the contents of a symlink (its destination)
-  void symlinkMatch(shared_ptr<Command> c,
-                    shared_ptr<Reference> ref,
-                    shared_ptr<SymlinkVersion> expected = nullptr,
-                    shared_ptr<SymlinkMatch> emulating = nullptr) noexcept;
+  /// A command writes a new version to an artifact
+  template <class VersionType>
+  void write(shared_ptr<Command> c,
+             shared_ptr<Reference> ref,
+             shared_ptr<VersionType> written = nullptr,
+             shared_ptr<Set<VersionType>> emulating = nullptr) noexcept;
 
   /// A command links an artifact into a directory
   void link(shared_ptr<Command> c,
@@ -183,7 +167,7 @@ class Build {
   shared_ptr<Trace> _trace;
 
   /// Where should the build use fingerprints for content comparisons?
-  FingerprintLevel _fingerprint;
+  // FingerprintLevel _fingerprint;
 
   /// Should this build print every command as it is executed?
   bool _print_on_run;

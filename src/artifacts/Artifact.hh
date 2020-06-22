@@ -98,38 +98,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void finalize(shared_ptr<Reference> ref) noexcept;
 
   /**
-   * The provided command depends on all current versions of this artifact.
-   * This method is used when a command launches with this artifact reachable through one of its
-   * initial file desecriptors. The added dependency edges will ensure the artifact is in place or
-   * can be committed.
-   */
-  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
-
-  /********** Metadata: All Artifact Types **********/
-
-  /**
-   * Command c accesses the metadata for this artifact using reference ref.
-   * \param c   The command making the access
-   * \param ref The referenced used to reach this artifact
-   * \param t   The type of action that led to this input
-   * \returns the version the command observes
-   */
-  const shared_ptr<MetadataVersion>& accessMetadata(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref,
-                                                    InputType t) noexcept;
-
-  /**
-   * Command c sets the metadata of this artifact to version v using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
-   * \param v   The version this artifact's metadata is set to, or null if the version is on disk
-   * \returns the newly-assigned metadata version
-   */
-  const shared_ptr<MetadataVersion>& setMetadata(shared_ptr<Command> c,
-                                                 shared_ptr<Reference> ref,
-                                                 shared_ptr<MetadataVersion> v = nullptr) noexcept;
-
-  /**
    * Check if an access to this artifact with the provided flags is allowed.
    * \param c     The command that depends on this access check
    * \param flags The flags that encode whether this is a read, write, and/or execute access
@@ -137,41 +105,72 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   bool checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept;
 
-  /********** Content: Files and Pipes **********/
-
   /**
-   * Command c accesses the content of this artifact using reference ref.
-   * \param c   The command making the access
-   * \param ref The referenced used to reach this artifact
-   * \returns the version the command observes, or nullptr if the command has already observed the
-   *          latest version using this reference (no check is necessary).
+   * The provided command depends on all current versions of this artifact.
+   * This method is used when a command launches with this artifact reachable through one of its
+   * initial file desecriptors. The added dependency edges will ensure the artifact is in place or
+   * can be committed.
    */
-  virtual const shared_ptr<ContentVersion>& accessContents(shared_ptr<Command> c,
-                                                           shared_ptr<Reference> ref) noexcept {
-    WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
-    return _dummy_content_version;
+  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
+
+  /********** Input Methods **********/
+
+  // These methods are called any time a command depends on the current state of this artifact.
+  // Method parameters are:
+  //   c        - the command that makes the access
+  //   ref      - A reference used to reach the artifact
+  //   expected - A version the reader expects to find, or nullptr if no previous read has been made
+  //   t        - The category for this input
+  //
+  // Each method returns the version the command observed. This can be saved and used on later runs
+  // to check whether the artifact is in the same state that was observed by this invocation.
+
+  /// Command c accesses this artifact's metadata
+  shared_ptr<MetadataVersion> read(shared_ptr<Command> c,
+                                   shared_ptr<Reference> ref,
+                                   shared_ptr<MetadataVersion> expected,
+                                   InputType t) noexcept;
+
+  /// Command c accesses this artifact's contents
+  virtual shared_ptr<ContentVersion> read(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          shared_ptr<ContentVersion> expected,
+                                          InputType t) noexcept {
+    WARN << c << ": Invalid ContentVersion read from " << this << " with reference " << ref;
+    return nullptr;
   }
 
-  /**
-   * Command c sets the content of this artifact to version v using reference ref.
-   * \param c   The command making the change
-   * \param ref The reference used to reach this artifact
-   * \param v   The version this artifact's content is set to, or null if the version is on disk
-   * \returns the newly-assigned content version
-   */
-  virtual const shared_ptr<ContentVersion>& setContents(
-      shared_ptr<Command> c,
-      shared_ptr<Reference> ref,
-      shared_ptr<ContentVersion> v = nullptr) noexcept {
-    WARN << "Invalid reference to contents of artifact " << this << " with reference " << ref;
-    return _dummy_content_version;
+  /// Command c accesses this artifact's symlink destination
+  virtual shared_ptr<SymlinkVersion> read(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          shared_ptr<SymlinkVersion> expected,
+                                          InputType t) noexcept {
+    WARN << c << ": Invalid SymlinkVersion read from " << this << " with reference " << ref;
+    return nullptr;
   }
 
-  /************ Symlink Operations ************/
+  /********** Output Methods **********/
 
-  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c, InputType t) noexcept {
-    WARN << "Invalid readlink call on non-symlink artifact";
-    return _dummy_symlink_version;
+  // These methods are called any time a command changes the current state of this artifact.
+  // Method parameters are:
+  //   c       - the command that makes the access
+  //   ref     - A reference used to reach the artifact
+  //   writing - The version the writer is applying to this artifact
+  //
+  // Each method returns the version the command wrote. This can be saved and used on later runs to
+  // emulate an equivalent write to this artifact.
+
+  /// Command c sets this artifact's metadata
+  shared_ptr<MetadataVersion> write(shared_ptr<Command> c,
+                                    shared_ptr<Reference> ref,
+                                    shared_ptr<MetadataVersion> writing) noexcept;
+
+  /// Command c sets this artifact's contents
+  virtual shared_ptr<ContentVersion> write(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<ContentVersion> writing) noexcept {
+    WARN << c << ": Invalid ContentVersion write to " << this << " with reference " << ref;
+    return nullptr;
   }
 
   /************ Directory Operations ************/
@@ -249,9 +248,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Is the latest metadata version committed to the filesystem?
   bool _metadata_committed;
-
-  /// Create a dummy content version pointer so we can still return references
-  inline static shared_ptr<ContentVersion> _dummy_content_version;
 
   // Create a dummy symlink version pointer so we can still return references
   inline static shared_ptr<SymlinkVersion> _dummy_symlink_version;

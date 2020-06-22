@@ -78,6 +78,8 @@ class ContentVersion final : public Version {
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
 
+  inline static const char* TYPE_NAME = "CONTENT";
+
  private:
   optional<ContentFingerprint> _fingerprint;
 

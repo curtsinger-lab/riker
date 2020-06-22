@@ -101,9 +101,10 @@ void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
 
 // Command c accesses this artifact's metadata
 // Return the version it observes, or nullptr if no check is necessary
-const shared_ptr<MetadataVersion>& Artifact::accessMetadata(shared_ptr<Command> c,
-                                                            shared_ptr<Reference> ref,
-                                                            InputType t) noexcept {
+shared_ptr<MetadataVersion> Artifact::read(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<MetadataVersion> expected,
+                                           InputType t) noexcept {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
@@ -114,11 +115,11 @@ const shared_ptr<MetadataVersion>& Artifact::accessMetadata(shared_ptr<Command> 
 
 // Command c sets the metadata for this artifact.
 // Return the version created by this operation, or nullptr if no new version is necessary.
-const shared_ptr<MetadataVersion>& Artifact::setMetadata(shared_ptr<Command> c,
-                                                         shared_ptr<Reference> ref,
-                                                         shared_ptr<MetadataVersion> v) noexcept {
+shared_ptr<MetadataVersion> Artifact::write(shared_ptr<Command> c,
+                                            shared_ptr<Reference> ref,
+                                            shared_ptr<MetadataVersion> writing) noexcept {
   // If no version was provided, the new version will represent what is currently on disk
-  if (!v) {
+  if (!writing) {
     // Create a version to track the new on-disk state
     _metadata_version = make_shared<MetadataVersion>();
 
@@ -128,7 +129,7 @@ const shared_ptr<MetadataVersion>& Artifact::setMetadata(shared_ptr<Command> c,
 
   } else {
     // Adopt v as the new metadata version
-    _metadata_version = v;
+    _metadata_version = writing;
 
     // Append the new version. It is NOT committed
     appendVersion(_metadata_version);

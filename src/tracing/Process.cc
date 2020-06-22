@@ -208,7 +208,7 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       // If the file is truncated by the open call, set the contents in the artifact
       if (ref->getFlags().truncate) {
-        _build.setContents(_command, ref);
+        _build.write<ContentVersion>(_command, ref);
       }
 
       // Is this new descriptor closed on exec?
@@ -367,7 +367,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
 
     // This is essentially an fstat call
     // Record the dependency on metadata
-    _build.metadataMatch(_command, _fds.at(dirfd).getReference());
+    _build.match<MetadataVersion>(_command, _fds.at(dirfd).getReference());
 
   } else {
     // Finish the syscall to see if the reference succeeds
@@ -385,7 +385,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
-        _build.metadataMatch(_command, ref);
+        _build.match<MetadataVersion>(_command, ref);
       }
     });
   }
@@ -415,7 +415,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
   auto& descriptor = iter->second;
 
   // The command depends on the old metadata
-  _build.metadataMatch(_command, descriptor.getReference());
+  _build.match<MetadataVersion>(_command, descriptor.getReference());
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -425,7 +425,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.setMetadata(_command, descriptor.getReference());
+    _build.write<MetadataVersion>(_command, descriptor.getReference());
   });
 }
 
@@ -437,7 +437,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _build.metadataMatch(_command, ref);
+    _build.match<MetadataVersion>(_command, ref);
   }
 
   // Finish the syscall and then resume the process
@@ -452,7 +452,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _build.setMetadata(_command, ref);
+      _build.write<MetadataVersion>(_command, ref);
 
     } else {
       // No. Record the failure
@@ -470,7 +470,7 @@ void Process::_read(int fd) noexcept {
 
     // Create a dependency on the artifact's contents
     const auto& descriptor = _fds.at(fd);
-    _build.contentsMatch(_command, descriptor.getReference());
+    _build.match<ContentVersion>(_command, descriptor.getReference());
   });
 }
 
@@ -479,7 +479,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _build.contentsMatch(_command, descriptor.getReference());
+  _build.match<ContentVersion>(_command, descriptor.getReference());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -489,7 +489,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _build.setContents(_command, descriptor.getReference());
+    _build.write<ContentVersion>(_command, descriptor.getReference());
   });
 }
 
@@ -516,13 +516,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _build.contentsMatch(_command, descriptor.getReference());
+    _build.match<ContentVersion>(_command, descriptor.getReference());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _build.setContents(_command, descriptor.getReference());
+      _build.write<ContentVersion>(_command, descriptor.getReference());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -547,7 +547,7 @@ void Process::_truncate(string pathname, long length) noexcept {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _build.contentsMatch(_command, ref);
+    _build.match<ContentVersion>(_command, ref);
   }
 
   // Finish the syscall and resume the process
@@ -563,7 +563,7 @@ void Process::_truncate(string pathname, long length) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
-      _build.setContents(_command, ref);
+      _build.write<ContentVersion>(_command, ref);
     }
   });
 }
@@ -574,7 +574,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.contentsMatch(_command, descriptor.getReference());
+    _build.match<ContentVersion>(_command, descriptor.getReference());
   }
 
   // Finish the syscall and resume the process
@@ -583,7 +583,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.setContents(_command, descriptor.getReference());
+      _build.write<ContentVersion>(_command, descriptor.getReference());
     }
   });
 }
@@ -595,17 +595,17 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 
   // The command depends on the contents of the output file, unless it is totally overwritten (not
   // checked yet)
-  _build.contentsMatch(_command, out_desc.getReference());
+  _build.match<ContentVersion>(_command, out_desc.getReference());
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     // The command has now read the input file, so it depends on the contents there
-    _build.contentsMatch(_command, in_desc.getReference());
+    _build.match<ContentVersion>(_command, in_desc.getReference());
 
     // The command has now set the contents of the output file
-    _build.setContents(_command, out_desc.getReference());
+    _build.write<ContentVersion>(_command, out_desc.getReference());
   });
 }
 
@@ -780,7 +780,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      _build.symlinkMatch(_command, ref);
+      _build.match(_command, ref, shared_ptr<SymlinkVersion>());
 
     } else {
       // No. Record the failure
@@ -923,7 +923,7 @@ void Process::_execveat(int dfd,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _build.contentsMatch(_command, child_exe_ref);
+    _build.match<ContentVersion>(_command, child_exe_ref);
 
     // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
     // that participate in that command. This will require some extra bookkeeping. For now, we

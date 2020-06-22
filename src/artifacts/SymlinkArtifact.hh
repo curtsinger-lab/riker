@@ -26,8 +26,10 @@ class SymlinkArtifact final : public Artifact {
   /// The provided command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
 
-  virtual const shared_ptr<SymlinkVersion>& readlink(shared_ptr<Command> c,
-                                                     InputType t) noexcept override;
+  virtual shared_ptr<SymlinkVersion> read(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          shared_ptr<SymlinkVersion> expected,
+                                          InputType t) noexcept override;
 
  private:
   /// The currrent version of this symlink

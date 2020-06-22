@@ -11,8 +11,6 @@
 #include "artifacts/Artifact.hh"
 #include "build/Build.hh"
 #include "core/AccessFlags.hh"
-#include "core/FileDescriptor.hh"
-#include "core/IR.hh"
 #include "ui/options.hh"
 #include "util/path.hh"
 #include "versions/ContentVersion.hh"

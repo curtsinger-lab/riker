@@ -76,6 +76,8 @@ class MetadataVersion final : public Version {
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
 
+  inline static const char* TYPE_NAME = "METADATA";
+
  private:
   optional<Metadata> _metadata;
 

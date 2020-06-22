@@ -41,14 +41,14 @@ class FileArtifact : public Artifact {
   /// Save a fingerprint of this artifact's versions so we can check for a match
   virtual void fingerprint(shared_ptr<Reference> ref) noexcept override;
 
-  virtual const shared_ptr<ContentVersion>& accessContents(
-      shared_ptr<Command> c,
-      shared_ptr<Reference> ref) noexcept override;
+  virtual shared_ptr<ContentVersion> read(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          shared_ptr<ContentVersion> expected,
+                                          InputType t) noexcept override;
 
-  virtual const shared_ptr<ContentVersion>& setContents(
-      shared_ptr<Command> c,
-      shared_ptr<Reference> ref,
-      shared_ptr<ContentVersion> v = nullptr) noexcept override;
+  virtual shared_ptr<ContentVersion> write(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           shared_ptr<ContentVersion> writing) noexcept override;
 
   virtual string getTypeName() const noexcept override { return "File"; }
 
