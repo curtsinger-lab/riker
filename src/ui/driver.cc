@@ -106,19 +106,13 @@ void do_check(FingerprintLevel fingerprint) noexcept {
 
 /**
  * Run the `trace` subcommand
- * \param fingerprint The configuration the build should use for fingerprinting artifacts
  * \param output  The name of the output file, or "-" for stdout
  */
-void do_trace(FingerprintLevel fingerprint, string output) noexcept {
-  // Load the root command
+void do_trace(string output) noexcept {
+  // Load the build trace
   auto trace = load_build(DatabaseFilename, false);
 
-  // Set up a build to emulate the command tree
-  Build b(trace, fingerprint);
-
-  // Run the emulated build to assign names to versions
-  b.run();
-
+  // Print it
   if (output == "-") {
     cout << trace;
   } else {
@@ -305,7 +299,7 @@ int main(int argc, char* argv[]) noexcept {
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
 
   // Set the callback fo the trace subcommand
-  trace->final_callback([&] { do_trace(fingerprint, trace_output); });
+  trace->final_callback([&] { do_trace(trace_output); });
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
