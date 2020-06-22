@@ -92,7 +92,19 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
 template <class VersionType>
 AccessFilter filter;
 
-// Command c accesses an artifact's metadata
+// Enable access filtering for specific types
+template <class VersionType>
+bool use_filter = false;
+
+// Turn on access filtering for metadata
+template <>
+bool use_filter<MetadataVersion> = true;
+
+// Turn on access filtering for content
+template <>
+bool use_filter<ContentVersion> = true;
+
+// Command c accesses an artifact
 template <class VersionType>
 void Build::match(shared_ptr<Command> c,
                   shared_ptr<Reference> ref,
@@ -111,7 +123,7 @@ void Build::match(shared_ptr<Command> c,
   }
 
   // If this command does not need to trace the metadata access, return immediately
-  if (!filter<VersionType>.readRequired(c.get(), ref)) return;
+  if (use_filter<VersionType> && !filter<VersionType>.readRequired(c.get(), ref)) return;
 
   // Get a metadata version from the artifact
   auto observed = ref->getArtifact()->read(c, ref, expected, InputType::Accessed);
@@ -134,25 +146,28 @@ void Build::match(shared_ptr<Command> c,
   }
 
   // Report the read
-  filter<VersionType>.read(c.get(), ref);
+  if (use_filter<VersionType>) filter<VersionType>.read(c.get(), ref);
 }
 
+// Explicitly instantiate match for metadata
 template void Build::match<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Reference> ref,
                                             shared_ptr<MetadataVersion> expected,
                                             shared_ptr<Match<MetadataVersion>> emulating) noexcept;
 
+// Explicitly instantiate match for content
 template void Build::match<ContentVersion>(shared_ptr<Command> c,
                                            shared_ptr<Reference> ref,
                                            shared_ptr<ContentVersion> expected,
                                            shared_ptr<Match<ContentVersion>> emulating) noexcept;
 
+// Explicitly instantiate match for symlinks
 template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
                                            shared_ptr<Reference> ref,
                                            shared_ptr<SymlinkVersion> expected,
                                            shared_ptr<Match<SymlinkVersion>> emulating) noexcept;
 
-// Command c sets sets the metadata for an artifact
+// Command c modifies an artifact
 template <class VersionType>
 void Build::write(shared_ptr<Command> c,
                   shared_ptr<Reference> ref,
@@ -171,7 +186,7 @@ void Build::write(shared_ptr<Command> c,
   }
 
   // Do we have to log this write?
-  if (!filter<VersionType>.writeRequired(c.get(), ref)) return;
+  if (use_filter<VersionType> && !filter<VersionType>.writeRequired(c.get(), ref)) return;
 
   // Apply the new version to the artifact's metadata.
   // The written version will be null when tracing, so save the returned version
@@ -185,57 +200,20 @@ void Build::write(shared_ptr<Command> c,
   }
 
   // Report the write
-  filter<VersionType>.write(c.get(), ref, written);
+  if (use_filter<VersionType>) filter<VersionType>.write(c.get(), ref, written);
 }
 
+// Explicitly instantiate write for metadata
 template void Build::write<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Reference> ref,
                                             shared_ptr<MetadataVersion> written,
                                             shared_ptr<Set<MetadataVersion>> emulating) noexcept;
 
+// Explicitly instantiate write for content
 template void Build::write<ContentVersion>(shared_ptr<Command> c,
                                            shared_ptr<Reference> ref,
                                            shared_ptr<ContentVersion> written,
                                            shared_ptr<Set<ContentVersion>> emulating) noexcept;
-
-// Command c accesses the contents of a symlink while being traced
-/*void Build::symlinkMatch(shared_ptr<Command> c,
-                         shared_ptr<Reference> ref,
-                         shared_ptr<SymlinkVersion> expected,
-                         shared_ptr<SymlinkMatch> emulating) noexcept {
-  // If the reference is not resolved, report a change
-  if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command accessed an unresolved reference to a symlink";
-
-    // Report the change
-    observeCommandChange(c, emulating);
-
-    // Add the step and return. Nothing else can be done because we have no reachable artifact.
-    _trace->addStep(c, emulating);
-    return;
-  }
-
-  // Make the access
-  auto observed = ref->getArtifact()->readlink(c, InputType::Accessed);
-
-  // Is this step being emulated or run?
-  if (emulating) {
-    // We are emulating this action, so compare the observed and expected versions
-    if (!observed->matches(expected)) {
-      observeMismatch(c, ref->getArtifact(), observed, expected);
-    }
-
-    // Add the existing IR step to the trace
-    _trace->addStep(c, emulating);
-
-  } else {
-    // Save a fingerprint from the link so we can compare to this version later
-    observed->fingerprint(ref);
-
-    // Add a new step to the trace
-    _trace->addStep(c, make_shared<SymlinkMatch>(ref, observed));
-  }
-}*/
 
 // Command c adds an entry to a directory
 void Build::link(shared_ptr<Command> c,
