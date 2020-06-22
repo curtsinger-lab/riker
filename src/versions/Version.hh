@@ -72,26 +72,14 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
 
+  /// Print this version
+  virtual ostream& print(ostream& o) const noexcept = 0;
+
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const Version& v) noexcept {
-    if (v._identity.has_value()) {
-      auto& [a, index] = v._identity.value();
-      o << "[" << a->getTypeName() << " " << (a->getName().empty() ? "<anon>" : a->getName())
-        << " v" << index;
-    } else {
-      o << "[Unknown Version";
-    }
-    if (v.isSaved()) {
-      o << " (saved)";
-    } else if (v.hasFingerprint()) {
-      o << " (fingerprint)";
-    }
-    o << "]";
-    return o;
-  }
+  friend ostream& operator<<(ostream& o, const Version& v) noexcept { return v.print(o); }
 
   /// Print a Version*
-  friend ostream& operator<<(ostream& o, const Version* v) noexcept { return o << *v; }
+  friend ostream& operator<<(ostream& o, const Version* v) noexcept { return v->print(o); }
 
  protected:
   SERIALIZE_EMPTY();
@@ -103,21 +91,4 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Has this version been accessed by any command?
   bool _accessed = false;
-
-  friend class Artifact;
-
-  /// The artifact this version is attached to
-  mutable optional<pair<const Artifact*, size_t>> _identity;
-
-  /// Record a printable identity for this version that has just been attached to a given artifact
-  void identify(const Artifact* a) const noexcept { _identity = {a, a->getVersionCount() - 1}; }
-
-  /// Copy the identity to or from another version
-  void identify(shared_ptr<Version> other) const noexcept {
-    if (_identity.has_value()) {
-      other->_identity = _identity;
-    } else {
-      _identity = other->_identity;
-    }
-  }
 };

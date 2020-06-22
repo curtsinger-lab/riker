@@ -2,10 +2,12 @@
 
 #include <filesystem>
 #include <memory>
+#include <ostream>
 
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::ostream;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
@@ -38,6 +40,11 @@ class SymlinkVersion : public Version {
 
   /// Get the destination of this symlink
   const fs::path& getDestination() const noexcept { return _dest; }
+
+  /// Print this symlink version
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "[symlink to " << _dest << "]";
+  }
 
   inline static const char* TYPE_NAME = "SYMLINK";
 

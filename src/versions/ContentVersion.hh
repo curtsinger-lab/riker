@@ -46,6 +46,12 @@ struct ContentFingerprint {
            std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
   }
 
+  friend ostream& operator<<(ostream& o, const ContentFingerprint& f) {
+    if (f.empty) return o << "empty file";
+    double mtime = f.mtime.tv_sec + ((double)f.mtime.tv_nsec / 1000000000.0);
+    return o << "mtime=" << mtime;
+  }
+
   SERIALIZE(empty, mtime);
 };
 
@@ -77,6 +83,14 @@ class ContentVersion final : public Version {
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
+
+  virtual ostream& print(ostream& o) const noexcept override {
+    if (_fingerprint.has_value()) {
+      return o << "[" << _fingerprint.value() << "]";
+    } else {
+      return o << "[unsaved content]";
+    }
+  }
 
   inline static const char* TYPE_NAME = "CONTENT";
 

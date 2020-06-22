@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <ostream>
 #include <set>
 
 #include "core/IR.hh"
@@ -9,6 +10,7 @@
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::ostream;
 using std::set;
 using std::shared_ptr;
 
@@ -90,6 +92,10 @@ class LinkDirVersion : public DirVersion {
     return nullptr;
   }
 
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "[link " << _entry << " -> " << _target->getName() << "]";
+  }
+
  private:
   string _entry;
   shared_ptr<Reference> _target;
@@ -141,6 +147,10 @@ class UnlinkDirVersion : public DirVersion {
 
   virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
 
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "[unlink " << _entry << "]";
+  }
+
  private:
   string _entry;
 
@@ -181,6 +191,8 @@ class ExistingDirVersion : public DirVersion {
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
+
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[on-disk directory]"; }
 
  private:
   /// Entries that are known to be in this directory
@@ -235,6 +247,8 @@ class ListedDirVersion : public DirVersion {
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     return _entries.find(name) == _entries.end() ? Lookup::No : Lookup::Yes;
   }
+
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[empty directory]"; }
 
  private:
   set<string> _entries;

@@ -74,10 +74,5 @@ bool MetadataVersion::matches(shared_ptr<Version> other) const noexcept {
   if (!v) return false;
 
   // Compare. If the other version does not have metadata, optional will compare false
-  if (_metadata == v->_metadata) {
-    identify(other);
-    return true;
-  } else {
-    return false;
-  }
+  return _metadata == v->_metadata;
 }

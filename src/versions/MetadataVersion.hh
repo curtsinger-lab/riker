@@ -1,7 +1,9 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <utility>
 
@@ -12,11 +14,17 @@
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::map;
 using std::optional;
+using std::ostream;
 using std::shared_ptr;
 using std::string;
 
 class Reference;
+
+inline static map<uint16_t, string> modes = {
+    {S_IFSOCK, "sock"}, {S_IFLNK, "symlink"}, {S_IFREG, "file"}, {S_IFBLK, "blockdev"},
+    {S_IFDIR, "dir"},   {S_IFCHR, "chardev"}, {S_IFIFO, "fifo"}};
 
 struct Metadata {
  public:
@@ -39,6 +47,24 @@ struct Metadata {
     if (gid != other.gid) return false;
     if ((mode & S_IFMT) != (other.mode & S_IFMT)) return false;
     return true;
+  }
+
+  /// Print metadata
+  friend ostream& operator<<(ostream& o, const Metadata& m) noexcept {
+    o << "uid=" << m.uid << ", ";
+    o << "gid=" << m.gid << ", ";
+    o << "type=" << modes[m.mode & S_IFMT] << ", ";
+    o << "perms=";
+    o << (m.mode & S_IRUSR ? 'r' : '-');
+    o << (m.mode & S_IWUSR ? 'w' : '-');
+    o << (m.mode & S_IXUSR ? 'x' : '-');
+    o << (m.mode & S_IRGRP ? 'r' : '-');
+    o << (m.mode & S_IWGRP ? 'w' : '-');
+    o << (m.mode & S_IXGRP ? 'x' : '-');
+    o << (m.mode & S_IROTH ? 'r' : '-');
+    o << (m.mode & S_IWOTH ? 'w' : '-');
+    o << (m.mode & S_IXOTH ? 'x' : '-');
+    return o;
   }
 
   SERIALIZE(uid, gid, mode);
@@ -75,6 +101,15 @@ class MetadataVersion final : public Version {
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
+
+  /// Print this metadata version
+  virtual ostream& print(ostream& o) const noexcept override {
+    if (_metadata.has_value()) {
+      return o << "[" << _metadata.value() << "]";
+    } else {
+      return o << "[unsaved metadata]";
+    }
+  }
 
   inline static const char* TYPE_NAME = "METADATA";
 

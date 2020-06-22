@@ -148,5 +148,4 @@ shared_ptr<MetadataVersion> Artifact::write(shared_ptr<Command> c,
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
-  v->identify(this);
 }

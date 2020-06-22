@@ -54,10 +54,5 @@ bool ContentVersion::matches(shared_ptr<Version> other) const noexcept {
   if (!v) return false;
 
   // Compare. If the other version does not have a fingerprint, optional will compare false
-  if (_fingerprint == v->_fingerprint) {
-    identify(v);
-    return true;
-  } else {
-    return false;
-  }
+  return _fingerprint == v->_fingerprint;
 }
