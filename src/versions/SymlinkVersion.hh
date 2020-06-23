@@ -43,10 +43,8 @@ class SymlinkVersion : public Version {
 
   /// Print this symlink version
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "[symlink to " << _dest << "]";
+    return o << "[symlink: dest=" << _dest << "]";
   }
-
-  inline static const char* TYPE_NAME = "SYMLINK";
 
  private:
   fs::path _dest;

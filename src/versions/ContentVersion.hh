@@ -48,8 +48,8 @@ struct ContentFingerprint {
 
   friend ostream& operator<<(ostream& o, const ContentFingerprint& f) {
     if (f.empty) return o << "empty file";
-    double mtime = f.mtime.tv_sec + ((double)f.mtime.tv_nsec / 1000000000.0);
-    return o << "mtime=" << mtime;
+    return o << "mtime=" << f.mtime.tv_sec << "." << std::setfill('0') << std::setw(9)
+             << f.mtime.tv_nsec;
   }
 
   SERIALIZE(empty, mtime);
@@ -86,13 +86,11 @@ class ContentVersion final : public Version {
 
   virtual ostream& print(ostream& o) const noexcept override {
     if (_fingerprint.has_value()) {
-      return o << "[" << _fingerprint.value() << "]";
+      return o << "[file content: " << _fingerprint.value() << "]";
     } else {
-      return o << "[unsaved content]";
+      return o << "[file content: unknown]";
     }
   }
-
-  inline static const char* TYPE_NAME = "CONTENT";
 
  private:
   optional<ContentFingerprint> _fingerprint;

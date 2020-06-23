@@ -225,7 +225,7 @@ class Match final : public Step {
 
   /// Print a MATCH predicate
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << VersionType::TYPE_NAME << "_MATCH(" << _ref->getName() << ", " << _version << ")";
+    return o << "MATCH(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -303,8 +303,7 @@ class Apply final : public Step {
 
   /// Print a SET action
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "APPLY_" << VersionType::TYPE_NAME << "(" << _ref->getName() << ", " << _version
-             << ")";
+    return o << "APPLY(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:

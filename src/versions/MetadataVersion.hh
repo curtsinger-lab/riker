@@ -105,13 +105,11 @@ class MetadataVersion final : public Version {
   /// Print this metadata version
   virtual ostream& print(ostream& o) const noexcept override {
     if (_metadata.has_value()) {
-      return o << "[" << _metadata.value() << "]";
+      return o << "[metadata: " << _metadata.value() << "]";
     } else {
-      return o << "[unsaved metadata]";
+      return o << "[metadata: unsaved]";
     }
   }
-
-  inline static const char* TYPE_NAME = "METADATA";
 
  private:
   optional<Metadata> _metadata;

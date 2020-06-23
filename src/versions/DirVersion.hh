@@ -93,7 +93,7 @@ class LinkDirVersion : public DirVersion {
   }
 
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "[link " << _entry << " -> " << _target->getName() << "]";
+    return o << "[dir: link " << _entry << " -> " << _target->getName() << "]";
   }
 
  private:
@@ -148,7 +148,7 @@ class UnlinkDirVersion : public DirVersion {
   virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
 
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "[unlink " << _entry << "]";
+    return o << "[dir: unlink " << _entry << "]";
   }
 
  private:
@@ -192,7 +192,7 @@ class ExistingDirVersion : public DirVersion {
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
 
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[on-disk directory]"; }
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: on-disk state]"; }
 
  private:
   /// Entries that are known to be in this directory
@@ -248,7 +248,7 @@ class ListedDirVersion : public DirVersion {
     return _entries.find(name) == _entries.end() ? Lookup::No : Lookup::Yes;
   }
 
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[empty directory]"; }
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
 
  private:
   set<string> _entries;
