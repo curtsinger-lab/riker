@@ -174,10 +174,10 @@ template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
 
 // Command c modifies an artifact
 template <class VersionType>
-void Build::write(shared_ptr<Command> c,
+void Build::apply(shared_ptr<Command> c,
                   shared_ptr<Reference> ref,
                   shared_ptr<VersionType> written,
-                  shared_ptr<Set<VersionType>> emulating) noexcept {
+                  shared_ptr<Apply<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
@@ -221,7 +221,7 @@ void Build::write(shared_ptr<Command> c,
     ref->getArtifact()->apply(c, written, true);
 
     // Add a new trace step
-    _trace->addStep(c, make_shared<Set<VersionType>>(ref, written));
+    _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));
   }
 
   // Report the write
@@ -229,16 +229,16 @@ void Build::write(shared_ptr<Command> c,
 }
 
 // Explicitly instantiate write for metadata
-template void Build::write<MetadataVersion>(shared_ptr<Command> c,
+template void Build::apply<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Reference> ref,
                                             shared_ptr<MetadataVersion> written,
-                                            shared_ptr<Set<MetadataVersion>> emulating) noexcept;
+                                            shared_ptr<Apply<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate write for content
-template void Build::write<ContentVersion>(shared_ptr<Command> c,
+template void Build::apply<ContentVersion>(shared_ptr<Command> c,
                                            shared_ptr<Reference> ref,
                                            shared_ptr<ContentVersion> written,
-                                           shared_ptr<Set<ContentVersion>> emulating) noexcept;
+                                           shared_ptr<Apply<ContentVersion>> emulating) noexcept;
 
 // Command c adds an entry to a directory
 void Build::link(shared_ptr<Command> c,

@@ -85,10 +85,10 @@ class Build {
 
   /// A command writes a new version to an artifact
   template <class VersionType>
-  void write(shared_ptr<Command> c,
+  void apply(shared_ptr<Command> c,
              shared_ptr<Reference> ref,
              shared_ptr<VersionType> written = nullptr,
-             shared_ptr<Set<VersionType>> emulating = nullptr) noexcept;
+             shared_ptr<Apply<VersionType>> emulating = nullptr) noexcept;
 
   /// A command links an artifact into a directory
   void link(shared_ptr<Command> c,

@@ -53,17 +53,17 @@ template void Match<ContentVersion>::emulate(shared_ptr<Command> c, Build& build
 // Explicitly instantiate Match for symlink versions
 template void Match<SymlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-// Emulate a set action
+// Emulate an Apple action
 template <class VersionType>
-void Set<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.write(c, _ref, _version, as<Set<VersionType>>());
+void Apply<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.apply(c, _ref, _version, as<Apply<VersionType>>());
 }
 
-// Explicitly instantiate Set for metadata versions
-template void Set<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+// Explicitly instantiate Apply::emulate for metadata versions
+template void Apply<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-// Explicitly instantiate Set for content versions
-template void Set<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+// Explicitly instantiate Apple::emulate for content versions
+template void Apply<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Emulate a link action
 void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {

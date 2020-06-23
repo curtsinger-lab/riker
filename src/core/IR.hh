@@ -292,10 +292,10 @@ class Join final : public Step {
  * A command writes a version to an artifact reached via a reference
  */
 template <class VersionType>
-class Set final : public Step {
+class Apply final : public Step {
  public:
   /// Create a SET action
-  Set(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
+  Apply(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -303,7 +303,7 @@ class Set final : public Step {
 
   /// Print a SET action
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "SET_" << VersionType::TYPE_NAME << "(" << _ref->getName() << ", " << _version
+    return o << "APPLY_" << VersionType::TYPE_NAME << "(" << _ref->getName() << ", " << _version
              << ")";
   }
 
@@ -312,7 +312,7 @@ class Set final : public Step {
   shared_ptr<VersionType> _version;
 
   // Create default constructor and specify fields for serialization
-  Set() = default;
+  Apply() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 
