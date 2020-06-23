@@ -99,51 +99,43 @@ void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
   }
 }
 
-// Command c accesses this artifact's metadata
-// Return the version it observes, or nullptr if no check is necessary
-shared_ptr<MetadataVersion> Artifact::read(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           shared_ptr<MetadataVersion> expected,
-                                           InputType t) noexcept {
+/// Get the current metadata version for this artifact
+shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c, InputType t) noexcept {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
-  // Yes. Notify the build and return the version
+  // Notify the build of the input
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
+
+  // Return the metadata version
   return _metadata_version;
 }
 
-// Command c sets the metadata for this artifact.
-// Return the version created by this operation, or nullptr if no new version is necessary.
-shared_ptr<MetadataVersion> Artifact::write(shared_ptr<Command> c,
-                                            shared_ptr<Reference> ref,
-                                            shared_ptr<MetadataVersion> writing) noexcept {
-  // If no version was provided, the new version will represent what is currently on disk
-  if (!writing) {
-    // Create a version to track the new on-disk state
-    _metadata_version = make_shared<MetadataVersion>();
+/// Check to see if this artifact's metadata matches a known version
+void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept {
+  // Get the current metadata
+  auto observed = getMetadata(c, InputType::Accessed);
 
-    // Append the new version. This version is committed.
-    appendVersion(_metadata_version);
-    _metadata_committed = true;
-
-  } else {
-    // Adopt v as the new metadata version
-    _metadata_version = writing;
-
-    // Append the new version. It is NOT committed
-    appendVersion(_metadata_version);
-    _metadata_committed = false;
+  // Compare versions
+  if (!observed->matches(expected)) {
+    // Report the mismatch
+    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
   }
+}
 
-  // Record the required information about this metadata update
-  _metadata_version->createdBy(c);
+/// Apply a new metadata version to this artifact
+void Artifact::apply(shared_ptr<Command> c,
+                     shared_ptr<MetadataVersion> writing,
+                     bool committed) noexcept {
+  // Update the metadata version for this artifact
+  appendVersion(writing);
+  _metadata_version = writing;
 
-  // Inform the environment of this output
+  // Keep track of whether metadata is committed or not
+  _metadata_committed = committed;
+
+  // Report the output to the build
   _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);
-
-  // Return the new metadata version
-  return _metadata_version;
 }
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {

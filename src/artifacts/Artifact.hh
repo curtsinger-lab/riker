@@ -113,64 +113,70 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
 
-  /********** Input Methods **********/
+  /// A templated method to get the latest version of an artifact
+  template <class VersionType>
+  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
 
-  // These methods are called any time a command depends on the current state of this artifact.
-  // Method parameters are:
-  //   c        - the command that makes the access
-  //   ref      - A reference used to reach the artifact
-  //   expected - A version the reader expects to find, or nullptr if no previous read has been made
-  //   t        - The category for this input
-  //
-  // Each method returns the version the command observed. This can be saved and used on later runs
-  // to check whether the artifact is in the same state that was observed by this invocation.
+  /// Specialize get for metadata
+  template <>
+  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
+    return getMetadata(c, t);
+  }
 
-  /// Command c accesses this artifact's metadata
-  shared_ptr<MetadataVersion> read(shared_ptr<Command> c,
-                                   shared_ptr<Reference> ref,
-                                   shared_ptr<MetadataVersion> expected,
-                                   InputType t) noexcept;
+  /// Specialize get for content
+  template <>
+  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c, InputType t) {
+    return getContent(c, t);
+  }
 
-  /// Command c accesses this artifact's contents
-  virtual shared_ptr<ContentVersion> read(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          shared_ptr<ContentVersion> expected,
-                                          InputType t) noexcept {
-    WARN << c << ": Invalid ContentVersion read from " << this << " with reference " << ref;
+  /// Specialize get for symlink
+  template <>
+  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
+    return getSymlink(c, t);
+  }
+
+  /************ Metadata Operations ************/
+
+  /// Get the current metadata version for this artifact
+  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c, InputType t) noexcept;
+
+  /// Check to see if this artifact's metadata matches a known version
+  void match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
+
+  /// Apply a new metadata version to this artifact
+  void apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing, bool committed) noexcept;
+
+  /************ Content Operations ************/
+
+  /// Get the current content version for this artifact
+  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c, InputType t) noexcept {
+    WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
 
-  /// Command c accesses this artifact's symlink destination
-  virtual shared_ptr<SymlinkVersion> read(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          shared_ptr<SymlinkVersion> expected,
-                                          InputType t) noexcept {
-    WARN << c << ": Invalid SymlinkVersion read from " << this << " with reference " << ref;
+  /// Check to see if this artifact's content matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<ContentVersion> expected) noexcept {
+    WARN << c << ": tried to match content of artifact " << this;
+  }
+
+  /// Apply a new content version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<ContentVersion> writing,
+                     bool committed) noexcept {
+    WARN << c << ": tried to apply a content version to artifact " << this;
+  }
+
+  /************ Symlink Operations ************/
+
+  /// Get the current symlink version of this artifact
+  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c, InputType t) noexcept {
+    WARN << c << ": tried to access symlink destination of artifact " << this;
     return nullptr;
   }
 
-  /********** Output Methods **********/
-
-  // These methods are called any time a command changes the current state of this artifact.
-  // Method parameters are:
-  //   c       - the command that makes the access
-  //   ref     - A reference used to reach the artifact
-  //   writing - The version the writer is applying to this artifact
-  //
-  // Each method returns the version the command wrote. This can be saved and used on later runs to
-  // emulate an equivalent write to this artifact.
-
-  /// Command c sets this artifact's metadata
-  shared_ptr<MetadataVersion> write(shared_ptr<Command> c,
-                                    shared_ptr<Reference> ref,
-                                    shared_ptr<MetadataVersion> writing) noexcept;
-
-  /// Command c sets this artifact's contents
-  virtual shared_ptr<ContentVersion> write(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           shared_ptr<ContentVersion> writing) noexcept {
-    WARN << c << ": Invalid ContentVersion write to " << this << " with reference " << ref;
-    return nullptr;
+  /// Check to see if this artifact's symlink destination matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
+    WARN << c << ": tried to match symlink destination of artifact " << this;
   }
 
   /************ Directory Operations ************/

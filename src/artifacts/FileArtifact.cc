@@ -44,7 +44,8 @@ bool FileArtifact::isCommitted() const noexcept {
 // Commit the latest version of this artifact to the filesystem
 void FileArtifact::commit(shared_ptr<Reference> ref) noexcept {
   if (!_content_committed) {
-    ASSERT(_content_version->isSaved()) << "Attempted to commit unsaved version";
+    ASSERT(_content_version->isSaved())
+        << "Attempted to commit unsaved version to reference " << ref;
 
     // Commit the file contents
     _content_version->commit(ref);
@@ -95,47 +96,41 @@ void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
   Artifact::needsCurrentVersions(c);
 }
 
-// Command c accesses this artifact's contents
-// Return the version it observes, or nullptr if no check is necessary
-shared_ptr<ContentVersion> FileArtifact::read(shared_ptr<Command> c,
-                                              shared_ptr<Reference> ref,
-                                              shared_ptr<ContentVersion> expected,
-                                              InputType t) noexcept {
+/// Get the current content version for this artifact
+shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c, InputType t) noexcept {
+  // Mark the metadata as accessed
   _content_version->accessed();
 
-  // Yes. Notify the build and return the version
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  // Notify the build of the input
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version, t);
+
+  // Return the metadata version
   return _content_version;
 }
 
-// Command c sets the contents of this artifact to an existing version. Used during emulation.
-shared_ptr<ContentVersion> FileArtifact::write(shared_ptr<Command> c,
-                                               shared_ptr<Reference> ref,
-                                               shared_ptr<ContentVersion> writing) noexcept {
-  // If no version was provided, the new version will represent what is currently on disk
-  if (!writing) {
-    // Create a version to track the new on-disk state
-    _content_version = make_shared<ContentVersion>();
+/// Check to see if this artifact's content matches a known version
+void FileArtifact::match(shared_ptr<Command> c, shared_ptr<ContentVersion> expected) noexcept {
+  // Get the current metadata
+  auto observed = getContent(c, InputType::Accessed);
 
-    // Append the new version and mark it as committed
-    appendVersion(_content_version);
-    _content_committed = true;
-
-  } else {
-    // Adopt v as the new content version
-    _content_version = writing;
-
-    // Append the new uncommitted version
-    appendVersion(_content_version);
-    _content_committed = false;
+  // Compare versions
+  if (!observed->matches(expected)) {
+    // Report the mismatch
+    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
   }
+}
 
-  // Update creator, ref, and accessed tracking info
-  _content_version->createdBy(c);
+/// Apply a new content version to this artifact
+void FileArtifact::apply(shared_ptr<Command> c,
+                         shared_ptr<ContentVersion> writing,
+                         bool committed) noexcept {
+  // Add the new version to this artifact
+  appendVersion(writing);
+  _content_version = writing;
 
-  // Inform the environment of this output
+  // Keep track of whether metadata is committed or not
+  _content_committed = committed;
+
+  // Report the output to the build
   _env.getBuild().observeOutput(c, shared_from_this(), _content_version);
-
-  // Return the new metadata version
-  return _content_version;
 }

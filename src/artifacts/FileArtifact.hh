@@ -20,6 +20,8 @@ class FileArtifact : public Artifact {
                shared_ptr<MetadataVersion> mv,
                shared_ptr<ContentVersion> cv) noexcept;
 
+  virtual string getTypeName() const noexcept override { return "File"; }
+
   /// Check the final state of this artifact and save any necessary final fingerprints
   virtual void finalize(shared_ptr<Reference> ref) noexcept override;
 
@@ -41,19 +43,22 @@ class FileArtifact : public Artifact {
   /// Save a fingerprint of this artifact's versions so we can check for a match
   virtual void fingerprint(shared_ptr<Reference> ref) noexcept override;
 
-  virtual shared_ptr<ContentVersion> read(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          shared_ptr<ContentVersion> expected,
-                                          InputType t) noexcept override;
-
-  virtual shared_ptr<ContentVersion> write(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           shared_ptr<ContentVersion> writing) noexcept override;
-
-  virtual string getTypeName() const noexcept override { return "File"; }
-
   /// The provided command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
+
+  /************ Content Operations ************/
+
+  /// Get the current content version for this artifact
+  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c,
+                                                InputType t) noexcept override;
+
+  /// Check to see if this artifact's content matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<ContentVersion> expected) noexcept override;
+
+  /// Apply a new content version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<ContentVersion> writing,
+                     bool committed) noexcept override;
 
  private:
   /// The latest content version

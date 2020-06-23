@@ -112,7 +112,7 @@ void Build::match(shared_ptr<Command> c,
                   shared_ptr<Match<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command accesses metadata through an unresolved reference";
+    ASSERT(emulating) << "A traced command read through an unresolved reference";
 
     // Report the change
     observeCommandChange(c, emulating);
@@ -125,24 +125,29 @@ void Build::match(shared_ptr<Command> c,
   // If this command does not need to trace the metadata access, return immediately
   if (use_filter<VersionType> && !filter<VersionType>.readRequired(c.get(), ref)) return;
 
-  // Get a metadata version from the artifact
-  auto observed = ref->getArtifact()->read(c, ref, expected, InputType::Accessed);
+  // Was an expected value provided?
+  if (expected) {
+    // Yes. We must be emulating this step
+    ASSERT(emulating) << "Traced command provided an expected version to match";
 
-  // Is this step being emulated or run?
-  if (emulating) {
-    // If we are emulating, compare the observed version with the expected version
-    if (!observed->matches(expected)) observeMismatch(c, ref->getArtifact(), observed, expected);
+    // Perform the comparison
+    ref->getArtifact()->match(c, expected);
 
-    // Add the existing MetadataMatch step to the new trace
+    // Record the emulated trace step
     _trace->addStep(c, emulating);
 
   } else {
-    // If we are tracing, we need to access metadata and save it for later comparison
-    // We can skip the fingerprint if this command also created the version
-    if (observed->getCreator() != c) observed->fingerprint(ref);
+    // No. This must be a traced command
+    ASSERT(!emulating) << "Emulated command did not provide an expected version to match";
 
-    // Add a new MetadataMatch step to the trace, which expects to find the version we observed
-    _trace->addStep(c, make_shared<Match<VersionType>>(ref, observed));
+    // Get the current state of the artifact
+    auto current = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
+
+    // Take a fingerprint of the current version
+    current->fingerprint(ref);
+
+    // Add a match step to the trace
+    _trace->addStep(c, make_shared<Match<VersionType>>(ref, current));
   }
 
   // Report the read
@@ -175,7 +180,7 @@ void Build::write(shared_ptr<Command> c,
                   shared_ptr<Set<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command tried to set metadata through an unresolved reference";
+    ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
 
     // Record the change
     observeCommandChange(c, emulating);
@@ -188,14 +193,34 @@ void Build::write(shared_ptr<Command> c,
   // Do we have to log this write?
   if (use_filter<VersionType> && !filter<VersionType>.writeRequired(c.get(), ref)) return;
 
-  // Apply the new version to the artifact's metadata.
-  // The written version will be null when tracing, so save the returned version
-  written = ref->getArtifact()->write(c, ref, written);
-
-  // If we're emulating, add the existing IR step to the trace. Otherwise record a new IR step.
+  // Are we emulating this command?
   if (emulating) {
+    // Yes. We should have an existing version to write
+    ASSERT(written) << "An emulated command is writing an unspecified version to an artifact";
+
+    // Mark the version as created by the calling command. This field is transient, so we have to
+    // apply it on ever run
+    written->createdBy(c);
+
+    // Apply the write, which should be marked as NOT committed
+    ref->getArtifact()->apply(c, written, false);
+
+    // Add this write to the trace
     _trace->addStep(c, emulating);
+
   } else {
+    // No. This is a traced operation
+
+    // If we do not have an existing version, create a default version
+    if (!written) {
+      written = make_shared<VersionType>();
+      written->createdBy(c);
+    }
+
+    // Apply the write, which is committed to the filesystem because we just traced this operation
+    ref->getArtifact()->apply(c, written, true);
+
+    // Add a new trace step
     _trace->addStep(c, make_shared<Set<VersionType>>(ref, written));
   }
 

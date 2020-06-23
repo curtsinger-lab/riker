@@ -14,7 +14,7 @@ using std::string;
 
 namespace fs = std::filesystem;
 
-class SymlinkArtifact final : public Artifact {
+class SymlinkArtifact : public Artifact {
  public:
   SymlinkArtifact(Env& env,
                   bool committed,
@@ -26,10 +26,12 @@ class SymlinkArtifact final : public Artifact {
   /// The provided command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
 
-  virtual shared_ptr<SymlinkVersion> read(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          shared_ptr<SymlinkVersion> expected,
-                                          InputType t) noexcept override;
+  /// Get the current symlink version of this artifact
+  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c,
+                                                InputType t) noexcept override;
+
+  /// Check to see if this artifact's symlink destination matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept override;
 
  private:
   /// The currrent version of this symlink

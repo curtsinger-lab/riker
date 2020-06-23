@@ -72,10 +72,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
       auto symlink = result->as<SymlinkArtifact>();
       if (symlink && (path_iter != path.end() || !ref->getFlags().nofollow)) {
         // Get the symlink path
-        shared_ptr<SymlinkVersion> symlink_version;
-        auto symlink_ref = make_shared<Access>(dir_ref, entry, AccessFlags{});
-        symlink_version = symlink->read(cmd, dir_ref, symlink_version, InputType::PathResolution);
-        auto symlink_path = symlink_version->getDestination();
+        auto symlink_path = symlink->getSymlink(cmd, InputType::PathResolution)->getDestination();
 
         // If the symlink path is absolute, resolution continues relative to /
         if (symlink_path.is_absolute()) {

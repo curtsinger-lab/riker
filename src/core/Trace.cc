@@ -44,7 +44,10 @@ void Trace::init() noexcept {
   // Set up the reference to the dodo-launch executable
   fs::path dodo = readlink("/proc/self/exe");
   fs::path dodo_launch = dodo.parent_path() / "dodo-launch";
-  _exe = make_shared<Access>(_root, dodo_launch, AccessFlags{.r = true, .x = true});
+  AccessFlags exe_flags;
+  exe_flags.r = true;
+  exe_flags.x = true;
+  _exe = make_shared<Access>(_root, dodo_launch, exe_flags);
 
   // Create a map of initial file descriptors
   map<int, FileDescriptor> fds = {{0, FileDescriptor(_stdin, false)},
