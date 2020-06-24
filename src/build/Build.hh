@@ -155,11 +155,12 @@ class Build {
     for (const auto& o : _observers) o->commandChanged(c, s);
   }
 
-  /// Inform observers that an artifact's version does not match the expected final state
+  /// Inform observers that the version of an artifact produced during the build does not match the
+  /// on-disk version.
   void observeFinalMismatch(shared_ptr<Artifact> a,
-                            shared_ptr<Version> observed,
-                            shared_ptr<Version> expected) noexcept {
-    for (const auto& o : _observers) o->finalMismatch(a, observed, expected);
+                            shared_ptr<Version> produced,
+                            shared_ptr<Version> ondisk) noexcept {
+    for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
   }
 
  private:

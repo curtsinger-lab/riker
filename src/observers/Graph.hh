@@ -204,13 +204,12 @@ class Graph final : public BuildObserver {
     }
   }
 
-  /// A version of artifact a on disk (observed) did not match what was produced at the end of the
-  /// build (expected)
+  /// A version of artifact a produced by the build does not match what was found on disk
   virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) noexcept override final {
+                             shared_ptr<Version> produced,
+                             shared_ptr<Version> ondisk) noexcept override final {
     // Record the changed version
-    _changed_versions.emplace(observed);
+    _changed_versions.emplace(produced);
   }
 
  private:

@@ -123,16 +123,16 @@ class RebuildPlanner final : public BuildObserver {
 
   /// An artifact's final version does not match what is on the filesystem
   virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) noexcept override final {
+                             shared_ptr<Version> produced,
+                             shared_ptr<Version> ondisk) noexcept override final {
     // If this artifact was not created by any command, there's nothing we can do about it
-    if (!observed->getCreator()) return;
+    if (!produced->getCreator()) return;
 
     // If this artifact's final version is cached, we can just stage it in
-    if (options::enable_cache && a->isSaved()) return;
+    if (options::enable_cache && produced->isSaved()) return;
 
     // Otherwise we have to run the command that created this artifact
-    _output_needed.insert(observed->getCreator());
+    _output_needed.insert(produced->getCreator());
   }
 
   /// A command is being launched. The parent will be null if this is the root command.

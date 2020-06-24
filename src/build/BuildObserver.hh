@@ -50,8 +50,8 @@ class BuildObserver {
   virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
-  /// The build produced `observed`, which does not match the on-disk version `expected`
+  /// The build produced version `produced`, which does not match the `ondisk` version.
   virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> observed,
-                             shared_ptr<Version> expected) noexcept {}
+                             shared_ptr<Version> produced,
+                             shared_ptr<Version> ondisk) noexcept {}
 };

@@ -39,17 +39,6 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   return _metadata_version->checkAccess(flags);
 }
 
-// Check if this artifact can be restored to the filesystem
-bool Artifact::isSaved() const noexcept {
-  // Only the latest metadata version matters
-  return _metadata_version->isSaved();
-}
-
-// Save the latest metadata version
-void Artifact::save(shared_ptr<Reference> ref) noexcept {
-  _metadata_version->save(ref);
-}
-
 // Check if the latest metadata version is committed
 bool Artifact::isCommitted() const noexcept {
   return _metadata_committed;
@@ -63,16 +52,6 @@ void Artifact::commit(shared_ptr<Reference> ref) noexcept {
     _metadata_version->commit(ref);
     _metadata_committed = true;
   }
-}
-
-// Check if we have a fingerprint for the latest metadata version
-bool Artifact::hasFingerprint() const noexcept {
-  return _metadata_version->hasFingerprint();
-}
-
-// Save a fingerprint for the latest metadata version
-void Artifact::fingerprint(shared_ptr<Reference> ref) noexcept {
-  _metadata_version->fingerprint(ref);
 }
 
 // Check the final state of this artifact, and save its fingerprint if necessary

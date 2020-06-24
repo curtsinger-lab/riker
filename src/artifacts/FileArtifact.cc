@@ -22,20 +22,6 @@ FileArtifact::FileArtifact(Env& env,
   _content_committed = committed;
 }
 
-// Check if the latest version of this artifact is saved
-bool FileArtifact::isSaved() const noexcept {
-  return _content_version->isSaved() && Artifact::isSaved();
-}
-
-// Save a copy of the latest version of this artifact
-void FileArtifact::save(shared_ptr<Reference> ref) noexcept {
-  // Save the content
-  _content_version->save(ref);
-
-  // Delegate metadata saving to the artifact
-  Artifact::save(ref);
-}
-
 // Check if the latest version of this artifact are committed to disk
 bool FileArtifact::isCommitted() const noexcept {
   return _content_committed && Artifact::isCommitted();
@@ -54,17 +40,6 @@ void FileArtifact::commit(shared_ptr<Reference> ref) noexcept {
 
   // Delegate metadata commits to the artifact
   Artifact::commit(ref);
-}
-
-// Check if we have a fingerprint for the latest version of this artifact
-bool FileArtifact::hasFingerprint() const noexcept {
-  return _content_version->hasFingerprint() && Artifact::hasFingerprint();
-}
-
-// Save a fingerprint for the latest version of this artifact
-void FileArtifact::fingerprint(shared_ptr<Reference> ref) noexcept {
-  _content_version->fingerprint(ref);
-  Artifact::fingerprint(ref);
 }
 
 void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
