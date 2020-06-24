@@ -47,7 +47,7 @@ struct ContentFingerprint {
   }
 
   friend ostream& operator<<(ostream& o, const ContentFingerprint& f) {
-    if (f.empty) return o << "empty file";
+    if (f.empty) return o << "empty";
     return o << "mtime=" << f.mtime.tv_sec << "." << std::setfill('0') << std::setw(9)
              << f.mtime.tv_nsec;
   }
@@ -76,13 +76,16 @@ class ContentVersion final : public Version {
   void commit(shared_ptr<Reference> ref) const noexcept;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
-  virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }
+  bool hasFingerprint() const noexcept { return _fingerprint.has_value(); }
 
   /// Save a fingerprint of this version
   void fingerprint(shared_ptr<Reference> ref) noexcept;
 
   /// Compare this version to another version
-  bool matches(shared_ptr<Version> other) const noexcept;
+  bool matches(shared_ptr<ContentVersion> other) const noexcept {
+    if (other.get() == this) return true;
+    return _fingerprint == other->_fingerprint;
+  }
 
   virtual ostream& print(ostream& o) const noexcept override {
     if (_fingerprint.has_value()) {

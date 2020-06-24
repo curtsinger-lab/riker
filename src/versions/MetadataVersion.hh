@@ -94,13 +94,16 @@ class MetadataVersion final : public Version {
   void commit(shared_ptr<Reference> ref) const noexcept;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
-  virtual bool hasFingerprint() const noexcept override { return _metadata.has_value(); }
+  bool hasFingerprint() const noexcept { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
   void fingerprint(shared_ptr<Reference> ref) noexcept { save(ref); }
 
   /// Compare this version to another version
-  bool matches(shared_ptr<Version> other) const noexcept;
+  bool matches(shared_ptr<MetadataVersion> other) const noexcept {
+    if (other.get() == this) return true;
+    return _metadata == other->_metadata;
+  }
 
   /// Print this metadata version
   virtual ostream& print(ostream& o) const noexcept override {

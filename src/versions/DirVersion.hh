@@ -61,9 +61,6 @@ class LinkDirVersion : public DirVersion {
   /// Directory links are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Directory links are always fingerprinted
-  virtual bool hasFingerprint() const noexcept override { return true; }
-
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::Yes;
@@ -106,9 +103,6 @@ class UnlinkDirVersion : public DirVersion {
   /// Directory links are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Directory links are always fingerprinted
-  virtual bool hasFingerprint() const noexcept override { return true; }
-
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::No;
@@ -140,9 +134,6 @@ class ExistingDirVersion : public DirVersion {
 
   /// Directory lists are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
-
-  /// Directory lists are always fingerprinted
-  virtual bool hasFingerprint() const noexcept override { return true; }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
@@ -179,9 +170,6 @@ class ListedDirVersion : public DirVersion {
 
   /// Directory lists are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
-
-  /// Directory lists are always fingerprinted
-  virtual bool hasFingerprint() const noexcept override { return true; }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {

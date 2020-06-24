@@ -60,19 +60,3 @@ void MetadataVersion::commit(shared_ptr<Reference> ref) const noexcept {
   // TODO: Commit metadata state
   ASSERT(isSaved()) << "Attempted to commit unsaved version";
 }
-
-// Compare to another version
-bool MetadataVersion::matches(shared_ptr<Version> other) const noexcept {
-  // A version compares equal to itself, even if we have no saved metadata
-  if (other.get() == this) return true;
-
-  // If we have no saved metadata, we cannot find a match
-  if (!_metadata.has_value()) return false;
-
-  // Make sure the other version is a MetadataVersion
-  auto v = other->as<MetadataVersion>();
-  if (!v) return false;
-
-  // Compare. If the other version does not have metadata, optional will compare false
-  return _metadata == v->_metadata;
-}

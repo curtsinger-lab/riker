@@ -57,9 +57,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Is this version saved in a way that allows us to reproduce it?
   virtual bool isSaved() const noexcept = 0;
 
-  /// Is this version fingerprinted in a way that alllows us to check for a match?
-  virtual bool hasFingerprint() const noexcept = 0;
-
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;
 

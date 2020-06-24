@@ -51,16 +51,7 @@ class Stats final : public BuildObserver {
 
         size_t index = 0;
         for (const auto& v : a->getVersions()) {
-          o << "    v" << index << ": " << v->getTypeName();
-
-          if (v->isSaved()) {
-            o << " (saved)" << endl;
-          } else if (v->hasFingerprint()) {
-            o << " (fingerprint)" << endl;
-          } else {
-            o << " (no data)" << endl;
-          }
-
+          o << "    v" << index << ": " << v << endl;
           index++;
         }
         o << endl;

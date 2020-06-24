@@ -29,14 +29,11 @@ class SymlinkVersion : public Version {
   /// Commit this version to the filesystem
   void commit(shared_ptr<Reference> ref) const noexcept;
 
-  /// Is this version fingerprinted in a way that allows us to check for a match?
-  virtual bool hasFingerprint() const noexcept override { return true; }
-
   /// Save a fingerprint of this version
   void fingerprint(shared_ptr<Reference> ref) noexcept {}
 
   /// Compare this version to another version
-  bool matches(shared_ptr<Version> other) const noexcept;
+  bool matches(shared_ptr<SymlinkVersion> other) const noexcept { return _dest == other->_dest; }
 
   /// Get the destination of this symlink
   const fs::path& getDestination() const noexcept { return _dest; }

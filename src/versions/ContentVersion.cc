@@ -40,19 +40,3 @@ void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
     if (rc == SUCCESS) _fingerprint = info;
   }
 }
-
-// Compare this version to another version
-bool ContentVersion::matches(shared_ptr<Version> other) const noexcept {
-  // A version compares equal to itself, even if we have no saved metadata
-  if (other.get() == this) return true;
-
-  // If we have no saved fingerprint, we cannot find a match
-  if (!_fingerprint.has_value()) return false;
-
-  // Make sure the other version is a ContentVersion
-  auto v = other->as<ContentVersion>();
-  if (!v) return false;
-
-  // Compare. If the other version does not have a fingerprint, optional will compare false
-  return _fingerprint == v->_fingerprint;
-}
