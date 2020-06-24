@@ -21,11 +21,7 @@ class Env;
 /// Possible returned values from an attempt to get an entry from a directory version
 enum class Lookup { Yes, No, Maybe };
 
-/**
- * A directory version encodes some or all of the state of a directory. Unlike versions for other
- * artifact types, directory versions can be *partial*. These partial versions encode specific
- * actions like linking or unlinking an entry in a directory.
- */
+/// Base class for all of the various types of directory versions
 class DirVersion : public Version {
  public:
   /**
@@ -39,38 +35,35 @@ class DirVersion : public Version {
    * Get the artifact corresponding to a named entry.
    * Returning nullptr indicates that the directory should get the artifact from the filesystem.
    */
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept { return nullptr; }
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept = 0;
 
  private:
   SERIALIZE_EMPTY();
 };
 
-/**
- * A link directory version encodes a single linking operation, which adds an entry to the
- * directory. This is a partial version, so any attempt to resolve entries other than the linked one
- * will fall through to other versions.
- */
+/// Link a new entry into a directory
 class LinkDirVersion : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
   LinkDirVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
 
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
-
+  /// Check to see if this version has a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::Yes;
     return Lookup::Maybe;
   }
 
+  /// Get the artifact this linked entry refers to
   virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
-    // If the lookup is searching for the linke entry, return the corresponding artifact.
-    if (name == _entry) return _target->getArtifact();
-
-    return nullptr;
+    ASSERT(name == _entry) << "Requested invalid entry from LinkDirVersion";
+    return _target->getArtifact();
   }
 
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
+
+  /// Print a link version
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "[dir: link " << _entry << " -> " << _target->getName() << "]";
   }
@@ -94,17 +87,23 @@ class UnlinkDirVersion : public DirVersion {
   /// Create a new version of a directory that adds a named entry to the directory
   UnlinkDirVersion(string entry) : _entry(entry) {}
 
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
-
+  /// Check to see if this version allows a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
-    // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
+    // If the lookup is searching for the unlinked entry, return "no". Otherwise return "maybe".
     if (_entry == name) return Lookup::No;
     return Lookup::Maybe;
   }
 
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+  /// Get an artifact from this entry. Should never be called.
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
+    ASSERT(false) << "Requested entry from UnlinkDirVersion";
+    return nullptr;
+  }
 
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
+
+  /// Print an unlink version
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "[dir: unlink " << _entry << "]";
   }
@@ -123,12 +122,16 @@ class UnlinkDirVersion : public DirVersion {
  */
 class ExistingDirVersion : public DirVersion {
  public:
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "list"; }
-
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
 
+  /// Get a specific entry from this version
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "list"; }
+
+  /// Print an existing directory version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: on-disk state]"; }
 
  private:
@@ -142,33 +145,28 @@ class ExistingDirVersion : public DirVersion {
   SERIALIZE(BASE(DirVersion), _present, _absent);
 };
 
-/**
- * A listed directory version is a complete list of the entries in a directory. This can appear as
- * the initial version for a directory that is created during a build. These versions can also be
- * created on-demand when a command lists a directory that has a number of partial versions.
- */
-class ListedDirVersion : public DirVersion {
+/// A version to represent a directory that was created during the build
+class EmptyDirVersion : public DirVersion {
  public:
-  /// Create a ListedDirVersion for an initially-empty directory
-  ListedDirVersion() {
-    // Add placeholder entries for "." and ".."
-    _entries.emplace(".");
-    _entries.emplace("..");
-  }
-
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "list"; }
+  /// Create an EmptyDirVersion
+  EmptyDirVersion() = default;
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
-    return _entries.find(name) == _entries.end() ? Lookup::No : Lookup::Yes;
+    if (name == "." || name == "..") return Lookup::Yes;
+    return Lookup::No;
   }
 
+  /// Get a specific entry from this version
+  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "empty"; }
+
+  /// Print an empty directory version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
 
  private:
-  set<string> _entries;
-
   // Specify fields for serialization
-  SERIALIZE(BASE(DirVersion), _entries);
+  SERIALIZE(BASE(DirVersion));
 };

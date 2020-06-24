@@ -31,23 +31,19 @@ class DirArtifact final : public Artifact {
   virtual string getTypeName() const noexcept override { return "Dir"; }
 
   /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const noexcept override { return _dir_committed; }
+  virtual bool isCommitted() const noexcept override { return _uncommitted_versions.empty(); }
 
   /// Do we have saved copies of all versions in this artifact?
   virtual bool isSaved() const noexcept override { return false; }
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) noexcept override {
-    FAIL << "Tried to commit a directory, which is not supported yet";
-  }
+  virtual void commit(shared_ptr<Reference> ref) noexcept override {}
 
   /// Check the final state of this artifact and save any necessary final fingerprints
   virtual void finalize(shared_ptr<Reference> ref) noexcept override;
 
   /// A command depends on all current versions of this artifact
-  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override {
-    // TODO!
-  }
+  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
 
   /************ Directory Operations ************/
 
@@ -87,9 +83,9 @@ class DirArtifact final : public Artifact {
  private:
   map<string, weak_ptr<Artifact>> _resolved;
 
-  list<shared_ptr<DirVersion>> _dir_versions;
+  list<shared_ptr<DirVersion>> _uncommitted_versions;
 
-  bool _dir_committed;
+  list<shared_ptr<DirVersion>> _committed_versions;
 
   bool _finalized = false;
 };
