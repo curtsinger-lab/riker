@@ -14,7 +14,8 @@ Run the build
   Dodofile
   ln -s input A
   ln -s output B
-  cat input
+  ./copy_data
+  cat A
   unlink A
   unlink B
 

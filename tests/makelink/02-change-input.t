@@ -14,7 +14,8 @@ Run the build
   Dodofile
   ln -s input A
   ln -s output B
-  cat input
+  ./copy_data
+  cat A
   unlink A
   unlink B
 
@@ -27,7 +28,12 @@ Now change input
 
 Run a rebuild, which only needs to rerun cat
   $ $DODO --show
-  cat input
+  ln -s input A
+  ln -s output B
+  ./copy_data
+  cat A
+  unlink A
+  unlink B
 
 Check the output
   $ cat output
