@@ -20,9 +20,6 @@ class SymlinkVersion : public Version {
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "symlink"; }
 
-  /// Is this version saved in a way that can be committed?
-  virtual bool isSaved() const noexcept override { return true; }
-
   /// Save this version so it can be committed later
   void save(shared_ptr<Reference> ref) noexcept {}
 

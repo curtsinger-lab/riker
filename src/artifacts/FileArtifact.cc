@@ -22,6 +22,11 @@ FileArtifact::FileArtifact(Env& env,
   _content_committed = committed;
 }
 
+// Do we have saved content and metadata for this artifact?
+bool FileArtifact::isSaved() const noexcept {
+  return _content_version->isSaved() && Artifact::isSaved();
+}
+
 // Check if the latest version of this artifact are committed to disk
 bool FileArtifact::isCommitted() const noexcept {
   return _content_committed && Artifact::isCommitted();

@@ -67,7 +67,7 @@ class ContentVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "content"; }
 
   /// Is this version saved in a way that can be committed?
-  virtual bool isSaved() const noexcept override;
+  bool isSaved() const noexcept;
 
   /// Save this version so it can be committed later
   void save(shared_ptr<Reference> ref) noexcept {}

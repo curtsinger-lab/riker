@@ -54,9 +54,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
-  /// Is this version saved in a way that allows us to reproduce it?
-  virtual bool isSaved() const noexcept = 0;
-
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;
 

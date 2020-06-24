@@ -58,9 +58,6 @@ class LinkDirVersion : public DirVersion {
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
 
-  /// Directory links are never saved (at least for now)
-  virtual bool isSaved() const noexcept override { return false; }
-
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::Yes;
@@ -100,9 +97,6 @@ class UnlinkDirVersion : public DirVersion {
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
 
-  /// Directory links are never saved (at least for now)
-  virtual bool isSaved() const noexcept override { return false; }
-
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
     if (_entry == name) return Lookup::No;
@@ -131,9 +125,6 @@ class ExistingDirVersion : public DirVersion {
  public:
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "list"; }
-
-  /// Directory lists are never saved (at least for now)
-  virtual bool isSaved() const noexcept override { return false; }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
@@ -167,9 +158,6 @@ class ListedDirVersion : public DirVersion {
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "list"; }
-
-  /// Directory lists are never saved (at least for now)
-  virtual bool isSaved() const noexcept override { return false; }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {

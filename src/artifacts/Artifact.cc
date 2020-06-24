@@ -39,6 +39,11 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   return _metadata_version->checkAccess(flags);
 }
 
+// Do we have saved metadata for this artifact?
+bool Artifact::isSaved() const noexcept {
+  return _metadata_version->isSaved();
+}
+
 // Check if the latest metadata version is committed
 bool Artifact::isCommitted() const noexcept {
   return _metadata_committed;

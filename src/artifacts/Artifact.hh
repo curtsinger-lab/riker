@@ -76,15 +76,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
 
-  /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const noexcept;
-
-  /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) noexcept;
-
-  /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref) noexcept;
-
   /**
    * Check if an access to this artifact with the provided flags is allowed.
    * \param c     The command that depends on this access check
@@ -93,35 +84,25 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   bool checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept;
 
-  /**
-   * The provided command depends on all current versions of this artifact.
-   * This method is used when a command launches with this artifact reachable through one of its
-   * initial file desecriptors. The added dependency edges will ensure the artifact is in place or
-   * can be committed.
-   */
+  /************ Core Artifact Operations ************/
+
+  /// Get the name of this artifact type
+  virtual string getTypeName() const noexcept = 0;
+
+  /// Have all modifications to this artifact been committed to the filesystem?
+  virtual bool isCommitted() const noexcept;
+
+  /// Do we have saved copies of all versions in this artifact?
+  virtual bool isSaved() const noexcept;
+
+  /// Commit any un-committed version of this artifact using the provided reference
+  virtual void commit(shared_ptr<Reference> ref) noexcept;
+
+  /// Check the final state of this artifact and save any necessary final fingerprints
+  virtual void finalize(shared_ptr<Reference> ref) noexcept;
+
+  /// A command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
-
-  /// A templated method to get the latest version of an artifact
-  template <class VersionType>
-  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
-
-  /// Specialize get for metadata
-  template <>
-  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
-    return getMetadata(c, t);
-  }
-
-  /// Specialize get for content
-  template <>
-  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c, InputType t) {
-    return getContent(c, t);
-  }
-
-  /// Specialize get for symlink
-  template <>
-  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
-    return getSymlink(c, t);
-  }
 
   /************ Metadata Operations ************/
 
@@ -207,8 +188,27 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /****** Utility Methods ******/
 
-  /// Get the name of this artifact type
-  virtual string getTypeName() const noexcept = 0;
+  /// A templated method to get the latest version of an artifact
+  template <class VersionType>
+  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
+
+  /// Specialize get for metadata
+  template <>
+  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
+    return getMetadata(c, t);
+  }
+
+  /// Specialize get for content
+  template <>
+  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c, InputType t) {
+    return getContent(c, t);
+  }
+
+  /// Specialize get for symlink
+  template <>
+  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
+    return getSymlink(c, t);
+  }
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {

@@ -85,7 +85,7 @@ class MetadataVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "metadata"; }
 
   /// Is this version saved in a way that can be committed?
-  virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
+  bool isSaved() const noexcept { return _metadata.has_value(); }
 
   /// Save this version so it can be committed later
   void save(shared_ptr<Reference> ref) noexcept;

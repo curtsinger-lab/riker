@@ -8,8 +8,14 @@ class PipeArtifact final : public FileArtifact {
  public:
   using FileArtifact::FileArtifact;
 
+  /************ Core Artifact Operations ************/
+
+  /// Get the name of this artifact type
   virtual string getTypeName() const noexcept override { return "Pipe"; }
 
+  // TODO: add other core methods once this is branched off from File
+
+  /************ Miscellaneous ************/
   void open() noexcept {
     if (_read_fd == -1 && _write_fd == -1) {
       int pipefds[2];

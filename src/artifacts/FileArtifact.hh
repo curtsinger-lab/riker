@@ -20,16 +20,22 @@ class FileArtifact : public Artifact {
                shared_ptr<MetadataVersion> mv,
                shared_ptr<ContentVersion> cv) noexcept;
 
-  virtual string getTypeName() const noexcept override { return "File"; }
+  /************ Core Artifact Operations ************/
 
-  /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref) noexcept override;
+  /// Get the name of this artifact type
+  virtual string getTypeName() const noexcept override { return "File"; }
 
   /// Have all modifications to this artifact been committed to the filesystem?
   virtual bool isCommitted() const noexcept override;
 
+  /// Do we have saved copies of all versions in this artifact?
+  virtual bool isSaved() const noexcept override;
+
   /// Commit any un-committed version of this artifact using the provided reference
   virtual void commit(shared_ptr<Reference> ref) noexcept override;
+
+  /// Check the final state of this artifact and save any necessary final fingerprints
+  virtual void finalize(shared_ptr<Reference> ref) noexcept override;
 
   /// The provided command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;

@@ -47,3 +47,10 @@ void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> ex
     _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
   }
 }
+
+void SymlinkArtifact::finalize(shared_ptr<Reference> ref) noexcept {
+  // TODO: Check the on-disk symlink here
+
+  // Check metadata in the top-level artifact
+  Artifact::finalize(ref);
+}
