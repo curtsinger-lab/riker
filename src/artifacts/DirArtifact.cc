@@ -161,9 +161,7 @@ void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
                         shared_ptr<LinkVersion> writing,
                         bool committed) noexcept {
-  // Try to access the existing entry, which should fail but will create the necessary input edges
-  auto result = getEntry(c, ref, writing->getEntryName());
-  ASSERT(result == ENOENT) << "Linking into a directory with an existing entry";
+  // TODO: If this link is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
@@ -188,10 +186,7 @@ void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
                         shared_ptr<UnlinkVersion> writing,
                         bool committed) noexcept {
-  // Try to access the existing entry, which should succeed and will create the necessary input
-  // edges
-  auto result = getEntry(c, ref, writing->getEntryName());
-  ASSERT(result == SUCCESS) << "Unlinking from a directory with no matching entry";
+  // TODO: If this unlink is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
