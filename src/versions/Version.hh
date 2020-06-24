@@ -57,20 +57,8 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Is this version saved in a way that allows us to reproduce it?
   virtual bool isSaved() const noexcept = 0;
 
-  /// Save this version
-  virtual void save(shared_ptr<Reference> ref) noexcept = 0;
-
-  /// Restore this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) const noexcept = 0;
-
   /// Is this version fingerprinted in a way that alllows us to check for a match?
   virtual bool hasFingerprint() const noexcept = 0;
-
-  /// Fingerprint this version
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept = 0;
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
 
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;

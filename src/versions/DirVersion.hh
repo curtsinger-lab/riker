@@ -61,23 +61,8 @@ class LinkDirVersion : public DirVersion {
   /// Directory links are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Do nothing when asked to save this version
-  virtual void save(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Do nothing when asked to commit this version
-  virtual void commit(shared_ptr<Reference> ref) const noexcept override {}
-
   /// Directory links are always fingerprinted
   virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Do nothing when asked to fingerprint the link
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    WARN << "Unimplemented directory version comparion!";
-    return false;
-  }
 
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
@@ -121,23 +106,8 @@ class UnlinkDirVersion : public DirVersion {
   /// Directory links are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Do nothing when asked to save this version
-  virtual void save(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Do nothing when asked to commit this version
-  virtual void commit(shared_ptr<Reference> ref) const noexcept override {}
-
   /// Directory links are always fingerprinted
   virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Do nothing when asked to fingerprint the link
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    WARN << "Unimplemented directory version comparion!";
-    return false;
-  }
 
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
@@ -171,23 +141,8 @@ class ExistingDirVersion : public DirVersion {
   /// Directory lists are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Do nothing when asked to save the directory
-  virtual void save(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Do nothing when asked to commit the directory
-  virtual void commit(shared_ptr<Reference> ref) const noexcept override {}
-
   /// Directory lists are always fingerprinted
   virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Do nothing when asked to fingerprint the directory
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    WARN << "Unimplemented directory version comparion!";
-    return false;
-  }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
@@ -225,23 +180,8 @@ class ListedDirVersion : public DirVersion {
   /// Directory lists are never saved (at least for now)
   virtual bool isSaved() const noexcept override { return false; }
 
-  /// Do nothing when asked to save the directory
-  virtual void save(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Do nothing when asked to commit the directory
-  virtual void commit(shared_ptr<Reference> ref) const noexcept override {}
-
   /// Directory lists are always fingerprinted
   virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Do nothing when asked to fingerprint the directory
-  virtual void fingerprint(shared_ptr<Reference> ref) noexcept override {}
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    WARN << "Unimplemented directory version comparion!";
-    return false;
-  }
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
