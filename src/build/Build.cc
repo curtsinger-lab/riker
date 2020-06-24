@@ -125,10 +125,10 @@ void Build::match(shared_ptr<Command> c,
   // If this command does not need to trace the metadata access, return immediately
   if (use_filter<VersionType> && !filter<VersionType>.readRequired(c.get(), ref)) return;
 
-  // Was an expected value provided?
-  if (expected) {
-    // Yes. We must be emulating this step
-    ASSERT(emulating) << "Traced command provided an expected version to match";
+  // Are we emulating this operation?
+  if (emulating) {
+    // Yes. We need an expected version to check for
+    ASSERT(expected) << "Traced command provided an expected version to match";
 
     // Perform the comparison
     ref->getArtifact()->match(c, expected);
@@ -137,17 +137,16 @@ void Build::match(shared_ptr<Command> c,
     _trace->addStep(c, emulating);
 
   } else {
-    // No. This must be a traced command
-    ASSERT(!emulating) << "Emulated command did not provide an expected version to match";
+    // No. This is a traced command
 
-    // Get the current state of the artifact
-    auto current = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
+    // If we don't have an expected version already, get one from the current state
+    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
 
     // Take a fingerprint of the current version
-    current->fingerprint(ref);
+    expected->fingerprint(ref);
 
     // Add a match step to the trace
-    _trace->addStep(c, make_shared<Match<VersionType>>(ref, current));
+    _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected));
   }
 
   // Report the read
