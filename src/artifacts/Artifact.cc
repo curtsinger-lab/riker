@@ -112,6 +112,7 @@ void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected
 
 /// Apply a new metadata version to this artifact
 void Artifact::apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<MetadataVersion> writing,
                      bool committed) noexcept {
   // Update the metadata version for this artifact

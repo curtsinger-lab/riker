@@ -30,7 +30,9 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noexcept {
+Resolution Env::resolveRef(shared_ptr<Command> cmd,
+                           shared_ptr<Access> ref,
+                           bool committed) noexcept {
   ASSERT(ref->getBase()) << "Cannot resolve a reference relative to a null base";
   ASSERT(ref->getBase()->isResolved()) << "Cannot resolve a reference with an unresolved base";
 
@@ -118,9 +120,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
         // Add the new file to its directory
         auto link_version = make_shared<LinkVersion>(entry, ref);
         link_version->createdBy(cmd);
-        dir->apply(cmd, link_version, true);
-        // TODO: Thread committed flag through so traced creations are committed and emulated
-        // creations are uncommitted
+        dir->apply(cmd, dir_ref, link_version, committed);
 
         // Return the resolution result
         return newfile;

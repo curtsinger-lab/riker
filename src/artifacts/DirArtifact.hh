@@ -60,11 +60,13 @@ class DirArtifact final : public Artifact {
 
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<LinkVersion> writing,
                      bool committed) noexcept override;
 
   /// Apply an unlink version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<UnlinkVersion> writing,
                      bool committed) noexcept override;
 

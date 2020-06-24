@@ -115,7 +115,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  void apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing, bool committed) noexcept;
+  void apply(shared_ptr<Command> c,
+             shared_ptr<Reference> ref,
+             shared_ptr<MetadataVersion> writing,
+             bool committed) noexcept;
 
   /************ Content Operations ************/
 
@@ -132,6 +135,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<ContentVersion> writing,
                      bool committed) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
@@ -168,6 +172,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<LinkVersion> writing,
                      bool committed) noexcept {
     WARN << c << ": tried to apply a directory link version to artifact " << this;
@@ -175,6 +180,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Apply an unlink version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<UnlinkVersion> writing,
                      bool committed) noexcept {
     WARN << c << ": tried to apply a directory unlink version to artifact " << this;

@@ -105,6 +105,7 @@ void FileArtifact::match(shared_ptr<Command> c, shared_ptr<ContentVersion> expec
 
 /// Apply a new content version to this artifact
 void FileArtifact::apply(shared_ptr<Command> c,
+                         shared_ptr<Reference> ref,
                          shared_ptr<ContentVersion> writing,
                          bool committed) noexcept {
   // Add the new version to this artifact

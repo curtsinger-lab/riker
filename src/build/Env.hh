@@ -58,7 +58,7 @@ class Env {
    */
   void finalize(bool commit) noexcept;
 
-  Resolution resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noexcept;
+  Resolution resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref, bool committed) noexcept;
 
   /**
    * Create a pipe artifact

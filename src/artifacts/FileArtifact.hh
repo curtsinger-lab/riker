@@ -51,6 +51,7 @@ class FileArtifact : public Artifact {
 
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
                      shared_ptr<ContentVersion> writing,
                      bool committed) noexcept override;
 

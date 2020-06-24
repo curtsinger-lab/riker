@@ -88,7 +88,7 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
   // Resolve the reference
-  ref->resolvesTo(_env.resolveRef(c, ref));
+  ref->resolvesTo(_env.resolveRef(c, ref, !emulating));
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -221,7 +221,7 @@ void Build::apply(shared_ptr<Command> c,
     written->createdBy(c);
 
     // Apply the write, which should be marked as NOT committed
-    ref->getArtifact()->apply(c, written, false);
+    ref->getArtifact()->apply(c, ref, written, false);
 
     // Add this write to the trace
     _trace->addStep(c, emulating);
@@ -236,7 +236,7 @@ void Build::apply(shared_ptr<Command> c,
     }
 
     // Apply the write, which is committed to the filesystem because we just traced this operation
-    ref->getArtifact()->apply(c, written, true);
+    ref->getArtifact()->apply(c, ref, written, true);
 
     // Add a new trace step
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));

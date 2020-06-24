@@ -3,6 +3,7 @@
 #include <memory>
 #include <set>
 
+#include <errno.h>
 #include <unistd.h>
 
 #include "build/Env.hh"
@@ -32,10 +33,16 @@ void UnlinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
   auto access = dir_ref->as<Access>();
   ASSERT(access) << "Tried to commit a directory with a non-path reference";
 
+  // Try to unlink the file
   int rc = ::unlink((access->getFullPath() / _entry).c_str());
-  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << dir_ref;
 
-  // TODO: handle unlinks that are actually rmdir operations
+  // If the unlink failed because the target is a directory, try again with rmdir
+  if (rc == -1 && errno == EISDIR) {
+    rc = ::rmdir((access->getFullPath() / _entry).c_str());
+  }
+
+  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << dir_ref << ": " << rc << ", "
+                   << ERR;
 }
 
 void ExistingDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
