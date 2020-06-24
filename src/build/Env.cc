@@ -116,7 +116,11 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noex
         ref->resolvesTo(newfile);
 
         // Add the new file to its directory
-        dir->addEntry(cmd, dir_ref, entry, ref);
+        auto link_version = make_shared<LinkVersion>(entry, ref);
+        link_version->createdBy(cmd);
+        dir->apply(cmd, link_version, true);
+        // TODO: Thread committed flag through so traced creations are committed and emulated
+        // creations are uncommitted
 
         // Return the resolution result
         return newfile;

@@ -90,19 +90,6 @@ class Build {
              shared_ptr<VersionType> written = nullptr,
              shared_ptr<Apply<VersionType>> emulating = nullptr) noexcept;
 
-  /// A command links an artifact into a directory
-  void link(shared_ptr<Command> c,
-            shared_ptr<Reference> dir_ref,
-            string entry,
-            shared_ptr<Reference> target,
-            shared_ptr<Link> emulating = nullptr) noexcept;
-
-  /// A command unlinks an artifact from a directory
-  void unlink(shared_ptr<Command> c,
-              shared_ptr<Reference> dir_ref,
-              string entry,
-              shared_ptr<Unlink> emulating = nullptr) noexcept;
-
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,
               shared_ptr<Command> child,

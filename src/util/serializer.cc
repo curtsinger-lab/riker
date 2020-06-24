@@ -226,6 +226,8 @@ CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
 CEREAL_REGISTER_TYPE(ExistingDirVersion);
+CEREAL_REGISTER_TYPE(LinkVersion)
+CEREAL_REGISTER_TYPE(UnlinkVersion)
 CEREAL_REGISTER_TYPE(EmptyDirVersion);
 
 // References
@@ -242,5 +244,5 @@ CEREAL_REGISTER_TYPE(Launch);
 CEREAL_REGISTER_TYPE(Join);
 CEREAL_REGISTER_TYPE(Apply<MetadataVersion>);
 CEREAL_REGISTER_TYPE(Apply<ContentVersion>);
-CEREAL_REGISTER_TYPE(Link);
-CEREAL_REGISTER_TYPE(Unlink);
+CEREAL_REGISTER_TYPE(Apply<LinkVersion>);
+CEREAL_REGISTER_TYPE(Apply<UnlinkVersion>);

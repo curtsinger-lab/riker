@@ -65,15 +65,11 @@ template void Apply<MetadataVersion>::emulate(shared_ptr<Command> c, Build& buil
 // Explicitly instantiate Apple::emulate for content versions
 template void Apply<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-// Emulate a link action
-void Link::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.link(c, _ref, _entry, _target, as<Link>());
-}
+// Explicitly instantiate Apple::emulate for directory link versions
+template void Apply<LinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
-// Emulate an unlink action
-void Unlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.unlink(c, _ref, _entry, as<Unlink>());
-}
+// Explicitly instantiate Apple::emulate for directory unlink versions
+template void Apply<UnlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {

@@ -26,9 +26,11 @@ class Access;
 class Command;
 class ContentVersion;
 class Env;
+class LinkVersion;
 class MetadataVersion;
 class Reference;
 class SymlinkVersion;
+class UnlinkVersion;
 class Version;
 
 /**
@@ -164,27 +166,19 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return ENOTDIR;
   }
 
-  /**
-   * Add an entry to this directory
-   * \param c      The command making the access
-   * \param ref    A reference that was used to reach this directory
-   * \param entry  The name of the directory entry
-   * \param target A reference to the artifact that is being linked into the directory
-   */
-  virtual void addEntry(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        string entry,
-                        shared_ptr<Reference> target) noexcept {}
+  /// Apply a link version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<LinkVersion> writing,
+                     bool committed) noexcept {
+    WARN << c << ": tried to apply a directory link version to artifact " << this;
+  }
 
-  /**
-   * Remove an entry from this directory
-   * \param c      The command making the access
-   * \param ref    A reference that was used to reach this directory
-   * \param entry  The name of the directory entry
-   */
-  virtual void removeEntry(shared_ptr<Command> c,
-                           shared_ptr<Reference> ref,
-                           string entry) noexcept {}
+  /// Apply an unlink version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<UnlinkVersion> writing,
+                     bool committed) noexcept {
+    WARN << c << ": tried to apply a directory unlink version to artifact " << this;
+  }
 
   /****** Utility Methods ******/
 

@@ -137,43 +137,46 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
   }
 }
 
-void DirArtifact::addEntry(shared_ptr<Command> c,
-                           shared_ptr<Reference> ref,
-                           string entry,
-                           shared_ptr<Reference> target) noexcept {
-  // Create a new version to encode the linking operation
-  auto v = make_shared<LinkDirVersion>(entry, target);
-  v->createdBy(c);
-
+// Apply a link version to this artifact
+void DirArtifact::apply(shared_ptr<Command> c,
+                        shared_ptr<LinkVersion> writing,
+                        bool committed) noexcept {
   // Notify the build of this output
-  _env.getBuild().observeOutput(c, shared_from_this(), v);
+  _env.getBuild().observeOutput(c, shared_from_this(), writing);
 
-  // Add this to the front of the directory version list
-  _uncommitted_versions.push_front(v);
+  // Add the version to the committed or uncommitted list
+  if (committed) {
+    ASSERT(isCommitted()) << "Cannot apply a committed version to an uncommitted directory";
+    _committed_versions.push_front(writing);
+  } else {
+    _uncommitted_versions.push_front(writing);
+  }
 
   // Record this version in the artifact as well
-  appendVersion(v);
+  appendVersion(writing);
 
-  // Cache the result of the resolution
-  _resolved[entry] = target->getArtifact();
+  // Cache the resolution for this linked artifact
+  _resolved[writing->getEntryName()] = writing->getTarget()->getArtifact();
 }
 
-void DirArtifact::removeEntry(shared_ptr<Command> c,
-                              shared_ptr<Reference> ref,
-                              string entry) noexcept {
-  // Create a new version to encode the linking operation
-  auto v = make_shared<UnlinkDirVersion>(entry);
-  v->createdBy(c);
-
+// Apply an unlink version to this artifact
+void DirArtifact::apply(shared_ptr<Command> c,
+                        shared_ptr<UnlinkVersion> writing,
+                        bool committed) noexcept {
   // Notify the build of this output
-  _env.getBuild().observeOutput(c, shared_from_this(), v);
+  _env.getBuild().observeOutput(c, shared_from_this(), writing);
 
-  // Add this to the front of the directory version list
-  _uncommitted_versions.push_front(v);
+  // Add the version to the committed or uncommitted list
+  if (committed) {
+    ASSERT(isCommitted()) << "Cannot apply a committed version to an uncommitted directory";
+    _committed_versions.push_front(writing);
+  } else {
+    _uncommitted_versions.push_front(writing);
+  }
 
   // Record this version in the artifact as well
-  appendVersion(v);
+  appendVersion(writing);
 
-  // Remove this resolution result from the cache
-  _resolved.erase(entry);
+  // Remove the unlinked entry from the cache of resolved artifacts
+  _resolved.erase(writing->getEntryName());
 }

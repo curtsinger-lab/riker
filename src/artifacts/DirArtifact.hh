@@ -58,27 +58,15 @@ class DirArtifact final : public Artifact {
                               shared_ptr<Reference> ref,
                               string entry) noexcept override;
 
-  /**
-   * Add an entry to this directory
-   * \param c      The command making the access
-   * \param ref    A reference that was used to reach this directory
-   * \param entry  The name of the directory entry
-   * \param target A reference to the artifact that is being linked into the directory
-   */
-  virtual void addEntry(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        string entry,
-                        shared_ptr<Reference> target) noexcept override;
+  /// Apply a link version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<LinkVersion> writing,
+                     bool committed) noexcept override;
 
-  /**
-   * Remove an entry from this directory
-   * \param c      The command making the access
-   * \param ref    A reference that was used to reach this directory
-   * \param entry  The name of the directory entry
-   */
-  virtual void removeEntry(shared_ptr<Command> c,
-                           shared_ptr<Reference> ref,
-                           string entry) noexcept override;
+  /// Apply an unlink version to this artifact
+  virtual void apply(shared_ptr<Command> c,
+                     shared_ptr<UnlinkVersion> writing,
+                     bool committed) noexcept override;
 
  private:
   map<string, weak_ptr<Artifact>> _resolved;

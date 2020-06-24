@@ -42,10 +42,19 @@ class DirVersion : public Version {
 };
 
 /// Link a new entry into a directory
-class LinkDirVersion : public DirVersion {
+class LinkVersion : public DirVersion {
  public:
+  /// Default constructor is required for Build::apply, but should only be used for deserialization
+  LinkVersion() = default;
+
   /// Create a new version of a directory that adds a named entry to the directory
-  LinkDirVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
+  LinkVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
+
+  /// Get the name of the entry this version links
+  string getEntryName() const noexcept { return _entry; }
+
+  /// Get the target of the newly-linked entry
+  shared_ptr<Reference> getTarget() const noexcept { return _target; }
 
   /// Check to see if this version has a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
@@ -56,7 +65,7 @@ class LinkDirVersion : public DirVersion {
 
   /// Get the artifact this linked entry refers to
   virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
-    ASSERT(name == _entry) << "Requested invalid entry from LinkDirVersion";
+    ASSERT(name == _entry) << "Requested invalid entry from LinkVersion";
     return _target->getArtifact();
   }
 
@@ -72,8 +81,7 @@ class LinkDirVersion : public DirVersion {
   string _entry;
   shared_ptr<Reference> _target;
 
-  // Create default constructor and declare fields for serialization
-  LinkDirVersion() = default;
+  // Declare fields for serialization
   SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
@@ -82,10 +90,16 @@ class LinkDirVersion : public DirVersion {
  * directory. This is a partial version, so any attempt to resolve entries other than the linked one
  * will fall through to other versions.
  */
-class UnlinkDirVersion : public DirVersion {
+class UnlinkVersion : public DirVersion {
  public:
+  /// Default constructor is required for Build::apply, but should only be used for deserialization
+  UnlinkVersion() = default;
+
   /// Create a new version of a directory that adds a named entry to the directory
-  UnlinkDirVersion(string entry) : _entry(entry) {}
+  UnlinkVersion(string entry) : _entry(entry) {}
+
+  /// Get the name of the entry this version links
+  string getEntryName() const noexcept { return _entry; }
 
   /// Check to see if this version allows a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
@@ -96,7 +110,7 @@ class UnlinkDirVersion : public DirVersion {
 
   /// Get an artifact from this entry. Should never be called.
   virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
-    ASSERT(false) << "Requested entry from UnlinkDirVersion";
+    ASSERT(false) << "Requested entry from UnlinkVersion";
     return nullptr;
   }
 
@@ -111,8 +125,7 @@ class UnlinkDirVersion : public DirVersion {
  private:
   string _entry;
 
-  // Create default constructor and declare fields for serialization
-  UnlinkDirVersion() = default;
+  // Declare fields for serialization
   SERIALIZE(BASE(DirVersion), _entry);
 };
 

@@ -13,6 +13,7 @@
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
+#include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
@@ -227,73 +228,29 @@ void Build::apply(shared_ptr<Command> c,
   if (use_filter<VersionType>) filter<VersionType>.write(c.get(), ref, written);
 }
 
-// Explicitly instantiate write for metadata
+// Explicitly instantiate apply for metadata versions
 template void Build::apply<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Reference> ref,
                                             shared_ptr<MetadataVersion> written,
                                             shared_ptr<Apply<MetadataVersion>> emulating) noexcept;
 
-// Explicitly instantiate write for content
+// Explicitly instantiate apply for content versions
 template void Build::apply<ContentVersion>(shared_ptr<Command> c,
                                            shared_ptr<Reference> ref,
                                            shared_ptr<ContentVersion> written,
                                            shared_ptr<Apply<ContentVersion>> emulating) noexcept;
 
-// Command c adds an entry to a directory
-void Build::link(shared_ptr<Command> c,
-                 shared_ptr<Reference> dir_ref,
-                 string entry,
-                 shared_ptr<Reference> target,
-                 shared_ptr<Link> emulating) noexcept {
-  // If either reference is unresolved, something must have changed
-  if (!dir_ref->isResolved() || !target->isResolved()) {
-    ASSERT(emulating) << "A traced command attempted to use an unresolved reference";
+// Explicitly instantiate apply for directory link versions
+template void Build::apply<LinkVersion>(shared_ptr<Command> c,
+                                        shared_ptr<Reference> ref,
+                                        shared_ptr<LinkVersion> written,
+                                        shared_ptr<Apply<LinkVersion>> emulating) noexcept;
 
-    // Report the change
-    observeCommandChange(c, emulating);
-
-    // Add the step to the trace, then return.
-    _trace->addStep(c, emulating);
-    return;
-  }
-
-  // Perform the link on the directory artifact
-  dir_ref->getArtifact()->addEntry(c, dir_ref, entry, target);
-
-  // Make sure we have a trace step to record
-  auto step = emulating;
-  if (!step) step = make_shared<Link>(dir_ref, entry, target);
-
-  // Add the trace step
-  _trace->addStep(c, step);
-}
-
-// Command c removes an entry from a directory
-void Build::unlink(shared_ptr<Command> c,
-                   shared_ptr<Reference> dir_ref,
-                   string entry,
-                   shared_ptr<Unlink> emulating) noexcept {
-  // If the directory reference is unresolved, something must have changed
-  if (!dir_ref->isResolved()) {
-    ASSERT(emulating) << "A traced command attempted to use an unresolved reference";
-
-    // Report the change
-    observeCommandChange(c, emulating);
-
-    // Add the step to the trace, then return.
-    _trace->addStep(c, emulating);
-    return;
-  }
-
-  // Perform the unlink on the directory artifact
-  dir_ref->getArtifact()->removeEntry(c, dir_ref, entry);
-
-  // Make sure we have a step to record
-  auto step = emulating;
-  if (!step) step = make_shared<Unlink>(dir_ref, entry);
-
-  _trace->addStep(c, step);
-}
+// Explicitly instantiate apply for directory unlink versions
+template void Build::apply<UnlinkVersion>(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          shared_ptr<UnlinkVersion> written,
+                                          shared_ptr<Apply<UnlinkVersion>> emulating) noexcept;
 
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c,

@@ -18,6 +18,7 @@
 #include "tracing/Tracer.hh"
 #include "util/log.hh"
 #include "util/path.hh"
+#include "versions/DirVersion.hh"
 
 using std::function;
 
@@ -661,7 +662,7 @@ void Process::_renameat2(int old_dfd,
       old_entry_ref->expectResult(SUCCESS);
 
       // Unlink the old entry
-      _build.unlink(_command, old_dir_ref, old_entry);
+      _build.apply(_command, old_dir_ref, make_shared<UnlinkVersion>(old_entry));
 
       // The access to the new directory must also have succeeded
       new_dir_ref->expectResult(SUCCESS);
@@ -672,7 +673,7 @@ void Process::_renameat2(int old_dfd,
         new_entry_ref->expectResult(SUCCESS);
 
         // Unlink the new entry
-        _build.unlink(_command, new_dir_ref, new_entry);
+        _build.apply(_command, new_dir_ref, make_shared<UnlinkVersion>(new_entry));
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -680,11 +681,11 @@ void Process::_renameat2(int old_dfd,
       }
 
       // Link into the new entry
-      _build.link(_command, new_dir_ref, new_entry, old_entry_ref);
+      _build.apply(_command, new_dir_ref, make_shared<LinkVersion>(new_entry, old_entry_ref));
 
       // If this is an exchange, we also have to perform the swapped link
       if (flags & RENAME_EXCHANGE) {
-        _build.link(_command, old_dir_ref, old_entry, new_entry_ref);
+        _build.apply(_command, old_dir_ref, make_shared<LinkVersion>(old_entry, new_entry_ref));
       }
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
@@ -740,7 +741,7 @@ void Process::_linkat(int old_dfd,
       target_ref->expectResult(SUCCESS);
 
       // Record the link operation
-      _build.link(_command, dir_ref, entry, target_ref);
+      _build.apply(_command, dir_ref, make_shared<LinkVersion>(entry, target_ref));
 
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
@@ -811,7 +812,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
       entry_ref->expectResult(SUCCESS);
 
       // Perform the unlink
-      _build.unlink(_command, dir_ref, entry);
+      _build.apply(_command, dir_ref, make_shared<UnlinkVersion>(entry));
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
