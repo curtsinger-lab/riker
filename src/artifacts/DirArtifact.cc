@@ -34,7 +34,23 @@ DirArtifact::DirArtifact(Env& env,
   }
 }
 
-void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
+bool DirArtifact::isSaved() const noexcept {
+  return true;
+}
+
+void DirArtifact::commit(shared_ptr<Reference> ref) noexcept {
+  // Commit each version from the uncommitted list, starting at the back and working forward
+  for (auto iter = _uncommitted_versions.rbegin(); iter != _uncommitted_versions.rend(); iter++) {
+    auto v = *iter;
+    INFO << "  Committing version " << v;
+    v->commit(ref);
+  }
+
+  // Move versions over from the uncommitted list
+  _committed_versions.splice(_committed_versions.begin(), _uncommitted_versions);
+}
+
+void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // If we've been here before, don't finalize the directory again (symlinks can create cycles)
   if (_finalized) return;
   _finalized = true;
@@ -47,11 +63,14 @@ void DirArtifact::finalize(shared_ptr<Reference> ref) noexcept {
   for (auto& [name, wp] : _resolved) {
     auto artifact = wp.lock();
     if (name == "." || name == "..") continue;
-    if (artifact) artifact->finalize(make_shared<Access>(a, name, AccessFlags{}));
+    if (artifact) artifact->finalize(make_shared<Access>(a, name, AccessFlags{}), commit);
   }
 
+  // If requested, commit all final state to the filesystem
+  if (commit) this->commit(ref);
+
   // Allow the artifact to finalize metadata
-  Artifact::finalize(ref);
+  Artifact::finalize(ref, commit);
 }
 
 void DirArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {

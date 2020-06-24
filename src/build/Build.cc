@@ -29,7 +29,7 @@ static AccessFilter _metadata_filter;
 /// The access filter used for content accesses
 static AccessFilter _content_filter;
 
-void Build::run() noexcept {
+void Build::run(bool commit) noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveReferences(_env);
 
@@ -52,7 +52,7 @@ void Build::run() noexcept {
 
   // Ask the environment to check remaining artifacts for changes, and to save metadata and
   // fingerprints for artifacts that were created during the build
-  _env.finalize();
+  _env.finalize(commit);
 }
 
 /************************ Command Tracing and Emulation ************************/
@@ -62,6 +62,17 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
   ref->resolvesTo(_env.getPipe(c));
+  _trace->addStep(c, ref);
+  return ref;
+}
+
+/// A command creates a new symbolic link
+shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
+                                   fs::path target,
+                                   shared_ptr<Symlink> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Symlink>(target);
+  ref->resolvesTo(_env.getSymlink(c, target, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -84,20 +95,15 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
     observeCommandChange(c, emulating);
   }
 
+  // If the access is NOT being emulated, make sure the artifact is committed
+  if (!emulating && ref->getArtifact() && !ref->getArtifact()->isCommitted()) {
+    INFO << "Committing " << ref->getArtifact();
+    ref->getArtifact()->commit(ref);
+  }
+
   // Add the reference to the new build trace
   _trace->addStep(c, ref);
 
-  return ref;
-}
-
-/// A command creates a new symbolic link
-shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
-                                   fs::path target,
-                                   shared_ptr<Symlink> emulating) noexcept {
-  auto ref = emulating;
-  if (!emulating) ref = make_shared<Symlink>(target);
-  ref->resolvesTo(_env.getSymlink(c, target));
-  _trace->addStep(c, ref);
   return ref;
 }
 

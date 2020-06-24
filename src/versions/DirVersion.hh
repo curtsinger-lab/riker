@@ -24,6 +24,9 @@ enum class Lookup { Yes, No, Maybe };
 /// Base class for all of the various types of directory versions
 class DirVersion : public Version {
  public:
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<Reference> dir_ref) noexcept = 0;
+
   /**
    * Check to see if this directory version guarantees the presence or absence of a named entry.
    * A yes or no answer is definite, but partial versions can return "maybe", indicating that
@@ -55,6 +58,9 @@ class LinkVersion : public DirVersion {
 
   /// Get the target of the newly-linked entry
   shared_ptr<Reference> getTarget() const noexcept { return _target; }
+
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check to see if this version has a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
@@ -101,6 +107,9 @@ class UnlinkVersion : public DirVersion {
   /// Get the name of the entry this version links
   string getEntryName() const noexcept { return _entry; }
 
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+
   /// Check to see if this version allows a requested entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
     // If the lookup is searching for the unlinked entry, return "no". Otherwise return "maybe".
@@ -135,6 +144,9 @@ class UnlinkVersion : public DirVersion {
  */
 class ExistingDirVersion : public DirVersion {
  public:
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
 
@@ -163,6 +175,9 @@ class EmptyDirVersion : public DirVersion {
  public:
   /// Create an EmptyDirVersion
   EmptyDirVersion() = default;
+
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check if this version has a specific entry
   virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {

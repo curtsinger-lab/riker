@@ -169,7 +169,9 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   return pipe;
 }
 
-shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c, fs::path target) noexcept {
+shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
+                                            fs::path target,
+                                            bool committed) noexcept {
   // Create a manufactured stat buffer for the new symlink
   uid_t uid = getuid();
   gid_t gid = getgid();
@@ -178,7 +180,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c, fs::path targ
   // Create initial versions and the pipe artifact
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   auto sv = make_shared<SymlinkVersion>(target);
-  auto symlink = make_shared<SymlinkArtifact>(*this, true, mv, sv);
+  auto symlink = make_shared<SymlinkArtifact>(*this, committed, mv, sv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -274,10 +276,10 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
 }
 
 // Check all remaining artifacts for changes and save updated fingerprints and metadata
-void Env::finalize() noexcept {
+void Env::finalize(bool commit) noexcept {
   if (_root_dir) {
     auto root_ref = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
     root_ref->resolvesTo(_root_dir);
-    _root_dir->finalize(root_ref);
+    _root_dir->finalize(root_ref, commit);
   }
 }

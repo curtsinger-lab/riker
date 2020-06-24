@@ -34,13 +34,13 @@ class DirArtifact final : public Artifact {
   virtual bool isCommitted() const noexcept override { return _uncommitted_versions.empty(); }
 
   /// Do we have saved copies of all versions in this artifact?
-  virtual bool isSaved() const noexcept override { return false; }
+  virtual bool isSaved() const noexcept override;
 
   /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) noexcept override {}
+  virtual void commit(shared_ptr<Reference> ref) noexcept override;
 
   /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref) noexcept override;
+  virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept override;
 
   /// A command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;

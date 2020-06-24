@@ -56,7 +56,7 @@ class Env {
    * produced, and saves fingerprints and metadata for artifacts that were modified by executed
    * commands.
    */
-  void finalize() noexcept;
+  void finalize(bool commit) noexcept;
 
   Resolution resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref) noexcept;
 
@@ -73,7 +73,9 @@ class Env {
    * \param target  The destination of the symlink
    * \returns a symlink artifact
    */
-  shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c, fs::path target) noexcept;
+  shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c,
+                                         fs::path target,
+                                         bool committed) noexcept;
 
   /**
    * Get an artifact corresponding to a path on the filesystem

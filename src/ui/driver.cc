@@ -54,7 +54,7 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run();
+  phase1.run(false);
 
   // Now create a build to run the second phase, the actual build execution
   // Pass in the print_on_run and dry_run options this time
@@ -64,7 +64,7 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   rebuild->planBuild(phase2);
 
   // Execute the planned build
-  phase2.run();
+  phase2.run(true);
 
   // phase2.printTrace(cout);
 
@@ -91,7 +91,7 @@ void do_check(FingerprintLevel fingerprint) noexcept {
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run();
+  phase1.run(false);
 
   // Print the rebuild planning dependency information
   cout << rebuild;
@@ -152,7 +152,7 @@ void do_graph(FingerprintLevel fingerprint,
   b.addObserver(graph);
 
   // Run the emulated build
-  b.run();
+  b.run(false);
 
   if (no_render) {
     ofstream f(output);
@@ -193,7 +193,7 @@ void do_stats(FingerprintLevel fingerprint, bool list_artifacts) noexcept {
   b.addObserver(stats);
 
   // Emulate the build
-  b.run();
+  b.run(false);
 
   // Print the result
   cout << stats;

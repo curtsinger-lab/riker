@@ -60,7 +60,7 @@ void Artifact::commit(shared_ptr<Reference> ref) noexcept {
 }
 
 // Check the final state of this artifact, and save its fingerprint if necessary
-void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
+void Artifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // Is the metadata for this artifact committed?
   if (_metadata_committed) {
     // Yes. We know the on-disk state already matches the latest version.
@@ -81,6 +81,9 @@ void Artifact::finalize(shared_ptr<Reference> ref) noexcept {
       _metadata_committed = true;
     }
   }
+
+  // If requested, commit all final state to the filesystem
+  if (commit) this->commit(ref);
 }
 
 /// Get the current metadata version for this artifact

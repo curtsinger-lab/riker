@@ -90,7 +90,8 @@ class RebuildPlanner final : public BuildObserver {
         // If this artifact is cached, we could restore it before c runs.
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
-        // INFO << c << " needs unsaved output " << v << " from " << v->getCreator();
+        INFO << c << " needs unsaved output " << a << " version " << v << " from "
+             << v->getCreator();
         _needs_output_from[c].insert(v->getCreator());
       }
     }

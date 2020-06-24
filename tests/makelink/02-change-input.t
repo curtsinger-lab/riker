@@ -28,16 +28,21 @@ Now change input
 
 Run a rebuild, which only needs to rerun cat
   $ $DODO --show
-  ln -s input A
-  ln -s output B
   ./copy_data
   cat A
-  unlink A
-  unlink B
 
 Check the output
   $ cat output
   Goodbye
+
+Make sure the A and B links do not exist
+  $ stat A
+  stat: cannot stat 'A': No such file or directory
+  [1]
+
+  $ stat B
+  stat: cannot stat 'B': No such file or directory
+  [1]
 
 Clean up
   $ rm -rf .dodo

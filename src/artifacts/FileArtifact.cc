@@ -47,7 +47,7 @@ void FileArtifact::commit(shared_ptr<Reference> ref) noexcept {
   Artifact::commit(ref);
 }
 
-void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
+void FileArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // Are all content versions committed?
   if (_content_committed) {
     // Yes. Just make sure we have a saved fingerprint
@@ -67,8 +67,11 @@ void FileArtifact::finalize(shared_ptr<Reference> ref) noexcept {
     }
   }
 
+  // If requested, commit all final state to the filesystem
+  if (commit) this->commit(ref);
+
   // Check metadata in the top-level artifact
-  Artifact::finalize(ref);
+  Artifact::finalize(ref, commit);
 }
 
 void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {

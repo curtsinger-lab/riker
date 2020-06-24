@@ -101,7 +101,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void commit(shared_ptr<Reference> ref) noexcept;
 
   /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref) noexcept;
+  virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept;
 
   /// A command depends on all current versions of this artifact
   virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;

@@ -62,7 +62,7 @@ class Build {
   }
 
   /// Run this build
-  void run() noexcept;
+  void run(bool commit) noexcept;
 
   /****** Tracing and Emulation Methods ******/
 

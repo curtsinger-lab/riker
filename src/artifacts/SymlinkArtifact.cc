@@ -36,6 +36,11 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
   return _symlink_version;
 }
 
+void SymlinkArtifact::commit(shared_ptr<Reference> ref) noexcept {
+  if (!_symlink_committed) _symlink_version->commit(ref);
+  _symlink_committed = true;
+}
+
 // Check to see if this artifact's symlink destination matches a known version
 void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
   // Get the current metadata
@@ -48,9 +53,12 @@ void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> ex
   }
 }
 
-void SymlinkArtifact::finalize(shared_ptr<Reference> ref) noexcept {
+void SymlinkArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // TODO: Check the on-disk symlink here
 
+  // If requested, commit all final state to the filesystem
+  if (commit) this->commit(ref);
+
   // Check metadata in the top-level artifact
-  Artifact::finalize(ref);
+  Artifact::finalize(ref, commit);
 }
