@@ -1,0 +1,9 @@
+#!/bin/sh
+
+ln -s input A
+ln -s output B
+
+cat input > output
+
+unlink A
+unlink B

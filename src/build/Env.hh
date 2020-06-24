@@ -25,6 +25,7 @@ class Command;
 class Pipe;
 class PipeArtifact;
 class Reference;
+class SymlinkArtifact;
 
 /**
  * An Env instance represents the environment where a build process executes. This captures all of
@@ -65,6 +66,14 @@ class Env {
    * \returns a pipe artifact
    */
   shared_ptr<PipeArtifact> getPipe(shared_ptr<Command> c) noexcept;
+
+  /**
+   * Create a symlink artifact
+   * \param c       The command creating the symlink
+   * \param target  The destination of the symlink
+   * \returns a symlink artifact
+   */
+  shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c, fs::path target) noexcept;
 
   /**
    * Get an artifact corresponding to a path on the filesystem

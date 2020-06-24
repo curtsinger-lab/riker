@@ -182,7 +182,7 @@ class Process {
   // Directory Operations
   void _mkdir(string p, mode_t mode) noexcept { _mkdirat(AT_FDCWD, p, mode); }
   void _mkdirat(int dfd, string pathname, mode_t mode) noexcept;
-  void _rmdir(string p) noexcept;
+  void _rmdir(string pathname) noexcept { _unlinkat(AT_FDCWD, pathname, AT_REMOVEDIR); }
   void _rename(string n1, string n2) noexcept { _renameat(AT_FDCWD, n1, AT_FDCWD, n2); }
   void _renameat(int d1, string n1, int d2, string n2) noexcept { _renameat2(d1, n1, d2, n2, 0); }
   void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept;

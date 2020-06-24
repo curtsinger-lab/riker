@@ -232,6 +232,7 @@ CEREAL_REGISTER_TYPE(EmptyDirVersion);
 
 // References
 CEREAL_REGISTER_TYPE(Pipe);
+CEREAL_REGISTER_TYPE(Symlink);
 CEREAL_REGISTER_TYPE(Access);
 
 // Predicates

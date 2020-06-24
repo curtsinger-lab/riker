@@ -229,8 +229,15 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 }
 
 void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept {
-  WARN << "mknodat syscall is not updated";
-  resume();
+  if ((mode & S_IFMT) == S_IFREG) {
+    // Handle regular file creation with openat
+    _openat(dfd, filename, O_CREAT | O_EXCL, mode);
+  } else {
+    // TODO: Handle named pipes?
+
+    WARN << "Unsupported use of mknodat";
+    resume();
+  }
 }
 
 void Process::_close(int fd) noexcept {
@@ -617,11 +624,6 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
   resume();
 }
 
-void Process::_rmdir(string p) noexcept {
-  WARN << "rmdir syscall is not updated";
-  resume();
-}
-
 void Process::_renameat2(int old_dfd,
                          string old_name,
                          int new_dfd,
@@ -753,9 +755,41 @@ void Process::_linkat(int old_dfd,
   });
 }
 
-void Process::_symlinkat(string oldname, int newdfd, string newname) noexcept {
-  WARN << "symlinkat syscall is not updated";
-  resume();
+void Process::_symlinkat(string target, int dfd, string newpath) noexcept {
+  // The newpath string is the path to the new link. Split that into the directory and entry.
+  auto link_path = fs::path(newpath);
+  auto dir_path = link_path.parent_path();
+  auto entry = link_path.filename();
+
+  // Get a reference to the directory, which we will be writing
+  auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
+
+  // Get a reference to the link we are creating
+  auto entry_ref = makeAccess(link_path, AccessFlags{}, dfd);
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the syscall succeed?
+    if (rc == 0) {
+      // Write access to the directory must succeed
+      dir_ref->expectResult(SUCCESS);
+
+      // The link must not exist prior to this call
+      entry_ref->expectResult(ENOENT);
+
+      // Make a symlink reference to get a new artifact
+      auto symlink_ref = _build.symlink(_command, target);
+
+      // Link the symlink into the directory
+      _build.apply(_command, dir_ref, make_shared<LinkVersion>(entry, symlink_ref));
+
+    } else {
+      // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
+      dir_ref->expectResult(dir_ref->getResolution());
+      entry_ref->expectResult(entry_ref->getResolution());
+    }
+  });
 }
 
 void Process::_readlinkat(int dfd, string pathname) noexcept {
@@ -791,6 +825,8 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
 }
 
 void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
+  // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
+
   // Split the pathname into the parent and entry
   auto path = fs::path(pathname);
   auto dir_path = path.parent_path();

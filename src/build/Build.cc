@@ -6,6 +6,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "artifacts/SymlinkArtifact.hh"
 #include "build/AccessFilter.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
@@ -86,6 +87,17 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   // Add the reference to the new build trace
   _trace->addStep(c, ref);
 
+  return ref;
+}
+
+/// A command creates a new symbolic link
+shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
+                                   fs::path target,
+                                   shared_ptr<Symlink> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Symlink>(target);
+  ref->resolvesTo(_env.getSymlink(c, target));
+  _trace->addStep(c, ref);
   return ref;
 }
 

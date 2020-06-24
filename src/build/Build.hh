@@ -76,6 +76,11 @@ class Build {
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
+  /// A command creates a new symbolic link
+  shared_ptr<Symlink> symlink(shared_ptr<Command> c,
+                              fs::path target,
+                              shared_ptr<Symlink> emulating = nullptr) noexcept;
+
   /// A command accesses an artifact expecting to find a specific version
   template <class VersionType>
   void match(shared_ptr<Command> c,

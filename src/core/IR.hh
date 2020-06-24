@@ -154,6 +154,36 @@ class Pipe final : public Reference {
   SERIALIZE(BASE(Reference));
 };
 
+/// Create a reference to a new symlnk
+class Symlink final : public Reference {
+ public:
+  // Create a symlink
+  Symlink(fs::path target) noexcept : _target(target) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a PIPE reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = SYMLINK(" << _target << ")";
+    if (isResolved()) {
+      // Print the artifact this pipe resolves to
+      o << " -> " << getArtifact();
+    } else {
+      int rc = getResolution();
+      o << " expect " << errors[rc];
+    }
+    return o;
+  }
+
+ private:
+  fs::path _target;
+
+  // Specify fields for serialization
+  Symlink() = default;
+  SERIALIZE(BASE(Reference), _target);
+};
+
 /// Access a filesystem path with a given set of flags
 class Access final : public Reference {
  public:

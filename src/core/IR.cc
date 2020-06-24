@@ -33,6 +33,11 @@ void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.pipe(c, as<Pipe>());
 }
 
+// Emulate a symlink reference
+void Symlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.symlink(c, _target, as<Symlink>());
+}
+
 // Emulate a path access reference
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());

@@ -169,6 +169,29 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   return pipe;
 }
 
+shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c, fs::path target) noexcept {
+  // Create a manufactured stat buffer for the new symlink
+  uid_t uid = getuid();
+  gid_t gid = getgid();
+  mode_t mode = S_IFLNK | 0777;
+
+  // Create initial versions and the pipe artifact
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto sv = make_shared<SymlinkVersion>(target);
+  auto symlink = make_shared<SymlinkArtifact>(*this, true, mv, sv);
+
+  // If a command was provided, report the outputs to the build
+  if (c) {
+    mv->createdBy(c);
+    _build.observeOutput(c, symlink, mv);
+
+    sv->createdBy(c);
+    _build.observeOutput(c, symlink, sv);
+  }
+
+  return symlink;
+}
+
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   // Try to stat the path
   struct stat statbuf;
