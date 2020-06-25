@@ -5,6 +5,7 @@
 #include <ostream>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "build/AccessFilter.hh"
@@ -22,12 +23,6 @@ using std::cout;
 using std::endl;
 using std::ostream;
 using std::shared_ptr;
-
-/// The access filter used for metadata accesses
-static AccessFilter _metadata_filter;
-
-/// The access filter used for content accesses
-static AccessFilter _content_filter;
 
 void Build::run(bool commit) noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
@@ -61,15 +56,9 @@ void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
-  if (c->isExecuting()) {
-    if (!v->isCommitted()) {
-      WARN << c << " needs " << a << " version " << v << " at " << ref;
-
-      if (auto access = ref->as<Access>()) _env.resolveRef(c, access, true);
-
-      WARN << " Committing " << v << " to " << ref;
-      v->commit(ref);
-    }
+  // If c is executing, make sure the version it accesses is committed
+  if (c->isExecuting() && !v->isCommitted()) {
+    v->commit(ref);
   }
 
   for (const auto& o : _observers) o->input(c, a, v, t);
@@ -77,7 +66,7 @@ void Build::observeInput(shared_ptr<Command> c,
 
 /************************ Command Tracing and Emulation ************************/
 
-// Command c issued a pipe reference while being traced
+// Command c creates a new pipe
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
@@ -86,13 +75,22 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
   return ref;
 }
 
-/// A command creates a new symbolic link
+// Command c creates a new symbolic link
 shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    fs::path target,
                                    shared_ptr<Symlink> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
   ref->resolvesTo(_env.getSymlink(c, target, !emulating));
+  _trace->addStep(c, ref);
+  return ref;
+}
+
+// Command c creates a new directory
+shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Dir>(mode);
+  ref->resolvesTo(_env.getDir(c, mode, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -121,9 +119,15 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   return ref;
 }
 
-// Templated access filter that monitors accesses by type
-template <class VersionType>
-AccessFilter filter;
+template <>
+AccessFilter* Build::_getFilter<MetadataVersion>() noexcept {
+  return &_metadata_filter;
+}
+
+template <>
+AccessFilter* Build::_getFilter<ContentVersion>() noexcept {
+  return &_content_filter;
+}
 
 // Enable access filtering for specific types
 template <class VersionType>
@@ -156,7 +160,7 @@ void Build::match(shared_ptr<Command> c,
   }
 
   // If this command does not need to trace the metadata access, return immediately
-  if (use_filter<VersionType> && !filter<VersionType>.readRequired(c.get(), ref)) return;
+  if (use_filter<VersionType> && !_getFilter<VersionType>()->readRequired(c.get(), ref)) return;
 
   // Are we emulating this operation?
   if (emulating) {
@@ -183,7 +187,7 @@ void Build::match(shared_ptr<Command> c,
   }
 
   // Report the read
-  if (use_filter<VersionType>) filter<VersionType>.read(c.get(), ref);
+  if (use_filter<VersionType>) _getFilter<VersionType>()->read(c.get(), ref);
 }
 
 // Explicitly instantiate match for metadata
@@ -223,7 +227,7 @@ void Build::apply(shared_ptr<Command> c,
   }
 
   // Do we have to log this write?
-  if (use_filter<VersionType> && !filter<VersionType>.writeRequired(c.get(), ref)) return;
+  if (use_filter<VersionType> && !_getFilter<VersionType>()->writeRequired(c.get(), ref)) return;
 
   // Are we emulating this command?
   if (emulating) {
@@ -260,7 +264,7 @@ void Build::apply(shared_ptr<Command> c,
   }
 
   // Report the write
-  if (use_filter<VersionType>) filter<VersionType>.write(c.get(), ref, written);
+  if (use_filter<VersionType>) _getFilter<VersionType>()->write(c.get(), ref, written);
 }
 
 // Explicitly instantiate apply for metadata versions

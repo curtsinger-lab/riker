@@ -5,6 +5,7 @@
 #include <set>
 #include <vector>
 
+#include "build/AccessFilter.hh"
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
@@ -68,8 +69,18 @@ class Build {
 
   /****** Tracing and Emulation Methods ******/
 
-  /// A command is creating a pipe
+  /// A command creates a new pipe
   shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;
+
+  /// A command creates a new symbolic link
+  shared_ptr<Symlink> symlink(shared_ptr<Command> c,
+                              fs::path target,
+                              shared_ptr<Symlink> emulating = nullptr) noexcept;
+
+  /// A command creates a new directory
+  shared_ptr<Dir> dir(shared_ptr<Command> c,
+                      mode_t mode,
+                      shared_ptr<Dir> emulating = nullptr) noexcept;
 
   /// A command makes a reference with a path
   shared_ptr<Access> access(shared_ptr<Command> c,
@@ -77,11 +88,6 @@ class Build {
                             fs::path path,
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
-
-  /// A command creates a new symbolic link
-  shared_ptr<Symlink> symlink(shared_ptr<Command> c,
-                              fs::path target,
-                              shared_ptr<Symlink> emulating = nullptr) noexcept;
 
   /// A command accesses an artifact expecting to find a specific version
   template <class VersionType>
@@ -183,4 +189,13 @@ class Build {
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;
+
+  /// Access filters for version types that allow it
+  AccessFilter _metadata_filter;
+  AccessFilter _content_filter;
+
+  template <class VersionType>
+  AccessFilter* _getFilter() noexcept {
+    return nullptr;
+  }
 };

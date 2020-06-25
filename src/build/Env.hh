@@ -22,6 +22,7 @@ class Access;
 class Artifact;
 class Build;
 class Command;
+class DirArtifact;
 class Pipe;
 class PipeArtifact;
 class Reference;
@@ -76,6 +77,15 @@ class Env {
   shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c,
                                          fs::path target,
                                          bool committed) noexcept;
+
+  /**
+   * Create a directory artifact
+   * \param c         The command creating the directory
+   * \param mode      The mode (permission) for the new directory
+   * \param committed If true, the directory is already on-disk
+   * \returns a directory artifact
+   */
+  shared_ptr<DirArtifact> getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept;
 
   /**
    * Get an artifact corresponding to a path on the filesystem

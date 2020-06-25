@@ -62,7 +62,7 @@ void UnlinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
 }
 
 void ExistingDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
-  ASSERT(isCommitted()) << "Existing directory versions must always be committed";
+  ASSERT(isCommitted()) << "Existing directory versions can never be uncommitted";
 }
 
 void EmptyDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {

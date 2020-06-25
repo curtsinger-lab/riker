@@ -38,6 +38,11 @@ void Symlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.symlink(c, _target, as<Symlink>());
 }
 
+// Emulate a dir reference
+void Dir::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.dir(c, _mode, as<Dir>());
+}
+
 // Emulate a path access reference
 void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());

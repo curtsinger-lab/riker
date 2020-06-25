@@ -112,6 +112,19 @@ class Reference : public Step {
   /// A sub-type can report the result of resolving this artifact using this method
   void resolvesTo(Resolution res) noexcept { _res = res; }
 
+ protected:
+  /// Print the observed or expected outcome of resolving this reference
+  ostream& printResolution(ostream& o) const noexcept {
+    if (isResolved()) {
+      // Print the artifact this pipe resolves to
+      o << " -> " << getArtifact();
+    } else {
+      int rc = getResolution();
+      o << " expect " << errors[rc];
+    }
+    return o;
+  }
+
  private:
   /// The expected result from this access
   int _expected_rc = SUCCESS;
@@ -139,14 +152,7 @@ class Pipe final : public Reference {
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = PIPE()";
-    if (isResolved()) {
-      // Print the artifact this pipe resolves to
-      o << " -> " << getArtifact();
-    } else {
-      int rc = getResolution();
-      o << " expect " << errors[rc];
-    }
-    return o;
+    return Reference::printResolution(o);
   }
 
  private:
@@ -154,7 +160,7 @@ class Pipe final : public Reference {
   SERIALIZE(BASE(Reference));
 };
 
-/// Create a reference to a new symlnk
+/// Create a reference to a new symlink
 class Symlink final : public Reference {
  public:
   // Create a symlink
@@ -163,17 +169,10 @@ class Symlink final : public Reference {
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a PIPE reference
+  /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = SYMLINK(" << _target << ")";
-    if (isResolved()) {
-      // Print the artifact this pipe resolves to
-      o << " -> " << getArtifact();
-    } else {
-      int rc = getResolution();
-      o << " expect " << errors[rc];
-    }
-    return o;
+    return Reference::printResolution(o);
   }
 
  private:
@@ -182,6 +181,29 @@ class Symlink final : public Reference {
   // Specify fields for serialization
   Symlink() = default;
   SERIALIZE(BASE(Reference), _target);
+};
+
+/// Create a reference to a new directory
+class Dir final : public Reference {
+ public:
+  // Create a directory
+  Dir(mode_t mode) noexcept : _mode(mode) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& b) noexcept override;
+
+  /// Print a DIR reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = DIR(" << std::oct << _mode << ")";
+    return Reference::printResolution(o);
+  }
+
+ private:
+  mode_t _mode;
+
+  // Create a default constructor and specify fields for serialization
+  Dir() noexcept = default;
+  SERIALIZE(BASE(Reference), _mode);
 };
 
 /// Access a filesystem path with a given set of flags
@@ -220,8 +242,8 @@ class Access final : public Reference {
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "]) -> "
-             << errors[getExpectedResult()];
+    o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
+    return Reference::printResolution(o);
   }
 
  private:

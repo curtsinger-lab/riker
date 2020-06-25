@@ -148,7 +148,7 @@ class UnlinkVersion : public DirVersion {
 class ExistingDirVersion : public DirVersion {
  public:
   /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return false; }
+  virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;

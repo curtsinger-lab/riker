@@ -25,7 +25,7 @@ void ContentVersion::commit(shared_ptr<Reference> ref) noexcept {
 
   if (auto a = ref->as<Access>()) {
     if (_fingerprint.has_value() && _fingerprint.value().empty) {
-      int fd = ::open(a->getFullPath().c_str(), O_WRONLY | O_CREAT, 0644);
+      int fd = ::open(a->getFullPath().c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
       FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
       close(fd);
     }

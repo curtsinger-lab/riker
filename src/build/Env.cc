@@ -207,6 +207,37 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   return symlink;
 }
 
+shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept {
+  // Get the current umask
+  auto mask = umask(0);
+  umask(mask);
+
+  // Create uid, gid, and mode values for this new file
+  uid_t uid = getuid();
+  gid_t gid = getgid();
+  mode_t real_mode = S_IFDIR | (mode & ~mask);
+
+  // Create an initial metadata version
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, real_mode));
+  if (committed) mv->setCommitted();
+
+  // Create an initial content version
+  auto dv = make_shared<EmptyDirVersion>();
+  if (committed) dv->setCommitted();
+
+  auto dir = make_shared<DirArtifact>(*this, mv, dv);
+
+  if (c) {
+    mv->createdBy(c);
+    _build.observeOutput(c, dir, mv);
+
+    dv->createdBy(c);
+    _build.observeOutput(c, dir, dv);
+  }
+
+  return dir;
+}
+
 shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   // Try to stat the path
   struct stat statbuf;

@@ -29,13 +29,16 @@ DirArtifact::DirArtifact(Env& env,
 }
 
 bool DirArtifact::canCommit() const noexcept {
+  // If this artifact's metadata cannot be committed, stop now
+  if (!Artifact::canCommit()) return false;
+
   // Loop through versions. If any versions cannot be committed, return false;
   for (auto v : _dir_versions) {
     if (!v->canCommit()) return false;
   }
 
-  // Otherwise, just check with the artifact to see if we can commit metadata
-  return Artifact::canCommit();
+  // Everything is committable
+  return true;
 }
 
 bool DirArtifact::isCommitted() const noexcept {
@@ -46,57 +49,9 @@ bool DirArtifact::isCommitted() const noexcept {
 }
 
 void DirArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  map<string, shared_ptr<LinkVersion>> links;
-  map<string, shared_ptr<UnlinkVersion>> unlinks;
-
-  // Walk through all versions of this directory in the order they were applied
-  // We're looking for pairs of versions that can be canceled out:
-  //  1. An link followed by an unlink: both can be skipped
-  //  2. An unlink followed by a link to an already-committed artifact: both can be skipped
+  // Now walk through the versions in the order they were applied, and commit each one
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
-
-    if (v->isCommitted()) continue;
-
-    // What kind of version is this?
-    if (auto link = v->as<LinkVersion>()) {
-      // If this link points to a committed artifact, wipe out any earlier unlinks of this entry
-      if (link->getTarget()->getArtifact()->isCommitted()) {
-        auto unlink_iter = unlinks.find(link->getEntryName());
-        if (unlink_iter != unlinks.end()) {
-          unlink_iter->second->setCommitted();
-          link->setCommitted();
-        }
-
-      } else {
-        links.emplace(link->getEntryName(), link);
-      }
-
-    } else if (auto unlink = v->as<UnlinkVersion>()) {
-      // Skip over committed unlinks
-      if (unlink->isCommitted()) continue;
-
-      // Is there an earlier link this undoes?
-      auto link_iter = links.find(unlink->getEntryName());
-      if (link_iter != links.end()) {
-        // Found a pair. Mark both versions as committed
-        link_iter->second->setCommitted();
-        unlink->setCommitted();
-
-        // Remove the link entry from the map
-        links.erase(link_iter);
-      } else {
-        // Remember this uncommitted unlink
-        unlinks.emplace(unlink->getEntryName(), unlink);
-      }
-    }
-  }
-
-  // Now walk through the versions again and commit them. Any canceled-out versions are already
-  // committed.
-  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
-    auto v = *iter;
-    WARN_IF(!v->isCommitted()) << this << ": committing " << v;
     v->commit(ref);
   }
 
@@ -204,7 +159,22 @@ void DirArtifact::apply(shared_ptr<Command> c,
 void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
                         shared_ptr<UnlinkVersion> writing) noexcept {
-  // TODO: If this unlink is only possible because of some earlier version, add input edges.
+  // Walk through previous versions to see if there are any links to the same entry we are unlinking
+  for (auto& v : _dir_versions) {
+    // Is v a link version?
+    if (auto link = v->as<LinkVersion>()) {
+      // Does the link refer to the same entry as the unlink?
+      if (link->getEntryName() == writing->getEntryName()) {
+        // Yes. If the previous link is uncommitted, we can mark the link-unlink pair as committed
+        if (!link->isCommitted()) {
+          link->setCommitted();
+          writing->setCommitted();
+        }
+        // We found a match, so stop processing versions
+        break;
+      }
+    }
+  }
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);

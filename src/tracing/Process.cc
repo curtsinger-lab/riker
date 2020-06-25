@@ -622,8 +622,39 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 /************************ Directory Operations ************************/
 
 void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
-  WARN << "mkdirat syscall is not updated";
-  resume();
+  auto full_path = fs::path(pathname);
+  auto parent_path = full_path.parent_path();
+  auto entry = full_path.filename();
+
+  // Make a reference to the parent directory where the new directory will be added
+  auto parent_ref = makeAccess(parent_path, AccessFlags{.w = true}, dfd);
+
+  // Make a reference to the new directory entry that will be created
+  auto entry_ref = makeAccess(full_path, AccessFlags{}, dfd);
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the syscall succeed?
+    if (rc == 0) {
+      // Write access to the parent directory must succeed
+      parent_ref->expectResult(SUCCESS);
+
+      // The entry must not exist prior to this call
+      entry_ref->expectResult(ENOENT);
+
+      // Make a directory reference to get a new artifact
+      auto dir_ref = _build.dir(_command, mode);
+
+      // Link the directory into the parent dir
+      _build.apply(_command, parent_ref, make_shared<LinkVersion>(entry, dir_ref));
+
+    } else {
+      // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
+      parent_ref->expectResult(parent_ref->getResolution());
+      entry_ref->expectResult(entry_ref->getResolution());
+    }
+  });
 }
 
 void Process::_renameat2(int old_dfd,
