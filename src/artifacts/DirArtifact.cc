@@ -28,9 +28,14 @@ DirArtifact::DirArtifact(Env& env,
   appendVersion(dv);
 }
 
-bool DirArtifact::isSaved() const noexcept {
-  // TODO: Make sure all dir versions are committed or saved
-  return Artifact::isSaved();
+bool DirArtifact::canCommit() const noexcept {
+  // Loop through versions. If any versions cannot be committed, return false;
+  for (auto v : _dir_versions) {
+    if (!v->canCommit()) return false;
+  }
+
+  // Otherwise, just check with the artifact to see if we can commit metadata
+  return Artifact::canCommit();
 }
 
 bool DirArtifact::isCommitted() const noexcept {

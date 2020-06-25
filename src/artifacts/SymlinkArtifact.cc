@@ -34,8 +34,8 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
   return _symlink_version;
 }
 
-bool SymlinkArtifact::isSaved() const noexcept {
-  return Artifact::isSaved();
+bool SymlinkArtifact::canCommit() const noexcept {
+  return Artifact::canCommit();
 }
 
 bool SymlinkArtifact::isCommitted() const noexcept {

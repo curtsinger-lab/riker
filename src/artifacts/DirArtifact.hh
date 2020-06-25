@@ -30,8 +30,8 @@ class DirArtifact final : public Artifact {
   /// Have all modifications to this artifact been committed to the filesystem?
   virtual bool isCommitted() const noexcept override;
 
-  /// Do we have saved copies of all versions in this artifact?
-  virtual bool isSaved() const noexcept override;
+  /// Can this artifact be fully committed?
+  virtual bool canCommit() const noexcept override;
 
   /// Commit any un-committed version of this artifact using the provided reference
   virtual void commit(shared_ptr<Reference> ref) noexcept override;

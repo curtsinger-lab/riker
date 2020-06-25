@@ -38,8 +38,8 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   return _metadata_version->checkAccess(flags);
 }
 
-// Do we have saved metadata for this artifact?
-bool Artifact::isSaved() const noexcept {
+// Can this artifact be fully committed?
+bool Artifact::canCommit() const noexcept {
   return _metadata_version->canCommit();
 }
 

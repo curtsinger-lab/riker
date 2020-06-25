@@ -16,8 +16,9 @@ using std::set;
 using std::shared_ptr;
 
 bool LinkVersion::canCommit() const noexcept {
-  // We can only commit a link if its target is saved or committed
-  return _target->getArtifact()->isSaved() || _target->getArtifact()->isCommitted();
+  if (isCommitted()) return true;
+  // We can only commit a link if its target can be committed
+  return _target->getArtifact()->canCommit();
 }
 
 void LinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {

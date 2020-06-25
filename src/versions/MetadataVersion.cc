@@ -55,6 +55,12 @@ void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
   }
 }
 
+// Can this version be committed?
+bool MetadataVersion::canCommit() const noexcept {
+  if (isCommitted()) return true;
+  return _metadata.has_value();
+}
+
 // Commit this version to the filesystem
 void MetadataVersion::commit(shared_ptr<Reference> ref) noexcept {
   if (isCommitted()) return;

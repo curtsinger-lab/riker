@@ -13,6 +13,7 @@ using std::shared_ptr;
 
 // Is this version saved in a way that can be committed?
 bool ContentVersion::canCommit() const noexcept {
+  if (isCommitted()) return true;
   return _fingerprint.has_value() && _fingerprint.value().empty;
 }
 
