@@ -46,7 +46,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
 
   // If the path is empty, check access and return the base
   if (path.empty()) {
-    if (dir->checkAccess(cmd, ref->getFlags())) {
+    if (dir->checkAccess(cmd, ref, ref->getFlags())) {
       return dir;
     } else {
       return EACCES;
@@ -61,10 +61,13 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
     path_iter++;
 
     // Make sure we have permission to access the directory
-    if (!dir->checkAccess(cmd, {.x = true})) return EACCES;
+    if (!dir->checkAccess(cmd, dir_ref, {.x = true})) return EACCES;
 
     // Try to get the next entry
     auto result = dir->getEntry(cmd, dir_ref, entry);
+
+    // Make a reference to the entry
+    auto entry_ref = make_shared<Access>(dir_ref, entry, AccessFlags{});
 
     // If the resolution succeeded, update the name of the resolved artifact
     if (result) result->setName((fs::path(dir->getName()) / entry).lexically_normal());
@@ -74,7 +77,8 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
       auto symlink = result->as<SymlinkArtifact>();
       if (symlink && (path_iter != path.end() || !ref->getFlags().nofollow)) {
         // Get the symlink path
-        auto symlink_path = symlink->getSymlink(cmd, InputType::PathResolution)->getDestination();
+        auto symlink_path =
+            symlink->getSymlink(cmd, entry_ref, InputType::PathResolution)->getDestination();
 
         // If the symlink path is absolute, resolution continues relative to /
         if (symlink_path.is_absolute()) {
@@ -108,7 +112,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
       // If no matching file exists but this resolution can create it, do so
       if (flags.create && result == ENOENT) {
         // Make sure we have write access into the directory
-        if (!dir->checkAccess(cmd, {.w = true})) return EACCES;
+        if (!dir->checkAccess(cmd, dir_ref, {.w = true})) return EACCES;
 
         // Create the new file and give it a name
         auto newfile = createFile(dir_ref->getFullPath() / entry, cmd, flags, committed);
@@ -128,7 +132,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
       }
 
       // If the entry exists, make sure we have access
-      if (result && !result->checkAccess(cmd, flags)) return EACCES;
+      if (result && !result->checkAccess(cmd, entry_ref, flags)) return EACCES;
 
       // Return the result
       return result;
@@ -139,7 +143,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
 
     // Otherwise, advance the current directory and directory reference
     dir = result;
-    dir_ref = make_shared<Access>(dir_ref, entry, AccessFlags{});
+    dir_ref = entry_ref;
     dir_ref->resolvesTo(dir);
   }
 

@@ -31,6 +31,3 @@ Make sure the output still works
 
 Clean up
   $ rm -rf .dodo hello
-
-SKIP! This test was broken by directory versioning
-  $ exit 80

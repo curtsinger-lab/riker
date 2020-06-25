@@ -127,11 +127,10 @@ class Build {
 
   /// Inform the observer that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c,
+                    shared_ptr<Reference> ref,
                     shared_ptr<Artifact> a,
                     shared_ptr<Version> v,
-                    InputType t) noexcept {
-    for (const auto& o : _observers) o->input(c, a, v, t);
-  }
+                    InputType t) noexcept;
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`

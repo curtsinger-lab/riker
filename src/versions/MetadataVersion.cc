@@ -45,7 +45,7 @@ bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
 
 // Save metadata
 void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
-  if (canCommit()) return;
+  if (_metadata.has_value()) return;
 
   // Check the reference type
   if (auto a = ref->as<Access>()) {

@@ -55,6 +55,21 @@ void Build::run(bool commit) noexcept {
   _env.finalize(commit);
 }
 
+/// Inform the observer that command c accessed version v of artifact a
+void Build::observeInput(shared_ptr<Command> c,
+                         shared_ptr<Reference> ref,
+                         shared_ptr<Artifact> a,
+                         shared_ptr<Version> v,
+                         InputType t) noexcept {
+  if (checkRerun(c) && !v->isCommitted()) {
+    INFO << c << " needs uncommitted version " << v << " of " << a;
+    INFO << "Committing to " << ref;
+    v->commit(ref);
+  }
+
+  for (const auto& o : _observers) o->input(c, a, v, t);
+}
+
 /************************ Command Tracing and Emulation ************************/
 
 // Command c issued a pipe reference while being traced
@@ -150,7 +165,7 @@ void Build::match(shared_ptr<Command> c,
     ASSERT(expected) << "Traced command provided an expected version to match";
 
     // Perform the comparison
-    ref->getArtifact()->match(c, expected);
+    ref->getArtifact()->match(c, ref, expected);
 
     // Record the emulated trace step
     _trace->addStep(c, emulating);
@@ -159,7 +174,7 @@ void Build::match(shared_ptr<Command> c,
     // No. This is a traced command
 
     // If we don't have an expected version already, get one from the current state
-    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
+    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, ref, InputType::Accessed);
 
     // Take a fingerprint of the current version
     expected->fingerprint(ref);
@@ -279,7 +294,7 @@ void Build::launch(shared_ptr<Command> c,
                    shared_ptr<Launch> emulating) noexcept {
   // The child command depends on all current versions of the artifacts in its fd table
   for (auto& [index, desc] : child->getInitialFDs()) {
-    desc.getReference()->getArtifact()->needsCurrentVersions(child);
+    desc.getReference()->getArtifact()->needsCurrentVersions(child, desc.getReference());
   }
 
   // If we're emulating the launch of an unexecuted command, notify observers

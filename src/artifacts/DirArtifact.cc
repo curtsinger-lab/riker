@@ -46,11 +46,62 @@ bool DirArtifact::isCommitted() const noexcept {
 }
 
 void DirArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  // Commit each version, working from the oldest to newest
+  map<string, shared_ptr<LinkVersion>> links;
+  map<string, shared_ptr<UnlinkVersion>> unlinks;
+
+  // Walk through all versions of this directory in the order they were applied
+  // We're looking for pairs of versions that can be canceled out:
+  //  1. An link followed by an unlink: both can be skipped
+  //  2. An unlink followed by a link to an already-committed artifact: both can be skipped
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
+
+    if (v->isCommitted()) continue;
+
+    // What kind of version is this?
+    if (auto link = v->as<LinkVersion>()) {
+      // If this link points to a committed artifact, wipe out any earlier unlinks of this entry
+      if (link->getTarget()->getArtifact()->isCommitted()) {
+        auto unlink_iter = unlinks.find(link->getEntryName());
+        if (unlink_iter != unlinks.end()) {
+          unlink_iter->second->setCommitted();
+          link->setCommitted();
+        }
+
+      } else {
+        links.emplace(link->getEntryName(), link);
+      }
+
+    } else if (auto unlink = v->as<UnlinkVersion>()) {
+      // Skip over committed unlinks
+      if (unlink->isCommitted()) continue;
+
+      // Is there an earlier link this undoes?
+      auto link_iter = links.find(unlink->getEntryName());
+      if (link_iter != links.end()) {
+        // Found a pair. Mark both versions as committed
+        link_iter->second->setCommitted();
+        unlink->setCommitted();
+
+        // Remove the link entry from the map
+        links.erase(link_iter);
+      } else {
+        // Remember this uncommitted unlink
+        unlinks.emplace(unlink->getEntryName(), unlink);
+      }
+    }
+  }
+
+  // Now walk through the versions again and commit them. Any canceled-out versions are already
+  // committed.
+  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
+    auto v = *iter;
+    WARN_IF(!v->isCommitted()) << this << ": committing " << v;
     v->commit(ref);
   }
+
+  // Commit metadata through the Artifact base class
+  Artifact::commit(ref);
 }
 
 void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
@@ -69,21 +120,18 @@ void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
     if (artifact) artifact->finalize(make_shared<Access>(a, name, AccessFlags{}), commit);
   }
 
-  // If requested, commit all final state to the filesystem
-  if (commit) this->commit(ref);
-
   // Allow the artifact to finalize metadata
   Artifact::finalize(ref, commit);
 }
 
-void DirArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
+void DirArtifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
   // Create dependencies on all the uncommitted versions
   for (auto& v : _dir_versions) {
-    _env.getBuild().observeInput(c, shared_from_this(), v, InputType::Inherited);
+    _env.getBuild().observeInput(c, ref, shared_from_this(), v, InputType::Inherited);
   }
 
   // Forward the call to Artifact to create a dependency on metadata
-  Artifact::needsCurrentVersions(c);
+  Artifact::needsCurrentVersions(c, ref);
 }
 
 Resolution DirArtifact::getEntry(shared_ptr<Command> c,
@@ -113,7 +161,7 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
 
   if (found == Lookup::Yes) {
     // Record the dependency on the matching version
-    _env.getBuild().observeInput(c, shared_from_this(), matched, InputType::PathResolution);
+    _env.getBuild().observeInput(c, ref, shared_from_this(), matched, InputType::PathResolution);
 
     // Look in the cache of resolved artifacts
     auto iter = _resolved.find(entry);
@@ -138,7 +186,7 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
 
   } else {
     // The entry does not exist. Record a dependency on the version that excluded this entry.
-    _env.getBuild().observeInput(c, shared_from_this(), matched, InputType::PathResolution);
+    _env.getBuild().observeInput(c, ref, shared_from_this(), matched, InputType::PathResolution);
     return ENOENT;
   }
 }

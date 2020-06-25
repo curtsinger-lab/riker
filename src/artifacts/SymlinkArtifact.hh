@@ -36,16 +36,20 @@ class SymlinkArtifact : public Artifact {
   virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept override;
 
   /// A command depends on all current versions of this artifact
-  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
+  virtual void needsCurrentVersions(shared_ptr<Command> c,
+                                    shared_ptr<Reference> ref) noexcept override;
 
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
   virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c,
+                                                shared_ptr<Reference> ref,
                                                 InputType t) noexcept override;
 
   /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept override;
+  virtual void match(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<SymlinkVersion> expected) noexcept override;
 
  private:
   /// The currrent version of this symlink

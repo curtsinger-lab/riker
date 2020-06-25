@@ -24,17 +24,19 @@ Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env)
   _metadata_version = v;
 }
 
-void Artifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Inherited);
+void Artifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version, InputType::Inherited);
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
-  // We really should report this edge here, since some other command may have set the latest
-  // metadata version. Disabling this for now because it makes the graph unreadable.
+bool Artifact::checkAccess(shared_ptr<Command> c,
+                           shared_ptr<Reference> ref,
+                           AccessFlags flags) noexcept {
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version,
+                               InputType::PathResolution);
 
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
-
+  // If the current metadata version is committed, make sure we save it for future checks
+  if (_metadata_version->isCommitted()) _metadata_version->save(ref);
   return _metadata_version->checkAccess(flags);
 }
 
@@ -81,21 +83,25 @@ void Artifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c, InputType t) noexcept {
+shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c,
+                                                  shared_ptr<Reference> ref,
+                                                  InputType t) noexcept {
   // Mark the metadata as accessed
   _metadata_version->accessed();
 
   // Notify the build of the input
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;
 }
 
 /// Check to see if this artifact's metadata matches a known version
-void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept {
+void Artifact::match(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getMetadata(c, InputType::Accessed);
+  auto observed = getMetadata(c, ref, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

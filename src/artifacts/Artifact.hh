@@ -83,7 +83,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param flags The flags that encode whether this is a read, write, and/or execute access
    * \returns true if the access is allowed, or false otherwise
    */
-  bool checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept;
+  bool checkAccess(shared_ptr<Command> c, shared_ptr<Reference> ref, AccessFlags flags) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -103,15 +103,19 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept;
 
   /// A command depends on all current versions of this artifact
-  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept;
+  virtual void needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept;
 
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c, InputType t) noexcept;
+  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c,
+                                          shared_ptr<Reference> ref,
+                                          InputType t) noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
-  void match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
+  void match(shared_ptr<Command> c,
+             shared_ptr<Reference> ref,
+             shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
   void apply(shared_ptr<Command> c,
@@ -121,13 +125,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c, InputType t) noexcept {
+  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c,
+                                                shared_ptr<Reference> ref,
+                                                InputType t) noexcept {
     WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<ContentVersion> expected) noexcept {
+  virtual void match(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<ContentVersion> expected) noexcept {
     WARN << c << ": tried to match content of artifact " << this;
   }
 
@@ -141,13 +149,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
-  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c, InputType t) noexcept {
+  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c,
+                                                shared_ptr<Reference> ref,
+                                                InputType t) noexcept {
     WARN << c << ": tried to access symlink destination of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
+  virtual void match(shared_ptr<Command> c,
+                     shared_ptr<Reference> ref,
+                     shared_ptr<SymlinkVersion> expected) noexcept {
     WARN << c << ": tried to match symlink destination of artifact " << this;
   }
 
@@ -185,24 +197,30 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// A templated method to get the latest version of an artifact
   template <class VersionType>
-  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
+  shared_ptr<VersionType> get(shared_ptr<Command> c, shared_ptr<Reference> ref, InputType t);
 
   /// Specialize get for metadata
   template <>
-  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
-    return getMetadata(c, t);
+  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c,
+                                                   shared_ptr<Reference> ref,
+                                                   InputType t) {
+    return getMetadata(c, ref, t);
   }
 
   /// Specialize get for content
   template <>
-  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c, InputType t) {
-    return getContent(c, t);
+  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c,
+                                                 shared_ptr<Reference> ref,
+                                                 InputType t) {
+    return getContent(c, ref, t);
   }
 
   /// Specialize get for symlink
   template <>
-  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
-    return getSymlink(c, t);
+  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c,
+                                                 shared_ptr<Reference> ref,
+                                                 InputType t) {
+    return getSymlink(c, ref, t);
   }
 
   /// Print this artifact

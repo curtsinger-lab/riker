@@ -58,34 +58,35 @@ void FileArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
     }
   }
 
-  // If requested, commit all final state to the filesystem
-  if (commit) this->commit(ref);
-
   // Check metadata in the top-level artifact
   Artifact::finalize(ref, commit);
 }
 
-void FileArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Inherited);
-  Artifact::needsCurrentVersions(c);
+void FileArtifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _content_version, InputType::Inherited);
+  Artifact::needsCurrentVersions(c, ref);
 }
 
 /// Get the current content version for this artifact
-shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c, InputType t) noexcept {
+shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c,
+                                                    shared_ptr<Reference> ref,
+                                                    InputType t) noexcept {
   // Mark the metadata as accessed
   _content_version->accessed();
 
   // Notify the build of the input
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, t);
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _content_version, t);
 
   // Return the metadata version
   return _content_version;
 }
 
 /// Check to see if this artifact's content matches a known version
-void FileArtifact::match(shared_ptr<Command> c, shared_ptr<ContentVersion> expected) noexcept {
+void FileArtifact::match(shared_ptr<Command> c,
+                         shared_ptr<Reference> ref,
+                         shared_ptr<ContentVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getContent(c, InputType::Accessed);
+  auto observed = getContent(c, ref, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

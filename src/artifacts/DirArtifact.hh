@@ -40,7 +40,8 @@ class DirArtifact final : public Artifact {
   virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept override;
 
   /// A command depends on all current versions of this artifact
-  virtual void needsCurrentVersions(shared_ptr<Command> c) noexcept override;
+  virtual void needsCurrentVersions(shared_ptr<Command> c,
+                                    shared_ptr<Reference> ref) noexcept override;
 
   /************ Directory Operations ************/
 

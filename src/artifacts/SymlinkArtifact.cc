@@ -16,19 +16,21 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
 }
 
 // Record a dependency on the current versions of this artifact
-void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::Inherited);
-  Artifact::needsCurrentVersions(c);
+void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref) noexcept {
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _symlink_version, InputType::Inherited);
+  Artifact::needsCurrentVersions(c, ref);
 }
 
 // Get the current symlink version of this artifact
 shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
+                                                       shared_ptr<Reference> ref,
                                                        InputType t) noexcept {
   // Mark the metadata as accessed
   _symlink_version->accessed();
 
   // Notify the build of the input
-  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, t);
+  _env.getBuild().observeInput(c, ref, shared_from_this(), _symlink_version, t);
 
   // Return the metadata version
   return _symlink_version;
@@ -48,9 +50,11 @@ void SymlinkArtifact::commit(shared_ptr<Reference> ref) noexcept {
 }
 
 // Check to see if this artifact's symlink destination matches a known version
-void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
+void SymlinkArtifact::match(shared_ptr<Command> c,
+                            shared_ptr<Reference> ref,
+                            shared_ptr<SymlinkVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getSymlink(c, InputType::Accessed);
+  auto observed = getSymlink(c, ref, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
@@ -61,9 +65,6 @@ void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> ex
 
 void SymlinkArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // TODO: Check the on-disk symlink here
-
-  // If requested, commit all final state to the filesystem
-  if (commit) this->commit(ref);
 
   // Check metadata in the top-level artifact
   Artifact::finalize(ref, commit);

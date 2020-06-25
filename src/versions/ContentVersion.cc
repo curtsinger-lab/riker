@@ -21,7 +21,7 @@ bool ContentVersion::canCommit() const noexcept {
 void ContentVersion::commit(shared_ptr<Reference> ref) noexcept {
   if (isCommitted()) return;
 
-  ASSERT(canCommit()) << "Attempted to commit unsaved version";
+  ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << ref;
 
   if (auto a = ref->as<Access>()) {
     if (_fingerprint.has_value() && _fingerprint.value().empty) {
