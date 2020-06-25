@@ -80,6 +80,12 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Record that this command has now run
   void setExecuted() noexcept { _executed = true; }
 
+  /// Is this command being executed?
+  bool isExecuting() const noexcept { return _executing; }
+
+  /// Mark this command as currently executing
+  void setExecuting() noexcept { _executing = true; }
+
   /// Get this command's exit status
   int getExitStatus() const noexcept { return _exit_status; }
 
@@ -120,6 +126,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Has this command ever run?
   bool _executed = false;
+
+  /// Is this command being executed?
+  bool _executing = false;
 
   /// The exit status recorded for this command after its last execution
   int _exit_status;

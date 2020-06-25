@@ -18,6 +18,7 @@
 #include "tracing/Tracer.hh"
 #include "util/log.hh"
 #include "util/path.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 
 using std::function;
@@ -209,7 +210,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       // If the file is truncated by the open call, set the contents in the artifact
       if (ref->getFlags().truncate) {
-        _build.apply<ContentVersion>(_command, ref);
+        auto written = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
+        _build.apply<ContentVersion>(_command, ref, written);
       }
 
       // Is this new descriptor closed on exec?

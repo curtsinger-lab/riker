@@ -3,7 +3,7 @@
 ln -s input A
 ln -s output B
 
-./copy_data
+cat A > B
 
 unlink A
 unlink B

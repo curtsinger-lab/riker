@@ -61,10 +61,15 @@ void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
-  if (checkRerun(c) && !v->isCommitted()) {
-    INFO << c << " needs uncommitted version " << v << " of " << a;
-    INFO << "Committing to " << ref;
-    v->commit(ref);
+  if (c->isExecuting()) {
+    if (!v->isCommitted()) {
+      WARN << c << " needs " << a << " version " << v << " at " << ref;
+
+      if (auto access = ref->as<Access>()) _env.resolveRef(c, access, true);
+
+      WARN << " Committing " << v << " to " << ref;
+      v->commit(ref);
+    }
   }
 
   for (const auto& o : _observers) o->input(c, a, v, t);
@@ -108,12 +113,6 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
     observeCommandChange(c, emulating);
-  }
-
-  // If the access is NOT being emulated, make sure the artifact is committed
-  if (!emulating && ref->getArtifact() && !ref->getArtifact()->isCommitted()) {
-    INFO << "Committing " << ref->getArtifact();
-    ref->getArtifact()->commit(ref);
   }
 
   // Add the reference to the new build trace
@@ -292,11 +291,6 @@ template void Build::apply<UnlinkVersion>(shared_ptr<Command> c,
 void Build::launch(shared_ptr<Command> c,
                    shared_ptr<Command> child,
                    shared_ptr<Launch> emulating) noexcept {
-  // The child command depends on all current versions of the artifacts in its fd table
-  for (auto& [index, desc] : child->getInitialFDs()) {
-    desc.getReference()->getArtifact()->needsCurrentVersions(child, desc.getReference());
-  }
-
   // If we're emulating the launch of an unexecuted command, notify observers
   if (emulating && !child->hasExecuted()) {
     // If we're emulating, we need to let the observers know if the child has not been run before
@@ -321,9 +315,20 @@ void Build::launch(shared_ptr<Command> c,
     if (!_dry_run) {
       // Yes. The child will be executed
       child->setExecuted();
+      child->setExecuting();
+
+      // The child command depends on all the references it inherits as file descriptors
+      for (auto& [index, desc] : child->getInitialFDs()) {
+        if (auto access = desc.getReference()->as<Access>()) {
+          WARN << "Resolving " << access->getFullPath() << " at startup";
+          _env.resolveRef(child, access, !emulating);
+        }
+      }
 
       // If we are emulating the launch of the child command, tell the tracer to start it
-      if (emulating) _running[child] = _tracer.start(child);
+      if (emulating) {
+        _running[child] = _tracer.start(child);
+      }
     }
   }
 
@@ -340,8 +345,6 @@ void Build::join(shared_ptr<Command> c,
                  shared_ptr<Command> child,
                  int exit_status,
                  shared_ptr<Join> emulating) noexcept {
-  LOG << c << " joined command " << child << " with exit status " << exit_status;
-
   if (emulating) {
     // If the command is in the rerun set, tell the tracer to wait for it
     if (checkRerun(child)) {

@@ -3,7 +3,7 @@ Move to test directory
 
 Clean up any leftover state
   $ rm -rf .dodo
-  $ rm -f output
+  $ rm -f output A B
 
 Set up the inptu file
   $ echo "Hello" > input
@@ -14,7 +14,6 @@ Run the build
   Dodofile
   ln -s input A
   ln -s output B
-  ./copy_data
   cat A
   unlink A
   unlink B
@@ -28,7 +27,6 @@ Now change input
 
 Run a rebuild, which only needs to rerun cat
   $ $DODO --show
-  ./copy_data
   cat A
 
 Check the output
@@ -46,5 +44,5 @@ Make sure the A and B links do not exist
 
 Clean up
   $ rm -rf .dodo
-  $ rm -f output
+  $ rm -f output A B
   $ echo "Hello" > input

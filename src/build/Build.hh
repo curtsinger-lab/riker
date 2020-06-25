@@ -64,6 +64,8 @@ class Build {
   /// Run this build
   void run(bool commit) noexcept;
 
+  Env& getEnv() noexcept { return _env; }
+
   /****** Tracing and Emulation Methods ******/
 
   /// A command is creating a pipe

@@ -263,9 +263,6 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     if (auto ref = info.getReference()->as<Access>()) {
       // This is an access, so we have a path
 
-      // Commit any emulated modifications to this artifact to the filesystem
-      ref->getArtifact()->commit(ref);
-
       // Use the reference to open the file
       int parent_fd = ref->open();
       FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
