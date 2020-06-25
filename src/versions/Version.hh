@@ -51,6 +51,18 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Record that this version has been accessed
   void accessed() noexcept { _accessed = true; }
 
+  /// Check if this version has been committed
+  bool isCommitted() const noexcept { return _committed; }
+
+  /// Mark this version as committed
+  void setCommitted() noexcept { _committed = true; }
+
+  /// Can this version be committed?
+  virtual bool canCommit() const noexcept = 0;
+
+  /// Commit this version
+  virtual void commit(shared_ptr<Reference> ref) noexcept = 0;
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
@@ -64,9 +76,13 @@ class Version : public std::enable_shared_from_this<Version> {
   friend ostream& operator<<(ostream& o, const Version* v) noexcept { return v->print(o); }
 
  protected:
+  // Declare fields for serialization
   SERIALIZE_EMPTY();
 
   /******** Transient Fields *********/
+
+  /// Has this version been committed?
+  bool _committed = false;
 
   /// The command that created this version
   weak_ptr<Command> _creator;

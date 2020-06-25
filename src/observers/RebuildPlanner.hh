@@ -86,8 +86,9 @@ class RebuildPlanner final : public BuildObserver {
       _output_used_by[v->getCreator()].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && a->isSaved()) {
+      if (options::enable_cache && (v->canCommit() || v->isCommitted())) {
         // If this artifact is cached, we could restore it before c runs.
+
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
         INFO << c << " needs unsaved output " << a << " version " << v << " from "
@@ -130,7 +131,10 @@ class RebuildPlanner final : public BuildObserver {
     if (!produced->getCreator()) return;
 
     // If this artifact is cached, we can just stage it in
-    if (options::enable_cache && a->isSaved()) return;
+    if (options::enable_cache && (produced->canCommit() || produced->isCommitted())) return;
+
+    INFO << "Output " << a << " version " << produced << " created by " << produced->getCreator()
+         << " does not match on-disk version";
 
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(produced->getCreator());

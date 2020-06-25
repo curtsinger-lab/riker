@@ -15,7 +15,14 @@
 using std::set;
 using std::shared_ptr;
 
+bool LinkVersion::canCommit() const noexcept {
+  // We can only commit a link if its target is saved or committed
+  return _target->getArtifact()->isSaved() || _target->getArtifact()->isCommitted();
+}
+
 void LinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
+  if (isCommitted()) return;
+
   // Just commit the reference that is linked. This will work in most cases, except when a build
   // creates a hard link from an existing artifact.
   auto access = dir_ref->as<Access>();
@@ -27,9 +34,14 @@ void LinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
   } else {
     _target->getArtifact()->commit(entry_ref);
   }
+
+  // Mark this version as committed
+  Version::setCommitted();
 }
 
 void UnlinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
+  if (isCommitted()) return;
+
   auto access = dir_ref->as<Access>();
   ASSERT(access) << "Tried to commit a directory with a non-path reference";
 
@@ -43,14 +55,20 @@ void UnlinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
 
   WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << dir_ref << ": " << rc << ", "
                    << ERR;
+
+  // Mark this version as committed
+  Version::setCommitted();
 }
 
 void ExistingDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
-  FAIL << "Tried to commit an existing directory: " << dir_ref;
+  ASSERT(isCommitted()) << "Existing directory versions must always be committed";
 }
 
 void EmptyDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
   // TODO
+
+  // Mark this version as committed
+  Version::setCommitted();
 }
 
 /// Check if this version has a specific entry

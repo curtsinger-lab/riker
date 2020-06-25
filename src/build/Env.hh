@@ -97,7 +97,8 @@ class Env {
    */
   shared_ptr<Artifact> createFile(fs::path path,
                                   shared_ptr<Command> creator,
-                                  AccessFlags flags) noexcept;
+                                  AccessFlags flags,
+                                  bool committed) noexcept;
 
  private:
   /// The build this environment is attached to

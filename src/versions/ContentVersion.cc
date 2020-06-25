@@ -12,13 +12,15 @@ using std::nullopt;
 using std::shared_ptr;
 
 // Is this version saved in a way that can be committed?
-bool ContentVersion::isSaved() const noexcept {
+bool ContentVersion::canCommit() const noexcept {
   return _fingerprint.has_value() && _fingerprint.value().empty;
 }
 
 // Commit this version to the filesystem
-void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
-  ASSERT(isSaved()) << "Attempted to commit unsaved version";
+void ContentVersion::commit(shared_ptr<Reference> ref) noexcept {
+  if (isCommitted()) return;
+
+  ASSERT(canCommit()) << "Attempted to commit unsaved version";
 
   if (auto a = ref->as<Access>()) {
     if (_fingerprint.has_value() && _fingerprint.value().empty) {
@@ -27,6 +29,9 @@ void ContentVersion::commit(shared_ptr<Reference> ref) const noexcept {
       close(fd);
     }
   }
+
+  // Mark this version as committed
+  Version::setCommitted();
 }
 
 // Save a fingerprint of this version

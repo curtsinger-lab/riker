@@ -24,9 +24,6 @@ enum class Lookup { Yes, No, Maybe };
 /// Base class for all of the various types of directory versions
 class DirVersion : public Version {
  public:
-  /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> dir_ref) noexcept = 0;
-
   /**
    * Check to see if this directory version guarantees the presence or absence of a named entry.
    * A yes or no answer is definite, but partial versions can return "maybe", indicating that
@@ -58,6 +55,9 @@ class LinkVersion : public DirVersion {
 
   /// Get the target of the newly-linked entry
   shared_ptr<Reference> getTarget() const noexcept { return _target; }
+
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
@@ -107,6 +107,9 @@ class UnlinkVersion : public DirVersion {
   /// Get the name of the entry this version links
   string getEntryName() const noexcept { return _entry; }
 
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override { return true; }
+
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
@@ -144,6 +147,9 @@ class UnlinkVersion : public DirVersion {
  */
 class ExistingDirVersion : public DirVersion {
  public:
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override { return false; }
+
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
@@ -175,6 +181,9 @@ class EmptyDirVersion : public DirVersion {
  public:
   /// Create an EmptyDirVersion
   EmptyDirVersion() = default;
+
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;

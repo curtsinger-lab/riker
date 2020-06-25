@@ -20,11 +20,11 @@ class SymlinkVersion : public Version {
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "symlink"; }
 
-  /// Save this version so it can be committed later
-  void save(shared_ptr<Reference> ref) noexcept {}
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  void commit(shared_ptr<Reference> ref) const noexcept;
+  virtual void commit(shared_ptr<Reference> ref) noexcept override;
 
   /// Save a fingerprint of this version
   void fingerprint(shared_ptr<Reference> ref) noexcept {}

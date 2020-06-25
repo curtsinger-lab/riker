@@ -19,10 +19,9 @@ using std::make_shared;
 using std::nullopt;
 using std::shared_ptr;
 
-Artifact::Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
+Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
   appendVersion(v);
   _metadata_version = v;
-  _metadata_committed = committed;
 }
 
 void Artifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
@@ -41,28 +40,23 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
 
 // Do we have saved metadata for this artifact?
 bool Artifact::isSaved() const noexcept {
-  return _metadata_version->isSaved();
+  return _metadata_version->canCommit();
 }
 
 // Check if the latest metadata version is committed
 bool Artifact::isCommitted() const noexcept {
-  return _metadata_committed;
+  return _metadata_version->isCommitted();
 }
 
 // Commit the latest metadata version
 void Artifact::commit(shared_ptr<Reference> ref) noexcept {
-  if (!_metadata_committed) {
-    ASSERT(_metadata_version->isSaved()) << "Attempted to commit unsaved version";
-
-    _metadata_version->commit(ref);
-    _metadata_committed = true;
-  }
+  _metadata_version->commit(ref);
 }
 
 // Check the final state of this artifact, and save its fingerprint if necessary
 void Artifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   // Is the metadata for this artifact committed?
-  if (_metadata_committed) {
+  if (_metadata_version->isCommitted()) {
     // Yes. We know the on-disk state already matches the latest version.
     // Make sure we have a fingerprint for the metadata version
     _metadata_version->fingerprint(ref);
@@ -78,7 +72,7 @@ void Artifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
       _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
     } else {
       // No. We can treat this artifact as if we committed it
-      _metadata_committed = true;
+      _metadata_version->setCommitted();
     }
   }
 
@@ -113,14 +107,10 @@ void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected
 /// Apply a new metadata version to this artifact
 void Artifact::apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<MetadataVersion> writing,
-                     bool committed) noexcept {
+                     shared_ptr<MetadataVersion> writing) noexcept {
   // Update the metadata version for this artifact
   appendVersion(writing);
   _metadata_version = writing;
-
-  // Keep track of whether metadata is committed or not
-  _metadata_committed = committed;
 
   // Report the output to the build
   _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);

@@ -15,10 +15,7 @@ class Version;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(Env& env,
-               bool committed,
-               shared_ptr<MetadataVersion> mv,
-               shared_ptr<ContentVersion> cv) noexcept;
+  FileArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<ContentVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -52,13 +49,9 @@ class FileArtifact : public Artifact {
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> writing,
-                     bool committed) noexcept override;
+                     shared_ptr<ContentVersion> writing) noexcept override;
 
  private:
   /// The latest content version
   shared_ptr<ContentVersion> _content_version;
-
-  /// Is the latest content version committed?
-  bool _content_committed;
 };

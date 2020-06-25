@@ -45,7 +45,7 @@ bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
 
 // Save metadata
 void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
-  if (isSaved()) return;
+  if (canCommit()) return;
 
   // Check the reference type
   if (auto a = ref->as<Access>()) {
@@ -56,7 +56,11 @@ void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
 }
 
 // Commit this version to the filesystem
-void MetadataVersion::commit(shared_ptr<Reference> ref) const noexcept {
+void MetadataVersion::commit(shared_ptr<Reference> ref) noexcept {
+  if (isCommitted()) return;
+  ASSERT(canCommit()) << "Attempted to commit unsaved version";
   // TODO: Commit metadata state
-  ASSERT(isSaved()) << "Attempted to commit unsaved version";
+
+  // Mark this version as committed
+  Version::setCommitted();
 }

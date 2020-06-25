@@ -45,10 +45,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /**
    * Create a new artifact. Only accessibly to this class and Env
    * \param env       This artifact is instantiated as part of this environment
-   * \param committed Does the initial version of this artifact represent the filesystem state?
    * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(Env& env, bool committed, shared_ptr<MetadataVersion> v) noexcept;
+  Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept;
 
   // Required virtual destructor
   virtual ~Artifact() noexcept = default;
@@ -117,8 +116,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Apply a new metadata version to this artifact
   void apply(shared_ptr<Command> c,
              shared_ptr<Reference> ref,
-             shared_ptr<MetadataVersion> writing,
-             bool committed) noexcept;
+             shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Content Operations ************/
 
@@ -136,8 +134,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> writing,
-                     bool committed) noexcept {
+                     shared_ptr<ContentVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
@@ -173,16 +170,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<LinkVersion> writing,
-                     bool committed) noexcept {
+                     shared_ptr<LinkVersion> writing) noexcept {
     WARN << c << ": tried to apply a directory link version to artifact " << this;
   }
 
   /// Apply an unlink version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<UnlinkVersion> writing,
-                     bool committed) noexcept {
+                     shared_ptr<UnlinkVersion> writing) noexcept {
     WARN << c << ": tried to apply a directory unlink version to artifact " << this;
   }
 
@@ -239,9 +234,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
-
-  /// Is the latest metadata version committed to the filesystem?
-  bool _metadata_committed;
 
   // Create a dummy symlink version pointer so we can still return references
   inline static shared_ptr<SymlinkVersion> _dummy_symlink_version;

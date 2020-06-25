@@ -20,10 +20,7 @@ class ContentVersion;
 
 class DirArtifact final : public Artifact {
  public:
-  DirArtifact(Env& env,
-              bool committed,
-              shared_ptr<MetadataVersion> mv,
-              shared_ptr<DirVersion> dv) noexcept;
+  DirArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<DirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -31,7 +28,7 @@ class DirArtifact final : public Artifact {
   virtual string getTypeName() const noexcept override { return "Dir"; }
 
   /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const noexcept override { return _uncommitted_versions.empty(); }
+  virtual bool isCommitted() const noexcept override;
 
   /// Do we have saved copies of all versions in this artifact?
   virtual bool isSaved() const noexcept override;
@@ -61,21 +58,17 @@ class DirArtifact final : public Artifact {
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<LinkVersion> writing,
-                     bool committed) noexcept override;
+                     shared_ptr<LinkVersion> writing) noexcept override;
 
   /// Apply an unlink version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<UnlinkVersion> writing,
-                     bool committed) noexcept override;
+                     shared_ptr<UnlinkVersion> writing) noexcept override;
 
  private:
   map<string, weak_ptr<Artifact>> _resolved;
 
-  list<shared_ptr<DirVersion>> _uncommitted_versions;
-
-  list<shared_ptr<DirVersion>> _committed_versions;
+  list<shared_ptr<DirVersion>> _dir_versions;
 
   bool _finalized = false;
 };

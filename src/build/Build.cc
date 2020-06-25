@@ -220,8 +220,8 @@ void Build::apply(shared_ptr<Command> c,
     // apply it on ever run
     written->createdBy(c);
 
-    // Apply the write, which should be marked as NOT committed
-    ref->getArtifact()->apply(c, ref, written, false);
+    // Apply the write
+    ref->getArtifact()->apply(c, ref, written);
 
     // Add this write to the trace
     _trace->addStep(c, emulating);
@@ -235,8 +235,11 @@ void Build::apply(shared_ptr<Command> c,
       written->createdBy(c);
     }
 
+    // This apply operation was traced, so the written version is committed
+    written->setCommitted();
+
     // Apply the write, which is committed to the filesystem because we just traced this operation
-    ref->getArtifact()->apply(c, ref, written, true);
+    ref->getArtifact()->apply(c, ref, written);
 
     // Add a new trace step
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));

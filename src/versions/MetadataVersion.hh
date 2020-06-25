@@ -85,13 +85,13 @@ class MetadataVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "metadata"; }
 
   /// Is this version saved in a way that can be committed?
-  bool isSaved() const noexcept { return _metadata.has_value(); }
-
-  /// Save this version so it can be committed later
-  void save(shared_ptr<Reference> ref) noexcept;
+  virtual bool canCommit() const noexcept override { return _metadata.has_value(); }
 
   /// Commit this version to the filesystem
-  void commit(shared_ptr<Reference> ref) const noexcept;
+  virtual void commit(shared_ptr<Reference> ref) noexcept override;
+
+  /// Save the on-disk state to this version for later commit
+  void save(shared_ptr<Reference> ref) noexcept;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
   bool hasFingerprint() const noexcept { return _metadata.has_value(); }

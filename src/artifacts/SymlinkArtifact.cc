@@ -8,13 +8,11 @@
 using std::shared_ptr;
 
 SymlinkArtifact::SymlinkArtifact(Env& env,
-                                 bool committed,
                                  shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
-    Artifact(env, committed, mv) {
+    Artifact(env, mv) {
   appendVersion(sv);
   _symlink_version = sv;
-  _symlink_committed = committed;
 }
 
 // Record a dependency on the current versions of this artifact
@@ -36,9 +34,17 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
   return _symlink_version;
 }
 
+bool SymlinkArtifact::isSaved() const noexcept {
+  return Artifact::isSaved();
+}
+
+bool SymlinkArtifact::isCommitted() const noexcept {
+  return _symlink_version->isCommitted() && Artifact::isCommitted();
+}
+
 void SymlinkArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  if (!_symlink_committed) _symlink_version->commit(ref);
-  _symlink_committed = true;
+  _symlink_version->commit(ref);
+  Artifact::commit(ref);
 }
 
 // Check to see if this artifact's symlink destination matches a known version

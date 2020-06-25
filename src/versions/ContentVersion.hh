@@ -66,14 +66,11 @@ class ContentVersion final : public Version {
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "content"; }
 
-  /// Is this version saved in a way that can be committed?
-  bool isSaved() const noexcept;
-
-  /// Save this version so it can be committed later
-  void save(shared_ptr<Reference> ref) noexcept {}
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  void commit(shared_ptr<Reference> ref) const noexcept;
+  virtual void commit(shared_ptr<Reference> ref) noexcept override;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
   bool hasFingerprint() const noexcept { return _fingerprint.has_value(); }

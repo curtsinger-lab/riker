@@ -21,33 +21,31 @@ using std::string;
 using std::tie;
 
 DirArtifact::DirArtifact(Env& env,
-                         bool committed,
                          shared_ptr<MetadataVersion> mv,
                          shared_ptr<DirVersion> dv) noexcept :
-    Artifact(env, committed, mv) {
+    Artifact(env, mv) {
+  _dir_versions.push_front(dv);
   appendVersion(dv);
-
-  if (committed) {
-    _committed_versions.push_front(dv);
-  } else {
-    _uncommitted_versions.push_front(dv);
-  }
 }
 
 bool DirArtifact::isSaved() const noexcept {
-  return true;
+  // TODO: Make sure all dir versions are committed or saved
+  return Artifact::isSaved();
+}
+
+bool DirArtifact::isCommitted() const noexcept {
+  for (auto v : _dir_versions) {
+    if (!v->isCommitted()) return false;
+  }
+  return Artifact::isCommitted();
 }
 
 void DirArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  // Commit each version from the uncommitted list, starting at the back and working forward
-  for (auto iter = _uncommitted_versions.rbegin(); iter != _uncommitted_versions.rend(); iter++) {
+  // Commit each version, working from the oldest to newest
+  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
-    INFO << "  Committing version " << v;
     v->commit(ref);
   }
-
-  // Move versions over from the uncommitted list
-  _committed_versions.splice(_committed_versions.begin(), _uncommitted_versions);
 }
 
 void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
@@ -75,12 +73,7 @@ void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
 
 void DirArtifact::needsCurrentVersions(shared_ptr<Command> c) noexcept {
   // Create dependencies on all the uncommitted versions
-  for (auto& v : _uncommitted_versions) {
-    _env.getBuild().observeInput(c, shared_from_this(), v, InputType::Inherited);
-  }
-
-  // Create dependencies on all the committed versions
-  for (auto& v : _committed_versions) {
+  for (auto& v : _dir_versions) {
     _env.getBuild().observeInput(c, shared_from_this(), v, InputType::Inherited);
   }
 
@@ -102,22 +95,11 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
   shared_ptr<DirVersion> matched;
 
   // First check the uncommitted versions
-  for (auto& v : _uncommitted_versions) {
+  for (auto& v : _dir_versions) {
     found = v->hasEntry(_env, access, entry);
     if (found != Lookup::Maybe) {
       matched = v;
       break;
-    }
-  }
-
-  // Then check committed versions if we haven't found a result yet
-  if (found == Lookup::Maybe) {
-    for (auto& v : _committed_versions) {
-      found = v->hasEntry(_env, access, entry);
-      if (found != Lookup::Maybe) {
-        matched = v;
-        break;
-      }
     }
   }
 
@@ -159,20 +141,14 @@ Resolution DirArtifact::getEntry(shared_ptr<Command> c,
 // Apply a link version to this artifact
 void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
-                        shared_ptr<LinkVersion> writing,
-                        bool committed) noexcept {
+                        shared_ptr<LinkVersion> writing) noexcept {
   // TODO: If this link is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
 
-  // Add the version to the committed or uncommitted list
-  if (committed) {
-    ASSERT(isCommitted()) << "Cannot apply a committed version to an uncommitted directory";
-    _committed_versions.push_front(writing);
-  } else {
-    _uncommitted_versions.push_front(writing);
-  }
+  // Add the version to the sequence of directory versions
+  _dir_versions.push_front(writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);
@@ -184,20 +160,14 @@ void DirArtifact::apply(shared_ptr<Command> c,
 // Apply an unlink version to this artifact
 void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
-                        shared_ptr<UnlinkVersion> writing,
-                        bool committed) noexcept {
+                        shared_ptr<UnlinkVersion> writing) noexcept {
   // TODO: If this unlink is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
 
-  // Add the version to the committed or uncommitted list
-  if (committed) {
-    ASSERT(isCommitted()) << "Cannot apply a committed version to an uncommitted directory";
-    _committed_versions.push_front(writing);
-  } else {
-    _uncommitted_versions.push_front(writing);
-  }
+  // Add the version to the sequence of directory versions
+  _dir_versions.push_front(writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

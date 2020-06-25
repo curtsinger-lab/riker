@@ -111,7 +111,7 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
         if (!dir->checkAccess(cmd, {.w = true})) return EACCES;
 
         // Create the new file and give it a name
-        auto newfile = createFile(dir_ref->getFullPath() / entry, cmd, flags);
+        auto newfile = createFile(dir_ref->getFullPath() / entry, cmd, flags, committed);
         newfile->setName((fs::path(dir->getName()) / entry).lexically_normal());
 
         // Record the resolution to the new file
@@ -120,7 +120,8 @@ Resolution Env::resolveRef(shared_ptr<Command> cmd,
         // Add the new file to its directory
         auto link_version = make_shared<LinkVersion>(entry, ref);
         link_version->createdBy(cmd);
-        dir->apply(cmd, dir_ref, link_version, committed);
+        if (committed) link_version->setCommitted();
+        dir->apply(cmd, dir_ref, link_version);
 
         // Return the resolution result
         return newfile;
@@ -154,8 +155,12 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
 
   // Create initial versions and the pipe artifact
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  mv->setCommitted();
+
   auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
-  auto pipe = make_shared<PipeArtifact>(*this, true, mv, cv);
+  cv->setCommitted();
+
+  auto pipe = make_shared<PipeArtifact>(*this, mv, cv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -179,8 +184,12 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
 
   // Create initial versions and the pipe artifact
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  if (committed) mv->setCommitted();
+
   auto sv = make_shared<SymlinkVersion>(target);
-  auto symlink = make_shared<SymlinkArtifact>(*this, committed, mv, sv);
+  if (committed) sv->setCommitted();
+
+  auto symlink = make_shared<SymlinkArtifact>(*this, mv, sv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -211,28 +220,33 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   }
 
   auto mv = make_shared<MetadataVersion>(statbuf);
+  mv->setCommitted();
 
   // Create a new artifact for this inode
   shared_ptr<Artifact> a;
   if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
     auto cv = make_shared<ContentVersion>(statbuf);
-    a = make_shared<FileArtifact>(*this, true, mv, cv);
+    cv->setCommitted();
+    a = make_shared<FileArtifact>(*this, mv, cv);
 
   } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
     auto dv = make_shared<ExistingDirVersion>();
-    a = make_shared<DirArtifact>(*this, true, mv, dv);
+    dv->setCommitted();
+    a = make_shared<DirArtifact>(*this, mv, dv);
 
   } else if ((statbuf.st_mode & S_IFMT) == S_IFLNK) {
     auto sv = make_shared<SymlinkVersion>(readlink(path));
-    a = make_shared<SymlinkArtifact>(*this, true, mv, sv);
+    sv->setCommitted();
+    a = make_shared<SymlinkArtifact>(*this, mv, sv);
 
   } else {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
     auto cv = make_shared<ContentVersion>(statbuf);
-    a = make_shared<FileArtifact>(*this, true, mv, cv);
+    cv->setCommitted();
+    a = make_shared<FileArtifact>(*this, mv, cv);
   }
 
   // Add the new artifact to the inode map
@@ -246,7 +260,8 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
 
 shared_ptr<Artifact> Env::createFile(fs::path path,
                                      shared_ptr<Command> creator,
-                                     AccessFlags flags) noexcept {
+                                     AccessFlags flags,
+                                     bool committed) noexcept {
   // Get the current umask
   auto mask = umask(0);
   umask(mask);
@@ -259,13 +274,15 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   mv->createdBy(creator);
+  if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
   cv->createdBy(creator);
+  if (committed) cv->setCommitted();
 
   // Create the artifact and return it
-  auto artifact = make_shared<FileArtifact>(*this, true, mv, cv);
+  auto artifact = make_shared<FileArtifact>(*this, mv, cv);
   artifact->setName(path);
 
   // Observe output to metadata and content for the new file
