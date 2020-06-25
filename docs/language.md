@@ -6,33 +6,31 @@ A full trace contains a sequence of TraceIR steps, each marked with the command 
 ## References
 References are steps that produce a reference that can be used to reach an artifact. Each reference is resolved at run/emulation time, and can return either an artifact or an error code. In addition to the parameters specified with each reference type, every reference stores the expected outcome of resolving that reference, either SUCCESS or one of the standard POSIX error codes. Any change in the outcome of resolving a reference indicates that a command's input has changed.
 
-**`PIPE() : Reference`** 
-  Create a reference to a new pipe
+**`PIPE() : Reference`**  
+Create a reference to a new pipe
 
-**`SYMLINK(dest : string) : Reference`** 
-  Create a reference to a new symbolic link with a specific destination
+**`SYMLINK(dest : string) : Reference`**  
+Create a reference to a new symbolic link with a specific destination
 
-**`DIR() : Reference`** 
-  Create a reference to a new, empty directory. ***This IR step is not implemented yet.***
+**`DIR() : Reference`**  
+Create a reference to a new, empty directory. ***This IR step is not implemented yet.***
 
-**`ACCESS(path : string, flags : AccessFlags) : Reference`** 
-  Create a reference to a specific path. The reference could resolve to any type of artifact.
-  Access flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
+**`ACCESS(path : string, flags : AccessFlags) : Reference`**  
+Create a reference to a specific path. The reference could resolve to any type of artifact. Access flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
 
 ## Predicates
-**`MATCH(ref : Reference, v : VersionType)`** 
-  The artifact reached via ref must match the version v. There are several version types; all artifacts have metadata versions, files have content versions, directories have directory versions, etc.
-  If the artifact reached via ref does NOT match version v, the command that performed this step has observed a direct change.
+**`MATCH(ref : Reference, v : VersionType)`**  
+The artifact reached via ref must match the version v. There are several version types; all artifacts have metadata versions, files have content versions, directories have directory versions, etc. If the artifact reached via ref does NOT match version v, the command that performed this step has observed a direct change.
 
-**`JOIN(child : Command, expected_code : int)`** 
-  The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
+**`JOIN(child : Command, expected_code : int)`**  
+The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
 
 ## Actions
-**`APPLY(ref : Reference, v : VersionType)`** 
-  Apply a version v to the artifact reached via ref. These are the same version types supported by the MATCH predicate.
+**`APPLY(ref : Reference, v : VersionType)`**  
+Apply a version v to the artifact reached via ref. These are the same version types supported by the MATCH predicate.
 
-**`LAUNCH(child : Command)`** 
-  A command launches a child command. The child command stores the starting directory, root directory, user, group, arguments, environment variables, and initial file descriptors.
+**`LAUNCH(child : Command)`**  
+A command launches a child command. The child command stores the starting directory, root directory, user, group, arguments, environment variables, and initial file descriptors.
 
-**`EXIT(code : int)`** 
-  The current command exits with a particular exit code. ***This IR step is not implemented yet.***
+**`EXIT(code : int)`**  
+The current command exits with a particular exit code. ***This IR step is not implemented yet.***
