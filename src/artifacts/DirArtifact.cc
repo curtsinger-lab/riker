@@ -124,16 +124,6 @@ void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   Artifact::finalize(ref, commit);
 }
 
-void DirArtifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  // Create dependencies on all the uncommitted versions
-  for (auto& v : _dir_versions) {
-    _env.getBuild().observeInput(c, ref, shared_from_this(), v, InputType::Inherited);
-  }
-
-  // Forward the call to Artifact to create a dependency on metadata
-  Artifact::needsCurrentVersions(c, ref);
-}
-
 Resolution DirArtifact::getEntry(shared_ptr<Command> c,
                                  shared_ptr<Reference> ref,
                                  string entry) noexcept {

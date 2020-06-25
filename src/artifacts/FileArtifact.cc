@@ -62,11 +62,6 @@ void FileArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   Artifact::finalize(ref, commit);
 }
 
-void FileArtifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _content_version, InputType::Inherited);
-  Artifact::needsCurrentVersions(c, ref);
-}
-
 /// Get the current content version for this artifact
 shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c,
                                                     shared_ptr<Reference> ref,

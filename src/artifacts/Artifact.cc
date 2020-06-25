@@ -24,10 +24,6 @@ Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env)
   _metadata_version = v;
 }
 
-void Artifact::needsCurrentVersions(shared_ptr<Command> c, shared_ptr<Reference> ref) noexcept {
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version, InputType::Inherited);
-}
-
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c,
                            shared_ptr<Reference> ref,

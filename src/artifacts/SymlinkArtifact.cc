@@ -15,13 +15,6 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
   _symlink_version = sv;
 }
 
-// Record a dependency on the current versions of this artifact
-void SymlinkArtifact::needsCurrentVersions(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref) noexcept {
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _symlink_version, InputType::Inherited);
-  Artifact::needsCurrentVersions(c, ref);
-}
-
 // Get the current symlink version of this artifact
 shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
                                                        shared_ptr<Reference> ref,
