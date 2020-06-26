@@ -103,8 +103,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept;
 
-  /// Take fingerprints for all final versions of this artifact
-  virtual void fingerprintFinalState(fs::path path) noexcept;
+  /// Commit any pending versions and save fingerprints for this artifact
+  virtual void applyFinalState(fs::path path) noexcept;
 
   /************ Metadata Operations ************/
 

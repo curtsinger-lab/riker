@@ -58,16 +58,19 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   Artifact::checkFinalState(path);
 }
 
-// Take fingerprints for all final versions of this artifact
-void FileArtifact::fingerprintFinalState(fs::path path) noexcept {
+// Commit any pending versions and save fingerprints for this artifact
+void FileArtifact::applyFinalState(fs::path path) noexcept {
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
     _content_version->fingerprint(path);
   }
 
+  // Make sure the content is committed
+  _content_version->commit(path);
+
   // Call up to fingerprint metadata as well
-  Artifact::fingerprintFinalState(path);
+  Artifact::applyFinalState(path);
 }
 
 /// Get the current content version for this artifact

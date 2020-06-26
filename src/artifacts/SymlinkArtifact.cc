@@ -53,10 +53,15 @@ void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   Artifact::checkFinalState(path);
 }
 
-// Take fingerprints for all final versions of this artifact
-void SymlinkArtifact::fingerprintFinalState(fs::path path) noexcept {
-  // Symlinks are fully saved, so just call up to the artifact for metadata
-  Artifact::fingerprintFinalState(path);
+// Commit any pending versions and save fingerprints for this artifact
+void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
+  // Symlinks are always saved, so no need to fingerprint
+
+  // Make sure this symlink is committed
+  _symlink_version->commit(path);
+
+  // Commit and fingerprint metadata
+  Artifact::applyFinalState(path);
 }
 
 // Check to see if this artifact's symlink destination matches a known version

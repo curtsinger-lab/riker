@@ -54,10 +54,7 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run(false);
-
-  // Compare the final state of artifacts in the emulated build to the filesystem
-  phase1.checkFinalState();
+  phase1.run();
 
   // Now create a build to run the second phase, the actual build execution
   // Pass in the print_on_run and dry_run options this time
@@ -67,11 +64,10 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   rebuild->planBuild(phase2);
 
   // Execute the planned build
-  phase2.run(true);
+  phase2.run();
 
   // Commit the final state of the build to the filesystem and take fingerprints
-  phase2.commitFinalState();
-  phase2.fingerprintFinalState();
+  phase2.applyFinalState();
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
@@ -96,7 +92,7 @@ void do_check(FingerprintLevel fingerprint) noexcept {
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run(false);
+  phase1.run();
 
   // Print the rebuild planning dependency information
   cout << rebuild;
@@ -157,7 +153,7 @@ void do_graph(FingerprintLevel fingerprint,
   b.addObserver(graph);
 
   // Run the emulated build
-  b.run(false);
+  b.run();
 
   if (no_render) {
     ofstream f(output);
@@ -198,7 +194,7 @@ void do_stats(FingerprintLevel fingerprint, bool list_artifacts) noexcept {
   b.addObserver(stats);
 
   // Emulate the build
-  b.run(false);
+  b.run();
 
   // Print the result
   cout << stats;

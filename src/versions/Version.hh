@@ -55,7 +55,7 @@ class Version : public std::enable_shared_from_this<Version> {
   bool isCommitted() const noexcept { return _committed; }
 
   /// Mark this version as committed
-  void setCommitted() noexcept { _committed = true; }
+  void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Can this version be committed? If it is already committed, this should return true
   virtual bool canCommit() const noexcept = 0;

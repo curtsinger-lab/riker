@@ -24,7 +24,7 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-void Build::run(bool commit) noexcept {
+void Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveReferences(_env);
 
@@ -44,21 +44,14 @@ void Build::run(bool commit) noexcept {
 
   // Wait for all remaining processes to exit
   _tracer.wait();
-}
 
-// Compare the final state of the build to the filesystem
-void Build::checkFinalState() noexcept {
+  // Compare the final state of all artifacts to the actual filesystem
   _env.getRootDir()->checkFinalState("/");
 }
 
 // Ensure all final state is fingerprinted
-void Build::fingerprintFinalState() noexcept {
-  _env.getRootDir()->fingerprintFinalState("/");
-}
-
-// Commit all final state to the filesystem
-void Build::commitFinalState() noexcept {
-  _env.getRootDir()->commit("/");
+void Build::applyFinalState() noexcept {
+  _env.getRootDir()->applyFinalState("/");
 }
 
 /// Inform the observer that command c accessed version v of artifact a
@@ -150,12 +143,12 @@ template <class VersionType>
 bool use_filter = false;
 
 // Turn on access filtering for metadata
-template <>
-bool use_filter<MetadataVersion> = true;
+// template <>
+// bool use_filter<MetadataVersion> = true;
 
 // Turn on access filtering for content
-template <>
-bool use_filter<ContentVersion> = true;
+// template <>
+// bool use_filter<ContentVersion> = true;
 
 // Command c accesses an artifact
 template <class VersionType>
@@ -246,11 +239,15 @@ void Build::apply(shared_ptr<Command> c,
 
   // Do we have to log this write?
   if (use_filter<VersionType> && !_getFilter<VersionType>()->writeRequired(c.get(), ref)) return;
+  // YIKES! If we write-combine into an empty created file, the fingerprint is never updated.
 
   // Are we emulating this command?
   if (emulating) {
     // Yes. We should have an existing version to write
     ASSERT(written) << "An emulated command is writing an unspecified version to an artifact";
+
+    // Make sure this version is NOT marked as committed
+    written->setCommitted(false);
 
     // Mark the version as created by the calling command. This field is transient, so we have to
     // apply it on ever run

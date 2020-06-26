@@ -63,18 +63,12 @@ class Build {
   }
 
   /// Run this build
-  void run(bool commit) noexcept;
+  void run() noexcept;
 
   Env& getEnv() noexcept { return _env; }
 
-  /// Compare the final state of the build to the filesystem
-  void checkFinalState() noexcept;
-
-  /// Ensure all final state is fingerprinted
-  void fingerprintFinalState() noexcept;
-
-  /// Commit all final state to the filesystem
-  void commitFinalState() noexcept;
+  /// Commit any pending updates and save fingerprints for all final state
+  void applyFinalState() noexcept;
 
   /****** Tracing and Emulation Methods ******/
 

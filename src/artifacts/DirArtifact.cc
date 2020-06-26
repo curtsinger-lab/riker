@@ -81,8 +81,14 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
   Artifact::checkFinalState(path);
 }
 
-// Take fingerprints for all final versions of this artifact
-void DirArtifact::fingerprintFinalState(fs::path path) noexcept {
+// Commit any pending versions and save fingerprints for this artifact
+void DirArtifact::applyFinalState(fs::path path) noexcept {
+  // First, commit this artifact and its metadata
+  commit(path);
+
+  // Fingerprint/commit any remaining metadata
+  Artifact::applyFinalState(path);
+
   // Loop over all versions to build a full list of entries
   map<string, shared_ptr<Artifact>> entries;
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
@@ -90,13 +96,10 @@ void DirArtifact::fingerprintFinalState(fs::path path) noexcept {
     v->getKnownEntries(entries);
   }
 
-  // Now that we have known entries, recursively check the state of each
+  // Now that we have known entries, recursively apply each one
   for (auto [name, artifact] : entries) {
-    artifact->fingerprintFinalState(path / name);
+    artifact->applyFinalState(path / name);
   }
-
-  // Check the metadata state as well
-  Artifact::fingerprintFinalState(path);
 }
 
 Resolution DirArtifact::resolve(shared_ptr<Command> c,

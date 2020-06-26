@@ -34,8 +34,8 @@ class FileArtifact : public Artifact {
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
 
-  /// Take fingerprints for all final versions of this artifact
-  virtual void fingerprintFinalState(fs::path path) noexcept override;
+  /// Commit any pending versions and save fingerprints for this artifact
+  virtual void applyFinalState(fs::path path) noexcept override;
 
   /************ Content Operations ************/
 

@@ -66,14 +66,16 @@ void Artifact::checkFinalState(fs::path path) noexcept {
   }
 }
 
-// Take fingerprints for all final versions of this artifact
-void Artifact::fingerprintFinalState(fs::path path) noexcept {
-  // If we already have a fingerprint, return
-  if (_metadata_version->hasFingerprint()) return;
+// Commit any pending versions and save fingerprints for this artifact
+void Artifact::applyFinalState(fs::path path) noexcept {
+  // If we don't have a fingerprint of the metadata, take one
+  if (!_metadata_version->hasFingerprint()) {
+    ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
+    _metadata_version->fingerprint(path);
+  }
 
-  // Take a fingerprint of the metadata, as long as it's committed
-  ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-  _metadata_version->fingerprint(path);
+  // Make sure metadata for this artifact is committed
+  _metadata_version->commit(path);
 }
 
 /// Get the current metadata version for this artifact
