@@ -3,6 +3,9 @@
 #include <memory>
 #include <optional>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include "core/IR.hh"
 
 using std::nullopt;
@@ -44,15 +47,14 @@ bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
 }
 
 // Save metadata
-void MetadataVersion::save(shared_ptr<Reference> ref) noexcept {
+void MetadataVersion::save(fs::path path) noexcept {
   if (_metadata.has_value()) return;
 
-  // Check the reference type
-  if (auto a = ref->as<Access>()) {
-    // Get stat data and save it
-    auto [info, rc] = a->lstat();
-    if (rc == SUCCESS) _metadata = info;
-  }
+  struct stat statbuf;
+  int rc = ::lstat(path.c_str(), &statbuf);
+  WARN_IF(rc) << "Failed to stat " << path;
+
+  if (rc == 0) _metadata = statbuf;
 }
 
 // Can this version be committed?
@@ -62,7 +64,7 @@ bool MetadataVersion::canCommit() const noexcept {
 }
 
 // Commit this version to the filesystem
-void MetadataVersion::commit(shared_ptr<Reference> ref) noexcept {
+void MetadataVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
   ASSERT(canCommit()) << "Attempted to commit unsaved version";
   // TODO: Commit metadata state

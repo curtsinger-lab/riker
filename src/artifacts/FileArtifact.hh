@@ -28,11 +28,14 @@ class FileArtifact : public Artifact {
   /// Can this artifact be fully committed?
   virtual bool canCommit() const noexcept override;
 
-  /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) noexcept override;
+  /// Commit all final versions of this artifact to the filesystem
+  virtual void commit(fs::path path) noexcept override;
 
-  /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept override;
+  /// Compare all final versions of this artifact to the filesystem state
+  virtual void checkFinalState(fs::path path) noexcept override;
+
+  /// Take fingerprints for all final versions of this artifact
+  virtual void fingerprintFinalState(fs::path path) noexcept override;
 
   /************ Content Operations ************/
 

@@ -3,6 +3,8 @@
 #include <memory>
 #include <optional>
 
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "core/IR.hh"
@@ -18,31 +20,27 @@ bool ContentVersion::canCommit() const noexcept {
 }
 
 // Commit this version to the filesystem
-void ContentVersion::commit(shared_ptr<Reference> ref) noexcept {
+void ContentVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
-  ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << ref;
+  ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
 
-  if (auto a = ref->as<Access>()) {
-    if (_fingerprint.has_value() && _fingerprint.value().empty) {
-      int fd = ::open(a->getFullPath().c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
-      FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
-      close(fd);
-    }
-  }
+  int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
+  close(fd);
 
   // Mark this version as committed
   Version::setCommitted();
 }
 
 // Save a fingerprint of this version
-void ContentVersion::fingerprint(shared_ptr<Reference> ref) noexcept {
+void ContentVersion::fingerprint(fs::path path) noexcept {
   if (hasFingerprint()) return;
 
-  // Check the reference type
-  if (auto a = ref->as<Access>()) {
-    // Get stat data and save it
-    auto [info, rc] = a->lstat();
-    if (rc == SUCCESS) _fingerprint = info;
-  }
+  // Get stat data and save it
+  struct stat statbuf;
+  int rc = ::lstat(path.c_str(), &statbuf);
+  WARN_IF(rc) << "Failed to stat " << path;
+
+  if (rc == 0) _fingerprint = statbuf;
 }

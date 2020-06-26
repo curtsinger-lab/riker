@@ -237,9 +237,6 @@ class Access final : public Reference {
   /// Open this reference
   int open() const noexcept;
 
-  /// Call lstat on this reference
-  tuple<struct stat, int> lstat() const noexcept;
-
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";

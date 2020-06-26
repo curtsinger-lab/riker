@@ -30,36 +30,44 @@ bool FileArtifact::isCommitted() const noexcept {
   return _content_version->isCommitted() && Artifact::isCommitted();
 }
 
-// Commit the latest version of this artifact to the filesystem
-void FileArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  _content_version->commit(ref);
+// Commit all final versions of this artifact to the filesystem
+void FileArtifact::commit(fs::path path) noexcept {
+  _content_version->commit(path);
 
   // Delegate metadata commits to the artifact
-  Artifact::commit(ref);
+  Artifact::commit(path);
 }
 
-void FileArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
-  // Are all content versions committed?
-  if (_content_version->isCommitted()) {
-    // Yes. Just make sure we have a saved fingerprint
-    _content_version->fingerprint(ref);
-
-  } else {
-    // No. Check the on-disk version against the modeled version
+// Compare all final versions of this artifact to the filesystem state
+void FileArtifact::checkFinalState(fs::path path) noexcept {
+  if (!_content_version->isCommitted()) {
     auto v = make_shared<ContentVersion>();
-    v->fingerprint(ref);
+    v->fingerprint(path);
 
-    // Report a content mismatch if necessary
+    // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
+      // Yes. Report the mismatch
       _env.getBuild().observeFinalMismatch(shared_from_this(), _content_version, v);
     } else {
-      // Since the contents match what is on disk, we can treat this artifact as if it was committed
+      // No. We can treat the content version as if it is committed
       _content_version->setCommitted();
     }
   }
 
-  // Check metadata in the top-level artifact
-  Artifact::finalize(ref, commit);
+  // Check the metadata state as well
+  Artifact::checkFinalState(path);
+}
+
+// Take fingerprints for all final versions of this artifact
+void FileArtifact::fingerprintFinalState(fs::path path) noexcept {
+  // If we don't already have a content fingerprint, take one
+  if (!_content_version->hasFingerprint()) {
+    ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
+    _content_version->fingerprint(path);
+  }
+
+  // Call up to fingerprint metadata as well
+  Artifact::fingerprintFinalState(path);
 }
 
 /// Get the current content version for this artifact

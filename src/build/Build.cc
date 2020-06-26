@@ -44,10 +44,21 @@ void Build::run(bool commit) noexcept {
 
   // Wait for all remaining processes to exit
   _tracer.wait();
+}
 
-  // Ask the environment to check remaining artifacts for changes, and to save metadata and
-  // fingerprints for artifacts that were created during the build
-  _env.finalize(commit);
+// Compare the final state of the build to the filesystem
+void Build::checkFinalState() noexcept {
+  _env.getRootDir()->checkFinalState("/");
+}
+
+// Ensure all final state is fingerprinted
+void Build::fingerprintFinalState() noexcept {
+  _env.getRootDir()->fingerprintFinalState("/");
+}
+
+// Commit all final state to the filesystem
+void Build::commitFinalState() noexcept {
+  _env.getRootDir()->commit("/");
 }
 
 /// Inform the observer that command c accessed version v of artifact a
@@ -58,7 +69,9 @@ void Build::observeInput(shared_ptr<Command> c,
                          InputType t) noexcept {
   // If c is executing, make sure the version it accesses is committed
   if (c->isExecuting() && !v->isCommitted()) {
-    v->commit(ref);
+    if (auto access = ref->as<Access>()) {
+      v->commit(access->getFullPath());
+    }
   }
 
   for (const auto& o : _observers) o->input(c, a, v, t);
@@ -106,7 +119,8 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
   // Resolve the reference
-  ref->resolvesTo(_env.resolveRef(c, ref, !emulating));
+  auto full_path = ref->getFullPath().relative_path();
+  ref->resolvesTo(_env.getRootDir()->resolve(c, "/", full_path, ref));
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -179,8 +193,10 @@ void Build::match(shared_ptr<Command> c,
     // If we don't have an expected version already, get one from the current state
     if (!expected) expected = ref->getArtifact()->get<VersionType>(c, ref, InputType::Accessed);
 
-    // Take a fingerprint of the current version
-    expected->fingerprint(ref);
+    // Take a fingerprint of the current version if it has a path
+    if (auto access = ref->as<Access>()) {
+      expected->fingerprint(access->getFullPath());
+    }
 
     // Add a match step to the trace
     _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected));
@@ -325,7 +341,7 @@ void Build::launch(shared_ptr<Command> c,
       for (auto& [index, desc] : child->getInitialFDs()) {
         if (auto access = desc.getReference()->as<Access>()) {
           WARN << "Resolving " << access->getFullPath() << " at startup";
-          _env.resolveRef(child, access, !emulating);
+          //_env.resolveRef(child, access, !emulating);
         }
       }
 

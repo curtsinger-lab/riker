@@ -24,10 +24,10 @@ class SymlinkVersion : public Version {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Save a fingerprint of this version
-  void fingerprint(shared_ptr<Reference> ref) noexcept {}
+  void fingerprint(fs::path path) noexcept {}
 
   /// Compare this version to another version
   bool matches(shared_ptr<SymlinkVersion> other) const noexcept { return _dest == other->_dest; }

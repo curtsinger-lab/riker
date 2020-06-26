@@ -52,16 +52,6 @@ class Env {
   Build& getBuild() const noexcept { return _build; }
 
   /**
-   * Check and save data for any artifacts left in the environment.
-   * This reports changes for artifacts whose on-disk versions do not match what the build
-   * produced, and saves fingerprints and metadata for artifacts that were modified by executed
-   * commands.
-   */
-  void finalize(bool commit) noexcept;
-
-  Resolution resolveRef(shared_ptr<Command> cmd, shared_ptr<Access> ref, bool committed) noexcept;
-
-  /**
    * Create a pipe artifact
    * \param c The command that creates the pipe
    * \returns a pipe artifact

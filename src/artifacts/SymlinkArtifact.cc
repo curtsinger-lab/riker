@@ -37,9 +37,26 @@ bool SymlinkArtifact::isCommitted() const noexcept {
   return _symlink_version->isCommitted() && Artifact::isCommitted();
 }
 
-void SymlinkArtifact::commit(shared_ptr<Reference> ref) noexcept {
-  _symlink_version->commit(ref);
-  Artifact::commit(ref);
+// Commit all final versions of this artifact to the filesystem
+void SymlinkArtifact::commit(fs::path path) noexcept {
+  _symlink_version->commit(path);
+  Artifact::commit(path);
+}
+
+// Compare all final versions of this artifact to the filesystem state
+void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
+  if (!_symlink_version->isCommitted()) {
+    // TODO: Compare to on-disk symlink state here
+  }
+
+  // Check the metadata state as well
+  Artifact::checkFinalState(path);
+}
+
+// Take fingerprints for all final versions of this artifact
+void SymlinkArtifact::fingerprintFinalState(fs::path path) noexcept {
+  // Symlinks are fully saved, so just call up to the artifact for metadata
+  Artifact::fingerprintFinalState(path);
 }
 
 // Check to see if this artifact's symlink destination matches a known version
@@ -56,18 +73,12 @@ void SymlinkArtifact::match(shared_ptr<Command> c,
   }
 }
 
-void SymlinkArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
-  // TODO: Check the on-disk symlink here
-
-  // Check metadata in the top-level artifact
-  Artifact::finalize(ref, commit);
-}
-
 Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
-                                    shared_ptr<DirArtifact> parent,
                                     fs::path resolved,
                                     fs::path remaining,
-                                    AccessFlags flags) noexcept {
+                                    shared_ptr<Access> ref) noexcept {
+  auto& flags = ref->getFlags();
+
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (remaining.empty() && flags.nofollow) return shared_from_this();
 
@@ -84,11 +95,13 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
     dest = dest.relative_path();
 
     // Now resolve relative to the root directory
-    auto root_dir = _env.getRootDir();
-    return root_dir->resolve(c, root_dir, "/", dest / remaining, flags);
+    return _env.getRootDir()->resolve(c, "/", dest / remaining, ref);
 
   } else {
     // If the destination is relative, resolution starts in this symlink's parent directory
-    return parent->resolve(c, parent, resolved.parent_path(), dest / remaining, flags);
+    auto parent_path = (resolved / "..").lexically_normal();
+    auto parent = _env.getPath(parent_path);
+    ASSERT(parent) << "Failed to resolve parent directory";
+    return parent->resolve(c, parent_path, dest / remaining, ref);
   }
 }

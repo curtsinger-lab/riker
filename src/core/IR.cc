@@ -97,9 +97,3 @@ int Access::open() const noexcept {
   auto [open_flags, open_mode] = _flags.toOpen();
   return ::open(getFullPath().c_str(), open_flags, open_mode);
 }
-
-tuple<struct stat, int> Access::lstat() const noexcept {
-  struct stat statbuf;
-  int rc = ::lstat(getFullPath().c_str(), &statbuf);
-  return {statbuf, rc};
-}

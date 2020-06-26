@@ -35,30 +35,21 @@ class DirArtifact final : public Artifact {
   /// Can this artifact be fully committed?
   virtual bool canCommit() const noexcept override;
 
-  /// Commit any un-committed version of this artifact using the provided reference
-  virtual void commit(shared_ptr<Reference> ref) noexcept override;
+  /// Commit all final versions of this artifact to the filesystem
+  virtual void commit(fs::path path) noexcept override;
 
-  /// Check the final state of this artifact and save any necessary final fingerprints
-  virtual void finalize(shared_ptr<Reference> ref, bool commit) noexcept override;
+  /// Compare all final versions of this artifact to the filesystem state
+  virtual void checkFinalState(fs::path path) noexcept override;
+
+  /// Take fingerprints for all final versions of this artifact
+  virtual void fingerprintFinalState(fs::path path) noexcept override;
 
   /************ Directory Operations ************/
 
-  /**
-   * Attempt to access a directory entry in the current artifact.
-   * \param c     The command making the access
-   * \param ref   A reference that was used to reach this directory
-   * \param entry The name of the entry being requested
-   * \returns a resolution result, holding either an artifact or error code
-   */
-  virtual Resolution getEntry(shared_ptr<Command> c,
-                              shared_ptr<Reference> ref,
-                              string entry) noexcept override;
-
   virtual Resolution resolve(shared_ptr<Command> c,
-                             shared_ptr<DirArtifact> parent,
                              fs::path resolved,
                              fs::path remaining,
-                             AccessFlags flags) noexcept override;
+                             shared_ptr<Access> ref) noexcept override;
 
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,

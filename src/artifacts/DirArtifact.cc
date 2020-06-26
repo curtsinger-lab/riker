@@ -48,74 +48,74 @@ bool DirArtifact::isCommitted() const noexcept {
   return Artifact::isCommitted();
 }
 
-void DirArtifact::commit(shared_ptr<Reference> ref) noexcept {
+// Commit all final versions of this artifact to the filesystem
+void DirArtifact::commit(fs::path path) noexcept {
   // Now walk through the versions in the order they were applied, and commit each one
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
-    v->commit(ref);
+    v->commit(path);
   }
 
   // Commit metadata through the Artifact base class
-  Artifact::commit(ref);
+  Artifact::commit(path);
 }
 
-void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
-  // If we've been here before, don't finalize the directory again (symlinks can create cycles)
-  if (_finalized) return;
-  _finalized = true;
-
-  auto access = ref->as<Access>();
+// Compare all final versions of this artifact to the filesystem state
+void DirArtifact::checkFinalState(fs::path path) noexcept {
+  // TODO: Check the final state of this directory against the filesystem
+  // Linked entries should exist, and unlinked entries should not
 
   // Loop over all versions to build a full list of entries
   map<string, shared_ptr<Artifact>> entries;
-  for (auto& v : _dir_versions) {
+  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
+    auto v = *iter;
     v->getKnownEntries(entries);
   }
 
+  // Now that we have known entries, recursively check the state of each
   for (auto [name, artifact] : entries) {
-    artifact->finalize(make_shared<Access>(access, name, AccessFlags{}), commit);
+    artifact->checkFinalState(path / name);
   }
 
-  // Allow the artifact to finalize metadata
-  Artifact::finalize(ref, commit);
+  // Check the metadata state as well
+  Artifact::checkFinalState(path);
 }
 
-Resolution DirArtifact::getEntry(shared_ptr<Command> c,
-                                 shared_ptr<Reference> ref,
-                                 string entry) noexcept {
-  auto access = ref->as<Access>();
-  ASSERT(access) << "Program somehow reached a directory without a path";
-
-  fs::path dir_path = access->getFullPath();
-
-  // If we're looking for entry ".", return this directory
-  if (entry == ".") return shared_from_this();
-
-  // If we're looking for entry "..", get the parent directory
-  if (entry == "..") return _env.getPath(dir_path.parent_path());
-
-  // Loop through versions until we get a definite answer about the entry
-  for (auto& v : _dir_versions) {
-    auto result = v->getEntry(_env, dir_path, entry);
-    // If the version returned something other than nullopt, that's the result
-    if (result.has_value()) {
-      _env.getBuild().observeInput(c, ref, shared_from_this(), v, InputType::PathResolution);
-      return result.value();
+// Take fingerprints for all final versions of this artifact
+void DirArtifact::fingerprintFinalState(fs::path path) noexcept {
+  LOG << "Fingerprinting " << path;
+  // Loop over all versions to build a full list of entries
+  map<string, shared_ptr<Artifact>> entries;
+  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
+    auto v = *iter;
+    v->getKnownEntries(entries);
+    INFO << "After version " << v;
+    for (auto [name, a] : entries) {
+      INFO << "  " << name;
     }
   }
 
-  // We should never hit this case becuase directories should always have a complete version.
-  FAIL << "Directory access ran out of versions.";
-  return ENOENT;
+  // Now that we have known entries, recursively check the state of each
+  for (auto [name, artifact] : entries) {
+    LOG << "  entry: " << name;
+    artifact->fingerprintFinalState(path / name);
+  }
+
+  // Check the metadata state as well
+  Artifact::fingerprintFinalState(path);
 }
 
 Resolution DirArtifact::resolve(shared_ptr<Command> c,
-                                shared_ptr<DirArtifact> parent,
                                 fs::path resolved,
                                 fs::path remaining,
-                                AccessFlags flags) noexcept {
+                                shared_ptr<Access> ref) noexcept {
+  INFO << "Resolving " << remaining << " in " << this;
+
   // If this is the last entry on the path, return this artifact
   if (remaining.empty()) return shared_from_this();
+
+  // If the remaining path is not empty, make sure we have execute permission in this directory
+  if (!checkAccess(c, AccessFlags{.x = true})) return EACCES;
 
   // We must be looking for an entry in this directory
   // Split the remaining path into the entry in this directory, and the rest of the remaining path
@@ -124,11 +124,77 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   fs::path rest;
   while (iter != remaining.end()) rest /= *iter++;
 
+  // Are we looking for the current directory?
+  if (entry == ".") return resolve(c, resolved, rest, ref);
+
+  // Are we looking for the parent directory?
+  if (entry == "..") {
+    auto parent = _env.getPath(resolved / entry);
+    ASSERT(parent) << "Failed to locate parent directory";
+    return parent->resolve(c, resolved / entry, rest, ref);
+  }
+
   // Loop through versions to find one that refers to the requested entry
-  // for (auto& v : _dir_versions) {
-  //  auto found = v->hasEntry
-  //}
-  return ENOENT;
+  Resolution result;
+  for (auto& v : _dir_versions) {
+    // Look for a matching entry in a version
+    auto lookup = v->getEntry(_env, resolved, entry);
+
+    // Did the version give a definitive answer?
+    if (lookup.has_value()) {
+      // Yes. Save the result and break out of the loop
+      result = lookup.value();
+
+      // TODO: Add a path resolution input from the version that matched
+
+      break;
+    }
+  }
+
+  // We now have either a resolved artifact or an error code. The next step depends on whether
+  // this is the last part of the path, or if there is more path left to resolve.
+  if (rest.empty()) {
+    // This is the last entry in the resolution path
+
+    auto flags = ref->getFlags();
+
+    // Was the reference required to create this entry?
+    if (flags.create && flags.exclusive && result) return EEXIST;
+
+    // If the resolution failed, can this access create it?
+    if (flags.create && result == ENOENT) {
+      // Can we write to this directory? If not, return an error
+      if (!checkAccess(c, AccessFlags{.w = true})) return EACCES;
+
+      // Create a new file
+      auto newfile = _env.createFile(resolved / entry, c, flags, true);
+      newfile->setName(fs::path(getName()) / entry);
+
+      // Mark the final reference as resolved so we can link the file
+      ref->resolvesTo(newfile);
+
+      // Link the new file into this directory
+      auto link_version = make_shared<LinkVersion>(entry, ref);
+      link_version->createdBy(c);
+      apply(c, nullptr, link_version);
+
+      // The resolution result is now the newly-created file
+      result = newfile;
+    }
+
+    // If the result was an error, return it
+    if (!result) return result;
+
+    // Otherwise continue with resolution, which may follow symlinks
+    return result->resolve(c, resolved / entry, rest, ref);
+
+  } else {
+    // There is still path left to resolve. Recursively resolve if the result succeeded
+    if (result) return result->resolve(c, resolved / entry, rest, ref);
+
+    // Otherwise return the error from the resolution
+    return result;
+  }
 }
 
 // Apply a link version to this artifact
@@ -151,7 +217,8 @@ void DirArtifact::apply(shared_ptr<Command> c,
 void DirArtifact::apply(shared_ptr<Command> c,
                         shared_ptr<Reference> ref,
                         shared_ptr<UnlinkVersion> writing) noexcept {
-  // Walk through previous versions to see if there are any links to the same entry we are unlinking
+  // Walk through previous versions to see if there are any links to the same entry we are
+  // unlinking
   for (auto& v : _dir_versions) {
     // Is v a link version?
     if (auto link = v->as<LinkVersion>()) {

@@ -70,13 +70,13 @@ class ContentVersion final : public Version {
   virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
   bool hasFingerprint() const noexcept { return _fingerprint.has_value(); }
 
   /// Save a fingerprint of this version
-  void fingerprint(shared_ptr<Reference> ref) noexcept;
+  void fingerprint(fs::path path) noexcept;
 
   /// Compare this version to another version
   bool matches(shared_ptr<ContentVersion> other) const noexcept {

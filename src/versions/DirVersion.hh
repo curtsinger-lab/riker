@@ -57,7 +57,7 @@ class LinkVersion : public DirVersion {
   virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Check to see if this version has a requested entry
   virtual optional<Resolution> getEntry(Env& env,
@@ -110,7 +110,7 @@ class UnlinkVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Check to see if this version allows a requested entry
   virtual optional<Resolution> getEntry(Env& env,
@@ -152,7 +152,7 @@ class ExistingDirVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env, fs::path dir_path, string name) noexcept override;
@@ -187,7 +187,7 @@ class EmptyDirVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
+  virtual void commit(fs::path path) noexcept override;
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,

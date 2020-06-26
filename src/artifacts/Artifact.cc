@@ -25,14 +25,12 @@ Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env)
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(shared_ptr<Command> c,
-                           shared_ptr<Reference> ref,
-                           AccessFlags flags) noexcept {
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version,
-                               InputType::PathResolution);
+bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
+  //_env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version,
+  //                             InputType::PathResolution);
 
   // If the current metadata version is committed, make sure we save it for future checks
-  if (_metadata_version->isCommitted()) _metadata_version->save(ref);
+  // if (_metadata_version->isCommitted()) _metadata_version->save(ref);
   return _metadata_version->checkAccess(flags);
 }
 
@@ -46,36 +44,36 @@ bool Artifact::isCommitted() const noexcept {
   return _metadata_version->isCommitted();
 }
 
-// Commit the latest metadata version
-void Artifact::commit(shared_ptr<Reference> ref) noexcept {
-  _metadata_version->commit(ref);
+// Commit all final versions of this artifact to the filesystem
+void Artifact::commit(fs::path path) noexcept {
+  _metadata_version->commit(path);
 }
 
-// Check the final state of this artifact, and save its fingerprint if necessary
-void Artifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
-  // Is the metadata for this artifact committed?
-  if (_metadata_version->isCommitted()) {
-    // Yes. We know the on-disk state already matches the latest version.
-    // Make sure we have a fingerprint for the metadata version
-    _metadata_version->fingerprint(ref);
-
-  } else {
-    // No. Check the on-disk version against the expected version
+// Compare all final versions of this artifact to the filesystem state
+void Artifact::checkFinalState(fs::path path) noexcept {
+  if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(ref);
+    v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
       // Yes. Report the mismatch
       _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
     } else {
-      // No. We can treat this artifact as if we committed it
+      // No. We can treat the metadata version as if it is committed
       _metadata_version->setCommitted();
     }
   }
+}
 
-  // If requested, commit all final state to the filesystem
-  if (commit) this->commit(ref);
+// Take fingerprints for all final versions of this artifact
+void Artifact::fingerprintFinalState(fs::path path) noexcept {
+  // If we already have a fingerprint, return
+  if (_metadata_version->hasFingerprint()) return;
+
+  // Take a fingerprint of the metadata, as long as it's committed
+  ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
+  _metadata_version->fingerprint(path);
 }
 
 /// Get the current metadata version for this artifact
@@ -120,4 +118,17 @@ void Artifact::apply(shared_ptr<Command> c,
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
+}
+
+Resolution Artifact::resolve(shared_ptr<Command> c,
+                             fs::path resolved,
+                             fs::path remaining,
+                             shared_ptr<Access> ref) noexcept {
+  if (remaining.empty()) {
+    // Check to see if the requested access mode is supported
+    if (!checkAccess(c, ref->getFlags())) return EACCES;
+    return shared_from_this();
+  }
+
+  return ENOTDIR;
 }

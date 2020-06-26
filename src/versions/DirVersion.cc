@@ -21,51 +21,43 @@ bool LinkVersion::canCommit() const noexcept {
   return _target->getArtifact()->canCommit();
 }
 
-void LinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
+void LinkVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
   // Just commit the reference that is linked. This will work in most cases, except when a build
   // creates a hard link from an existing artifact.
-  auto access = dir_ref->as<Access>();
-  ASSERT(access) << "Tried to commit a directory with a non-path reference";
-
-  auto entry_ref = make_shared<Access>(access, _entry, AccessFlags{});
   if (_target->getArtifact()->isCommitted()) {
     INFO << "    already committed";
   } else {
-    _target->getArtifact()->commit(entry_ref);
+    _target->getArtifact()->commit(path / _entry);
   }
 
   // Mark this version as committed
   Version::setCommitted();
 }
 
-void UnlinkVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
+void UnlinkVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
-  auto access = dir_ref->as<Access>();
-  ASSERT(access) << "Tried to commit a directory with a non-path reference";
-
   // Try to unlink the file
-  int rc = ::unlink((access->getFullPath() / _entry).c_str());
+  int rc = ::unlink((path / _entry).c_str());
 
   // If the unlink failed because the target is a directory, try again with rmdir
   if (rc == -1 && errno == EISDIR) {
-    rc = ::rmdir((access->getFullPath() / _entry).c_str());
+    rc = ::rmdir((path / _entry).c_str());
   }
 
-  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << dir_ref << ": " << rc << ", "
-                   << ERR;
+  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();
 }
 
-void ExistingDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
-  ASSERT(isCommitted()) << "Existing directory versions can never be uncommitted";
+void ExistingDirVersion::commit(fs::path path) noexcept {
+  FAIL_IF(!isCommitted()) << "Existing directory versions can never be uncommitted";
 }
 
-void EmptyDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
+void EmptyDirVersion::commit(fs::path path) noexcept {
   // TODO
 
   // Mark this version as committed

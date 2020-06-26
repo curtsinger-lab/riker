@@ -56,6 +56,9 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   // Run the emulated build to gather change and dependency information
   phase1.run(false);
 
+  // Compare the final state of artifacts in the emulated build to the filesystem
+  phase1.checkFinalState();
+
   // Now create a build to run the second phase, the actual build execution
   // Pass in the print_on_run and dry_run options this time
   Build phase2(trace, fingerprint, print_on_run, dry_run);
@@ -66,7 +69,9 @@ void do_build(FingerprintLevel fingerprint, bool print_on_run, bool dry_run) noe
   // Execute the planned build
   phase2.run(true);
 
-  // phase2.printTrace(cout);
+  // Commit the final state of the build to the filesystem and take fingerprints
+  phase2.commitFinalState();
+  phase2.fingerprintFinalState();
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
