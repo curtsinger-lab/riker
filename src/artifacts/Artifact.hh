@@ -25,6 +25,7 @@ namespace fs = std::filesystem;
 class Access;
 class Command;
 class ContentVersion;
+class DirArtifact;
 class Env;
 class LinkVersion;
 class MetadataVersion;
@@ -176,6 +177,15 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return ENOTDIR;
   }
 
+  virtual Resolution resolve(shared_ptr<Command> c,
+                             shared_ptr<DirArtifact> parent,
+                             fs::path resolved,
+                             fs::path remaining,
+                             AccessFlags flags) noexcept {
+    if (remaining.empty()) return shared_from_this();
+    return ENOTDIR;
+  }
+
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
@@ -249,7 +259,4 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
-
-  // Create a dummy symlink version pointer so we can still return references
-  inline static shared_ptr<SymlinkVersion> _dummy_symlink_version;
 };

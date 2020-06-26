@@ -64,15 +64,16 @@ void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
   if (_finalized) return;
   _finalized = true;
 
-  // Coerce the reference to one that has a path
-  auto a = ref->as<Access>();
-  ASSERT(a) << "Somehow a directory was reached without a path";
+  auto access = ref->as<Access>();
 
-  // Walk through and finalize each directory entry
-  for (auto& [name, wp] : _resolved) {
-    auto artifact = wp.lock();
-    if (name == "." || name == "..") continue;
-    if (artifact) artifact->finalize(make_shared<Access>(a, name, AccessFlags{}), commit);
+  // Loop over all versions to build a full list of entries
+  map<string, shared_ptr<Artifact>> entries;
+  for (auto& v : _dir_versions) {
+    v->getKnownEntries(entries);
+  }
+
+  for (auto [name, artifact] : entries) {
+    artifact->finalize(make_shared<Access>(access, name, AccessFlags{}), commit);
   }
 
   // Allow the artifact to finalize metadata
@@ -82,58 +83,52 @@ void DirArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept {
 Resolution DirArtifact::getEntry(shared_ptr<Command> c,
                                  shared_ptr<Reference> ref,
                                  string entry) noexcept {
-  // If we're looking for ".", return immediately
-  if (entry == ".") return shared_from_this();
-
   auto access = ref->as<Access>();
   ASSERT(access) << "Program somehow reached a directory without a path";
 
+  fs::path dir_path = access->getFullPath();
+
+  // If we're looking for entry ".", return this directory
+  if (entry == ".") return shared_from_this();
+
+  // If we're looking for entry "..", get the parent directory
+  if (entry == "..") return _env.getPath(dir_path.parent_path());
+
   // Loop through versions until we get a definite answer about the entry
-  Lookup found = Lookup::Maybe;
-  shared_ptr<DirVersion> matched;
-
-  // First check the uncommitted versions
   for (auto& v : _dir_versions) {
-    found = v->hasEntry(_env, access, entry);
-    if (found != Lookup::Maybe) {
-      matched = v;
-      break;
+    auto result = v->getEntry(_env, dir_path, entry);
+    // If the version returned something other than nullopt, that's the result
+    if (result.has_value()) {
+      _env.getBuild().observeInput(c, ref, shared_from_this(), v, InputType::PathResolution);
+      return result.value();
     }
   }
 
-  // Make sure we have a definite result
-  ASSERT(found != Lookup::Maybe) << "Directory lookup concluded without a definite answer";
+  // We should never hit this case becuase directories should always have a complete version.
+  FAIL << "Directory access ran out of versions.";
+  return ENOENT;
+}
 
-  if (found == Lookup::Yes) {
-    // Record the dependency on the matching version
-    _env.getBuild().observeInput(c, ref, shared_from_this(), matched, InputType::PathResolution);
+Resolution DirArtifact::resolve(shared_ptr<Command> c,
+                                shared_ptr<DirArtifact> parent,
+                                fs::path resolved,
+                                fs::path remaining,
+                                AccessFlags flags) noexcept {
+  // If this is the last entry on the path, return this artifact
+  if (remaining.empty()) return shared_from_this();
 
-    // Look in the cache of resolved artifacts
-    auto iter = _resolved.find(entry);
-    if (iter != _resolved.end()) {
-      // Found a match. Return it now.
-      return iter->second.lock();
-    } else {
-      // No cached artifact. Ask the version to provide the artifact if it can
-      auto artifact = matched->getEntry(entry);
+  // We must be looking for an entry in this directory
+  // Split the remaining path into the entry in this directory, and the rest of the remaining path
+  auto iter = remaining.begin();
+  fs::path entry = *iter++;
+  fs::path rest;
+  while (iter != remaining.end()) rest /= *iter++;
 
-      // If the version did not provide an artifact, look in the environment
-      if (!artifact) {
-        artifact = _env.getPath(access->getFullPath() / entry);
-        ASSERT(artifact) << "Failed to locate artifact for existing entry " << entry << " in "
-                         << ref;
-      }
-
-      // Save the resolved artifact in the cache and return
-      _resolved.emplace_hint(iter, entry, artifact);
-      return artifact;
-    }
-
-  } else {
-    // The entry does not exist. Record a dependency on the version that excluded this entry.
-    _env.getBuild().observeInput(c, ref, shared_from_this(), matched, InputType::PathResolution);
-    return ENOENT;
-  }
+  // Loop through versions to find one that refers to the requested entry
+  // for (auto& v : _dir_versions) {
+  //  auto found = v->hasEntry
+  //}
+  return ENOENT;
 }
 
 // Apply a link version to this artifact
@@ -150,9 +145,6 @@ void DirArtifact::apply(shared_ptr<Command> c,
 
   // Record this version in the artifact as well
   appendVersion(writing);
-
-  // Cache the resolution for this linked artifact
-  _resolved[writing->getEntryName()] = writing->getTarget()->getArtifact();
 }
 
 // Apply an unlink version to this artifact
@@ -184,7 +176,4 @@ void DirArtifact::apply(shared_ptr<Command> c,
 
   // Record this version in the artifact as well
   appendVersion(writing);
-
-  // Remove the unlinked entry from the cache of resolved artifacts
-  _resolved.erase(writing->getEntryName());
 }

@@ -225,7 +225,6 @@ CEREAL_REGISTER_TYPE(ContentVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
-CEREAL_REGISTER_TYPE(ExistingDirVersion);
 CEREAL_REGISTER_TYPE(LinkVersion)
 CEREAL_REGISTER_TYPE(UnlinkVersion)
 CEREAL_REGISTER_TYPE(EmptyDirVersion);

@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 
+#include "artifacts/DirArtifact.hh"
 #include "build/BuildObserver.hh"
 #include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
@@ -22,7 +23,6 @@ class Access;
 class Artifact;
 class Build;
 class Command;
-class DirArtifact;
 class Pipe;
 class PipeArtifact;
 class Reference;
@@ -40,7 +40,7 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")) {}
+  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")->as<DirArtifact>()) {}
 
   // Disallow Copy
   Env(const Env&) = delete;
@@ -97,7 +97,7 @@ class Env {
   /**
    * Get the root directory
    */
-  shared_ptr<Artifact> getRootDir() const noexcept { return _root_dir; }
+  shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
 
   /**
    * Create a file artifact that exists only in the filesystem model
@@ -118,5 +118,5 @@ class Env {
   map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
 
   /// An artifact that corresponds to the root directory
-  shared_ptr<Artifact> _root_dir;
+  shared_ptr<DirArtifact> _root_dir;
 };

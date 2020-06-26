@@ -73,20 +73,22 @@ void EmptyDirVersion::commit(shared_ptr<Reference> dir_ref) noexcept {
 }
 
 /// Check if this version has a specific entry
-Lookup ExistingDirVersion::hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept {
+optional<Resolution> ExistingDirVersion::getEntry(Env& env,
+                                                  fs::path dir_path,
+                                                  string name) noexcept {
   auto present_iter = _present.find(name);
-  if (present_iter != _present.end()) return Lookup::Yes;
+  if (present_iter != _present.end()) return present_iter->second;
 
   auto absent_iter = _absent.find(name);
-  if (absent_iter != _absent.end()) return Lookup::No;
+  if (absent_iter != _absent.end()) return ENOENT;
 
   // Check the environment for the file
-  auto artifact = env.getPath(ref->getFullPath() / name);
+  auto artifact = env.getPath(dir_path / name);
   if (artifact) {
-    _present.emplace_hint(present_iter, name);
-    return Lookup::Yes;
+    _present.emplace_hint(present_iter, name, artifact);
+    return artifact;
   } else {
     _absent.emplace_hint(absent_iter, name);
-    return Lookup::No;
+    return ENOENT;
   }
 }

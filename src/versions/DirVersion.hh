@@ -2,14 +2,18 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
 
+#include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::nullopt;
+using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
@@ -17,9 +21,6 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 class Env;
-
-/// Possible returned values from an attempt to get an entry from a directory version
-enum class Lookup { Yes, No, Maybe };
 
 /// Base class for all of the various types of directory versions
 class DirVersion : public Version {
@@ -29,13 +30,9 @@ class DirVersion : public Version {
    * A yes or no answer is definite, but partial versions can return "maybe", indicating that
    * checking should continue on to additional version.
    */
-  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept = 0;
+  virtual optional<Resolution> getEntry(Env& env, fs::path dir_path, string name) noexcept = 0;
 
-  /**
-   * Get the artifact corresponding to a named entry.
-   * Returning nullptr indicates that the directory should get the artifact from the filesystem.
-   */
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept = 0;
+  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
 
  private:
   SERIALIZE_EMPTY();
@@ -63,16 +60,18 @@ class LinkVersion : public DirVersion {
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check to see if this version has a requested entry
-  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
-    // If the lookup is searching for the linked entry, return yes. Otherwise fall through.
-    if (_entry == name) return Lookup::Yes;
-    return Lookup::Maybe;
+  virtual optional<Resolution> getEntry(Env& env,
+                                        fs::path dir_path,
+                                        string name) noexcept override {
+    // If the lookup is searching for the linked entry, return it.
+    if (_entry == name) return _target->getArtifact();
+
+    // No match. Return a null option so the search can continue
+    return nullopt;
   }
 
-  /// Get the artifact this linked entry refers to
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
-    ASSERT(name == _entry) << "Requested invalid entry from LinkVersion";
-    return _target->getArtifact();
+  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
+    entries.emplace(_entry, _target->getArtifact());
   }
 
   /// Get the name for this version type
@@ -114,16 +113,18 @@ class UnlinkVersion : public DirVersion {
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check to see if this version allows a requested entry
-  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
-    // If the lookup is searching for the unlinked entry, return "no". Otherwise return "maybe".
-    if (_entry == name) return Lookup::No;
-    return Lookup::Maybe;
+  virtual optional<Resolution> getEntry(Env& env,
+                                        fs::path dir_path,
+                                        string name) noexcept override {
+    // If the lookup is searching for the unlinked entry, return ENOENT.
+    if (_entry == name) return ENOENT;
+
+    // No match, so no result from this partial version
+    return nullopt;
   }
 
-  /// Get an artifact from this entry. Should never be called.
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override {
-    ASSERT(false) << "Requested entry from UnlinkVersion";
-    return nullptr;
+  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
+    entries.erase(_entry);
   }
 
   /// Get the name for this version type
@@ -154,10 +155,13 @@ class ExistingDirVersion : public DirVersion {
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check if this version has a specific entry
-  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override;
+  virtual optional<Resolution> getEntry(Env& env, fs::path dir_path, string name) noexcept override;
 
-  /// Get a specific entry from this version
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
+    for (auto& [name, artifact] : _present) {
+      entries.emplace(name, artifact);
+    }
+  }
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "list"; }
@@ -167,13 +171,10 @@ class ExistingDirVersion : public DirVersion {
 
  private:
   /// Entries that are known to be in this directory
-  set<string> _present;
+  map<string, shared_ptr<Artifact>> _present;
 
   /// Entries that are known NOT to be in this directory
   set<string> _absent;
-
-  // Declare fields for serialization
-  SERIALIZE(BASE(DirVersion), _present, _absent);
 };
 
 /// A version to represent a directory that was created during the build
@@ -189,13 +190,13 @@ class EmptyDirVersion : public DirVersion {
   virtual void commit(shared_ptr<Reference> dir_ref) noexcept override;
 
   /// Check if this version has a specific entry
-  virtual Lookup hasEntry(Env& env, shared_ptr<Access> ref, string name) noexcept override {
-    if (name == "." || name == "..") return Lookup::Yes;
-    return Lookup::No;
+  virtual optional<Resolution> getEntry(Env& env,
+                                        fs::path dir_path,
+                                        string name) noexcept override {
+    return ENOENT;
   }
 
-  /// Get a specific entry from this version
-  virtual shared_ptr<Artifact> getEntry(string name) const noexcept override { return nullptr; }
+  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {}
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "empty"; }

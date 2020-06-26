@@ -62,3 +62,33 @@ void SymlinkArtifact::finalize(shared_ptr<Reference> ref, bool commit) noexcept 
   // Check metadata in the top-level artifact
   Artifact::finalize(ref, commit);
 }
+
+Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
+                                    shared_ptr<DirArtifact> parent,
+                                    fs::path resolved,
+                                    fs::path remaining,
+                                    AccessFlags flags) noexcept {
+  // If this is the end of the path and the nofollow flag is set, return this symlink
+  if (remaining.empty() && flags.nofollow) return shared_from_this();
+
+  // Otherwise we follow the symlink. That creates a path resolution dependency on our version
+  //_env.getBuild().observeInput(c, self, shared_from_this(), _symlink_version,
+  //                             InputType::PathResolution);
+
+  // Get the symlink destination
+  auto dest = _symlink_version->getDestination();
+
+  // Is the symlink destination relative or absolute?
+  if (dest.is_absolute()) {
+    // Strip the leading slash off the destination
+    dest = dest.relative_path();
+
+    // Now resolve relative to the root directory
+    auto root_dir = _env.getRootDir();
+    return root_dir->resolve(c, root_dir, "/", dest / remaining, flags);
+
+  } else {
+    // If the destination is relative, resolution starts in this symlink's parent directory
+    return parent->resolve(c, parent, resolved.parent_path(), dest / remaining, flags);
+  }
+}

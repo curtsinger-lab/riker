@@ -2,6 +2,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "artifacts/Artifact.hh"
@@ -9,6 +10,7 @@
 #include "versions/DirVersion.hh"
 
 using std::map;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::weak_ptr;
@@ -52,6 +54,12 @@ class DirArtifact final : public Artifact {
                               shared_ptr<Reference> ref,
                               string entry) noexcept override;
 
+  virtual Resolution resolve(shared_ptr<Command> c,
+                             shared_ptr<DirArtifact> parent,
+                             fs::path resolved,
+                             fs::path remaining,
+                             AccessFlags flags) noexcept override;
+
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
@@ -63,9 +71,9 @@ class DirArtifact final : public Artifact {
                      shared_ptr<UnlinkVersion> writing) noexcept override;
 
  private:
-  map<string, weak_ptr<Artifact>> _resolved;
-
   list<shared_ptr<DirVersion>> _dir_versions;
 
   bool _finalized = false;
+
+  optional<shared_ptr<Artifact>> _parent_dir;
 };

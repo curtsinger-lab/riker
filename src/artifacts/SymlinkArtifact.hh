@@ -47,6 +47,12 @@ class SymlinkArtifact : public Artifact {
                      shared_ptr<Reference> ref,
                      shared_ptr<SymlinkVersion> expected) noexcept override;
 
+  virtual Resolution resolve(shared_ptr<Command> c,
+                             shared_ptr<DirArtifact> parent,
+                             fs::path resolved,
+                             fs::path remaining,
+                             AccessFlags flags) noexcept override;
+
  private:
   /// The currrent version of this symlink
   shared_ptr<SymlinkVersion> _symlink_version;
