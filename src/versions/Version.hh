@@ -45,12 +45,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Record that this version was created by command c
   void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
 
-  /// Check if this version has been accessed
-  bool isAccessed() const noexcept { return _accessed; }
-
-  /// Record that this version has been accessed
-  void accessed() noexcept { _accessed = true; }
-
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
 
@@ -86,7 +80,4 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// The command that created this version
   weak_ptr<Command> _creator;
-
-  /// Has this version been accessed by any command?
-  bool _accessed = false;
 };

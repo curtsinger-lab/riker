@@ -8,7 +8,6 @@
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
-#include "build/AccessFilter.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
 #include "core/IR.hh"
@@ -128,28 +127,6 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   return ref;
 }
 
-template <>
-AccessFilter* Build::_getFilter<MetadataVersion>() noexcept {
-  return &_metadata_filter;
-}
-
-template <>
-AccessFilter* Build::_getFilter<FileVersion>() noexcept {
-  return &_content_filter;
-}
-
-// Enable access filtering for specific types
-template <class VersionType>
-bool use_filter = false;
-
-// Turn on access filtering for metadata
-// template <>
-// bool use_filter<MetadataVersion> = true;
-
-// Turn on access filtering for content
-// template <>
-// bool use_filter<FileVersion> = true;
-
 // Command c accesses an artifact
 template <class VersionType>
 void Build::match(shared_ptr<Command> c,
@@ -168,9 +145,6 @@ void Build::match(shared_ptr<Command> c,
     return;
   }
 
-  // If this command does not need to trace the metadata access, return immediately
-  if (use_filter<VersionType> && !_getFilter<VersionType>()->readRequired(c.get(), ref)) return;
-
   // Are we emulating this operation?
   if (emulating) {
     // Yes. We need an expected version to check for
@@ -188,17 +162,15 @@ void Build::match(shared_ptr<Command> c,
     // If we don't have an expected version already, get one from the current state
     if (!expected) expected = ref->getArtifact()->get<VersionType>(c, ref, InputType::Accessed);
 
-    // Take a fingerprint of the current version if it has a path
-    if (auto access = ref->as<Access>()) {
-      expected->fingerprint(access->getFullPath());
+    // If a different command created this version, fingerprint it for later comparison
+    if (expected->getCreator() != c) {
+      // We can only take a fingerprint with a path
+      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
     }
 
     // Add a match step to the trace
     _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected));
   }
-
-  // Report the read
-  if (use_filter<VersionType>) _getFilter<VersionType>()->read(c.get(), ref);
 }
 
 // Explicitly instantiate match for metadata
@@ -237,10 +209,6 @@ void Build::apply(shared_ptr<Command> c,
     return;
   }
 
-  // Do we have to log this write?
-  if (use_filter<VersionType> && !_getFilter<VersionType>()->writeRequired(c.get(), ref)) return;
-  // YIKES! If we write-combine into an empty created file, the fingerprint is never updated.
-
   // Are we emulating this command?
   if (emulating) {
     // Yes. We should have an existing version to write
@@ -277,9 +245,6 @@ void Build::apply(shared_ptr<Command> c,
     // Add a new trace step
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));
   }
-
-  // Report the write
-  if (use_filter<VersionType>) _getFilter<VersionType>()->write(c.get(), ref, written);
 }
 
 // Explicitly instantiate apply for metadata versions

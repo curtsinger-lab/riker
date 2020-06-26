@@ -77,9 +77,6 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c,
                                                  shared_ptr<Reference> ref,
                                                  InputType t) noexcept {
-  // Mark the metadata as accessed
-  _content_version->accessed();
-
   // Notify the build of the input
   _env.getBuild().observeInput(c, ref, shared_from_this(), _content_version, t);
 

@@ -82,9 +82,6 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c,
                                                   shared_ptr<Reference> ref,
                                                   InputType t) noexcept {
-  // Mark the metadata as accessed
-  _metadata_version->accessed();
-
   // Notify the build of the input
   _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version, t);
 

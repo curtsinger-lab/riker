@@ -5,7 +5,6 @@
 #include <set>
 #include <vector>
 
-#include "build/AccessFilter.hh"
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
@@ -192,13 +191,4 @@ class Build {
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;
-
-  /// Access filters for version types that allow it
-  AccessFilter _metadata_filter;
-  AccessFilter _content_filter;
-
-  template <class VersionType>
-  AccessFilter* _getFilter() noexcept {
-    return nullptr;
-  }
 };

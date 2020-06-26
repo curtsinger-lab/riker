@@ -19,9 +19,6 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
 shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
                                                        shared_ptr<Reference> ref,
                                                        InputType t) noexcept {
-  // Mark the metadata as accessed
-  _symlink_version->accessed();
-
   // Notify the build of the input
   _env.getBuild().observeInput(c, ref, shared_from_this(), _symlink_version, t);
 
