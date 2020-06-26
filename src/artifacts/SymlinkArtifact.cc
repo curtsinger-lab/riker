@@ -76,8 +76,12 @@ void SymlinkArtifact::match(shared_ptr<Command> c,
 Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
                                     fs::path resolved,
                                     fs::path remaining,
-                                    shared_ptr<Access> ref) noexcept {
+                                    shared_ptr<Access> ref,
+                                    bool committed) noexcept {
   auto& flags = ref->getFlags();
+
+  // If requested, commit this artifact
+  if (committed) commit(resolved);
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (remaining.empty() && flags.nofollow) return shared_from_this();
@@ -95,13 +99,13 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
     dest = dest.relative_path();
 
     // Now resolve relative to the root directory
-    return _env.getRootDir()->resolve(c, "/", dest / remaining, ref);
+    return _env.getRootDir()->resolve(c, "/", dest / remaining, ref, committed);
 
   } else {
     // If the destination is relative, resolution starts in this symlink's parent directory
     auto parent_path = (resolved / "..").lexically_normal();
     auto parent = _env.getPath(parent_path);
     ASSERT(parent) << "Failed to resolve parent directory";
-    return parent->resolve(c, parent_path, dest / remaining, ref);
+    return parent->resolve(c, parent_path, dest / remaining, ref, committed);
   }
 }

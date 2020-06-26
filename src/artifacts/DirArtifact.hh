@@ -49,7 +49,8 @@ class DirArtifact final : public Artifact {
   virtual Resolution resolve(shared_ptr<Command> c,
                              fs::path resolved,
                              fs::path remaining,
-                             shared_ptr<Access> ref) noexcept override;
+                             shared_ptr<Access> ref,
+                             bool committed) noexcept override;
 
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,
@@ -63,8 +64,6 @@ class DirArtifact final : public Artifact {
 
  private:
   list<shared_ptr<DirVersion>> _dir_versions;
-
-  bool _finalized = false;
 
   optional<shared_ptr<Artifact>> _parent_dir;
 };

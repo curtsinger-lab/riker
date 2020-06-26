@@ -83,21 +83,15 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
 
 // Take fingerprints for all final versions of this artifact
 void DirArtifact::fingerprintFinalState(fs::path path) noexcept {
-  LOG << "Fingerprinting " << path;
   // Loop over all versions to build a full list of entries
   map<string, shared_ptr<Artifact>> entries;
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
     v->getKnownEntries(entries);
-    INFO << "After version " << v;
-    for (auto [name, a] : entries) {
-      INFO << "  " << name;
-    }
   }
 
   // Now that we have known entries, recursively check the state of each
   for (auto [name, artifact] : entries) {
-    LOG << "  entry: " << name;
     artifact->fingerprintFinalState(path / name);
   }
 
@@ -108,9 +102,8 @@ void DirArtifact::fingerprintFinalState(fs::path path) noexcept {
 Resolution DirArtifact::resolve(shared_ptr<Command> c,
                                 fs::path resolved,
                                 fs::path remaining,
-                                shared_ptr<Access> ref) noexcept {
-  INFO << "Resolving " << remaining << " in " << this;
-
+                                shared_ptr<Access> ref,
+                                bool committed) noexcept {
   // If this is the last entry on the path, return this artifact
   if (remaining.empty()) return shared_from_this();
 
@@ -125,13 +118,13 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   while (iter != remaining.end()) rest /= *iter++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(c, resolved, rest, ref);
+  if (entry == ".") return resolve(c, resolved, rest, ref, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = _env.getPath(resolved / entry);
     ASSERT(parent) << "Failed to locate parent directory";
-    return parent->resolve(c, resolved / entry, rest, ref);
+    return parent->resolve(c, resolved / entry, rest, ref, committed);
   }
 
   // Loop through versions to find one that refers to the requested entry
@@ -144,6 +137,9 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (lookup.has_value()) {
       // Yes. Save the result and break out of the loop
       result = lookup.value();
+
+      // Commit the relevant version if requested
+      if (committed) v->commit(resolved);
 
       // TODO: Add a path resolution input from the version that matched
 
@@ -167,7 +163,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       if (!checkAccess(c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env.createFile(resolved / entry, c, flags, true);
+      auto newfile = _env.createFile(resolved / entry, c, flags, committed);
       newfile->setName(fs::path(getName()) / entry);
 
       // Mark the final reference as resolved so we can link the file
@@ -176,6 +172,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       // Link the new file into this directory
       auto link_version = make_shared<LinkVersion>(entry, ref);
       link_version->createdBy(c);
+      if (committed) link_version->setCommitted();
       apply(c, nullptr, link_version);
 
       // The resolution result is now the newly-created file
@@ -186,11 +183,11 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (!result) return result;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return result->resolve(c, resolved / entry, rest, ref);
+    return result->resolve(c, resolved / entry, rest, ref, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
-    if (result) return result->resolve(c, resolved / entry, rest, ref);
+    if (result) return result->resolve(c, resolved / entry, rest, ref, committed);
 
     // Otherwise return the error from the resolution
     return result;

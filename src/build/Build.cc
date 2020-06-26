@@ -118,9 +118,11 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   auto ref = emulating;
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
-  // Resolve the reference
-  auto full_path = ref->getFullPath().relative_path();
-  ref->resolvesTo(_env.getRootDir()->resolve(c, "/", full_path, ref));
+  // Resolve the reference relative to its base
+  auto dir = base->getArtifact();
+  auto dirpath = base->getFullPath();
+  ASSERT(dir) << "Cannot resolve a reference relative to an unknown directory";
+  ref->resolvesTo(dir->resolve(c, dirpath, path, ref, !emulating));
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -341,7 +343,9 @@ void Build::launch(shared_ptr<Command> c,
       for (auto& [index, desc] : child->getInitialFDs()) {
         if (auto access = desc.getReference()->as<Access>()) {
           WARN << "Resolving " << access->getFullPath() << " at startup";
-          //_env.resolveRef(child, access, !emulating);
+          auto base = access->getBase();
+          base->getArtifact()->resolve(child, base->getFullPath(), access->getRelativePath(),
+                                       access, true);
         }
       }
 

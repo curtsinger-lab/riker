@@ -169,7 +169,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual Resolution resolve(shared_ptr<Command> c,
                              fs::path resolved,
                              fs::path remaining,
-                             shared_ptr<Access> ref) noexcept;
+                             shared_ptr<Access> ref,
+                             bool committed) noexcept;
 
   /// Apply a link version to this artifact
   virtual void apply(shared_ptr<Command> c,

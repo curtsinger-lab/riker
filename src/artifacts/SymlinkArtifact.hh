@@ -53,7 +53,8 @@ class SymlinkArtifact : public Artifact {
   virtual Resolution resolve(shared_ptr<Command> c,
                              fs::path resolved,
                              fs::path remaining,
-                             shared_ptr<Access> ref) noexcept override;
+                             shared_ptr<Access> ref,
+                             bool committed) noexcept override;
 
  private:
   /// The currrent version of this symlink
