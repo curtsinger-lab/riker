@@ -5,7 +5,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/Build.hh"
-#include "versions/ContentVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
 
@@ -14,7 +14,7 @@ using std::string;
 
 FileArtifact::FileArtifact(Env& env,
                            shared_ptr<MetadataVersion> mv,
-                           shared_ptr<ContentVersion> cv) noexcept :
+                           shared_ptr<FileVersion> cv) noexcept :
     Artifact(env, mv) {
   appendVersion(cv);
   _content_version = cv;
@@ -41,7 +41,7 @@ void FileArtifact::commit(fs::path path) noexcept {
 // Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
-    auto v = make_shared<ContentVersion>();
+    auto v = make_shared<FileVersion>();
     v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
@@ -74,9 +74,9 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// Get the current content version for this artifact
-shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c,
-                                                    shared_ptr<Reference> ref,
-                                                    InputType t) noexcept {
+shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c,
+                                                 shared_ptr<Reference> ref,
+                                                 InputType t) noexcept {
   // Mark the metadata as accessed
   _content_version->accessed();
 
@@ -90,7 +90,7 @@ shared_ptr<ContentVersion> FileArtifact::getContent(shared_ptr<Command> c,
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::match(shared_ptr<Command> c,
                          shared_ptr<Reference> ref,
-                         shared_ptr<ContentVersion> expected) noexcept {
+                         shared_ptr<FileVersion> expected) noexcept {
   // Get the current metadata
   auto observed = getContent(c, ref, InputType::Accessed);
 
@@ -104,7 +104,7 @@ void FileArtifact::match(shared_ptr<Command> c,
 /// Apply a new content version to this artifact
 void FileArtifact::apply(shared_ptr<Command> c,
                          shared_ptr<Reference> ref,
-                         shared_ptr<ContentVersion> writing) noexcept {
+                         shared_ptr<FileVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing;

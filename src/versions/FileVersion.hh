@@ -18,26 +18,26 @@ using std::string;
 
 class Reference;
 
-struct ContentFingerprint {
+struct FileFingerprint {
  public:
   bool empty;
   struct timespec mtime;
 
   /// Default constructor for deserialization
-  ContentFingerprint() noexcept = default;
+  FileFingerprint() noexcept = default;
 
   /// Create a fingerprint from stat data
-  ContentFingerprint(struct stat& s) noexcept : empty(s.st_size == 0), mtime(s.st_mtim) {}
+  FileFingerprint(struct stat& s) noexcept : empty(s.st_size == 0), mtime(s.st_mtim) {}
 
   /// Create a fingerprint for an empty file
-  static ContentFingerprint makeEmpty() noexcept {
-    ContentFingerprint f;
+  static FileFingerprint makeEmpty() noexcept {
+    FileFingerprint f;
     f.empty = true;
     return f;
   }
 
   /// Compare to another fingerprint instance
-  bool operator==(const ContentFingerprint& other) const noexcept {
+  bool operator==(const FileFingerprint& other) const noexcept {
     // Two empty files are always equivalent
     if (empty && other.empty) return true;
 
@@ -46,7 +46,7 @@ struct ContentFingerprint {
            std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
   }
 
-  friend ostream& operator<<(ostream& o, const ContentFingerprint& f) {
+  friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
     if (f.empty) return o << "empty";
     return o << "mtime=" << f.mtime.tv_sec << "." << std::setfill('0') << std::setw(9)
              << f.mtime.tv_nsec;
@@ -55,13 +55,13 @@ struct ContentFingerprint {
   SERIALIZE(empty, mtime);
 };
 
-class ContentVersion final : public Version {
+class FileVersion final : public Version {
  public:
-  /// Create a ContentVersion with no existing fingerprint
-  ContentVersion() noexcept = default;
+  /// Create a FileVersion with no existing fingerprint
+  FileVersion() noexcept = default;
 
-  /// Create a ContentVersion with an existing fingerprint
-  ContentVersion(ContentFingerprint&& f) noexcept : _fingerprint(f) {}
+  /// Create a FileVersion with an existing fingerprint
+  FileVersion(FileFingerprint&& f) noexcept : _fingerprint(f) {}
 
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "content"; }
@@ -79,7 +79,7 @@ class ContentVersion final : public Version {
   void fingerprint(fs::path path) noexcept;
 
   /// Compare this version to another version
-  bool matches(shared_ptr<ContentVersion> other) const noexcept {
+  bool matches(shared_ptr<FileVersion> other) const noexcept {
     if (other.get() == this) return true;
     return _fingerprint == other->_fingerprint;
   }
@@ -93,7 +93,7 @@ class ContentVersion final : public Version {
   }
 
  private:
-  optional<ContentFingerprint> _fingerprint;
+  optional<FileFingerprint> _fingerprint;
 
   SERIALIZE(BASE(Version), _fingerprint);
 };

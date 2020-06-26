@@ -9,13 +9,13 @@ using std::shared_ptr;
 using std::string;
 
 class Command;
-class ContentVersion;
+class FileVersion;
 class Reference;
 class Version;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<ContentVersion> cv) noexcept;
+  FileArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -40,21 +40,21 @@ class FileArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c,
-                                                shared_ptr<Reference> ref,
-                                                InputType t) noexcept override;
+  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c,
+                                             shared_ptr<Reference> ref,
+                                             InputType t) noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void match(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> expected) noexcept override;
+                     shared_ptr<FileVersion> expected) noexcept override;
 
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> writing) noexcept override;
+                     shared_ptr<FileVersion> writing) noexcept override;
 
  private:
   /// The latest content version
-  shared_ptr<ContentVersion> _content_version;
+  shared_ptr<FileVersion> _content_version;
 };

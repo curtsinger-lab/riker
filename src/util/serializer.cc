@@ -25,8 +25,8 @@
 #include "core/IR.hh"
 #include "core/Trace.hh"
 #include "util/log.hh"
-#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
@@ -221,7 +221,7 @@ namespace std {
 
 // Versions
 CEREAL_REGISTER_TYPE(MetadataVersion);
-CEREAL_REGISTER_TYPE(ContentVersion);
+CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
@@ -237,13 +237,13 @@ CEREAL_REGISTER_TYPE(Access);
 
 // Predicates
 CEREAL_REGISTER_TYPE(Match<MetadataVersion>);
-CEREAL_REGISTER_TYPE(Match<ContentVersion>);
+CEREAL_REGISTER_TYPE(Match<FileVersion>);
 CEREAL_REGISTER_TYPE(Match<SymlinkVersion>);
 
 // Actions
 CEREAL_REGISTER_TYPE(Launch);
 CEREAL_REGISTER_TYPE(Join);
 CEREAL_REGISTER_TYPE(Apply<MetadataVersion>);
-CEREAL_REGISTER_TYPE(Apply<ContentVersion>);
+CEREAL_REGISTER_TYPE(Apply<FileVersion>);
 CEREAL_REGISTER_TYPE(Apply<LinkVersion>);
 CEREAL_REGISTER_TYPE(Apply<UnlinkVersion>);

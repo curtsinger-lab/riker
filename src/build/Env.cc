@@ -20,7 +20,7 @@
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/path.hh"
-#include "versions/ContentVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
@@ -40,7 +40,7 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   mv->setCommitted();
 
-  auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
+  auto cv = make_shared<FileVersion>(FileFingerprint::makeEmpty());
   cv->setCommitted();
 
   auto pipe = make_shared<PipeArtifact>(*this, mv, cv);
@@ -140,7 +140,7 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   shared_ptr<Artifact> a;
   if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
-    auto cv = make_shared<ContentVersion>(statbuf);
+    auto cv = make_shared<FileVersion>(statbuf);
     cv->setCommitted();
     a = make_shared<FileArtifact>(*this, mv, cv);
 
@@ -158,7 +158,7 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   } else {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-    auto cv = make_shared<ContentVersion>(statbuf);
+    auto cv = make_shared<FileVersion>(statbuf);
     cv->setCommitted();
     a = make_shared<FileArtifact>(*this, mv, cv);
   }
@@ -191,7 +191,7 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
   if (committed) mv->setCommitted();
 
   // Create an initial content version
-  auto cv = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
+  auto cv = make_shared<FileVersion>(FileFingerprint::makeEmpty());
   cv->createdBy(creator);
   if (committed) cv->setCommitted();
 

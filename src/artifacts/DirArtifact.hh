@@ -16,9 +16,9 @@ using std::string;
 using std::weak_ptr;
 
 class Command;
+class FileVersion;
 class Reference;
 class Version;
-class ContentVersion;
 
 class DirArtifact final : public Artifact {
  public:

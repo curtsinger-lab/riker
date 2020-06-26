@@ -27,7 +27,7 @@ namespace fs = std::filesystem;
 class Artifact;
 class Build;
 class Command;
-class ContentVersion;
+class FileVersion;
 class MetadataVersion;
 class SymlinkVersion;
 class Version;

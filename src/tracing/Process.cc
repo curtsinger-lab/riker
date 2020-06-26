@@ -18,8 +18,8 @@
 #include "tracing/Tracer.hh"
 #include "util/log.hh"
 #include "util/path.hh"
-#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
+#include "versions/FileVersion.hh"
 
 using std::function;
 
@@ -210,8 +210,8 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       // If the file is truncated by the open call, set the contents in the artifact
       if (ref->getFlags().truncate) {
-        auto written = make_shared<ContentVersion>(ContentFingerprint::makeEmpty());
-        _build.apply<ContentVersion>(_command, ref, written);
+        auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
+        _build.apply<FileVersion>(_command, ref, written);
       }
 
       // Is this new descriptor closed on exec?
@@ -480,7 +480,7 @@ void Process::_read(int fd) noexcept {
 
     // Create a dependency on the artifact's contents
     const auto& descriptor = _fds.at(fd);
-    _build.match<ContentVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getReference());
   });
 }
 
@@ -489,7 +489,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _build.match<ContentVersion>(_command, descriptor.getReference());
+  _build.match<FileVersion>(_command, descriptor.getReference());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -499,7 +499,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _build.apply<ContentVersion>(_command, descriptor.getReference());
+    _build.apply<FileVersion>(_command, descriptor.getReference());
   });
 }
 
@@ -526,13 +526,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _build.match<ContentVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getReference());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _build.apply<ContentVersion>(_command, descriptor.getReference());
+      _build.apply<FileVersion>(_command, descriptor.getReference());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -557,7 +557,7 @@ void Process::_truncate(string pathname, long length) noexcept {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _build.match<ContentVersion>(_command, ref);
+    _build.match<FileVersion>(_command, ref);
   }
 
   // Finish the syscall and resume the process
@@ -573,7 +573,7 @@ void Process::_truncate(string pathname, long length) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
-      _build.apply<ContentVersion>(_command, ref);
+      _build.apply<FileVersion>(_command, ref);
     }
   });
 }
@@ -584,7 +584,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.match<ContentVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getReference());
   }
 
   // Finish the syscall and resume the process
@@ -593,7 +593,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.apply<ContentVersion>(_command, descriptor.getReference());
+      _build.apply<FileVersion>(_command, descriptor.getReference());
     }
   });
 }
@@ -605,17 +605,17 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 
   // The command depends on the contents of the output file, unless it is totally overwritten (not
   // checked yet)
-  _build.match<ContentVersion>(_command, out_desc.getReference());
+  _build.match<FileVersion>(_command, out_desc.getReference());
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     // The command has now read the input file, so it depends on the contents there
-    _build.match<ContentVersion>(_command, in_desc.getReference());
+    _build.match<FileVersion>(_command, in_desc.getReference());
 
     // The command has now set the contents of the output file
-    _build.apply<ContentVersion>(_command, out_desc.getReference());
+    _build.apply<FileVersion>(_command, out_desc.getReference());
   });
 }
 
@@ -993,7 +993,7 @@ void Process::_execveat(int dfd,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _build.match<ContentVersion>(_command, child_exe_ref);
+    _build.match<FileVersion>(_command, child_exe_ref);
 
     // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
     // that participate in that command. This will require some extra bookkeeping. For now, we

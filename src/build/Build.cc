@@ -14,8 +14,8 @@
 #include "core/IR.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
-#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
@@ -134,7 +134,7 @@ AccessFilter* Build::_getFilter<MetadataVersion>() noexcept {
 }
 
 template <>
-AccessFilter* Build::_getFilter<ContentVersion>() noexcept {
+AccessFilter* Build::_getFilter<FileVersion>() noexcept {
   return &_content_filter;
 }
 
@@ -148,7 +148,7 @@ bool use_filter = false;
 
 // Turn on access filtering for content
 // template <>
-// bool use_filter<ContentVersion> = true;
+// bool use_filter<FileVersion> = true;
 
 // Command c accesses an artifact
 template <class VersionType>
@@ -208,10 +208,10 @@ template void Build::match<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Match<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate match for content
-template void Build::match<ContentVersion>(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           shared_ptr<ContentVersion> expected,
-                                           shared_ptr<Match<ContentVersion>> emulating) noexcept;
+template void Build::match<FileVersion>(shared_ptr<Command> c,
+                                        shared_ptr<Reference> ref,
+                                        shared_ptr<FileVersion> expected,
+                                        shared_ptr<Match<FileVersion>> emulating) noexcept;
 
 // Explicitly instantiate match for symlinks
 template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
@@ -289,10 +289,10 @@ template void Build::apply<MetadataVersion>(shared_ptr<Command> c,
                                             shared_ptr<Apply<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate apply for content versions
-template void Build::apply<ContentVersion>(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           shared_ptr<ContentVersion> written,
-                                           shared_ptr<Apply<ContentVersion>> emulating) noexcept;
+template void Build::apply<FileVersion>(shared_ptr<Command> c,
+                                        shared_ptr<Reference> ref,
+                                        shared_ptr<FileVersion> written,
+                                        shared_ptr<Apply<FileVersion>> emulating) noexcept;
 
 // Explicitly instantiate apply for directory link versions
 template void Build::apply<LinkVersion>(shared_ptr<Command> c,

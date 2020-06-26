@@ -1,4 +1,4 @@
-#include "ContentVersion.hh"
+#include "FileVersion.hh"
 
 #include <memory>
 #include <optional>
@@ -14,13 +14,13 @@ using std::nullopt;
 using std::shared_ptr;
 
 // Is this version saved in a way that can be committed?
-bool ContentVersion::canCommit() const noexcept {
+bool FileVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
   return _fingerprint.has_value() && _fingerprint.value().empty;
 }
 
 // Commit this version to the filesystem
-void ContentVersion::commit(fs::path path) noexcept {
+void FileVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
   ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
@@ -34,7 +34,7 @@ void ContentVersion::commit(fs::path path) noexcept {
 }
 
 // Save a fingerprint of this version
-void ContentVersion::fingerprint(fs::path path) noexcept {
+void FileVersion::fingerprint(fs::path path) noexcept {
   if (hasFingerprint()) return;
 
   // Get stat data and save it

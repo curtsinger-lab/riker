@@ -24,9 +24,9 @@ namespace fs = std::filesystem;
 
 class Access;
 class Command;
-class ContentVersion;
 class DirArtifact;
 class Env;
+class FileVersion;
 class LinkVersion;
 class MetadataVersion;
 class Reference;
@@ -126,9 +126,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<ContentVersion> getContent(shared_ptr<Command> c,
-                                                shared_ptr<Reference> ref,
-                                                InputType t) noexcept {
+  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c,
+                                             shared_ptr<Reference> ref,
+                                             InputType t) noexcept {
     WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
@@ -136,14 +136,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Check to see if this artifact's content matches a known version
   virtual void match(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> expected) noexcept {
+                     shared_ptr<FileVersion> expected) noexcept {
     WARN << c << ": tried to match content of artifact " << this;
   }
 
   /// Apply a new content version to this artifact
   virtual void apply(shared_ptr<Command> c,
                      shared_ptr<Reference> ref,
-                     shared_ptr<ContentVersion> writing) noexcept {
+                     shared_ptr<FileVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
@@ -202,9 +202,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Specialize get for content
   template <>
-  shared_ptr<ContentVersion> get<ContentVersion>(shared_ptr<Command> c,
-                                                 shared_ptr<Reference> ref,
-                                                 InputType t) {
+  shared_ptr<FileVersion> get<FileVersion>(shared_ptr<Command> c,
+                                           shared_ptr<Reference> ref,
+                                           InputType t) {
     return getContent(c, ref, t);
   }
 

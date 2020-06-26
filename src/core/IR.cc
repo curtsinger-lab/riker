@@ -17,7 +17,7 @@
 #include "build/Env.hh"
 #include "core/Command.hh"
 #include "util/log.hh"
-#include "versions/ContentVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
@@ -58,7 +58,7 @@ void Match<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
 template void Match<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Match for content versions
-template void Match<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+template void Match<FileVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Match for symlink versions
 template void Match<SymlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
@@ -73,7 +73,7 @@ void Apply<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
 template void Apply<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Apple::emulate for content versions
-template void Apply<ContentVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+template void Apply<FileVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Apple::emulate for directory link versions
 template void Apply<LinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
