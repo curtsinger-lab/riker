@@ -40,7 +40,9 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")->as<DirArtifact>()) {}
+  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")->as<DirArtifact>()) {
+    _root_dir->setName("/");
+  }
 
   // Disallow Copy
   Env(const Env&) = delete;

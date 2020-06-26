@@ -64,12 +64,26 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Get the name of this artifact used for pretty-printing
-  const string& getName() const noexcept { return _name; }
+  const string getName() const noexcept {
+    // If a fixed name was assigned, return it
+    if (!_name.empty()) return _name;
 
-  /// Set the name of this artifact used for pretty-printing. Prefer shorter names.
-  void setName(string newname) noexcept {
-    if (newname.empty()) return;
-    if (_name.empty() || newname.size() < _name.size()) _name = newname;
+    // If this artifact has a parent and entry, construct a name
+    if (auto parent = _parent.lock(); parent && !_entry.empty()) {
+      return (fs::path(parent->getName()) / _entry).lexically_normal();
+    }
+
+    // Otherwise return an empty name
+    return string();
+  }
+
+  /// Set the name of this artifact used for pretty-printing
+  void setName(string newname) noexcept { _name = newname; }
+
+  /// Give this artifact a name based on its parent directory and entry name
+  void setName(shared_ptr<Artifact> parent, string entry) {
+    _parent = parent;
+    _entry = entry;
   }
 
   /// Get the number of versions of this artifact
@@ -237,8 +251,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   Env& _env;
 
  private:
-  /// The name of this artifact used for pretty-printing
+  /// A fixed string name assigned to this artifact
   string _name;
+
+  /// A parent directory and entry name for pretty-printing this artifact
+  weak_ptr<Artifact> _parent;
+  string _entry;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;

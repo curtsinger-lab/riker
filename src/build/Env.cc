@@ -129,7 +129,6 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   auto inode_iter = _inodes.find({statbuf.st_dev, statbuf.st_ino});
   if (inode_iter != _inodes.end()) {
     // Found a match. Return it now.
-    inode_iter->second->setName(path);
     return inode_iter->second;
   }
 
@@ -166,8 +165,6 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   // Add the new artifact to the inode map
   _inodes.emplace_hint(inode_iter, pair{statbuf.st_dev, statbuf.st_ino}, a);
 
-  a->setName(path);
-
   // Return the artifact
   return a;
 }
@@ -197,7 +194,6 @@ shared_ptr<Artifact> Env::createFile(fs::path path,
 
   // Create the artifact and return it
   auto artifact = make_shared<FileArtifact>(*this, mv, cv);
-  artifact->setName(path);
 
   // Observe output to metadata and content for the new file
   _build.observeOutput(creator, artifact, mv);

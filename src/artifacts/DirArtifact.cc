@@ -167,7 +167,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
       // Create a new file
       auto newfile = _env.createFile(resolved / entry, c, flags, committed);
-      newfile->setName(fs::path(getName()) / entry);
+      newfile->setName(shared_from_this(), entry);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);
@@ -185,12 +185,18 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     // If the result was an error, return it
     if (!result) return result;
 
+    // Update the resolved artifact's name
+    result->setName(shared_from_this(), entry);
+
     // Otherwise continue with resolution, which may follow symlinks
     return result->resolve(c, resolved / entry, rest, ref, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
-    if (result) return result->resolve(c, resolved / entry, rest, ref, committed);
+    if (result) {
+      result->setName(shared_from_this(), entry);
+      return result->resolve(c, resolved / entry, rest, ref, committed);
+    }
 
     // Otherwise return the error from the resolution
     return result;
