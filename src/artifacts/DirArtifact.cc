@@ -21,10 +21,9 @@ using std::string;
 using std::tie;
 
 DirArtifact::DirArtifact(Env& env,
-                         shared_ptr<DirArtifact> parent,
                          shared_ptr<MetadataVersion> mv,
                          shared_ptr<DirVersion> dv) noexcept :
-    Artifact(env, mv), _parent(parent) {
+    Artifact(env, mv) {
   _dir_versions.push_front(dv);
   appendVersion(dv);
 }
@@ -126,8 +125,10 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
   // Are we looking for the parent directory?
   if (entry == "..") {
-    ASSERT(_parent) << "Unable to resolve parent directory reference";
-    return _parent->resolve(c, resolved / "..", rest, ref, committed);
+    auto& links = getLinks();
+    ASSERT(!links.empty()) << "Path resolution reached a directory with no parent";
+    auto [parent, name] = *links.begin();
+    return parent->resolve(c, resolved / "..", rest, ref, committed);
   }
 
   // Loop through versions to find one that refers to the requested entry
@@ -167,7 +168,6 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
       // Create a new file
       auto newfile = _env.createFile(resolved / entry, c, flags, committed);
-      newfile->setName(shared_from_this(), entry);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);
@@ -186,7 +186,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (!result) return result;
 
     // Update the resolved artifact's name
-    result->setName(shared_from_this(), entry);
+    result->addLink(as<DirArtifact>(), entry);
 
     // Otherwise continue with resolution, which may follow symlinks
     return result->resolve(c, resolved / entry, rest, ref, committed);
@@ -194,7 +194,6 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (result) {
-      result->setName(shared_from_this(), entry);
       return result->resolve(c, resolved / entry, rest, ref, committed);
     }
 

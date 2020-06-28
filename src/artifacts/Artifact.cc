@@ -1,6 +1,7 @@
 #include "Artifact.hh"
 
 #include <memory>
+#include <set>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -17,6 +18,7 @@
 
 using std::make_shared;
 using std::nullopt;
+using std::set;
 using std::shared_ptr;
 
 Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
@@ -24,10 +26,23 @@ Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env)
   _metadata_version = v;
 }
 
+string Artifact::getName() const noexcept {
+  // If a fixed name was assigned, return it
+  if (!_name.empty()) return _name;
+
+  // If this artifact has a parent and entry, construct a name
+  if (!_links.empty()) {
+    auto [dir, entry] = *_links.begin();
+    return (fs::path(dir->getName()) / entry).lexically_normal();
+  }
+
+  // Otherwise return an empty name
+  return string();
+}
+
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
-  //_env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version,
-  //                             InputType::PathResolution);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
 
   // If the current metadata version is committed, make sure we save it for future checks
   // if (_metadata_version->isCommitted()) _metadata_version->save(ref);
@@ -83,7 +98,7 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c,
                                                   shared_ptr<Reference> ref,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _metadata_version, t);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;

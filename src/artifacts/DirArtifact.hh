@@ -22,10 +22,7 @@ class Version;
 
 class DirArtifact final : public Artifact {
  public:
-  DirArtifact(Env& env,
-              shared_ptr<DirArtifact> parent,
-              shared_ptr<MetadataVersion> mv,
-              shared_ptr<DirVersion> dv) noexcept;
+  DirArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<DirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -66,7 +63,6 @@ class DirArtifact final : public Artifact {
                      shared_ptr<UnlinkVersion> writing) noexcept override;
 
  private:
+  /// The list of versions of this directory, from newest to oldest
   list<shared_ptr<DirVersion>> _dir_versions;
-
-  shared_ptr<Artifact> _parent;
 };

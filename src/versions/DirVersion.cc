@@ -88,7 +88,8 @@ optional<Resolution> ExistingDirVersion::getEntry(Env& env,
   }
 
   // The artifact should exist. Get it from the environment and save it
-  auto artifact = env.getArtifact(dir_path / name, dir, info);
+  auto artifact = env.getArtifact(dir_path / name, info);
+  artifact->addLink(dir, name);
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;
 }

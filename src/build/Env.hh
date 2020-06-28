@@ -44,7 +44,7 @@ class Env {
     struct stat info;
     int rc = ::lstat("/", &info);
     ASSERT(rc == 0) << "Failed to stat root directory";
-    _root_dir = getArtifact("/", nullptr, info)->as<DirArtifact>();
+    _root_dir = getArtifact("/", info)->as<DirArtifact>();
     _root_dir->setName("/");
   }
 
@@ -63,7 +63,7 @@ class Env {
    * \param info  The stat results
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getArtifact(fs::path path, shared_ptr<DirArtifact> dir, struct stat& info);
+  shared_ptr<Artifact> getArtifact(fs::path path, struct stat& info);
 
   /**
    * Create a pipe artifact

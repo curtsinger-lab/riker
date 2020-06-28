@@ -5,7 +5,9 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <string>
+#include <tuple>
 
 #include "build/AccessTypes.hh"
 #include "build/Resolution.hh"
@@ -16,8 +18,10 @@
 using std::list;
 using std::make_shared;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::weak_ptr;
 
 namespace fs = std::filesystem;
@@ -63,28 +67,22 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
-  /// Get the name of this artifact used for pretty-printing
-  const string getName() const noexcept {
-    // If a fixed name was assigned, return it
-    if (!_name.empty()) return _name;
-
-    // If this artifact has a parent and entry, construct a name
-    if (auto parent = _parent.lock(); parent && !_entry.empty()) {
-      return (fs::path(parent->getName()) / _entry).lexically_normal();
-    }
-
-    // Otherwise return an empty name
-    return string();
-  }
+  /// Get a pretty-printed name for this artifact
+  string getName() const noexcept;
 
   /// Set the name of this artifact used for pretty-printing
   void setName(string newname) noexcept { _name = newname; }
 
-  /// Give this artifact a name based on its parent directory and entry name
-  void setName(shared_ptr<Artifact> parent, string entry) {
-    _parent = parent;
-    _entry = entry;
+  /// Record a location where this artifact is linked
+  void addLink(shared_ptr<DirArtifact> dir, string entry) noexcept { _links.emplace(dir, entry); }
+
+  /// Remove a location where this artifact is linked
+  void removeLink(shared_ptr<DirArtifact> dir, string entry) noexcept {
+    _links.erase(tuple(dir, entry));
   }
+
+  /// Get the set of locations where this artifact is linked
+  const set<tuple<shared_ptr<DirArtifact>, string>>& getLinks() const noexcept { return _links; }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const noexcept { return _versions.size(); }
@@ -254,9 +252,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A fixed string name assigned to this artifact
   string _name;
 
-  /// A parent directory and entry name for pretty-printing this artifact
-  weak_ptr<Artifact> _parent;
-  string _entry;
+  /// A set of directories and entry names where this artifact is linked
+  set<tuple<shared_ptr<DirArtifact>, string>> _links;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;

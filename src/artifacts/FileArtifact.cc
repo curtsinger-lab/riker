@@ -78,7 +78,7 @@ shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c,
                                                  shared_ptr<Reference> ref,
                                                  InputType t) noexcept {
   // Notify the build of the input
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _content_version, t);
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version, t);
 
   // Return the metadata version
   return _content_version;

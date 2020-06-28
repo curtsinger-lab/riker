@@ -20,7 +20,7 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
                                                        shared_ptr<Reference> ref,
                                                        InputType t) noexcept {
   // Notify the build of the input
-  _env.getBuild().observeInput(c, ref, shared_from_this(), _symlink_version, t);
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, t);
 
   // Return the metadata version
   return _symlink_version;
@@ -89,8 +89,7 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   if (remaining.empty() && flags.nofollow) return shared_from_this();
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  //_env.getBuild().observeInput(c, self, shared_from_this(), _symlink_version,
-  //                             InputType::PathResolution);
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();

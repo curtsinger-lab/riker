@@ -30,9 +30,7 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-shared_ptr<Artifact> Env::getArtifact(fs::path path,
-                                      shared_ptr<DirArtifact> dir,
-                                      struct stat& info) {
+shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
   if (inode_iter != _inodes.end()) {
@@ -55,7 +53,7 @@ shared_ptr<Artifact> Env::getArtifact(fs::path path,
     // The path refers to a directory
     auto dv = make_shared<ExistingDirVersion>();
     dv->setCommitted();
-    a = make_shared<DirArtifact>(*this, dir, mv, dv);
+    a = make_shared<DirArtifact>(*this, mv, dv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
     auto sv = make_shared<SymlinkVersion>(readlink(path));

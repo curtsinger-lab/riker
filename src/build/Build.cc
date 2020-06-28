@@ -53,22 +53,6 @@ void Build::applyFinalState() noexcept {
   _env.getRootDir()->applyFinalState("/");
 }
 
-/// Inform the observer that command c accessed version v of artifact a
-void Build::observeInput(shared_ptr<Command> c,
-                         shared_ptr<Reference> ref,
-                         shared_ptr<Artifact> a,
-                         shared_ptr<Version> v,
-                         InputType t) noexcept {
-  // If c is executing, make sure the version it accesses is committed
-  if (c->isExecuting() && !v->isCommitted()) {
-    if (auto access = ref->as<Access>()) {
-      v->commit(access->getFullPath());
-    }
-  }
-
-  for (const auto& o : _observers) o->input(c, a, v, t);
-}
-
 /************************ Command Tracing and Emulation ************************/
 
 // Command c creates a new pipe
