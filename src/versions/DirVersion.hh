@@ -37,6 +37,8 @@ class DirVersion : public Version {
 
   virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
 
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept = 0;
+
  private:
   SERIALIZE_EMPTY();
 };
@@ -60,7 +62,7 @@ class LinkVersion : public DirVersion {
   virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
 
   /// Check to see if this version has a requested entry
   virtual optional<Resolution> getEntry(Env& env,
@@ -114,7 +116,7 @@ class UnlinkVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
 
   /// Check to see if this version allows a requested entry
   virtual optional<Resolution> getEntry(Env& env,
@@ -157,7 +159,7 @@ class ExistingDirVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,
@@ -195,7 +197,7 @@ class EmptyDirVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,

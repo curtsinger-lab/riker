@@ -40,6 +40,26 @@ string Artifact::getName() const noexcept {
   return string();
 }
 
+fs::path Artifact::getPath() const noexcept {
+  // If there are no links of this artifact, return an empty path
+  if (_links.empty()) return fs::path();
+
+  // Walk through known links until we can construct a valid path
+  for (auto [dir, entry] : _links) {
+    // If the directory is null, this must be the root directory.
+    if (dir == nullptr) return "/";
+
+    // Otherwise, try to get a path to the parent directory
+    auto dir_path = dir->getPath();
+
+    // If the parent directory has a path, return the path to this artifact
+    if (!dir_path.empty()) return dir_path / entry;
+  }
+
+  // Return an empty path
+  return fs::path();
+}
+
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
@@ -60,12 +80,18 @@ bool Artifact::isCommitted() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void Artifact::commit(fs::path path) noexcept {
+void Artifact::commit() noexcept {
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Artifact has no path";
+
   _metadata_version->commit(path);
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(fs::path path) noexcept {
+void Artifact::checkFinalState() noexcept {
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Artifact has no path";
+
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
     v->fingerprint(path);
@@ -82,7 +108,10 @@ void Artifact::checkFinalState(fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(fs::path path) noexcept {
+void Artifact::applyFinalState() noexcept {
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Artifact has no path";
+
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
@@ -142,7 +171,7 @@ Resolution Artifact::resolve(shared_ptr<Command> c,
   if (remaining.empty()) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(c, ref->getFlags())) return EACCES;
-    if (committed) commit(resolved);
+    if (committed) commit();
     return shared_from_this();
   }
 

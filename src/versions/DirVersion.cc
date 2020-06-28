@@ -21,23 +21,28 @@ bool LinkVersion::canCommit() const noexcept {
   return _target->getArtifact()->canCommit();
 }
 
-void LinkVersion::commit(fs::path path) noexcept {
+void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
+
+  // Inform the target of this new link
+  _target->getArtifact()->addLink(dir, _entry);
 
   // Just commit the reference that is linked. This will work in most cases, except when a build
   // creates a hard link from an existing artifact.
   if (_target->getArtifact()->isCommitted()) {
     INFO << "    already committed";
   } else {
-    _target->getArtifact()->commit(path / _entry);
+    _target->getArtifact()->commit();
   }
 
   // Mark this version as committed
   Version::setCommitted();
 }
 
-void UnlinkVersion::commit(fs::path path) noexcept {
+void UnlinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
+
+  // TODO: Remove this link from the artifact we've unlinked
 
   // Try to unlink the file
   int rc = ::unlink((path / _entry).c_str());
@@ -53,11 +58,11 @@ void UnlinkVersion::commit(fs::path path) noexcept {
   Version::setCommitted();
 }
 
-void ExistingDirVersion::commit(fs::path path) noexcept {
+void ExistingDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   FAIL_IF(!isCommitted()) << "Existing directory versions can never be uncommitted";
 }
 
-void EmptyDirVersion::commit(fs::path path) noexcept {
+void EmptyDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   // TODO
 
   // Mark this version as committed

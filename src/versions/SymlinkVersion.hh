@@ -24,7 +24,7 @@ class SymlinkVersion : public Version {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  void commit(fs::path path) noexcept;
 
   /// Save a fingerprint of this version
   void fingerprint(fs::path path) noexcept {}

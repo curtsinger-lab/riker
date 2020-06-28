@@ -88,7 +88,7 @@ class MetadataVersion final : public Version {
   virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  void commit(fs::path path) noexcept;
 
   /// Save the on-disk state to this version for later commit
   void save(fs::path path) noexcept;

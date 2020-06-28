@@ -35,30 +35,36 @@ bool SymlinkArtifact::isCommitted() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void SymlinkArtifact::commit(fs::path path) noexcept {
+void SymlinkArtifact::commit() noexcept {
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Symlink has no path";
+
   _symlink_version->commit(path);
-  Artifact::commit(path);
+  Artifact::commit();
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
+void SymlinkArtifact::checkFinalState() noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path);
+  Artifact::checkFinalState();
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
+void SymlinkArtifact::applyFinalState() noexcept {
   // Symlinks are always saved, so no need to fingerprint
+
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Symlink has no path";
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState();
 }
 
 // Check to see if this artifact's symlink destination matches a known version
@@ -83,7 +89,7 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   auto& flags = ref->getFlags();
 
   // If requested, commit this artifact
-  if (committed) commit(resolved);
+  if (committed) commit();
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (remaining.empty() && flags.nofollow) return shared_from_this();

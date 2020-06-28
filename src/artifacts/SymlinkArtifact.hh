@@ -30,13 +30,13 @@ class SymlinkArtifact : public Artifact {
   virtual bool canCommit() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  virtual void commit() noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path) noexcept override;
+  virtual void checkFinalState() noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept override;
+  virtual void applyFinalState() noexcept override;
 
   /************ Symlink Operations ************/
 

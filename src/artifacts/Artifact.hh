@@ -81,6 +81,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     _links.erase(tuple(dir, entry));
   }
 
+  /// Get a path to this artifact by walking its links back to root
+  fs::path getPath() const noexcept;
+
   /// Get the set of locations where this artifact is linked
   const set<tuple<shared_ptr<DirArtifact>, string>>& getLinks() const noexcept { return _links; }
 
@@ -110,13 +113,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommit() const noexcept;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commit(fs::path path) noexcept;
+  virtual void commit() noexcept;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path) noexcept;
+  virtual void checkFinalState() noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept;
+  virtual void applyFinalState() noexcept;
 
   /************ Metadata Operations ************/
 

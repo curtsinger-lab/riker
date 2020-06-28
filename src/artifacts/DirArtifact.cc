@@ -49,19 +49,22 @@ bool DirArtifact::isCommitted() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commit(fs::path path) noexcept {
+void DirArtifact::commit() noexcept {
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Directory has no path";
+
   // Now walk through the versions in the order they were applied, and commit each one
   for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
     auto v = *iter;
-    v->commit(path);
+    v->commit(as<DirArtifact>(), path);
   }
 
   // Commit metadata through the Artifact base class
-  Artifact::commit(path);
+  Artifact::commit();
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void DirArtifact::checkFinalState(fs::path path) noexcept {
+void DirArtifact::checkFinalState() noexcept {
   // TODO: Check the final state of this directory against the filesystem
   // Linked entries should exist, and unlinked entries should not
 
@@ -74,20 +77,20 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
 
   // Now that we have known entries, recursively check the state of each
   for (auto [name, artifact] : entries) {
-    artifact->checkFinalState(path / name);
+    artifact->checkFinalState();
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path);
+  Artifact::checkFinalState();
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(fs::path path) noexcept {
+void DirArtifact::applyFinalState() noexcept {
   // First, commit this artifact and its metadata
-  commit(path);
+  commit();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState();
 
   // Loop over all versions to build a full list of entries
   map<string, shared_ptr<Artifact>> entries;
@@ -98,7 +101,7 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
 
   // Now that we have known entries, recursively apply each one
   for (auto [name, artifact] : entries) {
-    artifact->applyFinalState(path / name);
+    artifact->applyFinalState();
   }
 }
 
@@ -143,7 +146,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       result = lookup.value();
 
       // Commit the relevant version if requested
-      if (committed) v->commit(resolved);
+      if (committed) v->commit(as<DirArtifact>(), resolved);
 
       // TODO: Add a path resolution input from the version that matched
 

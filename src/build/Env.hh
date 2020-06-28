@@ -46,6 +46,7 @@ class Env {
     ASSERT(rc == 0) << "Failed to stat root directory";
     _root_dir = getArtifact("/", info)->as<DirArtifact>();
     _root_dir->setName("/");
+    _root_dir->addLink(nullptr, "/");
   }
 
   // Disallow Copy

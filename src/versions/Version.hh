@@ -54,9 +54,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Can this version be committed? If it is already committed, this should return true
   virtual bool canCommit() const noexcept = 0;
 
-  /// Commit this version
-  virtual void commit(fs::path path) noexcept = 0;
-
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
