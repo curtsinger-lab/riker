@@ -21,9 +21,10 @@ using std::string;
 using std::tie;
 
 DirArtifact::DirArtifact(Env& env,
+                         shared_ptr<DirArtifact> parent,
                          shared_ptr<MetadataVersion> mv,
                          shared_ptr<DirVersion> dv) noexcept :
-    Artifact(env, mv) {
+    Artifact(env, mv), _parent(parent) {
   _dir_versions.push_front(dv);
   appendVersion(dv);
 }
@@ -125,16 +126,15 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
   // Are we looking for the parent directory?
   if (entry == "..") {
-    auto parent = _env.getPath(resolved / entry);
-    ASSERT(parent) << "Failed to locate parent directory";
-    return parent->resolve(c, resolved / entry, rest, ref, committed);
+    ASSERT(_parent) << "Unable to resolve parent directory reference";
+    return _parent->resolve(c, resolved / "..", rest, ref, committed);
   }
 
   // Loop through versions to find one that refers to the requested entry
   Resolution result;
   for (auto& v : _dir_versions) {
     // Look for a matching entry in a version
-    auto lookup = v->getEntry(_env, resolved, entry);
+    auto lookup = v->getEntry(_env, resolved, as<DirArtifact>(), entry);
 
     // Did the version give a definitive answer?
     if (lookup.has_value()) {

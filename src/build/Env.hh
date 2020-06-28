@@ -40,7 +40,11 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept : _build(build), _root_dir(getPath("/")->as<DirArtifact>()) {
+  Env(Build& build) noexcept : _build(build) {
+    struct stat info;
+    int rc = ::lstat("/", &info);
+    ASSERT(rc == 0) << "Failed to stat root directory";
+    _root_dir = getArtifact("/", nullptr, info)->as<DirArtifact>();
     _root_dir->setName("/");
   }
 
@@ -55,10 +59,11 @@ class Env {
    * Get an artifact to represent a statted file/dir/pipe/symlink.
    * If an artifact with the same inode and device number already exists, return that same instance.
    * \param path  The path to this artifact (currently only used to read symlinks)
+   * \param dir   The directory that contains this artifact
    * \param info  The stat results
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getArtifact(fs::path path, struct stat& info);
+  shared_ptr<Artifact> getArtifact(fs::path path, shared_ptr<DirArtifact> dir, struct stat& info);
 
   /**
    * Create a pipe artifact
@@ -76,22 +81,6 @@ class Env {
   shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c,
                                          fs::path target,
                                          bool committed) noexcept;
-
-  /**
-   * Create a directory artifact
-   * \param c         The command creating the directory
-   * \param mode      The mode (permission) for the new directory
-   * \param committed If true, the directory is already on-disk
-   * \returns a directory artifact
-   */
-  shared_ptr<DirArtifact> getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept;
-
-  /**
-   * Get an artifact corresponding to a path on the filesystem
-   * \param path  The path to check
-   * \returns an artifact, or nullptr if no path exists
-   */
-  shared_ptr<Artifact> getPath(fs::path path) noexcept;
 
   /**
    * Get the root directory

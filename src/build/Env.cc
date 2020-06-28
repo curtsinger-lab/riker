@@ -30,7 +30,9 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
+shared_ptr<Artifact> Env::getArtifact(fs::path path,
+                                      shared_ptr<DirArtifact> dir,
+                                      struct stat& info) {
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
   if (inode_iter != _inodes.end()) {
@@ -53,7 +55,7 @@ shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
     // The path refers to a directory
     auto dv = make_shared<ExistingDirVersion>();
     dv->setCommitted();
-    a = make_shared<DirArtifact>(*this, mv, dv);
+    a = make_shared<DirArtifact>(*this, dir, mv, dv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
     auto sv = make_shared<SymlinkVersion>(readlink(path));
@@ -129,48 +131,6 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   }
 
   return symlink;
-}
-
-shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept {
-  // Get the current umask
-  auto mask = umask(0);
-  umask(mask);
-
-  // Create uid, gid, and mode values for this new file
-  uid_t uid = getuid();
-  gid_t gid = getgid();
-  mode_t real_mode = S_IFDIR | (mode & ~mask);
-
-  // Create an initial metadata version
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, real_mode));
-  if (committed) mv->setCommitted();
-
-  // Create an initial content version
-  auto dv = make_shared<EmptyDirVersion>();
-  if (committed) dv->setCommitted();
-
-  auto dir = make_shared<DirArtifact>(*this, mv, dv);
-
-  if (c) {
-    mv->createdBy(c);
-    _build.observeOutput(c, dir, mv);
-
-    dv->createdBy(c);
-    _build.observeOutput(c, dir, dv);
-  }
-
-  return dir;
-}
-
-shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
-  // Try to stat the path
-  struct stat statbuf;
-  int rc = ::lstat(path.c_str(), &statbuf);
-
-  // If stat failed, there is no artifact
-  if (rc) return nullptr;
-
-  return getArtifact(path, statbuf);
 }
 
 shared_ptr<Artifact> Env::createFile(fs::path path,

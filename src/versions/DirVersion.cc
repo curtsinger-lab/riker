@@ -67,6 +67,7 @@ void EmptyDirVersion::commit(fs::path path) noexcept {
 /// Check if this version has a specific entry
 optional<Resolution> ExistingDirVersion::getEntry(Env& env,
                                                   fs::path dir_path,
+                                                  shared_ptr<DirArtifact> dir,
                                                   string name) noexcept {
   // If we already know this entry is present, return it
   auto present_iter = _present.find(name);
@@ -87,7 +88,7 @@ optional<Resolution> ExistingDirVersion::getEntry(Env& env,
   }
 
   // The artifact should exist. Get it from the environment and save it
-  auto artifact = env.getArtifact(dir_path / name, info);
+  auto artifact = env.getArtifact(dir_path / name, dir, info);
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;
 }

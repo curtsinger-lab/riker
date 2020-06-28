@@ -183,29 +183,6 @@ class Symlink final : public Reference {
   SERIALIZE(BASE(Reference), _target);
 };
 
-/// Create a reference to a new directory
-class Dir final : public Reference {
- public:
-  // Create a directory
-  Dir(mode_t mode) noexcept : _mode(mode) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& b) noexcept override;
-
-  /// Print a DIR reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = DIR(" << std::oct << _mode << ")";
-    return Reference::printResolution(o);
-  }
-
- private:
-  mode_t _mode;
-
-  // Create a default constructor and specify fields for serialization
-  Dir() noexcept = default;
-  SERIALIZE(BASE(Reference), _mode);
-};
-
 /// Access a filesystem path with a given set of flags
 class Access final : public Reference {
  public:

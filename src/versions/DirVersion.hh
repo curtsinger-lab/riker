@@ -30,7 +30,10 @@ class DirVersion : public Version {
    * A yes or no answer is definite, but partial versions can return "maybe", indicating that
    * checking should continue on to additional version.
    */
-  virtual optional<Resolution> getEntry(Env& env, fs::path dir_path, string name) noexcept = 0;
+  virtual optional<Resolution> getEntry(Env& env,
+                                        fs::path dir_path,
+                                        shared_ptr<DirArtifact> dir,
+                                        string name) noexcept = 0;
 
   virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
 
@@ -62,6 +65,7 @@ class LinkVersion : public DirVersion {
   /// Check to see if this version has a requested entry
   virtual optional<Resolution> getEntry(Env& env,
                                         fs::path dir_path,
+                                        shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     // If the lookup is searching for the linked entry, return it.
     if (_entry == name) return _target->getArtifact();
@@ -115,6 +119,7 @@ class UnlinkVersion : public DirVersion {
   /// Check to see if this version allows a requested entry
   virtual optional<Resolution> getEntry(Env& env,
                                         fs::path dir_path,
+                                        shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     // If the lookup is searching for the unlinked entry, return ENOENT.
     if (_entry == name) return ENOENT;
@@ -155,7 +160,10 @@ class ExistingDirVersion : public DirVersion {
   virtual void commit(fs::path path) noexcept override;
 
   /// Check if this version has a specific entry
-  virtual optional<Resolution> getEntry(Env& env, fs::path dir_path, string name) noexcept override;
+  virtual optional<Resolution> getEntry(Env& env,
+                                        fs::path dir_path,
+                                        shared_ptr<DirArtifact> dir,
+                                        string name) noexcept override;
 
   virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
     for (auto& [name, artifact] : _present) {
@@ -192,6 +200,7 @@ class EmptyDirVersion : public DirVersion {
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,
                                         fs::path dir_path,
+                                        shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     return ENOENT;
   }
