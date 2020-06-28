@@ -48,10 +48,17 @@ class Env {
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
 
-  /**
-   * Get the Build instance this environment is part of
-   */
+  /// Get the Build instance this environment is part of
   Build& getBuild() const noexcept { return _build; }
+
+  /**
+   * Get an artifact to represent a statted file/dir/pipe/symlink.
+   * If an artifact with the same inode and device number already exists, return that same instance.
+   * \param path  The path to this artifact (currently only used to read symlinks)
+   * \param info  The stat results
+   * \returns an artifact pointer
+   */
+  shared_ptr<Artifact> getArtifact(fs::path path, struct stat& info);
 
   /**
    * Create a pipe artifact

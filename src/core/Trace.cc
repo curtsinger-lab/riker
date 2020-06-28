@@ -47,7 +47,7 @@ void Trace::init() noexcept {
   AccessFlags exe_flags;
   exe_flags.r = true;
   exe_flags.x = true;
-  _exe = make_shared<Access>(_root, dodo_launch, exe_flags);
+  _exe = make_shared<Access>(_root, dodo_launch.relative_path(), exe_flags);
 
   // Create a map of initial file descriptors
   map<int, FileDescriptor> fds = {{0, FileDescriptor(_stdin, false)},
@@ -87,11 +87,11 @@ void Trace::resolveReferences(Env& env) noexcept {
   _root->resolvesTo(env.getRootDir());
 
   // Resolve the current working directory
-  _cwd->resolvesTo(env.getPath(_cwd->getFullPath()));
+  _cwd->resolvesTo(env.getRootDir()->resolve(nullptr, "/", _cwd->getRelativePath(), _cwd, true));
   _cwd->getArtifact()->setName(".");
 
   // Resolve the dodo-launch executable
-  _exe->resolvesTo(env.getPath(_exe->getFullPath()));
+  _exe->resolvesTo(env.getRootDir()->resolve(nullptr, "/", _exe->getRelativePath(), _exe, true));
 }
 
 // Print this trace

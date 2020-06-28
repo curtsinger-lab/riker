@@ -95,19 +95,15 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();
 
-  // Is the symlink destination relative or absolute?
-  if (dest.is_absolute()) {
-    // Strip the leading slash off the destination
-    dest = dest.relative_path();
-
-    // Now resolve relative to the root directory
-    return _env.getRootDir()->resolve(c, "/", dest / remaining, ref, committed);
-
-  } else {
-    // If the destination is relative, resolution starts in this symlink's parent directory
-    auto parent_path = (resolved / "..").lexically_normal();
-    auto parent = _env.getPath(parent_path);
-    ASSERT(parent) << "Failed to resolve parent directory";
-    return parent->resolve(c, parent_path, dest / remaining, ref, committed);
+  // If the symlink destination is relative, resolution is relative to the directory that contains
+  // this symlink. Add the path to that directory as a prefix to the symlink destination
+  if (dest.is_relative()) {
+    dest = (resolved / "..").lexically_normal() / dest;
   }
+
+  // Strip the leading slash from the destination
+  dest = dest.relative_path();
+
+  // Resolve the symlink and return the result
+  return _env.getRootDir()->resolve(c, "/", dest / remaining, ref, committed);
 }

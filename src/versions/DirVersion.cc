@@ -68,19 +68,26 @@ void EmptyDirVersion::commit(fs::path path) noexcept {
 optional<Resolution> ExistingDirVersion::getEntry(Env& env,
                                                   fs::path dir_path,
                                                   string name) noexcept {
+  // If we already know this entry is present, return it
   auto present_iter = _present.find(name);
   if (present_iter != _present.end()) return present_iter->second;
 
+  // If we already know this entry is absent, return ENOENT
   auto absent_iter = _absent.find(name);
   if (absent_iter != _absent.end()) return ENOENT;
 
-  // Check the environment for the file
-  auto artifact = env.getPath(dir_path / name);
-  if (artifact) {
-    _present.emplace_hint(present_iter, name, artifact);
-    return artifact;
-  } else {
+  // This is a query for a new entry name. Try to stat the entry
+  struct stat info;
+  int rc = ::lstat((dir_path / name).c_str(), &info);
+
+  // If the lstat call failed, the entry does not exist
+  if (rc != 0) {
     _absent.emplace_hint(absent_iter, name);
     return ENOENT;
   }
+
+  // The artifact should exist. Get it from the environment and save it
+  auto artifact = env.getArtifact(dir_path / name, info);
+  _present.emplace_hint(present_iter, name, artifact);
+  return artifact;
 }

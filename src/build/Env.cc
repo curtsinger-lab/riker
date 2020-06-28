@@ -30,6 +30,51 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
+  // Does the inode for this path match an artifact we've already created?
+  auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
+  if (inode_iter != _inodes.end()) {
+    // Found a match. Return it now.
+    return inode_iter->second;
+  }
+
+  auto mv = make_shared<MetadataVersion>(info);
+  mv->setCommitted();
+
+  // Create a new artifact for this inode
+  shared_ptr<Artifact> a;
+  if ((info.st_mode & S_IFMT) == S_IFREG) {
+    // The path refers to a regular file
+    auto cv = make_shared<FileVersion>(info);
+    cv->setCommitted();
+    a = make_shared<FileArtifact>(*this, mv, cv);
+
+  } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
+    // The path refers to a directory
+    auto dv = make_shared<ExistingDirVersion>();
+    dv->setCommitted();
+    a = make_shared<DirArtifact>(*this, mv, dv);
+
+  } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
+    auto sv = make_shared<SymlinkVersion>(readlink(path));
+    sv->setCommitted();
+    a = make_shared<SymlinkArtifact>(*this, mv, sv);
+
+  } else {
+    // The path refers to something else
+    WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
+    auto cv = make_shared<FileVersion>(info);
+    cv->setCommitted();
+    a = make_shared<FileArtifact>(*this, mv, cv);
+  }
+
+  // Add the new artifact to the inode map
+  _inodes.emplace_hint(inode_iter, pair{info.st_dev, info.st_ino}, a);
+
+  // Return the artifact
+  return a;
+}
+
 shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe
   uid_t uid = getuid();
@@ -125,48 +170,7 @@ shared_ptr<Artifact> Env::getPath(fs::path path) noexcept {
   // If stat failed, there is no artifact
   if (rc) return nullptr;
 
-  // Does the inode for this path match an artifact we've already created?
-  auto inode_iter = _inodes.find({statbuf.st_dev, statbuf.st_ino});
-  if (inode_iter != _inodes.end()) {
-    // Found a match. Return it now.
-    return inode_iter->second;
-  }
-
-  auto mv = make_shared<MetadataVersion>(statbuf);
-  mv->setCommitted();
-
-  // Create a new artifact for this inode
-  shared_ptr<Artifact> a;
-  if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
-    // The path refers to a regular file
-    auto cv = make_shared<FileVersion>(statbuf);
-    cv->setCommitted();
-    a = make_shared<FileArtifact>(*this, mv, cv);
-
-  } else if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
-    // The path refers to a directory
-    auto dv = make_shared<ExistingDirVersion>();
-    dv->setCommitted();
-    a = make_shared<DirArtifact>(*this, mv, dv);
-
-  } else if ((statbuf.st_mode & S_IFMT) == S_IFLNK) {
-    auto sv = make_shared<SymlinkVersion>(readlink(path));
-    sv->setCommitted();
-    a = make_shared<SymlinkArtifact>(*this, mv, sv);
-
-  } else {
-    // The path refers to something else
-    WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-    auto cv = make_shared<FileVersion>(statbuf);
-    cv->setCommitted();
-    a = make_shared<FileArtifact>(*this, mv, cv);
-  }
-
-  // Add the new artifact to the inode map
-  _inodes.emplace_hint(inode_iter, pair{statbuf.st_dev, statbuf.st_ino}, a);
-
-  // Return the artifact
-  return a;
+  return getArtifact(path, statbuf);
 }
 
 shared_ptr<Artifact> Env::createFile(fs::path path,
