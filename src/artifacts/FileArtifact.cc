@@ -83,9 +83,7 @@ void FileArtifact::applyFinalState() noexcept {
 }
 
 /// Get the current content version for this artifact
-shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c,
-                                                 shared_ptr<Reference> ref,
-                                                 InputType t) noexcept {
+shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c, InputType t) noexcept {
   // Notify the build of the input
   _env.getBuild().observeInput(c, shared_from_this(), _content_version, t);
 
@@ -94,11 +92,9 @@ shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c,
 }
 
 /// Check to see if this artifact's content matches a known version
-void FileArtifact::match(shared_ptr<Command> c,
-                         shared_ptr<Reference> ref,
-                         shared_ptr<FileVersion> expected) noexcept {
+void FileArtifact::match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getContent(c, ref, InputType::Accessed);
+  auto observed = getContent(c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
@@ -108,9 +104,7 @@ void FileArtifact::match(shared_ptr<Command> c,
 }
 
 /// Apply a new content version to this artifact
-void FileArtifact::apply(shared_ptr<Command> c,
-                         shared_ptr<Reference> ref,
-                         shared_ptr<FileVersion> writing) noexcept {
+void FileArtifact::apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing;

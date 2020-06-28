@@ -40,19 +40,13 @@ class FileArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c,
-                                             shared_ptr<Reference> ref,
-                                             InputType t) noexcept override;
+  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c, InputType t) noexcept override;
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<FileVersion> expected) noexcept override;
+  virtual void match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept override;
 
   /// Apply a new content version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<FileVersion> writing) noexcept override;
+  virtual void apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept override;
 
  private:
   /// The latest content version

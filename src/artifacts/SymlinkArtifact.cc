@@ -17,7 +17,6 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
 
 // Get the current symlink version of this artifact
 shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
-                                                       shared_ptr<Reference> ref,
                                                        InputType t) noexcept {
   // Notify the build of the input
   _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, t);
@@ -68,11 +67,9 @@ void SymlinkArtifact::applyFinalState() noexcept {
 }
 
 // Check to see if this artifact's symlink destination matches a known version
-void SymlinkArtifact::match(shared_ptr<Command> c,
-                            shared_ptr<Reference> ref,
-                            shared_ptr<SymlinkVersion> expected) noexcept {
+void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getSymlink(c, ref, InputType::Accessed);
+  auto observed = getSymlink(c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

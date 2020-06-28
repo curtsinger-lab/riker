@@ -42,13 +42,10 @@ class SymlinkArtifact : public Artifact {
 
   /// Get the current symlink version of this artifact
   virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c,
-                                                shared_ptr<Reference> ref,
                                                 InputType t) noexcept override;
 
   /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<SymlinkVersion> expected) noexcept override;
+  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept override;
 
   virtual Resolution resolve(shared_ptr<Command> c,
                              fs::path resolved,

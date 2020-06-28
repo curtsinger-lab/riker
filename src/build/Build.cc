@@ -126,7 +126,7 @@ void Build::match(shared_ptr<Command> c,
     ASSERT(expected) << "Traced command provided an expected version to match";
 
     // Perform the comparison
-    ref->getArtifact()->match(c, ref, expected);
+    ref->getArtifact()->match(c, expected);
 
     // Record the emulated trace step
     _trace->addStep(c, emulating);
@@ -135,7 +135,7 @@ void Build::match(shared_ptr<Command> c,
     // No. This is a traced command
 
     // If we don't have an expected version already, get one from the current state
-    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, ref, InputType::Accessed);
+    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
 
     ASSERT(expected) << "Unable to get expected version from artifact " << ref->getArtifact();
 
@@ -200,7 +200,7 @@ void Build::apply(shared_ptr<Command> c,
     written->createdBy(c);
 
     // Apply the write
-    ref->getArtifact()->apply(c, ref, written);
+    ref->getArtifact()->apply(c, written);
 
     // Add this write to the trace
     _trace->addStep(c, emulating);
@@ -218,7 +218,7 @@ void Build::apply(shared_ptr<Command> c,
     written->setCommitted();
 
     // Apply the write, which is committed to the filesystem because we just traced this operation
-    ref->getArtifact()->apply(c, ref, written);
+    ref->getArtifact()->apply(c, written);
 
     // Add a new trace step
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));

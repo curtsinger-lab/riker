@@ -53,14 +53,10 @@ class DirArtifact final : public Artifact {
                              bool committed) noexcept override;
 
   /// Apply a link version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<LinkVersion> writing) noexcept override;
+  virtual void apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept override;
 
   /// Apply an unlink version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<UnlinkVersion> writing) noexcept override;
+  virtual void apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept override;
 
  private:
   /// The list of versions of this directory, from newest to oldest

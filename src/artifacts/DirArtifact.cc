@@ -179,7 +179,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       auto link_version = make_shared<LinkVersion>(entry, ref);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
-      apply(c, nullptr, link_version);
+      apply(c, link_version);
 
       // The resolution result is now the newly-created file
       result = newfile;
@@ -206,9 +206,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 }
 
 // Apply a link version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        shared_ptr<LinkVersion> writing) noexcept {
+void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept {
   // TODO: If this link is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
@@ -222,9 +220,7 @@ void DirArtifact::apply(shared_ptr<Command> c,
 }
 
 // Apply an unlink version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c,
-                        shared_ptr<Reference> ref,
-                        shared_ptr<UnlinkVersion> writing) noexcept {
+void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept {
   // Walk through previous versions to see if there are any links to the same entry we are
   // unlinking
   for (auto& v : _dir_versions) {

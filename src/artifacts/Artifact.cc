@@ -123,9 +123,7 @@ void Artifact::applyFinalState() noexcept {
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c,
-                                                  shared_ptr<Reference> ref,
-                                                  InputType t) noexcept {
+shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c, InputType t) noexcept {
   // Notify the build of the input
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
 
@@ -134,11 +132,9 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c,
 }
 
 /// Check to see if this artifact's metadata matches a known version
-void Artifact::match(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<MetadataVersion> expected) noexcept {
+void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getMetadata(c, ref, InputType::Accessed);
+  auto observed = getMetadata(c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
@@ -148,9 +144,7 @@ void Artifact::match(shared_ptr<Command> c,
 }
 
 /// Apply a new metadata version to this artifact
-void Artifact::apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<MetadataVersion> writing) noexcept {
+void Artifact::apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept {
   // Update the metadata version for this artifact
   appendVersion(writing);
   _metadata_version = writing;

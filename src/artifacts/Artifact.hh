@@ -124,58 +124,42 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          InputType t) noexcept;
+  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c, InputType t) noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
-  void match(shared_ptr<Command> c,
-             shared_ptr<Reference> ref,
-             shared_ptr<MetadataVersion> expected) noexcept;
+  void match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  void apply(shared_ptr<Command> c,
-             shared_ptr<Reference> ref,
-             shared_ptr<MetadataVersion> writing) noexcept;
+  void apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c,
-                                             shared_ptr<Reference> ref,
-                                             InputType t) noexcept {
+  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c, InputType t) noexcept {
     WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<FileVersion> expected) noexcept {
+  virtual void match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept {
     WARN << c << ": tried to match content of artifact " << this;
   }
 
   /// Apply a new content version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<FileVersion> writing) noexcept {
+  virtual void apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
-  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c,
-                                                shared_ptr<Reference> ref,
-                                                InputType t) noexcept {
+  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c, InputType t) noexcept {
     WARN << c << ": tried to access symlink destination of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<SymlinkVersion> expected) noexcept {
+  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
     WARN << c << ": tried to match symlink destination of artifact " << this;
   }
 
@@ -188,16 +172,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              bool committed) noexcept;
 
   /// Apply a link version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<LinkVersion> writing) noexcept {
+  virtual void apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept {
     WARN << c << ": tried to apply a directory link version to artifact " << this;
   }
 
   /// Apply an unlink version to this artifact
-  virtual void apply(shared_ptr<Command> c,
-                     shared_ptr<Reference> ref,
-                     shared_ptr<UnlinkVersion> writing) noexcept {
+  virtual void apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept {
     WARN << c << ": tried to apply a directory unlink version to artifact " << this;
   }
 
@@ -205,30 +185,24 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// A templated method to get the latest version of an artifact
   template <class VersionType>
-  shared_ptr<VersionType> get(shared_ptr<Command> c, shared_ptr<Reference> ref, InputType t);
+  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
 
   /// Specialize get for metadata
   template <>
-  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c,
-                                                   shared_ptr<Reference> ref,
-                                                   InputType t) {
-    return getMetadata(c, ref, t);
+  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
+    return getMetadata(c, t);
   }
 
   /// Specialize get for content
   template <>
-  shared_ptr<FileVersion> get<FileVersion>(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
-                                           InputType t) {
-    return getContent(c, ref, t);
+  shared_ptr<FileVersion> get<FileVersion>(shared_ptr<Command> c, InputType t) {
+    return getContent(c, t);
   }
 
   /// Specialize get for symlink
   template <>
-  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c,
-                                                 shared_ptr<Reference> ref,
-                                                 InputType t) {
-    return getSymlink(c, ref, t);
+  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
+    return getSymlink(c, t);
   }
 
   /// Print this artifact
