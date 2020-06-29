@@ -71,7 +71,6 @@ void EmptyDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcep
 
 /// Check if this version has a specific entry
 optional<Resolution> ExistingDirVersion::getEntry(Env& env,
-                                                  fs::path dir_path,
                                                   shared_ptr<DirArtifact> dir,
                                                   string name) noexcept {
   // If we already know this entry is present, return it
@@ -82,9 +81,12 @@ optional<Resolution> ExistingDirVersion::getEntry(Env& env,
   auto absent_iter = _absent.find(name);
   if (absent_iter != _absent.end()) return ENOENT;
 
+  // Create a path to the entry
+  auto path = dir->getPath() / name;
+
   // This is a query for a new entry name. Try to stat the entry
   struct stat info;
-  int rc = ::lstat((dir_path / name).c_str(), &info);
+  int rc = ::lstat(path.c_str(), &info);
 
   // If the lstat call failed, the entry does not exist
   if (rc != 0) {
@@ -93,7 +95,7 @@ optional<Resolution> ExistingDirVersion::getEntry(Env& env,
   }
 
   // The artifact should exist. Get it from the environment and save it
-  auto artifact = env.getArtifact(dir_path / name, info);
+  auto artifact = env.getArtifact(path, info);
   artifact->addLink(dir, name);
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;

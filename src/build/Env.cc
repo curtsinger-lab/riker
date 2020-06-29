@@ -131,8 +131,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   return symlink;
 }
 
-shared_ptr<Artifact> Env::createFile(fs::path path,
-                                     shared_ptr<Command> creator,
+shared_ptr<Artifact> Env::createFile(shared_ptr<Command> creator,
                                      AccessFlags flags,
                                      bool committed) noexcept {
   // Get the current umask

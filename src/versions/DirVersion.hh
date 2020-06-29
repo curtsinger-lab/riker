@@ -31,7 +31,6 @@ class DirVersion : public Version {
    * checking should continue on to additional version.
    */
   virtual optional<Resolution> getEntry(Env& env,
-                                        fs::path dir_path,
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept = 0;
 
@@ -66,7 +65,6 @@ class LinkVersion : public DirVersion {
 
   /// Check to see if this version has a requested entry
   virtual optional<Resolution> getEntry(Env& env,
-                                        fs::path dir_path,
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     // If the lookup is searching for the linked entry, return it.
@@ -120,7 +118,6 @@ class UnlinkVersion : public DirVersion {
 
   /// Check to see if this version allows a requested entry
   virtual optional<Resolution> getEntry(Env& env,
-                                        fs::path dir_path,
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     // If the lookup is searching for the unlinked entry, return ENOENT.
@@ -163,7 +160,6 @@ class ExistingDirVersion : public DirVersion {
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,
-                                        fs::path dir_path,
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept override;
 
@@ -201,7 +197,6 @@ class EmptyDirVersion : public DirVersion {
 
   /// Check if this version has a specific entry
   virtual optional<Resolution> getEntry(Env& env,
-                                        fs::path dir_path,
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept override {
     return ENOENT;

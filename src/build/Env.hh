@@ -94,8 +94,7 @@ class Env {
    * \param creator The command that creates this file
    * \returns a file artifact
    */
-  shared_ptr<Artifact> createFile(fs::path path,
-                                  shared_ptr<Command> creator,
+  shared_ptr<Artifact> createFile(shared_ptr<Command> creator,
                                   AccessFlags flags,
                                   bool committed) noexcept;
 

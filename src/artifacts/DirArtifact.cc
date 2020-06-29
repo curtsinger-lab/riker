@@ -138,7 +138,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   Resolution result;
   for (auto& v : _dir_versions) {
     // Look for a matching entry in a version
-    auto lookup = v->getEntry(_env, resolved, as<DirArtifact>(), entry);
+    auto lookup = v->getEntry(_env, as<DirArtifact>(), entry);
 
     // Did the version give a definitive answer?
     if (lookup.has_value()) {
@@ -170,7 +170,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       if (!checkAccess(c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env.createFile(resolved / entry, c, flags, committed);
+      auto newfile = _env.createFile(c, flags, committed);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);
