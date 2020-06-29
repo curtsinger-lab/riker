@@ -107,14 +107,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept = 0;
 
-  /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const noexcept;
+  /// Can a specific version of this artifact be committed?
+  virtual bool canCommit(shared_ptr<Version> v) const noexcept;
+
+  /// Commit a specific version (and any co-dependent versions) to the filesystem
+  virtual void commit(shared_ptr<Version> v) noexcept;
 
   /// Can this artifact be fully committed?
-  virtual bool canCommit() const noexcept;
+  virtual bool canCommitAll() const noexcept;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commit() noexcept;
+  virtual void commitAll() noexcept;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState() noexcept;
@@ -238,6 +241,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The environment this artifact is managed by
   Env& _env;
 
+  /// The latest metadata version
+  shared_ptr<MetadataVersion> _metadata_version;
+
  private:
   /// A fixed string name assigned to this artifact
   string _name;
@@ -247,7 +253,4 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;
-
-  /// The latest metadata version
-  shared_ptr<MetadataVersion> _metadata_version;
 };

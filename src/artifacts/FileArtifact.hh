@@ -22,14 +22,17 @@ class FileArtifact : public Artifact {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept override { return "File"; }
 
-  /// Have all modifications to this artifact been committed to the filesystem?
-  virtual bool isCommitted() const noexcept override;
+  /// Can a specific version of this artifact be committed?
+  virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
+
+  /// Commit a specific version of this artifact to the filesystem
+  virtual void commit(shared_ptr<Version> v) noexcept override;
 
   /// Can this artifact be fully committed?
-  virtual bool canCommit() const noexcept override;
+  virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commit() noexcept override;
+  virtual void commitAll() noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState() noexcept override;

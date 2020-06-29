@@ -28,9 +28,25 @@ DirArtifact::DirArtifact(Env& env,
   appendVersion(dv);
 }
 
-bool DirArtifact::canCommit() const noexcept {
+bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
+  if (auto dv = v->as<DirVersion>()) {
+    return dv->canCommit();
+  } else {
+    return Artifact::canCommit(v);
+  }
+}
+
+void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+  if (auto dv = v->as<DirVersion>()) {
+    dv->commit(this->as<DirArtifact>(), getPath());
+  } else {
+    Artifact::commit(v);
+  }
+}
+
+bool DirArtifact::canCommitAll() const noexcept {
   // If this artifact's metadata cannot be committed, stop now
-  if (!Artifact::canCommit()) return false;
+  if (!Artifact::canCommitAll()) return false;
 
   // Loop through versions. If any versions cannot be committed, return false;
   for (auto v : _dir_versions) {
@@ -41,15 +57,8 @@ bool DirArtifact::canCommit() const noexcept {
   return true;
 }
 
-bool DirArtifact::isCommitted() const noexcept {
-  for (auto v : _dir_versions) {
-    if (!v->isCommitted()) return false;
-  }
-  return Artifact::isCommitted();
-}
-
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commit() noexcept {
+void DirArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(!path.empty()) << "Directory has no path";
 
@@ -60,7 +69,7 @@ void DirArtifact::commit() noexcept {
   }
 
   // Commit metadata through the Artifact base class
-  Artifact::commit();
+  Artifact::commitAll();
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -87,7 +96,7 @@ void DirArtifact::checkFinalState() noexcept {
 // Commit any pending versions and save fingerprints for this artifact
 void DirArtifact::applyFinalState() noexcept {
   // First, commit this artifact and its metadata
-  commit();
+  commitAll();
 
   // Fingerprint/commit any remaining metadata
   Artifact::applyFinalState();

@@ -69,22 +69,28 @@ bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   return _metadata_version->checkAccess(flags);
 }
 
-// Can this artifact be fully committed?
-bool Artifact::canCommit() const noexcept {
+// Can a specific version of this artifact be committed?
+bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
+  ASSERT(v == _metadata_version) << "Called canCommit with unknown version on artifact " << this;
   return _metadata_version->canCommit();
 }
 
-// Check if the latest metadata version is committed
-bool Artifact::isCommitted() const noexcept {
-  return _metadata_version->isCommitted();
+// Commit a specific version of this artifact to the filesystem
+void Artifact::commit(shared_ptr<Version> v) noexcept {
+  ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
+  auto path = getPath();
+  ASSERT(!path.empty()) << "Artifact has no path";
+  _metadata_version->commit(path);
+}
+
+// Can this artifact be fully committed?
+bool Artifact::canCommitAll() const noexcept {
+  return canCommit(_metadata_version);
 }
 
 // Commit all final versions of this artifact to the filesystem
-void Artifact::commit() noexcept {
-  auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
-
-  _metadata_version->commit(path);
+void Artifact::commitAll() noexcept {
+  commit(_metadata_version);
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -167,7 +173,7 @@ Resolution Artifact::resolve(shared_ptr<Command> c,
   if (current == end) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(c, ref->getFlags())) return EACCES;
-    if (committed) commit();
+    if (committed) commitAll();
     return shared_from_this();
   }
 

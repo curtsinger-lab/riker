@@ -85,7 +85,7 @@ class MetadataVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "metadata"; }
 
   /// Is this version saved in a way that can be committed?
-  virtual bool canCommit() const noexcept override;
+  bool canCommit() const noexcept;
 
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;

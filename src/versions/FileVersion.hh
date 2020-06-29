@@ -67,7 +67,7 @@ class FileVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "content"; }
 
   /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override;
+  bool canCommit() const noexcept;
 
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;

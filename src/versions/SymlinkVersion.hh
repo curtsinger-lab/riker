@@ -20,9 +20,6 @@ class SymlinkVersion : public Version {
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "symlink"; }
 
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return true; }
-
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;
 

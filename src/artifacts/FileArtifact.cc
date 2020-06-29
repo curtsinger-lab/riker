@@ -20,25 +20,36 @@ FileArtifact::FileArtifact(Env& env,
   _content_version = cv;
 }
 
-// Do we have saved content and metadata for this artifact?
-bool FileArtifact::canCommit() const noexcept {
-  return _content_version->canCommit() && Artifact::canCommit();
+bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
+  if (v == _content_version) {
+    return _content_version->canCommit();
+  } else {
+    return Artifact::canCommit(v);
+  }
 }
 
-// Check if the latest version of this artifact are committed to disk
-bool FileArtifact::isCommitted() const noexcept {
-  return _content_version->isCommitted() && Artifact::isCommitted();
+void FileArtifact::commit(shared_ptr<Version> v) noexcept {
+  if (v == _content_version) {
+    _content_version->commit(getPath());
+  } else {
+    Artifact::commit(v);
+  }
+}
+
+// Do we have saved content and metadata for this artifact?
+bool FileArtifact::canCommitAll() const noexcept {
+  return _content_version->canCommit() && Artifact::canCommitAll();
 }
 
 // Commit all final versions of this artifact to the filesystem
-void FileArtifact::commit() noexcept {
+void FileArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(!path.empty()) << "File has no path";
 
   _content_version->commit(path);
 
   // Delegate metadata commits to the artifact
-  Artifact::commit();
+  Artifact::commitAll();
 }
 
 // Compare all final versions of this artifact to the filesystem state

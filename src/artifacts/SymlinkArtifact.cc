@@ -25,21 +25,33 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
   return _symlink_version;
 }
 
-bool SymlinkArtifact::canCommit() const noexcept {
-  return Artifact::canCommit();
+bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
+  if (v == _symlink_version) {
+    return true;
+  } else {
+    return Artifact::canCommit(v);
+  }
 }
 
-bool SymlinkArtifact::isCommitted() const noexcept {
-  return _symlink_version->isCommitted() && Artifact::isCommitted();
+void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
+  if (v == _symlink_version) {
+    _symlink_version->commit(getPath());
+  } else {
+    Artifact::commit(v);
+  }
+}
+
+bool SymlinkArtifact::canCommitAll() const noexcept {
+  return Artifact::canCommitAll();
 }
 
 // Commit all final versions of this artifact to the filesystem
-void SymlinkArtifact::commit() noexcept {
+void SymlinkArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(!path.empty()) << "Symlink has no path";
 
   _symlink_version->commit(path);
-  Artifact::commit();
+  Artifact::commitAll();
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -87,7 +99,7 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   auto& flags = ref->getFlags();
 
   // If requested, commit this artifact
-  if (committed) commit();
+  if (committed) commitAll();
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (current == end && flags.nofollow) return shared_from_this();

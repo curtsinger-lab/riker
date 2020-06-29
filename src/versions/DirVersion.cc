@@ -18,7 +18,7 @@ using std::shared_ptr;
 bool LinkVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
   // We can only commit a link if its target can be committed
-  return _target->getArtifact()->canCommit();
+  return _target->getArtifact()->canCommitAll();
 }
 
 void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
@@ -29,11 +29,7 @@ void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 
   // Just commit the reference that is linked. This will work in most cases, except when a build
   // creates a hard link from an existing artifact.
-  if (_target->getArtifact()->isCommitted()) {
-    INFO << "    already committed";
-  } else {
-    _target->getArtifact()->commit();
-  }
+  _target->getArtifact()->commitAll();
 
   // Mark this version as committed
   Version::setCommitted();

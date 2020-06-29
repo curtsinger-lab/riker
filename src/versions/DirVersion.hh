@@ -36,6 +36,8 @@ class DirVersion : public Version {
 
   virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
 
+  virtual bool canCommit() const noexcept = 0;
+
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept = 0;
 
  private:

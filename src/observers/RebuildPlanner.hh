@@ -10,6 +10,7 @@
 #include "core/Command.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::map;
 using std::ostream;
@@ -86,8 +87,9 @@ class RebuildPlanner final : public BuildObserver {
       _output_used_by[v->getCreator()].insert(c);
 
       // The dependency back edge depends on caching
-      if (options::enable_cache && (v->canCommit() || v->isCommitted())) {
-        // If this artifact is cached, we could restore it before c runs.
+      if (options::enable_cache && a->canCommit(v)) {
+        // If the requested artifact can commit the version we need, there's no need to depend on
+        // the creator of this version.
 
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
@@ -131,10 +133,14 @@ class RebuildPlanner final : public BuildObserver {
     if (!produced->getCreator()) return;
 
     // If this artifact is cached, we can just stage it in
-    if (options::enable_cache && (produced->canCommit() || produced->isCommitted())) return;
+    if (options::enable_cache && a->canCommit(produced)) return;
+
+    if (auto mv = produced->as<MetadataVersion>(); mv && mv->canCommit()) {
+      INFO << "Metadata version can be committed";
+    }
 
     INFO << "Output " << a << " version " << produced << " created by " << produced->getCreator()
-         << " does not match on-disk version";
+         << " does not match on-disk version " << ondisk;
 
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(produced->getCreator());
