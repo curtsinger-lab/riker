@@ -22,7 +22,6 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
-using std::weak_ptr;
 
 namespace fs = std::filesystem;
 

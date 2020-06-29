@@ -77,7 +77,6 @@ void DirArtifact::checkFinalState() noexcept {
 
   // Now that we have known entries, recursively check the state of each
   for (auto [name, artifact] : entries) {
-    INFO << "Checking entry " << name << " in " << this;
     artifact->checkFinalState();
   }
 

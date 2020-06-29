@@ -14,6 +14,7 @@ using std::ostream;
 using std::pair;
 using std::shared_ptr;
 using std::string;
+using std::weak_ptr;
 
 class Artifact;
 class Reference;

@@ -13,7 +13,6 @@ using std::map;
 using std::optional;
 using std::shared_ptr;
 using std::string;
-using std::weak_ptr;
 
 class Command;
 class FileVersion;
