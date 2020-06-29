@@ -77,14 +77,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
 
-  /// Record that this command has now run
-  void setExecuted() noexcept { _executed = true; }
-
   /// Is this command being executed?
   bool isExecuting() const noexcept { return _executing; }
 
   /// Mark this command as currently executing
-  void setExecuting() noexcept { _executing = true; }
+  void setExecuting() noexcept {
+    // This command is currently executing
+    _executing = true;
+
+    // Remember that this command executed at some point
+    _executed = true;
+  }
 
   /// Get this command's exit status
   int getExitStatus() const noexcept { return _exit_status; }

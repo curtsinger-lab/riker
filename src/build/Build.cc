@@ -273,7 +273,6 @@ void Build::launch(shared_ptr<Command> c,
     // Is this a real execution and not a dry run?
     if (!_dry_run) {
       // Yes. The child will be executed
-      child->setExecuted();
       child->setExecuting();
 
       // The child command depends on all the references it inherits as file descriptors
