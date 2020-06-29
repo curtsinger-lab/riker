@@ -27,6 +27,7 @@ namespace fs = std::filesystem;
 class Artifact;
 class Build;
 class Command;
+class Env;
 class FileVersion;
 class MetadataVersion;
 class SymlinkVersion;
@@ -189,6 +190,9 @@ class Access final : public Reference {
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
+
+  /// Resolve this reference on behalf of command c
+  Resolution resolve(shared_ptr<Command> c, bool committed) noexcept;
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;

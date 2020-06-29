@@ -80,7 +80,8 @@ void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> ex
 
 Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
                                     shared_ptr<Artifact> prev,
-                                    fs::path remaining,
+                                    fs::path::iterator current,
+                                    fs::path::iterator end,
                                     shared_ptr<Access> ref,
                                     bool committed) noexcept {
   auto& flags = ref->getFlags();
@@ -89,7 +90,7 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   if (committed) commit();
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
-  if (remaining.empty() && flags.nofollow) return shared_from_this();
+  if (current == end && flags.nofollow) return shared_from_this();
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
   _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::PathResolution);
@@ -97,13 +98,21 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();
 
+  // Append remaining path entries to the destination
+  while (current != end) {
+    dest /= *current++;
+  }
+
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(c, nullptr, dest / remaining, ref, committed);
+    return prev->resolve(c, nullptr, dest.begin(), dest.end(), ref, committed);
 
   } else {
+    // Strip the leading slash from the path
+    dest = dest.relative_path();
+
     // Resolve relative to root. First strip the leading slash off the path
-    return _env.getRootDir()->resolve(c, nullptr, dest.relative_path() / remaining, ref, committed);
+    return _env.getRootDir()->resolve(c, nullptr, dest.begin(), dest.end(), ref, committed);
   }
 }

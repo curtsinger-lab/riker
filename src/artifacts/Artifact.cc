@@ -159,10 +159,12 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
 
 Resolution Artifact::resolve(shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
-                             fs::path remaining,
+                             fs::path::iterator current,
+                             fs::path::iterator end,
                              shared_ptr<Access> ref,
                              bool committed) noexcept {
-  if (remaining.empty()) {
+  // Are we at the end of the path to resolve?
+  if (current == end) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(c, ref->getFlags())) return EACCES;
     if (committed) commit();

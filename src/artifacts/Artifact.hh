@@ -167,7 +167,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   virtual Resolution resolve(shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
-                             fs::path remaining,
+                             fs::path::iterator current,
+                             fs::path::iterator end,
                              shared_ptr<Access> ref,
                              bool committed) noexcept;
 

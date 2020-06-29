@@ -77,6 +77,7 @@ void DirArtifact::checkFinalState() noexcept {
 
   // Now that we have known entries, recursively check the state of each
   for (auto [name, artifact] : entries) {
+    INFO << "Checking entry " << name << " in " << this;
     artifact->checkFinalState();
   }
 
@@ -107,31 +108,31 @@ void DirArtifact::applyFinalState() noexcept {
 
 Resolution DirArtifact::resolve(shared_ptr<Command> c,
                                 shared_ptr<Artifact> prev,
-                                fs::path remaining,
+                                fs::path::iterator current,
+                                fs::path::iterator end,
                                 shared_ptr<Access> ref,
                                 bool committed) noexcept {
+  // If the path has a trailing slash, the final entry will be empty. Advance past any empty entries
+  while (current != end && current->empty()) current++;
+
   // If this is the last entry on the path, return this artifact
-  if (remaining.empty()) return shared_from_this();
+  if (current == end) return shared_from_this();
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
   if (!checkAccess(c, AccessFlags{.x = true})) return EACCES;
 
-  // We must be looking for an entry in this directory
-  // Split the remaining path into the entry in this directory, and the rest of the remaining path
-  auto iter = remaining.begin();
-  fs::path entry = *iter++;
-  fs::path rest;
-  while (iter != remaining.end()) rest /= *iter++;
+  // We must be looking for an entry in this directory. Get the entry name and advance the iterator
+  fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(c, shared_from_this(), rest, ref, committed);
+  if (entry == ".") return resolve(c, shared_from_this(), current, end, ref, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto& links = getLinks();
     ASSERT(!links.empty()) << "Path resolution reached a directory with no parent";
     auto [parent, name] = *links.begin();
-    return parent->resolve(c, shared_from_this(), rest, ref, committed);
+    return parent->resolve(c, shared_from_this(), current, end, ref, committed);
   }
 
   // Loop through versions to find one that refers to the requested entry
@@ -156,7 +157,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
   // We now have either a resolved artifact or an error code. The next step depends on whether
   // this is the last part of the path, or if there is more path left to resolve.
-  if (rest.empty()) {
+  if (current == end) {
     // This is the last entry in the resolution path
 
     auto flags = ref->getFlags();
@@ -192,12 +193,12 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     result->addLink(as<DirArtifact>(), entry);
 
     // Otherwise continue with resolution, which may follow symlinks
-    return result->resolve(c, shared_from_this(), rest, ref, committed);
+    return result->resolve(c, shared_from_this(), current, end, ref, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (result) {
-      return result->resolve(c, shared_from_this(), rest, ref, committed);
+      return result->resolve(c, shared_from_this(), current, end, ref, committed);
     }
 
     // Otherwise return the error from the resolution

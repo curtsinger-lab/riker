@@ -26,6 +26,14 @@ using std::ostream;
 using std::shared_ptr;
 using std::tuple;
 
+/// Resolve this reference on behalf of command c
+Resolution Access::resolve(shared_ptr<Command> c, bool committed) noexcept {
+  auto result = _base->getArtifact()->resolve(c, nullptr, _path.begin(), _path.end(), as<Access>(),
+                                              committed);
+  resolvesTo(result);
+  return result;
+}
+
 /******* Emulation *******/
 
 // Emulate a pipe reference
