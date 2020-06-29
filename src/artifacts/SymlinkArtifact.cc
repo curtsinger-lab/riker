@@ -79,7 +79,7 @@ void SymlinkArtifact::match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> ex
 }
 
 Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
-                                    fs::path resolved,
+                                    shared_ptr<Artifact> prev,
                                     fs::path remaining,
                                     shared_ptr<Access> ref,
                                     bool committed) noexcept {
@@ -97,15 +97,13 @@ Resolution SymlinkArtifact::resolve(shared_ptr<Command> c,
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();
 
-  // If the symlink destination is relative, resolution is relative to the directory that contains
-  // this symlink. Add the path to that directory as a prefix to the symlink destination
+  // Is the destination relative or absolute?
   if (dest.is_relative()) {
-    dest = (resolved / "..").lexically_normal() / dest;
+    // Resolve relative to the previous artifact, which must be the dir that holds this symlink
+    return prev->resolve(c, nullptr, dest / remaining, ref, committed);
+
+  } else {
+    // Resolve relative to root. First strip the leading slash off the path
+    return _env.getRootDir()->resolve(c, nullptr, dest.relative_path() / remaining, ref, committed);
   }
-
-  // Strip the leading slash from the destination
-  dest = dest.relative_path();
-
-  // Resolve the symlink and return the result
-  return _env.getRootDir()->resolve(c, "/", dest / remaining, ref, committed);
 }

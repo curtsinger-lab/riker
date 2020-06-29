@@ -166,7 +166,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Directory Operations ************/
 
   virtual Resolution resolve(shared_ptr<Command> c,
-                             fs::path resolved,
+                             shared_ptr<Artifact> prev,
                              fs::path remaining,
                              shared_ptr<Access> ref,
                              bool committed) noexcept;

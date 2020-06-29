@@ -87,11 +87,13 @@ void Trace::resolveReferences(Env& env) noexcept {
   _root->resolvesTo(env.getRootDir());
 
   // Resolve the current working directory
-  _cwd->resolvesTo(env.getRootDir()->resolve(nullptr, "/", _cwd->getRelativePath(), _cwd, true));
+  _cwd->resolvesTo(
+      env.getRootDir()->resolve(nullptr, env.getRootDir(), _cwd->getRelativePath(), _cwd, true));
   _cwd->getArtifact()->setName(".");
 
   // Resolve the dodo-launch executable
-  _exe->resolvesTo(env.getRootDir()->resolve(nullptr, "/", _exe->getRelativePath(), _exe, true));
+  _exe->resolvesTo(
+      env.getRootDir()->resolve(nullptr, env.getRootDir(), _exe->getRelativePath(), _exe, true));
 }
 
 // Print this trace

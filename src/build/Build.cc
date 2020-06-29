@@ -89,7 +89,7 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   auto dir = base->getArtifact();
   auto dirpath = base->getFullPath();
   ASSERT(dir) << "Cannot resolve a reference relative to an unknown directory";
-  ref->resolvesTo(dir->resolve(c, dirpath, path, ref, !emulating));
+  ref->resolvesTo(dir->resolve(c, nullptr, path, ref, !emulating));
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -285,7 +285,7 @@ void Build::launch(shared_ptr<Command> c,
           WARN << "Resolving " << access->getRelativePath() << " in "
                << access->getBase()->getArtifact();
           auto base = access->getBase();
-          base->getArtifact()->resolve(child, base->getFullPath(), access->getRelativePath(),
+          base->getArtifact()->resolve(child, base->getArtifact(), access->getRelativePath(),
                                        access, true);
         }
       }

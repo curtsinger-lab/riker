@@ -158,7 +158,7 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
 }
 
 Resolution Artifact::resolve(shared_ptr<Command> c,
-                             fs::path resolved,
+                             shared_ptr<Artifact> prev,
                              fs::path remaining,
                              shared_ptr<Access> ref,
                              bool committed) noexcept {

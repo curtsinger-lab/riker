@@ -47,7 +47,7 @@ class DirArtifact final : public Artifact {
   /************ Directory Operations ************/
 
   virtual Resolution resolve(shared_ptr<Command> c,
-                             fs::path resolved,
+                             shared_ptr<Artifact> prev,
                              fs::path remaining,
                              shared_ptr<Access> ref,
                              bool committed) noexcept override;

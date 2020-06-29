@@ -106,7 +106,7 @@ void DirArtifact::applyFinalState() noexcept {
 }
 
 Resolution DirArtifact::resolve(shared_ptr<Command> c,
-                                fs::path resolved,
+                                shared_ptr<Artifact> prev,
                                 fs::path remaining,
                                 shared_ptr<Access> ref,
                                 bool committed) noexcept {
@@ -124,14 +124,14 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   while (iter != remaining.end()) rest /= *iter++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(c, resolved, rest, ref, committed);
+  if (entry == ".") return resolve(c, shared_from_this(), rest, ref, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto& links = getLinks();
     ASSERT(!links.empty()) << "Path resolution reached a directory with no parent";
     auto [parent, name] = *links.begin();
-    return parent->resolve(c, resolved / "..", rest, ref, committed);
+    return parent->resolve(c, shared_from_this(), rest, ref, committed);
   }
 
   // Loop through versions to find one that refers to the requested entry
@@ -146,7 +146,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       result = lookup.value();
 
       // Commit the relevant version if requested
-      if (committed) v->commit(as<DirArtifact>(), resolved);
+      if (committed) v->commit(as<DirArtifact>(), getPath());
 
       // TODO: Add a path resolution input from the version that matched
 
@@ -192,12 +192,12 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     result->addLink(as<DirArtifact>(), entry);
 
     // Otherwise continue with resolution, which may follow symlinks
-    return result->resolve(c, resolved / entry, rest, ref, committed);
+    return result->resolve(c, shared_from_this(), rest, ref, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (result) {
-      return result->resolve(c, resolved / entry, rest, ref, committed);
+      return result->resolve(c, shared_from_this(), rest, ref, committed);
     }
 
     // Otherwise return the error from the resolution
