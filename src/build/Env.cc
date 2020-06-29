@@ -99,6 +99,8 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
     _build.observeOutput(c, pipe, cv);
   }
 
+  _anonymous.insert(pipe);
+
   return pipe;
 }
 
@@ -127,6 +129,8 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
     sv->createdBy(c);
     _build.observeOutput(c, symlink, sv);
   }
+
+  _anonymous.insert(symlink);
 
   return symlink;
 }
@@ -159,6 +163,8 @@ shared_ptr<Artifact> Env::createFile(shared_ptr<Command> creator,
   // Observe output to metadata and content for the new file
   _build.observeOutput(creator, artifact, mv);
   _build.observeOutput(creator, artifact, cv);
+
+  _anonymous.insert(artifact);
 
   return artifact;
 }

@@ -74,18 +74,20 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void setName(string newname) noexcept { _name = newname; }
 
   /// Record a location where this artifact is linked
-  void addLink(shared_ptr<DirArtifact> dir, string entry) noexcept { _links.emplace(dir, entry); }
+  void addLink(shared_ptr<DirArtifact> dir, string entry) noexcept {
+    _links.emplace(dir.get(), entry);
+  }
 
   /// Remove a location where this artifact is linked
   void removeLink(shared_ptr<DirArtifact> dir, string entry) noexcept {
-    _links.erase(tuple(dir, entry));
+    _links.erase(tuple(dir.get(), entry));
   }
 
   /// Get a path to this artifact by walking its links back to root
   fs::path getPath() const noexcept;
 
   /// Get the set of locations where this artifact is linked
-  const set<tuple<shared_ptr<DirArtifact>, string>>& getLinks() const noexcept { return _links; }
+  const set<tuple<DirArtifact*, string>>& getLinks() const noexcept { return _links; }
 
   /// Get the number of versions of this artifact
   size_t getVersionCount() const noexcept { return _versions.size(); }
@@ -242,7 +244,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   string _name;
 
   /// A set of directories and entry names where this artifact is linked
-  set<tuple<shared_ptr<DirArtifact>, string>> _links;
+  set<tuple<DirArtifact*, string>> _links;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;

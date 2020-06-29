@@ -102,6 +102,9 @@ class Env {
   /// The build this environment is attached to
   Build& _build;
 
+  /// A set of artifacts without known inodes
+  set<shared_ptr<Artifact>> _anonymous;
+
   /// A map of artifacts identified by inode
   map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
 
