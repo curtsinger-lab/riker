@@ -252,15 +252,15 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
-    LOG << "  " << child_fd << ": " << info.getReference();
+    LOG << "  " << child_fd << ": " << info.getRef();
 
     // Make sure the reference has already been resolved
-    ASSERT(info.getReference()->isResolved())
+    ASSERT(info.getRef()->isResolved())
         << "Tried to launch a command with an unresolved reference in its "
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto ref = info.getReference()->as<Access>()) {
+    if (auto ref = info.getRef()->as<Access>()) {
       // This is an access, so we have a path
 
       // Use the reference to open the file
@@ -268,7 +268,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
       initial_fds.emplace_back(parent_fd, child_fd);
 
-    } else if (auto ref = info.getReference()->as<Pipe>()) {
+    } else if (auto ref = info.getRef()->as<Pipe>()) {
       // This is a pipe. Get the artifact.
       auto pipe = ref->getArtifact()->as<PipeArtifact>();
 

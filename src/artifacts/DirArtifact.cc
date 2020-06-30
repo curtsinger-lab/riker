@@ -185,7 +185,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       ref->resolvesTo(newfile);
 
       // Link the new file into this directory
-      auto link_version = make_shared<LinkVersion>(entry, ref);
+      auto link_version = make_shared<AddEntry>(entry, ref);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
       apply(c, link_version);
@@ -215,7 +215,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 }
 
 // Apply a link version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept {
+void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
   // TODO: If this link is only possible because of some earlier version, add input edges.
 
   // Notify the build of this output
@@ -229,12 +229,12 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) 
 }
 
 // Apply an unlink version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept {
+void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept {
   // Walk through previous versions to see if there are any links to the same entry we are
   // unlinking
   for (auto& v : _dir_versions) {
     // Is v a link version?
-    if (auto link = v->as<LinkVersion>()) {
+    if (auto link = v->as<AddEntry>()) {
       // Does the link refer to the same entry as the unlink?
       if (link->getEntryName() == writing->getEntryName()) {
         // Yes. If the previous link is uncommitted, we can mark the link-unlink pair as committed

@@ -86,7 +86,7 @@ shared_ptr<Access> Process::makeAccess(fs::path p, AccessFlags flags, int at) no
   if (at == AT_FDCWD) return _build.access(_command, _cwd, p.relative_path(), flags);
 
   // The path is resolved relative to some file descriptor
-  auto base = _fds.at(at).getReference()->as<Access>();
+  auto base = _fds.at(at).getRef()->as<Access>();
 
   ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
 
@@ -378,7 +378,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
 
     // This is essentially an fstat call
     // Record the dependency on metadata
-    _build.match<MetadataVersion>(_command, _fds.at(dirfd).getReference());
+    _build.match<MetadataVersion>(_command, _fds.at(dirfd).getRef());
 
   } else {
     // Finish the syscall to see if the reference succeeds
@@ -426,7 +426,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
   auto& descriptor = iter->second;
 
   // The command depends on the old metadata
-  _build.match<MetadataVersion>(_command, descriptor.getReference());
+  _build.match<MetadataVersion>(_command, descriptor.getRef());
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -436,8 +436,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.apply<MetadataVersion>(_command, descriptor.getReference(),
-                                  make_shared<MetadataVersion>());
+    _build.apply<MetadataVersion>(_command, descriptor.getRef(), make_shared<MetadataVersion>());
   });
 }
 
@@ -482,7 +481,7 @@ void Process::_read(int fd) noexcept {
 
     // Create a dependency on the artifact's contents
     const auto& descriptor = _fds.at(fd);
-    _build.match<FileVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getRef());
   });
 }
 
@@ -491,7 +490,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _build.match<FileVersion>(_command, descriptor.getReference());
+  _build.match<FileVersion>(_command, descriptor.getRef());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -501,7 +500,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
+    _build.apply<FileVersion>(_command, descriptor.getRef(), make_shared<FileVersion>());
   });
 }
 
@@ -528,13 +527,13 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _build.match<FileVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getRef());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
+      _build.apply<FileVersion>(_command, descriptor.getRef(), make_shared<FileVersion>());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -586,7 +585,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.match<FileVersion>(_command, descriptor.getReference());
+    _build.match<FileVersion>(_command, descriptor.getRef());
   }
 
   // Finish the syscall and resume the process
@@ -595,7 +594,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
+      _build.apply<FileVersion>(_command, descriptor.getRef(), make_shared<FileVersion>());
     }
   });
 }
@@ -607,17 +606,17 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 
   // The command depends on the contents of the output file, unless it is totally overwritten (not
   // checked yet)
-  _build.match<FileVersion>(_command, out_desc.getReference());
+  _build.match<FileVersion>(_command, out_desc.getRef());
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     // The command has now read the input file, so it depends on the contents there
-    _build.match<FileVersion>(_command, in_desc.getReference());
+    _build.match<FileVersion>(_command, in_desc.getRef());
 
     // The command has now set the contents of the output file
-    _build.apply<FileVersion>(_command, out_desc.getReference(), make_shared<FileVersion>());
+    _build.apply<FileVersion>(_command, out_desc.getRef(), make_shared<FileVersion>());
   });
 }
 
@@ -652,7 +651,7 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
       auto dir_ref = _build.dir(_command, mode);
 
       // Link the directory into the parent dir
-      _build.apply(_command, parent_ref, make_shared<LinkVersion>(entry, dir_ref));
+      _build.apply(_command, parent_ref, make_shared<AddEntry>(entry, dir_ref));
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -702,7 +701,7 @@ void Process::_renameat2(int old_dfd,
       old_entry_ref->expectResult(SUCCESS);
 
       // Unlink the old entry
-      _build.apply(_command, old_dir_ref, make_shared<UnlinkVersion>(old_entry, old_entry_ref));
+      _build.apply(_command, old_dir_ref, make_shared<RemoveEntry>(old_entry, old_entry_ref));
 
       // The access to the new directory must also have succeeded
       new_dir_ref->expectResult(SUCCESS);
@@ -713,7 +712,7 @@ void Process::_renameat2(int old_dfd,
         new_entry_ref->expectResult(SUCCESS);
 
         // Unlink the new entry
-        _build.apply(_command, new_dir_ref, make_shared<UnlinkVersion>(new_entry, new_entry_ref));
+        _build.apply(_command, new_dir_ref, make_shared<RemoveEntry>(new_entry, new_entry_ref));
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -721,11 +720,11 @@ void Process::_renameat2(int old_dfd,
       }
 
       // Link into the new entry
-      _build.apply(_command, new_dir_ref, make_shared<LinkVersion>(new_entry, old_entry_ref));
+      _build.apply(_command, new_dir_ref, make_shared<AddEntry>(new_entry, old_entry_ref));
 
       // If this is an exchange, we also have to perform the swapped link
       if (flags & RENAME_EXCHANGE) {
-        _build.apply(_command, old_dir_ref, make_shared<LinkVersion>(old_entry, new_entry_ref));
+        _build.apply(_command, old_dir_ref, make_shared<AddEntry>(old_entry, new_entry_ref));
       }
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
@@ -781,7 +780,7 @@ void Process::_linkat(int old_dfd,
       target_ref->expectResult(SUCCESS);
 
       // Record the link operation
-      _build.apply(_command, dir_ref, make_shared<LinkVersion>(entry, target_ref));
+      _build.apply(_command, dir_ref, make_shared<AddEntry>(entry, target_ref));
 
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
@@ -820,7 +819,7 @@ void Process::_symlinkat(string target, int dfd, string newpath) noexcept {
       auto symlink_ref = _build.symlink(_command, target);
 
       // Link the symlink into the directory
-      _build.apply(_command, dir_ref, make_shared<LinkVersion>(entry, symlink_ref));
+      _build.apply(_command, dir_ref, make_shared<AddEntry>(entry, symlink_ref));
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -886,7 +885,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
       entry_ref->expectResult(SUCCESS);
 
       // Perform the unlink
-      _build.apply(_command, dir_ref, make_shared<UnlinkVersion>(entry, entry_ref));
+      _build.apply(_command, dir_ref, make_shared<RemoveEntry>(entry, entry_ref));
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
@@ -926,7 +925,7 @@ void Process::_fchdir(int fd) noexcept {
     if (rc == 0) {
       // Get the path to the artifact this descriptor references
       const auto& descriptor = _fds.at(fd);
-      auto a = descriptor.getReference()->as<Access>();
+      auto a = descriptor.getRef()->as<Access>();
 
       // Make sure there really is a path
       ASSERT(a) << "fchdir to an artifact with no path should not succeed";
@@ -971,7 +970,7 @@ void Process::_execveat(int dfd,
       if (fd.isCloexec()) {
         to_erase.push_back(index);
       } else {
-        initial_fds.emplace(index, FileDescriptor(fd.getReference(), fd.isWritable()));
+        initial_fds.emplace(index, FileDescriptor(fd.getRef(), fd.isWritable()));
       }
     }
     for (int index : to_erase) {

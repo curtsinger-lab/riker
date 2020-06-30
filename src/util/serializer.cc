@@ -185,7 +185,7 @@ COLLECT_STATS(FileDescriptor);
 COLLECT_STATS(Version);
 COLLECT_STATS(Pipe);
 COLLECT_STATS(Access);
-COLLECT_STATS(ReferenceResult);
+COLLECT_STATS(RefResult);
 COLLECT_STATS(MetadataMatch);
 COLLECT_STATS(ContentsMatch);
 COLLECT_STATS(SetMetadata);
@@ -225,11 +225,11 @@ CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
-CEREAL_REGISTER_TYPE(LinkVersion)
-CEREAL_REGISTER_TYPE(UnlinkVersion)
-CEREAL_REGISTER_TYPE(EmptyDirVersion);
+CEREAL_REGISTER_TYPE(AddEntry)
+CEREAL_REGISTER_TYPE(RemoveEntry)
+CEREAL_REGISTER_TYPE(EmptyDir);
 
-// References
+// Refs
 CEREAL_REGISTER_TYPE(Pipe);
 CEREAL_REGISTER_TYPE(Symlink);
 CEREAL_REGISTER_TYPE(Access);
@@ -244,5 +244,5 @@ CEREAL_REGISTER_TYPE(Launch);
 CEREAL_REGISTER_TYPE(Join);
 CEREAL_REGISTER_TYPE(Apply<MetadataVersion>);
 CEREAL_REGISTER_TYPE(Apply<FileVersion>);
-CEREAL_REGISTER_TYPE(Apply<LinkVersion>);
-CEREAL_REGISTER_TYPE(Apply<UnlinkVersion>);
+CEREAL_REGISTER_TYPE(Apply<AddEntry>);
+CEREAL_REGISTER_TYPE(Apply<RemoveEntry>);

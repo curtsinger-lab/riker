@@ -25,7 +25,7 @@ class Build;
 class Command;
 class Pipe;
 class PipeArtifact;
-class Reference;
+class Ref;
 class SymlinkArtifact;
 
 /**

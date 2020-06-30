@@ -46,7 +46,7 @@ class Trace {
   Trace& operator=(Trace&&) noexcept = default;
 
   /// Resolve references to root, cwd, stdin, stdout, etc. in the given environment
-  void resolveReferences(Env& env) noexcept;
+  void resolveRefs(Env& env) noexcept;
 
   /// Add a step to the trace
   void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _steps.emplace_back(c, s); }
@@ -74,7 +74,7 @@ class Trace {
   /// A reference to the first executable that runs in the trace
   shared_ptr<Access> _exe;
 
-  // References to the standard pipes
+  // Refs to the standard pipes
   shared_ptr<Pipe> _stdin;
   shared_ptr<Pipe> _stdout;
   shared_ptr<Pipe> _stderr;

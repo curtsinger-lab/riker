@@ -25,7 +25,7 @@ using std::shared_ptr;
 
 void Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
-  _trace->resolveReferences(_env);
+  _trace->resolveRefs(_env);
 
   // Empty the trace's list of steps, saving the old list for emulation
   auto steps = _trace->reset();
@@ -102,7 +102,7 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
 // Command c accesses an artifact
 template <class VersionType>
 void Build::match(shared_ptr<Command> c,
-                  shared_ptr<Reference> ref,
+                  shared_ptr<Ref> ref,
                   shared_ptr<VersionType> expected,
                   shared_ptr<Match<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
@@ -150,26 +150,26 @@ void Build::match(shared_ptr<Command> c,
 
 // Explicitly instantiate match for metadata
 template void Build::match<MetadataVersion>(shared_ptr<Command> c,
-                                            shared_ptr<Reference> ref,
+                                            shared_ptr<Ref> ref,
                                             shared_ptr<MetadataVersion> expected,
                                             shared_ptr<Match<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate match for content
 template void Build::match<FileVersion>(shared_ptr<Command> c,
-                                        shared_ptr<Reference> ref,
+                                        shared_ptr<Ref> ref,
                                         shared_ptr<FileVersion> expected,
                                         shared_ptr<Match<FileVersion>> emulating) noexcept;
 
 // Explicitly instantiate match for symlinks
 template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
-                                           shared_ptr<Reference> ref,
+                                           shared_ptr<Ref> ref,
                                            shared_ptr<SymlinkVersion> expected,
                                            shared_ptr<Match<SymlinkVersion>> emulating) noexcept;
 
 // Command c modifies an artifact
 template <class VersionType>
 void Build::apply(shared_ptr<Command> c,
-                  shared_ptr<Reference> ref,
+                  shared_ptr<Ref> ref,
                   shared_ptr<VersionType> written,
                   shared_ptr<Apply<VersionType>> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
@@ -224,27 +224,27 @@ void Build::apply(shared_ptr<Command> c,
 
 // Explicitly instantiate apply for metadata versions
 template void Build::apply<MetadataVersion>(shared_ptr<Command> c,
-                                            shared_ptr<Reference> ref,
+                                            shared_ptr<Ref> ref,
                                             shared_ptr<MetadataVersion> written,
                                             shared_ptr<Apply<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate apply for content versions
 template void Build::apply<FileVersion>(shared_ptr<Command> c,
-                                        shared_ptr<Reference> ref,
+                                        shared_ptr<Ref> ref,
                                         shared_ptr<FileVersion> written,
                                         shared_ptr<Apply<FileVersion>> emulating) noexcept;
 
 // Explicitly instantiate apply for directory link versions
-template void Build::apply<LinkVersion>(shared_ptr<Command> c,
-                                        shared_ptr<Reference> ref,
-                                        shared_ptr<LinkVersion> written,
-                                        shared_ptr<Apply<LinkVersion>> emulating) noexcept;
+template void Build::apply<AddEntry>(shared_ptr<Command> c,
+                                     shared_ptr<Ref> ref,
+                                     shared_ptr<AddEntry> written,
+                                     shared_ptr<Apply<AddEntry>> emulating) noexcept;
 
 // Explicitly instantiate apply for directory unlink versions
-template void Build::apply<UnlinkVersion>(shared_ptr<Command> c,
-                                          shared_ptr<Reference> ref,
-                                          shared_ptr<UnlinkVersion> written,
-                                          shared_ptr<Apply<UnlinkVersion>> emulating) noexcept;
+template void Build::apply<RemoveEntry>(shared_ptr<Command> c,
+                                        shared_ptr<Ref> ref,
+                                        shared_ptr<RemoveEntry> written,
+                                        shared_ptr<Apply<RemoveEntry>> emulating) noexcept;
 
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c,
@@ -277,7 +277,7 @@ void Build::launch(shared_ptr<Command> c,
 
       // The child command depends on all the references it inherits as file descriptors
       for (auto& [index, desc] : child->getInitialFDs()) {
-        if (auto access = desc.getReference()->as<Access>()) {
+        if (auto access = desc.getRef()->as<Access>()) {
           WARN << "Resolving " << access->getRelativePath();
           access->resolve(child, true);
         }

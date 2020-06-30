@@ -48,16 +48,16 @@ class DirVersion : public Version {
 };
 
 /// Link a new entry into a directory
-class LinkVersion : public DirVersion {
+class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  LinkVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
+  AddEntry(string entry, shared_ptr<Ref> target) : _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version links
   string getEntryName() const noexcept { return _entry; }
 
   /// Get the target of the newly-linked entry
-  shared_ptr<Reference> getTarget() const noexcept { return _target; }
+  shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override;
@@ -90,10 +90,10 @@ class LinkVersion : public DirVersion {
 
  private:
   string _entry;
-  shared_ptr<Reference> _target;
+  shared_ptr<Ref> _target;
 
   // Create a default constructor and declare fields for serialization
-  LinkVersion() = default;
+  AddEntry() = default;
   SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
@@ -102,16 +102,16 @@ class LinkVersion : public DirVersion {
  * directory. This is a partial version, so any attempt to resolve entries other than the linked one
  * will fall through to other versions.
  */
-class UnlinkVersion : public DirVersion {
+class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  UnlinkVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
+  RemoveEntry(string entry, shared_ptr<Ref> target) : _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
 
   /// Get a reference to the artifact that is unlinked by this version
-  shared_ptr<Reference> getTarget() const noexcept { return _target; }
+  shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -147,10 +147,10 @@ class UnlinkVersion : public DirVersion {
   string _entry;
 
   /// A reference to the artifact that is removed by this version
-  shared_ptr<Reference> _target;
+  shared_ptr<Ref> _target;
 
   // Create a default constructor and declare fields for serialization
-  UnlinkVersion() = default;
+  RemoveEntry() = default;
   SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
@@ -192,7 +192,7 @@ class ExistingDirVersion : public DirVersion {
 };
 
 /// A version to represent a directory that was created during the build
-class EmptyDirVersion : public DirVersion {
+class EmptyDir : public DirVersion {
  public:
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -217,6 +217,6 @@ class EmptyDirVersion : public DirVersion {
 
  private:
   // Create a default constructor and specify fields for serialization
-  EmptyDirVersion() = default;
+  EmptyDir() = default;
   SERIALIZE(BASE(DirVersion));
 };

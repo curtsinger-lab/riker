@@ -30,11 +30,11 @@ class Command;
 class DirArtifact;
 class Env;
 class FileVersion;
-class LinkVersion;
+class AddEntry;
 class MetadataVersion;
-class Reference;
+class Ref;
 class SymlinkVersion;
-class UnlinkVersion;
+class RemoveEntry;
 class Version;
 
 /**
@@ -188,12 +188,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              bool committed) noexcept;
 
   /// Apply a link version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept {
+  virtual void apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
     WARN << c << ": tried to apply a directory link version to artifact " << this;
   }
 
   /// Apply an unlink version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept {
+  virtual void apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept {
     WARN << c << ": tried to apply a directory unlink version to artifact " << this;
   }
 

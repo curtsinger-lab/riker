@@ -7,7 +7,7 @@
 
 using std::shared_ptr;
 
-class Reference;
+class Ref;
 
 /**
  * Track information about a file descriptor.
@@ -20,11 +20,11 @@ class FileDescriptor {
   FileDescriptor() noexcept = default;
 
   /// Create a record of an initial file descriptor
-  FileDescriptor(shared_ptr<Reference> ref, bool writable, bool cloexec = false) noexcept :
+  FileDescriptor(shared_ptr<Ref> ref, bool writable, bool cloexec = false) noexcept :
       _ref(ref), _writable(writable), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
-  const shared_ptr<Reference>& getReference() const noexcept { return _ref; }
+  const shared_ptr<Ref>& getRef() const noexcept { return _ref; }
 
   /// Check if the file descriptor should be writable
   bool isWritable() const noexcept { return _writable; }
@@ -44,7 +44,7 @@ class FileDescriptor {
 
  private:
   /// The reference used to locate an artifact that the file descriptor points to
-  shared_ptr<Reference> _ref;
+  shared_ptr<Ref> _ref;
 
   /// Is this file descriptor opened in writable mode?
   bool _writable;

@@ -79,10 +79,10 @@ template void Apply<MetadataVersion>::emulate(shared_ptr<Command> c, Build& buil
 template void Apply<FileVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Apple::emulate for directory link versions
-template void Apply<LinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+template void Apply<AddEntry>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Explicitly instantiate Apple::emulate for directory unlink versions
-template void Apply<UnlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+template void Apply<RemoveEntry>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
 // Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {

@@ -16,7 +16,7 @@ using std::string;
 
 class Command;
 class FileVersion;
-class Reference;
+class Ref;
 class Version;
 
 class DirArtifact final : public Artifact {
@@ -56,10 +56,10 @@ class DirArtifact final : public Artifact {
                              bool committed) noexcept override;
 
   /// Apply a link version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<LinkVersion> writing) noexcept override;
+  virtual void apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept override;
 
   /// Apply an unlink version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<UnlinkVersion> writing) noexcept override;
+  virtual void apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept override;
 
  private:
   /// The list of versions of this directory, from newest to oldest

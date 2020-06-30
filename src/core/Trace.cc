@@ -64,7 +64,7 @@ void Trace::init() noexcept {
   _steps.emplace_back(nullptr, launch);
 }
 
-void Trace::resolveReferences(Env& env) noexcept {
+void Trace::resolveRefs(Env& env) noexcept {
   // Resolve stdin
   _stdin->resolvesTo(env.getPipe(nullptr));
   _stdin->getArtifact()->setName("stdin");

@@ -45,7 +45,7 @@ inline static map<int8_t, string> errors = {
  *
  * Step is the abstract parent class for all IR values.
  * All command steps fall into one of three categories:
- * - Reference: a reference to some artifact made by a command
+ * - Ref: a reference to some artifact made by a command
  * - Predicate: a statement about a reference that was true on the example build
  * - Action: a modification to system state performed by the command
  */
@@ -84,10 +84,10 @@ class Step : public std::enable_shared_from_this<Step> {
 
 /**
  * Any time a command makes a reference to an artifact we will record it with an IR step that is a
- * subclass of Reference. References do not necessarily resolve to artifacts (they could fail) but
+ * subclass of Ref. Refs do not necessarily resolve to artifacts (they could fail) but
  * we can encode predicates about the outcome of a reference.
  */
-class Reference : public Step {
+class Ref : public Step {
  public:
   /// Get the unique ID for this reference
   size_t getID() const noexcept { return _id; }
@@ -135,14 +135,14 @@ class Reference : public Step {
   /****** Transient Fields ******/
 
   /// Assign a unique ID to each reference
-  UniqueID<Reference> _id;
+  UniqueID<Ref> _id;
 
   /// The result of resolving this reference
   Resolution _res;
 };
 
 /// Create a reference to a new pipe
-class Pipe final : public Reference {
+class Pipe final : public Ref {
  public:
   /// Create a pipe
   Pipe() noexcept = default;
@@ -153,16 +153,16 @@ class Pipe final : public Reference {
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = PIPE()";
-    return Reference::printResolution(o);
+    return Ref::printResolution(o);
   }
 
  private:
   // Specify fields for serialization
-  SERIALIZE(BASE(Reference));
+  SERIALIZE(BASE(Ref));
 };
 
 /// Create a reference to a new symlink
-class Symlink final : public Reference {
+class Symlink final : public Ref {
  public:
   // Create a symlink
   Symlink(fs::path target) noexcept : _target(target) {}
@@ -173,7 +173,7 @@ class Symlink final : public Reference {
   /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = SYMLINK(" << _target << ")";
-    return Reference::printResolution(o);
+    return Ref::printResolution(o);
   }
 
  private:
@@ -181,11 +181,11 @@ class Symlink final : public Reference {
 
   // Specify fields for serialization
   Symlink() = default;
-  SERIALIZE(BASE(Reference), _target);
+  SERIALIZE(BASE(Ref), _target);
 };
 
 /// Access a filesystem path with a given set of flags
-class Access final : public Reference {
+class Access final : public Ref {
  public:
   /// Create an access reference to a path with given flags
   Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
@@ -221,7 +221,7 @@ class Access final : public Reference {
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
     o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
-    return Reference::printResolution(o);
+    return Ref::printResolution(o);
   }
 
  private:
@@ -236,7 +236,7 @@ class Access final : public Reference {
 
   // Create default constructor and specify fields for serialization
   Access() = default;
-  SERIALIZE(BASE(Reference), _base, _path, _flags);
+  SERIALIZE(BASE(Ref), _base, _path, _flags);
 };
 
 /**
@@ -247,7 +247,7 @@ template <class VersionType>
 class Match final : public Step {
  public:
   /// Create a MATCH predicate
-  Match(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
+  Match(shared_ptr<Ref> ref, shared_ptr<VersionType> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -259,7 +259,7 @@ class Match final : public Step {
   }
 
  private:
-  shared_ptr<Reference> _ref;        //< The reference being examined
+  shared_ptr<Ref> _ref;              //< The reference being examined
   shared_ptr<VersionType> _version;  //< The expected metadata
 
   // Create default constructor and specify fields for serialization
@@ -325,7 +325,7 @@ template <class VersionType>
 class Apply final : public Step {
  public:
   /// Create a SET action
-  Apply(shared_ptr<Reference> ref, shared_ptr<VersionType> version) noexcept :
+  Apply(shared_ptr<Ref> ref, shared_ptr<VersionType> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -337,7 +337,7 @@ class Apply final : public Step {
   }
 
  private:
-  shared_ptr<Reference> _ref;
+  shared_ptr<Ref> _ref;
   shared_ptr<VersionType> _version;
 
   // Create default constructor and specify fields for serialization

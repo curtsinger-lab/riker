@@ -20,7 +20,7 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 
-class Reference;
+class Ref;
 
 inline static map<uint16_t, string> modes = {
     {S_IFSOCK, "sock"}, {S_IFLNK, "symlink"}, {S_IFREG, "file"}, {S_IFBLK, "blockdev"},

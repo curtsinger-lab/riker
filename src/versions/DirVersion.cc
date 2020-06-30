@@ -15,13 +15,13 @@
 using std::set;
 using std::shared_ptr;
 
-bool LinkVersion::canCommit() const noexcept {
+bool AddEntry::canCommit() const noexcept {
   if (isCommitted()) return true;
   // We can only commit a link if its target can be committed
   return _target->getArtifact()->canCommitAll();
 }
 
-void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
   // Try to get a path for the target artifact
@@ -45,7 +45,7 @@ void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   Version::setCommitted();
 }
 
-void UnlinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
   // Remove this link from the artifact we've unlinked
@@ -69,7 +69,7 @@ void ExistingDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noex
   FAIL_IF(!isCommitted()) << "Existing directory versions can never be uncommitted";
 }
 
-void EmptyDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void EmptyDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   // TODO
 
   // Mark this version as committed

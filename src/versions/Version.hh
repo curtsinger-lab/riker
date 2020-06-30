@@ -17,7 +17,7 @@ using std::string;
 using std::weak_ptr;
 
 class Artifact;
-class Reference;
+class Ref;
 
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {

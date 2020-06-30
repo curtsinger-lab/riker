@@ -89,14 +89,14 @@ class Build {
   /// A command accesses an artifact expecting to find a specific version
   template <class VersionType>
   void match(shared_ptr<Command> c,
-             shared_ptr<Reference> ref,
+             shared_ptr<Ref> ref,
              shared_ptr<VersionType> expected = nullptr,
              shared_ptr<Match<VersionType>> emulating = nullptr) noexcept;
 
   /// A command writes a new version to an artifact
   template <class VersionType>
   void apply(shared_ptr<Command> c,
-             shared_ptr<Reference> ref,
+             shared_ptr<Ref> ref,
              shared_ptr<VersionType> written,
              shared_ptr<Apply<VersionType>> emulating = nullptr) noexcept;
 

@@ -26,7 +26,7 @@ class Artifact;
 class Build;
 class BuildObserver;
 class Pipe;
-class Reference;
+class Ref;
 class Step;
 
 /**

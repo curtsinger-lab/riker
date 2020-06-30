@@ -16,7 +16,7 @@ using std::optional;
 using std::shared_ptr;
 using std::string;
 
-class Reference;
+class Ref;
 
 struct FileFingerprint {
  public:

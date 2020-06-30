@@ -10,7 +10,7 @@ using std::string;
 
 class Command;
 class FileVersion;
-class Reference;
+class Ref;
 class Version;
 
 class FileArtifact : public Artifact {
