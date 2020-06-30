@@ -22,9 +22,9 @@ using std::tie;
 
 DirArtifact::DirArtifact(Env& env,
                          shared_ptr<MetadataVersion> mv,
-                         shared_ptr<DirVersion> dv) noexcept :
+                         shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(env, mv) {
-  _dir_versions.push_front(dv);
+  _base_dir_version = dv;
   appendVersion(dv);
 }
 
@@ -37,6 +37,9 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+  // The base directory version must always be committed to commit any other version
+  _base_dir_version->commit(this->as<DirArtifact>(), getPath());
+
   if (auto dv = v->as<DirVersion>()) {
     dv->commit(this->as<DirArtifact>(), getPath());
   } else {
@@ -48,9 +51,13 @@ bool DirArtifact::canCommitAll() const noexcept {
   // If this artifact's metadata cannot be committed, stop now
   if (!Artifact::canCommitAll()) return false;
 
-  // Loop through versions. If any versions cannot be committed, return false;
-  for (auto v : _dir_versions) {
-    if (!v->canCommit()) return false;
+  // Can the base version be committed? If not, stop now.
+  if (!_base_dir_version->canCommit()) return false;
+
+  // Can every entry be committed?
+  for (auto& [name, info] : _entries) {
+    auto& [version, artifact] = info;
+    if (!version->canCommit()) return false;
   }
 
   // Everything is committable
@@ -62,10 +69,10 @@ void DirArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(!path.empty()) << "Directory has no path";
 
-  // Now walk through the versions in the order they were applied, and commit each one
-  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
-    auto v = *iter;
-    v->commit(as<DirArtifact>(), path);
+  // Commit the versions needed for each entry
+  for (auto& [name, info] : _entries) {
+    auto& [version, artifact] = info;
+    commit(version);
   }
 
   // Commit metadata through the Artifact base class
@@ -77,16 +84,10 @@ void DirArtifact::checkFinalState() noexcept {
   // TODO: Check the final state of this directory against the filesystem
   // Linked entries should exist, and unlinked entries should not
 
-  // Loop over all versions to build a full list of entries
-  map<string, shared_ptr<Artifact>> entries;
-  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
-    auto v = *iter;
-    v->getKnownEntries(entries);
-  }
-
-  // Now that we have known entries, recursively check the state of each
-  for (auto [name, artifact] : entries) {
-    artifact->checkFinalState();
+  // Recursively check the final state of all known entries
+  for (auto& [name, info] : _entries) {
+    auto& [version, artifact] = info;
+    if (artifact) artifact->checkFinalState();
   }
 
   // Check the metadata state as well
@@ -96,21 +97,16 @@ void DirArtifact::checkFinalState() noexcept {
 // Commit any pending versions and save fingerprints for this artifact
 void DirArtifact::applyFinalState() noexcept {
   // First, commit this artifact and its metadata
+  // TODO: Should we just commit the base version, then commit entries on demand?
   commitAll();
 
   // Fingerprint/commit any remaining metadata
   Artifact::applyFinalState();
 
-  // Loop over all versions to build a full list of entries
-  map<string, shared_ptr<Artifact>> entries;
-  for (auto iter = _dir_versions.rbegin(); iter != _dir_versions.rend(); iter++) {
-    auto v = *iter;
-    v->getKnownEntries(entries);
-  }
-
-  // Now that we have known entries, recursively apply each one
-  for (auto [name, artifact] : entries) {
-    artifact->applyFinalState();
+  // Recursively apply final state for all known entries
+  for (auto& [name, info] : _entries) {
+    auto& [version, artifact] = info;
+    if (artifact) artifact->applyFinalState();
   }
 }
 
@@ -143,24 +139,39 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     return parent->resolve(c, shared_from_this(), current, end, ref, committed);
   }
 
-  // Loop through versions to find one that refers to the requested entry
+  // We'll track the result of the resolution here
   Resolution result;
-  for (auto& v : _dir_versions) {
-    // Look for a matching entry in a version
-    auto lookup = v->getEntry(_env, as<DirArtifact>(), entry);
 
-    // Did the version give a definitive answer?
-    if (lookup.has_value()) {
-      // Yes. Save the result and break out of the loop
-      result = lookup.value();
+  // Check the map of known entries for a match
+  auto entries_iter = _entries.find(entry);
+  if (entries_iter != _entries.end()) {
+    // Found a match.
+    // Get the version responsible for this entry and the artifact it mapped (possibly null)
+    auto [v, a] = entries_iter->second;
 
-      // Commit the relevant version if requested
-      if (committed) v->commit(as<DirArtifact>(), getPath());
+    // Make sure the version is committed if requested
+    if (committed) commit(v);
 
-      // TODO: Add a path resolution input from the version that matched
-
-      break;
+    // Is there an artifact to resolve to?
+    if (a) {
+      result = a;
+    } else {
+      result = ENOENT;
     }
+
+    // TODO: Add a path resolution input from the version that matched
+
+  } else {
+    // There's no match in the directory entry map. We need to check the base version for a match
+    result = _base_dir_version->getEntry(_env, as<DirArtifact>(), entry);
+    if (result) {
+      shared_ptr<Artifact> a = result;
+      _entries[entry] = {_base_dir_version, a};
+    } else {
+      _entries[entry] = {_base_dir_version, nullptr};
+    }
+
+    // TODO: Add a path resolution input from the base version
   }
 
   // We now have either a resolved artifact or an error code. The next step depends on whether
@@ -216,43 +227,60 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
 // Apply a link version to this artifact
 void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
-  // TODO: If this link is only possible because of some earlier version, add input edges.
+  auto entry = writing->getEntryName();
+
+  // Check for an existing entry with the same name
+  auto iter = _entries.find(entry);
+  if (iter != _entries.end()) {
+    // TODO: We will overwrite the old entry. How do we track that?
+    // TODO: AddEntry versions should be tagged with an `overwrite` flag
+  }
+
+  // Add the new entry to the entries map
+  _entries[entry] = {writing, writing->getTarget()->getArtifact()};
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
 
-  // Add the version to the sequence of directory versions
-  _dir_versions.push_front(writing);
-
-  // Record this version in the artifact as well
+  // Record this version in the artifact
   appendVersion(writing);
 }
 
 // Apply an unlink version to this artifact
 void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept {
-  // Walk through previous versions to see if there are any links to the same entry we are
-  // unlinking
-  for (auto& v : _dir_versions) {
-    // Is v a link version?
-    if (auto link = v->as<AddEntry>()) {
-      // Does the link refer to the same entry as the unlink?
-      if (link->getEntryName() == writing->getEntryName()) {
-        // Yes. If the previous link is uncommitted, we can mark the link-unlink pair as committed
-        if (!link->isCommitted()) {
-          link->setCommitted();
-          writing->setCommitted();
-        }
-        // We found a match, so stop processing versions
-        break;
+  auto entry = writing->getEntryName();
+
+  // Do we have a record of an entry with the given name?
+  auto iter = _entries.find(entry);
+  if (iter != _entries.end()) {
+    // Get the version that added this entry, and the artifact it maps to
+    auto& [version, artifact] = iter->second;
+
+    // Is the version that added this artifact committed?
+    if (version->isCommitted()) {
+      // Yes. When we commit the written version, it will need to remove a link from the target
+      // artifact. If the written version is already committed, do that now.
+      if (writing->isCommitted()) {
+        artifact->removeLink(this->as<DirArtifact>(), entry);
+      } else {
+        writing->unlinks(artifact);
+      }
+
+    } else {
+      // Not committed. If the uncommitted version is an AddEntry version, we can cancel it out.
+      if (auto add = version->as<AddEntry>()) {
+        // The new RemoveEntry version cancels out the uncommitted AddEntry version
+        add->setCommitted();
+        writing->setCommitted();
       }
     }
   }
 
+  // Update the entries map
+  _entries[entry] = {writing, nullptr};
+
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);
-
-  // Add the version to the sequence of directory versions
-  _dir_versions.push_front(writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

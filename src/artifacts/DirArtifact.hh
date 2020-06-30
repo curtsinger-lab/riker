@@ -21,7 +21,7 @@ class Version;
 
 class DirArtifact final : public Artifact {
  public:
-  DirArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<DirVersion> dv) noexcept;
+  DirArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -62,6 +62,11 @@ class DirArtifact final : public Artifact {
   virtual void apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept override;
 
  private:
-  /// The list of versions of this directory, from newest to oldest
-  list<shared_ptr<DirVersion>> _dir_versions;
+  /// The base directory version is the backstop for all resolution queries. This is either an
+  /// on-disk verison, or an empty directory
+  shared_ptr<BaseDirVersion> _base_dir_version;
+
+  /// A map of entries in this directory. Each mapped value is a pair of the version that created
+  /// that entry and the artifact that entry resolves to (or nullptr if the entry is absent).
+  map<string, tuple<shared_ptr<DirVersion>, shared_ptr<Artifact>>> _entries;
 };

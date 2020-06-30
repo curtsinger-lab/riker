@@ -25,23 +25,11 @@ class Env;
 /// Base class for all of the various types of directory versions
 class DirVersion : public Version {
  public:
-  /**
-   * Check to see if this directory version guarantees the presence or absence of a named entry.
-   * A yes or no answer is definite, but partial versions can return "maybe", indicating that
-   * checking should continue on to additional version.
-   */
-  virtual optional<Resolution> getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept = 0;
-
-  /// Add this version's contributions to a map of directory entries
-  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
-
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept = 0;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept = 0;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
 
  private:
   SERIALIZE_EMPTY();
@@ -63,22 +51,7 @@ class AddEntry : public DirVersion {
   virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
-
-  /// Check to see if this version has a requested entry
-  virtual optional<Resolution> getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept override {
-    // If the lookup is searching for the linked entry, return it.
-    if (_entry == name) return _target->getArtifact();
-
-    // No match. Return a null option so the search can continue
-    return nullopt;
-  }
-
-  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
-    entries.emplace(_entry, _target->getArtifact());
-  }
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
@@ -105,34 +78,19 @@ class AddEntry : public DirVersion {
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(string entry, shared_ptr<Ref> target) : _entry(entry), _target(target) {}
+  RemoveEntry(string entry) : _entry(entry) {}
 
   /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
 
-  /// Get a reference to the artifact that is unlinked by this version
-  shared_ptr<Ref> getTarget() const noexcept { return _target; }
+  /// Record the artifact this version unlinks when it is committed
+  void unlinks(shared_ptr<Artifact> a) noexcept { _unlinks = a; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
-
-  /// Check to see if this version allows a requested entry
-  virtual optional<Resolution> getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept override {
-    // If the lookup is searching for the unlinked entry, return ENOENT.
-    if (_entry == name) return ENOENT;
-
-    // No match, so no result from this partial version
-    return nullopt;
-  }
-
-  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
-    entries.erase(_entry);
-  }
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
@@ -146,36 +104,65 @@ class RemoveEntry : public DirVersion {
   /// The name of the entry this version removes
   string _entry;
 
-  /// A reference to the artifact that is removed by this version
-  shared_ptr<Ref> _target;
+  /// The artifact this version unlinks on commit (unsaved!)
+  shared_ptr<Artifact> _unlinks;
 
   // Create a default constructor and declare fields for serialization
   RemoveEntry() = default;
-  SERIALIZE(BASE(DirVersion), _entry, _target);
+  SERIALIZE(BASE(DirVersion), _entry);
+};
+
+class BaseDirVersion : public DirVersion {
+ public:
+  /// Check for a named entry in this directory version
+  virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept = 0;
+
+ private:
+  SERIALIZE(BASE(DirVersion));
+};
+
+/// A version to represent a directory that was created during the build
+class EmptyDir : public BaseDirVersion {
+ public:
+  /// Can this version be committed to the filesystem?
+  virtual bool canCommit() const noexcept override { return true; }
+
+  /// Commit this version to the filesystem
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+
+  /// Check if this version has a specific entry
+  virtual Resolution getEntry(Env& env,
+                              shared_ptr<DirArtifact> dir,
+                              string name) noexcept override {
+    return ENOENT;
+  }
+
+  /// Get the name for this version type
+  virtual string getTypeName() const noexcept override { return "empty"; }
+
+  /// Print an empty directory version
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
+
+ private:
+  // Create a default constructor and specify fields for serialization
+  EmptyDir() = default;
+  SERIALIZE(BASE(BaseDirVersion));
 };
 
 /**
  * An existing directory version is a lazily-populated set of entries that are known to be present
  * or absent. The version looks for entries using a provided environment.
  */
-class ExistingDirVersion : public DirVersion {
+class ExistingDirVersion : public BaseDirVersion {
  public:
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Check if this version has a specific entry
-  virtual optional<Resolution> getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept override;
-
-  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {
-    for (auto& [name, artifact] : _present) {
-      entries.emplace(name, artifact);
-    }
-  }
+  virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "list"; }
@@ -189,34 +176,4 @@ class ExistingDirVersion : public DirVersion {
 
   /// Entries that are known NOT to be in this directory
   set<string> _absent;
-};
-
-/// A version to represent a directory that was created during the build
-class EmptyDir : public DirVersion {
- public:
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return true; }
-
-  /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept override;
-
-  /// Check if this version has a specific entry
-  virtual optional<Resolution> getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept override {
-    return ENOENT;
-  }
-
-  virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept override {}
-
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "empty"; }
-
-  /// Print an empty directory version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
-
- private:
-  // Create a default constructor and specify fields for serialization
-  EmptyDir() = default;
-  SERIALIZE(BASE(DirVersion));
 };

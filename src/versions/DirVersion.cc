@@ -21,7 +21,7 @@ bool AddEntry::canCommit() const noexcept {
   return _target->getArtifact()->canCommitAll();
 }
 
-void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // Try to get a path for the target artifact
@@ -30,7 +30,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   // Does the target have a path?
   if (!target_path.empty()) {
     // Yes. Create a hard link to the target
-    ::link(target_path.c_str(), path.c_str());
+    ::link(target_path.c_str(), (dir_path / _entry).c_str());
 
     // Inform the target artifact of its new link
     _target->getArtifact()->addLink(dir, _entry);
@@ -48,8 +48,8 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // Remove this link from the artifact we've unlinked
-  _target->getArtifact()->removeLink(dir, _entry);
+  // If we know the artifact this version unlinks, inform it of the link removal
+  if (_unlinks) _unlinks->removeLink(dir, _entry);
 
   // Try to unlink the file
   int rc = ::unlink((path / _entry).c_str());
@@ -77,9 +77,9 @@ void EmptyDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 }
 
 /// Check if this version has a specific entry
-optional<Resolution> ExistingDirVersion::getEntry(Env& env,
-                                                  shared_ptr<DirArtifact> dir,
-                                                  string name) noexcept {
+Resolution ExistingDirVersion::getEntry(Env& env,
+                                        shared_ptr<DirArtifact> dir,
+                                        string name) noexcept {
   // If we already know this entry is present, return it
   auto present_iter = _present.find(name);
   if (present_iter != _present.end()) return present_iter->second;
