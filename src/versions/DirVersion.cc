@@ -48,18 +48,23 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // If we know the artifact this version unlinks, inform it of the link removal
-  if (_unlinks) _unlinks->removeLink(dir, _entry);
+  // Is the target artifact a directory?
+  if (auto target_dir = _target->getArtifact()->as<DirArtifact>()) {
+    // Before we can remove the directory, we need to commit any of its remaining versions
+    target_dir->commitAll();
 
-  // Try to unlink the file
-  int rc = ::unlink((path / _entry).c_str());
+    // Remove the directory
+    int rc = ::rmdir((path / _entry).c_str());
+    WARN_IF(rc != 0) << "Failed to remove directory " << _entry << " from " << path << ": " << ERR;
 
-  // If the unlink failed because the target is a directory, try again with rmdir
-  if (rc == -1 && errno == EISDIR) {
-    rc = ::rmdir((path / _entry).c_str());
+  } else {
+    // Unlink the file
+    int rc = ::unlink((path / _entry).c_str());
+    WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << path << ": " << ERR;
   }
 
-  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << path << ": " << ERR;
+  // Remove the link to the artifact
+  _target->getArtifact()->removeLink(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();

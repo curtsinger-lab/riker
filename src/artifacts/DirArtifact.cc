@@ -269,8 +269,6 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
       // artifact. If the written version is already committed, do that now.
       if (writing->isCommitted()) {
         artifact->removeLink(this->as<DirArtifact>(), entry);
-      } else {
-        writing->unlinks(artifact);
       }
 
     } else {

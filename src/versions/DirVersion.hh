@@ -78,13 +78,13 @@ class AddEntry : public DirVersion {
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(string entry) : _entry(entry) {}
+  RemoveEntry(string entry, shared_ptr<Ref> target) : _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
 
-  /// Record the artifact this version unlinks when it is committed
-  void unlinks(shared_ptr<Artifact> a) noexcept { _unlinks = a; }
+  /// Get a reference to the artifact that is unlinked
+  shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -104,12 +104,12 @@ class RemoveEntry : public DirVersion {
   /// The name of the entry this version removes
   string _entry;
 
-  /// The artifact this version unlinks on commit (unsaved!)
-  shared_ptr<Artifact> _unlinks;
+  /// A reference to the artifact that is unlinked by this version
+  shared_ptr<Ref> _target;
 
   // Create a default constructor and declare fields for serialization
   RemoveEntry() = default;
-  SERIALIZE(BASE(DirVersion), _entry);
+  SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
 class BaseDirVersion : public DirVersion {
