@@ -24,12 +24,22 @@ bool LinkVersion::canCommit() const noexcept {
 void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // Inform the target of this new link
-  _target->getArtifact()->addLink(dir, _entry);
+  // Try to get a path for the target artifact
+  auto target_path = _target->getArtifact()->getPath();
 
-  // Just commit the reference that is linked. This will work in most cases, except when a build
-  // creates a hard link from an existing artifact.
-  _target->getArtifact()->commitAll();
+  // Does the target have a path?
+  if (!target_path.empty()) {
+    // Yes. Create a hard link to the target
+    ::link(target_path.c_str(), path.c_str());
+
+    // Inform the target artifact of its new link
+    _target->getArtifact()->addLink(dir, _entry);
+
+  } else {
+    // No. Add a link to the target artifact, then commit it
+    _target->getArtifact()->addLink(dir, _entry);
+    _target->getArtifact()->commitAll();
+  }
 
   // Mark this version as committed
   Version::setCommitted();
@@ -38,7 +48,8 @@ void LinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 void UnlinkVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // TODO: Remove this link from the artifact we've unlinked
+  // Remove this link from the artifact we've unlinked
+  _target->getArtifact()->removeLink(dir, _entry);
 
   // Try to unlink the file
   int rc = ::unlink((path / _entry).c_str());

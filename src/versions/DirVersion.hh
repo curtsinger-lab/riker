@@ -104,11 +104,14 @@ class LinkVersion : public DirVersion {
  */
 class UnlinkVersion : public DirVersion {
  public:
-  /// Create a new version of a directory that adds a named entry to the directory
-  UnlinkVersion(string entry) : _entry(entry) {}
+  /// Create a new version of a directory that removes an entry from a directory
+  UnlinkVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
 
-  /// Get the name of the entry this version links
+  /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
+
+  /// Get a reference to the artifact that is unlinked by this version
+  shared_ptr<Reference> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -140,11 +143,15 @@ class UnlinkVersion : public DirVersion {
   }
 
  private:
+  /// The name of the entry this version removes
   string _entry;
+
+  /// A reference to the artifact that is removed by this version
+  shared_ptr<Reference> _target;
 
   // Create a default constructor and declare fields for serialization
   UnlinkVersion() = default;
-  SERIALIZE(BASE(DirVersion), _entry);
+  SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
 /**

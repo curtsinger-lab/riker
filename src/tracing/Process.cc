@@ -702,7 +702,7 @@ void Process::_renameat2(int old_dfd,
       old_entry_ref->expectResult(SUCCESS);
 
       // Unlink the old entry
-      _build.apply(_command, old_dir_ref, make_shared<UnlinkVersion>(old_entry));
+      _build.apply(_command, old_dir_ref, make_shared<UnlinkVersion>(old_entry, old_entry_ref));
 
       // The access to the new directory must also have succeeded
       new_dir_ref->expectResult(SUCCESS);
@@ -713,7 +713,7 @@ void Process::_renameat2(int old_dfd,
         new_entry_ref->expectResult(SUCCESS);
 
         // Unlink the new entry
-        _build.apply(_command, new_dir_ref, make_shared<UnlinkVersion>(new_entry));
+        _build.apply(_command, new_dir_ref, make_shared<UnlinkVersion>(new_entry, new_entry_ref));
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -886,7 +886,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
       entry_ref->expectResult(SUCCESS);
 
       // Perform the unlink
-      _build.apply(_command, dir_ref, make_shared<UnlinkVersion>(entry));
+      _build.apply(_command, dir_ref, make_shared<UnlinkVersion>(entry, entry_ref));
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
