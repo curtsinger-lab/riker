@@ -159,7 +159,8 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       result = ENOENT;
     }
 
-    // TODO: Add a path resolution input from the version that matched
+    // Add a path resolution input from the version that matched
+    _env.getBuild().observeInput(c, shared_from_this(), v, InputType::PathResolution);
 
   } else {
     // There's no match in the directory entry map. We need to check the base version for a match
@@ -171,7 +172,9 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       _entries[entry] = {_base_dir_version, nullptr};
     }
 
-    // TODO: Add a path resolution input from the base version
+    // Add a path resolution input from the base version
+    _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version,
+                                 InputType::PathResolution);
   }
 
   // We now have either a resolved artifact or an error code. The next step depends on whether
@@ -228,6 +231,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 // Apply a link version to this artifact
 void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
   auto entry = writing->getEntryName();
+  auto artifact = writing->getTarget()->getArtifact();
 
   // Check for an existing entry with the same name
   auto iter = _entries.find(entry);
@@ -236,8 +240,11 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
     // TODO: AddEntry versions should be tagged with an `overwrite` flag
   }
 
+  // If this version is already committed, update the target with a new link
+  if (writing->isCommitted()) artifact->addLink(this->as<DirArtifact>(), entry);
+
   // Add the new entry to the entries map
-  _entries[entry] = {writing, writing->getTarget()->getArtifact()};
+  _entries[entry] = {writing, artifact};
 
   // Notify the build of this output
   _env.getBuild().observeOutput(c, shared_from_this(), writing);

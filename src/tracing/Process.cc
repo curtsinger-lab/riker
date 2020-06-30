@@ -623,10 +623,7 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 /************************ Directory Operations ************************/
 
 void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
-  WARN << "mkdirat() syscall is not supported yet";
-  resume();
-
-  /*auto full_path = fs::path(pathname);
+  auto full_path = fs::path(pathname);
   auto parent_path = full_path.parent_path();
   auto entry = full_path.filename();
 
@@ -658,7 +655,7 @@ void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
       parent_ref->expectResult(parent_ref->getResolution());
       entry_ref->expectResult(entry_ref->getResolution());
     }
-  });*/
+  });
 }
 
 void Process::_renameat2(int old_dfd,

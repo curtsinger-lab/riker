@@ -135,6 +135,39 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   return symlink;
 }
 
+shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept {
+  // Get the current umask
+  auto mask = umask(0);
+  umask(mask);
+
+  // Create uid, gid, and mode values for this new directory
+  uid_t uid = getuid();
+  gid_t gid = getgid();
+  mode_t stat_mode = S_IFDIR | (mode & ~mask);
+
+  // Create initial versions
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
+  if (committed) mv->setCommitted();
+
+  auto dv = make_shared<EmptyDir>();
+  if (committed) dv->setCommitted();
+
+  auto dir = make_shared<DirArtifact>(*this, mv, dv);
+
+  // If a command was provided, report the outputs to the build
+  if (c) {
+    mv->createdBy(c);
+    _build.observeOutput(c, dir, mv);
+
+    dv->createdBy(c);
+    _build.observeOutput(c, dir, dv);
+  }
+
+  _anonymous.insert(dir);
+
+  return dir;
+}
+
 shared_ptr<Artifact> Env::createFile(shared_ptr<Command> creator,
                                      AccessFlags flags,
                                      bool committed) noexcept {

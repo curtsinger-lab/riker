@@ -75,13 +75,23 @@ class Env {
 
   /**
    * Create a symlink artifact
-   * \param c       The command creating the symlink
-   * \param target  The destination of the symlink
+   * \param c         The command creating the symlink
+   * \param target    The destination of the symlink
+   * \param committed If true, the symlink is already committed
    * \returns a symlink artifact
    */
   shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c,
                                          fs::path target,
                                          bool committed) noexcept;
+
+  /**
+   * Create a directory artifact
+   * \param c         The command that is creating the directory
+   * \param mode      The mode (permissions) specified when creating the directory
+   * \param committed If true, the directory is already committed
+   * \returns a directory artifact
+   */
+  shared_ptr<DirArtifact> getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept;
 
   /**
    * Get the root directory

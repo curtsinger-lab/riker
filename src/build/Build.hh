@@ -79,6 +79,11 @@ class Build {
                               fs::path target,
                               shared_ptr<Symlink> emulating = nullptr) noexcept;
 
+  /// A command creates a new directory
+  shared_ptr<Dir> dir(shared_ptr<Command> c,
+                      mode_t mode,
+                      shared_ptr<Dir> emulating = nullptr) noexcept;
+
   /// A command makes a reference with a path
   shared_ptr<Access> access(shared_ptr<Command> c,
                             shared_ptr<Access> base,

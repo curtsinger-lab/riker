@@ -70,7 +70,10 @@ void ExistingDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noex
 }
 
 void EmptyDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
-  // TODO
+  if (isCommitted()) return;
+
+  int rc = ::mkdir(path.c_str(), 0755);
+  WARN_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();

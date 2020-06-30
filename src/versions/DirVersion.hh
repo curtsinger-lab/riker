@@ -124,6 +124,9 @@ class BaseDirVersion : public DirVersion {
 /// A version to represent a directory that was created during the build
 class EmptyDir : public BaseDirVersion {
  public:
+  /// Create a new empty directory version
+  EmptyDir() noexcept = default;
+
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
 
@@ -144,8 +147,7 @@ class EmptyDir : public BaseDirVersion {
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
 
  private:
-  // Create a default constructor and specify fields for serialization
-  EmptyDir() = default;
+  // Specify fields for serialization
   SERIALIZE(BASE(BaseDirVersion));
 };
 
@@ -165,7 +167,7 @@ class ExistingDirVersion : public BaseDirVersion {
   virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept override;
 
   /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "list"; }
+  virtual string getTypeName() const noexcept override { return "on-disk"; }
 
   /// Print an existing directory version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: on-disk state]"; }

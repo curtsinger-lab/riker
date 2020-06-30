@@ -75,6 +75,15 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
   return ref;
 }
 
+// Command c creates a new directory
+shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<Dir>(mode);
+  ref->resolvesTo(_env.getDir(c, mode, !emulating));
+  _trace->addStep(c, ref);
+  return ref;
+}
+
 // Command c accesses a path
 shared_ptr<Access> Build::access(shared_ptr<Command> c,
                                  shared_ptr<Access> base,

@@ -44,7 +44,7 @@ bool FileArtifact::canCommitAll() const noexcept {
 // Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "File has no path";
+  ASSERT(!path.empty()) << "File has no path: " << this;
 
   _content_version->commit(path);
 
