@@ -20,6 +20,7 @@
 #include "util/path.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::function;
 
@@ -435,7 +436,8 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.apply<MetadataVersion>(_command, descriptor.getReference());
+    _build.apply<MetadataVersion>(_command, descriptor.getReference(),
+                                  make_shared<MetadataVersion>());
   });
 }
 
@@ -462,7 +464,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _build.apply<MetadataVersion>(_command, ref);
+      _build.apply<MetadataVersion>(_command, ref, make_shared<MetadataVersion>());
 
     } else {
       // No. Record the failure
@@ -499,7 +501,7 @@ void Process::_write(int fd) noexcept {
     if (rc == -1) return;
 
     // Record the update to the artifact contents
-    _build.apply<FileVersion>(_command, descriptor.getReference());
+    _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
   });
 }
 
@@ -532,7 +534,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
     // is also effectively setting the contents of the file.
     bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
     if (writable) {
-      _build.apply<FileVersion>(_command, descriptor.getReference());
+      _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
     }
 
     // TODO: we need to track which commands have a given artifact mapped.
@@ -573,7 +575,7 @@ void Process::_truncate(string pathname, long length) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
-      _build.apply<FileVersion>(_command, ref);
+      _build.apply<FileVersion>(_command, ref, make_shared<FileVersion>());
     }
   });
 }
@@ -593,7 +595,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.apply<FileVersion>(_command, descriptor.getReference());
+      _build.apply<FileVersion>(_command, descriptor.getReference(), make_shared<FileVersion>());
     }
   });
 }
@@ -615,7 +617,7 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
     _build.match<FileVersion>(_command, in_desc.getReference());
 
     // The command has now set the contents of the output file
-    _build.apply<FileVersion>(_command, out_desc.getReference());
+    _build.apply<FileVersion>(_command, out_desc.getReference(), make_shared<FileVersion>());
   });
 }
 

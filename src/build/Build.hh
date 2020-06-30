@@ -97,7 +97,7 @@ class Build {
   template <class VersionType>
   void apply(shared_ptr<Command> c,
              shared_ptr<Reference> ref,
-             shared_ptr<VersionType> written = nullptr,
+             shared_ptr<VersionType> written,
              shared_ptr<Apply<VersionType>> emulating = nullptr) noexcept;
 
   /// A command is launching a child command

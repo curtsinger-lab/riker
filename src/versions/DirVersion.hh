@@ -34,10 +34,13 @@ class DirVersion : public Version {
                                         shared_ptr<DirArtifact> dir,
                                         string name) noexcept = 0;
 
+  /// Add this version's contributions to a map of directory entries
   virtual void getKnownEntries(map<string, shared_ptr<Artifact>>& entries) noexcept = 0;
 
+  /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept = 0;
 
+  /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept = 0;
 
  private:
@@ -47,9 +50,6 @@ class DirVersion : public Version {
 /// Link a new entry into a directory
 class LinkVersion : public DirVersion {
  public:
-  /// Default constructor is required for Build::apply, but should only be used for deserialization
-  LinkVersion() = default;
-
   /// Create a new version of a directory that adds a named entry to the directory
   LinkVersion(string entry, shared_ptr<Reference> target) : _entry(entry), _target(target) {}
 
@@ -92,7 +92,8 @@ class LinkVersion : public DirVersion {
   string _entry;
   shared_ptr<Reference> _target;
 
-  // Declare fields for serialization
+  // Create a default constructor and declare fields for serialization
+  LinkVersion() = default;
   SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
@@ -103,9 +104,6 @@ class LinkVersion : public DirVersion {
  */
 class UnlinkVersion : public DirVersion {
  public:
-  /// Default constructor is required for Build::apply, but should only be used for deserialization
-  UnlinkVersion() = default;
-
   /// Create a new version of a directory that adds a named entry to the directory
   UnlinkVersion(string entry) : _entry(entry) {}
 
@@ -144,7 +142,8 @@ class UnlinkVersion : public DirVersion {
  private:
   string _entry;
 
-  // Declare fields for serialization
+  // Create a default constructor and declare fields for serialization
+  UnlinkVersion() = default;
   SERIALIZE(BASE(DirVersion), _entry);
 };
 
@@ -188,9 +187,6 @@ class ExistingDirVersion : public DirVersion {
 /// A version to represent a directory that was created during the build
 class EmptyDirVersion : public DirVersion {
  public:
-  /// Create an EmptyDirVersion
-  EmptyDirVersion() = default;
-
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
 
@@ -213,6 +209,7 @@ class EmptyDirVersion : public DirVersion {
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
 
  private:
-  // Specify fields for serialization
+  // Create a default constructor and specify fields for serialization
+  EmptyDirVersion() = default;
   SERIALIZE(BASE(DirVersion));
 };

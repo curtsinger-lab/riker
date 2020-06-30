@@ -205,11 +205,11 @@ void Build::apply(shared_ptr<Command> c,
   } else {
     // No. This is a traced operation
 
-    // If we do not have an existing version, create a default version
-    if (!written) {
-      written = make_shared<VersionType>();
-      written->createdBy(c);
-    }
+    // The caller has to provide us with a valid version to apply
+    ASSERT(written) << "apply called with no written version";
+
+    // The calling command created this version
+    written->createdBy(c);
 
     // This apply operation was traced, so the written version is committed
     written->setCommitted();
