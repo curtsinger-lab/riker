@@ -45,6 +45,10 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   Version::setCommitted();
 }
 
+bool RemoveEntry::canCommit() const noexcept {
+  return true;
+}
+
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 

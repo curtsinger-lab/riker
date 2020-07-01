@@ -663,8 +663,6 @@ void Process::_renameat2(int old_dfd,
                          int new_dfd,
                          string new_name,
                          int flags) noexcept {
-  INFO << "rename " << old_name << " to " << new_name;
-
   // Break the path to the existing file into directory and entry parts
   auto old_path = fs::path(old_name);
   auto old_dir = old_path.parent_path();

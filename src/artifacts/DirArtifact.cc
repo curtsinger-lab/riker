@@ -212,7 +212,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (!result) return result;
 
     // Update the resolved artifact's name
-    result->addLink(as<DirArtifact>(), entry);
+    if (committed) result->addLink(as<DirArtifact>(), entry);
 
     // Otherwise continue with resolution, which may follow symlinks
     return result->resolve(c, shared_from_this(), current, end, ref, committed);

@@ -87,7 +87,7 @@ class RemoveEntry : public DirVersion {
   shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return true; }
+  virtual bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
