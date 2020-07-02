@@ -55,7 +55,7 @@ void FileArtifact::commitAll() noexcept {
 // Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "File has no path";
+  ASSERT(!path.empty()) << "Cannot check final state for " << this << ": no known path";
 
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();

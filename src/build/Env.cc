@@ -30,6 +30,15 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+Env::Env(Build& build) noexcept : _build(build) {
+  struct stat info;
+  int rc = ::lstat("/", &info);
+  ASSERT(rc == 0) << "Failed to stat root directory";
+  _root_dir = getArtifact("/", info)->as<DirArtifact>();
+  _root_dir->setName("/");
+  _root_dir->addLink(nullptr, "/");
+}
+
 shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});

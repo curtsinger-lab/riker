@@ -40,14 +40,7 @@ class Env {
    * Create an environment for build emulation or execution.
    * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept : _build(build) {
-    struct stat info;
-    int rc = ::lstat("/", &info);
-    ASSERT(rc == 0) << "Failed to stat root directory";
-    _root_dir = getArtifact("/", info)->as<DirArtifact>();
-    _root_dir->setName("/");
-    _root_dir->addLink(nullptr, "/");
-  }
+  Env(Build& build) noexcept;
 
   // Disallow Copy
   Env(const Env&) = delete;
@@ -55,6 +48,9 @@ class Env {
 
   /// Get the Build instance this environment is part of
   Build& getBuild() const noexcept { return _build; }
+
+  /// Get the root directory
+  shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
 
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
@@ -94,11 +90,6 @@ class Env {
   shared_ptr<DirArtifact> getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept;
 
   /**
-   * Get the root directory
-   */
-  shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
-
-  /**
    * Create a file artifact that exists only in the filesystem model
    * \param path    The path where this file will eventually appear
    * \param creator The command that creates this file
@@ -112,12 +103,12 @@ class Env {
   /// The build this environment is attached to
   Build& _build;
 
+  /// An artifact that corresponds to the root directory
+  shared_ptr<DirArtifact> _root_dir;
+
   /// A set of artifacts without known inodes
   set<shared_ptr<Artifact>> _anonymous;
 
   /// A map of artifacts identified by inode
   map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
-
-  /// An artifact that corresponds to the root directory
-  shared_ptr<DirArtifact> _root_dir;
 };
