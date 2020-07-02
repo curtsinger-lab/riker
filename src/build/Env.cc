@@ -36,7 +36,7 @@ Env::Env(Build& build) noexcept : _build(build) {
   ASSERT(rc == 0) << "Failed to stat root directory";
   _root_dir = getArtifact("/", info)->as<DirArtifact>();
   _root_dir->setName("/");
-  _root_dir->addLink(nullptr, "/");
+  _root_dir->linkAt(nullptr, "/", true);
 }
 
 shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {

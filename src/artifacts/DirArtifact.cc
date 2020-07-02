@@ -38,10 +38,12 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 void DirArtifact::commit(shared_ptr<Version> v) noexcept {
   // The base directory version must always be committed to commit any other version
-  _base_dir_version->commit(this->as<DirArtifact>(), getPath());
+  auto path = getPath();
+  ASSERT(path.has_value()) << "Committing to a directory with no path";
+  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
 
   if (auto dv = v->as<DirVersion>()) {
-    dv->commit(this->as<DirArtifact>(), getPath());
+    dv->commit(this->as<DirArtifact>(), path.value());
   } else {
     Artifact::commit(v);
   }
@@ -67,7 +69,7 @@ bool DirArtifact::canCommitAll() const noexcept {
 // Commit all final versions of this artifact to the filesystem
 void DirArtifact::commitAll() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "Directory has no path";
+  ASSERT(path.has_value()) << "Directory has no path";
 
   // Commit the versions needed for each entry
   for (auto& [name, info] : _entries) {
@@ -133,10 +135,9 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
   // Are we looking for the parent directory?
   if (entry == "..") {
-    auto& links = getLinks();
-    ASSERT(!links.empty()) << "Path resolution reached a directory with no parent";
-    auto [parent, name] = *links.begin();
-    return parent->resolve(c, shared_from_this(), current, end, ref, committed);
+    auto parent = getParentDir();
+    ASSERT(parent.has_value()) << "Directory has no parent";
+    return parent.value()->resolve(c, shared_from_this(), current, end, ref, committed);
   }
 
   // We'll track the result of the resolution here
@@ -212,7 +213,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (!result) return result;
 
     // Update the resolved artifact's name
-    if (committed) result->addLink(as<DirArtifact>(), entry);
+    result->linkAt(as<DirArtifact>(), entry, committed);
 
     // Otherwise continue with resolution, which may follow symlinks
     return result->resolve(c, shared_from_this(), current, end, ref, committed);
@@ -241,7 +242,7 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
   }
 
   // If this version is already committed, update the target with a new link
-  if (writing->isCommitted()) artifact->addLink(this->as<DirArtifact>(), entry);
+  artifact->linkAt(this->as<DirArtifact>(), entry, writing->isCommitted());
 
   // Add the new entry to the entries map
   _entries[entry] = {writing, artifact};
@@ -266,10 +267,8 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
     // Is the version that added this artifact committed?
     if (version->isCommitted()) {
       // Yes. When we commit the written version, it will need to remove a link from the target
-      // artifact. If the written version is already committed, do that now.
-      if (writing->isCommitted()) {
-        artifact->removeLink(this->as<DirArtifact>(), entry);
-      }
+      // artifact.
+      artifact->unlinkAt(this->as<DirArtifact>(), entry, writing->isCommitted());
 
     } else {
       // Not committed. If the uncommitted version is an AddEntry version, we can cancel it out.

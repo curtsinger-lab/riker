@@ -28,16 +28,16 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   auto target_path = _target->getArtifact()->getPath();
 
   // Does the target have a path?
-  if (!target_path.empty()) {
+  if (target_path.has_value()) {
     // Yes. Create a hard link to the target
-    ::link(target_path.c_str(), (dir_path / _entry).c_str());
+    ::link(target_path.value().c_str(), (dir_path / _entry).c_str());
 
     // Inform the target artifact of its new link
-    _target->getArtifact()->addLink(dir, _entry);
+    _target->getArtifact()->linkAt(dir, _entry, true);
 
   } else {
     // No. Add a link to the target artifact, then commit it
-    _target->getArtifact()->addLink(dir, _entry);
+    _target->getArtifact()->linkAt(dir, _entry, true);
     _target->getArtifact()->commitAll();
   }
 
@@ -68,7 +68,7 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   }
 
   // Remove the link to the artifact
-  _target->getArtifact()->removeLink(dir, _entry);
+  _target->getArtifact()->unlinkAt(dir, _entry, true);
 
   // Mark this version as committed
   Version::setCommitted();
@@ -101,7 +101,9 @@ Resolution ExistingDirVersion::getEntry(Env& env,
   if (absent_iter != _absent.end()) return ENOENT;
 
   // Create a path to the entry
-  auto path = dir->getPath() / name;
+  auto dir_path = dir->getPath();
+  ASSERT(dir_path.has_value()) << "Directory has no path!";
+  auto path = dir_path.value() / name;
 
   // This is a query for a new entry name. Try to stat the entry
   struct stat info;
@@ -115,7 +117,7 @@ Resolution ExistingDirVersion::getEntry(Env& env,
 
   // The artifact should exist. Get it from the environment and save it
   auto artifact = env.getArtifact(path, info);
-  artifact->addLink(dir, name);
+  artifact->linkAt(dir, name, true);
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;
 }

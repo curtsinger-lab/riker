@@ -30,7 +30,9 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _content_version) {
-    _content_version->commit(getPath());
+    auto path = getPath();
+    ASSERT(path.has_value()) << "File has no path";
+    _content_version->commit(path.value());
   } else {
     Artifact::commit(v);
   }
@@ -44,9 +46,9 @@ bool FileArtifact::canCommitAll() const noexcept {
 // Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "File has no path: " << this;
+  ASSERT(path.has_value()) << "File has no path: " << this;
 
-  _content_version->commit(path);
+  _content_version->commit(path.value());
 
   // Delegate metadata commits to the artifact
   Artifact::commitAll();
@@ -55,11 +57,11 @@ void FileArtifact::commitAll() noexcept {
 // Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "Cannot check final state for " << this << ": no known path";
+  ASSERT(path.has_value()) << "Cannot check final state for " << this << ": no known path";
 
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();
-    v->fingerprint(path);
+    v->fingerprint(path.value());
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -78,16 +80,16 @@ void FileArtifact::checkFinalState() noexcept {
 // Commit any pending versions and save fingerprints for this artifact
 void FileArtifact::applyFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "File has no path";
+  ASSERT(path.has_value()) << "File has no path";
 
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _content_version->fingerprint(path);
+    _content_version->fingerprint(path.value());
   }
 
   // Make sure the content is committed
-  _content_version->commit(path);
+  _content_version->commit(path.value());
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState();

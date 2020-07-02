@@ -30,9 +30,13 @@ string Artifact::getName() const noexcept {
   // If a fixed name was assigned, return it
   if (!_name.empty()) return _name;
 
-  // If this artifact has a parent and entry, construct a name
-  if (!_links.empty()) {
-    auto [dir, entry] = *_links.begin();
+  // Try to construct a name from the committed links to this artifact
+  for (auto& [dir, entry] : _committed_links) {
+    return (fs::path(dir->getName()) / entry).lexically_normal();
+  }
+
+  // Try an uncommitted link
+  for (auto& [dir, entry] : _uncommitted_links) {
     return (fs::path(dir->getName()) / entry).lexically_normal();
   }
 
@@ -40,24 +44,87 @@ string Artifact::getName() const noexcept {
   return string();
 }
 
-fs::path Artifact::getPath() const noexcept {
-  // If there are no links of this artifact, return an empty path
-  if (_links.empty()) return fs::path();
+/// Notify this artifact that it is linked to a parent directory with a given entry name.
+/// If committed is true, the link is already in place on the filesystem.
+void Artifact::linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  if (committed) {
+    _committed_links.emplace(dir.get(), entry);
+  } else {
+    _uncommitted_links.emplace(dir.get(), entry);
+  }
+}
 
-  // Walk through known links until we can construct a valid path
-  for (auto [dir, entry] : _links) {
-    // If the directory is null, this must be the root directory.
-    if (dir == nullptr) return "/";
+/// Update the filesystem so this artifact is linked in the given directory
+void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  FAIL << "commitLinkAt() function is not implemented";
+}
 
-    // Otherwise, try to get a path to the parent directory
+/// Notify this artifact that it is unlinked from ap arent directory at a given entry name.
+/// If committed is true, the link has already been removed on the filesystem.
+void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  if (committed) {
+    _committed_links.erase(tuple{dir.get(), entry});
+  } else {
+    _uncommitted_links.erase(tuple{dir.get(), entry});
+  }
+}
+
+/// Update the filesystem so this artifact is no longer linked in the given directory
+void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  FAIL << "commitUnlinkAt() function is not implemented";
+}
+
+/// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
+/// the path will reflect a location of this artifact at some point during the build.
+optional<fs::path> Artifact::getPath() const noexcept {
+  // Try to get a committed path first
+  auto result = getCommittedPath();
+  if (result.has_value()) return result;
+
+  // Fall back on uncommitted paths
+  for (auto& [dir, name] : _uncommitted_links) {
+    // Check for a null parent directory, which should only happen for root
+    if (dir == nullptr) return name;
+
     auto dir_path = dir->getPath();
-
-    // If the parent directory has a path, return the path to this artifact
-    if (!dir_path.empty()) return dir_path / entry;
+    if (dir_path.has_value()) return dir_path.value() / name;
   }
 
-  // Return an empty path
-  return fs::path();
+  // No paths?
+  return nullopt;
+}
+
+/// Get a committed path to this artifact. The path may be a temporary location that does not
+/// appear during the build, but this artifact is guaranteed to be at that path.
+optional<fs::path> Artifact::getCommittedPath() const noexcept {
+  // TODO: Check for temporary location
+
+  // Get a committed path
+  for (auto& [dir, name] : _committed_links) {
+    // Check for a null parent directory, which should only happen for root
+    if (dir == nullptr) return name;
+
+    auto dir_path = dir->getPath();
+    if (dir_path.has_value()) return dir_path.value() / name;
+  }
+
+  // No committed path
+  return nullopt;
+}
+
+/// Get a parent directory for this artifact. The result may or may not be on the filesystem
+optional<DirArtifact*> Artifact::getParentDir() const noexcept {
+  if (_committed_links.size() > 0) {
+    auto [parent, name] = *_committed_links.begin();
+    return parent;
+  }
+
+  if (_uncommitted_links.size() > 0) {
+    auto [parent, name] = *_uncommitted_links.begin();
+    return parent;
+  }
+
+  return nullopt;
 }
 
 // Check if an access is allowed by the metadata for this artifact
@@ -79,8 +146,8 @@ bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
 void Artifact::commit(shared_ptr<Version> v) noexcept {
   ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
   auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
-  _metadata_version->commit(path);
+  ASSERT(path.has_value()) << "Artifact has no path";
+  _metadata_version->commit(path.value());
 }
 
 // Can this artifact be fully committed?
@@ -96,11 +163,11 @@ void Artifact::commitAll() noexcept {
 // Compare all final versions of this artifact to the filesystem state
 void Artifact::checkFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
+  ASSERT(path.has_value()) << "Artifact has no path";
 
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path);
+    v->fingerprint(path.value());
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -116,16 +183,16 @@ void Artifact::checkFinalState() noexcept {
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
+  ASSERT(path.has_value()) << "Artifact has no path";
 
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _metadata_version->fingerprint(path);
+    _metadata_version->fingerprint(path.value());
   }
 
   // Make sure metadata for this artifact is committed
-  _metadata_version->commit(path);
+  _metadata_version->commit(path.value());
 }
 
 /// Get the current metadata version for this artifact
