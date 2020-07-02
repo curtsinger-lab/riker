@@ -266,15 +266,15 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
 
- private:
-  /// A fixed string name assigned to this artifact
-  string _name;
-
   /// A set of links to this artifact that have not been committed
   set<tuple<DirArtifact*, string>> _uncommitted_links;
 
   /// A set of links to this artifact that are in place on the filesystem
   set<tuple<DirArtifact*, string>> _committed_links;
+
+ private:
+  /// A fixed string name assigned to this artifact
+  string _name;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;

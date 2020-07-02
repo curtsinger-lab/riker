@@ -28,6 +28,31 @@ DirArtifact::DirArtifact(Env& env,
   appendVersion(dv);
 }
 
+/// Update the filesystem so this artifact is linked in the given directory
+void DirArtifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  FAIL << "commitLinkAt() function is not implemented";
+
+  // Three cases:
+  // 1. This artifact has a temporary location:
+  //   Move it to the committed path.
+  // 2. This artifact has an existing committed path:
+  //   This is a move operation. Perform the move and mark the other committed path as unlinked.
+  // 3. Otherwise:
+  //   This dir must be created. Verify that committing the artifact can create it, then commit.
+}
+
+/// Update the filesystem so this artifact is no longer linked in the given directory
+void DirArtifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  FAIL << "commitUnlinkAt() function is not implemented";
+
+  // Two cases:
+  // 1. This directory has an uncommitted location:
+  //   Move this directory to a temporary location
+  // 2. Otherwise:
+  //   Commit all remaining versions in this directory (to remove any final entries)
+  //   Remove this directory.
+}
+
 bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (auto dv = v->as<DirVersion>()) {
     return dv->canCommit();

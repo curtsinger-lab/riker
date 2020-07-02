@@ -57,6 +57,14 @@ void Artifact::linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed)
 /// Update the filesystem so this artifact is linked in the given directory
 void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
   FAIL << "commitLinkAt() function is not implemented";
+
+  // Three cases:
+  // 1. The artifact has a temporary location:
+  //   Move it to the committed path
+  // 2. The artifact has at least one committed path:
+  //   Create a hard link to a committed path
+  // 3. Otherwise:
+  //   The file must be created. Verify that committing the artifact can create it, then commit.
 }
 
 /// Notify this artifact that it is unlinked from ap arent directory at a given entry name.
@@ -72,6 +80,12 @@ void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committe
 /// Update the filesystem so this artifact is no longer linked in the given directory
 void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
   FAIL << "commitUnlinkAt() function is not implemented";
+
+  // Two cases:
+  // 1. The artifact has uncommitted paths, but is losing its last committed path:
+  //   Move the artifact to a temporary location
+  // 2. Otherwise:
+  //   Unlink the provided path
 }
 
 /// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
