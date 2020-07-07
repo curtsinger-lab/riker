@@ -24,22 +24,8 @@ bool AddEntry::canCommit() const noexcept {
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
-  // Try to get a path for the target artifact
-  auto target_path = _target->getArtifact()->getPath();
-
-  // Does the target have a path?
-  if (target_path.has_value()) {
-    // Yes. Create a hard link to the target
-    ::link(target_path.value().c_str(), (dir_path / _entry).c_str());
-
-    // Inform the target artifact of its new link
-    _target->getArtifact()->linkAt(dir, _entry, true);
-
-  } else {
-    // No. Add a link to the target artifact, then commit it
-    _target->getArtifact()->linkAt(dir, _entry, true);
-    _target->getArtifact()->commitAll();
-  }
+  // Commit the link that this version applies
+  _target->getArtifact()->commitLinkAt(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();
@@ -52,23 +38,8 @@ bool RemoveEntry::canCommit() const noexcept {
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // Is the target artifact a directory?
-  if (auto target_dir = _target->getArtifact()->as<DirArtifact>()) {
-    // Before we can remove the directory, we need to commit any of its remaining versions
-    target_dir->commitAll();
-
-    // Remove the directory
-    int rc = ::rmdir((path / _entry).c_str());
-    WARN_IF(rc != 0) << "Failed to remove directory " << _entry << " from " << path << ": " << ERR;
-
-  } else {
-    // Unlink the file
-    int rc = ::unlink((path / _entry).c_str());
-    WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << path << ": " << ERR;
-  }
-
-  // Remove the link to the artifact
-  _target->getArtifact()->unlinkAt(dir, _entry, true);
+  // Commit the unlink this version applies
+  _target->getArtifact()->commitUnlinkAt(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();
@@ -101,7 +72,7 @@ Resolution ExistingDirVersion::getEntry(Env& env,
   if (absent_iter != _absent.end()) return ENOENT;
 
   // Create a path to the entry
-  auto dir_path = dir->getPath();
+  auto dir_path = dir->getCommittedPath();
   ASSERT(dir_path.has_value()) << "Directory has no path!";
   auto path = dir_path.value() / name;
 

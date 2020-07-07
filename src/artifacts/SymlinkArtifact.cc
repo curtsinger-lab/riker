@@ -35,7 +35,7 @@ bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _symlink_version) {
-    auto path = getPath();
+    auto path = getCommittedPath();
     ASSERT(path.has_value()) << "Symlink has no path";
     _symlink_version->commit(path.value());
   } else {
@@ -49,7 +49,7 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void SymlinkArtifact::commitAll() noexcept {
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
@@ -70,7 +70,7 @@ void SymlinkArtifact::checkFinalState() noexcept {
 void SymlinkArtifact::applyFinalState() noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   // Make sure this symlink is committed

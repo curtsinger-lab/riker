@@ -30,7 +30,9 @@ DirArtifact::DirArtifact(Env& env,
 
 /// Update the filesystem so this artifact is linked in the given directory
 void DirArtifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  FAIL << "commitLinkAt() function is not implemented";
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing " << this << " to a directory with no committed path";
 
   // Three cases:
   // 1. This artifact has a temporary location:
@@ -39,6 +41,24 @@ void DirArtifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexce
   //   This is a move operation. Perform the move and mark the other committed path as unlinked.
   // 3. Otherwise:
   //   This dir must be created. Verify that committing the artifact can create it, then commit.
+
+  // TODO: Check for a temporary location. If found, move the directory to the committed path
+
+  // Does this artifact have an existing committed path?
+  auto committed_path = getCommittedPath();
+  if (committed_path.has_value()) {
+    // TODO: Move the directory to its new committed path (no hard links allowed for directories).
+    // We need to mark the RemoveEntry version in this artifact's old directory as committed.
+    FAIL << "Attempted to move directory " << this << ": Not supported yet";
+
+  } else {
+    // TODO: Verify that committing this artifact can create it
+    // TODO: commit the artifact to the path that was requested, not just any path it chooses
+
+    // Mark the new path as committed before committing this directory
+    _links[{dir.get(), entry}] = true;
+    commitAll();
+  }
 }
 
 /// Update the filesystem so this artifact is no longer linked in the given directory
@@ -63,7 +83,7 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 void DirArtifact::commit(shared_ptr<Version> v) noexcept {
   // The base directory version must always be committed to commit any other version
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(this->as<DirArtifact>(), path.value());
 
@@ -93,7 +113,7 @@ bool DirArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void DirArtifact::commitAll() noexcept {
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Directory has no path";
 
   // Commit the versions needed for each entry
@@ -143,7 +163,8 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
                                 fs::path::iterator end,
                                 shared_ptr<Access> ref,
                                 bool committed) noexcept {
-  // If the path has a trailing slash, the final entry will be empty. Advance past any empty entries
+  // If the path has a trailing slash, the final entry will be empty. Advance past any empty
+  // entries
   while (current != end && current->empty()) current++;
 
   // If this is the last entry on the path, return this artifact
@@ -152,7 +173,8 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   // If the remaining path is not empty, make sure we have execute permission in this directory
   if (!checkAccess(c, AccessFlags{.x = true})) return EACCES;
 
-  // We must be looking for an entry in this directory. Get the entry name and advance the iterator
+  // We must be looking for an entry in this directory. Get the entry name and advance the
+  // iterator
   fs::path entry = *current++;
 
   // Are we looking for the current directory?

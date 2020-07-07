@@ -49,7 +49,9 @@ void Artifact::linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed)
 
 /// Update the filesystem so this artifact is linked in the given directory
 void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  FAIL << "commitLinkAt() function is not implemented";
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing " << this << " to a directory with no committed path";
 
   // Three cases:
   // 1. The artifact has a temporary location:
@@ -58,6 +60,25 @@ void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept 
   //   Create a hard link to a committed path
   // 3. Otherwise:
   //   The file must be created. Verify that committing the artifact can create it, then commit.
+
+  // TODO: Check for a temporary location. If found, move the artifact into place.
+
+  // Does this artifact have at least one committed path?
+  auto committed_path = getCommittedPath();
+  if (committed_path.has_value()) {
+    // Yes. Create a hard link to the existing committed path
+    ::link(committed_path.value().c_str(), (dir_path.value() / entry).c_str());
+
+    // Mark the new path as committed
+    _links[{dir.get(), entry}] = true;
+
+  } else {
+    // No. Commit the artifact to a new path
+    // TODO: verify that committing the artifact will create it
+    // Set up the new link as a committed path so we can commit to it
+    _links[{dir.get(), entry}] = true;
+    commitAll();
+  }
 }
 
 /// Notify this artifact that it is unlinked from a parent directory at a given entry name.
@@ -90,13 +111,18 @@ void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committe
 
 /// Update the filesystem so this artifact is no longer linked in the given directory
 void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  FAIL << "commitUnlinkAt() function is not implemented";
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing unlink of  " << this
+                               << " from a directory with no committed path";
 
-  // Two cases:
-  // 1. The artifact has uncommitted paths, but is losing its last committed path:
-  //   Move the artifact to a temporary location
-  // 2. Otherwise:
-  //   Unlink the provided path
+  // TODO: Check to see if the artifact is losing its last committed path. If it has remaining
+  // uncommitted paths, move it to a temporary location
+
+  int rc = ::unlink((dir_path.value() / entry).c_str());
+  ASSERT(rc == 0) << "Failed to unlink " << this << " from " << dir_path.value() / entry;
+
+  _links.erase({dir.get(), entry});
 }
 
 /// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
@@ -132,7 +158,7 @@ optional<fs::path> Artifact::getCommittedPath() const noexcept {
     if (dir == nullptr) return name;
 
     // Get a path to the parent directory
-    auto dir_path = dir->getPath();
+    auto dir_path = dir->getCommittedPath();
     if (dir_path.has_value()) return dir_path.value() / name;
   }
 
@@ -169,7 +195,7 @@ bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
 // Commit a specific version of this artifact to the filesystem
 void Artifact::commit(shared_ptr<Version> v) noexcept {
   ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Artifact has no path";
   _metadata_version->commit(path.value());
 }
@@ -206,7 +232,7 @@ void Artifact::checkFinalState() noexcept {
 
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState() noexcept {
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Artifact has no path";
 
   // If we don't have a fingerprint of the metadata, take one

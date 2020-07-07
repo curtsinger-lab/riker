@@ -30,7 +30,7 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _content_version) {
-    auto path = getPath();
+    auto path = getCommittedPath();
     ASSERT(path.has_value()) << "File has no path";
     _content_version->commit(path.value());
   } else {
@@ -45,7 +45,7 @@ bool FileArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
   _content_version->commit(path.value());
@@ -79,7 +79,7 @@ void FileArtifact::checkFinalState() noexcept {
 
 // Commit any pending versions and save fingerprints for this artifact
 void FileArtifact::applyFinalState() noexcept {
-  auto path = getPath();
+  auto path = getCommittedPath();
   ASSERT(path.has_value()) << "File has no path";
 
   // If we don't already have a content fingerprint, take one
