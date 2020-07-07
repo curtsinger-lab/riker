@@ -1,1 +1,1 @@
-/usr/bin/date > A
+date > A

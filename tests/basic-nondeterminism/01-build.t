@@ -16,3 +16,7 @@ Run the build
 
 Run the build again (nothing should happen)
   $ $DODO --show
+
+Clean up
+  $ rm -rf .dodo
+  $ rm A
