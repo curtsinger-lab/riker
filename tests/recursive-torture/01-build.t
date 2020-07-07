@@ -1,0 +1,36 @@
+This test is intended to check whether we correctly start ancestor commands
+on rebuild and whether we also uniformly treat the outputs of ancsestor
+commands as changed.
+
+Move to test directory
+  $ cd $TESTDIR
+
+Clean up any leftover state
+  $ rm -rf .dodo output-*
+
+Run the build
+  $ $DODO --show
+  dodo-launch
+  Dodofile
+  python3 Dodofile
+  python build 3
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 2 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 1 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 0 /tmp/cramtests.*/tmp/tmp.* (re)
+
+Rebuild without changing anything (tempfiles are missing, so basically everything should happen again)
+  $ $DODO --show
+  python3 Dodofile
+  python build 3
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 2 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 1 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python build 0 /tmp/cramtests.*/tmp/tmp.* (re)
+
+Clean up
+  $ rm -rf .dodo rm output-*
