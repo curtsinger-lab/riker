@@ -17,8 +17,8 @@ num = int(sys.argv[1])
 if num > 0:
    data = ""
 
-   # read A
-   with open("A", "r") as a_file:
+   # read A{num}
+   with open("A" + str(num), "r") as a_file:
       data = a_file.read()
 
    if len(sys.argv) == 3:
