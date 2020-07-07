@@ -670,7 +670,7 @@ void Process::_renameat2(int old_dfd,
 
   // Make references to the old directory and entry
   auto old_dir_ref = makeAccess(old_dir, AccessFlags{.w = true}, old_dfd);
-  auto old_entry_ref = makeAccess(old_path, AccessFlags{}, old_dfd);
+  auto old_entry_ref = makeAccess(old_path, AccessFlags{.nofollow = true}, old_dfd);
 
   // Break the path to the new file into directory and entry parts
   auto new_path = fs::path(new_name);
@@ -683,7 +683,7 @@ void Process::_renameat2(int old_dfd,
   // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
   shared_ptr<Access> new_entry_ref;
   if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
-    new_entry_ref = makeAccess(new_path, AccessFlags{}, new_dfd);
+    new_entry_ref = makeAccess(new_path, AccessFlags{.nofollow = true}, new_dfd);
   }
 
   finishSyscall([=](long rc) {
@@ -868,7 +868,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref = makeAccess(path, AccessFlags{}, dfd);
+  auto entry_ref = makeAccess(path, AccessFlags{.nofollow = true}, dfd);
 
   finishSyscall([=](long rc) {
     resume();

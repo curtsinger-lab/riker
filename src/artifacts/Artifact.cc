@@ -30,13 +30,10 @@ string Artifact::getName() const noexcept {
   // If a fixed name was assigned, return it
   if (!_name.empty()) return _name;
 
-  // Try to construct a name from the committed links to this artifact
-  for (auto& [dir, entry] : _committed_links) {
-    return (fs::path(dir->getName()) / entry).lexically_normal();
-  }
-
-  // Try an uncommitted link
-  for (auto& [dir, entry] : _uncommitted_links) {
+  // Walk through links to this artifact to try to construct a name
+  // TODO: Should we prefer committed names? What about the shortest name?
+  for (auto& [link, committed] : _links) {
+    auto [dir, entry] = link;
     return (fs::path(dir->getName()) / entry).lexically_normal();
   }
 
@@ -47,11 +44,7 @@ string Artifact::getName() const noexcept {
 /// Notify this artifact that it is linked to a parent directory with a given entry name.
 /// If committed is true, the link is already in place on the filesystem.
 void Artifact::linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
-  if (committed) {
-    _committed_links.emplace(dir.get(), entry);
-  } else {
-    _uncommitted_links.emplace(dir.get(), entry);
-  }
+  _links.emplace(tuple{dir.get(), entry}, committed);
 }
 
 /// Update the filesystem so this artifact is linked in the given directory
@@ -67,13 +60,31 @@ void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept 
   //   The file must be created. Verify that committing the artifact can create it, then commit.
 }
 
-/// Notify this artifact that it is unlinked from ap arent directory at a given entry name.
+/// Notify this artifact that it is unlinked from a parent directory at a given entry name.
 /// If committed is true, the link has already been removed on the filesystem.
 void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  auto iter = _links.find(tuple{dir.get(), entry});
+
+  // TODO: Don't allow unlinkAt on a previously-unknown link once link versioning is finalized
+  if (iter == _links.end()) {
+    WARN << "Called unlinkAt on " << this << " with unrecognized link " << dir << ", " << entry;
+    return;
+  }
+
+  auto [link, link_committed] = *iter;
+
+  // Is this unlink already committed?
   if (committed) {
-    _committed_links.erase(tuple{dir.get(), entry});
+    // The matching link should have been committed as well
+    ASSERT(link_committed) << "A committed unlinkAt call matched an uncommitted link";
+
+    // Remove the link
+    _links.erase(iter);
+
   } else {
-    _uncommitted_links.erase(tuple{dir.get(), entry});
+    // An uncommitted unlinkAt call only removes uncommitted links; a committed link will be
+    // removed later, when the unlinkAt is committed
+    if (!link_committed) _links.erase(iter);
   }
 }
 
@@ -91,15 +102,13 @@ void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcep
 /// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
 /// the path will reflect a location of this artifact at some point during the build.
 optional<fs::path> Artifact::getPath() const noexcept {
-  // Try to get a committed path first
-  auto result = getCommittedPath();
-  if (result.has_value()) return result;
+  for (auto& [link, committed] : _links) {
+    auto& [dir, name] = link;
 
-  // Fall back on uncommitted paths
-  for (auto& [dir, name] : _uncommitted_links) {
     // Check for a null parent directory, which should only happen for root
     if (dir == nullptr) return name;
 
+    // Get a path to the parent directory
     auto dir_path = dir->getPath();
     if (dir_path.has_value()) return dir_path.value() / name;
   }
@@ -113,28 +122,29 @@ optional<fs::path> Artifact::getPath() const noexcept {
 optional<fs::path> Artifact::getCommittedPath() const noexcept {
   // TODO: Check for temporary location
 
-  // Get a committed path
-  for (auto& [dir, name] : _committed_links) {
+  for (auto& [link, committed] : _links) {
+    // We only care about committed paths
+    if (!committed) continue;
+
+    auto& [dir, name] = link;
+
     // Check for a null parent directory, which should only happen for root
     if (dir == nullptr) return name;
 
+    // Get a path to the parent directory
     auto dir_path = dir->getPath();
     if (dir_path.has_value()) return dir_path.value() / name;
   }
 
-  // No committed path
+  // No paths?
   return nullopt;
 }
 
 /// Get a parent directory for this artifact. The result may or may not be on the filesystem
 optional<DirArtifact*> Artifact::getParentDir() const noexcept {
-  if (_committed_links.size() > 0) {
-    auto [parent, name] = *_committed_links.begin();
-    return parent;
-  }
-
-  if (_uncommitted_links.size() > 0) {
-    auto [parent, name] = *_uncommitted_links.begin();
+  if (_links.size() > 0) {
+    auto& [link, committed] = *_links.begin();
+    auto& [parent, name] = link;
     return parent;
   }
 

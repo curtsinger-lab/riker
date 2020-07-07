@@ -2,10 +2,10 @@
 
 #include <filesystem>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set>
 #include <string>
 #include <tuple>
 
@@ -17,9 +17,9 @@
 
 using std::list;
 using std::make_shared;
+using std::map;
 using std::optional;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -137,15 +137,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
   optional<DirArtifact*> getParentDir() const noexcept;
 
-  /// Get the set of uncommitted links to this artifact
-  const set<tuple<DirArtifact*, string>>& getUncommittedLinks() const noexcept {
-    return _uncommitted_links;
-  }
-
-  /// Get the set of committed links to this artifact
-  const set<tuple<DirArtifact*, string>>& getCommittedLinks() const noexcept {
-    return _committed_links;
-  }
+  /// Get the map of links to this artifact
+  const map<tuple<DirArtifact*, string>, bool>& getLinks() const noexcept { return _links; }
 
   /************ Metadata Operations ************/
 
@@ -266,11 +259,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
 
-  /// A set of links to this artifact that have not been committed
-  set<tuple<DirArtifact*, string>> _uncommitted_links;
-
-  /// A set of links to this artifact that are in place on the filesystem
-  set<tuple<DirArtifact*, string>> _committed_links;
+  /// A map of links to this artifact. The key is a directory and entry name. The value is a boolean
+  /// that indicates whether or not this link has been committed to the filesystem.
+  map<tuple<DirArtifact*, string>, bool> _links;
 
  private:
   /// A fixed string name assigned to this artifact

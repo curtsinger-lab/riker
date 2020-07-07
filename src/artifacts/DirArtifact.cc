@@ -232,13 +232,13 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 
       // The resolution result is now the newly-created file
       result = newfile;
+
+      // THe newly-created file is linked in this directory
+      result->linkAt(as<DirArtifact>(), entry, committed);
     }
 
     // If the result was an error, return it
     if (!result) return result;
-
-    // Update the resolved artifact's name
-    result->linkAt(as<DirArtifact>(), entry, committed);
 
     // Otherwise continue with resolution, which may follow symlinks
     return result->resolve(c, shared_from_this(), current, end, ref, committed);
