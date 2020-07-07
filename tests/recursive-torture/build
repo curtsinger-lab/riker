@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import tempfile
+
+PYTHON = "/usr/bin/python"
+CAT    = "/usr/bin/cat"
+BUILD  = "build"
+
+if len(sys.argv) < 2 or len(sys.argv) > 3:
+   print("Usage: python Dodofile <num recursions> [tmpfile]")
+   sys.exit(1)
+
+num = int(sys.argv[1])
+
+if num > 0:
+   data = ""
+
+   # read A
+   with open("A", "r") as a_file:
+      data = a_file.read()
+
+   if len(sys.argv) == 3:
+      # read tmpfile if not first run
+      tmp1 = sys.argv[2]
+      with open(tmp1, "r") as t_file:
+         data = t_file.read() + "\n" + data
+
+   # create new tmpfile
+   tmp2 = tempfile.NamedTemporaryFile(delete = True, mode = "w")
+
+   # write data to new tmpfile
+   tmp2.write(data)
+   tmp2.flush()
+
+   # create yet another tmpfile
+   tmp3 = tempfile.NamedTemporaryFile(delete = True, mode = "w")
+
+   # write data to this tempfile also, in reverse
+   tmp3.write(data[::-1] + "\n")
+   tmp3.flush()
+   
+   # call cat to echo to file
+   with open("output-" + str(num), "w") as output:      
+      subprocess.run([CAT, tmp3.name], stdout = output)
+   
+   # recurse
+   subprocess.run([PYTHON, BUILD, str(num - 1), tmp2.name])
+
+   # close tmp2 and tmp3-- deletes files!
+   tmp2.close()
+   tmp3.close()
+
+sys.exit(0)
