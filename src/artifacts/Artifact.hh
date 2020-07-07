@@ -2,10 +2,10 @@
 
 #include <filesystem>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <set>
 #include <string>
 #include <tuple>
 
@@ -17,8 +17,9 @@
 
 using std::list;
 using std::make_shared;
+using std::map;
+using std::optional;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -72,22 +73,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Set the name of this artifact used for pretty-printing
   void setName(string newname) noexcept { _name = newname; }
 
-  /// Record a location where this artifact is linked
-  void addLink(shared_ptr<DirArtifact> dir, string entry) noexcept {
-    _links.emplace(dir.get(), entry);
-  }
-
-  /// Remove a location where this artifact is linked
-  void removeLink(shared_ptr<DirArtifact> dir, string entry) noexcept {
-    _links.erase(tuple(dir.get(), entry));
-  }
-
-  /// Get a path to this artifact by walking its links back to root
-  fs::path getPath() const noexcept;
-
-  /// Get the set of locations where this artifact is linked
-  const set<tuple<DirArtifact*, string>>& getLinks() const noexcept { return _links; }
-
   /// Get the number of versions of this artifact
   size_t getVersionCount() const noexcept { return _versions.size(); }
 
@@ -124,6 +109,36 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState() noexcept;
+
+  /************ Path Manipulation ************/
+
+  /// Notify this artifact that it is linked to a parent directory with a given entry name.
+  /// If committed is true, the link is already in place on the filesystem.
+  virtual void linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed = false) noexcept;
+
+  /// Update the filesystem so this artifact is linked in the given directory
+  virtual void commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept;
+
+  /// Notify this artifact that it is unlinked from ap arent directory at a given entry name.
+  /// If committed is true, the link has already been removed on the filesystem.
+  virtual void unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed = false) noexcept;
+
+  /// Update the filesystem so this artifact is no longer linked in the given directory
+  virtual void commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept;
+
+  /// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
+  /// the path will reflect a location of this artifact at some point during the build.
+  optional<fs::path> getPath() const noexcept;
+
+  /// Get a committed path to this artifact. The path may be a temporary location that does not
+  /// appear during the build, but this artifact is guaranteed to be at that path.
+  optional<fs::path> getCommittedPath() const noexcept;
+
+  /// Get a parent directory for this artifact. The result may or may not be on the filesystem
+  optional<DirArtifact*> getParentDir() const noexcept;
+
+  /// Get the map of links to this artifact
+  const map<tuple<DirArtifact*, string>, bool>& getLinks() const noexcept { return _links; }
 
   /************ Metadata Operations ************/
 
@@ -244,12 +259,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
 
+  /// A map of links to this artifact. The key is a directory and entry name. The value is a boolean
+  /// that indicates whether or not this link has been committed to the filesystem.
+  map<tuple<DirArtifact*, string>, bool> _links;
+
  private:
   /// A fixed string name assigned to this artifact
   string _name;
-
-  /// A set of directories and entry names where this artifact is linked
-  set<tuple<DirArtifact*, string>> _links;
 
   /// The sequence of versions of this artifact applied so far
   list<shared_ptr<Version>> _versions;

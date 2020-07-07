@@ -24,42 +24,22 @@ bool AddEntry::canCommit() const noexcept {
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
-  // Try to get a path for the target artifact
-  auto target_path = _target->getArtifact()->getPath();
-
-  // Does the target have a path?
-  if (!target_path.empty()) {
-    // Yes. Create a hard link to the target
-    ::link(target_path.c_str(), (dir_path / _entry).c_str());
-
-    // Inform the target artifact of its new link
-    _target->getArtifact()->addLink(dir, _entry);
-
-  } else {
-    // No. Add a link to the target artifact, then commit it
-    _target->getArtifact()->addLink(dir, _entry);
-    _target->getArtifact()->commitAll();
-  }
+  // Commit the link that this version applies
+  _target->getArtifact()->commitLinkAt(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();
 }
 
+bool RemoveEntry::canCommit() const noexcept {
+  return true;
+}
+
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  // If we know the artifact this version unlinks, inform it of the link removal
-  if (_unlinks) _unlinks->removeLink(dir, _entry);
-
-  // Try to unlink the file
-  int rc = ::unlink((path / _entry).c_str());
-
-  // If the unlink failed because the target is a directory, try again with rmdir
-  if (rc == -1 && errno == EISDIR) {
-    rc = ::rmdir((path / _entry).c_str());
-  }
-
-  WARN_IF(rc != 0) << "Failed to unlink " << _entry << " from " << path << ": " << ERR;
+  // Commit the unlink this version applies
+  _target->getArtifact()->commitUnlinkAt(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();
@@ -92,7 +72,9 @@ Resolution ExistingDirVersion::getEntry(Env& env,
   if (absent_iter != _absent.end()) return ENOENT;
 
   // Create a path to the entry
-  auto path = dir->getPath() / name;
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Directory has no path!";
+  auto path = dir_path.value() / name;
 
   // This is a query for a new entry name. Try to stat the entry
   struct stat info;
@@ -106,7 +88,7 @@ Resolution ExistingDirVersion::getEntry(Env& env,
 
   // The artifact should exist. Get it from the environment and save it
   auto artifact = env.getArtifact(path, info);
-  artifact->addLink(dir, name);
+  artifact->linkAt(dir, name, true);
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;
 }

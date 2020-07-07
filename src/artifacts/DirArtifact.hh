@@ -46,6 +46,14 @@ class DirArtifact final : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState() noexcept override;
 
+  /************ Path Manipulation ************/
+
+  /// Update the filesystem so this artifact is linked in the given directory
+  virtual void commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept override;
+
+  /// Update the filesystem so this artifact is no longer linked in the given directory
+  virtual void commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept override;
+
   /************ Directory Operations ************/
 
   virtual Resolution resolve(shared_ptr<Command> c,

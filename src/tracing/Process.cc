@@ -663,8 +663,6 @@ void Process::_renameat2(int old_dfd,
                          int new_dfd,
                          string new_name,
                          int flags) noexcept {
-  INFO << "rename " << old_name << " to " << new_name;
-
   // Break the path to the existing file into directory and entry parts
   auto old_path = fs::path(old_name);
   auto old_dir = old_path.parent_path();
@@ -672,7 +670,7 @@ void Process::_renameat2(int old_dfd,
 
   // Make references to the old directory and entry
   auto old_dir_ref = makeAccess(old_dir, AccessFlags{.w = true}, old_dfd);
-  auto old_entry_ref = makeAccess(old_path, AccessFlags{}, old_dfd);
+  auto old_entry_ref = makeAccess(old_path, AccessFlags{.nofollow = true}, old_dfd);
 
   // Break the path to the new file into directory and entry parts
   auto new_path = fs::path(new_name);
@@ -685,7 +683,7 @@ void Process::_renameat2(int old_dfd,
   // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
   shared_ptr<Access> new_entry_ref;
   if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
-    new_entry_ref = makeAccess(new_path, AccessFlags{}, new_dfd);
+    new_entry_ref = makeAccess(new_path, AccessFlags{.nofollow = true}, new_dfd);
   }
 
   finishSyscall([=](long rc) {
@@ -698,7 +696,7 @@ void Process::_renameat2(int old_dfd,
       old_entry_ref->expectResult(SUCCESS);
 
       // Unlink the old entry
-      _build.apply(_command, old_dir_ref, make_shared<RemoveEntry>(old_entry));
+      _build.apply(_command, old_dir_ref, make_shared<RemoveEntry>(old_entry, old_entry_ref));
 
       // The access to the new directory must also have succeeded
       new_dir_ref->expectResult(SUCCESS);
@@ -709,7 +707,7 @@ void Process::_renameat2(int old_dfd,
         new_entry_ref->expectResult(SUCCESS);
 
         // Unlink the new entry
-        _build.apply(_command, new_dir_ref, make_shared<RemoveEntry>(new_entry));
+        _build.apply(_command, new_dir_ref, make_shared<RemoveEntry>(new_entry, new_entry_ref));
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -870,7 +868,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   auto dir_ref = makeAccess(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref = makeAccess(path, AccessFlags{}, dfd);
+  auto entry_ref = makeAccess(path, AccessFlags{.nofollow = true}, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -882,7 +880,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
       entry_ref->expectResult(SUCCESS);
 
       // Perform the unlink
-      _build.apply(_command, dir_ref, make_shared<RemoveEntry>(entry));
+      _build.apply(_command, dir_ref, make_shared<RemoveEntry>(entry, entry_ref));
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+mkdir foo
+cat input > foo/f
+mv foo/f output
+rmdir foo

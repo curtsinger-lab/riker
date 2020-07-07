@@ -30,9 +30,10 @@ string Artifact::getName() const noexcept {
   // If a fixed name was assigned, return it
   if (!_name.empty()) return _name;
 
-  // If this artifact has a parent and entry, construct a name
-  if (!_links.empty()) {
-    auto [dir, entry] = *_links.begin();
+  // Walk through links to this artifact to try to construct a name
+  // TODO: Should we prefer committed names? What about the shortest name?
+  for (auto& [link, committed] : _links) {
+    auto [dir, entry] = link;
     return (fs::path(dir->getName()) / entry).lexically_normal();
   }
 
@@ -40,24 +41,140 @@ string Artifact::getName() const noexcept {
   return string();
 }
 
-fs::path Artifact::getPath() const noexcept {
-  // If there are no links of this artifact, return an empty path
-  if (_links.empty()) return fs::path();
+/// Notify this artifact that it is linked to a parent directory with a given entry name.
+/// If committed is true, the link is already in place on the filesystem.
+void Artifact::linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  _links.emplace(tuple{dir.get(), entry}, committed);
+}
 
-  // Walk through known links until we can construct a valid path
-  for (auto [dir, entry] : _links) {
-    // If the directory is null, this must be the root directory.
-    if (dir == nullptr) return "/";
+/// Update the filesystem so this artifact is linked in the given directory
+void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing " << this << " to a directory with no committed path";
 
-    // Otherwise, try to get a path to the parent directory
-    auto dir_path = dir->getPath();
+  // Three cases:
+  // 1. The artifact has a temporary location:
+  //   Move it to the committed path
+  // 2. The artifact has at least one committed path:
+  //   Create a hard link to a committed path
+  // 3. Otherwise:
+  //   The file must be created. Verify that committing the artifact can create it, then commit.
 
-    // If the parent directory has a path, return the path to this artifact
-    if (!dir_path.empty()) return dir_path / entry;
+  // TODO: Check for a temporary location. If found, move the artifact into place.
+
+  // Does this artifact have at least one committed path?
+  auto committed_path = getCommittedPath();
+  if (committed_path.has_value()) {
+    // Yes. Create a hard link to the existing committed path
+    ::link(committed_path.value().c_str(), (dir_path.value() / entry).c_str());
+
+    // Mark the new path as committed
+    _links[{dir.get(), entry}] = true;
+
+  } else {
+    // No. Commit the artifact to a new path
+    // TODO: verify that committing the artifact will create it
+    // Set up the new link as a committed path so we can commit to it
+    _links[{dir.get(), entry}] = true;
+    commitAll();
+  }
+}
+
+/// Notify this artifact that it is unlinked from a parent directory at a given entry name.
+/// If committed is true, the link has already been removed on the filesystem.
+void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  auto iter = _links.find(tuple{dir.get(), entry});
+
+  // TODO: Don't allow unlinkAt on a previously-unknown link once link versioning is finalized
+  if (iter == _links.end()) {
+    WARN << "Called unlinkAt on " << this << " with unrecognized link " << dir << ", " << entry;
+    return;
   }
 
-  // Return an empty path
-  return fs::path();
+  auto [link, link_committed] = *iter;
+
+  // Is this unlink already committed?
+  if (committed) {
+    // The matching link should have been committed as well
+    ASSERT(link_committed) << "A committed unlinkAt call matched an uncommitted link";
+
+    // Remove the link
+    _links.erase(iter);
+
+  } else {
+    // An uncommitted unlinkAt call only removes uncommitted links; a committed link will be
+    // removed later, when the unlinkAt is committed
+    if (!link_committed) _links.erase(iter);
+  }
+}
+
+/// Update the filesystem so this artifact is no longer linked in the given directory
+void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing unlink of  " << this
+                               << " from a directory with no committed path";
+
+  // TODO: Check to see if the artifact is losing its last committed path. If it has remaining
+  // uncommitted paths, move it to a temporary location
+
+  int rc = ::unlink((dir_path.value() / entry).c_str());
+  ASSERT(rc == 0) << "Failed to unlink " << this << " from " << dir_path.value() / entry;
+
+  _links.erase({dir.get(), entry});
+}
+
+/// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
+/// the path will reflect a location of this artifact at some point during the build.
+optional<fs::path> Artifact::getPath() const noexcept {
+  for (auto& [link, committed] : _links) {
+    auto& [dir, name] = link;
+
+    // Check for a null parent directory, which should only happen for root
+    if (dir == nullptr) return name;
+
+    // Get a path to the parent directory
+    auto dir_path = dir->getPath();
+    if (dir_path.has_value()) return dir_path.value() / name;
+  }
+
+  // No paths?
+  return nullopt;
+}
+
+/// Get a committed path to this artifact. The path may be a temporary location that does not
+/// appear during the build, but this artifact is guaranteed to be at that path.
+optional<fs::path> Artifact::getCommittedPath() const noexcept {
+  // TODO: Check for temporary location
+
+  for (auto& [link, committed] : _links) {
+    // We only care about committed paths
+    if (!committed) continue;
+
+    auto& [dir, name] = link;
+
+    // Check for a null parent directory, which should only happen for root
+    if (dir == nullptr) return name;
+
+    // Get a path to the parent directory
+    auto dir_path = dir->getCommittedPath();
+    if (dir_path.has_value()) return dir_path.value() / name;
+  }
+
+  // No paths?
+  return nullopt;
+}
+
+/// Get a parent directory for this artifact. The result may or may not be on the filesystem
+optional<DirArtifact*> Artifact::getParentDir() const noexcept {
+  if (_links.size() > 0) {
+    auto& [link, committed] = *_links.begin();
+    auto& [parent, name] = link;
+    return parent;
+  }
+
+  return nullopt;
 }
 
 // Check if an access is allowed by the metadata for this artifact
@@ -78,9 +195,9 @@ bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
 // Commit a specific version of this artifact to the filesystem
 void Artifact::commit(shared_ptr<Version> v) noexcept {
   ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
-  auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
-  _metadata_version->commit(path);
+  auto path = getCommittedPath();
+  ASSERT(path.has_value()) << "Artifact has no path";
+  _metadata_version->commit(path.value());
 }
 
 // Can this artifact be fully committed?
@@ -96,11 +213,11 @@ void Artifact::commitAll() noexcept {
 // Compare all final versions of this artifact to the filesystem state
 void Artifact::checkFinalState() noexcept {
   auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
+  ASSERT(path.has_value()) << "Artifact has no path";
 
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path);
+    v->fingerprint(path.value());
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -115,17 +232,17 @@ void Artifact::checkFinalState() noexcept {
 
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState() noexcept {
-  auto path = getPath();
-  ASSERT(!path.empty()) << "Artifact has no path";
+  auto path = getCommittedPath();
+  ASSERT(path.has_value()) << "Artifact has no path";
 
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _metadata_version->fingerprint(path);
+    _metadata_version->fingerprint(path.value());
   }
 
   // Make sure metadata for this artifact is committed
-  _metadata_version->commit(path);
+  _metadata_version->commit(path.value());
 }
 
 /// Get the current metadata version for this artifact
