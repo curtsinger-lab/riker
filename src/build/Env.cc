@@ -39,6 +39,21 @@ Env::Env(Build& build) noexcept : _build(build) {
   _root_dir->linkAt(nullptr, "/", true);
 }
 
+fs::path Env::getTempPath() noexcept {
+  // Make sure the temporary directory exsits
+  fs::path tmpdir = ".dodo/tmp";
+  fs::create_directories(".dodo/tmp");
+
+  // Create a unique temporary path
+  fs::path result;
+  do {
+    result = tmpdir / std::to_string(_next_temp_id++);
+  } while (fs::exists(result));
+
+  // Return the result
+  return result;
+}
+
 shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});

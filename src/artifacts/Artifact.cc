@@ -61,37 +61,55 @@ void Artifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept 
   // 3. Otherwise:
   //   The file must be created. Verify that committing the artifact can create it, then commit.
 
-  // TODO: Check for a temporary location. If found, move the artifact into place.
+  // Does this artifact have a temporary location?
+  if (_temp_path.has_value()) {
+    LOG << "Moving " << this << " to " << dir_path.value() / entry;
+
+    // Yes. Move the artifact into place
+    int rc = ::rename(_temp_path.value().c_str(), (dir_path.value() / entry).c_str());
+    ASSERT(rc == 0) << "Failed to move " << this << " from a temporary location: " << ERR;
+
+    // Drop the temporary location
+    _temp_path = nullopt;
+
+    // Record the new committed path
+    _links[{dir.get(), entry}] = true;
+
+    // Done.
+    return;
+  }
 
   // Does this artifact have at least one committed path?
   auto committed_path = getCommittedPath();
   if (committed_path.has_value()) {
     // Yes. Create a hard link to the existing committed path
-    ::link(committed_path.value().c_str(), (dir_path.value() / entry).c_str());
+    int rc = ::link(committed_path.value().c_str(), (dir_path.value() / entry).c_str());
+    ASSERT(rc == 0) << "Failed to hard link " << this << " to " << dir_path.value() / entry;
 
     // Mark the new path as committed
     _links[{dir.get(), entry}] = true;
 
-  } else {
-    // No. Commit the artifact to a new path
-    // TODO: verify that committing the artifact will create it
-    // Set up the new link as a committed path so we can commit to it
-    _links[{dir.get(), entry}] = true;
-    commitAll();
+    // Done.
+    return;
   }
+
+  // This artifact does not have a committed path
+  // TODO: verify that committing the artifact will create it
+  // Set up the new link as a committed path so we can commit to it
+  _links[{dir.get(), entry}] = true;
+  commitAll();
 }
 
 /// Notify this artifact that it is unlinked from a parent directory at a given entry name.
 /// If committed is true, the link has already been removed on the filesystem.
 void Artifact::unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed) noexcept {
+  // Look for an existing link that matches this unlink
   auto iter = _links.find(tuple{dir.get(), entry});
 
-  // TODO: Don't allow unlinkAt on a previously-unknown link once link versioning is finalized
-  if (iter == _links.end()) {
-    WARN << "Called unlinkAt on " << this << " with unrecognized link " << dir << ", " << entry;
-    return;
-  }
+  // If there's no match, we can just return
+  if (iter == _links.end()) return;
 
+  // Unpack the link information
   auto [link, link_committed] = *iter;
 
   // Is this unlink already committed?
@@ -116,11 +134,47 @@ void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcep
   ASSERT(dir_path.has_value()) << "Committing unlink of  " << this
                                << " from a directory with no committed path";
 
-  // TODO: Check to see if the artifact is losing its last committed path. If it has remaining
-  // uncommitted paths, move it to a temporary location
+  // Look for an existing link that matches this unlink
+  auto iter = _links.find(tuple{dir.get(), entry});
 
-  int rc = ::unlink((dir_path.value() / entry).c_str());
-  ASSERT(rc == 0) << "Failed to unlink " << this << " from " << dir_path.value() / entry;
+  // If there's no match, there's no need to commit anything
+  if (iter == _links.end()) return;
+
+  // Unpack the link information
+  auto& [link, link_committed] = *iter;
+
+  // If there is an uncommitted link, we can just erase it and return
+  if (!link_committed) {
+    _links.erase(iter);
+    return;
+  }
+
+  // At this point, we know the artifact has a matching committed link that we need to remove
+
+  // Scan the map of links to count committed and uncommitted links
+  size_t uncommitted_links = 0;
+  size_t committed_links = 0;
+  for (auto& [link, link_committed] : _links) {
+    if (link_committed) {
+      committed_links++;
+    } else {
+      uncommitted_links++;
+    }
+  }
+
+  // Does this artifact have remaining uncommitted links, but no other committed links?
+  if (committed_links == 1 && uncommitted_links > 0) {
+    // This artifact must be preserved in a temporary location
+    auto tmp = _env.getTempPath();
+    int rc = ::rename((dir_path.value() / entry).c_str(), tmp.c_str());
+    ASSERT(rc == 0) << "Failed to move " << this << " to a temporary location: " << ERR;
+
+  } else {
+    // There's no need to preserve this link, so just unlink it
+    int rc = ::unlink((dir_path.value() / entry).c_str());
+    ASSERT(rc == 0) << "Failed to unlink " << this << " from " << dir_path.value() / entry << ": "
+                    << ERR;
+  }
 
   _links.erase({dir.get(), entry});
 }

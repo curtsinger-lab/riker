@@ -7,6 +7,7 @@
 
 #include <dirent.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "build/Build.hh"
 #include "build/Env.hh"
@@ -63,14 +64,50 @@ void DirArtifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexce
 
 /// Update the filesystem so this artifact is no longer linked in the given directory
 void DirArtifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  FAIL << "commitUnlinkAt() function is not implemented";
-
   // Two cases:
   // 1. This directory has an uncommitted location:
   //   Move this directory to a temporary location
   // 2. Otherwise:
   //   Commit all remaining versions in this directory (to remove any final entries)
   //   Remove this directory.
+
+  // Get the path to the containing directory
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Committing unlink of  " << this
+                               << " from a directory with no committed path";
+
+  // Look for a matching link
+  auto iter = _links.find(tuple{dir.get(), entry});
+
+  // If there's no link to this path, do nothing
+  if (iter == _links.end()) return;
+
+  // Unpack the link information
+  auto& [link, link_committed] = *iter;
+
+  // If there is an uncommitted link, we can just erase it and return
+  if (!link_committed) {
+    _links.erase(iter);
+    return;
+  }
+
+  // At this point, we know the artifact has a matching committed link.
+  // Does the directory have any other links?
+  if (_links.size() > 1) {
+    // Yes. These other links must be uncommitted. We need to preserve this directory, so move it.
+    auto tmp = _env.getTempPath();
+    int rc = ::rename((dir_path.value() / entry).c_str(), tmp.c_str());
+    ASSERT(rc == 0) << "Failed to move directory " << this << " to temporary location: " << ERR;
+
+  } else {
+    // No. We can remove the directory. We have to commit it first to ensure its entries are removed
+    commitAll();
+    int rc = ::rmdir((dir_path.value() / entry).c_str());
+    ASSERT(rc == 0) << "Failed to remove directory " << this << ": " << ERR;
+  }
+
+  // Remove the matching link to this directory
+  _links.erase(iter);
 }
 
 bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {

@@ -52,6 +52,9 @@ class Env {
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
 
+  /// Get a unique path to a temporary file in the build directory
+  fs::path getTempPath() noexcept;
+
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
    * If an artifact with the same inode and device number already exists, return that same instance.
@@ -102,6 +105,9 @@ class Env {
  private:
   /// The build this environment is attached to
   Build& _build;
+
+  /// The next unique ID for a temporary file
+  size_t _next_temp_id = 0;
 
   /// An artifact that corresponds to the root directory
   shared_ptr<DirArtifact> _root_dir;

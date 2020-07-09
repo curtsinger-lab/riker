@@ -263,6 +263,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// that indicates whether or not this link has been committed to the filesystem.
   map<tuple<DirArtifact*, string>, bool> _links;
 
+  /// A path to a temporary location where this artifact is stored
+  optional<fs::path> _temp_path;
+
  private:
   /// A fixed string name assigned to this artifact
   string _name;
