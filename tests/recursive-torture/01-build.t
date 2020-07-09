@@ -13,24 +13,24 @@ Run the build
   dodo-launch
   Dodofile
   python3 Dodofile
-  python build 3
+  python3 build 3
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 2 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 2 /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 1 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 1 /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 0 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
 Rebuild without changing anything (tempfiles are missing, so basically everything should happen again)
   $ $DODO --show
   python3 Dodofile
-  python build 3
+  python3 build 3
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 2 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 2 /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 1 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 1 /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python build 0 /tmp/cramtests.*/tmp/tmp.* (re)
+  [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
 Clean up
   $ rm -rf .dodo rm output-*

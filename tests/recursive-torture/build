@@ -4,8 +4,8 @@ import sys
 import subprocess
 import tempfile
 
-PYTHON = "/usr/bin/python"
-CAT    = "/usr/bin/cat"
+PYTHON = "python3"
+CAT    = "cat"
 BUILD  = "build"
 
 if len(sys.argv) < 2 or len(sys.argv) > 3:

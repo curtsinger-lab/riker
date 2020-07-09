@@ -2,7 +2,7 @@
 
 import subprocess
 
-PYTHON = "/usr/bin/python"
+PYTHON = "python3"
 BUILD  = "build"
 N      = 3
 
