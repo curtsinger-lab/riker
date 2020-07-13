@@ -16,9 +16,10 @@ using std::set;
 using std::shared_ptr;
 
 bool AddEntry::canCommit() const noexcept {
-  if (isCommitted()) return true;
-  // We can only commit a link if its target can be committed
-  return _target->getArtifact()->canCommitAll();
+  // TODO: Check if the target artifact is linkable before returning true.
+  // The artifact doesn't have to be fully committable, but it does have to exist already or have a
+  // committable version that will create it
+  return true;
 }
 
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
