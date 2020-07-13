@@ -165,8 +165,9 @@ void Artifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcep
   // Does this artifact have remaining uncommitted links, but no other committed links?
   if (committed_links == 1 && uncommitted_links > 0) {
     // This artifact must be preserved in a temporary location
-    auto tmp = _env.getTempPath();
-    int rc = ::rename((dir_path.value() / entry).c_str(), tmp.c_str());
+    _temp_path = _env.getTempPath();
+
+    int rc = ::rename((dir_path.value() / entry).c_str(), _temp_path.value().c_str());
     ASSERT(rc == 0) << "Failed to move " << this << " to a temporary location: " << ERR;
 
   } else {
