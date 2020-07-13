@@ -14,6 +14,7 @@
 #include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "util/log.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::list;
 using std::make_shared;
@@ -27,6 +28,16 @@ DirArtifact::DirArtifact(Env& env,
     Artifact(env, mv) {
   _base_dir_version = dv;
   appendVersion(dv);
+}
+
+// The given command depends on the full state of this artifact
+void DirArtifact::neededBy(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, InputType::Accessed);
+  for (auto [name, info] : _entries) {
+    auto [entry_version, artifact] = info;
+    _env.getBuild().observeInput(c, shared_from_this(), entry_version, InputType::Accessed);
+  }
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Accessed);
 }
 
 /// Update the filesystem so this artifact is linked in the given directory
@@ -327,6 +338,9 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
 
   // If this version is already committed, update the target with a new link
   artifact->linkAt(this->as<DirArtifact>(), entry, writing->isCommitted());
+
+  // The linking command depends on the state of the linked artifact
+  artifact->neededBy(c);
 
   // Add the new entry to the entries map
   _entries[entry] = {writing, artifact};

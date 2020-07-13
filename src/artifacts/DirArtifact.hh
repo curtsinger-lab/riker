@@ -28,6 +28,9 @@ class DirArtifact final : public Artifact {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept override { return "Dir"; }
 
+  /// The given command depends on the full state of this artifact
+  virtual void neededBy(shared_ptr<Command> c) noexcept override;
+
   /// Can a specific version of this artifact be committed?
   virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
 

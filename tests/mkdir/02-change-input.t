@@ -27,6 +27,7 @@ Change the input file
 Run a rebuild
   $ $DODO --show
   cat input
+  mv foo/f output
 
 Check the output
   $ cat output

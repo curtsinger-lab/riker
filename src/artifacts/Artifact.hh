@@ -92,6 +92,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept = 0;
 
+  /// The given command depends on the full state of this artifact
+  virtual void neededBy(shared_ptr<Command> c) noexcept = 0;
+
   /// Can a specific version of this artifact be committed?
   virtual bool canCommit(shared_ptr<Version> v) const noexcept;
 

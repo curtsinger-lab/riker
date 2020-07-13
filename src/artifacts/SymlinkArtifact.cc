@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "build/Build.hh"
+#include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
 using std::shared_ptr;
@@ -13,6 +14,12 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
     Artifact(env, mv) {
   appendVersion(sv);
   _symlink_version = sv;
+}
+
+// The given command depends on the full state of this artifact
+void SymlinkArtifact::neededBy(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Accessed);
 }
 
 // Get the current symlink version of this artifact
