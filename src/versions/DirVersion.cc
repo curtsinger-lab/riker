@@ -16,9 +16,8 @@ using std::set;
 using std::shared_ptr;
 
 bool AddEntry::canCommit() const noexcept {
-  // TODO: Check if the target artifact is linkable before returning true.
-  // The artifact doesn't have to be fully committable, but it does have to exist already or have a
-  // committable version that will create it
+  // We can always commit a link to an artifact: it either has a path we can hard link to, or we
+  // could create it.
   return true;
 }
 
