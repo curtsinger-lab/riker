@@ -32,6 +32,13 @@ Check the output
   $ cat output
   Goodbye
 
+Run an additional rebuild, which should do nothing
+  $ $DODO --show
+
+Check the output again
+  $ cat output
+  Goodbye
+
 Clean up
   $ rm -rf .dodo foo
   $ rm output
