@@ -16,15 +16,21 @@ To see commands and their arguments, run
 $ dodo check
 ```
 
-To see the above, plus any failing IR steps, run
+To see the above, plus warnings (potential dodo runtime failues), run
 
 ```
 $ dodo check -v
 ```
 
-To see the above with all IR steps, run
+To see the above, plus info (dependence edges), run
 
 ```
 $ dodo check -vv
+```
+
+To see the above, plus logs (changes), run
+
+```
+$ dodo check -vvv
 ```
 
