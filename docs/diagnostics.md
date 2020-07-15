@@ -5,10 +5,10 @@
 To run a rebuild that prints each command as it is run:
 
 ```
-$ dodo --show
+$ dodo build --show
 ```
 
-This invocation has no subcommand, so it uses the `build` subcommand by default. The above command is equivalent to:
+The following invocation has no subcommand, so it uses the `build` subcommand by default. Therefore, it is the same as the previous command:
 
 ```
 $ dodo build --show
