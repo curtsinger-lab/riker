@@ -120,8 +120,7 @@ class Ref : public Step {
       // Print the artifact this pipe resolves to
       o << " -> " << getArtifact();
     } else {
-      int rc = getResolution();
-      o << " expect " << errors[rc];
+      o << " expect " << errors[_expected_rc];
     }
     return o;
   }
