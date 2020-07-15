@@ -1,16 +1,22 @@
 # How to make dodo tell you things
 
-## Changed commands
+## Rebuilding with output
 
-To see all of the commands that need to run:
+To run a rebuild that prints each command as it is run:
 
 ```
 $ dodo --show
 ```
 
-## Verbose changed commands
+This invocation has no subcommand, so it uses the `build` subcommand by default. The above command is equivalent to:
 
-To see commands and their arguments, run
+```
+$ dodo build --show
+```
+
+## Changed commands
+
+To plan a rebuild and print all commands that would run:
 
 ```
 $ dodo check
@@ -33,4 +39,3 @@ To see the above, plus logs (changes), run
 ```
 $ dodo check -vvv
 ```
-
