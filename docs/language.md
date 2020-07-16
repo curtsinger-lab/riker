@@ -13,7 +13,7 @@ Create a reference to a new pipe
 Create a reference to a new symbolic link with a specific destination
 
 **`Dir() : Reference`**  
-Create a reference to a new, empty directory. ***This IR step is not implemented yet.***
+Create a reference to a new, empty directory.
 
 **`Access(base : Access, path : string, flags : AccessFlags) : Reference`**  
 Create a reference to a specific path, relative to some artifact reached via the `base` reference. The reference could resolve to any type of artifact. Access flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
