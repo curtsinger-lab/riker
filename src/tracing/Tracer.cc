@@ -150,11 +150,9 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
-        // TODO: Is this called in the child just after fork()?
         handleFork(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
-        // TODO: Is this called in the child just after clone()?
         auto regs = p->getRegisters();
         handleClone(p, regs.SYSCALL_ARG1);
 
