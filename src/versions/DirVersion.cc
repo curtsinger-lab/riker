@@ -24,9 +24,6 @@ bool AddEntry::canCommit() const noexcept {
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
-  // Commit the link that this version applies
-  _target->getArtifact()->commitLinkAt(dir, _entry);
-
   // Mark this version as committed
   Version::setCommitted();
 }
@@ -37,9 +34,6 @@ bool RemoveEntry::canCommit() const noexcept {
 
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
-
-  // Commit the unlink this version applies
-  _target->getArtifact()->commitUnlinkAt(dir, _entry);
 
   // Mark this version as committed
   Version::setCommitted();
@@ -88,7 +82,7 @@ Resolution ExistingDirVersion::getEntry(Env& env,
 
   // The artifact should exist. Get it from the environment and save it
   auto artifact = env.getArtifact(path, info);
-  artifact->linkAt(dir, name, true);
+  artifact->addLinkUpdate(dir, name, this->as<ExistingDirVersion>());
   _present.emplace_hint(present_iter, name, artifact);
   return artifact;
 }

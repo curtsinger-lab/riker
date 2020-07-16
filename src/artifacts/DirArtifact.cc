@@ -30,97 +30,6 @@ DirArtifact::DirArtifact(Env& env,
   appendVersion(dv);
 }
 
-// The given command depends on the full state of this artifact
-void DirArtifact::neededBy(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, InputType::Accessed);
-  for (auto [name, info] : _entries) {
-    auto [entry_version, artifact] = info;
-    _env.getBuild().observeInput(c, shared_from_this(), entry_version, InputType::Accessed);
-  }
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Accessed);
-}
-
-/// Update the filesystem so this artifact is linked in the given directory
-void DirArtifact::commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  // Get the path to the containing directory
-  auto dir_path = dir->getCommittedPath();
-  ASSERT(dir_path.has_value()) << "Committing " << this << " to a directory with no committed path";
-
-  // Three cases:
-  // 1. This artifact has a temporary location:
-  //   Move it to the committed path.
-  // 2. This artifact has an existing committed path:
-  //   This is a move operation. Perform the move and mark the other committed path as unlinked.
-  // 3. Otherwise:
-  //   This dir must be created. Verify that committing the artifact can create it, then commit.
-
-  // TODO: Check for a temporary location. If found, move the directory to the committed path
-
-  // Does this artifact have an existing committed path?
-  auto committed_path = getCommittedPath();
-  if (committed_path.has_value()) {
-    // TODO: Move the directory to its new committed path (no hard links allowed for directories).
-    // We need to mark the RemoveEntry version in this artifact's old directory as committed.
-    FAIL << "Attempted to move directory " << this << ": Not supported yet";
-
-  } else {
-    // TODO: Verify that committing this artifact can create it
-    // TODO: commit the artifact to the path that was requested, not just any path it chooses
-
-    // Mark the new path as committed before committing this directory
-    _links[{dir.get(), entry}] = true;
-    commitAll();
-  }
-}
-
-/// Update the filesystem so this artifact is no longer linked in the given directory
-void DirArtifact::commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept {
-  // Two cases:
-  // 1. This directory has an uncommitted location:
-  //   Move this directory to a temporary location
-  // 2. Otherwise:
-  //   Commit all remaining versions in this directory (to remove any final entries)
-  //   Remove this directory.
-
-  // Get the path to the containing directory
-  auto dir_path = dir->getCommittedPath();
-  ASSERT(dir_path.has_value()) << "Committing unlink of  " << this
-                               << " from a directory with no committed path";
-
-  // Look for a matching link
-  auto iter = _links.find(tuple{dir.get(), entry});
-
-  // If there's no link to this path, do nothing
-  if (iter == _links.end()) return;
-
-  // Unpack the link information
-  auto& [link, link_committed] = *iter;
-
-  // If there is an uncommitted link, we can just erase it and return
-  if (!link_committed) {
-    _links.erase(iter);
-    return;
-  }
-
-  // At this point, we know the artifact has a matching committed link.
-  // Does the directory have any other links?
-  if (_links.size() > 1) {
-    // Yes. These other links must be uncommitted. We need to preserve this directory, so move it.
-    auto tmp = _env.getTempPath();
-    int rc = ::rename((dir_path.value() / entry).c_str(), tmp.c_str());
-    ASSERT(rc == 0) << "Failed to move directory " << this << " to temporary location: " << ERR;
-
-  } else {
-    // No. We can remove the directory. We have to commit it first to ensure its entries are removed
-    commitAll();
-    int rc = ::rmdir((dir_path.value() / entry).c_str());
-    ASSERT(rc == 0) << "Failed to remove directory " << this << ": " << ERR;
-  }
-
-  // Remove the matching link to this directory
-  _links.erase(iter);
-}
-
 bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (auto dv = v->as<DirVersion>()) {
     return dv->canCommit();
@@ -304,7 +213,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       result = newfile;
 
       // THe newly-created file is linked in this directory
-      result->linkAt(as<DirArtifact>(), entry, committed);
+      result->addLinkUpdate(as<DirArtifact>(), entry, link_version);
     }
 
     // If the result was an error, return it
@@ -336,11 +245,8 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
     // TODO: AddEntry versions should be tagged with an `overwrite` flag
   }
 
-  // If this version is already committed, update the target with a new link
-  artifact->linkAt(this->as<DirArtifact>(), entry, writing->isCommitted());
-
-  // The linking command depends on the state of the linked artifact
-  artifact->neededBy(c);
+  // Inform the artifact of its new link
+  artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
   // Add the new entry to the entries map
   _entries[entry] = {writing, artifact};
@@ -366,7 +272,7 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
     if (version->isCommitted()) {
       // Yes. When we commit the written version, it will need to remove a link from the target
       // artifact.
-      artifact->unlinkAt(this->as<DirArtifact>(), entry, writing->isCommitted());
+      artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
     } else {
       // Not committed. If the uncommitted version is an AddEntry version, we can cancel it out.

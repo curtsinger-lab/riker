@@ -20,12 +20,6 @@ FileArtifact::FileArtifact(Env& env,
   _content_version = cv;
 }
 
-// The given command depends on the full state of this artifact
-void FileArtifact::neededBy(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Accessed);
-}
-
 bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (v == _content_version) {
     return _content_version->canCommit();

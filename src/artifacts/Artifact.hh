@@ -29,6 +29,7 @@ namespace fs = std::filesystem;
 class Access;
 class Command;
 class DirArtifact;
+class DirVersion;
 class Env;
 class FileVersion;
 class AddEntry;
@@ -92,9 +93,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept = 0;
 
-  /// The given command depends on the full state of this artifact
-  virtual void neededBy(shared_ptr<Command> c) noexcept = 0;
-
   /// Can a specific version of this artifact be committed?
   virtual bool canCommit(shared_ptr<Version> v) const noexcept;
 
@@ -115,33 +113,29 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Path Manipulation ************/
 
-  /// Notify this artifact that it is linked to a parent directory with a given entry name.
-  /// If committed is true, the link is already in place on the filesystem.
-  virtual void linkAt(shared_ptr<DirArtifact> dir, string entry, bool committed = false) noexcept;
+  /// A link is a tuple of a directory and an entry name in that directory
+  using Link = tuple<shared_ptr<DirArtifact>, string>;
 
-  /// Update the filesystem so this artifact is linked in the given directory
-  virtual void commitLinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept;
+  /// A link update is a link, plus the version that created it
+  using LinkUpdate = tuple<weak_ptr<DirArtifact>, string, weak_ptr<DirVersion>>;
 
-  /// Notify this artifact that it is unlinked from ap arent directory at a given entry name.
-  /// If committed is true, the link has already been removed on the filesystem.
-  virtual void unlinkAt(shared_ptr<DirArtifact> dir, string entry, bool committed = false) noexcept;
+  /// Inform this artifact that it is linked or unlinked
+  void addLinkUpdate(shared_ptr<DirArtifact> dir, string entry, shared_ptr<DirVersion> v) noexcept;
 
-  /// Update the filesystem so this artifact is no longer linked in the given directory
-  virtual void commitUnlinkAt(shared_ptr<DirArtifact> dir, string entry) noexcept;
+  /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
+  /// entry) to the version that creates that link. The first map holds committed links, while the
+  /// second map holds uncommitted links.
+  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks() const
+      noexcept;
 
-  /// Get a reasonable path to this artifact. The path may not by in place on the filesystem, but
-  /// the path will reflect a location of this artifact at some point during the build.
+  /// Get a path to this artifact that may or may not be committed to the filesystem
   optional<fs::path> getPath() const noexcept;
 
-  /// Get a committed path to this artifact. The path may be a temporary location that does not
-  /// appear during the build, but this artifact is guaranteed to be at that path.
+  /// Get a path to this artifact that is currently committed to the filesystem
   optional<fs::path> getCommittedPath() const noexcept;
 
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
-  optional<DirArtifact*> getParentDir() const noexcept;
-
-  /// Get the map of links to this artifact
-  const map<tuple<DirArtifact*, string>, bool>& getLinks() const noexcept { return _links; }
+  optional<shared_ptr<DirArtifact>> getParentDir() const noexcept;
 
   /************ Metadata Operations ************/
 
@@ -262,9 +256,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
 
-  /// A map of links to this artifact. The key is a directory and entry name. The value is a boolean
-  /// that indicates whether or not this link has been committed to the filesystem.
-  map<tuple<DirArtifact*, string>, bool> _links;
+  /// Keep track of the sequence of links and unlinks to this artifact
+  list<LinkUpdate> _link_updates;
 
   /// A path to a temporary location where this artifact is stored
   optional<fs::path> _temp_path;

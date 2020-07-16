@@ -16,12 +16,6 @@ SymlinkArtifact::SymlinkArtifact(Env& env,
   _symlink_version = sv;
 }
 
-// The given command depends on the full state of this artifact
-void SymlinkArtifact::neededBy(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Accessed);
-}
-
 // Get the current symlink version of this artifact
 shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(shared_ptr<Command> c,
                                                        InputType t) noexcept {

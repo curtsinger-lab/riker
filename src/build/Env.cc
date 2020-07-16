@@ -36,7 +36,7 @@ Env::Env(Build& build) noexcept : _build(build) {
   ASSERT(rc == 0) << "Failed to stat root directory";
   _root_dir = getArtifact("/", info)->as<DirArtifact>();
   _root_dir->setName("/");
-  _root_dir->linkAt(nullptr, "/", true);
+  _root_dir->addLinkUpdate(nullptr, "/", nullptr);
 }
 
 fs::path Env::getTempPath() noexcept {
