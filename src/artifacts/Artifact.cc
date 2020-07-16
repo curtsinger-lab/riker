@@ -182,6 +182,24 @@ optional<shared_ptr<DirArtifact>> Artifact::getParentDir() const noexcept {
   return nullopt;
 }
 
+// Generate and save a temporary path for this artifact. Returns the new path.
+// The caller must make sure this artifact is linked at the new temporary path.
+fs::path Artifact::assignTemporaryPath() noexcept {
+  ASSERT(!_temp_path.has_value())
+      << "Cannot assign a temporary path to an artifact that already has one";
+
+  auto path = _env.getTempPath();
+  _temp_path = path;
+  return path;
+}
+
+// Clear the temporary path for this artifact. Returns the old temporary path if it had one.
+optional<fs::path> Artifact::takeTemporaryPath() noexcept {
+  optional<fs::path> path;
+  std::swap(_temp_path, path);
+  return path;
+}
+
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);

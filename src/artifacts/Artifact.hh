@@ -80,6 +80,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the list of versions of this artifact
   const list<shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
 
+  /// Get the environment this artifact is part of
+  Env& getEnv() const noexcept { return _env; }
+
   /**
    * Check if an access to this artifact with the provided flags is allowed.
    * \param c     The command that depends on this access check
@@ -116,9 +119,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A link is a tuple of a directory and an entry name in that directory
   using Link = tuple<shared_ptr<DirArtifact>, string>;
 
-  /// A link update is a link, plus the version that created it
-  using LinkUpdate = tuple<weak_ptr<DirArtifact>, string, weak_ptr<DirVersion>>;
-
   /// Inform this artifact that it is linked or unlinked
   void addLinkUpdate(shared_ptr<DirArtifact> dir, string entry, shared_ptr<DirVersion> v) noexcept;
 
@@ -136,6 +136,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
   optional<shared_ptr<DirArtifact>> getParentDir() const noexcept;
+
+  /// Generate and save a temporary path for this artifact. Returns the new path.
+  /// The caller must make sure this artifact is linked at the new temporary path.
+  fs::path assignTemporaryPath() noexcept;
+
+  /// Clear the temporary path for this artifact. Returns the old temporary path if it had one.
+  optional<fs::path> takeTemporaryPath() noexcept;
 
   /************ Metadata Operations ************/
 
@@ -255,6 +262,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
+
+  /// A link update records a directory, entry name, and the version that creates/removes the link
+  using LinkUpdate = tuple<weak_ptr<DirArtifact>, string, weak_ptr<DirVersion>>;
 
   /// Keep track of the sequence of links and unlinks to this artifact
   list<LinkUpdate> _link_updates;
