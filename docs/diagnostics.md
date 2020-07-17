@@ -22,20 +22,28 @@ To plan a rebuild and print all commands that would run:
 $ dodo check
 ```
 
-To see the above, plus warnings (potential dodo runtime failues), run
+To see the above, plus warnings (potential dodo runtime failues), run:
 
 ```
 $ dodo check -v
 ```
 
-To see the above, plus info (dependence edges), run
+To see the above, plus info (dependence edges), run:
 
 ```
 $ dodo check -vv
 ```
 
-To see the above, plus logs (changes), run
+To see the above, plus logs (changes), run:
 
 ```
 $ dodo check -vvv
+```
+
+## Last trace
+
+To print the last trace, run:
+
+```
+$ dodo trace
 ```
