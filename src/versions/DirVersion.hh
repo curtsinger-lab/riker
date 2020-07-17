@@ -91,7 +91,7 @@ class ExistingDir : public BaseDirVersion {
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: on-disk state]"; }
 };
 
-/// Link a new entry into a directory
+/// An AddEntry version updates a directory with a new entry
 class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
@@ -131,11 +131,7 @@ class AddEntry : public DirVersion {
   SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
-/**
- * A link directory version encodes a single linking operation, which adds an entry to the
- * directory. This is a partial version, so any attempt to resolve entries other than the linked one
- * will fall through to other versions.
- */
+/// A RemoveEntry version updates a directory so it no longer has a specific entry
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
