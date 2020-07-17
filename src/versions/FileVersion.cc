@@ -40,7 +40,6 @@ void FileVersion::fingerprint(fs::path path) noexcept {
   // Get stat data and save it
   struct stat statbuf;
   int rc = ::lstat(path.c_str(), &statbuf);
-  WARN_IF(rc) << "Failed to stat " << path;
 
   if (rc == 0) _fingerprint = statbuf;
 }
