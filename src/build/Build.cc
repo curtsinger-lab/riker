@@ -175,6 +175,12 @@ template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
                                            shared_ptr<SymlinkVersion> expected,
                                            shared_ptr<Match<SymlinkVersion>> emulating) noexcept;
 
+// Explicitly instantiate match for directory lists
+template void Build::match<ListedDir>(shared_ptr<Command> c,
+                                      shared_ptr<Ref> ref,
+                                      shared_ptr<ListedDir> expected,
+                                      shared_ptr<Match<ListedDir>> emulating) noexcept;
+
 // Command c modifies an artifact
 template <class VersionType>
 void Build::apply(shared_ptr<Command> c,

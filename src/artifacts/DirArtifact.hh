@@ -51,6 +51,12 @@ class DirArtifact final : public Artifact {
 
   /************ Directory Operations ************/
 
+  /// Get a version that lists all the entries in this directory
+  virtual shared_ptr<ListedDir> getDirList(shared_ptr<Command> c, InputType t) noexcept override;
+
+  /// Check to see if this artifact's directory list matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept override;
+
   virtual Resolution resolve(shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,

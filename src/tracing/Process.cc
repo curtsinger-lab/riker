@@ -733,8 +733,14 @@ void Process::_renameat2(int old_dfd,
 }
 
 void Process::_getdents(int fd) noexcept {
-  WARN << "getdents syscall is not updated";
-  resume();
+  // Finish the syscall and resume
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Create a dependency on the artifact's directory list
+    const auto& descriptor = _fds.at(fd);
+    _build.match<ListedDir>(_command, descriptor.getRef());
+  });
 }
 
 /************************ Link and Symlink Operations ************************/

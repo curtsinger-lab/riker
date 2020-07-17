@@ -132,6 +132,46 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
   }
 }
 
+// Get a version that lists all the entries in this directory
+shared_ptr<ListedDir> DirArtifact::getDirList(shared_ptr<Command> c, InputType t) noexcept {
+  auto result = _base_dir_version->getList(_env, as<DirArtifact>());
+
+  // The command listing this directory depends on its base version
+  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, t);
+
+  for (auto [name, info] : _entries) {
+    // Get the version and artifact for this entry
+    auto [version, artifact] = info;
+
+    // If this entry is from the base version, we've already covered it
+    if (version == _base_dir_version) continue;
+
+    // Otherwise the entry is from some other version. Update the list.
+    if (artifact) {
+      result->addEntry(name);
+    } else {
+      result->removeEntry(name);
+    }
+
+    // The listing command depends on whatever version is responsible for this entry
+    _env.getBuild().observeInput(c, shared_from_this(), version, t);
+  }
+
+  return result;
+}
+
+// Check to see if this artifact's directory list matches a known version
+void DirArtifact::match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
+  // Get the current metadata
+  auto observed = getDirList(c, InputType::Accessed);
+
+  // Compare versions
+  if (!observed->matches(expected)) {
+    // Report the mismatch
+    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
+  }
+}
+
 Resolution DirArtifact::resolve(shared_ptr<Command> c,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,

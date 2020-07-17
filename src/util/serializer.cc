@@ -225,9 +225,10 @@ CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
-CEREAL_REGISTER_TYPE(AddEntry)
-CEREAL_REGISTER_TYPE(RemoveEntry)
+CEREAL_REGISTER_TYPE(AddEntry);
+CEREAL_REGISTER_TYPE(RemoveEntry);
 CEREAL_REGISTER_TYPE(CreatedDir);
+CEREAL_REGISTER_TYPE(ListedDir);
 
 // Refs
 CEREAL_REGISTER_TYPE(Pipe);
@@ -239,6 +240,7 @@ CEREAL_REGISTER_TYPE(Access);
 CEREAL_REGISTER_TYPE(Match<MetadataVersion>);
 CEREAL_REGISTER_TYPE(Match<FileVersion>);
 CEREAL_REGISTER_TYPE(Match<SymlinkVersion>);
+CEREAL_REGISTER_TYPE(Match<ListedDir>);
 
 // Actions
 CEREAL_REGISTER_TYPE(Launch);

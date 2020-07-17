@@ -1,5 +1,6 @@
 #include "DirVersion.hh"
 
+#include <filesystem>
 #include <memory>
 
 #include <errno.h>
@@ -13,6 +14,8 @@
 #include "versions/Version.hh"
 
 using std::shared_ptr;
+
+namespace fs = std::filesystem;
 
 // Commit a directory creation
 void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
@@ -43,6 +46,23 @@ Resolution ExistingDir::getEntry(Env& env, shared_ptr<DirArtifact> dir, string n
   auto artifact = env.getArtifact(path, info);
   artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
   return artifact;
+}
+
+// Create a listed directory version from an existing directory
+shared_ptr<ListedDir> ExistingDir::getList(Env& env, shared_ptr<DirArtifact> dir) const noexcept {
+  auto result = make_shared<ListedDir>();
+
+  auto path = dir->getCommittedPath();
+  ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
+
+  for (auto& entry : fs::directory_iterator(path.value())) {
+    auto name = entry.path().stem();
+    if (name != ".dodo") {
+      result->addEntry(entry.path().stem());
+    }
+  }
+
+  return result;
 }
 
 // Commit the addition of an entry to a directory

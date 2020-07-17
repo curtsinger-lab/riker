@@ -71,6 +71,9 @@ template void Match<FileVersion>::emulate(shared_ptr<Command> c, Build& build) n
 // Explicitly instantiate Match for symlink versions
 template void Match<SymlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
 
+// Explicitly instantiate Match for listed directory versions
+template void Match<ListedDir>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+
 // Emulate an Apple action
 template <class VersionType>
 void Apply<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {

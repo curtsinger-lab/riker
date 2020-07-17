@@ -27,12 +27,13 @@ using std::tuple;
 namespace fs = std::filesystem;
 
 class Access;
+class AddEntry;
 class Command;
 class DirArtifact;
 class DirVersion;
 class Env;
 class FileVersion;
-class AddEntry;
+class ListedDir;
 class MetadataVersion;
 class Ref;
 class SymlinkVersion;
@@ -191,6 +192,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Directory Operations ************/
 
+  /// Get a version that lists all the entries in this artifact (assuming it is a directory)
+  virtual shared_ptr<ListedDir> getDirList(shared_ptr<Command> c, InputType t) noexcept {
+    WARN << c << ": tried to access directory contents of artifact " << this;
+    return nullptr;
+  }
+
+  /// Check to see if this artifact's directory list matches a known version
+  virtual void match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
+    WARN << c << ": tried to match directory contents of artifact " << this;
+  }
+
   /**
    * Resolve a path relative to this artifact.
    * \param c         The command this resolution is performed on behalf of
@@ -241,6 +253,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   template <>
   shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
     return getSymlink(c, t);
+  }
+
+  /// Specialize get for directory list
+  template <>
+  shared_ptr<ListedDir> get<ListedDir>(shared_ptr<Command> c, InputType t) {
+    return getDirList(c, t);
   }
 
   /// Print this artifact
