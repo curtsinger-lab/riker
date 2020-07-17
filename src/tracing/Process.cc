@@ -876,6 +876,13 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   // Get a reference to the entry itself
   auto entry_ref = makeAccess(path, AccessFlags{.nofollow = true}, dfd);
 
+  // If this call is removing a directory, depend on the directory contents
+  if (entry_ref->isResolved()) {
+    if (auto dir = entry_ref->getArtifact()->as<DirArtifact>()) {
+      _build.match<ListedDir>(_command, entry_ref);
+    }
+  }
+
   finishSyscall([=](long rc) {
     resume();
 

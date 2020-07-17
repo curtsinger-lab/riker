@@ -1,0 +1,5 @@
+#!/bin/sh
+
+rm foo/a
+rm foo/b
+rmdir foo

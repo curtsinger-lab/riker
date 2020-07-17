@@ -162,8 +162,9 @@ shared_ptr<ListedDir> DirArtifact::getDirList(shared_ptr<Command> c, InputType t
 
 // Check to see if this artifact's directory list matches a known version
 void DirArtifact::match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
-  // Get the current metadata
-  auto observed = getDirList(c, InputType::Accessed);
+  // Get the directory list. All dependencies only care if an entry exists, not on its specific
+  // contents
+  auto observed = getDirList(c, InputType::Exists);
 
   // Compare versions
   if (!observed->matches(expected)) {
