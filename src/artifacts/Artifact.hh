@@ -108,6 +108,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept;
 
+  /// Command c requires that this artifact exists in its current state. Create dependency edges.
+  virtual void mustExist(shared_ptr<Command> c) noexcept = 0;
+
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept;
 

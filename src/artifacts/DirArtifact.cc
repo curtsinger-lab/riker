@@ -83,6 +83,17 @@ void DirArtifact::commitAll() noexcept {
   Artifact::commitAll();
 }
 
+// Command c requires that this artifact exists in its current state. Create dependency edges.
+void DirArtifact::mustExist(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
+  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, InputType::Exists);
+
+  for (auto [entry, info] : _entries) {
+    auto [version, artifact] = info;
+    _env.getBuild().observeInput(c, shared_from_this(), version, InputType::Exists);
+  }
+}
+
 // Compare all final versions of this artifact to the filesystem state
 void DirArtifact::checkFinalState(fs::path path) noexcept {
   // TODO: Check the final state of this directory against the filesystem
@@ -244,6 +255,9 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
     // TODO: We will overwrite the old entry. How do we track that?
     // TODO: AddEntry versions should be tagged with an `overwrite` flag
   }
+
+  // For this link to be committed, we need the artifact to exist or be committable
+  artifact->mustExist(c);
 
   // Inform the artifact of its new link
   artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);

@@ -54,6 +54,12 @@ void FileArtifact::commitAll() noexcept {
   Artifact::commitAll();
 }
 
+// Command c requires that this artifact exists in its current state. Create dependency edges.
+void FileArtifact::mustExist(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
+  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Exists);
+}
+
 // Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {

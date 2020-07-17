@@ -34,6 +34,9 @@ class FileArtifact : public Artifact {
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept override;
 
+  /// Command c requires that this artifact exists in its current state. Create dependency edges.
+  virtual void mustExist(shared_ptr<Command> c) noexcept override;
+
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
 

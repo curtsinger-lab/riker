@@ -57,6 +57,12 @@ void SymlinkArtifact::commitAll() noexcept {
   Artifact::commitAll();
 }
 
+// Command c requires that this artifact exists in its current state. Create dependency edges.
+void SymlinkArtifact::mustExist(shared_ptr<Command> c) noexcept {
+  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
+  _env.getBuild().observeInput(c, shared_from_this(), _symlink_version, InputType::Exists);
+}
+
 // Compare all final versions of this artifact to the filesystem state
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {

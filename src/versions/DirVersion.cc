@@ -18,7 +18,8 @@ using std::shared_ptr;
 
 bool AddEntry::canCommit() const noexcept {
   // We can always commit a link to an artifact: it either has a path we can hard link to, or we
-  // could create it.
+  // could create it. We will always be able to commit the artifact because created links depend on
+  // the current artifact state.
   return true;
 }
 

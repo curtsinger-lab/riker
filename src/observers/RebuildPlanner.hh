@@ -84,7 +84,10 @@ class RebuildPlanner final : public BuildObserver {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
-      _output_used_by[v->getCreator()].insert(c);
+      // This is not true for inputs that just require the version to exist
+      if (t != InputType::Exists) {
+        _output_used_by[v->getCreator()].insert(c);
+      }
 
       // The dependency back edge depends on caching
       if (options::enable_cache && a->canCommit(v)) {
