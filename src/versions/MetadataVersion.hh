@@ -79,7 +79,7 @@ class MetadataVersion final : public Version {
   MetadataVersion(Metadata&& m) noexcept : _metadata(m) {}
 
   /// Check if a given access is allowed by the mode bits in this metadata record
-  bool checkAccess(AccessFlags flags) noexcept;
+  bool checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
 
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "metadata"; }

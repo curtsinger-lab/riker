@@ -142,8 +142,14 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   // entries
   while (current != end && current->empty()) current++;
 
-  // If this is the last entry on the path, return this artifact
-  if (current == end) return shared_from_this();
+  // If this is the last entry on the path, resolution reaches this artifact
+  if (current == end) {
+    // If the requested access is not allowed, return EACCES
+    if (!checkAccess(c, ref->getFlags())) return EACCES;
+
+    // Access was allowed, so return this artifact
+    return shared_from_this();
+  }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
   if (!checkAccess(c, AccessFlags{.x = true})) return EACCES;

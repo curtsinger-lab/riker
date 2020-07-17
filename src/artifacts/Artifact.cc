@@ -203,10 +203,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
   _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
-
-  // If the current metadata version is committed, make sure we save it for future checks
-  // if (_metadata_version->isCommitted()) _metadata_version->save(ref);
-  return _metadata_version->checkAccess(flags);
+  return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
 // Can a specific version of this artifact be committed?
