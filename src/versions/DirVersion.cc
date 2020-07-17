@@ -16,17 +16,40 @@
 using std::set;
 using std::shared_ptr;
 
-bool AddEntry::canCommit() const noexcept {
-  // We can always commit a link to an artifact: it either has a path we can hard link to, or we
-  // could create it. We will always be able to commit the artifact because created links depend on
-  // the current artifact state.
-  return true;
-}
-
-void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+// Commit a directory creation
+void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
-  INFO << "Committing " << this;
+  int rc = ::mkdir(path.c_str(), 0755);
+  WARN_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
+
+  // Mark this version as committed
+  Version::setCommitted();
+}
+
+// Check if an existing directory has a specific entry
+Resolution ExistingDir::getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept {
+  // Create a path to the entry
+  auto dir_path = dir->getCommittedPath();
+  ASSERT(dir_path.has_value()) << "Directory has no path!";
+  auto path = dir_path.value() / name;
+
+  // This is a query for a new entry name. Try to stat the entry
+  struct stat info;
+  int rc = ::lstat(path.c_str(), &info);
+
+  // If the lstat call failed, the entry does not exist
+  if (rc != 0) return ENOENT;
+
+  // The artifact should exist. Get it from the environment and save it
+  auto artifact = env.getArtifact(path, info);
+  artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
+  return artifact;
+}
+
+// Commit the addition of an entry to a directory
+void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+  if (isCommitted()) return;
 
   // Get the artifact we are linking
   auto artifact = _target->getArtifact();
@@ -78,22 +101,6 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
 
       // Make the hard link
       int rc = ::link(existing_path.c_str(), (dir_path / _entry).c_str());
-      if (rc != 0) {
-        auto [committed_links, uncommitted_links] = artifact->getLinks();
-        INFO << "Committed Links:";
-        for (auto [link, version] : committed_links) {
-          auto [link_dir, link_name] = link;
-          INFO << "  " << link_dir->getCommittedPath().value() / link_name << " (" << version
-               << ")";
-          INFO << "  version is " << (version->isCommitted() ? "committed" : "uncommitted");
-        }
-        INFO << "Uncommitted Links:";
-        for (auto [link, version] : uncommitted_links) {
-          auto [link_dir, link_name] = link;
-          INFO << "  " << link_dir->getPath().value() / link_name << " (" << version << ")";
-        }
-      }
-
       ASSERT(rc == 0) << "Failed to hard link " << artifact << " to " << dir_path / _entry << ": "
                       << ERR;
 
@@ -114,14 +121,9 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   }
 }
 
-bool RemoveEntry::canCommit() const noexcept {
-  return true;
-}
-
+// Commit the removal of an entry from a directory
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
-
-  INFO << "Committing " << this;
 
   // Get the artifact we're unlinking
   auto artifact = _target->getArtifact();
@@ -166,38 +168,4 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
     Version::setCommitted();
     return;
   }
-}
-
-void ExistingDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
-  FAIL_IF(!isCommitted()) << "Existing directory versions can never be uncommitted";
-}
-
-void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
-  if (isCommitted()) return;
-
-  int rc = ::mkdir(path.c_str(), 0755);
-  WARN_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
-
-  // Mark this version as committed
-  Version::setCommitted();
-}
-
-/// Check if this version has a specific entry
-Resolution ExistingDir::getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept {
-  // Create a path to the entry
-  auto dir_path = dir->getCommittedPath();
-  ASSERT(dir_path.has_value()) << "Directory has no path!";
-  auto path = dir_path.value() / name;
-
-  // This is a query for a new entry name. Try to stat the entry
-  struct stat info;
-  int rc = ::lstat(path.c_str(), &info);
-
-  // If the lstat call failed, the entry does not exist
-  if (rc != 0) return ENOENT;
-
-  // The artifact should exist. Get it from the environment and save it
-  auto artifact = env.getArtifact(path, info);
-  artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
-  return artifact;
 }

@@ -82,7 +82,9 @@ class ExistingDir : public BaseDirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override {
+    FAIL_IF(!isCommitted()) << "An existing directory " << dir << " was in an uncommitted state";
+  }
 
   /// Check if this version has a specific entry
   virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept override;
@@ -107,7 +109,12 @@ class AddEntry : public DirVersion {
   shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override;
+  virtual bool canCommit() const noexcept override {
+    // We can always commit a link to an artifact: it either has a path we can hard link to, or we
+    // could create it. We will always be able to commit the artifact because created links depend
+    // on the current artifact state.
+    return true;
+  }
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
@@ -146,7 +153,7 @@ class RemoveEntry : public DirVersion {
   shared_ptr<Ref> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override;
+  virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
