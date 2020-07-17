@@ -75,7 +75,7 @@ shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
 
   } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
-    auto dv = make_shared<ExistingDirVersion>();
+    auto dv = make_shared<ExistingDir>();
     dv->setCommitted();
     a = make_shared<DirArtifact>(*this, mv, dv);
 
@@ -173,7 +173,7 @@ shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool com
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
   if (committed) mv->setCommitted();
 
-  auto dv = make_shared<EmptyDir>();
+  auto dv = make_shared<CreatedDir>();
   if (committed) dv->setCommitted();
 
   auto dir = make_shared<DirArtifact>(*this, mv, dv);

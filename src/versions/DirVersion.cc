@@ -168,11 +168,11 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
   }
 }
 
-void ExistingDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void ExistingDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   FAIL_IF(!isCommitted()) << "Existing directory versions can never be uncommitted";
 }
 
-void EmptyDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
   int rc = ::mkdir(path.c_str(), 0755);
@@ -183,17 +183,7 @@ void EmptyDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 }
 
 /// Check if this version has a specific entry
-Resolution ExistingDirVersion::getEntry(Env& env,
-                                        shared_ptr<DirArtifact> dir,
-                                        string name) noexcept {
-  // If we already know this entry is present, return it
-  auto present_iter = _present.find(name);
-  if (present_iter != _present.end()) return present_iter->second;
-
-  // If we already know this entry is absent, return ENOENT
-  auto absent_iter = _absent.find(name);
-  if (absent_iter != _absent.end()) return ENOENT;
-
+Resolution ExistingDir::getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept {
   // Create a path to the entry
   auto dir_path = dir->getCommittedPath();
   ASSERT(dir_path.has_value()) << "Directory has no path!";
@@ -204,14 +194,10 @@ Resolution ExistingDirVersion::getEntry(Env& env,
   int rc = ::lstat(path.c_str(), &info);
 
   // If the lstat call failed, the entry does not exist
-  if (rc != 0) {
-    _absent.emplace_hint(absent_iter, name);
-    return ENOENT;
-  }
+  if (rc != 0) return ENOENT;
 
   // The artifact should exist. Get it from the environment and save it
   auto artifact = env.getArtifact(path, info);
-  artifact->addLinkUpdate(dir, name, this->as<ExistingDirVersion>());
-  _present.emplace_hint(present_iter, name, artifact);
+  artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
   return artifact;
 }
