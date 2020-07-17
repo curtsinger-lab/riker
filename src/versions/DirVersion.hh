@@ -2,9 +2,7 @@
 
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <ostream>
-#include <set>
 
 #include "build/Resolution.hh"
 #include "core/IR.hh"
@@ -12,10 +10,7 @@
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
-using std::nullopt;
-using std::optional;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;

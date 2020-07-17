@@ -1,7 +1,6 @@
 #include "DirVersion.hh"
 
 #include <memory>
-#include <set>
 
 #include <errno.h>
 #include <unistd.h>
@@ -13,7 +12,6 @@
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
-using std::set;
 using std::shared_ptr;
 
 // Commit a directory creation

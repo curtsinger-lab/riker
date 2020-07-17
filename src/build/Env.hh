@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 
 #include <sys/types.h>
@@ -14,6 +15,7 @@
 #include "core/IR.hh"
 
 using std::map;
+using std::set;
 using std::shared_ptr;
 using std::string;
 
