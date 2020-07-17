@@ -310,3 +310,27 @@ Resolution Artifact::resolve(shared_ptr<Command> c,
 
   return ENOTDIR;
 }
+
+/// Specialize get for metadata
+template <>
+shared_ptr<MetadataVersion> Artifact::get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
+  return getMetadata(c, t);
+}
+
+/// Specialize get for content
+template <>
+shared_ptr<FileVersion> Artifact::get<FileVersion>(shared_ptr<Command> c, InputType t) {
+  return getContent(c, t);
+}
+
+/// Specialize get for symlink
+template <>
+shared_ptr<SymlinkVersion> Artifact::get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
+  return getSymlink(c, t);
+}
+
+/// Specialize get for directory list
+template <>
+shared_ptr<ListedDir> Artifact::get<ListedDir>(shared_ptr<Command> c, InputType t) {
+  return getDirList(c, t);
+}

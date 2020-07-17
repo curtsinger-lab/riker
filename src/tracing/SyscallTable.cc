@@ -448,4 +448,4 @@ constexpr SyscallTable::SyscallTable() {
   /* 334 */  // skip rseq
 }
 
-constexpr SyscallTable SyscallTable::_the_table;
+const SyscallTable SyscallTable::_the_table;

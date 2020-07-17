@@ -237,30 +237,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   template <class VersionType>
   shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
 
-  /// Specialize get for metadata
-  template <>
-  shared_ptr<MetadataVersion> get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
-    return getMetadata(c, t);
-  }
-
-  /// Specialize get for content
-  template <>
-  shared_ptr<FileVersion> get<FileVersion>(shared_ptr<Command> c, InputType t) {
-    return getContent(c, t);
-  }
-
-  /// Specialize get for symlink
-  template <>
-  shared_ptr<SymlinkVersion> get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
-    return getSymlink(c, t);
-  }
-
-  /// Specialize get for directory list
-  template <>
-  shared_ptr<ListedDir> get<ListedDir>(shared_ptr<Command> c, InputType t) {
-    return getDirList(c, t);
-  }
-
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {
     o << "[" << a.getTypeName();
