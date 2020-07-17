@@ -35,10 +35,10 @@ class FileArtifact : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState() noexcept override;
+  virtual void checkFinalState(fs::path path) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState() noexcept override;
+  virtual void applyFinalState(fs::path path) noexcept override;
 
   /************ Content Operations ************/
 

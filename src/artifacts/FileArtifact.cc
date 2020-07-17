@@ -55,13 +55,10 @@ void FileArtifact::commitAll() noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void FileArtifact::checkFinalState() noexcept {
-  auto path = getPath();
-  ASSERT(path.has_value()) << "Cannot check final state for " << this << ": no known path";
-
+void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();
-    v->fingerprint(path.value());
+    v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -74,25 +71,22 @@ void FileArtifact::checkFinalState() noexcept {
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState();
+  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState() noexcept {
-  auto path = getCommittedPath();
-  ASSERT(path.has_value()) << "File has no path";
-
+void FileArtifact::applyFinalState(fs::path path) noexcept {
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _content_version->fingerprint(path.value());
+    _content_version->fingerprint(path);
   }
 
   // Make sure the content is committed
-  _content_version->commit(path.value());
+  _content_version->commit(path);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState();
+  Artifact::applyFinalState(path);
 }
 
 /// Get the current content version for this artifact

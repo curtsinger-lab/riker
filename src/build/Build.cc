@@ -45,12 +45,12 @@ void Build::run() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env.getRootDir()->checkFinalState();
+  _env.getRootDir()->checkFinalState("/");
 }
 
 // Ensure all final state is fingerprinted
 void Build::applyFinalState() noexcept {
-  _env.getRootDir()->applyFinalState();
+  _env.getRootDir()->applyFinalState("/");
 }
 
 /************************ Command Tracing and Emulation ************************/

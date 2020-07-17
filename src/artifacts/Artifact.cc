@@ -234,13 +234,10 @@ void Artifact::commitAll() noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState() noexcept {
-  auto path = getPath();
-  ASSERT(path.has_value()) << "Artifact has no path";
-
+void Artifact::checkFinalState(fs::path path) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path.value());
+    v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -254,18 +251,15 @@ void Artifact::checkFinalState() noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState() noexcept {
-  auto path = getCommittedPath();
-  ASSERT(path.has_value()) << "Artifact has no path";
-
+void Artifact::applyFinalState(fs::path path) noexcept {
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _metadata_version->fingerprint(path.value());
+    _metadata_version->fingerprint(path);
   }
 
   // Make sure metadata for this artifact is committed
-  _metadata_version->commit(path.value());
+  _metadata_version->commit(path);
 }
 
 /// Get the current metadata version for this artifact

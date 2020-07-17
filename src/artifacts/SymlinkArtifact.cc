@@ -58,27 +58,24 @@ void SymlinkArtifact::commitAll() noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState() noexcept {
+void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState();
+  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState() noexcept {
+void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
-  auto path = getCommittedPath();
-  ASSERT(path.has_value()) << "Symlink has no path";
-
   // Make sure this symlink is committed
-  _symlink_version->commit(path.value());
+  _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState();
+  Artifact::applyFinalState(path);
 }
 
 // Check to see if this artifact's symlink destination matches a known version

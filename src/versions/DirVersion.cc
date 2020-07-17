@@ -25,6 +25,8 @@ bool AddEntry::canCommit() const noexcept {
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
+  INFO << "Committing " << this;
+
   // Get the artifact we are linking
   auto artifact = _target->getArtifact();
 
@@ -32,7 +34,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   auto temp_path = artifact->takeTemporaryPath();
   if (temp_path.has_value()) {
     // The artifact has a temporary path. We can move it to its new committed location
-    LOG << "Moving " << this << " to " << dir_path / _entry;
+    LOG << "Moving " << artifact << " to " << dir_path / _entry;
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), (dir_path / _entry).c_str());
@@ -75,6 +77,22 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
 
       // Make the hard link
       int rc = ::link(existing_path.c_str(), (dir_path / _entry).c_str());
+      if (rc != 0) {
+        auto [committed_links, uncommitted_links] = artifact->getLinks();
+        INFO << "Committed Links:";
+        for (auto [link, version] : committed_links) {
+          auto [link_dir, link_name] = link;
+          INFO << "  " << link_dir->getCommittedPath().value() / link_name << " (" << version
+               << ")";
+          INFO << "  version is " << (version->isCommitted() ? "committed" : "uncommitted");
+        }
+        INFO << "Uncommitted Links:";
+        for (auto [link, version] : uncommitted_links) {
+          auto [link_dir, link_name] = link;
+          INFO << "  " << link_dir->getPath().value() / link_name << " (" << version << ")";
+        }
+      }
+
       ASSERT(rc == 0) << "Failed to hard link " << artifact << " to " << dir_path / _entry << ": "
                       << ERR;
 
@@ -101,6 +119,8 @@ bool RemoveEntry::canCommit() const noexcept {
 
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
+
+  INFO << "Committing " << this;
 
   // Get the artifact we're unlinking
   auto artifact = _target->getArtifact();

@@ -84,33 +84,33 @@ void DirArtifact::commitAll() noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void DirArtifact::checkFinalState() noexcept {
+void DirArtifact::checkFinalState(fs::path path) noexcept {
   // TODO: Check the final state of this directory against the filesystem
   // Linked entries should exist, and unlinked entries should not
 
   // Recursively check the final state of all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->checkFinalState();
+    if (artifact) artifact->checkFinalState(path / name);
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState();
+  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState() noexcept {
+void DirArtifact::applyFinalState(fs::path path) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
   commitAll();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState();
+  Artifact::applyFinalState(path);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState();
+    if (artifact) artifact->applyFinalState(path / name);
   }
 }
 
@@ -268,13 +268,11 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
     // Get the version that added this entry, and the artifact it maps to
     auto& [version, artifact] = iter->second;
 
-    // Is the version that added this artifact committed?
-    if (version->isCommitted()) {
-      // Yes. When we commit the written version, it will need to remove a link from the target
-      // artifact.
-      artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
+    // Inform the artifact of this unlink operation
+    artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
-    } else {
+    // Is the version that linked this entry uncommitted?
+    if (!version->isCommitted()) {
       // Not committed. If the uncommitted version is an AddEntry version, we can cancel it out.
       if (auto add = version->as<AddEntry>()) {
         // The new RemoveEntry version cancels out the uncommitted AddEntry version
