@@ -96,13 +96,20 @@ void DirArtifact::mustExist(shared_ptr<Command> c) noexcept {
 
 // Compare all final versions of this artifact to the filesystem state
 void DirArtifact::checkFinalState(fs::path path) noexcept {
-  // TODO: Check the final state of this directory against the filesystem
-  // Linked entries should exist, and unlinked entries should not
-
   // Recursively check the final state of all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->checkFinalState(path / name);
+
+    // Do we expect the entry to point to an artifact?
+    if (artifact) {
+      // Yes. Make sure that artifact is in the expected final state
+      artifact->checkFinalState(path / name);
+    }
+
+    // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
+    // have a record of this artifact being missing because some other part of the build accessed
+    // it. That means there will be some earlier reference that was expected to succeed or fail that
+    // will now have changed.
   }
 
   // Check the metadata state as well
@@ -282,8 +289,8 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
     // Get the version that added this entry, and the artifact it maps to
     auto& [version, artifact] = iter->second;
 
-    // Inform the artifact of this unlink operation
-    artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
+    // If there is an artifact at this entry, inform it of an unlink operation
+    if (artifact) artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
     // Is the version that linked this entry uncommitted?
     if (!version->isCommitted()) {
