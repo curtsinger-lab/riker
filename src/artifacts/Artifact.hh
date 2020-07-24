@@ -102,13 +102,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommit(shared_ptr<Version> v) const noexcept;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
-  virtual void commit(Build& build, shared_ptr<Version> v) noexcept;
+  virtual void commit(shared_ptr<Version> v) noexcept;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll(Build& build) noexcept;
+  virtual void commitAll() noexcept;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
   virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept = 0;
@@ -117,7 +117,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void checkFinalState(Build& build, fs::path path) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path) noexcept;
+  virtual void applyFinalState(fs::path path) noexcept;
 
   /************ Path Manipulation ************/
 

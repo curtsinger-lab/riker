@@ -32,13 +32,13 @@ class DirArtifact final : public Artifact {
   virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(Build& build, shared_ptr<Version> v) noexcept override;
+  virtual void commit(shared_ptr<Version> v) noexcept override;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll(Build& build) noexcept override;
+  virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
   virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept override;
@@ -47,7 +47,7 @@ class DirArtifact final : public Artifact {
   virtual void checkFinalState(Build& build, fs::path path) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path) noexcept override;
+  virtual void applyFinalState(fs::path path) noexcept override;
 
   /************ Directory Operations ************/
 

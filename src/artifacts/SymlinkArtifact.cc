@@ -35,13 +35,13 @@ bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   }
 }
 
-void SymlinkArtifact::commit(Build& build, shared_ptr<Version> v) noexcept {
+void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _symlink_version) {
     auto path = getCommittedPath();
     ASSERT(path.has_value()) << "Symlink has no path";
     _symlink_version->commit(path.value());
   } else {
-    Artifact::commit(build, v);
+    Artifact::commit(v);
   }
 }
 
@@ -50,12 +50,12 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void SymlinkArtifact::commitAll(Build& build) noexcept {
+void SymlinkArtifact::commitAll() noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
-  Artifact::commitAll(build);
+  Artifact::commitAll();
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
@@ -75,14 +75,14 @@ void SymlinkArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(Build& build, fs::path path) noexcept {
+void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(build, path);
+  Artifact::applyFinalState(path);
 }
 
 // Check to see if this artifact's symlink destination matches a known version
@@ -109,7 +109,7 @@ Resolution SymlinkArtifact::resolve(Build& build,
   auto& flags = ref->getFlags();
 
   // If requested, commit this artifact
-  if (committed) commitAll(build);
+  if (committed) commitAll();
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (current == end && flags.nofollow) return shared_from_this();

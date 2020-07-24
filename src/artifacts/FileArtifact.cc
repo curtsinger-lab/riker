@@ -28,13 +28,13 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   }
 }
 
-void FileArtifact::commit(Build& build, shared_ptr<Version> v) noexcept {
+void FileArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _content_version) {
     auto path = getCommittedPath();
     ASSERT(path.has_value()) << "File has no path";
     _content_version->commit(path.value());
   } else {
-    Artifact::commit(build, v);
+    Artifact::commit(v);
   }
 }
 
@@ -44,14 +44,14 @@ bool FileArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void FileArtifact::commitAll(Build& build) noexcept {
+void FileArtifact::commitAll() noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
   _content_version->commit(path.value());
 
   // Delegate metadata commits to the artifact
-  Artifact::commitAll(build);
+  Artifact::commitAll();
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
@@ -81,7 +81,7 @@ void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState(Build& build, fs::path path) noexcept {
+void FileArtifact::applyFinalState(fs::path path) noexcept {
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
@@ -92,7 +92,7 @@ void FileArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   _content_version->commit(path);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState(build, path);
+  Artifact::applyFinalState(path);
 }
 
 /// Get the current content version for this artifact

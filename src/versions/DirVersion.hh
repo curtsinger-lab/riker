@@ -61,7 +61,7 @@ class DirVersion : public Version {
   virtual bool canCommit() const noexcept = 0;
 
   /// Commit this version to the filesystem
-  virtual void commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
 
  private:
   SERIALIZE(BASE(Version));
@@ -93,9 +93,7 @@ class CreatedDir : public BaseDirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(Build& build,
-                      shared_ptr<DirArtifact> dir,
-                      fs::path dir_path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Check if this version has a specific entry
   virtual Resolution getEntry(Build& build,
@@ -131,9 +129,7 @@ class ExistingDir : public BaseDirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(Build& build,
-                      shared_ptr<DirArtifact> dir,
-                      fs::path dir_path) noexcept override {
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override {
     FAIL_IF(!isCommitted()) << "An existing directory " << dir << " was in an uncommitted state";
   }
 
@@ -175,9 +171,7 @@ class AddEntry : public DirVersion {
   }
 
   /// Commit this version to the filesystem
-  virtual void commit(Build& build,
-                      shared_ptr<DirArtifact> dir,
-                      fs::path dir_path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
@@ -212,9 +206,7 @@ class RemoveEntry : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(Build& build,
-                      shared_ptr<DirArtifact> dir,
-                      fs::path dir_path) noexcept override;
+  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }

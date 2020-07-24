@@ -18,7 +18,7 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 // Commit a directory creation
-void CreatedDir::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
   int rc = ::mkdir(path.c_str(), 0755);
@@ -69,7 +69,7 @@ shared_ptr<ListedDir> ExistingDir::getList(Env& env, shared_ptr<DirArtifact> dir
 }
 
 // Commit the addition of an entry to a directory
-void AddEntry::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // Get the artifact we are linking
@@ -115,10 +115,6 @@ void AddEntry::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_pa
     } else {
       // The artifact is a file, so we can create a hard link to it
 
-      // Record a dependency on the version that created the hard link
-      // TODO: We could depend on any of the existing hard links, not just the first one.
-      build.observeInput(getCreator(), artifact, old_version, InputType::Accessed);
-
       // Make the hard link
       int rc = ::link(existing_path.c_str(), (dir_path / _entry).c_str());
       ASSERT(rc == 0) << "Failed to hard link " << artifact << " to " << dir_path / _entry << ": "
@@ -137,12 +133,12 @@ void AddEntry::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_pa
     Version::setCommitted();
 
     // Now commit the artifact
-    artifact->commitAll(build);
+    artifact->commitAll();
   }
 }
 
 // Commit the removal of an entry from a directory
-void RemoveEntry::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // Get the artifact we're unlinking
@@ -170,7 +166,7 @@ void RemoveEntry::commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir
   if (auto artifact_dir = artifact->as<DirArtifact>()) {
     // The artifact is a directory. We will call rmdir, but first we need to commit any pending
     // versions that will remove the directory's entries
-    artifact_dir->commitAll(build);
+    artifact_dir->commitAll();
     int rc = ::rmdir((dir_path / _entry).c_str());
     ASSERT(rc == 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
 

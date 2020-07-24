@@ -213,7 +213,7 @@ bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 // Commit a specific version of this artifact to the filesystem
-void Artifact::commit(Build& build, shared_ptr<Version> v) noexcept {
+void Artifact::commit(shared_ptr<Version> v) noexcept {
   ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Artifact has no path";
@@ -226,8 +226,8 @@ bool Artifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void Artifact::commitAll(Build& build) noexcept {
-  commit(build, _metadata_version);
+void Artifact::commitAll() noexcept {
+  commit(_metadata_version);
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -248,7 +248,7 @@ void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
+void Artifact::applyFinalState(fs::path path) noexcept {
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
@@ -311,7 +311,7 @@ Resolution Artifact::resolve(Build& build,
   if (current == end) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(build, c, ref->getFlags())) return EACCES;
-    if (committed) commitAll(build);
+    if (committed) commitAll();
     return shared_from_this();
   }
 

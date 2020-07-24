@@ -38,16 +38,16 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   }
 }
 
-void DirArtifact::commit(Build& build, shared_ptr<Version> v) noexcept {
+void DirArtifact::commit(shared_ptr<Version> v) noexcept {
   // The base directory version must always be committed to commit any other version
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Committing to a directory with no path";
-  _base_dir_version->commit(build, this->as<DirArtifact>(), path.value());
+  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
 
   if (auto dv = v->as<DirVersion>()) {
-    dv->commit(build, this->as<DirArtifact>(), path.value());
+    dv->commit(this->as<DirArtifact>(), path.value());
   } else {
-    Artifact::commit(build, v);
+    Artifact::commit(v);
   }
 }
 
@@ -69,18 +69,18 @@ bool DirArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commitAll(Build& build) noexcept {
+void DirArtifact::commitAll() noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Directory has no path";
 
   // Commit the versions needed for each entry
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    commit(build, version);
+    commit(version);
   }
 
   // Commit metadata through the Artifact base class
-  Artifact::commitAll(build);
+  Artifact::commitAll();
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
@@ -117,18 +117,18 @@ void DirArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
+void DirArtifact::applyFinalState(fs::path path) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
-  commitAll(build);
+  commitAll();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(build, path);
+  Artifact::applyFinalState(path);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(build, path / name);
+    if (artifact) artifact->applyFinalState(path / name);
   }
 }
 
@@ -225,7 +225,7 @@ Resolution DirArtifact::resolve(Build& build,
     auto [v, a] = entries_iter->second;
 
     // Make sure the version is committed if requested
-    if (committed) commit(build, v);
+    if (committed) commit(v);
 
     // Is there an artifact to resolve to?
     if (a) {
