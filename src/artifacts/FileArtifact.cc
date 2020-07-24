@@ -28,13 +28,13 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   }
 }
 
-void FileArtifact::commit(shared_ptr<Version> v) noexcept {
+void FileArtifact::commit(Build& build, shared_ptr<Version> v) noexcept {
   if (v == _content_version) {
     auto path = getCommittedPath();
     ASSERT(path.has_value()) << "File has no path";
     _content_version->commit(path.value());
   } else {
-    Artifact::commit(v);
+    Artifact::commit(build, v);
   }
 }
 
@@ -44,24 +44,24 @@ bool FileArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void FileArtifact::commitAll() noexcept {
+void FileArtifact::commitAll(Build& build) noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
   _content_version->commit(path.value());
 
   // Delegate metadata commits to the artifact
-  Artifact::commitAll();
+  Artifact::commitAll(build);
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, InputType::Exists);
+void FileArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
+  build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void FileArtifact::checkFinalState(fs::path path) noexcept {
+void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();
     v->fingerprint(path);
@@ -69,7 +69,7 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
       // Yes. Report the mismatch
-      _env.getBuild().observeFinalMismatch(shared_from_this(), _content_version, v);
+      build.observeFinalMismatch(shared_from_this(), _content_version, v);
     } else {
       // No. We can treat the content version as if it is committed
       _content_version->setCommitted();
@@ -77,11 +77,11 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path);
+  Artifact::checkFinalState(build, path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState(fs::path path) noexcept {
+void FileArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
@@ -92,36 +92,42 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   _content_version->commit(path);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState(build, path);
 }
 
 /// Get the current content version for this artifact
-shared_ptr<FileVersion> FileArtifact::getContent(shared_ptr<Command> c, InputType t) noexcept {
+shared_ptr<FileVersion> FileArtifact::getContent(Build& build,
+                                                 shared_ptr<Command> c,
+                                                 InputType t) noexcept {
   // Notify the build of the input
-  _env.getBuild().observeInput(c, shared_from_this(), _content_version, t);
+  build.observeInput(c, shared_from_this(), _content_version, t);
 
   // Return the metadata version
   return _content_version;
 }
 
 /// Check to see if this artifact's content matches a known version
-void FileArtifact::match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept {
+void FileArtifact::match(Build& build,
+                         shared_ptr<Command> c,
+                         shared_ptr<FileVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getContent(c, InputType::Accessed);
+  auto observed = getContent(build, c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
+    build.observeMismatch(c, shared_from_this(), observed, expected);
   }
 }
 
 /// Apply a new content version to this artifact
-void FileArtifact::apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept {
+void FileArtifact::apply(Build& build,
+                         shared_ptr<Command> c,
+                         shared_ptr<FileVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing;
 
   // Report the output to the build
-  _env.getBuild().observeOutput(c, shared_from_this(), _content_version);
+  build.observeOutput(c, shared_from_this(), _content_version);
 }

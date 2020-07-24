@@ -40,16 +40,12 @@ class Env {
  public:
   /**
    * Create an environment for build emulation or execution.
-   * \param build The build that executes in this environment
    */
-  Env(Build& build) noexcept;
+  Env() noexcept;
 
   // Disallow Copy
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
-
-  /// Get the Build instance this environment is part of
-  Build& getBuild() const noexcept { return _build; }
 
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
@@ -65,14 +61,14 @@ class Env {
    * \param info  The stat results
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getArtifact(fs::path path, struct stat& info);
+  shared_ptr<Artifact> getFilesystemArtifact(fs::path path, struct stat& info);
 
   /**
    * Create a pipe artifact
    * \param c The command that creates the pipe
    * \returns a pipe artifact
    */
-  shared_ptr<PipeArtifact> getPipe(shared_ptr<Command> c) noexcept;
+  shared_ptr<PipeArtifact> getPipe(Build& build, shared_ptr<Command> c) noexcept;
 
   /**
    * Create a symlink artifact
@@ -81,7 +77,8 @@ class Env {
    * \param committed If true, the symlink is already committed
    * \returns a symlink artifact
    */
-  shared_ptr<SymlinkArtifact> getSymlink(shared_ptr<Command> c,
+  shared_ptr<SymlinkArtifact> getSymlink(Build& build,
+                                         shared_ptr<Command> c,
                                          fs::path target,
                                          bool committed) noexcept;
 
@@ -92,7 +89,10 @@ class Env {
    * \param committed If true, the directory is already committed
    * \returns a directory artifact
    */
-  shared_ptr<DirArtifact> getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept;
+  shared_ptr<DirArtifact> getDir(Build& build,
+                                 shared_ptr<Command> c,
+                                 mode_t mode,
+                                 bool committed) noexcept;
 
   /**
    * Create a file artifact that exists only in the filesystem model
@@ -100,14 +100,12 @@ class Env {
    * \param creator The command that creates this file
    * \returns a file artifact
    */
-  shared_ptr<Artifact> createFile(shared_ptr<Command> creator,
+  shared_ptr<Artifact> createFile(Build& build,
+                                  shared_ptr<Command> creator,
                                   AccessFlags flags,
                                   bool committed) noexcept;
 
  private:
-  /// The build this environment is attached to
-  Build& _build;
-
   /// The next unique ID for a temporary file
   size_t _next_temp_id = 0;
 

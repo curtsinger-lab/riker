@@ -43,7 +43,6 @@ class Build {
       //_fingerprint(fingerprint),
       _print_on_run(print_on_run),
       _dry_run(dry_run),
-      _env(*this),
       _tracer(*this) {}
 
   // Disallow Copy

@@ -26,33 +26,39 @@ class FileArtifact : public Artifact {
   virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept override;
+  virtual void commit(Build& build, shared_ptr<Version> v) noexcept override;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept override;
+  virtual void commitAll(Build& build) noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(shared_ptr<Command> c) noexcept override;
+  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path) noexcept override;
+  virtual void checkFinalState(Build& build, fs::path path) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept override;
+  virtual void applyFinalState(Build& build, fs::path path) noexcept override;
 
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c, InputType t) noexcept override;
+  virtual shared_ptr<FileVersion> getContent(Build& build,
+                                             shared_ptr<Command> c,
+                                             InputType t) noexcept override;
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept override;
+  virtual void match(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<FileVersion> expected) noexcept override;
 
   /// Apply a new content version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept override;
+  virtual void apply(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<FileVersion> writing) noexcept override;
 
  private:
   /// The latest content version

@@ -17,6 +17,7 @@ using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
+class Build;
 class Env;
 
 /// A ListedDir version stores a list of all entries in a directory. It does not need to be a
@@ -60,7 +61,7 @@ class DirVersion : public Version {
   virtual bool canCommit() const noexcept = 0;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
+  virtual void commit(Build& build, shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
 
  private:
   SERIALIZE(BASE(Version));
@@ -70,7 +71,10 @@ class DirVersion : public Version {
 class BaseDirVersion : public DirVersion {
  public:
   /// Check for a named entry in this directory version
-  virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept = 0;
+  virtual Resolution getEntry(Build& build,
+                              Env& env,
+                              shared_ptr<DirArtifact> dir,
+                              string name) noexcept = 0;
 
   /// Create a listed directory version from this base directory
   virtual shared_ptr<ListedDir> getList(Env& env, shared_ptr<DirArtifact> dir) const noexcept = 0;
@@ -89,10 +93,13 @@ class CreatedDir : public BaseDirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(Build& build,
+                      shared_ptr<DirArtifact> dir,
+                      fs::path dir_path) noexcept override;
 
   /// Check if this version has a specific entry
-  virtual Resolution getEntry(Env& env,
+  virtual Resolution getEntry(Build& build,
+                              Env& env,
                               shared_ptr<DirArtifact> dir,
                               string name) noexcept override {
     return ENOENT;
@@ -124,12 +131,17 @@ class ExistingDir : public BaseDirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override {
+  virtual void commit(Build& build,
+                      shared_ptr<DirArtifact> dir,
+                      fs::path dir_path) noexcept override {
     FAIL_IF(!isCommitted()) << "An existing directory " << dir << " was in an uncommitted state";
   }
 
   /// Check if this version has a specific entry
-  virtual Resolution getEntry(Env& env, shared_ptr<DirArtifact> dir, string name) noexcept override;
+  virtual Resolution getEntry(Build& build,
+                              Env& env,
+                              shared_ptr<DirArtifact> dir,
+                              string name) noexcept override;
 
   /// Create a listed directory version from this base directory
   virtual shared_ptr<ListedDir> getList(Env& env, shared_ptr<DirArtifact> dir) const
@@ -163,7 +175,9 @@ class AddEntry : public DirVersion {
   }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(Build& build,
+                      shared_ptr<DirArtifact> dir,
+                      fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
@@ -198,7 +212,9 @@ class RemoveEntry : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(Build& build,
+                      shared_ptr<DirArtifact> dir,
+                      fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }

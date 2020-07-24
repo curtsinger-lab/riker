@@ -64,21 +64,21 @@ void Trace::init() noexcept {
   _steps.emplace_back(nullptr, launch);
 }
 
-void Trace::resolveRefs(Env& env) noexcept {
+void Trace::resolveRefs(Build& build, Env& env) noexcept {
   // Resolve stdin
-  _stdin->resolvesTo(env.getPipe(nullptr));
+  _stdin->resolvesTo(env.getPipe(build, nullptr));
   _stdin->getArtifact()->setName("stdin");
   auto stdin_pipe = _stdin->getArtifact()->as<PipeArtifact>();
   stdin_pipe->setFDs(0, -1);
 
   // Resolve stdout
-  _stdout->resolvesTo(env.getPipe(nullptr));
+  _stdout->resolvesTo(env.getPipe(build, nullptr));
   _stdout->getArtifact()->setName("stdout");
   auto stdout_pipe = _stdout->getArtifact()->as<PipeArtifact>();
   stdout_pipe->setFDs(-1, 1);
 
   // Resolve stderr
-  _stderr->resolvesTo(env.getPipe(nullptr));
+  _stderr->resolvesTo(env.getPipe(build, nullptr));
   _stderr->getArtifact()->setName("stderr");
   auto stderr_pipe = _stderr->getArtifact()->as<PipeArtifact>();
   stderr_pipe->setFDs(-1, 2);
@@ -87,11 +87,11 @@ void Trace::resolveRefs(Env& env) noexcept {
   _root->resolvesTo(env.getRootDir());
 
   // Resolve the current working directory
-  _cwd->resolve(nullptr, true);
+  _cwd->resolve(build, nullptr, true);
   _cwd->getArtifact()->setName(".");
 
   // Resolve the dodo-launch executable
-  _exe->resolve(nullptr, true);
+  _exe->resolve(build, nullptr, true);
 }
 
 // Print this trace

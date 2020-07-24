@@ -30,11 +30,11 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-Env::Env(Build& build) noexcept : _build(build) {
+Env::Env() noexcept {
   struct stat info;
   int rc = ::lstat("/", &info);
   ASSERT(rc == 0) << "Failed to stat root directory";
-  _root_dir = getArtifact("/", info)->as<DirArtifact>();
+  _root_dir = getFilesystemArtifact("/", info)->as<DirArtifact>();
   _root_dir->setName("/");
   _root_dir->addLinkUpdate(nullptr, "/", nullptr);
 }
@@ -54,7 +54,7 @@ fs::path Env::getTempPath() noexcept {
   return result;
 }
 
-shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
+shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, struct stat& info) {
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
   if (inode_iter != _inodes.end()) {
@@ -99,7 +99,7 @@ shared_ptr<Artifact> Env::getArtifact(fs::path path, struct stat& info) {
   return a;
 }
 
-shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
+shared_ptr<PipeArtifact> Env::getPipe(Build& build, shared_ptr<Command> c) noexcept {
   // Create a manufactured stat buffer for the new pipe
   uid_t uid = getuid();
   gid_t gid = getgid();
@@ -117,10 +117,10 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c);
-    _build.observeOutput(c, pipe, mv);
+    build.observeOutput(c, pipe, mv);
 
     cv->createdBy(c);
-    _build.observeOutput(c, pipe, cv);
+    build.observeOutput(c, pipe, cv);
   }
 
   _anonymous.insert(pipe);
@@ -128,7 +128,8 @@ shared_ptr<PipeArtifact> Env::getPipe(shared_ptr<Command> c) noexcept {
   return pipe;
 }
 
-shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
+shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
+                                            shared_ptr<Command> c,
                                             fs::path target,
                                             bool committed) noexcept {
   // Create a manufactured stat buffer for the new symlink
@@ -148,10 +149,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c);
-    _build.observeOutput(c, symlink, mv);
+    build.observeOutput(c, symlink, mv);
 
     sv->createdBy(c);
-    _build.observeOutput(c, symlink, sv);
+    build.observeOutput(c, symlink, sv);
   }
 
   _anonymous.insert(symlink);
@@ -159,7 +160,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(shared_ptr<Command> c,
   return symlink;
 }
 
-shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool committed) noexcept {
+shared_ptr<DirArtifact> Env::getDir(Build& build,
+                                    shared_ptr<Command> c,
+                                    mode_t mode,
+                                    bool committed) noexcept {
   // Get the current umask
   auto mask = umask(0);
   umask(mask);
@@ -181,10 +185,10 @@ shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool com
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c);
-    _build.observeOutput(c, dir, mv);
+    build.observeOutput(c, dir, mv);
 
     dv->createdBy(c);
-    _build.observeOutput(c, dir, dv);
+    build.observeOutput(c, dir, dv);
   }
 
   _anonymous.insert(dir);
@@ -192,7 +196,8 @@ shared_ptr<DirArtifact> Env::getDir(shared_ptr<Command> c, mode_t mode, bool com
   return dir;
 }
 
-shared_ptr<Artifact> Env::createFile(shared_ptr<Command> creator,
+shared_ptr<Artifact> Env::createFile(Build& build,
+                                     shared_ptr<Command> creator,
                                      AccessFlags flags,
                                      bool committed) noexcept {
   // Get the current umask
@@ -218,8 +223,8 @@ shared_ptr<Artifact> Env::createFile(shared_ptr<Command> creator,
   auto artifact = make_shared<FileArtifact>(*this, mv, cv);
 
   // Observe output to metadata and content for the new file
-  _build.observeOutput(creator, artifact, mv);
-  _build.observeOutput(creator, artifact, cv);
+  build.observeOutput(creator, artifact, mv);
+  build.observeOutput(creator, artifact, cv);
 
   _anonymous.insert(artifact);
 

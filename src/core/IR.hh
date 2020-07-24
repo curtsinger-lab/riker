@@ -214,7 +214,7 @@ class Access final : public Ref {
       _base(base), _path(path), _flags(flags) {}
 
   /// Resolve this reference on behalf of command c
-  Resolution resolve(shared_ptr<Command> c, bool committed) noexcept;
+  Resolution resolve(Build& build, shared_ptr<Command> c, bool committed) noexcept;
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;

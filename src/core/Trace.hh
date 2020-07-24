@@ -14,6 +14,7 @@ using std::shared_ptr;
 using std::tuple;
 
 class Access;
+class Build;
 class Command;
 class Env;
 class Pipe;
@@ -46,7 +47,7 @@ class Trace {
   Trace& operator=(Trace&&) noexcept = default;
 
   /// Resolve references to root, cwd, stdin, stdout, etc. in the given environment
-  void resolveRefs(Env& env) noexcept;
+  void resolveRefs(Build& build, Env& env) noexcept;
 
   /// Add a step to the trace
   void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _steps.emplace_back(c, s); }

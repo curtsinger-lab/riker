@@ -25,7 +25,7 @@ using std::shared_ptr;
 
 void Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
-  _trace->resolveRefs(_env);
+  _trace->resolveRefs(*this, _env);
 
   // Empty the trace's list of steps, saving the old list for emulation
   auto steps = _trace->reset();
@@ -45,12 +45,12 @@ void Build::run() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env.getRootDir()->checkFinalState("/");
+  _env.getRootDir()->checkFinalState(*this, "/");
 }
 
 // Ensure all final state is fingerprinted
 void Build::applyFinalState() noexcept {
-  _env.getRootDir()->applyFinalState("/");
+  _env.getRootDir()->applyFinalState(*this, "/");
 }
 
 /************************ Command Tracing and Emulation ************************/
@@ -59,7 +59,7 @@ void Build::applyFinalState() noexcept {
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
-  ref->resolvesTo(_env.getPipe(c));
+  ref->resolvesTo(_env.getPipe(*this, c));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -70,7 +70,7 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    shared_ptr<Symlink> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
-  ref->resolvesTo(_env.getSymlink(c, target, !emulating));
+  ref->resolvesTo(_env.getSymlink(*this, c, target, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -79,7 +79,7 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
 shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Dir>(mode);
-  ref->resolvesTo(_env.getDir(c, mode, !emulating));
+  ref->resolvesTo(_env.getDir(*this, c, mode, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -95,7 +95,7 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
   // Resolve the reference
-  ref->resolve(c, !emulating);
+  ref->resolve(*this, c, !emulating);
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -132,7 +132,7 @@ void Build::match(shared_ptr<Command> c,
     ASSERT(expected) << "Traced command provided an expected version to match";
 
     // Perform the comparison
-    ref->getArtifact()->match(c, expected);
+    ref->getArtifact()->match(*this, c, expected);
 
     // Record the emulated trace step
     _trace->addStep(c, emulating);
@@ -141,7 +141,7 @@ void Build::match(shared_ptr<Command> c,
     // No. This is a traced command
 
     // If we don't have an expected version already, get one from the current state
-    if (!expected) expected = ref->getArtifact()->get<VersionType>(c, InputType::Accessed);
+    if (!expected) expected = ref->getArtifact()->get<VersionType>(*this, c, InputType::Accessed);
 
     ASSERT(expected) << "Unable to get expected version from artifact " << ref->getArtifact();
 
@@ -212,7 +212,7 @@ void Build::apply(shared_ptr<Command> c,
     written->createdBy(c);
 
     // Apply the write
-    ref->getArtifact()->apply(c, written);
+    ref->getArtifact()->apply(*this, c, written);
 
     // Add this write to the trace
     _trace->addStep(c, emulating);
@@ -230,7 +230,7 @@ void Build::apply(shared_ptr<Command> c,
     written->setCommitted();
 
     // Apply the write, which is committed to the filesystem because we just traced this operation
-    ref->getArtifact()->apply(c, written);
+    ref->getArtifact()->apply(*this, c, written);
 
     // Add a new trace step
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));
@@ -294,7 +294,7 @@ void Build::launch(shared_ptr<Command> c,
       for (auto& [index, desc] : child->getInitialFDs()) {
         if (auto access = desc.getRef()->as<Access>()) {
           WARN << "Resolving " << access->getRelativePath();
-          access->resolve(child, true);
+          access->resolve(*this, child, true);
         }
       }
 

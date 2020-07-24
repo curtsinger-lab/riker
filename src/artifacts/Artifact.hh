@@ -28,6 +28,7 @@ namespace fs = std::filesystem;
 
 class Access;
 class AddEntry;
+class Build;
 class Command;
 class DirArtifact;
 class DirVersion;
@@ -90,7 +91,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param flags The flags that encode whether this is a read, write, and/or execute access
    * \returns true if the access is allowed, or false otherwise
    */
-  bool checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept;
+  bool checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flags) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -101,22 +102,22 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommit(shared_ptr<Version> v) const noexcept;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept;
+  virtual void commit(Build& build, shared_ptr<Version> v) noexcept;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept;
+  virtual void commitAll(Build& build) noexcept;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(shared_ptr<Command> c) noexcept = 0;
+  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path) noexcept;
+  virtual void checkFinalState(Build& build, fs::path path) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept;
+  virtual void applyFinalState(Build& build, fs::path path) noexcept;
 
   /************ Path Manipulation ************/
 
@@ -151,55 +152,69 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(shared_ptr<Command> c, InputType t) noexcept;
+  shared_ptr<MetadataVersion> getMetadata(Build& build,
+                                          shared_ptr<Command> c,
+                                          InputType t) noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
-  void match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
+  void match(Build& build, shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  void apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept;
+  void apply(Build& build, shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(shared_ptr<Command> c, InputType t) noexcept {
+  virtual shared_ptr<FileVersion> getContent(Build& build,
+                                             shared_ptr<Command> c,
+                                             InputType t) noexcept {
     WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<FileVersion> expected) noexcept {
+  virtual void match(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<FileVersion> expected) noexcept {
     WARN << c << ": tried to match content of artifact " << this;
   }
 
   /// Apply a new content version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<FileVersion> writing) noexcept {
+  virtual void apply(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<FileVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
-  virtual shared_ptr<SymlinkVersion> getSymlink(shared_ptr<Command> c, InputType t) noexcept {
+  virtual shared_ptr<SymlinkVersion> getSymlink(Build& build,
+                                                shared_ptr<Command> c,
+                                                InputType t) noexcept {
     WARN << c << ": tried to access symlink destination of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<SymlinkVersion> expected) noexcept {
+  virtual void match(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<SymlinkVersion> expected) noexcept {
     WARN << c << ": tried to match symlink destination of artifact " << this;
   }
 
   /************ Directory Operations ************/
 
   /// Get a version that lists all the entries in this artifact (assuming it is a directory)
-  virtual shared_ptr<ListedDir> getDirList(shared_ptr<Command> c, InputType t) noexcept {
+  virtual shared_ptr<ListedDir> getDirList(Build& build,
+                                           shared_ptr<Command> c,
+                                           InputType t) noexcept {
     WARN << c << ": tried to access directory contents of artifact " << this;
     return nullptr;
   }
 
   /// Check to see if this artifact's directory list matches a known version
-  virtual void match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
+  virtual void match(Build& build, shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
     WARN << c << ": tried to match directory contents of artifact " << this;
   }
 
@@ -214,7 +229,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param committed If true, any accesses or actions taken during resolution should be committed.
    * \returns a resolution result, which is either an artifact or an error code
    */
-  virtual Resolution resolve(shared_ptr<Command> c,
+  virtual Resolution resolve(Build& build,
+                             shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
@@ -222,12 +238,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              bool committed) noexcept;
 
   /// Apply a link version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
+  virtual void apply(Build& build, shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
     WARN << c << ": tried to apply a directory link version to artifact " << this;
   }
 
   /// Apply an unlink version to this artifact
-  virtual void apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept {
+  virtual void apply(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<RemoveEntry> writing) noexcept {
     WARN << c << ": tried to apply a directory unlink version to artifact " << this;
   }
 
@@ -235,7 +253,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// A templated method to get the latest version of an artifact
   template <class VersionType>
-  shared_ptr<VersionType> get(shared_ptr<Command> c, InputType t);
+  shared_ptr<VersionType> get(Build& build, shared_ptr<Command> c, InputType t);
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {

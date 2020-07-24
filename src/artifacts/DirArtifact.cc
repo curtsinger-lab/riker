@@ -38,16 +38,16 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   }
 }
 
-void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+void DirArtifact::commit(Build& build, shared_ptr<Version> v) noexcept {
   // The base directory version must always be committed to commit any other version
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Committing to a directory with no path";
-  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
+  _base_dir_version->commit(build, this->as<DirArtifact>(), path.value());
 
   if (auto dv = v->as<DirVersion>()) {
-    dv->commit(this->as<DirArtifact>(), path.value());
+    dv->commit(build, this->as<DirArtifact>(), path.value());
   } else {
-    Artifact::commit(v);
+    Artifact::commit(build, v);
   }
 }
 
@@ -69,33 +69,33 @@ bool DirArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commitAll() noexcept {
+void DirArtifact::commitAll(Build& build) noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Directory has no path";
 
   // Commit the versions needed for each entry
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    commit(version);
+    commit(build, version);
   }
 
   // Commit metadata through the Artifact base class
-  Artifact::commitAll();
+  Artifact::commitAll(build);
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void DirArtifact::mustExist(shared_ptr<Command> c) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, InputType::Exists);
+void DirArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
+  build.observeInput(c, shared_from_this(), _base_dir_version, InputType::Exists);
 
   for (auto [entry, info] : _entries) {
     auto [version, artifact] = info;
-    _env.getBuild().observeInput(c, shared_from_this(), version, InputType::Exists);
+    build.observeInput(c, shared_from_this(), version, InputType::Exists);
   }
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void DirArtifact::checkFinalState(fs::path path) noexcept {
+void DirArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   // Recursively check the final state of all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
@@ -103,7 +103,7 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
     // Do we expect the entry to point to an artifact?
     if (artifact) {
       // Yes. Make sure that artifact is in the expected final state
-      artifact->checkFinalState(path / name);
+      artifact->checkFinalState(build, path / name);
     }
 
     // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
@@ -113,31 +113,33 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path);
+  Artifact::checkFinalState(build, path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(fs::path path) noexcept {
+void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
-  commitAll();
+  commitAll(build);
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState(build, path);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(path / name);
+    if (artifact) artifact->applyFinalState(build, path / name);
   }
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<ListedDir> DirArtifact::getDirList(shared_ptr<Command> c, InputType t) noexcept {
+shared_ptr<ListedDir> DirArtifact::getDirList(Build& build,
+                                              shared_ptr<Command> c,
+                                              InputType t) noexcept {
   auto result = _base_dir_version->getList(_env, as<DirArtifact>());
 
   // The command listing this directory depends on its base version
-  _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version, t);
+  build.observeInput(c, shared_from_this(), _base_dir_version, t);
 
   for (auto [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -154,26 +156,29 @@ shared_ptr<ListedDir> DirArtifact::getDirList(shared_ptr<Command> c, InputType t
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    _env.getBuild().observeInput(c, shared_from_this(), version, t);
+    build.observeInput(c, shared_from_this(), version, t);
   }
 
   return result;
 }
 
 // Check to see if this artifact's directory list matches a known version
-void DirArtifact::match(shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
+void DirArtifact::match(Build& build,
+                        shared_ptr<Command> c,
+                        shared_ptr<ListedDir> expected) noexcept {
   // Get the directory list. All dependencies only care if an entry exists, not on its specific
   // contents
-  auto observed = getDirList(c, InputType::Exists);
+  auto observed = getDirList(build, c, InputType::Exists);
 
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
+    build.observeMismatch(c, shared_from_this(), observed, expected);
   }
 }
 
-Resolution DirArtifact::resolve(shared_ptr<Command> c,
+Resolution DirArtifact::resolve(Build& build,
+                                shared_ptr<Command> c,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
@@ -186,27 +191,27 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
   // If this is the last entry on the path, resolution reaches this artifact
   if (current == end) {
     // If the requested access is not allowed, return EACCES
-    if (!checkAccess(c, ref->getFlags())) return EACCES;
+    if (!checkAccess(build, c, ref->getFlags())) return EACCES;
 
     // Access was allowed, so return this artifact
     return shared_from_this();
   }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
-  if (!checkAccess(c, AccessFlags{.x = true})) return EACCES;
+  if (!checkAccess(build, c, AccessFlags{.x = true})) return EACCES;
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
   // iterator
   fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(c, shared_from_this(), current, end, ref, committed);
+  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, ref, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(c, shared_from_this(), current, end, ref, committed);
+    return parent.value()->resolve(build, c, shared_from_this(), current, end, ref, committed);
   }
 
   // We'll track the result of the resolution here
@@ -220,7 +225,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     auto [v, a] = entries_iter->second;
 
     // Make sure the version is committed if requested
-    if (committed) commit(v);
+    if (committed) commit(build, v);
 
     // Is there an artifact to resolve to?
     if (a) {
@@ -230,11 +235,11 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     }
 
     // Add a path resolution input from the version that matched
-    _env.getBuild().observeInput(c, shared_from_this(), v, InputType::PathResolution);
+    build.observeInput(c, shared_from_this(), v, InputType::PathResolution);
 
   } else {
     // There's no match in the directory entry map. We need to check the base version for a match
-    result = _base_dir_version->getEntry(_env, as<DirArtifact>(), entry);
+    result = _base_dir_version->getEntry(build, _env, as<DirArtifact>(), entry);
     if (result) {
       shared_ptr<Artifact> a = result;
       _entries[entry] = {_base_dir_version, a};
@@ -243,8 +248,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     }
 
     // Add a path resolution input from the base version
-    _env.getBuild().observeInput(c, shared_from_this(), _base_dir_version,
-                                 InputType::PathResolution);
+    build.observeInput(c, shared_from_this(), _base_dir_version, InputType::PathResolution);
   }
 
   // We now have either a resolved artifact or an error code. The next step depends on whether
@@ -260,10 +264,10 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     // If the resolution failed, can this access create it?
     if (flags.create && result == ENOENT) {
       // Can we write to this directory? If not, return an error
-      if (!checkAccess(c, AccessFlags{.w = true})) return EACCES;
+      if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env.createFile(c, flags, committed);
+      auto newfile = _env.createFile(build, c, flags, committed);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);
@@ -272,7 +276,7 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
       auto link_version = make_shared<AddEntry>(entry, ref);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
-      apply(c, link_version);
+      apply(build, c, link_version);
 
       // The resolution result is now the newly-created file
       result = newfile;
@@ -285,12 +289,12 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
     if (!result) return result;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return result->resolve(c, shared_from_this(), current, end, ref, committed);
+    return result->resolve(build, c, shared_from_this(), current, end, ref, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (result) {
-      return result->resolve(c, shared_from_this(), current, end, ref, committed);
+      return result->resolve(build, c, shared_from_this(), current, end, ref, committed);
     }
 
     // Otherwise return the error from the resolution
@@ -299,7 +303,9 @@ Resolution DirArtifact::resolve(shared_ptr<Command> c,
 }
 
 // Apply a link version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
+void DirArtifact::apply(Build& build,
+                        shared_ptr<Command> c,
+                        shared_ptr<AddEntry> writing) noexcept {
   auto entry = writing->getEntryName();
   auto artifact = writing->getTarget()->getArtifact();
 
@@ -311,7 +317,7 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
   }
 
   // For this link to be committed, we need the artifact to exist or be committable
-  artifact->mustExist(c);
+  artifact->mustExist(build, c);
 
   // Inform the artifact of its new link
   artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
@@ -320,14 +326,16 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<AddEntry> writing) noe
   _entries[entry] = {writing, artifact};
 
   // Notify the build of this output
-  _env.getBuild().observeOutput(c, shared_from_this(), writing);
+  build.observeOutput(c, shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
 }
 
 // Apply an unlink version to this artifact
-void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) noexcept {
+void DirArtifact::apply(Build& build,
+                        shared_ptr<Command> c,
+                        shared_ptr<RemoveEntry> writing) noexcept {
   auto entry = writing->getEntryName();
 
   // Do we have a record of an entry with the given name?
@@ -354,7 +362,7 @@ void DirArtifact::apply(shared_ptr<Command> c, shared_ptr<RemoveEntry> writing) 
   _entries[entry] = {writing, nullptr};
 
   // Notify the build of this output
-  _env.getBuild().observeOutput(c, shared_from_this(), writing);
+  build.observeOutput(c, shared_from_this(), writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

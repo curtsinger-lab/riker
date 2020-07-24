@@ -201,8 +201,8 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(shared_ptr<Command> c, AccessFlags flags) noexcept {
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
+bool Artifact::checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flags) noexcept {
+  build.observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
   return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
@@ -213,7 +213,7 @@ bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 // Commit a specific version of this artifact to the filesystem
-void Artifact::commit(shared_ptr<Version> v) noexcept {
+void Artifact::commit(Build& build, shared_ptr<Version> v) noexcept {
   ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "Artifact has no path";
@@ -226,12 +226,12 @@ bool Artifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void Artifact::commitAll() noexcept {
-  commit(_metadata_version);
+void Artifact::commitAll(Build& build) noexcept {
+  commit(build, _metadata_version);
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(fs::path path) noexcept {
+void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
     v->fingerprint(path);
@@ -239,7 +239,7 @@ void Artifact::checkFinalState(fs::path path) noexcept {
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
       // Yes. Report the mismatch
-      _env.getBuild().observeFinalMismatch(shared_from_this(), _metadata_version, v);
+      build.observeFinalMismatch(shared_from_this(), _metadata_version, v);
     } else {
       // No. We can treat the metadata version as if it is committed
       _metadata_version->setCommitted();
@@ -248,7 +248,7 @@ void Artifact::checkFinalState(fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(fs::path path) noexcept {
+void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
@@ -260,41 +260,48 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(shared_ptr<Command> c, InputType t) noexcept {
+shared_ptr<MetadataVersion> Artifact::getMetadata(Build& build,
+                                                  shared_ptr<Command> c,
+                                                  InputType t) noexcept {
   // Notify the build of the input
-  _env.getBuild().observeInput(c, shared_from_this(), _metadata_version, t);
+  build.observeInput(c, shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;
 }
 
 /// Check to see if this artifact's metadata matches a known version
-void Artifact::match(shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept {
+void Artifact::match(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getMetadata(c, InputType::Accessed);
+  auto observed = getMetadata(build, c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    _env.getBuild().observeMismatch(c, shared_from_this(), observed, expected);
+    build.observeMismatch(c, shared_from_this(), observed, expected);
   }
 }
 
 /// Apply a new metadata version to this artifact
-void Artifact::apply(shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept {
+void Artifact::apply(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<MetadataVersion> writing) noexcept {
   // Update the metadata version for this artifact
   appendVersion(writing);
   _metadata_version = writing;
 
   // Report the output to the build
-  _env.getBuild().observeOutput(c, shared_from_this(), _metadata_version);
+  build.observeOutput(c, shared_from_this(), _metadata_version);
 }
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
 }
 
-Resolution Artifact::resolve(shared_ptr<Command> c,
+Resolution Artifact::resolve(Build& build,
+                             shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
@@ -303,8 +310,8 @@ Resolution Artifact::resolve(shared_ptr<Command> c,
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
-    if (!checkAccess(c, ref->getFlags())) return EACCES;
-    if (committed) commitAll();
+    if (!checkAccess(build, c, ref->getFlags())) return EACCES;
+    if (committed) commitAll(build);
     return shared_from_this();
   }
 
@@ -313,24 +320,30 @@ Resolution Artifact::resolve(shared_ptr<Command> c,
 
 /// Specialize get for metadata
 template <>
-shared_ptr<MetadataVersion> Artifact::get<MetadataVersion>(shared_ptr<Command> c, InputType t) {
-  return getMetadata(c, t);
+shared_ptr<MetadataVersion> Artifact::get<MetadataVersion>(Build& build,
+                                                           shared_ptr<Command> c,
+                                                           InputType t) {
+  return getMetadata(build, c, t);
 }
 
 /// Specialize get for content
 template <>
-shared_ptr<FileVersion> Artifact::get<FileVersion>(shared_ptr<Command> c, InputType t) {
-  return getContent(c, t);
+shared_ptr<FileVersion> Artifact::get<FileVersion>(Build& build,
+                                                   shared_ptr<Command> c,
+                                                   InputType t) {
+  return getContent(build, c, t);
 }
 
 /// Specialize get for symlink
 template <>
-shared_ptr<SymlinkVersion> Artifact::get<SymlinkVersion>(shared_ptr<Command> c, InputType t) {
-  return getSymlink(c, t);
+shared_ptr<SymlinkVersion> Artifact::get<SymlinkVersion>(Build& build,
+                                                         shared_ptr<Command> c,
+                                                         InputType t) {
+  return getSymlink(build, c, t);
 }
 
 /// Specialize get for directory list
 template <>
-shared_ptr<ListedDir> Artifact::get<ListedDir>(shared_ptr<Command> c, InputType t) {
-  return getDirList(c, t);
+shared_ptr<ListedDir> Artifact::get<ListedDir>(Build& build, shared_ptr<Command> c, InputType t) {
+  return getDirList(build, c, t);
 }
