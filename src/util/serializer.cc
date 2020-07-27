@@ -38,7 +38,7 @@ using std::string;
 enum : size_t { ArchiveVersion = 13 };
 
 /// Try to load a build trace
-shared_ptr<Trace> load_build(string filename, bool default_fallback) noexcept {
+shared_ptr<Trace> load_trace(string filename, bool default_fallback) noexcept {
   try {
     // Open the file for reading. Must pass std::ios::binary!
     ifstream f(filename, std::ios::binary);
@@ -130,7 +130,7 @@ std::stack<stats_node*> ancestors;
 #endif
 
 // Save a build to a file
-void save_build(string filename, shared_ptr<Trace> trace) noexcept {
+void save_trace(string filename, shared_ptr<Trace> trace) noexcept {
   // Open the file for writing. Must pass std::ios::binary!
   ofstream f(filename, std::ios::binary);
 

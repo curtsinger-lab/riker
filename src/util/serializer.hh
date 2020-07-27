@@ -10,10 +10,10 @@ using std::string;
 class Trace;
 
 /// Try to load a build trace. Exit with an error if loading fails.
-shared_ptr<Trace> load_build(string filename, bool default_fallback) noexcept;
+shared_ptr<Trace> load_trace(string filename, bool default_fallback) noexcept;
 
 /// Save a build trace to a file
-void save_build(string filename, shared_ptr<Trace> trace) noexcept;
+void save_trace(string filename, shared_ptr<Trace> trace) noexcept;
 
 namespace cereal {
   class access;

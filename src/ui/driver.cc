@@ -38,7 +38,7 @@ const fs::path DatabaseFilename = ".dodo/db";
 /// Run the `build` subcommand.
 void do_build() noexcept {
   // Load a trace, or set up a default build if necessary
-  auto trace = load_build(DatabaseFilename, true);
+  auto trace = load_trace(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tree.
   Build phase1(trace);
@@ -66,8 +66,8 @@ void do_build() noexcept {
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
-  // Serialize the build
-  save_build(DatabaseFilename, trace);
+  // Serialize the build trace
+  save_trace(DatabaseFilename, trace);
 }
 
 /**
@@ -75,7 +75,7 @@ void do_build() noexcept {
  */
 void do_check() noexcept {
   // Load a build, or set up a default build if necessary
-  auto trace = load_build(DatabaseFilename, true);
+  auto trace = load_trace(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tryy
   Build phase1(trace);
@@ -104,7 +104,7 @@ void do_check() noexcept {
  */
 void do_trace(string output) noexcept {
   // Load the build trace
-  auto trace = load_build(DatabaseFilename, false);
+  auto trace = load_trace(DatabaseFilename, false);
 
   // Print it
   if (output == "-") {
@@ -132,7 +132,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the command tree
-  auto trace = load_build(DatabaseFilename, false);
+  auto trace = load_trace(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
   Build b(trace);
@@ -173,7 +173,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
  */
 void do_stats(bool list_artifacts) noexcept {
   // Load the serialized command tree
-  auto trace = load_build(DatabaseFilename, false);
+  auto trace = load_trace(DatabaseFilename, false);
 
   // Set up a build to emulate the commands
   Build b(trace);
