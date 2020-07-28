@@ -89,6 +89,12 @@ class Command : public std::enable_shared_from_this<Command> {
     _executed = true;
   }
 
+  /// Mark this command for re-execution
+  void setRerun() noexcept { _rerun = true; }
+
+  /// Check if this command is marked for re-execution
+  bool getRerun() const noexcept { return _rerun; }
+
   /// Get this command's exit status
   int getExitStatus() const noexcept { return _exit_status; }
 
@@ -132,6 +138,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Is this command being executed?
   bool _executing = false;
+
+  /// Should this command be rerun rather than emulated?
+  bool _rerun = false;
 
   /// The exit status recorded for this command after its last execution
   int _exit_status;

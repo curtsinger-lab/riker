@@ -58,10 +58,10 @@ void do_build() noexcept {
   rebuild->planBuild(phase2);
 
   // Execute the planned build
-  phase2.run(trace);
+  auto final_env = phase2.run(trace);
 
   // Commit the final state of the build to the filesystem and take fingerprints
-  phase2.applyFinalState();
+  final_env->commitFinalState();
 
   // Make sure the output directory exists
   fs::create_directories(OutputDir);

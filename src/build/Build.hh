@@ -42,13 +42,15 @@ class Build {
 
   /// Mark command c for re-execution rather than emulation
   bool setRerun(shared_ptr<Command> c) noexcept {
-    auto [iter, added] = _rerun.emplace(c);
-    return added;
+    bool already_marked = c->getRerun();
+    c->setRerun();
+    return !already_marked;
   }
 
   /// Check if command c is marked for re-execution rather than emulation
   bool checkRerun(shared_ptr<Command> c) const noexcept {
-    return c && _rerun.find(c) != _rerun.end();
+    if (!c) return false;
+    return c->getRerun();
   }
 
   /**
@@ -61,9 +63,6 @@ class Build {
    * \returns the environment at the end of the trace execution.
    */
   shared_ptr<Env> run(shared_ptr<Trace> trace, shared_ptr<Env> env = nullptr) noexcept;
-
-  /// Commit any pending updates and save fingerprints for all final state
-  void applyFinalState() noexcept;
 
   /****** Tracing and Emulation Methods ******/
 
@@ -173,9 +172,6 @@ class Build {
 
   /// A map of running commands to their root processes
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
-
-  /// Commands that should be executed rather than emulated
-  set<shared_ptr<Command>> _rerun;
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;
