@@ -348,7 +348,7 @@ void Build::join(shared_ptr<Command> c,
 }
 
 ostream& Build::print(ostream& o) const noexcept {
-  /*if (_rerun.size() > 0) {
+  if (_rerun.size() > 0) {
     o << "The following commands will be rerun:" << endl;
     for (const auto& c : _rerun) {
       o << "  " << c->getShortName(options::command_length) << endl;
@@ -356,7 +356,7 @@ ostream& Build::print(ostream& o) const noexcept {
 
   } else {
     o << "No commands to rerun" << endl;
-  }*/
+  }
 
   return o;
 }
