@@ -2,7 +2,6 @@
 
 enum class InputType {
   PathResolution,  // The input is a dependency for path resolution
-  Inherited,       // The input is inherited by a command
   Accessed,        // The input is accessed directly
   Exists,          // The input must exist, but its specific contents do not matter
 };

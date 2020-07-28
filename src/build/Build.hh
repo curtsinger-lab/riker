@@ -42,16 +42,12 @@ class Build {
 
   /// Mark command c for re-execution rather than emulation
   bool setRerun(shared_ptr<Command> c) noexcept {
-    bool already_marked = c->getRerun();
-    c->setRerun();
-    return !already_marked;
+    auto [iter, added] = _rerun.insert(c);
+    return added;
   }
 
   /// Check if command c is marked for re-execution rather than emulation
-  bool checkRerun(shared_ptr<Command> c) const noexcept {
-    if (!c) return false;
-    return c->getRerun();
-  }
+  bool checkRerun(shared_ptr<Command> c) const noexcept { return _rerun.find(c) != _rerun.end(); }
 
   /**
    * Run a build trace in a given environment.
@@ -169,6 +165,9 @@ class Build {
 
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
+
+  /// The set of commands that will be rerun, rather than emulated, by this build
+  set<shared_ptr<Command>> _rerun;
 
   /// A map of running commands to their root processes
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
