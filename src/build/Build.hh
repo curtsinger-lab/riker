@@ -55,14 +55,14 @@ class Build {
 
   /**
    * Run a build trace in a given environment.
-   * \param trace The trace to run. This trace will be modified by the run if any commands are
-   *              executed rather than emulated.
+   * \param trace The trace to run
    * \param env   The environment the build should execute in. If no environment is provided, the
    *              trace will be run against a default environment (the current filesystem state).
    *              The provided environment will be modified by this method.
-   * \returns the environment at the end of the trace execution.
+   * \returns a tuple of the new traces produced by the run, and the environment in its final state
    */
-  shared_ptr<Env> run(shared_ptr<Trace> trace, shared_ptr<Env> env = nullptr) noexcept;
+  tuple<shared_ptr<Trace>, shared_ptr<Env>> run(shared_ptr<Trace> trace,
+                                                shared_ptr<Env> env = nullptr) noexcept;
 
   /****** Tracing and Emulation Methods ******/
 

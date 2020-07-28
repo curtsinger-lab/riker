@@ -56,6 +56,9 @@ class Env : public std::enable_shared_from_this<Env> {
   /// Get a unique path to a temporary file in the build directory
   fs::path getTempPath() noexcept;
 
+  /// Get a set of all the artifacts in the build
+  const set<shared_ptr<Artifact>>& getArtifacts() const noexcept { return _artifacts; }
+
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
    * If an artifact with the same inode and device number already exists, return that same instance.
@@ -115,8 +118,8 @@ class Env : public std::enable_shared_from_this<Env> {
   /// An artifact that corresponds to the root directory
   shared_ptr<DirArtifact> _root_dir;
 
-  /// A set of artifacts without known inodes
-  set<shared_ptr<Artifact>> _anonymous;
+  /// A set of all the artifacts used during the build
+  set<shared_ptr<Artifact>> _artifacts;
 
   /// A map of artifacts identified by inode
   map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;

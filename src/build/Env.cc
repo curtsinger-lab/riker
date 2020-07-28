@@ -103,6 +103,9 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, struct stat& info
   // Add the new artifact to the inode map
   _inodes.emplace_hint(inode_iter, pair{info.st_dev, info.st_ino}, a);
 
+  // Also add the artifact to the set of all artifacts
+  _artifacts.insert(a);
+
   // Return the artifact
   return a;
 }
@@ -131,7 +134,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, shared_ptr<Command> c) noexc
     build.observeOutput(c, pipe, cv);
   }
 
-  _anonymous.insert(pipe);
+  _artifacts.insert(pipe);
 
   return pipe;
 }
@@ -163,7 +166,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
     build.observeOutput(c, symlink, sv);
   }
 
-  _anonymous.insert(symlink);
+  _artifacts.insert(symlink);
 
   return symlink;
 }
@@ -199,7 +202,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
     build.observeOutput(c, dir, dv);
   }
 
-  _anonymous.insert(dir);
+  _artifacts.insert(dir);
 
   return dir;
 }
@@ -234,7 +237,7 @@ shared_ptr<Artifact> Env::createFile(Build& build,
   build.observeOutput(creator, artifact, mv);
   build.observeOutput(creator, artifact, cv);
 
-  _anonymous.insert(artifact);
+  _artifacts.insert(artifact);
 
   return artifact;
 }

@@ -23,22 +23,23 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-shared_ptr<Env> Build::run(shared_ptr<Trace> trace, shared_ptr<Env> env) noexcept {
+tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
+                                                     shared_ptr<Env> env) noexcept {
   // If no environment was provided, use a default environment
   if (!env) env = make_shared<Env>();
 
-  // Set the current environment and trace
+  // Set the current environment
   _env = env;
-  _trace = trace;
+
+  // The current trace is a restarted version of the provided trace
+  // It has no steps or commands, but retains its initial references
+  _trace = trace->restart();
 
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveRefs(*this, _env);
 
-  // Clear the trace, but hold on to its list of steps
-  auto steps = _trace->reset();
-
-  // Walk through the steps in the trace
-  for (auto& [cmd, step] : steps) {
+  // Walk through the steps in the provided trace
+  for (auto& [cmd, step] : trace->getSteps()) {
     // Is this step from a command we are re-executing?
     if (checkRerun(cmd)) {
       // Do nothing!
@@ -54,7 +55,7 @@ shared_ptr<Env> Build::run(shared_ptr<Trace> trace, shared_ptr<Env> env) noexcep
   // Compare the final state of all artifacts to the actual filesystem
   _env->getRootDir()->checkFinalState(*this, "/");
 
-  return _env;
+  return {_trace, _env};
 }
 
 /************************ Command Tracing and Emulation ************************/

@@ -14,7 +14,6 @@
 #include "build/Build.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
-#include "observers/Stats.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
@@ -58,7 +57,7 @@ void do_build() noexcept {
   rebuild->planBuild(phase2);
 
   // Execute the planned build
-  auto final_env = phase2.run(trace);
+  auto [final_trace, final_env] = phase2.run(trace);
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
@@ -67,7 +66,7 @@ void do_build() noexcept {
   fs::create_directories(OutputDir);
 
   // Serialize the build trace
-  save_trace(DatabaseFilename, trace);
+  save_trace(DatabaseFilename, final_trace);
 }
 
 /**
@@ -178,15 +177,40 @@ void do_stats(bool list_artifacts) noexcept {
   // Set up a build to emulate the commands
   Build b;
 
-  // Create a stats observer and attach it to the build
-  auto stats = make_shared<Stats>(list_artifacts);
-  b.addObserver(stats);
-
   // Emulate the build
-  b.run(trace);
+  auto [final_trace, final_env] = b.run(trace);
 
-  // Print the result
-  cout << stats;
+  // Count the number of versions of artifacts
+  size_t version_count = 0;
+  for (const auto& artifact : final_env->getArtifacts()) {
+    version_count += artifact->getVersionCount();
+  }
+
+  // Print statistics
+  cout << "Build Statistics:" << endl;
+  cout << "  Commands: " << trace->getCommands().size() << endl;
+  cout << "  Steps: " << trace->getSteps().size() << endl;
+  cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
+  cout << "  Artifact Versions: " << version_count << endl;
+
+  if (list_artifacts) {
+    cout << endl;
+    cout << "Artifacts:" << endl;
+    for (const auto& a : final_env->getArtifacts()) {
+      if (a->getName().empty()) {
+        cout << "  " << a->getTypeName() << ": <anonymous>" << endl;
+      } else {
+        cout << "  " << a->getTypeName() << ": " << a->getName() << endl;
+      }
+
+      size_t index = 0;
+      for (const auto& v : a->getVersions()) {
+        cout << "    v" << index << ": " << v << endl;
+        index++;
+      }
+      cout << endl;
+    }
+  }
 }
 
 /**
