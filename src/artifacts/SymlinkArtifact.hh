@@ -16,7 +16,9 @@ namespace fs = std::filesystem;
 
 class SymlinkArtifact : public Artifact {
  public:
-  SymlinkArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<SymlinkVersion> sv) noexcept;
+  SymlinkArtifact(shared_ptr<Env> env,
+                  shared_ptr<MetadataVersion> mv,
+                  shared_ptr<SymlinkVersion> sv) noexcept;
 
   /************ Core Artifact Operations ************/
 

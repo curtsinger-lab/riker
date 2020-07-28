@@ -22,7 +22,7 @@ using std::shared_ptr;
 using std::string;
 using std::tie;
 
-DirArtifact::DirArtifact(Env& env,
+DirArtifact::DirArtifact(shared_ptr<Env> env,
                          shared_ptr<MetadataVersion> mv,
                          shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(env, mv) {
@@ -267,7 +267,7 @@ Resolution DirArtifact::resolve(Build& build,
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env.createFile(build, c, flags, committed);
+      auto newfile = _env->createFile(build, c, flags, committed);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);

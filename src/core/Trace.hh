@@ -47,7 +47,7 @@ class Trace {
   Trace& operator=(Trace&&) noexcept = default;
 
   /// Resolve references to root, cwd, stdin, stdout, etc. in the given environment
-  void resolveRefs(Build& build, Env& env) noexcept;
+  void resolveRefs(Build& build, shared_ptr<Env> env) noexcept;
 
   /// Add a step to the trace
   void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _steps.emplace_back(c, s); }

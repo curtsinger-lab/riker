@@ -15,7 +15,9 @@ class Version;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<FileVersion> cv) noexcept;
+  FileArtifact(shared_ptr<Env> env,
+               shared_ptr<MetadataVersion> mv,
+               shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 

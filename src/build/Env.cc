@@ -30,13 +30,17 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-Env::Env() noexcept {
-  struct stat info;
-  int rc = ::lstat("/", &info);
-  ASSERT(rc == 0) << "Failed to stat root directory";
-  _root_dir = getFilesystemArtifact("/", info)->as<DirArtifact>();
-  _root_dir->setName("/");
-  _root_dir->addLinkUpdate(nullptr, "/", nullptr);
+shared_ptr<DirArtifact> Env::getRootDir() noexcept {
+  if (!_root_dir) {
+    struct stat info;
+    int rc = ::lstat("/", &info);
+    ASSERT(rc == 0) << "Failed to stat root directory";
+    _root_dir = getFilesystemArtifact("/", info)->as<DirArtifact>();
+    _root_dir->setName("/");
+    _root_dir->addLinkUpdate(nullptr, "/", nullptr);
+  }
+
+  return _root_dir;
 }
 
 fs::path Env::getTempPath() noexcept {
@@ -71,25 +75,25 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, struct stat& info
     // The path refers to a regular file
     auto cv = make_shared<FileVersion>(info);
     cv->setCommitted();
-    a = make_shared<FileArtifact>(*this, mv, cv);
+    a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
     auto dv = make_shared<ExistingDir>();
     dv->setCommitted();
-    a = make_shared<DirArtifact>(*this, mv, dv);
+    a = make_shared<DirArtifact>(shared_from_this(), mv, dv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
     auto sv = make_shared<SymlinkVersion>(readlink(path));
     sv->setCommitted();
-    a = make_shared<SymlinkArtifact>(*this, mv, sv);
+    a = make_shared<SymlinkArtifact>(shared_from_this(), mv, sv);
 
   } else {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
     auto cv = make_shared<FileVersion>(info);
     cv->setCommitted();
-    a = make_shared<FileArtifact>(*this, mv, cv);
+    a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
   }
 
   // Add the new artifact to the inode map
@@ -112,7 +116,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, shared_ptr<Command> c) noexc
   auto cv = make_shared<FileVersion>(FileFingerprint::makeEmpty());
   cv->setCommitted();
 
-  auto pipe = make_shared<PipeArtifact>(*this, mv, cv);
+  auto pipe = make_shared<PipeArtifact>(shared_from_this(), mv, cv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -144,7 +148,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
   auto sv = make_shared<SymlinkVersion>(target);
   if (committed) sv->setCommitted();
 
-  auto symlink = make_shared<SymlinkArtifact>(*this, mv, sv);
+  auto symlink = make_shared<SymlinkArtifact>(shared_from_this(), mv, sv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -180,7 +184,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   auto dv = make_shared<CreatedDir>();
   if (committed) dv->setCommitted();
 
-  auto dir = make_shared<DirArtifact>(*this, mv, dv);
+  auto dir = make_shared<DirArtifact>(shared_from_this(), mv, dv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
@@ -220,7 +224,7 @@ shared_ptr<Artifact> Env::createFile(Build& build,
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it
-  auto artifact = make_shared<FileArtifact>(*this, mv, cv);
+  auto artifact = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   // Observe output to metadata and content for the new file
   build.observeOutput(creator, artifact, mv);

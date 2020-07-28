@@ -22,7 +22,7 @@ using std::nullopt;
 using std::set;
 using std::shared_ptr;
 
-Artifact::Artifact(Env& env, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
+Artifact::Artifact(shared_ptr<Env> env, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
   appendVersion(v);
   _metadata_version = v;
 }
@@ -188,7 +188,7 @@ fs::path Artifact::assignTemporaryPath() noexcept {
   ASSERT(!_temp_path.has_value())
       << "Cannot assign a temporary path to an artifact that already has one";
 
-  auto path = _env.getTempPath();
+  auto path = _env->getTempPath();
   _temp_path = path;
   return path;
 }

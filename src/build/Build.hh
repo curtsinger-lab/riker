@@ -1,8 +1,10 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
+#include <tuple>
 #include <vector>
 
 #include "build/BuildObserver.hh"
@@ -13,9 +15,11 @@
 #include "core/Trace.hh"
 #include "tracing/Tracer.hh"
 
+using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
+using std::tuple;
 using std::vector;
 
 class Version;
@@ -28,12 +32,9 @@ class Version;
 class Build {
  public:
   /**
-   * Create a build that runs a root command and its descendants
-   * By default, this build will emulate all commands. Commands that must be re-executed can be
-   * added later.
-   * \param root  The root command of the build
+   * Create a build runner
    */
-  Build(shared_ptr<Trace> trace) noexcept : _trace(trace), _tracer(*this) {}
+  Build() noexcept : _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -50,8 +51,16 @@ class Build {
     return c && _rerun.find(c) != _rerun.end();
   }
 
-  /// Run this build
-  void run() noexcept;
+  /**
+   * Run a build trace in a given environment.
+   * \param trace The trace to run. This trace will be modified by the run if any commands are
+   *              executed rather than emulated.
+   * \param env   The environment the build should execute in. If no environment is provided, the
+   *              trace will be run against a default environment (the current filesystem state).
+   *              The provided environment will be modified by this method.
+   * \returns the environment at the end of the trace execution.
+   */
+  shared_ptr<Env> run(shared_ptr<Trace> trace, shared_ptr<Env> env = nullptr) noexcept;
 
   /// Commit any pending updates and save fingerprints for all final state
   void applyFinalState() noexcept;
@@ -157,7 +166,7 @@ class Build {
   shared_ptr<Trace> _trace;
 
   /// The environment in which this build executes
-  Env _env;
+  shared_ptr<Env> _env;
 
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;

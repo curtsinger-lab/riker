@@ -21,7 +21,9 @@ class Version;
 
 class DirArtifact final : public Artifact {
  public:
-  DirArtifact(Env& env, shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept;
+  DirArtifact(shared_ptr<Env> env,
+              shared_ptr<MetadataVersion> mv,
+              shared_ptr<BaseDirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 

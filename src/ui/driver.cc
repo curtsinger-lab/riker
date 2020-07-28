@@ -41,24 +41,24 @@ void do_build() noexcept {
   auto trace = load_trace(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tree.
-  Build phase1(trace);
+  Build phase1;
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run();
+  phase1.run(trace);
 
   // Now create a build to run the second phase, the actual build execution
   // Pass in the print_on_run and dry_run options this time
-  Build phase2(trace);
+  Build phase2;
 
   // Prepare the build to execute the necessary commands
   rebuild->planBuild(phase2);
 
   // Execute the planned build
-  phase2.run();
+  phase2.run(trace);
 
   // Commit the final state of the build to the filesystem and take fingerprints
   phase2.applyFinalState();
@@ -78,20 +78,20 @@ void do_check() noexcept {
   auto trace = load_trace(DatabaseFilename, true);
 
   // Set up a build to emulate the loaded command tryy
-  Build phase1(trace);
+  Build phase1;
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
   phase1.addObserver(rebuild);
 
   // Run the emulated build to gather change and dependency information
-  phase1.run();
+  phase1.run(trace);
 
   // Print the rebuild planning dependency information
   cout << rebuild;
 
   // Plan a build
-  Build phase2(trace);
+  Build phase2;
   rebuild->planBuild(phase2);
 
   // Print the planned build
@@ -135,14 +135,14 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   auto trace = load_trace(DatabaseFilename, false);
 
   // Set up a build to emulate the command tree
-  Build b(trace);
+  Build b;
 
   // Create the Graph observer and attach it to the build
   auto graph = make_shared<Graph>(show_all);
   b.addObserver(graph);
 
   // Run the emulated build
-  b.run();
+  b.run(trace);
 
   if (no_render) {
     ofstream f(output);
@@ -176,14 +176,14 @@ void do_stats(bool list_artifacts) noexcept {
   auto trace = load_trace(DatabaseFilename, false);
 
   // Set up a build to emulate the commands
-  Build b(trace);
+  Build b;
 
   // Create a stats observer and attach it to the build
   auto stats = make_shared<Stats>(list_artifacts);
   b.addObserver(stats);
 
   // Emulate the build
-  b.run();
+  b.run(trace);
 
   // Print the result
   cout << stats;

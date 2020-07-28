@@ -23,11 +23,18 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-void Build::run() noexcept {
+shared_ptr<Env> Build::run(shared_ptr<Trace> trace, shared_ptr<Env> env) noexcept {
+  // If no environment was provided, use a default environment
+  if (!env) env = make_shared<Env>();
+
+  // Set the current environment and trace
+  _env = env;
+  _trace = trace;
+
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveRefs(*this, _env);
 
-  // Empty the trace's list of steps, saving the old list for emulation
+  // Clear the trace, but hold on to its list of steps
   auto steps = _trace->reset();
 
   // Walk through the steps in the trace
@@ -45,12 +52,14 @@ void Build::run() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env.getRootDir()->checkFinalState(*this, "/");
+  _env->getRootDir()->checkFinalState(*this, "/");
+
+  return _env;
 }
 
 // Ensure all final state is fingerprinted
 void Build::applyFinalState() noexcept {
-  _env.getRootDir()->applyFinalState("/");
+  _env->getRootDir()->applyFinalState("/");
 }
 
 /************************ Command Tracing and Emulation ************************/
@@ -59,7 +68,7 @@ void Build::applyFinalState() noexcept {
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
-  ref->resolvesTo(_env.getPipe(*this, c));
+  ref->resolvesTo(_env->getPipe(*this, c));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -70,7 +79,7 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    shared_ptr<Symlink> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
-  ref->resolvesTo(_env.getSymlink(*this, c, target, !emulating));
+  ref->resolvesTo(_env->getSymlink(*this, c, target, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }
@@ -79,7 +88,7 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
 shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
   auto ref = emulating;
   if (!emulating) ref = make_shared<Dir>(mode);
-  ref->resolvesTo(_env.getDir(*this, c, mode, !emulating));
+  ref->resolvesTo(_env->getDir(*this, c, mode, !emulating));
   _trace->addStep(c, ref);
   return ref;
 }

@@ -12,7 +12,7 @@
 using std::shared_ptr;
 using std::string;
 
-FileArtifact::FileArtifact(Env& env,
+FileArtifact::FileArtifact(shared_ptr<Env> env,
                            shared_ptr<MetadataVersion> mv,
                            shared_ptr<FileVersion> cv) noexcept :
     Artifact(env, mv) {

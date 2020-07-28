@@ -36,19 +36,19 @@ class SymlinkArtifact;
  * Env is to produce artifacts to model each of these entities in response to accesses from traced
  * or emulated commands.
  */
-class Env {
+class Env : public std::enable_shared_from_this<Env> {
  public:
   /**
    * Create an environment for build emulation or execution.
    */
-  Env() noexcept;
+  Env() noexcept = default;
 
   // Disallow Copy
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
 
   /// Get the root directory
-  shared_ptr<DirArtifact> getRootDir() const noexcept { return _root_dir; }
+  shared_ptr<DirArtifact> getRootDir() noexcept;
 
   /// Get a unique path to a temporary file in the build directory
   fs::path getTempPath() noexcept;

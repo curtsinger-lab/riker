@@ -30,7 +30,7 @@ void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
 
 // Check if an existing directory has a specific entry
 Resolution ExistingDir::getEntry(Build& build,
-                                 Env& env,
+                                 shared_ptr<Env> env,
                                  shared_ptr<DirArtifact> dir,
                                  string name) noexcept {
   // Create a path to the entry
@@ -46,13 +46,14 @@ Resolution ExistingDir::getEntry(Build& build,
   if (rc != 0) return ENOENT;
 
   // The artifact should exist. Get it from the environment and save it
-  auto artifact = env.getFilesystemArtifact(path, info);
+  auto artifact = env->getFilesystemArtifact(path, info);
   artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
   return artifact;
 }
 
 // Create a listed directory version from an existing directory
-shared_ptr<ListedDir> ExistingDir::getList(Env& env, shared_ptr<DirArtifact> dir) const noexcept {
+shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
+    noexcept {
   auto result = make_shared<ListedDir>();
 
   auto path = dir->getCommittedPath();

@@ -8,7 +8,7 @@
 
 using std::shared_ptr;
 
-SymlinkArtifact::SymlinkArtifact(Env& env,
+SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
                                  shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
     Artifact(env, mv) {
@@ -135,6 +135,6 @@ Resolution SymlinkArtifact::resolve(Build& build,
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return _env.getRootDir()->resolve(build, c, nullptr, dest.begin(), dest.end(), ref, committed);
+    return _env->getRootDir()->resolve(build, c, nullptr, dest.begin(), dest.end(), ref, committed);
   }
 }

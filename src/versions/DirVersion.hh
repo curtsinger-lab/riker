@@ -72,12 +72,13 @@ class BaseDirVersion : public DirVersion {
  public:
   /// Check for a named entry in this directory version
   virtual Resolution getEntry(Build& build,
-                              Env& env,
+                              shared_ptr<Env> env,
                               shared_ptr<DirArtifact> dir,
                               string name) noexcept = 0;
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(Env& env, shared_ptr<DirArtifact> dir) const noexcept = 0;
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
+      noexcept = 0;
 
  private:
   SERIALIZE(BASE(DirVersion));
@@ -97,14 +98,14 @@ class CreatedDir : public BaseDirVersion {
 
   /// Check if this version has a specific entry
   virtual Resolution getEntry(Build& build,
-                              Env& env,
+                              shared_ptr<Env> env,
                               shared_ptr<DirArtifact> dir,
                               string name) noexcept override {
     return ENOENT;
   }
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(Env& env, shared_ptr<DirArtifact> dir) const
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
       noexcept override {
     return make_shared<ListedDir>();
   }
@@ -135,12 +136,12 @@ class ExistingDir : public BaseDirVersion {
 
   /// Check if this version has a specific entry
   virtual Resolution getEntry(Build& build,
-                              Env& env,
+                              shared_ptr<Env> env,
                               shared_ptr<DirArtifact> dir,
                               string name) noexcept override;
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(Env& env, shared_ptr<DirArtifact> dir) const
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
       noexcept override;
 
   /// Get the name for this version type
