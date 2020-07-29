@@ -274,7 +274,7 @@ Resolution DirArtifact::resolve(Build& build,
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env->createFile(build, c, flags, committed);
+      auto newfile = _env->createFile(build, c, flags.mode, committed);
 
       // Mark the final reference as resolved so we can link the file
       ref->resolvesTo(newfile);

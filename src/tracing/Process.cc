@@ -189,10 +189,6 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
   // This will ensure the environment knows whether or not this artifact is created
   auto ref = makeAccess(filename, AccessFlags::fromOpen(flags, mode), dfd);
 
-  // WARN_IF(ref->getFlags().directory)
-  //    << "Accessing directory " << ref->getFullPath() << " with openat(). "
-  //    << "This is not yet tracked correctly.";
-
   // Allow the syscall to finish
   finishSyscall([=](long fd) {
     // Let the process continue
@@ -205,23 +201,30 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 
       ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
-      // TODO: Inform the artifact that it is now committed. This should add it as an entry to the
-      // Env inode map if it was created. Right now, created artifacts are considered committed even
-      // before they are actually on the filesystem.
-
-      // If the file is truncated by the open call, set the contents in the artifact
-      if (ref->getFlags().truncate) {
-        auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
-        _build.apply<FileVersion>(_command, ref, written);
-      }
-
       // Is this new descriptor closed on exec?
       bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
 
-      // Record the reference in the correct location in this process' file descriptor table
-      auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
+      // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
+      if ((flags & O_TMPFILE) == O_TMPFILE) {
+        auto anon = _build.file(_command, mode);
 
-      ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
+        // Record the reference in the process' file descriptor table
+        auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(anon, ref->getFlags().w, cloexec));
+
+        ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
+
+      } else {
+        // If the file is truncated by the open call, set the contents in the artifact
+        if (ref->getFlags().truncate) {
+          auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
+          _build.apply<FileVersion>(_command, ref, written);
+        }
+
+        // Record the reference in the correct location in this process' file descriptor table
+        auto [iter, inserted] = _fds.emplace(fd, FileDescriptor(ref, ref->getFlags().w, cloexec));
+
+        ASSERT(inserted) << "Newly-opened file descriptor conflicted with an existing entry";
+      }
 
     } else {
       // The command observed a failed openat, so add the error predicate to the command log

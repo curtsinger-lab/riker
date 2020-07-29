@@ -209,7 +209,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
 
 shared_ptr<Artifact> Env::createFile(Build& build,
                                      shared_ptr<Command> creator,
-                                     AccessFlags flags,
+                                     mode_t mode,
                                      bool committed) noexcept {
   // Get the current umask
   auto mask = umask(0);
@@ -218,10 +218,10 @@ shared_ptr<Artifact> Env::createFile(Build& build,
   // Create uid, gid, and mode values for this new file
   uid_t uid = getuid();
   gid_t gid = getgid();
-  mode_t mode = S_IFREG | (flags.mode & ~mask);
+  mode_t stat_mode = S_IFREG | (mode & ~mask);
 
   // Create an initial metadata version
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
   mv->createdBy(creator);
   if (committed) mv->setCommitted();
 

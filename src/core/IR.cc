@@ -41,6 +41,11 @@ void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.pipe(c, as<Pipe>());
 }
 
+// Emulate an anonymous file reference
+void File::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.file(c, _mode, as<File>());
+}
+
 // Emulate a symlink reference
 void Symlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.symlink(c, _target, as<Symlink>());

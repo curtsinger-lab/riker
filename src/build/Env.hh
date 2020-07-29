@@ -108,7 +108,7 @@ class Env : public std::enable_shared_from_this<Env> {
    */
   shared_ptr<Artifact> createFile(Build& build,
                                   shared_ptr<Command> creator,
-                                  AccessFlags flags,
+                                  mode_t mode,
                                   bool committed) noexcept;
 
  private:

@@ -69,6 +69,17 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
   return ref;
 }
 
+// Command c creates a new file
+shared_ptr<File> Build::file(shared_ptr<Command> c,
+                             mode_t mode,
+                             shared_ptr<File> emulating) noexcept {
+  auto ref = emulating;
+  if (!emulating) ref = make_shared<File>(mode);
+  ref->resolvesTo(_env->createFile(*this, c, mode, !emulating));
+  _trace->addStep(c, ref);
+  return ref;
+}
+
 // Command c creates a new symbolic link
 shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    fs::path target,

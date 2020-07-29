@@ -160,6 +160,29 @@ class Pipe final : public Ref {
   SERIALIZE(BASE(Ref));
 };
 
+/// Create a reference to a new file
+class File final : public Ref {
+ public:
+  /// Create a file
+  File(mode_t mode) noexcept : _mode(mode) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a FILE reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = FILE(" << std::oct << _mode << ")";
+    return Ref::printResolution(o);
+  }
+
+ private:
+  mode_t _mode;
+
+  // Specify fields for serialization
+  File() = default;
+  SERIALIZE(BASE(Ref), _mode);
+};
+
 /// Create a reference to a new symlink
 class Symlink final : public Ref {
  public:

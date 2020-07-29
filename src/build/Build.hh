@@ -65,6 +65,11 @@ class Build {
   /// A command creates a new pipe
   shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;
 
+  /// A command creates a new file
+  shared_ptr<File> file(shared_ptr<Command> c,
+                        mode_t mode,
+                        shared_ptr<File> emulating = nullptr) noexcept;
+
   /// A command creates a new symbolic link
   shared_ptr<Symlink> symlink(shared_ptr<Command> c,
                               fs::path target,
