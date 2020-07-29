@@ -59,6 +59,12 @@ void MetadataVersion::save(fs::path path) noexcept {
   if (rc == 0) _metadata = statbuf;
 }
 
+// Get the mode field from this metadata version
+mode_t MetadataVersion::getMode() const noexcept {
+  ASSERT(_metadata.has_value()) << "Cannot get mode field for an unsaved metadata version";
+  return _metadata.value().mode;
+}
+
 // Can this version be committed?
 bool MetadataVersion::canCommit() const noexcept {
   if (isCommitted()) return true;

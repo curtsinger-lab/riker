@@ -70,7 +70,7 @@ class FileVersion final : public Version {
   bool canCommit() const noexcept;
 
   /// Commit this version to the filesystem
-  void commit(fs::path path) noexcept;
+  void commit(fs::path path, mode_t mode = 0600) noexcept;
 
   /// Is this version fingerprinted in a way that allows us to check for a match?
   bool hasFingerprint() const noexcept { return _fingerprint.has_value(); }

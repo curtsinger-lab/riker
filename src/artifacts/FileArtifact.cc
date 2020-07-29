@@ -57,8 +57,8 @@ void FileArtifact::commitAll() noexcept {
   auto path = getCommittedPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
-  _content_version->commit(path.value());
-  _metadata_version->commit(path.value());
+  _content_version->commit(path.value(), _metadata_version->getMode());
+  _metadata_version->commit(path.value(), false);
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
