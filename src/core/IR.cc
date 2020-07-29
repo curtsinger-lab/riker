@@ -107,6 +107,11 @@ void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.join(c, _cmd, _exit_status, as<Join>());
 }
 
+// Emulate an exit action
+void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.exit(c, _exit_status, as<Exit>());
+}
+
 /******************* Access Methods ********************/
 
 int Access::open() const noexcept {

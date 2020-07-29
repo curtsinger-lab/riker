@@ -1030,11 +1030,13 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
     ASSERT(p) << "wait4 syscall returned an untracked PID " << rc;
 
     if (p->_command != _command) {
+      _build.exit(p->_command, WEXITSTATUS(status));
       if (WIFEXITED(status)) {
         _build.join(_command, p->_command, WEXITSTATUS(status));
       } else if (WIFSIGNALED(status)) {
         // TODO: Should we encode termination by signal in some other way?
-        _build.join(_command, p->_command, status);
+        // (yes, "some other way")
+        _build.join(_command, p->_command, WEXITSTATUS(status));
       }
     }
   });

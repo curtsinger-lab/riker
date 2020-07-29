@@ -350,11 +350,24 @@ void Build::join(shared_ptr<Command> c,
     _trace->addStep(c, emulating);
 
   } else {
-    // Save the exit status in the child
+    // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
     child->setExitStatus(exit_status);
 
     // Add a join action to this command's steps
     _trace->addStep(c, make_shared<Join>(child, exit_status));
+  }
+}
+
+void Build::exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulating) noexcept {
+  // Save the exit status for this command (TODO: remove once EXIT changes are supported for real)
+  c->setExitStatus(exit_status);
+
+  if (emulating) {
+    // Add the emulated step to the new trace
+    _trace->addStep(c, emulating);
+  } else {
+    // Add an exit action to this command's steps
+    _trace->addStep(c, make_shared<Exit>(exit_status));
   }
 }
 

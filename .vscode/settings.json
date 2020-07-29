@@ -10,5 +10,8 @@
   "editor.formatOnSave": true,
   "files.exclude": {
     "**.obj": true
-  }
+  },
+  "editor.rulers": [
+    100
+  ],
 }

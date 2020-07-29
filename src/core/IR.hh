@@ -363,6 +363,27 @@ class Join final : public Step {
   SERIALIZE(BASE(Step), _cmd, _exit_status);
 };
 
+class Exit final : public Step {
+ public:
+  /// Create an EXIT action
+  Exit(int exit_status) noexcept : _exit_status(exit_status) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print an EXIT action
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "EXIT(" << _exit_status << ")";
+  }
+
+ private:
+  int _exit_status;
+
+  // Create default constructor and specify fields for serialization
+  Exit() = default;
+  SERIALIZE(BASE(Step), _exit_status);
+};
+
 /**
  * A command writes a version to an artifact reached via a reference
  */

@@ -112,6 +112,9 @@ class Build {
             int exit_status,
             shared_ptr<Join> emulating = nullptr) noexcept;
 
+  /// A command has exited with an exit code
+  void exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulating = nullptr) noexcept;
+
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
 
