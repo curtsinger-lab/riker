@@ -108,7 +108,7 @@ class logger {
   }
 
   template <typename T>
-  logger&& operator<<(T t) noexcept {
+  logger&& operator<<(const T& t) noexcept {
     if (_level <= log_level) cerr << t;
     return move(*this);
   }
