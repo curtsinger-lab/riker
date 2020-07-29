@@ -99,16 +99,16 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual string getTypeName() const noexcept = 0;
 
   /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<Version> v) const noexcept;
+  virtual bool canCommit(shared_ptr<Version> v) const noexcept = 0;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept;
+  virtual void commit(shared_ptr<Version> v) noexcept = 0;
 
   /// Can this artifact be fully committed?
-  virtual bool canCommitAll() const noexcept;
+  virtual bool canCommitAll() const noexcept = 0;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept;
+  virtual void commitAll() noexcept = 0;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
   virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept = 0;
@@ -130,8 +130,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
   /// entry) to the version that creates that link. The first map holds committed links, while the
   /// second map holds uncommitted links.
-  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks() const
-      noexcept;
+  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks()
+      const noexcept;
 
   /// Get a path to this artifact that may or may not be committed to the filesystem
   optional<fs::path> getPath() const noexcept;

@@ -206,30 +206,6 @@ bool Artifact::checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flag
   return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
-// Can a specific version of this artifact be committed?
-bool Artifact::canCommit(shared_ptr<Version> v) const noexcept {
-  ASSERT(v == _metadata_version) << "Called canCommit with unknown version on artifact " << this;
-  return _metadata_version->canCommit();
-}
-
-// Commit a specific version of this artifact to the filesystem
-void Artifact::commit(shared_ptr<Version> v) noexcept {
-  ASSERT(v == _metadata_version) << "Called commit with unknown version on artifact " << this;
-  auto path = getCommittedPath();
-  ASSERT(path.has_value()) << "Artifact has no path";
-  _metadata_version->commit(path.value());
-}
-
-// Can this artifact be fully committed?
-bool Artifact::canCommitAll() const noexcept {
-  return canCommit(_metadata_version);
-}
-
-// Commit all final versions of this artifact to the filesystem
-void Artifact::commitAll() noexcept {
-  commit(_metadata_version);
-}
-
 // Compare all final versions of this artifact to the filesystem state
 void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_metadata_version->isCommitted()) {

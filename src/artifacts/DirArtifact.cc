@@ -33,8 +33,11 @@ DirArtifact::DirArtifact(shared_ptr<Env> env,
 bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (auto dv = v->as<DirVersion>()) {
     return dv->canCommit();
+  } else if (v == _metadata_version) {
+    return _metadata_version->canCommit();
   } else {
-    return Artifact::canCommit(v);
+    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
+    return false;
   }
 }
 
@@ -46,14 +49,16 @@ void DirArtifact::commit(shared_ptr<Version> v) noexcept {
 
   if (auto dv = v->as<DirVersion>()) {
     dv->commit(this->as<DirArtifact>(), path.value());
+  } else if (v == _metadata_version) {
+    _metadata_version->commit(path.value());
   } else {
-    Artifact::commit(v);
+    FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
 }
 
 bool DirArtifact::canCommitAll() const noexcept {
-  // If this artifact's metadata cannot be committed, stop now
-  if (!Artifact::canCommitAll()) return false;
+  // Can the metadata version be committed?
+  if (!_metadata_version->canCommit()) return false;
 
   // Can the base version be committed? If not, stop now.
   if (!_base_dir_version->canCommit()) return false;
@@ -70,17 +75,19 @@ bool DirArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void DirArtifact::commitAll() noexcept {
+  // The base directory version must always be committed to commit any other version
   auto path = getCommittedPath();
-  ASSERT(path.has_value()) << "Directory has no path";
+  ASSERT(path.has_value()) << "Committing to a directory with no path";
+  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
 
   // Commit the versions needed for each entry
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    commit(version);
+    version->commit(this->as<DirArtifact>(), path.value());
   }
 
-  // Commit metadata through the Artifact base class
-  Artifact::commitAll();
+  // Commit metadata
+  _metadata_version->commit(path.value());
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
@@ -108,8 +115,8 @@ void DirArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 
     // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
     // have a record of this artifact being missing because some other part of the build accessed
-    // it. That means there will be some earlier reference that was expected to succeed or fail that
-    // will now have changed.
+    // it. That means there will be some earlier reference that was expected to succeed or fail
+    // that will now have changed.
   }
 
   // Check the metadata state as well

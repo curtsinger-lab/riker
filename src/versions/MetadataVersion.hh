@@ -88,7 +88,7 @@ class MetadataVersion final : public Version {
   bool canCommit() const noexcept;
 
   /// Commit this version to the filesystem
-  void commit(fs::path path) noexcept;
+  void commit(fs::path path, bool commit_permissions = true) noexcept;
 
   /// Save the on-disk state to this version for later commit
   void save(fs::path path) noexcept;
