@@ -23,24 +23,33 @@ FileArtifact::FileArtifact(shared_ptr<Env> env,
 bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (v == _content_version) {
     return _content_version->canCommit();
+  } else if (v == _metadata_version) {
+    return _metadata_version->canCommit();
   } else {
-    return Artifact::canCommit(v);
+    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
+    return false;
   }
 }
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
+  auto path = getCommittedPath();
+  ASSERT(path.has_value()) << "File has no path";
+
   if (v == _content_version) {
-    auto path = getCommittedPath();
-    ASSERT(path.has_value()) << "File has no path";
     _content_version->commit(path.value());
+  } else if (v == _metadata_version) {
+    _metadata_version->commit(path.value());
   } else {
-    Artifact::commit(v);
+    FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
 }
 
 // Do we have saved content and metadata for this artifact?
 bool FileArtifact::canCommitAll() const noexcept {
-  return _content_version->canCommit() && Artifact::canCommitAll();
+  // Can the metadata version be committed?
+  if (!_metadata_version->canCommit()) return false;
+
+  return _content_version->canCommit();
 }
 
 // Commit all final versions of this artifact to the filesystem
@@ -49,9 +58,7 @@ void FileArtifact::commitAll() noexcept {
   ASSERT(path.has_value()) << "File has no path: " << this;
 
   _content_version->commit(path.value());
-
-  // Delegate metadata commits to the artifact
-  Artifact::commitAll();
+  _metadata_version->commit(path.value());
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.

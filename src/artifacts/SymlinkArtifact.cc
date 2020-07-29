@@ -30,23 +30,30 @@ shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(Build& build,
 bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (v == _symlink_version) {
     return true;
+  } else if (v == _metadata_version) {
+    return _metadata_version->canCommit();
   } else {
-    return Artifact::canCommit(v);
+    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
+    return false;
   }
 }
 
 void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
+  auto path = getCommittedPath();
+  ASSERT(path.has_value()) << "Symlink has no path";
+
   if (v == _symlink_version) {
-    auto path = getCommittedPath();
-    ASSERT(path.has_value()) << "Symlink has no path";
     _symlink_version->commit(path.value());
+  } else if (v == _metadata_version) {
+    _metadata_version->commit(path.value(), false);
   } else {
-    Artifact::commit(v);
+    FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
 }
 
 bool SymlinkArtifact::canCommitAll() const noexcept {
-  return Artifact::canCommitAll();
+  // Symlink versions are always committable, so just check the metadata version
+  return _metadata_version->canCommit();
 }
 
 // Commit all final versions of this artifact to the filesystem
@@ -55,7 +62,7 @@ void SymlinkArtifact::commitAll() noexcept {
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
-  Artifact::commitAll();
+  _metadata_version->commit(path.value(), false);
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
