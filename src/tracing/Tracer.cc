@@ -234,7 +234,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
 shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
-  LOG << "Launching " << cmd;
+  OLD_LOG << "Launching " << cmd;
 
   // Get a reference to the directory where the command will be started
   auto cwd = cmd->getInitialWorkingDir();
@@ -246,11 +246,11 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
 
-  LOG << "Initial FDs:";
+  OLD_LOG << "Initial FDs:";
 
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
-    LOG << "  " << child_fd << ": " << info.getRef();
+    OLD_LOG << "  " << child_fd << ": " << info.getRef();
 
     // Make sure the reference has already been resolved
     ASSERT(info.getRef()->isResolved())
@@ -308,7 +308,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     for (const auto& [parent_fd, child_fd] : initial_fds) {
       int rc = dup2(parent_fd, child_fd);
 
-      LOG << "Duped parent fd " << parent_fd << " to " << child_fd;
+      OLD_LOG << "Duped parent fd " << parent_fd << " to " << child_fd;
 
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
     }

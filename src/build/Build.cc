@@ -309,7 +309,7 @@ void Build::launch(shared_ptr<Command> c,
       // The child command depends on all the references it inherits as file descriptors
       for (auto& [index, desc] : child->getInitialFDs()) {
         if (auto access = desc.getRef()->as<Access>()) {
-          WARN << "Resolving " << access->getRelativePath();
+          LOG(artifact) << "Resolving " << access->getRelativePath();
           access->resolve(*this, child, true);
         }
       }

@@ -109,14 +109,15 @@ class RebuildPlanner final : public BuildObserver {
                         shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept override final {
     // Record the change
-    LOG << c << " observed change in " << a << " version " << observed << ", expected " << expected;
+    OLD_LOG << c << " observed change in " << a << " version " << observed << ", expected "
+            << expected;
     _changed.insert(c);
   }
 
   /// Command c has never been run
   virtual void commandNeverRun(shared_ptr<Command> c) noexcept override final {
     // Record the change
-    LOG << c << " never run";
+    OLD_LOG << c << " never run";
     _changed.insert(c);
   }
 
@@ -124,7 +125,7 @@ class RebuildPlanner final : public BuildObserver {
   virtual void commandChanged(shared_ptr<Command> c,
                               shared_ptr<const Step> s) noexcept override final {
     // Record the change
-    LOG << c << " changed: " << s;
+    OLD_LOG << c << " changed: " << s;
     _changed.insert(c);
   }
 

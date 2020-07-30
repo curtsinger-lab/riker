@@ -184,6 +184,9 @@ vector<string> Process::readArgvArray(uintptr_t tracee_pointer) noexcept {
 /************************* File Opening, Creation, and Closing ************************/
 
 void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
+  LOG(syscall) << _pid << ": openat(" << dfd << ", \"" << filename << "\", " << flags << ", "
+               << std::oct << mode << ")";
+
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
@@ -235,6 +238,9 @@ void Process::_openat(int dfd, string filename, int flags, mode_t mode) noexcept
 }
 
 void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept {
+  LOG(syscall) << _pid << ": mknodat(" << dfd << ", \"" << filename << "\", " << std::oct << mode
+               << std::dec << ", " << dev << ")";
+
   if ((mode & S_IFMT) == S_IFREG) {
     // Handle regular file creation with openat
     _openat(dfd, filename, O_CREAT | O_EXCL, mode);
@@ -247,6 +253,8 @@ void Process::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noex
 }
 
 void Process::_close(int fd) noexcept {
+  LOG(syscall) << _pid << ": close(" << fd << ")";
+
   // NOTE: We assume close calls always succeed. Erasing a non-existent file descriptor is
   // harmless
 
@@ -260,6 +268,8 @@ void Process::_close(int fd) noexcept {
 /************************ Pipes ************************/
 
 void Process::_pipe2(int* fds, int flags) noexcept {
+  LOG(syscall) << _pid << ": pipe2(" << (void*)fds << ", " << flags << ")";
+
   finishSyscall([this, fds, flags](long rc) {
     // There is nothing to do if the syscall fails, but why would that ever happen?
     if (rc) {
@@ -293,6 +303,8 @@ void Process::_pipe2(int* fds, int flags) noexcept {
 /************************ File Descriptor Manipulation ************************/
 
 void Process::_dup(int fd) noexcept {
+  LOG(syscall) << _pid << ": dup(" << fd << ")";
+
   // Finish the syscall to get the new file descriptor, then resume the process
   finishSyscall([=](int newfd) {
     resume();
@@ -309,6 +321,8 @@ void Process::_dup(int fd) noexcept {
 }
 
 void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
+  LOG(syscall) << _pid << ": dup3(" << oldfd << ", " << newfd << ", " << flags << ")";
+
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
   finishSyscall([=](long rc) {
@@ -329,6 +343,8 @@ void Process::_dup3(int oldfd, int newfd, int flags) noexcept {
 }
 
 void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
+  LOG(syscall) << _pid << ": fcntl(" << fd << ", " << cmd << ", " << arg << ")";
+
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
     _dup(fd);  // _dup will resume the process and return the new fd to us
@@ -354,6 +370,9 @@ void Process::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 /************************ Metadata Operations ************************/
 
 void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
+  LOG(syscall) << _pid << ": faccessat(" << dirfd << ", \"" << pathname << "\", " << std::oct
+               << mode << std::dec << ", " << flags << ")";
+
   // Finish the syscall so we can see its result
   finishSyscall([=](long rc) {
     // Resume the process' execution
@@ -366,7 +385,7 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
     ref->expectResult(-rc);
 
     if (rc == 0) {
-      PREFER(ref->isResolved()) << "Failed to resolve reference " << ref;
+      if (!ref->isResolved()) WARN << "Failed to resolve reference " << ref;
       // Don't abort here because the dodo self-build accesses /proc/self.
       // We need to fix these references for real at some point.
     }
@@ -374,6 +393,9 @@ void Process::_faccessat(int dirfd, string pathname, int mode, int flags) noexce
 }
 
 void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
+  LOG(syscall) << _pid << ": fstatat(" << dirfd << ", \"" << pathname << "\", " << (void*)statbuf
+               << ", " << flags << ")";
+
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
@@ -406,18 +428,71 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
 }
 
 void Process::_fchown(int fd, uid_t user, gid_t group) noexcept {
-  // Metadata is updated in bulk, so this is equivalent to fchmod.
-  // If partial metadata updates are ever versioned, this will need to change
-  _fchmod(fd, 0);
+  LOG(syscall) << _pid << ": fchown(" << fd << ", " << user << ", " << group << ")";
+
+  // Look for the descriptor. If it doesn't exist, resume the process and return
+  auto iter = _fds.find(fd);
+  if (iter == _fds.end()) {
+    resume();
+    return;
+  }
+
+  // Get the descriptor
+  auto& descriptor = iter->second;
+
+  // The command depends on the old metadata
+  _build.match<MetadataVersion>(_command, descriptor.getRef());
+
+  // Finish the sycall and resume the process
+  finishSyscall([=](long rc) {
+    resume();
+
+    // If the syscall failed, there's nothing to do
+    if (rc) return;
+
+    // The command updates the metadata
+    _build.apply<MetadataVersion>(_command, descriptor.getRef(), make_shared<MetadataVersion>());
+  });
 }
 
 void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
-  // Metadata is updated in bulk, so this is equivalent to fchmodat.
-  // If partial metadata updates are ever versioned, this will need to change
-  _fchmodat(dfd, filename, 0, flags);
+  LOG(syscall) << _pid << ": fchownat(" << dfd << ", \"" << filename << "\", " << user << ", "
+               << group << ", " << flags << ")";
+
+  // Make a reference to the file that will be chown-ed.
+  bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+  auto ref = makeAccess(filename, AccessFlags{.nofollow = nofollow}, dfd);
+
+  // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
+  // values)
+  if (ref->isResolved()) {
+    _build.match<MetadataVersion>(_command, ref);
+  }
+
+  // Finish the syscall and then resume the process
+  finishSyscall([=](long rc) {
+    resume();
+
+    // Did the call succeed?
+    if (rc >= 0) {
+      // Yes. Record the successful reference
+      ref->expectResult(SUCCESS);
+
+      ASSERT(ref->isResolved()) << "Failed to get artifact";
+
+      // We've now set the artifact's metadata
+      _build.apply<MetadataVersion>(_command, ref, make_shared<MetadataVersion>());
+
+    } else {
+      // No. Record the failure
+      ref->expectResult(-rc);
+    }
+  });
 }
 
 void Process::_fchmod(int fd, mode_t mode) noexcept {
+  LOG(syscall) << _pid << ": fchmod(" << fd << ", " << std::oct << mode << ")";
+
   // Look for the descriptor. If it doesn't exist, resume the process and return
   auto iter = _fds.find(fd);
   if (iter == _fds.end()) {
@@ -444,6 +519,9 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
 }
 
 void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept {
+  LOG(syscall) << _pid << ": fchmodat(" << dfd << ", \"" << filename << "\", " << std::oct << mode
+               << std::dec << ", " << flags << ")";
+
   // Make a reference to the file that will be chmod-ed.
   bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
   auto ref = makeAccess(filename, AccessFlags{.nofollow = nofollow}, dfd);
@@ -478,6 +556,8 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
 /************************ File Content Operations ************************/
 
 void Process::_read(int fd) noexcept {
+  LOG(syscall) << _pid << ": read(" << fd << ")";
+
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
@@ -489,6 +569,8 @@ void Process::_read(int fd) noexcept {
 }
 
 void Process::_write(int fd) noexcept {
+  LOG(syscall) << _pid << ": write(" << fd << ")";
+
   // Get the descriptor
   const auto& descriptor = _fds.at(fd);
 
@@ -508,6 +590,8 @@ void Process::_write(int fd) noexcept {
 }
 
 void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept {
+  LOG(syscall) << _pid << ": mmap(" << fd << ")";
+
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
   if (fd == -1) {
@@ -555,6 +639,8 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 }
 
 void Process::_truncate(string pathname, long length) noexcept {
+  LOG(syscall) << _pid << ": truncate(\"" << pathname << "\", " << length << ")";
+
   // Make an access to the reference that will be truncated
   auto ref = makeAccess(pathname, AccessFlags{.w = true});
 
@@ -583,6 +669,8 @@ void Process::_truncate(string pathname, long length) noexcept {
 }
 
 void Process::_ftruncate(int fd, long length) noexcept {
+  LOG(syscall) << _pid << ": ftruncate(" << fd << ", " << length << ")";
+
   // Get the descriptor
   const auto& descriptor = _fds.at(fd);
 
@@ -603,6 +691,8 @@ void Process::_ftruncate(int fd, long length) noexcept {
 }
 
 void Process::_tee(int fd_in, int fd_out) noexcept {
+  LOG(syscall) << _pid << ": tee(" << fd_in << ", " << fd_out << ")";
+
   // Get the descriptors
   const auto& in_desc = _fds.at(fd_in);
   const auto& out_desc = _fds.at(fd_out);
@@ -626,6 +716,9 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 /************************ Directory Operations ************************/
 
 void Process::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
+  LOG(syscall) << _pid << ": mkdirat(" << dfd << ", \"" << pathname << "\", " << std::oct << mode
+               << ")";
+
   auto full_path = fs::path(pathname);
   auto parent_path = full_path.parent_path();
   auto entry = full_path.filename();
@@ -666,6 +759,9 @@ void Process::_renameat2(int old_dfd,
                          int new_dfd,
                          string new_name,
                          int flags) noexcept {
+  LOG(syscall) << _pid << ": renameat2(" << old_dfd << ", \"" << old_name << "\", " << new_dfd
+               << ", \"" << new_name << "\", " << flags << ")";
+
   // Break the path to the existing file into directory and entry parts
   auto old_path = fs::path(old_name);
   auto old_dir = old_path.parent_path();
@@ -736,6 +832,8 @@ void Process::_renameat2(int old_dfd,
 }
 
 void Process::_getdents(int fd) noexcept {
+  LOG(syscall) << _pid << ": getdents(" << fd << ")";
+
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
@@ -753,6 +851,9 @@ void Process::_linkat(int old_dfd,
                       int new_dfd,
                       string newpath,
                       int flags) noexcept {
+  LOG(syscall) << _pid << ": linkat(" << old_dfd << ", \"" << oldpath << "\", " << new_dfd << ", \""
+               << newpath << "\", " << flags << ")";
+
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto link_path = fs::path(newpath);
   auto dir_path = link_path.parent_path();
@@ -797,6 +898,8 @@ void Process::_linkat(int old_dfd,
 }
 
 void Process::_symlinkat(string target, int dfd, string newpath) noexcept {
+  LOG(syscall) << _pid << ": symlinkat(\"" << target << "\", " << dfd << ", \"" << newpath << "\")";
+
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto link_path = fs::path(newpath);
   auto dir_path = link_path.parent_path();
@@ -834,6 +937,8 @@ void Process::_symlinkat(string target, int dfd, string newpath) noexcept {
 }
 
 void Process::_readlinkat(int dfd, string pathname) noexcept {
+  LOG(syscall) << _pid << ": readlinkat(" << dfd << ", \"" << pathname << "\")";
+
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
   if (pathname.find("/proc/self") != string::npos) {
@@ -866,6 +971,8 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
 }
 
 void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
+  LOG(syscall) << _pid << ": unlinkat(" << dfd << ", \"" << pathname << "\", " << flags << ")";
+
   // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
 
   // Split the pathname into the parent and entry
@@ -909,6 +1016,8 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
 /************************ Process State Operations ************************/
 
 void Process::_chdir(string filename) noexcept {
+  LOG(syscall) << _pid << ": chdir(\"" << filename << "\")";
+
   finishSyscall([=](long rc) {
     resume();
 
@@ -922,14 +1031,18 @@ void Process::_chdir(string filename) noexcept {
 }
 
 void Process::_chroot(string filename) noexcept {
+  LOG(syscall) << _pid << ": chroot(\"" << filename << "\")";
   FAIL << "Builds that use chroot are not supported.";
 }
 
 void Process::_pivot_root(string new_root, string put_old) noexcept {
+  LOG(syscall) << _pid << ": pivot_root(\"" << new_root << "\", \"" << put_old << "\")";
   FAIL << "Builds that use pivot_root are not supported.";
 }
 
 void Process::_fchdir(int fd) noexcept {
+  LOG(syscall) << _pid << ": fchdir(" << fd << ")";
+
   finishSyscall([=](long rc) {
     resume();
 
@@ -951,6 +1064,8 @@ void Process::_execveat(int dfd,
                         string filename,
                         vector<string> args,
                         vector<string> env) noexcept {
+  LOG(syscall) << _pid << ": execveat(" << dfd << ", \"" << filename << "\", ...)";
+
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {
     resume();
@@ -1017,6 +1132,8 @@ void Process::_execveat(int dfd,
 }
 
 void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
+  LOG(syscall) << _pid << ": wait4(" << pid << ", " << (void*)wstatus << ", " << options << ")";
+
   finishSyscall([=](long rc) {
     int status = readData<int>((uintptr_t)wstatus);
     resume();
@@ -1043,6 +1160,7 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
 }
 
 void Process::_waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept {
+  LOG(syscall) << _pid << ": waitid(...)";
   WARN << "waitid syscall is not handled yet";
   resume();
 }

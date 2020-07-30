@@ -22,7 +22,7 @@ void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
 
   int rc = ::mkdir(path.c_str(), 0755);
-  WARN_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
+  ASSERT(rc == 0) << "Failed to create directory " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();
@@ -80,7 +80,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   auto temp_path = artifact->takeTemporaryPath();
   if (temp_path.has_value()) {
     // The artifact has a temporary path. We can move it to its new committed location
-    LOG << "Moving " << artifact << " to " << dir_path / _entry;
+    OLD_LOG << "Moving " << artifact << " to " << dir_path / _entry;
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), (dir_path / _entry).c_str());
