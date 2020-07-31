@@ -236,6 +236,58 @@ void Build::matchContent(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
+void Build::applyMetadata(shared_ptr<Command> c,
+                          shared_ptr<Ref> ref,
+                          shared_ptr<MetadataVersion> written,
+                          shared_ptr<ApplyMetadata> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
+
+    // Record the change
+    observeCommandChange(c, emulating);
+
+    // Add the IR step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating, true);
+    return;
+  }
+
+  // Are we emulating this command?
+  if (emulating) {
+    // Yes. We should have an existing version to write
+    ASSERT(written) << "An emulated command is writing an unspecified version to an artifact";
+
+    // Make sure this version is NOT marked as committed
+    written->setCommitted(false);
+
+    // Mark the version as created by the calling command. This field is transient, so we have to
+    // apply it on ever run
+    written->createdBy(c);
+
+    // Apply the write
+    ref->getArtifact()->applyMetadata(*this, c, written);
+
+    // Add this write to the trace
+    _trace->addStep(c, emulating, true);
+
+  } else {
+    // No. This is a traced operation
+
+    // Update the artifact and hold on to the metadata version it returns.
+    written = ref->getArtifact()->applyMetadata(*this, c, written);
+
+    // The calling command created this version
+    written->createdBy(c);
+
+    // This apply operation was traced, so the written version is committed
+    written->setCommitted();
+
+    // Add a new trace step
+    _trace->addStep(c, make_shared<ApplyMetadata>(ref, written), false);
+  }
+}
+
+// Command c modifies an artifact
 template <class VersionType>
 void Build::apply(shared_ptr<Command> c,
                   shared_ptr<Ref> ref,
@@ -290,12 +342,6 @@ void Build::apply(shared_ptr<Command> c,
     _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written), false);
   }
 }
-
-// Explicitly instantiate apply for metadata versions
-template void Build::apply<MetadataVersion>(shared_ptr<Command> c,
-                                            shared_ptr<Ref> ref,
-                                            shared_ptr<MetadataVersion> written,
-                                            shared_ptr<Apply<MetadataVersion>> emulating) noexcept;
 
 // Explicitly instantiate apply for content versions
 template void Build::apply<FileVersion>(shared_ptr<Command> c,

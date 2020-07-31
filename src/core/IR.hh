@@ -437,3 +437,29 @@ class Apply final : public Step {
   Apply() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
+
+/**
+ * A command writes a metadata version through a reference
+ */
+class ApplyMetadata final : public Step {
+ public:
+  /// Create an ApplyMetadata IR step
+  ApplyMetadata(shared_ptr<Ref> ref, shared_ptr<MetadataVersion> version) noexcept :
+      _ref(ref), _version(version) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print an ApplyMetadata IR step
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "APPLY_METADATA(" << _ref->getName() << ", " << _version << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;
+  shared_ptr<MetadataVersion> _version;
+
+  // Create default constructor and specify fields for serialization
+  ApplyMetadata() = default;
+  SERIALIZE(BASE(Step), _ref, _version);
+};

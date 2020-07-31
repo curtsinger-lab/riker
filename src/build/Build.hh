@@ -99,6 +99,12 @@ class Build {
                     shared_ptr<Version> expected = nullptr,
                     shared_ptr<MatchContent> emulating = nullptr) noexcept;
 
+  /// A command modifies the metadata for an artifact
+  void applyMetadata(shared_ptr<Command> c,
+                     shared_ptr<Ref>,
+                     shared_ptr<MetadataVersion> written = nullptr,
+                     shared_ptr<ApplyMetadata> emulating = nullptr) noexcept;
+
   /// A command writes a new version to an artifact
   template <class VersionType>
   void apply(shared_ptr<Command> c,

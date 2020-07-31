@@ -447,7 +447,7 @@ void Process::_fchown(int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.apply<MetadataVersion>(_command, descriptor.getRef(), make_shared<MetadataVersion>());
+    _build.applyMetadata(_command, descriptor.getRef());
   });
 }
 
@@ -476,7 +476,7 @@ void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int f
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _build.apply<MetadataVersion>(_command, ref, make_shared<MetadataVersion>());
+      _build.applyMetadata(_command, ref);
 
     } else {
       // No. Record the failure
@@ -509,7 +509,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.apply<MetadataVersion>(_command, descriptor.getRef(), make_shared<MetadataVersion>());
+    _build.applyMetadata(_command, descriptor.getRef());
   });
 }
 
@@ -538,7 +538,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
-      _build.apply<MetadataVersion>(_command, ref, make_shared<MetadataVersion>());
+      _build.applyMetadata(_command, ref);
 
     } else {
       // No. Record the failure
@@ -1059,8 +1059,7 @@ void Process::_execveat(int dfd,
                         string filename,
                         vector<string> args,
                         vector<string> env) noexcept {
-  LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd, filename,
-       fmt::join(args, "\", \""));
+  LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd, filename, fmt::join(args, "\", \""));
 
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {

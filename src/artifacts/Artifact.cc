@@ -256,15 +256,21 @@ void Artifact::matchContent(Build& build,
 }
 
 /// Apply a new metadata version to this artifact
-void Artifact::apply(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<MetadataVersion> writing) noexcept {
+shared_ptr<MetadataVersion> Artifact::applyMetadata(Build& build,
+                                                    shared_ptr<Command> c,
+                                                    shared_ptr<MetadataVersion> writing) noexcept {
+  // If a written version was not provided, create one. It will represent the current state, and its
+  // fingerprint/saved data will be filled in later if necessary.
+  if (!writing) writing = make_shared<MetadataVersion>();
+
   // Update the metadata version for this artifact
   appendVersion(writing);
   _metadata_version = writing;
 
   // Report the output to the build
   build.observeOutput(c, shared_from_this(), _metadata_version);
+
+  return writing;
 }
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
