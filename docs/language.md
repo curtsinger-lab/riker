@@ -7,27 +7,37 @@ A full trace contains a sequence of TraceIR steps, each marked with the command 
 References are steps that produce a reference that can be used to reach an artifact. Each reference is resolved at run/emulation time, and can return either an artifact or an error code. In addition to the parameters specified with each reference type, every reference stores the expected outcome of resolving that reference, either SUCCESS or one of the standard POSIX error codes. Any change in the outcome of resolving a reference indicates that a command's input has changed.
 
 **`Pipe() : Reference`**  
-Create a reference to a new pipe
+Create a reference to an anonymous pipe.
 
 **`Symlink(dest : string) : Reference`**  
-Create a reference to a new symbolic link with a specific destination
+Create a reference to an anonymous symbolic link with a given destination
 
 **`Dir() : Reference`**  
-Create a reference to a new, empty directory.
+Create a reference to an anonymous, empty directory.
+
+**`File() : Reference`**
+Create a reference to an anonymous, empty file.
 
 **`Access(base : Access, path : string, flags : AccessFlags) : Reference`**  
 Create a reference to a specific path, relative to some artifact reached via the `base` reference. The reference could resolve to any type of artifact. Access flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
 
 ## Predicates
-**`Match(ref : Reference, v : VersionType)`**  
-The artifact reached via `ref` must match the version `v`. There are several version types; all artifacts have metadata versions, files have content versions, directories have directory versions, etc. If the artifact reached via `ref` does *not* match version `v`, the command that performed this step has observed a change.
+**`MatchMetadata(ref : Reference, v : MetadataVersion)`**  
+The artifact reached via `ref` must have metadata that matches version `v`.
+
+**`MatchContent(ref : Reference, v : Version)`**
+The artifact reached via `ref` must have content that matches the version `v`. Not all version types support matching, but supported version types are FileVersion (the contents of a file), SymlinkVersion (symlink's target), and ListedDir (the complete list of a directory's entries).
+Version types like AddEntry and RemoveEntry, which are partial versions for directory artifacts, cannot be matched against.
 
 **`Join(child : Command, expected_code : int)`**  
 The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
 
 ## Actions
-**`Apply(ref : Reference, v : VersionType)`**  
-Apply a version `v` to the artifact reached via `ref`. These are the same version types supported by the `Match` predicate.
+**`UpdateMetadata(ref : Reference, v : MetadataVersion)`**
+Get the artifact reached by `ref` and set its metadata to version `v`.
+
+**`UpdateContent(ref : Reference, v : Version)`**  
+Update the content of the artifact reached by `ref` with version `v`. Not all version types can be used to update an artifact's contents. Supported types are: FileVersion, AddEntry, and RemoveEntry. Other version types like ListedDir or SymlinkVersion are used only for comparisons.
 
 **`Launch(child : Command)`**  
 A command launches a child command. The child command stores the starting directory, root directory, user, group, arguments, environment variables, and initial file descriptors.
