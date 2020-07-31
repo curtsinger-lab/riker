@@ -4,7 +4,7 @@ MAKEFLAGS += -j
 
 COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O3
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -lstdc++fs
+LDFLAGS = -lstdc++fs -lfmt
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))

@@ -251,14 +251,14 @@ int main(int argc, char* argv[]) noexcept {
       ->type_name("CATEGORY")
       ->transform(CLI::CheckedTransformer(
                       map<string, int>{{"warning", static_cast<int>(LogCategory::warning)},
-                                       {"syscall", static_cast<int>(LogCategory::syscall)},
+                                       {"trace", static_cast<int>(LogCategory::trace)},
                                        {"ir", static_cast<int>(LogCategory::ir)},
                                        {"artifact", static_cast<int>(LogCategory::artifact)},
                                        {"rebuild", static_cast<int>(LogCategory::rebuild)},
                                        {"exec", static_cast<int>(LogCategory::exec)},
                                        {"all", 0xFFFFFFFF}},
                       CLI::ignore_case)
-                      .description("{warning, syscall, ir, artifact, rebuild, exec, all}"))
+                      .description("{warning, trace, ir, artifact, rebuild, exec, all}"))
       ->delimiter(',');
 
   app.add_option("--fingerprint", options::fingerprint_level,

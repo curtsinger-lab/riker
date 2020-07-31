@@ -20,7 +20,7 @@ Dodo currently runs only on Linux. There are two supported development environme
 ### Development on a Linux Machine (or Virtual Machine)
 Set up build dependencies:
 ```
-$ sudo apt install git gcc clang build-essential python-cram graphviz
+$ sudo apt install git gcc clang libfmt-dev build-essential python-cram graphviz
 ```
 
 Clone the Dodo repository and its submodules:

@@ -6,6 +6,9 @@
 #include <iostream>
 #include <utility>
 
+#include <fmt/core.h>
+#include <fmt/ostream.h>
+
 using std::cerr;
 using std::move;
 
@@ -25,7 +28,7 @@ using std::move;
 enum class LogCategory : int {
   error = 1,
   warning = 2,
-  syscall = 4,
+  trace = 4,
   ir = 8,
   artifact = 16,
   rebuild = 32,
@@ -139,6 +142,8 @@ class null_logger {
 #define LOG(type)                                                   \
   if (logger::log_categories & static_cast<int>(LogCategory::type)) \
   logger(__FILE__, __LINE__, LogCategory::type, #type)
+
+#define LOGF(type, format_str, ...) LOG(type) << fmt::format(format_str, __VA_ARGS__)
 
 // Define shorthand macros for specific log types
 #define WARN LOG(warning)

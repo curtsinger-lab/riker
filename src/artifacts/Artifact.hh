@@ -215,10 +215,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /****** Utility Methods ******/
 
-  /// A templated method to get the latest version of an artifact
-  template <class VersionType>
-  shared_ptr<Version> get(Build& build, shared_ptr<Command> c, InputType t);
-
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {
     o << "[" << a.getTypeName();
