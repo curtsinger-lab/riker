@@ -164,10 +164,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the current content version for this artifact
   virtual shared_ptr<Version> getContent(Build& build,
                                          shared_ptr<Command> c,
-                                         InputType t) noexcept {
-    WARN << c << ": tried to access content of artifact " << this;
-    return nullptr;
-  }
+                                         InputType t) noexcept = 0;
 
   /// Check to see if this artifact's content matches a known version
   virtual void match(Build& build,
@@ -185,14 +182,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Symlink Operations ************/
 
-  /// Get the current symlink version of this artifact
-  virtual shared_ptr<Version> getSymlink(Build& build,
-                                         shared_ptr<Command> c,
-                                         InputType t) noexcept {
-    WARN << c << ": tried to access symlink destination of artifact " << this;
-    return nullptr;
-  }
-
   /// Check to see if this artifact's symlink destination matches a known version
   virtual void match(Build& build,
                      shared_ptr<Command> c,
@@ -201,14 +190,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /************ Directory Operations ************/
-
-  /// Get a version that lists all the entries in this artifact (assuming it is a directory)
-  virtual shared_ptr<Version> getDirList(Build& build,
-                                         shared_ptr<Command> c,
-                                         InputType t) noexcept {
-    WARN << c << ": tried to access directory contents of artifact " << this;
-    return nullptr;
-  }
 
   /// Check to see if this artifact's directory list matches a known version
   virtual void match(Build& build, shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {

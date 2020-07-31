@@ -49,7 +49,7 @@ class SymlinkArtifact : public Artifact {
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
-  virtual shared_ptr<Version> getSymlink(Build& build,
+  virtual shared_ptr<Version> getContent(Build& build,
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
 

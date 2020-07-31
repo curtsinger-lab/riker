@@ -17,7 +17,7 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
 }
 
 // Get the current symlink version of this artifact
-shared_ptr<Version> SymlinkArtifact::getSymlink(Build& build,
+shared_ptr<Version> SymlinkArtifact::getContent(Build& build,
                                                 shared_ptr<Command> c,
                                                 InputType t) noexcept {
   // Notify the build of the input
@@ -97,7 +97,7 @@ void SymlinkArtifact::match(Build& build,
                             shared_ptr<Command> c,
                             shared_ptr<SymlinkVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getSymlink(build, c, InputType::Accessed);
+  auto observed = getContent(build, c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

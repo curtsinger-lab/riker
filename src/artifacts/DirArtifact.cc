@@ -160,7 +160,7 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<Version> DirArtifact::getDirList(Build& build,
+shared_ptr<Version> DirArtifact::getContent(Build& build,
                                             shared_ptr<Command> c,
                                             InputType t) noexcept {
   auto result = _base_dir_version->getList(_env, as<DirArtifact>());
@@ -195,7 +195,7 @@ void DirArtifact::match(Build& build,
                         shared_ptr<ListedDir> expected) noexcept {
   // Get the directory list. All dependencies only care if an entry exists, not on its specific
   // contents
-  auto observed = getDirList(build, c, InputType::Exists);
+  auto observed = getContent(build, c, InputType::Exists);
 
   // Compare versions
   if (!observed->matches(expected)) {

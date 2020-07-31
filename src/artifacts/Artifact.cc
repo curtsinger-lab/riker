@@ -294,11 +294,11 @@ template <>
 shared_ptr<Version> Artifact::get<SymlinkVersion>(Build& build,
                                                   shared_ptr<Command> c,
                                                   InputType t) {
-  return getSymlink(build, c, t);
+  return getContent(build, c, t);
 }
 
 /// Specialize get for directory list
 template <>
 shared_ptr<Version> Artifact::get<ListedDir>(Build& build, shared_ptr<Command> c, InputType t) {
-  return getDirList(build, c, t);
+  return getContent(build, c, t);
 }
