@@ -103,9 +103,9 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// Get the current content version for this artifact
-shared_ptr<FileVersion> FileArtifact::getContent(Build& build,
-                                                 shared_ptr<Command> c,
-                                                 InputType t) noexcept {
+shared_ptr<Version> FileArtifact::getContent(Build& build,
+                                             shared_ptr<Command> c,
+                                             InputType t) noexcept {
   // Notify the build of the input
   build.observeInput(c, shared_from_this(), _content_version, t);
 

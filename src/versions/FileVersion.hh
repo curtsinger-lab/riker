@@ -79,9 +79,11 @@ class FileVersion final : public Version {
   void fingerprint(fs::path path) noexcept;
 
   /// Compare this version to another version
-  bool matches(shared_ptr<FileVersion> other) const noexcept {
-    if (other.get() == this) return true;
-    return _fingerprint == other->_fingerprint;
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    auto other_file = other->as<FileVersion>();
+    if (!other_file) return false;
+    if (other_file.get() == this) return true;
+    return _fingerprint == other_file->_fingerprint;
   }
 
   virtual ostream& print(ostream& o) const noexcept override {

@@ -103,9 +103,11 @@ class MetadataVersion final : public Version {
   void fingerprint(fs::path path) noexcept { save(path); }
 
   /// Compare this version to another version
-  bool matches(shared_ptr<MetadataVersion> other) const noexcept {
-    if (other.get() == this) return true;
-    return _metadata == other->_metadata;
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    auto other_metadata = other->as<MetadataVersion>();
+    if (!other_metadata) return false;
+    if (other_metadata.get() == this) return true;
+    return _metadata == other_metadata->_metadata;
   }
 
   /// Print this metadata version

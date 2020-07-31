@@ -17,9 +17,9 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
 }
 
 // Get the current symlink version of this artifact
-shared_ptr<SymlinkVersion> SymlinkArtifact::getSymlink(Build& build,
-                                                       shared_ptr<Command> c,
-                                                       InputType t) noexcept {
+shared_ptr<Version> SymlinkArtifact::getSymlink(Build& build,
+                                                shared_ptr<Command> c,
+                                                InputType t) noexcept {
   // Notify the build of the input
   build.observeInput(c, shared_from_this(), _symlink_version, t);
 

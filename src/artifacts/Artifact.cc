@@ -277,30 +277,28 @@ Resolution Artifact::resolve(Build& build,
 
 /// Specialize get for metadata
 template <>
-shared_ptr<MetadataVersion> Artifact::get<MetadataVersion>(Build& build,
-                                                           shared_ptr<Command> c,
-                                                           InputType t) {
+shared_ptr<Version> Artifact::get<MetadataVersion>(Build& build,
+                                                   shared_ptr<Command> c,
+                                                   InputType t) {
   return getMetadata(build, c, t);
 }
 
 /// Specialize get for content
 template <>
-shared_ptr<FileVersion> Artifact::get<FileVersion>(Build& build,
-                                                   shared_ptr<Command> c,
-                                                   InputType t) {
+shared_ptr<Version> Artifact::get<FileVersion>(Build& build, shared_ptr<Command> c, InputType t) {
   return getContent(build, c, t);
 }
 
 /// Specialize get for symlink
 template <>
-shared_ptr<SymlinkVersion> Artifact::get<SymlinkVersion>(Build& build,
-                                                         shared_ptr<Command> c,
-                                                         InputType t) {
+shared_ptr<Version> Artifact::get<SymlinkVersion>(Build& build,
+                                                  shared_ptr<Command> c,
+                                                  InputType t) {
   return getSymlink(build, c, t);
 }
 
 /// Specialize get for directory list
 template <>
-shared_ptr<ListedDir> Artifact::get<ListedDir>(Build& build, shared_ptr<Command> c, InputType t) {
+shared_ptr<Version> Artifact::get<ListedDir>(Build& build, shared_ptr<Command> c, InputType t) {
   return getDirList(build, c, t);
 }

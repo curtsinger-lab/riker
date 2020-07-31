@@ -157,7 +157,10 @@ void Build::match(shared_ptr<Command> c,
     // No. This is a traced command
 
     // If we don't have an expected version already, get one from the current state
-    if (!expected) expected = ref->getArtifact()->get<VersionType>(*this, c, InputType::Accessed);
+    if (!expected) {
+      auto v = ref->getArtifact()->get<VersionType>(*this, c, InputType::Accessed);
+      if (v) expected = std::dynamic_pointer_cast<VersionType>(v);
+    }
 
     ASSERT(expected) << "Unable to get expected version from artifact " << ref->getArtifact();
 

@@ -54,9 +54,9 @@ class DirArtifact final : public Artifact {
   /************ Directory Operations ************/
 
   /// Get a version that lists all the entries in this directory
-  virtual shared_ptr<ListedDir> getDirList(Build& build,
-                                           shared_ptr<Command> c,
-                                           InputType t) noexcept override;
+  virtual shared_ptr<Version> getDirList(Build& build,
+                                         shared_ptr<Command> c,
+                                         InputType t) noexcept override;
 
   /// Check to see if this artifact's directory list matches a known version
   virtual void match(Build& build,

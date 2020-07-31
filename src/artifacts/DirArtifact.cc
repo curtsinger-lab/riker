@@ -160,9 +160,9 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<ListedDir> DirArtifact::getDirList(Build& build,
-                                              shared_ptr<Command> c,
-                                              InputType t) noexcept {
+shared_ptr<Version> DirArtifact::getDirList(Build& build,
+                                            shared_ptr<Command> c,
+                                            InputType t) noexcept {
   auto result = _base_dir_version->getList(_env, as<DirArtifact>());
 
   // The command listing this directory depends on its base version

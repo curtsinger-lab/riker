@@ -27,7 +27,10 @@ class SymlinkVersion : public Version {
   void fingerprint(fs::path path) noexcept {}
 
   /// Compare this version to another version
-  bool matches(shared_ptr<SymlinkVersion> other) const noexcept { return _dest == other->_dest; }
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    auto other_symlink = other->as<SymlinkVersion>();
+    return other_symlink && _dest == other_symlink->_dest;
+  }
 
   /// Get the destination of this symlink
   const fs::path& getDestination() const noexcept { return _dest; }

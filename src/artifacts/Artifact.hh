@@ -162,9 +162,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(Build& build,
-                                             shared_ptr<Command> c,
-                                             InputType t) noexcept {
+  virtual shared_ptr<Version> getContent(Build& build,
+                                         shared_ptr<Command> c,
+                                         InputType t) noexcept {
     WARN << c << ": tried to access content of artifact " << this;
     return nullptr;
   }
@@ -186,9 +186,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Symlink Operations ************/
 
   /// Get the current symlink version of this artifact
-  virtual shared_ptr<SymlinkVersion> getSymlink(Build& build,
-                                                shared_ptr<Command> c,
-                                                InputType t) noexcept {
+  virtual shared_ptr<Version> getSymlink(Build& build,
+                                         shared_ptr<Command> c,
+                                         InputType t) noexcept {
     WARN << c << ": tried to access symlink destination of artifact " << this;
     return nullptr;
   }
@@ -203,9 +203,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Directory Operations ************/
 
   /// Get a version that lists all the entries in this artifact (assuming it is a directory)
-  virtual shared_ptr<ListedDir> getDirList(Build& build,
-                                           shared_ptr<Command> c,
-                                           InputType t) noexcept {
+  virtual shared_ptr<Version> getDirList(Build& build,
+                                         shared_ptr<Command> c,
+                                         InputType t) noexcept {
     WARN << c << ": tried to access directory contents of artifact " << this;
     return nullptr;
   }
@@ -250,7 +250,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// A templated method to get the latest version of an artifact
   template <class VersionType>
-  shared_ptr<VersionType> get(Build& build, shared_ptr<Command> c, InputType t);
+  shared_ptr<Version> get(Build& build, shared_ptr<Command> c, InputType t);
 
   /// Print this artifact
   friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {

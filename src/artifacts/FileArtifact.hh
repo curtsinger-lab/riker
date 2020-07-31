@@ -48,7 +48,7 @@ class FileArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact
-  virtual shared_ptr<FileVersion> getContent(Build& build,
+  virtual shared_ptr<Version> getContent(Build& build,
                                              shared_ptr<Command> c,
                                              InputType t) noexcept override;
 

@@ -52,6 +52,9 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as committed
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
+  /// Check if this version matches another
+  virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
