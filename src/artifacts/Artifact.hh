@@ -130,8 +130,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
   /// entry) to the version that creates that link. The first map holds committed links, while the
   /// second map holds uncommitted links.
-  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks()
-      const noexcept;
+  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks() const
+      noexcept;
 
   /// Get a path to this artifact that may or may not be committed to the filesystem
   optional<fs::path> getPath() const noexcept;
@@ -265,7 +265,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Print a pointer to an artifact
-  friend ostream& operator<<(ostream& o, const Artifact* a) noexcept { return o << *a; }
+  friend ostream& operator<<(ostream& o, const Artifact* a) noexcept {
+    if (a == nullptr) return o << "<null Artifact>";
+    return o << *a;
+  }
 
  protected:
   /// Add a version to the sequence of versions for this artifact

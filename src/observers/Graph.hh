@@ -111,7 +111,10 @@ class Graph final : public BuildObserver {
   friend ostream& operator<<(ostream& o, Graph& g) noexcept { return g.print(o); }
 
   /// Print a Graph pointer
-  friend ostream& operator<<(ostream& o, Graph* g) noexcept { return g->print(o); }
+  friend ostream& operator<<(ostream& o, Graph* g) noexcept {
+    if (g == nullptr) return o << "<null Graph>";
+    return g->print(o);
+  }
 
  private:
   /// Escape a string for safe printing inside a graphviz string

@@ -76,7 +76,10 @@ class Step : public std::enable_shared_from_this<Step> {
   friend ostream& operator<<(ostream& o, const Step& s) noexcept { return s.print(o); }
 
   /// Stream print wrapper for Step pointers
-  friend ostream& operator<<(ostream& o, const Step* s) noexcept { return o << *s; }
+  friend ostream& operator<<(ostream& o, const Step* s) noexcept {
+    if (s == nullptr) return o << "<null Step>";
+    return o << *s;
+  }
 
  private:
   SERIALIZE_EMPTY();

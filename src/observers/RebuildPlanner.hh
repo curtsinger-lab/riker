@@ -74,7 +74,10 @@ class RebuildPlanner final : public BuildObserver {
   friend ostream& operator<<(ostream& o, const RebuildPlanner& r) noexcept { return r.print(o); }
 
   /// Print a RebuildPlanner pointer
-  friend ostream& operator<<(ostream& o, const RebuildPlanner* r) noexcept { return r->print(o); }
+  friend ostream& operator<<(ostream& o, const RebuildPlanner* r) noexcept {
+    if (r == nullptr) return o << "<null RebuildPlanner>";
+    return r->print(o);
+  }
 
   /******** BuildObserver Interface ********/
 

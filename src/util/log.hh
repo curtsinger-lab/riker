@@ -21,16 +21,15 @@ using std::move;
 
 #define END_COLOR "\033[01;0m"
 
-enum class LogLevel { Fatal = -1, Warning = 0, Info = 1, Verbose = 2 };
-
+/// Specify log categories, and indicate each with a distinct bit
 enum class LogCategory : int {
-  error = 0,
-  warning = 1,
-  syscall = 2,
-  ir = 3,
-  artifact = 4,
-  rebuild = 5,
-  exec = 6
+  error = 1,
+  warning = 2,
+  syscall = 4,
+  ir = 8,
+  artifact = 16,
+  rebuild = 32,
+  exec = 64
 };
 
 /**
@@ -47,11 +46,8 @@ class logger {
   /// When set, include source locations in log messages
   inline static bool debug = false;
 
-  /// The threshold for log message output
-  inline static LogLevel log_level = LogLevel::Fatal;
-
   /// A bit field for the types of log messages that are enabled
-  inline static int log_categories = (1 << (int)LogCategory::error);
+  inline static int log_categories = static_cast<int>(LogCategory::error);
 
  private:
   bool _abort;  // Should the program abort when the log message is finished?
@@ -139,8 +135,8 @@ class null_logger {
 };
 
 // Define the main logging macro
-#define LOG(type)                                             \
-  if (logger::log_categories & (1 << (int)LogCategory::type)) \
+#define LOG(type)                                                   \
+  if (logger::log_categories & static_cast<int>(LogCategory::type)) \
   logger(__FILE__, __LINE__, LogCategory::type, #type)
 
 // Define shorthand macros for specific log types

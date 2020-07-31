@@ -100,7 +100,10 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// Print a Command* to an output stream
-  friend ostream& operator<<(ostream& o, const Command* c) noexcept { return o << *c; }
+  friend ostream& operator<<(ostream& o, const Command* c) noexcept {
+    if (c == nullptr) return o << "<null Command>";
+    return o << *c;
+  }
 
  private:
   /// The executable file this command runs

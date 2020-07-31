@@ -62,7 +62,10 @@ class Version : public std::enable_shared_from_this<Version> {
   friend ostream& operator<<(ostream& o, const Version& v) noexcept { return v.print(o); }
 
   /// Print a Version*
-  friend ostream& operator<<(ostream& o, const Version* v) noexcept { return v->print(o); }
+  friend ostream& operator<<(ostream& o, const Version* v) noexcept {
+    if (v == nullptr) return o << "<null Version>";
+    return v->print(o);
+  }
 
  protected:
   // Declare fields for serialization

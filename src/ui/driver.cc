@@ -240,21 +240,26 @@ int main(int argc, char* argv[]) noexcept {
   app.add_flag("--debug", logger::debug, "Print source locations with log messages");
   app.add_flag("--no-color", logger::disable_color, "Disable color terminal output");
 
-  app.add_option_function<LogCategory>(
-         "--log", [&](LogCategory opt) { logger::log_categories |= (1 << (int)opt); },
-         "Display log messages from one or more additional categories")
-      ->delimiter(',')
-      ->take_all()
+  app.add_option_function<set<int>>(
+         "--log",
+         [&](set<int> categories) {
+           for (auto category : categories) {
+             logger::log_categories |= category;
+           }
+         },
+         "Display log messages from one or more categories")
       ->type_name("CATEGORY")
-      ->transform(
-          CLI::CheckedTransformer(map<string, LogCategory>{{"warning", LogCategory::warning},
-                                                           {"syscall", LogCategory::syscall},
-                                                           {"ir", LogCategory::ir},
-                                                           {"artifact", LogCategory::artifact},
-                                                           {"rebuild", LogCategory::rebuild},
-                                                           {"exec", LogCategory::exec}},
-                                  CLI::ignore_case)
-              .description("{warning, syscall, ir, artifact, rebuild, exec}"));
+      ->transform(CLI::CheckedTransformer(
+                      map<string, int>{{"warning", static_cast<int>(LogCategory::warning)},
+                                       {"syscall", static_cast<int>(LogCategory::syscall)},
+                                       {"ir", static_cast<int>(LogCategory::ir)},
+                                       {"artifact", static_cast<int>(LogCategory::artifact)},
+                                       {"rebuild", static_cast<int>(LogCategory::rebuild)},
+                                       {"exec", static_cast<int>(LogCategory::exec)},
+                                       {"all", 0xFFFFFFFF}},
+                      CLI::ignore_case)
+                      .description("{warning, syscall, ir, artifact, rebuild, exec, all}"))
+      ->delimiter(',');
 
   app.add_option("--fingerprint", options::fingerprint_level,
                  "Set the fingerprint level (default=local)")

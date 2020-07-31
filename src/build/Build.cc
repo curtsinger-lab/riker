@@ -65,7 +65,7 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
   ref->resolvesTo(_env->getPipe(*this, c));
-  _trace->addStep(c, ref);
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
   return ref;
 }
 
@@ -76,7 +76,7 @@ shared_ptr<File> Build::file(shared_ptr<Command> c,
   auto ref = emulating;
   if (!emulating) ref = make_shared<File>(mode);
   ref->resolvesTo(_env->createFile(*this, c, mode, !emulating));
-  _trace->addStep(c, ref);
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
   return ref;
 }
 
@@ -87,7 +87,7 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
   ref->resolvesTo(_env->getSymlink(*this, c, target, !emulating));
-  _trace->addStep(c, ref);
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
   return ref;
 }
 
@@ -96,7 +96,7 @@ shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> e
   auto ref = emulating;
   if (!emulating) ref = make_shared<Dir>(mode);
   ref->resolvesTo(_env->getDir(*this, c, mode, !emulating));
-  _trace->addStep(c, ref);
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
   return ref;
 }
 
@@ -119,7 +119,7 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   }
 
   // Add the reference to the new build trace
-  _trace->addStep(c, ref);
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
 
   return ref;
 }
@@ -138,7 +138,7 @@ void Build::match(shared_ptr<Command> c,
     observeCommandChange(c, emulating);
 
     // Add the step and return. Nothing else to do, since there's no artifact
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
     return;
   }
 
@@ -151,7 +151,7 @@ void Build::match(shared_ptr<Command> c,
     ref->getArtifact()->match(*this, c, expected);
 
     // Record the emulated trace step
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
 
   } else {
     // No. This is a traced command
@@ -169,7 +169,7 @@ void Build::match(shared_ptr<Command> c,
     }
 
     // Add a match step to the trace
-    _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected));
+    _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected), false);
   }
 }
 
@@ -211,7 +211,7 @@ void Build::apply(shared_ptr<Command> c,
     observeCommandChange(c, emulating);
 
     // Add the IR step and return. Nothing else to do, since there's no artifact
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
     return;
   }
 
@@ -231,7 +231,7 @@ void Build::apply(shared_ptr<Command> c,
     ref->getArtifact()->apply(*this, c, written);
 
     // Add this write to the trace
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
 
   } else {
     // No. This is a traced operation
@@ -249,7 +249,7 @@ void Build::apply(shared_ptr<Command> c,
     ref->getArtifact()->apply(*this, c, written);
 
     // Add a new trace step
-    _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written));
+    _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written), false);
   }
 }
 
@@ -326,7 +326,7 @@ void Build::launch(shared_ptr<Command> c,
   if (!step) step = make_shared<Launch>(child);
 
   // Add the launch step to the trace
-  _trace->addStep(c, step);
+  _trace->addStep(c, step, static_cast<bool>(emulating));
 }
 
 // This command joined with a child command
@@ -346,14 +346,14 @@ void Build::join(shared_ptr<Command> c,
     }
 
     // Add the emulated step to the new trace
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
 
   } else {
     // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
     child->setExitStatus(exit_status);
 
     // Add a join action to this command's steps
-    _trace->addStep(c, make_shared<Join>(child, exit_status));
+    _trace->addStep(c, make_shared<Join>(child, exit_status), false);
   }
 }
 
@@ -363,10 +363,10 @@ void Build::exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulat
 
   if (emulating) {
     // Add the emulated step to the new trace
-    _trace->addStep(c, emulating);
+    _trace->addStep(c, emulating, true);
   } else {
     // Add an exit action to this command's steps
-    _trace->addStep(c, make_shared<Exit>(exit_status));
+    _trace->addStep(c, make_shared<Exit>(exit_status), false);
   }
 }
 

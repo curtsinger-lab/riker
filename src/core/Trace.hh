@@ -64,7 +64,10 @@ class Trace {
   const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
 
   /// Add a step to the trace
-  void addStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept { _steps.emplace_back(c, s); }
+  void addStep(shared_ptr<Command> c, shared_ptr<Step> s, bool emulated) noexcept {
+    _steps.emplace_back(c, s);
+    LOG(ir) << c << ": " << (emulated ? "emulated " : "traced ") << s;
+  }
 
   /// Get the list of IR steps in this trace
   const StepList& getSteps() const noexcept { return _steps; }
@@ -74,7 +77,10 @@ class Trace {
 
   friend ostream& operator<<(ostream& o, const Trace& t) noexcept { return t.print(o); }
 
-  friend ostream& operator<<(ostream& o, const Trace* t) noexcept { return t->print(o); }
+  friend ostream& operator<<(ostream& o, const Trace* t) noexcept {
+    if (t == nullptr) return o << "<null Trace>";
+    return t->print(o);
+  }
 
  private:
   /// Initialize this trace as a default trace

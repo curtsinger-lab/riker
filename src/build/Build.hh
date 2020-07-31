@@ -120,7 +120,10 @@ class Build {
 
   friend ostream& operator<<(ostream& o, const Build& b) noexcept { return b.print(o); }
 
-  friend ostream& operator<<(ostream& o, const Build* b) noexcept { return b->print(o); }
+  friend ostream& operator<<(ostream& o, const Build* b) noexcept {
+    if (b == nullptr) return o << "<null Build>";
+    return b->print(o);
+  }
 
   /********** Observer Interface **********/
 

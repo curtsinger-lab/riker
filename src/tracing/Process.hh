@@ -16,6 +16,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
 
@@ -31,7 +32,6 @@ using std::vector;
 namespace fs = std::filesystem;
 
 class Build;
-class Command;
 class Tracer;
 
 class Process {
@@ -102,15 +102,14 @@ class Process {
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
-    o << p._pid << ": " << p._command << "\n";
-    for (const auto& [index, descriptor] : p._fds) {
-      o << "  " << index << ": " << descriptor << "\n";
-    }
-    return o;
+    return o << "[Process " << p._pid << " (" << p._command->getShortName() << ")]";
   }
 
   /// Print a process pointer
-  friend ostream& operator<<(ostream& o, const Process* p) noexcept { return o << *p; }
+  friend ostream& operator<<(ostream& o, const Process* p) noexcept {
+    if (p == nullptr) return o << "<null Process>";
+    return o << *p;
+  }
 
   /*** Handling for specific system calls ***/
 

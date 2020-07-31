@@ -231,7 +231,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   if (entry.isTraced()) {
     entry.runHandler(p, regs);
   } else {
-    FAIL << "Unexpected system call number " << regs.SYSCALL_NUMBER;
+    FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << p;
   }
 }
 
