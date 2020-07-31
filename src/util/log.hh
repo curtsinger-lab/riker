@@ -30,8 +30,7 @@ enum class LogCategory : int {
   ir = 3,
   artifact = 4,
   rebuild = 5,
-  exec = 6,
-  defunct = 7
+  exec = 6
 };
 
 /**
@@ -145,8 +144,6 @@ class null_logger {
   logger(__FILE__, __LINE__, LogCategory::type, #type)
 
 // Define shorthand macros for specific log types
-#define OLD_LOG LOG(defunct)
-#define INFO LOG(defunct)
 #define WARN LOG(warning)
 #define FAIL LOG(error)
 

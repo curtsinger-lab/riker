@@ -337,7 +337,6 @@ void Build::join(shared_ptr<Command> c,
   if (emulating) {
     // If the command is in the rerun set, tell the tracer to wait for it
     if (checkRerun(child)) {
-      INFO << "Waiting for process running " << child;
       _tracer.wait(_running[child]);
     }
 

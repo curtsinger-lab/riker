@@ -1161,6 +1161,6 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
 
 void Process::_waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept {
   LOG(syscall) << _pid << ": waitid(...)";
-  WARN << "waitid syscall is not handled yet";
+  FAIL << "waitid syscall is not handled yet";
   resume();
 }

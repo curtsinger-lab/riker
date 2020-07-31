@@ -80,7 +80,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   auto temp_path = artifact->takeTemporaryPath();
   if (temp_path.has_value()) {
     // The artifact has a temporary path. We can move it to its new committed location
-    OLD_LOG << "Moving " << artifact << " to " << dir_path / _entry;
+    LOG(artifact) << "Moving " << artifact << " from temporary location to " << dir_path / _entry;
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), (dir_path / _entry).c_str());

@@ -15,8 +15,6 @@ namespace fs = std::filesystem;
 void SymlinkVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
-  OLD_LOG << "Committing symlink " << path;
-
   int rc = ::symlink(_dest.c_str(), path.c_str());
   FAIL_IF(rc != 0) << "Failed to commit " << this << " to " << path;
 

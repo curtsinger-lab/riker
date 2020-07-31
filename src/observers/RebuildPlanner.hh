@@ -17,6 +17,8 @@ using std::ostream;
 using std::set;
 using std::shared_ptr;
 
+enum class RerunReason { Changed, OutputNeeded, InputMayChange, Child };
+
 /// This class captures all of the logic and state required to plan a rebuild.
 class RebuildPlanner final : public BuildObserver {
  public:
@@ -38,12 +40,12 @@ class RebuildPlanner final : public BuildObserver {
   void planBuild(Build& b) const noexcept {
     // Mark all the commands with changed inputs
     for (const auto& c : _changed) {
-      mark(b, c);
+      mark(b, c, RerunReason::Changed);
     }
 
     // Mark all the commands whose output is required
     for (const auto& c : _output_needed) {
-      mark(b, c);
+      mark(b, c, RerunReason::OutputNeeded);
     }
   }
 
@@ -96,8 +98,6 @@ class RebuildPlanner final : public BuildObserver {
 
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
-        INFO << c << " needs unsaved output " << a << " version " << v << " from "
-             << v->getCreator();
         _needs_output_from[c].insert(v->getCreator());
       }
     }
@@ -109,15 +109,15 @@ class RebuildPlanner final : public BuildObserver {
                         shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept override final {
     // Record the change
-    OLD_LOG << c << " observed change in " << a << " version " << observed << ", expected "
-            << expected;
+    LOG(rebuild) << c << " observed change in " << a << " version " << observed << ", expected "
+                 << expected;
     _changed.insert(c);
   }
 
   /// Command c has never been run
   virtual void commandNeverRun(shared_ptr<Command> c) noexcept override final {
     // Record the change
-    OLD_LOG << c << " never run";
+    LOG(rebuild) << c << " has never run";
     _changed.insert(c);
   }
 
@@ -125,7 +125,7 @@ class RebuildPlanner final : public BuildObserver {
   virtual void commandChanged(shared_ptr<Command> c,
                               shared_ptr<const Step> s) noexcept override final {
     // Record the change
-    OLD_LOG << c << " changed: " << s;
+    LOG(rebuild) << c << " observed change while emulating " << s;
     _changed.insert(c);
   }
 
@@ -139,13 +139,6 @@ class RebuildPlanner final : public BuildObserver {
     // If this artifact is cached, we can just stage it in
     if (options::enable_cache && a->canCommit(produced)) return;
 
-    if (auto mv = produced->as<MetadataVersion>(); mv && mv->canCommit()) {
-      INFO << "Metadata version can be committed";
-    }
-
-    INFO << "Output " << a << " version " << produced << " created by " << produced->getCreator()
-         << " does not match on-disk version " << ondisk;
-
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(produced->getCreator());
   }
@@ -158,29 +151,51 @@ class RebuildPlanner final : public BuildObserver {
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(Build& b, shared_ptr<Command> c) const noexcept {
+  void mark(Build& b,
+            shared_ptr<Command> c,
+            RerunReason reason,
+            shared_ptr<Command> prev = nullptr) const noexcept {
     // Mark command c for rerun. If the command was already marked, setRerun will return false and
     // we can stop here
     if (!b.setRerun(c)) return;
 
+    if (reason == RerunReason::Changed) {
+      LOG(rebuild) << c << " must rerun because it directly observed a change";
+
+    } else if (reason == RerunReason::Child) {
+      ASSERT(prev) << "Invalid call to mark without previous command";
+      LOG(rebuild) << c << " must rerun because its parent, " << prev << ", is rerunning";
+
+    } else if (reason == RerunReason::InputMayChange) {
+      ASSERT(prev) << "Invalid call to mark without previous command";
+      LOG(rebuild) << c << " must rerun because its input may be changed by " << prev;
+
+    } else if (reason == RerunReason::OutputNeeded) {
+      if (prev) {
+        LOG(rebuild) << c << " must rerun because its unsaved output is needed by " << prev;
+      } else {
+        LOG(rebuild) << c << " must rerun because its unsaved output is changed or missing";
+      }
+    }
+
     // Mark this command's children
     if (auto iter = _children.find(c); iter != _children.end()) {
       for (const auto& child : iter->second) {
-        mark(b, child);
+        mark(b, child, RerunReason::Child, c);
       }
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
       for (const auto& other : iter->second) {
-        mark(b, other);
+        mark(b, other, RerunReason::OutputNeeded, c);
       }
     }
 
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
       for (const auto& other : iter->second) {
-        mark(b, other);
+        mark(b, other, RerunReason::InputMayChange, c);
       }
     }
   }

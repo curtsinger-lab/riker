@@ -80,6 +80,12 @@ shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
 }
 
 void Tracer::wait(shared_ptr<Process> p) noexcept {
+  if (p) {
+    LOG(exec) << "Waiting for " << p;
+  } else {
+    LOG(exec) << "Waiting for all remaining processes";
+  }
+
   // Process events until the given command has exited
   // Sometime we get tracing events before we can process them. This queue holds that list
   list<pair<pid_t, int>> event_queue;
@@ -225,8 +231,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
   if (entry.isTraced()) {
     entry.runHandler(p, regs);
   } else {
-    WARN << "Unexpected system call number " << regs.SYSCALL_NUMBER;
-    p->resume();
+    FAIL << "Unexpected system call number " << regs.SYSCALL_NUMBER;
   }
 }
 
@@ -234,7 +239,7 @@ void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
 shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
-  OLD_LOG << "Launching " << cmd;
+  LOG(exec) << "Executing " << cmd;
 
   // Get a reference to the directory where the command will be started
   auto cwd = cmd->getInitialWorkingDir();
@@ -246,12 +251,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
 
-  OLD_LOG << "Initial FDs:";
-
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
-    OLD_LOG << "  " << child_fd << ": " << info.getRef();
-
     // Make sure the reference has already been resolved
     ASSERT(info.getRef()->isResolved())
         << "Tried to launch a command with an unresolved reference in its "
@@ -278,7 +279,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       }
 
     } else {
-      WARN << "Skipping expected file descriptor " << child_fd << ": " << info;
+      WARN << "Skipping initial file descriptor " << child_fd << " for " << cmd << ": " << info;
     }
   }
 
@@ -307,8 +308,6 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     // child fd for one entry matches the parent fd of another).
     for (const auto& [parent_fd, child_fd] : initial_fds) {
       int rc = dup2(parent_fd, child_fd);
-
-      OLD_LOG << "Duped parent fd " << parent_fd << " to " << child_fd;
 
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
     }
