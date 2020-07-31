@@ -105,7 +105,7 @@ Artifact::getLinks() const noexcept {
 }
 
 /// Get a path to this artifact that may or may not be committed to the filesystem
-optional<fs::path> Artifact::getPath() const noexcept {
+optional<fs::path> Artifact::getPath(bool allow_uncommitted) const noexcept {
   // Get all the links to this artifact, both committed and uncommitted
   auto [committed_links, uncommitted_links] = getLinks();
 
@@ -122,6 +122,9 @@ optional<fs::path> Artifact::getPath() const noexcept {
     }
   }
 
+  // If the caller does not want an uncommitted path, return an empty optional
+  if (!allow_uncommitted) return nullopt;
+
   // Fall back to an uncommitted path
   for (auto [link, version] : uncommitted_links) {
     auto [dir, entry] = link;
@@ -136,28 +139,6 @@ optional<fs::path> Artifact::getPath() const noexcept {
   }
 
   // There is no known path to this artifact
-  return nullopt;
-}
-
-/// Get a path to this artifact that is currently committed to the filesystem
-optional<fs::path> Artifact::getCommittedPath() const noexcept {
-  // Get all the links to this artifact, both committed and uncommitted
-  auto [committed_links, uncommitted_links] = getLinks();
-
-  // Try to construct a committed path
-  for (auto [link, version] : committed_links) {
-    auto [dir, entry] = link;
-
-    // Check for a null parent directory, which should only happen for root
-    if (!dir) return entry;
-
-    auto dir_path = dir->getCommittedPath();
-    if (dir_path.has_value()) {
-      return dir_path.value() / entry;
-    }
-  }
-
-  // There is no committed path to this artifact
   return nullopt;
 }
 

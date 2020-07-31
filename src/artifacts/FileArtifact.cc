@@ -32,7 +32,7 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getCommittedPath();
+  auto path = getPath();
   ASSERT(path.has_value()) << "File has no path";
 
   if (v == _content_version) {

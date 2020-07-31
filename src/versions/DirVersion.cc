@@ -33,8 +33,8 @@ Resolution ExistingDir::getEntry(Build& build,
                                  shared_ptr<Env> env,
                                  shared_ptr<DirArtifact> dir,
                                  string name) noexcept {
-  // Create a path to the entry
-  auto dir_path = dir->getCommittedPath();
+  // Create a path to the entry. Start with a committed path to the directory
+  auto dir_path = dir->getPath(false);
   ASSERT(dir_path.has_value()) << "Directory has no path!";
   auto path = dir_path.value() / name;
 
@@ -54,7 +54,8 @@ shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env, shared_ptr<DirAr
     noexcept {
   auto result = make_shared<ListedDir>();
 
-  auto path = dir->getCommittedPath();
+  // Get a path to the directory, but only allow committed paths
+  auto path = dir->getPath(false);
   ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
 
   for (auto& entry : fs::directory_iterator(path.value())) {
@@ -99,7 +100,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
     auto [old_dir, old_entry] = old_link;
 
     // Get the path to the existing link's directory
-    auto old_dir_path = old_dir->getCommittedPath();
+    auto old_dir_path = old_dir->getPath(false);
     ASSERT(old_dir_path.has_value()) << "Link was committed to a directory with no path";
     auto existing_path = old_dir_path.value() / old_entry;
 

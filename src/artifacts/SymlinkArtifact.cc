@@ -39,7 +39,7 @@ bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getCommittedPath();
+  auto path = getPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   if (v == _symlink_version) {
@@ -58,7 +58,7 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void SymlinkArtifact::commitAll() noexcept {
-  auto path = getCommittedPath();
+  auto path = getPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());

@@ -134,10 +134,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
       noexcept;
 
   /// Get a path to this artifact that may or may not be committed to the filesystem
-  optional<fs::path> getPath() const noexcept;
-
-  /// Get a path to this artifact that is currently committed to the filesystem
-  optional<fs::path> getCommittedPath() const noexcept;
+  optional<fs::path> getPath(bool allow_uncommitted = true) const noexcept;
 
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
   optional<shared_ptr<DirArtifact>> getParentDir() const noexcept;
