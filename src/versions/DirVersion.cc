@@ -38,15 +38,13 @@ Resolution ExistingDir::getEntry(Build& build,
   ASSERT(dir_path.has_value()) << "Directory has no path!";
   auto path = dir_path.value() / name;
 
-  // This is a query for a new entry name. Try to stat the entry
-  struct stat info;
-  int rc = ::lstat(path.c_str(), &info);
+  // Try to get the artifact from the filesystem
+  auto artifact = env->getFilesystemArtifact(path);
 
-  // If the lstat call failed, the entry does not exist
-  if (rc != 0) return ENOENT;
+  // If no artifact was returned, it must not exist
+  if (!artifact) return ENOENT;
 
-  // The artifact should exist. Get it from the environment and save it
-  auto artifact = env->getFilesystemArtifact(path, info);
+  // We found an artifact, so record its presence
   artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
   return artifact;
 }

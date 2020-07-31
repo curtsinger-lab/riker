@@ -32,10 +32,12 @@ using std::string;
 
 shared_ptr<DirArtifact> Env::getRootDir() noexcept {
   if (!_root_dir) {
-    struct stat info;
-    int rc = ::lstat("/", &info);
-    ASSERT(rc == 0) << "Failed to stat root directory";
-    _root_dir = getFilesystemArtifact("/", info)->as<DirArtifact>();
+    auto a = getFilesystemArtifact("/");
+    FAIL_IF(!a) << "Failed to get an artifact for the root directory";
+
+    _root_dir = a->as<DirArtifact>();
+    FAIL_IF(!_root_dir) << "Artifact at path \"/\" is not a directory";
+
     _root_dir->setName("/");
     _root_dir->addLinkUpdate(nullptr, "/", nullptr);
   }
@@ -62,7 +64,16 @@ fs::path Env::getTempPath() noexcept {
   return result;
 }
 
-shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, struct stat& info) {
+set<fs::path> ignored_artifacts = {"/dev/null"};
+
+shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
+  // Stat the path on the filesystem to get the file type and an inode number
+  struct stat info;
+  int rc = ::lstat(path.c_str(), &info);
+
+  // If the lstat call failed, the file does not exist
+  if (rc != 0) return nullptr;
+
   // Does the inode for this path match an artifact we've already created?
   auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
   if (inode_iter != _inodes.end()) {
@@ -75,7 +86,13 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, struct stat& info
 
   // Create a new artifact for this inode
   shared_ptr<Artifact> a;
-  if ((info.st_mode & S_IFMT) == S_IFREG) {
+  if (ignored_artifacts.find(path) != ignored_artifacts.end()) {
+    // The provided path is in our set of ignored paths. For now, just track it as a file.
+    auto cv = make_shared<FileVersion>(info);
+    cv->setCommitted();
+    a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
+
+  } else if ((info.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
     auto cv = make_shared<FileVersion>(info);
     cv->setCommitted();

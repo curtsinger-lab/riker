@@ -47,7 +47,8 @@ class logger {
   inline static bool debug = false;
 
   /// A bit field for the types of log messages that are enabled
-  inline static int log_categories = static_cast<int>(LogCategory::error);
+  inline static int log_categories =
+      static_cast<int>(LogCategory::error) | static_cast<int>(LogCategory::warning);
 
  private:
   bool _abort;  // Should the program abort when the log message is finished?

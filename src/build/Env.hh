@@ -62,12 +62,10 @@ class Env : public std::enable_shared_from_this<Env> {
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
    * If an artifact with the same inode and device number already exists, return that same instance.
-   * \param path  The path to this artifact (currently only used to read symlinks)
-   * \param dir   The directory that contains this artifact
-   * \param info  The stat results
+   * \param path  The path to this artifact on the filesystem
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getFilesystemArtifact(fs::path path, struct stat& info);
+  shared_ptr<Artifact> getFilesystemArtifact(fs::path path);
 
   /**
    * Create a pipe artifact
