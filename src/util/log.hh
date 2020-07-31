@@ -29,7 +29,7 @@ enum class LogCategory : int {
   syscall = 2,
   ir = 3,
   artifact = 4,
-  change = 5,
+  rebuild = 5,
   exec = 6,
   defunct = 7
 };

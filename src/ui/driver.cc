@@ -239,34 +239,32 @@ int main(int argc, char* argv[]) noexcept {
   /************* Global Options *************/
   app.add_flag("--debug", logger::debug, "Print source locations with log messages");
   app.add_flag("--no-color", logger::disable_color, "Disable color terminal output");
-  app.add_flag(
-      "-v",
-      [](int count) {
-        if (count == 0) {
-          logger::log_level = LogLevel::Fatal;
-        } else if (count == 1) {
-          logger::log_level = LogLevel::Warning;
-        } else if (count == 2) {
-          logger::log_level = LogLevel::Info;
-        } else {
-          logger::log_level = LogLevel::Verbose;
-        }
-      },
-      "Increase logging verbosity.");
 
-  app.add_option_function<string>(
-         "--fingerprint",
-         [&](string opt) {
-           if (opt == "all") {
-             options::fingerprint_level = FingerprintLevel::All;
-           } else if (opt == "local") {
-             options::fingerprint_level = FingerprintLevel::Local;
-           } else {
-             options::fingerprint_level = FingerprintLevel::None;
-           }
-         },
-         "Set the fingerprint level (default=local)")
-      ->transform(CLI::IsMember({"all", "local", "none"}, CLI::ignore_case));
+  app.add_option_function<LogCategory>(
+         "--log", [&](LogCategory opt) { logger::log_categories |= (1 << (int)opt); },
+         "Display log messages from one or more additional categories")
+      ->delimiter(',')
+      ->take_all()
+      ->type_name("CATEGORY")
+      ->transform(
+          CLI::CheckedTransformer(map<string, LogCategory>{{"warning", LogCategory::warning},
+                                                           {"syscall", LogCategory::syscall},
+                                                           {"ir", LogCategory::ir},
+                                                           {"artifact", LogCategory::artifact},
+                                                           {"rebuild", LogCategory::rebuild},
+                                                           {"exec", LogCategory::exec}},
+                                  CLI::ignore_case)
+              .description("{warning, syscall, ir, artifact, rebuild, exec}"));
+
+  app.add_option("--fingerprint", options::fingerprint_level,
+                 "Set the fingerprint level (default=local)")
+      ->type_name("LEVEL")
+      ->transform(
+          CLI::CheckedTransformer(map<string, FingerprintLevel>{{"all", FingerprintLevel::All},
+                                                                {"local", FingerprintLevel::Local},
+                                                                {"none", FingerprintLevel::None}},
+                                  CLI::ignore_case)
+              .description("{all, local, none}"));
 
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
       ->description("Disable the build cache")
