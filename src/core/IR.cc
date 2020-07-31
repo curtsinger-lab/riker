@@ -61,23 +61,15 @@ void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());
 }
 
-// Emulate a match predicate
-template <class VersionType>
-void Match<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.match(c, _ref, _version, as<Match<VersionType>>());
+// Emulate a MatchMetadata predicate
+void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.matchMetadata(c, _ref, _version, as<MatchMetadata>());
 }
 
-// Explicitly instantiate Match for metadata versions
-template void Match<MetadataVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
-// Explicitly instantiate Match for content versions
-template void Match<FileVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
-// Explicitly instantiate Match for symlink versions
-template void Match<SymlinkVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
-// Explicitly instantiate Match for listed directory versions
-template void Match<ListedDir>::emulate(shared_ptr<Command> c, Build& build) noexcept;
+// Emulate a MatchContent predicate
+void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.matchContent(c, _ref, _version, as<MatchContent>());
+}
 
 // Emulate an Apple action
 template <class VersionType>

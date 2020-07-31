@@ -28,6 +28,7 @@ Run a rebuild
   $ $DODO --show
   cat input
   mv foo/f output
+  rmdir foo
 
 Check the output
   $ cat output
@@ -37,6 +38,7 @@ Run an additional rebuild. The mv command observes the presence of output, so it
   $ $DODO --show
   cat input
   mv foo/f output
+  rmdir foo
 
 Check the output again
   $ cat output

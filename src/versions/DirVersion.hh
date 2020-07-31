@@ -27,12 +27,13 @@ class ListedDir : public Version {
   ListedDir() noexcept = default;
 
   /// Save a fingerprint for this version, which is always done on creation
-  void fingerprint(fs::path path) noexcept {}
+  virtual void fingerprint(fs::path path) noexcept override {}
 
   /// Check if this list matches another list
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
     auto other_list = other->as<ListedDir>();
-    return other_list && _entries == other_list->_entries;
+    if (!other_list) return false;
+    return _entries == other_list->_entries;
   }
 
   /// Get the name for the type of version this is
@@ -65,6 +66,9 @@ class DirVersion : public Version {
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
+
+  /// Skip fingerprints for partial directory versions
+  virtual void fingerprint(fs::path path) noexcept override {}
 
   /// Disallow direct comparisons of partial directory versions
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

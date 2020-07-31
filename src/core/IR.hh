@@ -288,14 +288,12 @@ class Access final : public Ref {
 };
 
 /**
- * A command with this predicate expects an artifact reached through a reference to match a
- * particular version.
+ * A command expects to find specific metadata in an artifact reached via reference
  */
-template <class VersionType>
-class Match final : public Step {
+class MatchMetadata final : public Step {
  public:
-  /// Create a MATCH predicate
-  Match(shared_ptr<Ref> ref, shared_ptr<VersionType> version) noexcept :
+  /// Create a MatchMetadata predicate
+  MatchMetadata(shared_ptr<Ref> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -303,15 +301,41 @@ class Match final : public Step {
 
   /// Print a MATCH predicate
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "MATCH(" << _ref->getName() << ", " << _version << ")";
+    return o << "MATCH_METADATA(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
-  shared_ptr<Ref> _ref;              //< The reference being examined
-  shared_ptr<VersionType> _version;  //< The expected metadata
+  shared_ptr<Ref> _ref;                  //< The reference being examined
+  shared_ptr<MetadataVersion> _version;  //< The expected metadata
 
   // Create default constructor and specify fields for serialization
-  Match() = default;
+  MatchMetadata() = default;
+  SERIALIZE(BASE(Step), _ref, _version);
+};
+
+/**
+ * A command expects to find specific contents in an artifact reached via reference
+ */
+class MatchContent final : public Step {
+ public:
+  /// Create a MatchContent predicate
+  MatchContent(shared_ptr<Ref> ref, shared_ptr<Version> version) noexcept :
+      _ref(ref), _version(version) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a MATCH predicate
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "MATCH_CONTENT(" << _ref->getName() << ", " << _version << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;          //< The reference being examined
+  shared_ptr<Version> _version;  //< The expected content
+
+  // Create default constructor and specify fields for serialization
+  MatchContent() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 

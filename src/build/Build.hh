@@ -87,12 +87,17 @@ class Build {
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
-  /// A command accesses an artifact expecting to find a specific version
-  template <class VersionType>
-  void match(shared_ptr<Command> c,
-             shared_ptr<Ref> ref,
-             shared_ptr<VersionType> expected = nullptr,
-             shared_ptr<Match<VersionType>> emulating = nullptr) noexcept;
+  /// A command accesses metadata for an artifact and expects to find a particular version
+  void matchMetadata(shared_ptr<Command> c,
+                     shared_ptr<Ref> ref,
+                     shared_ptr<MetadataVersion> expected = nullptr,
+                     shared_ptr<MatchMetadata> emulating = nullptr) noexcept;
+
+  /// A command accesses content for an artifact and expects to find a particular version
+  void matchContent(shared_ptr<Command> c,
+                    shared_ptr<Ref> ref,
+                    shared_ptr<Version> expected = nullptr,
+                    shared_ptr<MatchContent> emulating = nullptr) noexcept;
 
   /// A command writes a new version to an artifact
   template <class VersionType>
@@ -141,9 +146,7 @@ class Build {
   void observeInput(shared_ptr<Command> c,
                     shared_ptr<Artifact> a,
                     shared_ptr<Version> v,
-                    InputType t) noexcept {
-    for (const auto& o : _observers) o->input(c, a, v, t);
-  }
+                    InputType t) noexcept;
 
   /// Inform the observer that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`

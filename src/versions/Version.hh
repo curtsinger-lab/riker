@@ -52,6 +52,9 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as committed
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
+  /// Save a fingerprint of this version for later comparison
+  virtual void fingerprint(fs::path path) noexcept = 0;
+
   /// Check if this version matches another
   virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
 

@@ -238,10 +238,8 @@ CEREAL_REGISTER_TYPE(Dir);
 CEREAL_REGISTER_TYPE(Access);
 
 // Predicates
-CEREAL_REGISTER_TYPE(Match<MetadataVersion>);
-CEREAL_REGISTER_TYPE(Match<FileVersion>);
-CEREAL_REGISTER_TYPE(Match<SymlinkVersion>);
-CEREAL_REGISTER_TYPE(Match<ListedDir>);
+CEREAL_REGISTER_TYPE(MatchMetadata);
+CEREAL_REGISTER_TYPE(MatchContent);
 
 // Actions
 CEREAL_REGISTER_TYPE(Launch);

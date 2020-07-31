@@ -28,6 +28,7 @@ Run a rebuild
   $ $DODO --show
   cat ../input
   mv working_dir/output .
+  rmdir working_dir
 
 Check the output
   $ cat output
@@ -37,6 +38,7 @@ Run an additional rebuild, which detects the change in status of output
   $ $DODO --show
   cat ../input
   mv working_dir/output .
+  rmdir working_dir
 
 Check the output again
   $ cat output

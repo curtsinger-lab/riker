@@ -100,7 +100,7 @@ class MetadataVersion final : public Version {
   bool hasFingerprint() const noexcept { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
-  void fingerprint(fs::path path) noexcept { save(path); }
+  virtual void fingerprint(fs::path path) noexcept override { save(path); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

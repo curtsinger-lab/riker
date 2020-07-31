@@ -92,20 +92,6 @@ void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 }
 
-// Check to see if this artifact's symlink destination matches a known version
-void SymlinkArtifact::match(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<SymlinkVersion> expected) noexcept {
-  // Get the current metadata
-  auto observed = getContent(build, c, InputType::Accessed);
-
-  // Compare versions
-  if (!observed->matches(expected)) {
-    // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), observed, expected);
-  }
-}
-
 Resolution SymlinkArtifact::resolve(Build& build,
                                     shared_ptr<Command> c,
                                     shared_ptr<Artifact> prev,

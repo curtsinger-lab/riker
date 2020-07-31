@@ -228,11 +228,25 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(Build& build,
 }
 
 /// Check to see if this artifact's metadata matches a known version
-void Artifact::match(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<MetadataVersion> expected) noexcept {
+void Artifact::matchMetadata(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
   auto observed = getMetadata(build, c, InputType::Accessed);
+
+  // Compare versions
+  if (!observed->matches(expected)) {
+    // Report the mismatch
+    build.observeMismatch(c, shared_from_this(), observed, expected);
+  }
+}
+
+/// Check to see if this artifact's content matches a known version
+void Artifact::matchContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<Version> expected) noexcept {
+  // Get the current metadata
+  auto observed = getContent(build, c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

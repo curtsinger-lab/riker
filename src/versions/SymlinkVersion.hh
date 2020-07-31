@@ -24,7 +24,7 @@ class SymlinkVersion : public Version {
   void commit(fs::path path) noexcept;
 
   /// Save a fingerprint of this version
-  void fingerprint(fs::path path) noexcept {}
+  virtual void fingerprint(fs::path path) noexcept override {}
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

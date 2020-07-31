@@ -154,7 +154,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                                           InputType t) noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
-  void match(Build& build, shared_ptr<Command> c, shared_ptr<MetadataVersion> expected) noexcept;
+  void matchMetadata(Build& build,
+                     shared_ptr<Command> c,
+                     shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
   void apply(Build& build, shared_ptr<Command> c, shared_ptr<MetadataVersion> writing) noexcept;
@@ -167,11 +169,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                                          InputType t) noexcept = 0;
 
   /// Check to see if this artifact's content matches a known version
-  virtual void match(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<FileVersion> expected) noexcept {
-    WARN << c << ": tried to match content of artifact " << this;
-  }
+  virtual void matchContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<Version> expected) noexcept;
 
   /// Apply a new content version to this artifact
   virtual void apply(Build& build,
@@ -180,21 +180,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
-  /************ Symlink Operations ************/
-
-  /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<SymlinkVersion> expected) noexcept {
-    WARN << c << ": tried to match symlink destination of artifact " << this;
-  }
-
   /************ Directory Operations ************/
-
-  /// Check to see if this artifact's directory list matches a known version
-  virtual void match(Build& build, shared_ptr<Command> c, shared_ptr<ListedDir> expected) noexcept {
-    WARN << c << ": tried to match directory contents of artifact " << this;
-  }
 
   /**
    * Resolve a path relative to this artifact.

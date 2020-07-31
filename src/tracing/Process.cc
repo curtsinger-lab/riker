@@ -403,7 +403,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
 
     // This is essentially an fstat call
     // Record the dependency on metadata
-    _build.match<MetadataVersion>(_command, _fds.at(dirfd).getRef());
+    _build.matchMetadata(_command, _fds.at(dirfd).getRef());
 
   } else {
     // Finish the syscall to see if the reference succeeds
@@ -421,7 +421,7 @@ void Process::_fstatat(int dirfd, string pathname, struct stat* statbuf, int fla
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
-        _build.match<MetadataVersion>(_command, ref);
+        _build.matchMetadata(_command, ref);
       }
     });
   }
@@ -441,7 +441,7 @@ void Process::_fchown(int fd, uid_t user, gid_t group) noexcept {
   auto& descriptor = iter->second;
 
   // The command depends on the old metadata
-  _build.match<MetadataVersion>(_command, descriptor.getRef());
+  _build.matchMetadata(_command, descriptor.getRef());
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -466,7 +466,7 @@ void Process::_fchownat(int dfd, string filename, uid_t user, gid_t group, int f
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _build.match<MetadataVersion>(_command, ref);
+    _build.matchMetadata(_command, ref);
   }
 
   // Finish the syscall and then resume the process
@@ -504,7 +504,7 @@ void Process::_fchmod(int fd, mode_t mode) noexcept {
   auto& descriptor = iter->second;
 
   // The command depends on the old metadata
-  _build.match<MetadataVersion>(_command, descriptor.getRef());
+  _build.matchMetadata(_command, descriptor.getRef());
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -529,7 +529,7 @@ void Process::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexce
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
   if (ref->isResolved()) {
-    _build.match<MetadataVersion>(_command, ref);
+    _build.matchMetadata(_command, ref);
   }
 
   // Finish the syscall and then resume the process
@@ -564,7 +564,7 @@ void Process::_read(int fd) noexcept {
 
     // Create a dependency on the artifact's contents
     const auto& descriptor = _fds.at(fd);
-    _build.match<FileVersion>(_command, descriptor.getRef());
+    _build.matchContent(_command, descriptor.getRef());
   });
 }
 
@@ -575,7 +575,7 @@ void Process::_write(int fd) noexcept {
   const auto& descriptor = _fds.at(fd);
 
   // Record our dependency on the old contents of the artifact
-  _build.match<FileVersion>(_command, descriptor.getRef());
+  _build.matchContent(_command, descriptor.getRef());
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -614,7 +614,7 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
 
     // By mmapping a file, the command implicitly depends on its contents at the time of
     // mapping.
-    _build.match<FileVersion>(_command, descriptor.getRef());
+    _build.matchContent(_command, descriptor.getRef());
 
     // If the mapping is writable, and the file was opened in write mode, the command
     // is also effectively setting the contents of the file.
@@ -647,7 +647,7 @@ void Process::_truncate(string pathname, long length) noexcept {
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
   if (length > 0 && ref->isResolved()) {
-    _build.match<FileVersion>(_command, ref);
+    _build.matchContent(_command, ref);
   }
 
   // Finish the syscall and resume the process
@@ -676,7 +676,7 @@ void Process::_ftruncate(int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.match<FileVersion>(_command, descriptor.getRef());
+    _build.matchContent(_command, descriptor.getRef());
   }
 
   // Finish the syscall and resume the process
@@ -699,14 +699,14 @@ void Process::_tee(int fd_in, int fd_out) noexcept {
 
   // The command depends on the contents of the output file, unless it is totally overwritten (not
   // checked yet)
-  _build.match<FileVersion>(_command, out_desc.getRef());
+  _build.matchContent(_command, out_desc.getRef());
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     // The command has now read the input file, so it depends on the contents there
-    _build.match<FileVersion>(_command, in_desc.getRef());
+    _build.matchContent(_command, in_desc.getRef());
 
     // The command has now set the contents of the output file
     _build.apply<FileVersion>(_command, out_desc.getRef(), make_shared<FileVersion>());
@@ -840,7 +840,7 @@ void Process::_getdents(int fd) noexcept {
 
     // Create a dependency on the artifact's directory list
     const auto& descriptor = _fds.at(fd);
-    _build.match<ListedDir>(_command, descriptor.getRef());
+    _build.matchContent(_command, descriptor.getRef());
   });
 }
 
@@ -961,7 +961,7 @@ void Process::_readlinkat(int dfd, string pathname) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      _build.match<SymlinkVersion>(_command, ref);
+      _build.matchContent(_command, ref);
 
     } else {
       // No. Record the failure
@@ -989,7 +989,7 @@ void Process::_unlinkat(int dfd, string pathname, int flags) noexcept {
   // If this call is removing a directory, depend on the directory contents
   if (entry_ref->isResolved()) {
     if (auto dir = entry_ref->getArtifact()->as<DirArtifact>()) {
-      _build.match<ListedDir>(_command, entry_ref);
+      _build.matchContent(_command, entry_ref);
     }
   }
 
@@ -1123,7 +1123,7 @@ void Process::_execveat(int dfd,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _build.match<FileVersion>(_command, child_exe_ref);
+    _build.matchContent(_command, child_exe_ref);
 
     // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
     // that participate in that command. This will require some extra bookkeeping. For now, we

@@ -113,20 +113,6 @@ shared_ptr<Version> FileArtifact::getContent(Build& build,
   return _content_version;
 }
 
-/// Check to see if this artifact's content matches a known version
-void FileArtifact::match(Build& build,
-                         shared_ptr<Command> c,
-                         shared_ptr<FileVersion> expected) noexcept {
-  // Get the current metadata
-  auto observed = getContent(build, c, InputType::Accessed);
-
-  // Compare versions
-  if (!observed->matches(expected)) {
-    // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), observed, expected);
-  }
-}
-
 /// Apply a new content version to this artifact
 void FileArtifact::apply(Build& build,
                          shared_ptr<Command> c,

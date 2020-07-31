@@ -53,11 +53,6 @@ class SymlinkArtifact : public Artifact {
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
 
-  /// Check to see if this artifact's symlink destination matches a known version
-  virtual void match(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<SymlinkVersion> expected) noexcept override;
-
   virtual Resolution resolve(Build& build,
                              shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,

@@ -25,6 +25,7 @@ Run a rebuild
   $ $DODO --show
   rm foo/b
   rm: cannot remove 'foo/b': No such file or directory
+  rmdir foo
 
 Make sure the foo directory does not exist
   $ stat foo

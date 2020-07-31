@@ -58,6 +58,21 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
   return {_trace, _env};
 }
 
+/// Inform the observer that command c accessed version v of artifact a
+void Build::observeInput(shared_ptr<Command> c,
+                         shared_ptr<Artifact> a,
+                         shared_ptr<Version> v,
+                         InputType t) noexcept {
+  if (checkRerun(c) && !v->isCommitted()) {
+    // The command c is running, and needs uncommitted version v. We can commit it now
+    ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
+                            << v << " of " << a;
+    a->commit(v);
+  }
+
+  for (const auto& o : _observers) o->input(c, a, v, t);
+}
+
 /************************ Command Tracing and Emulation ************************/
 
 // Command c creates a new pipe
@@ -124,15 +139,14 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   return ref;
 }
 
-// Command c accesses an artifact
-template <class VersionType>
-void Build::match(shared_ptr<Command> c,
-                  shared_ptr<Ref> ref,
-                  shared_ptr<VersionType> expected,
-                  shared_ptr<Match<VersionType>> emulating) noexcept {
+// Command c accesses an artifact's metadata
+void Build::matchMetadata(shared_ptr<Command> c,
+                          shared_ptr<Ref> ref,
+                          shared_ptr<MetadataVersion> expected,
+                          shared_ptr<MatchMetadata> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command read through an unresolved reference";
+    ASSERT(emulating) << "A traced command accessed metadata through an unresolved reference";
 
     // Report the change
     observeCommandChange(c, emulating);
@@ -145,10 +159,10 @@ void Build::match(shared_ptr<Command> c,
   // Are we emulating this operation?
   if (emulating) {
     // Yes. We need an expected version to check for
-    ASSERT(expected) << "Traced command provided an expected version to match";
+    ASSERT(expected) << "An emulated MatchMetadata step did not provide expected metadata";
 
     // Perform the comparison
-    ref->getArtifact()->match(*this, c, expected);
+    ref->getArtifact()->matchMetadata(*this, c, expected);
 
     // Record the emulated trace step
     _trace->addStep(c, emulating, true);
@@ -157,12 +171,9 @@ void Build::match(shared_ptr<Command> c,
     // No. This is a traced command
 
     // If we don't have an expected version already, get one from the current state
-    if (!expected) {
-      auto v = ref->getArtifact()->get<VersionType>(*this, c, InputType::Accessed);
-      if (v) expected = std::dynamic_pointer_cast<VersionType>(v);
-    }
+    if (!expected) expected = ref->getArtifact()->getMetadata(*this, c, InputType::Accessed);
 
-    ASSERT(expected) << "Unable to get expected version from artifact " << ref->getArtifact();
+    ASSERT(expected) << "Unable to get current metadata from " << ref->getArtifact();
 
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
@@ -172,33 +183,57 @@ void Build::match(shared_ptr<Command> c,
     }
 
     // Add a match step to the trace
-    _trace->addStep(c, make_shared<Match<VersionType>>(ref, expected), false);
+    _trace->addStep(c, make_shared<MatchMetadata>(ref, expected), false);
   }
 }
 
-// Explicitly instantiate match for metadata
-template void Build::match<MetadataVersion>(shared_ptr<Command> c,
-                                            shared_ptr<Ref> ref,
-                                            shared_ptr<MetadataVersion> expected,
-                                            shared_ptr<Match<MetadataVersion>> emulating) noexcept;
+// Command c accesses an artifact's content
+void Build::matchContent(shared_ptr<Command> c,
+                         shared_ptr<Ref> ref,
+                         shared_ptr<Version> expected,
+                         shared_ptr<MatchContent> emulating) noexcept {
+  // If the reference is not resolved, a change must have occurred
+  if (!ref->isResolved()) {
+    ASSERT(emulating) << "A traced command accessed content through an unresolved reference";
 
-// Explicitly instantiate match for content
-template void Build::match<FileVersion>(shared_ptr<Command> c,
-                                        shared_ptr<Ref> ref,
-                                        shared_ptr<FileVersion> expected,
-                                        shared_ptr<Match<FileVersion>> emulating) noexcept;
+    // Report the change
+    observeCommandChange(c, emulating);
 
-// Explicitly instantiate match for symlinks
-template void Build::match<SymlinkVersion>(shared_ptr<Command> c,
-                                           shared_ptr<Ref> ref,
-                                           shared_ptr<SymlinkVersion> expected,
-                                           shared_ptr<Match<SymlinkVersion>> emulating) noexcept;
+    // Add the step and return. Nothing else to do, since there's no artifact
+    _trace->addStep(c, emulating, true);
+    return;
+  }
 
-// Explicitly instantiate match for directory lists
-template void Build::match<ListedDir>(shared_ptr<Command> c,
-                                      shared_ptr<Ref> ref,
-                                      shared_ptr<ListedDir> expected,
-                                      shared_ptr<Match<ListedDir>> emulating) noexcept;
+  // Are we emulating this operation?
+  if (emulating) {
+    // Yes. We need an expected version to check for
+    ASSERT(expected) << "An emulated MatchContent step did not provide an expected version";
+
+    // Perform the comparison
+    ref->getArtifact()->matchContent(*this, c, expected);
+
+    // Record the emulated trace step
+    _trace->addStep(c, emulating, true);
+
+  } else {
+    // No. This is a traced command
+
+    // If we don't have an expected version already, get one from the current state
+    if (!expected) expected = ref->getArtifact()->getContent(*this, c, InputType::Accessed);
+
+    ASSERT(expected) << "Unable to get content from " << ref->getArtifact();
+
+    // If a different command created this version, fingerprint it for later comparison
+    auto creator = expected->getCreator();
+    if (!creator || creator != c) {
+      // We can only take a fingerprint with a path
+      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
+    }
+
+    // Add a match step to the trace
+    _trace->addStep(c, make_shared<MatchContent>(ref, expected), false);
+  }
+}
 
 // Command c modifies an artifact
 template <class VersionType>

@@ -189,21 +189,6 @@ shared_ptr<Version> DirArtifact::getContent(Build& build,
   return result;
 }
 
-// Check to see if this artifact's directory list matches a known version
-void DirArtifact::match(Build& build,
-                        shared_ptr<Command> c,
-                        shared_ptr<ListedDir> expected) noexcept {
-  // Get the directory list. All dependencies only care if an entry exists, not on its specific
-  // contents
-  auto observed = getContent(build, c, InputType::Exists);
-
-  // Compare versions
-  if (!observed->matches(expected)) {
-    // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), observed, expected);
-  }
-}
-
 Resolution DirArtifact::resolve(Build& build,
                                 shared_ptr<Command> c,
                                 shared_ptr<Artifact> prev,
