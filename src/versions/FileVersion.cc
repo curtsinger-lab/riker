@@ -46,5 +46,5 @@ void FileVersion::fingerprint(fs::path path) noexcept {
 
 // Apply a FileVersion version to an artifact
 void FileVersion::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->applyContent(b, c, this->as<FileVersion>());
+  a->updateContent(b, c, this->as<FileVersion>());
 }

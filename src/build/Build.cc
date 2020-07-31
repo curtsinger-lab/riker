@@ -236,10 +236,10 @@ void Build::matchContent(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
-void Build::applyMetadata(shared_ptr<Command> c,
-                          shared_ptr<Ref> ref,
-                          shared_ptr<MetadataVersion> written,
-                          shared_ptr<ApplyMetadata> emulating) noexcept {
+void Build::updateMetadata(shared_ptr<Command> c,
+                           shared_ptr<Ref> ref,
+                           shared_ptr<MetadataVersion> written,
+                           shared_ptr<UpdateMetadata> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
@@ -265,7 +265,7 @@ void Build::applyMetadata(shared_ptr<Command> c,
     written->createdBy(c);
 
     // Apply the write
-    ref->getArtifact()->applyMetadata(*this, c, written);
+    ref->getArtifact()->updateMetadata(*this, c, written);
 
     // Add this write to the trace
     _trace->addStep(c, emulating, true);
@@ -274,7 +274,7 @@ void Build::applyMetadata(shared_ptr<Command> c,
     // No. This is a traced operation
 
     // Update the artifact and hold on to the metadata version it returns.
-    written = ref->getArtifact()->applyMetadata(*this, c, written);
+    written = ref->getArtifact()->updateMetadata(*this, c, written);
 
     // The calling command created this version
     written->createdBy(c);
@@ -283,15 +283,15 @@ void Build::applyMetadata(shared_ptr<Command> c,
     written->setCommitted();
 
     // Add a new trace step
-    _trace->addStep(c, make_shared<ApplyMetadata>(ref, written), false);
+    _trace->addStep(c, make_shared<UpdateMetadata>(ref, written), false);
   }
 }
 
 // Command c modifies an artifact
-void Build::applyContent(shared_ptr<Command> c,
-                         shared_ptr<Ref> ref,
-                         shared_ptr<Version> written,
-                         shared_ptr<ApplyContent> emulating) noexcept {
+void Build::updateContent(shared_ptr<Command> c,
+                          shared_ptr<Ref> ref,
+                          shared_ptr<Version> written,
+                          shared_ptr<UpdateContent> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
@@ -338,7 +338,7 @@ void Build::applyContent(shared_ptr<Command> c,
     written->applyTo(*this, c, ref->getArtifact());
 
     // Add a new trace step
-    _trace->addStep(c, make_shared<ApplyContent>(ref, written), false);
+    _trace->addStep(c, make_shared<UpdateContent>(ref, written), false);
   }
 }
 

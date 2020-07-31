@@ -414,18 +414,18 @@ class Exit final : public Step {
 /**
  * A command writes a metadata version through a reference
  */
-class ApplyMetadata final : public Step {
+class UpdateMetadata final : public Step {
  public:
-  /// Create an ApplyMetadata IR step
-  ApplyMetadata(shared_ptr<Ref> ref, shared_ptr<MetadataVersion> version) noexcept :
+  /// Create an UpdateMetadata IR step
+  UpdateMetadata(shared_ptr<Ref> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print an ApplyMetadata IR step
+  /// Print an UpdateMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "APPLY_METADATA(" << _ref->getName() << ", " << _version << ")";
+    return o << "UPDATE_METADATA(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -433,25 +433,25 @@ class ApplyMetadata final : public Step {
   shared_ptr<MetadataVersion> _version;
 
   // Create default constructor and specify fields for serialization
-  ApplyMetadata() = default;
+  UpdateMetadata() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };
 
 /**
  * A command writes a content version through a reference
  */
-class ApplyContent final : public Step {
+class UpdateContent final : public Step {
  public:
-  /// Create an ApplyContent IR step
-  ApplyContent(shared_ptr<Ref> ref, shared_ptr<Version> version) noexcept :
+  /// Create an UpdateContent IR step
+  UpdateContent(shared_ptr<Ref> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print an ApplyContent IR step
+  /// Print an UpdateContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "APPLY_CONTENT(" << _ref->getName() << ", " << _version << ")";
+    return o << "UPDATE_CONTENT(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -459,6 +459,6 @@ class ApplyContent final : public Step {
   shared_ptr<Version> _version;
 
   // Create default constructor and specify fields for serialization
-  ApplyContent() = default;
+  UpdateContent() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };

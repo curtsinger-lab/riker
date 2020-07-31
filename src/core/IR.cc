@@ -71,14 +71,14 @@ void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.matchContent(c, _ref, _version, as<MatchContent>());
 }
 
-// Emulate an ApplyMetadata IR step
-void ApplyMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.applyMetadata(c, _ref, _version, as<ApplyMetadata>());
+// Emulate an UpdateMetadata IR step
+void UpdateMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.updateMetadata(c, _ref, _version, as<UpdateMetadata>());
 }
 
-// Emulate an ApplyContent IR step
-void ApplyContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.applyContent(c, _ref, _version, as<ApplyContent>());
+// Emulate an UpdateContent IR step
+void UpdateContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.updateContent(c, _ref, _version, as<UpdateContent>());
 }
 
 // Emulate a launch action

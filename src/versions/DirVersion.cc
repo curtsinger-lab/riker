@@ -70,7 +70,7 @@ shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env, shared_ptr<DirAr
 
 // Apply an AddEntry version to an artifact
 void AddEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->applyContent(b, c, this->as<AddEntry>());
+  a->updateContent(b, c, this->as<AddEntry>());
 }
 
 // Commit the addition of an entry to a directory
@@ -150,7 +150,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
 
 // Apply an RemoveEntry version to an artifact
 void RemoveEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->applyContent(b, c, this->as<RemoveEntry>());
+  a->updateContent(b, c, this->as<RemoveEntry>());
 }
 
 // Commit the removal of an entry from a directory

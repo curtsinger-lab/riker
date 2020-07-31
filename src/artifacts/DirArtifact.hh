@@ -67,14 +67,14 @@ class DirArtifact final : public Artifact {
                              bool committed) noexcept override;
 
   /// Apply a link version to this artifact
-  virtual void applyContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<AddEntry> writing) noexcept override;
+  virtual void updateContent(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<AddEntry> writing) noexcept override;
 
   /// Apply an unlink version to this artifact
-  virtual void applyContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<RemoveEntry> writing) noexcept override;
+  virtual void updateContent(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RemoveEntry> writing) noexcept override;
 
  private:
   /// The base directory version is the backstop for all resolution queries. This is either an

@@ -159,9 +159,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                      shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  shared_ptr<MetadataVersion> applyMetadata(Build& build,
-                                            shared_ptr<Command> c,
-                                            shared_ptr<MetadataVersion> writing = nullptr) noexcept;
+  shared_ptr<MetadataVersion> updateMetadata(
+      Build& build,
+      shared_ptr<Command> c,
+      shared_ptr<MetadataVersion> writing = nullptr) noexcept;
 
   /************ Content Operations ************/
 
@@ -186,23 +187,23 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Update this artifact's content with a file version
-  virtual void applyContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<FileVersion> writing) noexcept {
+  virtual void updateContent(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<FileVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
   /// Update this artifact's content with an AddEntry version
-  virtual void applyContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<AddEntry> writing) noexcept {
+  virtual void updateContent(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<AddEntry> writing) noexcept {
     WARN << c << ": tried to apply version " << writing << " to artifact " << this;
   }
 
   /// Update this artifact's content with a RemoveEntry version
-  virtual void applyContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<RemoveEntry> writing) noexcept {
+  virtual void updateContent(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RemoveEntry> writing) noexcept {
     WARN << c << ": tried to apply version " << writing << " to artifact " << this;
   }
 

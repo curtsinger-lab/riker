@@ -100,16 +100,16 @@ class Build {
                     shared_ptr<MatchContent> emulating = nullptr) noexcept;
 
   /// A command modifies the metadata for an artifact
-  void applyMetadata(shared_ptr<Command> c,
-                     shared_ptr<Ref>,
-                     shared_ptr<MetadataVersion> written = nullptr,
-                     shared_ptr<ApplyMetadata> emulating = nullptr) noexcept;
+  void updateMetadata(shared_ptr<Command> c,
+                      shared_ptr<Ref>,
+                      shared_ptr<MetadataVersion> written = nullptr,
+                      shared_ptr<UpdateMetadata> emulating = nullptr) noexcept;
 
   /// A command writes a new version to an artifact
-  void applyContent(shared_ptr<Command> c,
-                    shared_ptr<Ref> ref,
-                    shared_ptr<Version> written = nullptr,
-                    shared_ptr<ApplyContent> emulating = nullptr) noexcept;
+  void updateContent(shared_ptr<Command> c,
+                     shared_ptr<Ref> ref,
+                     shared_ptr<Version> written = nullptr,
+                     shared_ptr<UpdateContent> emulating = nullptr) noexcept;
 
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,

@@ -288,7 +288,7 @@ Resolution DirArtifact::resolve(Build& build,
       auto link_version = make_shared<AddEntry>(entry, ref);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
-      applyContent(build, c, link_version);
+      updateContent(build, c, link_version);
 
       // The resolution result is now the newly-created file
       result = newfile;
@@ -315,9 +315,9 @@ Resolution DirArtifact::resolve(Build& build,
 }
 
 // Apply a link version to this artifact
-void DirArtifact::applyContent(Build& build,
-                               shared_ptr<Command> c,
-                               shared_ptr<AddEntry> writing) noexcept {
+void DirArtifact::updateContent(Build& build,
+                                shared_ptr<Command> c,
+                                shared_ptr<AddEntry> writing) noexcept {
   auto entry = writing->getEntryName();
   auto artifact = writing->getTarget()->getArtifact();
 
@@ -345,9 +345,9 @@ void DirArtifact::applyContent(Build& build,
 }
 
 // Apply an unlink version to this artifact
-void DirArtifact::applyContent(Build& build,
-                               shared_ptr<Command> c,
-                               shared_ptr<RemoveEntry> writing) noexcept {
+void DirArtifact::updateContent(Build& build,
+                                shared_ptr<Command> c,
+                                shared_ptr<RemoveEntry> writing) noexcept {
   auto entry = writing->getEntryName();
 
   // Do we have a record of an entry with the given name?
