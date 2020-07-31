@@ -42,8 +42,19 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+  // This directory must have some path, but it may not be committed yet.
+  // If the path happens not to be committed, committing the base version should place it at that
+  // path.
+
   // The base directory version must always be committed to commit any other version
   auto path = getCommittedPath();
+  if (!path.has_value() && _link_updates.size() > 0) {
+    auto [weak_dir, _, weak_version] = *_link_updates.begin();
+    auto dir = weak_dir.lock();
+    auto version = weak_version.lock();
+    dir->commit(version);
+    path = getCommittedPath();
+  }
   ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(this->as<DirArtifact>(), path.value());
 

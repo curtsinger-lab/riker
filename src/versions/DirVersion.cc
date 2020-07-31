@@ -116,8 +116,15 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
     } else {
       // The artifact is a file, so we can create a hard link to it
 
+      auto new_path = dir_path / _entry;
+
       // Make the hard link
-      int rc = ::link(existing_path.c_str(), (dir_path / _entry).c_str());
+      int rc = ::link(existing_path.c_str(), new_path.c_str());
+      if (rc && errno == EEXIST) {
+        rc = ::unlink(new_path.c_str());
+        ASSERT(rc == 0) << "Failed to remove existing link at " << new_path;
+        rc = ::link(existing_path.c_str(), new_path.c_str());
+      }
       ASSERT(rc == 0) << "Failed to hard link " << artifact << " to " << dir_path / _entry << ": "
                       << ERR;
 
@@ -125,10 +132,9 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
       Version::setCommitted();
       return;
     }
-
   } else {
-    // The artifact has no committed links. Committing the artifact *should* create it (we probably
-    // need to check this).
+    // The artifact has no committed links. Committing the artifact *should* create it (we
+    // probably need to check this).
 
     // Mark this version as committed so the artifact can use it as a committed path
     Version::setCommitted();
@@ -162,8 +168,8 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
     return;
   }
 
-  // The artifact is either losing its last link (committed and uncommitted) or has remaining links
-  // We need to unlink or rmdir it, depending on the type of artifact
+  // The artifact is either losing its last link (committed and uncommitted) or has remaining
+  // links We need to unlink or rmdir it, depending on the type of artifact
   if (auto artifact_dir = artifact->as<DirArtifact>()) {
     // The artifact is a directory. We will call rmdir, but first we need to commit any pending
     // versions that will remove the directory's entries

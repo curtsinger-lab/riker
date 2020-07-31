@@ -312,7 +312,10 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
     }
 
-    // TODO: Change to the appropriate working directory
+    // Change to the initial working directory
+    int rc = ::chdir(cmd->getInitialWorkingDir()->getFullPath().c_str());
+    ASSERT(rc == 0) << "Failed to change to starting directory to launch " << cmd;
+
     // TODO: Change to the appropriate root directory
 
     // Allow ourselves to be traced by our parent

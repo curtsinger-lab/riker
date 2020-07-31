@@ -1,0 +1,8 @@
+#!/bin/sh
+
+mkdir working_dir
+cd working_dir
+cat ../input > output
+cd ..
+mv working_dir/output .
+rmdir working_dir

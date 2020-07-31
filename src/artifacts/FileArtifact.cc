@@ -54,11 +54,11 @@ bool FileArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
-  auto path = getCommittedPath();
+  auto path = getPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
   _content_version->commit(path.value(), _metadata_version->getMode());
-  _metadata_version->commit(path.value(), false);
+  _metadata_version->commit(path.value());
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.

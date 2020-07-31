@@ -82,7 +82,7 @@ class logger {
     // Set the log color for the actual message
     if (!disable_color) {
       if (category == LogCategory::error) {
-        cerr << BOLD RED;
+        cerr << NORMAL RED;
       } else if (category == LogCategory::warning) {
         cerr << NORMAL YELLOW;
       } else {
