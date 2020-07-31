@@ -106,11 +106,10 @@ class Build {
                      shared_ptr<ApplyMetadata> emulating = nullptr) noexcept;
 
   /// A command writes a new version to an artifact
-  template <class VersionType>
-  void apply(shared_ptr<Command> c,
-             shared_ptr<Ref> ref,
-             shared_ptr<VersionType> written,
-             shared_ptr<Apply<VersionType>> emulating = nullptr) noexcept;
+  void applyContent(shared_ptr<Command> c,
+                    shared_ptr<Ref> ref,
+                    shared_ptr<Version> written = nullptr,
+                    shared_ptr<ApplyContent> emulating = nullptr) noexcept;
 
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,

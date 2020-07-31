@@ -39,6 +39,11 @@ class ListedDir : public Version {
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept override { return "listed"; }
 
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
+    FAIL << "Cannot apply a listed directory version";
+  }
+
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: listed]"; }
 
@@ -92,6 +97,11 @@ class BaseDirVersion : public DirVersion {
   /// Create a listed directory version from this base directory
   virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
       noexcept = 0;
+
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
+    FAIL << "Cannot apply a base directory version";
+  }
 
  private:
   SERIALIZE(BASE(DirVersion));
@@ -190,6 +200,9 @@ class AddEntry : public DirVersion {
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
 
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
+
   /// Print a link version
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "[dir: link " << _entry << " -> " << _target->getName() << "]";
@@ -224,6 +237,9 @@ class RemoveEntry : public DirVersion {
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
+
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
 
   /// Print an unlink version
   virtual ostream& print(ostream& o) const noexcept override {

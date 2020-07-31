@@ -288,11 +288,10 @@ void Build::applyMetadata(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
-template <class VersionType>
-void Build::apply(shared_ptr<Command> c,
-                  shared_ptr<Ref> ref,
-                  shared_ptr<VersionType> written,
-                  shared_ptr<Apply<VersionType>> emulating) noexcept {
+void Build::applyContent(shared_ptr<Command> c,
+                         shared_ptr<Ref> ref,
+                         shared_ptr<Version> written,
+                         shared_ptr<ApplyContent> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
     ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
@@ -318,7 +317,7 @@ void Build::apply(shared_ptr<Command> c,
     written->createdBy(c);
 
     // Apply the write
-    ref->getArtifact()->apply(*this, c, written);
+    written->applyTo(*this, c, ref->getArtifact());
 
     // Add this write to the trace
     _trace->addStep(c, emulating, true);
@@ -326,40 +325,22 @@ void Build::apply(shared_ptr<Command> c,
   } else {
     // No. This is a traced operation
 
-    // The caller has to provide us with a valid version to apply
-    ASSERT(written) << "apply called with no written version";
-
-    // The calling command created this version
-    written->createdBy(c);
+    // If a written version was not provided, ask the artifact for one
+    if (!written) written = ref->getArtifact()->createContentVersion();
 
     // This apply operation was traced, so the written version is committed
     written->setCommitted();
 
-    // Apply the write, which is committed to the filesystem because we just traced this operation
-    ref->getArtifact()->apply(*this, c, written);
+    // The calling command created this version
+    written->createdBy(c);
+
+    // Update the artifact's content
+    written->applyTo(*this, c, ref->getArtifact());
 
     // Add a new trace step
-    _trace->addStep(c, make_shared<Apply<VersionType>>(ref, written), false);
+    _trace->addStep(c, make_shared<ApplyContent>(ref, written), false);
   }
 }
-
-// Explicitly instantiate apply for content versions
-template void Build::apply<FileVersion>(shared_ptr<Command> c,
-                                        shared_ptr<Ref> ref,
-                                        shared_ptr<FileVersion> written,
-                                        shared_ptr<Apply<FileVersion>> emulating) noexcept;
-
-// Explicitly instantiate apply for directory link versions
-template void Build::apply<AddEntry>(shared_ptr<Command> c,
-                                     shared_ptr<Ref> ref,
-                                     shared_ptr<AddEntry> written,
-                                     shared_ptr<Apply<AddEntry>> emulating) noexcept;
-
-// Explicitly instantiate apply for directory unlink versions
-template void Build::apply<RemoveEntry>(shared_ptr<Command> c,
-                                        shared_ptr<Ref> ref,
-                                        shared_ptr<RemoveEntry> written,
-                                        shared_ptr<Apply<RemoveEntry>> emulating) noexcept;
 
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c,

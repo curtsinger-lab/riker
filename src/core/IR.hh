@@ -412,33 +412,6 @@ class Exit final : public Step {
 };
 
 /**
- * A command writes a version to an artifact reached via a reference
- */
-template <class VersionType>
-class Apply final : public Step {
- public:
-  /// Create a SET action
-  Apply(shared_ptr<Ref> ref, shared_ptr<VersionType> version) noexcept :
-      _ref(ref), _version(version) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
-  /// Print a SET action
-  virtual ostream& print(ostream& o) const noexcept override {
-    return o << "APPLY(" << _ref->getName() << ", " << _version << ")";
-  }
-
- private:
-  shared_ptr<Ref> _ref;
-  shared_ptr<VersionType> _version;
-
-  // Create default constructor and specify fields for serialization
-  Apply() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
-};
-
-/**
  * A command writes a metadata version through a reference
  */
 class ApplyMetadata final : public Step {
@@ -461,5 +434,31 @@ class ApplyMetadata final : public Step {
 
   // Create default constructor and specify fields for serialization
   ApplyMetadata() = default;
+  SERIALIZE(BASE(Step), _ref, _version);
+};
+
+/**
+ * A command writes a content version through a reference
+ */
+class ApplyContent final : public Step {
+ public:
+  /// Create an ApplyContent IR step
+  ApplyContent(shared_ptr<Ref> ref, shared_ptr<Version> version) noexcept :
+      _ref(ref), _version(version) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print an ApplyContent IR step
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "APPLY_CONTENT(" << _ref->getName() << ", " << _version << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;
+  shared_ptr<Version> _version;
+
+  // Create default constructor and specify fields for serialization
+  ApplyContent() = default;
   SERIALIZE(BASE(Step), _ref, _version);
 };

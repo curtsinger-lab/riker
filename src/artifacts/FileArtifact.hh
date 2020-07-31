@@ -52,10 +52,13 @@ class FileArtifact : public Artifact {
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
 
+  /// Create a new version to track updated contents for this artifact
+  virtual shared_ptr<Version> createContentVersion() noexcept override;
+
   /// Apply a new content version to this artifact
-  virtual void apply(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<FileVersion> writing) noexcept override;
+  virtual void applyContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<FileVersion> writing) noexcept override;
 
  private:
   /// The latest content version

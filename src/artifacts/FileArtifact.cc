@@ -113,10 +113,15 @@ shared_ptr<Version> FileArtifact::getContent(Build& build,
   return _content_version;
 }
 
+/// Create a new version to hold contents for this artifact
+shared_ptr<Version> FileArtifact::createContentVersion() noexcept {
+  return make_shared<FileVersion>();
+}
+
 /// Apply a new content version to this artifact
-void FileArtifact::apply(Build& build,
-                         shared_ptr<Command> c,
-                         shared_ptr<FileVersion> writing) noexcept {
+void FileArtifact::applyContent(Build& build,
+                                shared_ptr<Command> c,
+                                shared_ptr<FileVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing;

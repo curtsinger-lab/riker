@@ -175,11 +175,35 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                             shared_ptr<Command> c,
                             shared_ptr<Version> expected) noexcept;
 
-  /// Apply a new content version to this artifact
-  virtual void apply(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<FileVersion> writing) noexcept {
+  /**
+   * Create a new version to track updated content for this artifact
+   * This method does NOT apply the new version to this artifact; it just creates a version that
+   * can be used to track updated content.
+   */
+  virtual shared_ptr<Version> createContentVersion() noexcept {
+    FAIL << "Attempted to create default content version for unsupported artifact " << this;
+    return nullptr;
+  }
+
+  /// Update this artifact's content with a file version
+  virtual void applyContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<FileVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
+  }
+
+  /// Update this artifact's content with an AddEntry version
+  virtual void applyContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<AddEntry> writing) noexcept {
+    WARN << c << ": tried to apply version " << writing << " to artifact " << this;
+  }
+
+  /// Update this artifact's content with a RemoveEntry version
+  virtual void applyContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<RemoveEntry> writing) noexcept {
+    WARN << c << ": tried to apply version " << writing << " to artifact " << this;
   }
 
   /************ Directory Operations ************/
@@ -202,18 +226,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              fs::path::iterator end,
                              shared_ptr<Access> ref,
                              bool committed) noexcept;
-
-  /// Apply a link version to this artifact
-  virtual void apply(Build& build, shared_ptr<Command> c, shared_ptr<AddEntry> writing) noexcept {
-    WARN << c << ": tried to apply a directory link version to artifact " << this;
-  }
-
-  /// Apply an unlink version to this artifact
-  virtual void apply(Build& build,
-                     shared_ptr<Command> c,
-                     shared_ptr<RemoveEntry> writing) noexcept {
-    WARN << c << ": tried to apply a directory unlink version to artifact " << this;
-  }
 
   /****** Utility Methods ******/
 

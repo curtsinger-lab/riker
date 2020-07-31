@@ -87,3 +87,8 @@ void MetadataVersion::commit(fs::path path, bool commit_permissions) noexcept {
   // Mark this version as committed
   Version::setCommitted();
 }
+
+// Apply a MetadataVersion version to an artifact
+void MetadataVersion::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
+  a->applyMetadata(b, c, this->as<MetadataVersion>());
+}

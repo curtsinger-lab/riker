@@ -71,24 +71,14 @@ void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.matchContent(c, _ref, _version, as<MatchContent>());
 }
 
-// Emulate an Apply action
-template <class VersionType>
-void Apply<VersionType>::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.apply(c, _ref, _version, as<Apply<VersionType>>());
-}
-
-// Explicitly instantiate Apple::emulate for content versions
-template void Apply<FileVersion>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
-// Explicitly instantiate Apple::emulate for directory link versions
-template void Apply<AddEntry>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
-// Explicitly instantiate Apple::emulate for directory unlink versions
-template void Apply<RemoveEntry>::emulate(shared_ptr<Command> c, Build& build) noexcept;
-
 // Emulate an ApplyMetadata IR step
 void ApplyMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.applyMetadata(c, _ref, _version, as<ApplyMetadata>());
+}
+
+// Emulate an ApplyContent IR step
+void ApplyContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.applyContent(c, _ref, _version, as<ApplyContent>());
 }
 
 // Emulate a launch action

@@ -17,6 +17,8 @@ using std::string;
 using std::weak_ptr;
 
 class Artifact;
+class Build;
+class Command;
 class Ref;
 
 /// A reference to a specific version of an artifact
@@ -60,6 +62,9 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
+
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept = 0;
 
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;

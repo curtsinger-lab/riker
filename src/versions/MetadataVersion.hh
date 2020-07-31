@@ -110,6 +110,9 @@ class MetadataVersion final : public Version {
     return _metadata == other_metadata->_metadata;
   }
 
+  /// Apply this version to an artifact
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
+
   /// Print this metadata version
   virtual ostream& print(ostream& o) const noexcept override {
     if (_metadata.has_value()) {
