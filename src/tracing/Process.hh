@@ -34,7 +34,7 @@ namespace fs = std::filesystem;
 class Build;
 class Tracer;
 
-class Process {
+class Process : public std::enable_shared_from_this<Process> {
  public:
   Process(Build& build,
           Tracer& tracer,
@@ -75,6 +75,9 @@ class Process {
 
   /// Get the current register state for this process
   user_regs_struct getRegisters() noexcept;
+
+  /// Change the register state for this process
+  void setRegisters(user_regs_struct& regs) noexcept;
 
   /// Read a string from this process' memory
   string readString(uintptr_t tracee_pointer) noexcept;

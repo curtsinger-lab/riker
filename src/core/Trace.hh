@@ -107,5 +107,5 @@ class Trace {
   StepList _steps;
 
   Trace() = default;
-  SERIALIZE(_stdin, _stdout, _stderr, _root, _cwd, _exe, _steps);
+  SERIALIZE(_stdin, _stdout, _stderr, _root, _cwd, _exe, _commands, _steps);
 };

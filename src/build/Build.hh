@@ -111,6 +111,12 @@ class Build {
                      shared_ptr<Version> written = nullptr,
                      shared_ptr<UpdateContent> emulating = nullptr) noexcept;
 
+  /// Can a traced execveat skip a command with the given arguments?
+  shared_ptr<Command> can_skip(shared_ptr<Access> exe_ref, vector<string> args) noexcept;
+
+  /// The tracing layer is skipping a command, which is expected to run in the given process
+  void skip_launch(shared_ptr<Command> c, shared_ptr<Process> proc) noexcept;
+
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,
               shared_ptr<Command> child,
@@ -176,7 +182,14 @@ class Build {
   }
 
  private:
-  /// The trace of steps in this build
+  /// Run steps in this build until we hit the end of the provided trace
+  void runSteps() noexcept;
+
+ private:
+  /// The trace this build is running
+  Trace::StepList _steps;
+
+  /// The trace of steps performed by this build
   shared_ptr<Trace> _trace;
 
   /// The environment in which this build executes
@@ -185,11 +198,18 @@ class Build {
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
 
+  /// The set of commands that can be emulated by this build
+  set<shared_ptr<Command>> _emulate;
+
   /// The set of commands that will be rerun, rather than emulated, by this build
   set<shared_ptr<Command>> _rerun;
 
-  /// A map of running commands to their root processes
+  /// A map of launched commands to the root process running that command, or nullptr if it is only
+  /// being emulated
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
+
+  /// A set of commands that have exited
+  set<shared_ptr<Command>> _exited;
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;

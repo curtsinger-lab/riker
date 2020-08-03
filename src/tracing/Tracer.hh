@@ -1,14 +1,20 @@
 #pragma once
 
+#include <list>
 #include <map>
 #include <memory>
+#include <optional>
+#include <tuple>
 
 #include <sys/types.h>
 
 #include "util/log.hh"
 
+using std::list;
 using std::map;
+using std::optional;
 using std::shared_ptr;
+using std::tuple;
 
 class Build;
 class Command;
@@ -34,6 +40,9 @@ class Tracer {
   void cleanup() noexcept;
 
  private:
+  /// Get the next available traced event
+  optional<tuple<pid_t, int>> getEvent(bool block = true) noexcept;
+
   /// Launch a command with tracing enabled
   shared_ptr<Process> launchTraced(shared_ptr<Command> cmd) noexcept;
 
@@ -62,4 +71,8 @@ class Tracer {
 
   /// The map of processes that have exited
   map<pid_t, shared_ptr<Process>> _exited;
+
+  /// Some tracing events appear before we can process them (e.g. in a child process before we've
+  /// seen its creation. Store them here.
+  list<tuple<pid_t, int>> _event_queue;
 };

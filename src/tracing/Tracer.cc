@@ -6,8 +6,9 @@
 #include <cstdlib>
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
-#include <utility>
+#include <tuple>
 #include <vector>
 
 #include <linux/bpf_common.h>
@@ -31,9 +32,11 @@
 
 using std::list;
 using std::make_shared;
-using std::pair;
+using std::nullopt;
+using std::optional;
 using std::set;
 using std::shared_ptr;
+using std::tuple;
 
 /// A single global instance of this class is used to clean up tracers when there is a fatal error
 class TracerCleanup {
@@ -79,6 +82,49 @@ shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
   return launchTraced(cmd);
 }
 
+optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
+  // Check if any queued events are ready to be processed
+  for (auto iter = _event_queue.cbegin(); iter != _event_queue.cend(); iter++) {
+    auto [child, wait_status] = *iter;
+
+    // If the current entry's pid is now a known process, process it
+    if (_processes.find(child) != _processes.end()) {
+      // Drop the event from the queue
+      _event_queue.erase(iter);
+
+      // Return the event
+      return *iter;
+    }
+  }
+
+  // If blocking is not allowed, there is no event to return
+  if (!block) return nullopt;
+
+  // Wait for an event from ptrace
+  while (true) {
+    int wait_status;
+    pid_t child = ::wait(&wait_status);
+
+    // Handle errors
+    if (child == -1) {
+      // If errno is ECHILD, we're done and can return with no event
+      if (errno == ECHILD)
+        return nullopt;
+      else
+        FAIL << "Error while waiting: " << ERR;
+    }
+
+    // Does this event refer to a process we don't know about yet?
+    if (_processes.find(child) == _processes.end()) {
+      // Yes. Queue the event so we can try another one.
+      _event_queue.emplace_back(child, wait_status);
+    } else {
+      // No. The event is for a known process. Return it now.
+      return tuple{child, wait_status};
+    }
+  }
+}
+
 void Tracer::wait(shared_ptr<Process> p) noexcept {
   if (p) {
     LOG(exec) << "Waiting for " << p;
@@ -86,60 +132,15 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
     LOG(exec) << "Waiting for all remaining processes";
   }
 
-  // Process events until the given command has exited
-  // Sometime we get tracing events before we can process them. This queue holds that list
-  list<pair<pid_t, int>> event_queue;
-
   // Process tracaing events
   while (true) {
     // If we're waiting for a specific process, and that process has exited, return now
     if (p && p->hasExited()) return;
 
-    int wait_status;
-    pid_t child;
+    auto e = getEvent();
+    if (!e.has_value()) return;
 
-    // Do we have an event to process?
-    bool have_event = false;
-
-    // Check if any queued events are ready to be processed
-    for (auto iter = event_queue.cbegin(); iter != event_queue.cend(); iter++) {
-      // If the current entry's pid is now a known process, process it
-      if (_processes.find(iter->first) != _processes.end()) {
-        // Pull out the child and status values
-        child = iter->first;
-        wait_status = iter->second;
-
-        // Drop the event from the queue
-        event_queue.erase(iter);
-
-        // We have an event now
-        have_event = true;
-        break;
-      }
-    }
-
-    // If we didn't pull an event from the queue, wait for one
-    while (!have_event) {
-      child = ::wait(&wait_status);
-
-      // Handle errors
-      if (child == -1) {
-        // If errno is ECHILD, we're done and can return
-        if (errno == ECHILD)
-          return;
-        else
-          FAIL << "Error while waiting: " << ERR;
-      }
-
-      // Does this event refer to a process we don't know about yet?
-      if (_processes.find(child) == _processes.end()) {
-        // Yes. Queue the event so we can try another one.
-        event_queue.emplace_back(child, wait_status);
-      } else {
-        // No. The event is for a known process, so we'll deal with it right now
-        have_event = true;
-      }
-    }
+    auto [child, wait_status] = e.value();
 
     const auto& p = _processes[child];
 

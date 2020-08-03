@@ -11,6 +11,7 @@
 #include "build/Env.hh"
 #include "build/Resolution.hh"
 #include "core/IR.hh"
+#include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
 #include "versions/DirVersion.hh"
@@ -31,6 +32,14 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
   // Set the current environment
   _env = env;
 
+  // Add all the commands from the given trace to the emulate set, unless they are marked for rerun
+  for (auto c : trace->getCommands()) {
+    if (!checkRerun(c)) _emulate.insert(c);
+  }
+
+  // Save the list of steps from the provided trace
+  _steps = trace->getSteps();
+
   // The current trace is a restarted version of the provided trace
   // It has no steps or commands, but retains its initial references
   _trace = trace->restart();
@@ -38,16 +47,8 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveRefs(*this, _env);
 
-  // Walk through the steps in the provided trace
-  for (auto& [cmd, step] : trace->getSteps()) {
-    // Is this step from a command we are re-executing?
-    if (checkRerun(cmd)) {
-      // Do nothing!
-    } else {
-      // No. Emulate the step, which will also add it into the new trace
-      step->emulate(cmd, *this);
-    }
-  }
+  // Emulate steps until we hit the end of the trace
+  runSteps();
 
   // Wait for all remaining processes to exit
   _tracer.wait();
@@ -56,6 +57,22 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
   _env->getRootDir()->checkFinalState(*this, "/");
 
   return {_trace, _env};
+}
+
+void Build::runSteps() noexcept {
+  while (!_steps.empty()) {
+    // Take the first step from the list
+    auto& [cmd, step] = _steps.front();
+    _steps.pop_front();
+
+    // Is this step from a command we are re-executing?
+    if (checkRerun(cmd)) {
+      // Do nothing!
+    } else {
+      // No. Emulate the step, which will also add it into the new trace
+      step->emulate(cmd, *this);
+    }
+  }
 }
 
 /// Inform the observer that command c accessed version v of artifact a
@@ -342,10 +359,53 @@ void Build::updateContent(shared_ptr<Command> c,
   }
 }
 
+/// Can a traced execveat skip a command with the given arguments?
+shared_ptr<Command> Build::can_skip(shared_ptr<Access> exe_ref, vector<string> args) noexcept {
+  LOG(rebuild) << "Can we skip an exec of " << exe_ref << "?";
+
+  auto exe_path = exe_ref->getFullPath();
+
+  for (auto& c : _emulate) {
+    LOG(rebuild) << "Comparing to " << c;
+    if (c->getExecutable()->getFullPath() != exe_path) continue;
+    if (c->getArguments().size() != args.size()) continue;
+
+    bool matches = true;
+    for (int i = 0; matches && i < args.size(); i++) {
+      matches &= args[i] == c->getArguments()[i];
+    }
+
+    if (matches) return c;
+  }
+
+  return nullptr;
+}
+
+void Build::skip_launch(shared_ptr<Command> c, shared_ptr<Process> proc) noexcept {
+  LOG(exec) << "Skipped " << c << ". Returning to emulation mode";
+
+  // Make a record of the process "running" the command
+  auto [iter, inserted] = _running.emplace(c, proc);
+  ASSERT(inserted) << c << " was already running in " << iter->second;
+
+  LOG(exec) << iter->first << " suspended in " << iter->second;
+
+  // Has the emulated child already exited?
+  if (_exited.find(c) != _exited.end()) {
+    // Yes. Resume its process so it actually terminates
+    proc->resume();
+  } else {
+    // No. Switch to emulation, which will cause the command to exit at some point
+    runSteps();
+  }
+}
+
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c,
                    shared_ptr<Command> child,
                    shared_ptr<Launch> emulating) noexcept {
+  LOG(exec) << c << " launching " << child;
+
   // If we're emulating the launch of an unexecuted command, notify observers
   if (emulating && !child->hasExecuted()) {
     // If we're emulating, we need to let the observers know if the child has not been run before
@@ -390,6 +450,9 @@ void Build::launch(shared_ptr<Command> c,
   auto step = emulating;
   if (!step) step = make_shared<Launch>(child);
 
+  // Add the command to the trace
+  _trace->addCommand(child);
+
   // Add the launch step to the trace
   _trace->addStep(c, step, static_cast<bool>(emulating));
 }
@@ -423,12 +486,23 @@ void Build::join(shared_ptr<Command> c,
 }
 
 void Build::exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulating) noexcept {
+  // Record that the command has exited
+  _exited.insert(c);
+
   // Save the exit status for this command (TODO: remove once EXIT changes are supported for real)
   c->setExitStatus(exit_status);
 
   if (emulating) {
     // Add the emulated step to the new trace
     _trace->addStep(c, emulating, true);
+
+    // If there is a process running this command, it is stalled waiting to be resumed.
+    auto iter = _running.find(c);
+    if (iter != _running.end()) {
+      LOG(exec) << "Ending process " << iter->second << ", which hosts the skipped command";
+      iter->second->resume();
+    }
+
   } else {
     // Add an exit action to this command's steps
     _trace->addStep(c, make_shared<Exit>(exit_status), false);

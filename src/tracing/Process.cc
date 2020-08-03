@@ -36,6 +36,10 @@ user_regs_struct Process::getRegisters() noexcept {
   return regs;
 }
 
+void Process::setRegisters(user_regs_struct& regs) noexcept {
+  FAIL_IF(ptrace(PTRACE_SETREGS, _pid, nullptr, &regs)) << "Failed to set registers: " << ERR;
+}
+
 void Process::resume() noexcept {
   FAIL_IF(ptrace(PTRACE_CONT, _pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 }
@@ -105,7 +109,10 @@ string Process::readString(uintptr_t tracee_pointer) noexcept {
 template <typename T>
 T Process::readData(uintptr_t tracee_pointer) noexcept {
   // Reserve space for the value we will read
-  T result;
+  T result{};
+
+  // If the tracee pointer is null, return the defult value
+  if (tracee_pointer == 0) return result;
 
   // Set up iovec structs for the remote read and local write
   struct iovec local = {.iov_base = &result, .iov_len = sizeof(T)};
@@ -1064,12 +1071,34 @@ void Process::_execveat(int dfd,
                         vector<string> env) noexcept {
   LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd, filename, fmt::join(args, "\", \""));
 
+  // The parent command needs execute access to the exec-ed path
+  auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
+
+  // Can we skip this child?
+  auto skip_child = _build.can_skip(exe_ref, args);
+  if (skip_child) {
+    // Yes. Instead of calling execve, modify the registers with ptrace so the command will exit.
+
+    LOG(exec) << "Skipping execution of child " << skip_child;
+
+    // First, record that this process is "running" the skipped child
+    _command = skip_child;
+
+    // Modify the registers in the child so it will exit when resumed
+    auto regs = getRegisters();
+    regs.SYSCALL_NUMBER = __NR_exit;
+    regs.SYSCALL_RETURN = skip_child->getExitStatus();
+    setRegisters(regs);
+
+    // Inform the build that the launch has been skipped
+    _build.skip_launch(skip_child, shared_from_this());
+
+    return;
+  }
+
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {
     resume();
-
-    // The parent command needs execute access to the exec-ed path
-    auto exe_ref = makeAccess(filename, AccessFlags{.x = true}, dfd);
 
     // Not sure why, but exec returns -38 on success.
     // If we see something else, handle the error
@@ -1133,7 +1162,9 @@ void Process::_wait4(pid_t pid, int* wstatus, int options) noexcept {
   LOGF(trace, "{}: wait4({}, {}, {})", this, pid, (void*)wstatus, options);
 
   finishSyscall([=](long rc) {
-    int status = readData<int>((uintptr_t)wstatus);
+    int status = 0;
+    if (wstatus != nullptr) status = readData<int>((uintptr_t)wstatus);
+
     resume();
 
     // If the syscall failed or returned immediately after WNOHANG, stop processing
