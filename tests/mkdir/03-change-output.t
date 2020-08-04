@@ -21,7 +21,8 @@ Check the output
   $ cat output
   Hello
 
-Change the output file
+Change the output file. Sleep first to make sure the output file's mtime changes.
+  $ sleep 0.1
   $ echo "OUTPUT" > output
 
 Run a rebuild
