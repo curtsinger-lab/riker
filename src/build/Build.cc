@@ -9,6 +9,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "build/Env.hh"
+#include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
 #include "core/IR.hh"
 #include "tracing/Process.hh"
@@ -25,17 +26,16 @@ using std::ostream;
 using std::shared_ptr;
 
 tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
+                                                     RebuildPlan plan,
                                                      shared_ptr<Env> env) noexcept {
+  // Save the rebuild plan
+  _plan = plan;
+
   // If no environment was provided, use a default environment
   if (!env) env = make_shared<Env>();
 
   // Set the current environment
   _env = env;
-
-  // Add all the commands from the given trace to the emulate set, unless they are marked for rerun
-  for (auto c : trace->getCommands()) {
-    if (!checkRerun(c)) _emulate.insert(c);
-  }
 
   // Save the list of steps from the provided trace
   _steps = trace->getSteps();
@@ -65,11 +65,9 @@ void Build::runSteps() noexcept {
     auto& [cmd, step] = _steps.front();
     _steps.pop_front();
 
-    // Is this step from a command we are re-executing?
-    if (checkRerun(cmd)) {
-      // Do nothing!
-    } else {
-      // No. Emulate the step, which will also add it into the new trace
+    // Can we emulate the command that created this IR step?
+    if (_plan.canEmulate(cmd)) {
+      // Yes. Call its emulate method
       step->emulate(cmd, *this);
     }
   }
@@ -80,7 +78,7 @@ void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
-  if (checkRerun(c) && !v->isCommitted()) {
+  if (_plan.mustRerun(c) && !v->isCommitted()) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
@@ -361,11 +359,12 @@ void Build::updateContent(shared_ptr<Command> c,
 
 /// Can a traced execveat skip a command with the given arguments?
 shared_ptr<Command> Build::can_skip(shared_ptr<Access> exe_ref, vector<string> args) noexcept {
-  LOG(rebuild) << "Can we skip an exec of " << exe_ref << "?";
+  /*LOG(rebuild) << "Can we skip an exec of " << exe_ref << "?";
 
   auto exe_path = exe_ref->getFullPath();
 
-  for (auto& c : _emulate) {
+  for (auto& [c, mode] : _plan) {
+    if (mode != RebuildMode::Skip) continue;
     LOG(rebuild) << "Comparing to " << c;
     if (c->getExecutable()->getFullPath() != exe_path) continue;
     if (c->getArguments().size() != args.size()) continue;
@@ -376,7 +375,7 @@ shared_ptr<Command> Build::can_skip(shared_ptr<Access> exe_ref, vector<string> a
     }
 
     if (matches) return c;
-  }
+  }*/
 
   return nullptr;
 }
@@ -419,8 +418,8 @@ void Build::launch(shared_ptr<Command> c,
     o->launch(c, child);
   }
 
-  // Should this command rerun? Yes, if we're either tracing the launch, or the command is marked
-  if (!emulating || checkRerun(child)) {
+  // Is the child command being executed? If the parent is executing or the child is marked, yes.
+  if (!emulating || _plan.mustRerun(child)) {
     // Show the command if printing is on, or if this is a dry run
     if (options::print_on_run || options::dry_run) {
       cout << child->getShortName(options::command_length) << endl;
@@ -464,7 +463,7 @@ void Build::join(shared_ptr<Command> c,
                  shared_ptr<Join> emulating) noexcept {
   if (emulating) {
     // If the command is in the rerun set, tell the tracer to wait for it
-    if (checkRerun(child)) {
+    if (isRunning(child)) {
       _tracer.wait(_running[child]);
     }
 
@@ -507,18 +506,4 @@ void Build::exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulat
     // Add an exit action to this command's steps
     _trace->addStep(c, make_shared<Exit>(exit_status), false);
   }
-}
-
-ostream& Build::print(ostream& o) const noexcept {
-  if (_rerun.size() > 0) {
-    o << "The following commands will be rerun:" << endl;
-    for (const auto& c : _rerun) {
-      o << "  " << c->getShortName(options::command_length) << endl;
-    }
-
-  } else {
-    o << "No commands to rerun" << endl;
-  }
-
-  return o;
 }

@@ -7,6 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/BuildObserver.hh"
+#include "build/RebuildPlan.hh"
 #include "core/Command.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -16,8 +17,6 @@ using std::map;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
-
-enum class RerunReason { Changed, OutputNeeded, InputMayChange, Child };
 
 /// This class captures all of the logic and state required to plan a rebuild.
 class RebuildPlanner final : public BuildObserver {
@@ -33,20 +32,21 @@ class RebuildPlanner final : public BuildObserver {
   RebuildPlanner(RebuildPlanner&&) noexcept = default;
   RebuildPlanner& operator=(RebuildPlanner&&) noexcept = default;
 
-  /**
-   * Identify the commands that must rerun and mark them in the given Build
-   * \param b The build that will be used to execute any commands this rebuild marks for rerun
-   */
-  void planBuild(Build& b) const noexcept {
+  /// Create a rebuild plan
+  RebuildPlan planBuild() const noexcept {
+    RebuildPlan plan;
+
     // Mark all the commands with changed inputs
     for (const auto& c : _changed) {
-      mark(b, c, RerunReason::Changed);
+      mark(plan, c, Reason::Changed);
     }
 
     // Mark all the commands whose output is required
     for (const auto& c : _output_needed) {
-      mark(b, c, RerunReason::OutputNeeded);
+      mark(plan, c, Reason::OutputNeeded);
     }
+
+    return plan;
   }
 
   /// Print information about the rebuild state
@@ -154,26 +154,25 @@ class RebuildPlanner final : public BuildObserver {
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(Build& b,
+  void mark(RebuildPlan& plan,
             shared_ptr<Command> c,
-            RerunReason reason,
+            Reason reason,
             shared_ptr<Command> prev = nullptr) const noexcept {
-    // Mark command c for rerun. If the command was already marked, setRerun will return false and
-    // we can stop here
-    if (!b.setRerun(c)) return;
+    // Mark the command for the given reason. If it was already marked, return
+    if (!plan.mark(c, reason)) return;
 
-    if (reason == RerunReason::Changed) {
+    if (reason == Reason::Changed) {
       LOG(rebuild) << c << " must rerun because it directly observed a change";
 
-    } else if (reason == RerunReason::Child) {
+    } else if (reason == Reason::Child) {
       ASSERT(prev) << "Invalid call to mark without previous command";
       LOG(rebuild) << c << " must rerun because its parent, " << prev << ", is rerunning";
 
-    } else if (reason == RerunReason::InputMayChange) {
+    } else if (reason == Reason::InputMayChange) {
       ASSERT(prev) << "Invalid call to mark without previous command";
       LOG(rebuild) << c << " must rerun because its input may be changed by " << prev;
 
-    } else if (reason == RerunReason::OutputNeeded) {
+    } else if (reason == Reason::OutputNeeded) {
       if (prev) {
         LOG(rebuild) << c << " must rerun because its unsaved output is needed by " << prev;
       } else {
@@ -184,21 +183,21 @@ class RebuildPlanner final : public BuildObserver {
     // Mark this command's children
     if (auto iter = _children.find(c); iter != _children.end()) {
       for (const auto& child : iter->second) {
-        mark(b, child, RerunReason::Child, c);
+        mark(plan, child, Reason::Child, c);
       }
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
       for (const auto& other : iter->second) {
-        mark(b, other, RerunReason::OutputNeeded, c);
+        mark(plan, other, Reason::OutputNeeded, c);
       }
     }
 
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
       for (const auto& other : iter->second) {
-        mark(b, other, RerunReason::InputMayChange, c);
+        mark(plan, other, Reason::InputMayChange, c);
       }
     }
   }

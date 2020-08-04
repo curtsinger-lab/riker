@@ -50,14 +50,10 @@ void do_build() noexcept {
   phase1.run(trace);
 
   // Now create a build to run the second phase, the actual build execution
-  // Pass in the print_on_run and dry_run options this time
   Build phase2;
 
-  // Prepare the build to execute the necessary commands
-  rebuild->planBuild(phase2);
-
-  // Execute the planned build
-  auto [final_trace, final_env] = phase2.run(trace);
+  // Run the trace again, this time using a planned rebuild
+  auto [final_trace, final_env] = phase2.run(trace, rebuild->planBuild());
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
@@ -89,12 +85,8 @@ void do_check() noexcept {
   // Print the rebuild planning dependency information
   cout << rebuild;
 
-  // Plan a build
-  Build phase2;
-  rebuild->planBuild(phase2);
-
-  // Print the planned build
-  cout << phase2;
+  // Create a rebuild plan and print it
+  cout << rebuild->planBuild();
 }
 
 /**

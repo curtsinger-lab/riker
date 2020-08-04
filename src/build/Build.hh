@@ -9,6 +9,7 @@
 
 #include "build/BuildObserver.hh"
 #include "build/Env.hh"
+#include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
@@ -40,24 +41,17 @@ class Build {
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
 
-  /// Mark command c for re-execution rather than emulation
-  bool setRerun(shared_ptr<Command> c) noexcept {
-    auto [iter, added] = _rerun.insert(c);
-    return added;
-  }
-
-  /// Check if command c is marked for re-execution rather than emulation
-  bool checkRerun(shared_ptr<Command> c) const noexcept { return _rerun.find(c) != _rerun.end(); }
-
   /**
    * Run a build trace in a given environment.
    * \param trace The trace to run
+   * \param plan  The planned rebuild actions. By default, all commands are emulated.
    * \param env   The environment the build should execute in. If no environment is provided, the
    *              trace will be run against a default environment (the current filesystem state).
    *              The provided environment will be modified by this method.
    * \returns a tuple of the new traces produced by the run, and the environment in its final state
    */
   tuple<shared_ptr<Trace>, shared_ptr<Env>> run(shared_ptr<Trace> trace,
+                                                RebuildPlan plan = RebuildPlan(),
                                                 shared_ptr<Env> env = nullptr) noexcept;
 
   /****** Tracing and Emulation Methods ******/
@@ -134,13 +128,6 @@ class Build {
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
 
-  friend ostream& operator<<(ostream& o, const Build& b) noexcept { return b.print(o); }
-
-  friend ostream& operator<<(ostream& o, const Build* b) noexcept {
-    if (b == nullptr) return o << "<null Build>";
-    return b->print(o);
-  }
-
   /********** Observer Interface **********/
 
   /// Add an observer to this build
@@ -185,6 +172,11 @@ class Build {
   /// Run steps in this build until we hit the end of the provided trace
   void runSteps() noexcept;
 
+  /// Is a particular command running?
+  bool isRunning(shared_ptr<Command> c) const noexcept {
+    return _running.find(c) != _running.end();
+  }
+
  private:
   /// The trace this build is running
   Trace::StepList _steps;
@@ -192,17 +184,14 @@ class Build {
   /// The trace of steps performed by this build
   shared_ptr<Trace> _trace;
 
+  /// The rebuild plan
+  RebuildPlan _plan;
+
   /// The environment in which this build executes
   shared_ptr<Env> _env;
 
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
-
-  /// The set of commands that can be emulated by this build
-  set<shared_ptr<Command>> _emulate;
-
-  /// The set of commands that will be rerun, rather than emulated, by this build
-  set<shared_ptr<Command>> _rerun;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is only
   /// being emulated
