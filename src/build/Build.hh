@@ -35,7 +35,10 @@ class Build {
   /**
    * Create a build runner
    */
-  Build() noexcept : _tracer(*this) {}
+  Build(shared_ptr<Trace> trace,
+        RebuildPlan plan = RebuildPlan(),
+        shared_ptr<Env> env = make_shared<Env>()) noexcept :
+      _steps(trace->getSteps()), _trace(trace->restart()), _plan(plan), _env(env), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -43,16 +46,9 @@ class Build {
 
   /**
    * Run a build trace in a given environment.
-   * \param trace The trace to run
-   * \param plan  The planned rebuild actions. By default, all commands are emulated.
-   * \param env   The environment the build should execute in. If no environment is provided, the
-   *              trace will be run against a default environment (the current filesystem state).
-   *              The provided environment will be modified by this method.
    * \returns a tuple of the new traces produced by the run, and the environment in its final state
    */
-  tuple<shared_ptr<Trace>, shared_ptr<Env>> run(shared_ptr<Trace> trace,
-                                                RebuildPlan plan = RebuildPlan(),
-                                                shared_ptr<Env> env = nullptr) noexcept;
+  tuple<shared_ptr<Trace>, shared_ptr<Env>> run() noexcept;
 
   /****** Tracing and Emulation Methods ******/
 
@@ -131,7 +127,10 @@ class Build {
   /********** Observer Interface **********/
 
   /// Add an observer to this build
-  void addObserver(shared_ptr<BuildObserver> o) noexcept { _observers.push_back(o); }
+  Build& addObserver(shared_ptr<BuildObserver> o) noexcept {
+    _observers.push_back(o);
+    return *this;
+  }
 
   /// Inform the observer that command c modified artifact a, creating version v
   void observeOutput(shared_ptr<Command> c,

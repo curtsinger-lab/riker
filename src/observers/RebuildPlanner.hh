@@ -2,7 +2,6 @@
 
 #include <map>
 #include <memory>
-#include <ostream>
 #include <set>
 
 #include "artifacts/Artifact.hh"
@@ -14,7 +13,6 @@
 #include "versions/MetadataVersion.hh"
 
 using std::map;
-using std::ostream;
 using std::set;
 using std::shared_ptr;
 
@@ -49,35 +47,11 @@ class RebuildPlanner final : public BuildObserver {
     return plan;
   }
 
-  /// Print information about the rebuild state
-  ostream& print(ostream& o) const noexcept {
-    if (_changed.size() > 0) {
-      o << "Commands with changed inputs:" << endl;
-      for (const auto& c : _changed) {
-        o << "  " << c->getShortName(options::command_length) << endl;
-      }
-      o << endl;
-    }
+  /// Get the set of commands that directly observe a change
+  const set<shared_ptr<Command>>& getChanged() const noexcept { return _changed; }
 
-    if (_output_needed.size() > 0) {
-      o << "Commands whose output is missing or modified:" << endl;
-      for (const auto& c : _output_needed) {
-        o << "  " << c->getShortName(options::command_length) << endl;
-      }
-      o << endl;
-    }
-
-    return o;
-  }
-
-  /// Print a RebuildPlanner reference
-  friend ostream& operator<<(ostream& o, const RebuildPlanner& r) noexcept { return r.print(o); }
-
-  /// Print a RebuildPlanner pointer
-  friend ostream& operator<<(ostream& o, const RebuildPlanner* r) noexcept {
-    if (r == nullptr) return o << "<null RebuildPlanner>";
-    return r->print(o);
-  }
+  /// Get the set of commands whose output is needed
+  const set<shared_ptr<Command>>& getOutputNeeded() const noexcept { return _output_needed; }
 
   /******** BuildObserver Interface ********/
 

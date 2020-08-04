@@ -38,7 +38,7 @@ using std::string;
 enum : size_t { ArchiveVersion = 13 };
 
 /// Try to load a build trace
-shared_ptr<Trace> load_trace(string filename, bool default_fallback) noexcept {
+shared_ptr<Trace> load_trace(string filename) noexcept {
   try {
     // Open the file for reading. Must pass std::ios::binary!
     ifstream f(filename, std::ios::binary);
@@ -55,25 +55,17 @@ shared_ptr<Trace> load_trace(string filename, bool default_fallback) noexcept {
 
     // Is there a version mismatch?
     if (version != ArchiveVersion) {
-      // Is default fallback enabled?
-      if (default_fallback) {
-        WARN << "Build database is outdated. Initializing a default build.";
-        return Trace::getDefault();
-      } else {
-        FAIL << "Build database is outdated. Rerun the build to create a new build database.";
-      }
+      WARN << "Build database is outdated. Initializing a default build.";
+      return Trace::getDefault();
     }
 
     // If the version matches, return the root of the build
     return trace;
 
   } catch (cereal::Exception& e) {
-    // If fallback to a default is allowed, get a default build
-    if (default_fallback) return Trace::getDefault();
-    FAIL << "Failed to load the build database. Have you run a build yet?";
+    // If loading failed, reutrn a default trace
+    return Trace::getDefault();
   }
-  // Unreachable, but silences warnings
-  exit(2);
 }
 
 #ifdef SERIALIZER_STATS

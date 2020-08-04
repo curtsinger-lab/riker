@@ -25,25 +25,7 @@ using std::endl;
 using std::ostream;
 using std::shared_ptr;
 
-tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run(shared_ptr<Trace> trace,
-                                                     RebuildPlan plan,
-                                                     shared_ptr<Env> env) noexcept {
-  // Save the rebuild plan
-  _plan = plan;
-
-  // If no environment was provided, use a default environment
-  if (!env) env = make_shared<Env>();
-
-  // Set the current environment
-  _env = env;
-
-  // Save the list of steps from the provided trace
-  _steps = trace->getSteps();
-
-  // The current trace is a restarted version of the provided trace
-  // It has no steps or commands, but retains its initial references
-  _trace = trace->restart();
-
+tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
   // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
   _trace->resolveRefs(*this, _env);
 

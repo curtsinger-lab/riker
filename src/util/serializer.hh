@@ -9,8 +9,8 @@ using std::string;
 
 class Trace;
 
-/// Try to load a build trace. Exit with an error if loading fails.
-shared_ptr<Trace> load_trace(string filename, bool default_fallback) noexcept;
+/// Load a build trace, or return a default trace if there is no existing trace
+shared_ptr<Trace> load_trace(string filename) noexcept;
 
 /// Save a build trace to a file
 void save_trace(string filename, shared_ptr<Trace> trace) noexcept;

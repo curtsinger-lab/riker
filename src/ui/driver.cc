@@ -37,23 +37,16 @@ const fs::path DatabaseFilename = ".dodo/db";
 /// Run the `build` subcommand.
 void do_build() noexcept {
   // Load a trace, or set up a default build if necessary
-  auto trace = load_trace(DatabaseFilename, true);
-
-  // Set up a build to emulate the loaded command tree.
-  Build phase1;
+  auto trace = load_trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
-  phase1.addObserver(rebuild);
 
-  // Run the emulated build to gather change and dependency information
-  phase1.run(trace);
+  // Emulate the loaded trace
+  Build(trace).addObserver(rebuild).run();
 
-  // Now create a build to run the second phase, the actual build execution
-  Build phase2;
-
-  // Run the trace again, this time using a planned rebuild
-  auto [final_trace, final_env] = phase2.run(trace, rebuild->planBuild());
+  // Now run the trace again with the planned rebuild steps
+  auto [final_trace, final_env] = Build(trace, rebuild->planBuild()).run();
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
@@ -70,22 +63,33 @@ void do_build() noexcept {
  */
 void do_check() noexcept {
   // Load a build, or set up a default build if necessary
-  auto trace = load_trace(DatabaseFilename, true);
-
-  // Set up a build to emulate the loaded command tryy
-  Build phase1;
+  auto trace = load_trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
-  phase1.addObserver(rebuild);
 
-  // Run the emulated build to gather change and dependency information
-  phase1.run(trace);
+  // Emulate the loaded trace
+  Build(trace).addObserver(rebuild).run();
 
-  // Print the rebuild planning dependency information
-  cout << rebuild;
+  // Print commands whose inputs have changed
+  if (rebuild->getChanged().size() > 0) {
+    cout << "Commands with changed inputs:" << endl;
+    for (const auto& c : rebuild->getChanged()) {
+      cout << "  " << c->getShortName(options::command_length) << endl;
+    }
+    cout << endl;
+  }
 
-  // Create a rebuild plan and print it
+  // Print commands whose output is needed
+  if (rebuild->getOutputNeeded().size() > 0) {
+    cout << "Commands whose output is missing or modified:" << endl;
+    for (const auto& c : rebuild->getOutputNeeded()) {
+      cout << "  " << c->getShortName(options::command_length) << endl;
+    }
+    cout << endl;
+  }
+
+  // Print the rebuild plan
   cout << rebuild->planBuild();
 }
 
@@ -95,7 +99,7 @@ void do_check() noexcept {
  */
 void do_trace(string output) noexcept {
   // Load the build trace
-  auto trace = load_trace(DatabaseFilename, false);
+  auto trace = load_trace(DatabaseFilename);
 
   // Print it
   if (output == "-") {
@@ -122,18 +126,14 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   // If the output filename is not empty, but has no extension, append one
   if (output.find('.') == string::npos) output += "." + type;
 
-  // Load the command tree
-  auto trace = load_trace(DatabaseFilename, false);
-
-  // Set up a build to emulate the command tree
-  Build b;
+  // Load the build trace
+  auto trace = load_trace(DatabaseFilename);
 
   // Create the Graph observer and attach it to the build
   auto graph = make_shared<Graph>(show_all);
-  b.addObserver(graph);
 
-  // Run the emulated build
-  b.run(trace);
+  // Set up a build to emulate the trace
+  Build(trace).addObserver(graph).run();
 
   if (no_render) {
     ofstream f(output);
@@ -163,14 +163,11 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(bool list_artifacts) noexcept {
-  // Load the serialized command tree
-  auto trace = load_trace(DatabaseFilename, false);
+  // Load the serialized build trace
+  auto trace = load_trace(DatabaseFilename);
 
-  // Set up a build to emulate the commands
-  Build b;
-
-  // Emulate the build
-  auto [final_trace, final_env] = b.run(trace);
+  // Emulate the trace
+  auto [final_trace, final_env] = Build(trace).run();
 
   // Count the number of versions of artifacts
   size_t version_count = 0;
