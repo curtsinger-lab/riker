@@ -2,9 +2,9 @@ CC  = clang
 CXX = clang++
 MAKEFLAGS += -j
 
-COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O3
+COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O0 -fsanitize=address
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
-LDFLAGS = -lstdc++fs -lfmt
+LDFLAGS = -lstdc++fs -lfmt -fsanitize=address
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))

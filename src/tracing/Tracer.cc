@@ -149,11 +149,7 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        try {
-          handleSyscall(p);
-        } catch (int& i) {
-          p->resume();
-        }
+        handleSyscall(p);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
@@ -165,6 +161,8 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
+        auto regs = p->getRegisters();
+        LOGF(trace, "{}: finished syscall {}", p, SyscallTable::get(regs.SYSCALL_NUMBER).getName());
         p->syscallFinished();
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
@@ -172,7 +170,13 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         // post-syscall handler
         p->syscallFinished();
 
+      } else if (WSTOPSIG(wait_status) == SIGSTOP) {
+        LOG(trace) << p << " got a wacky ptrace SIGSTOP";
+        ptrace(PTRACE_CONT, child, nullptr, 0);
+
       } else {
+        LOGF(trace, "{} stopped for an unknown reason ({:x}) with signal {}", p, status,
+             WSTOPSIG(wait_status));
         // The traced process received a signal. Just pass it along.
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }

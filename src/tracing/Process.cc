@@ -32,7 +32,8 @@ namespace fs = std::filesystem;
 
 user_regs_struct Process::getRegisters() noexcept {
   struct user_regs_struct regs;
-  FAIL_IF(ptrace(PTRACE_GETREGS, _pid, nullptr, &regs)) << "Failed to get registers: " << ERR;
+  FAIL_IF(ptrace(PTRACE_GETREGS, _pid, nullptr, &regs))
+      << "Failed to get registers (for PID " << _pid << "): " << ERR;
   return regs;
 }
 
@@ -596,12 +597,14 @@ void Process::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t o
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
   if (fd == -1) {
+    LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
     resume();
     return;
   }
 
   // Run the syscall to find out if the mmap succeeded
   finishSyscall([=](long rc) {
+    LOGF(trace, "{}: finished mmap({})", this, fd);
     void* result = (void*)rc;
 
     // If the map failed there's nothing to log
