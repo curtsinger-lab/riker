@@ -132,40 +132,37 @@ class Build {
     return *this;
   }
 
-  /// Inform the observer that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) noexcept {
-    for (const auto& o : _observers) o->output(c, a, v);
-  }
+  /// Inform observers that a command has never run
+  void observeCommandNeverRun(shared_ptr<Command> c) const noexcept;
 
-  /// Inform the observer that command c accessed version v of artifact a
+  /// Inform observers that a parent command launched a child command
+  void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept;
+
+  /// Inform observers that command c modified artifact a, creating version v
+  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) const
+      noexcept;
+
+  /// Inform observers that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c,
                     shared_ptr<Artifact> a,
                     shared_ptr<Version> v,
-                    InputType t) noexcept;
+                    InputType t) const noexcept;
 
-  /// Inform the observer that command c did not find the expected version in artifact a
+  /// Inform observers that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
   void observeMismatch(shared_ptr<Command> c,
                        shared_ptr<Artifact> a,
                        shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) noexcept {
-    for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
-  }
+                       shared_ptr<Version> expected) const noexcept;
 
-  /// Inform the observer that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) noexcept {
-    for (const auto& o : _observers) o->commandChanged(c, s);
-  }
+  /// Inform observers that a given command's IR action would detect a change in the build env
+  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) const noexcept;
 
   /// Inform observers that the version of an artifact produced during the build does not match the
   /// on-disk version.
   void observeFinalMismatch(shared_ptr<Artifact> a,
                             shared_ptr<Version> produced,
-                            shared_ptr<Version> ondisk) noexcept {
-    for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
-  }
+                            shared_ptr<Version> ondisk) const noexcept;
 
  private:
   /// Run steps in this build until we hit the end of the provided trace

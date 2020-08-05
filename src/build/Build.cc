@@ -55,11 +55,30 @@ void Build::runSteps() noexcept {
   }
 }
 
-/// Inform the observer that command c accessed version v of artifact a
+/************************ Observer Implementation ************************/
+
+// Inform observers that a command has never run
+void Build::observeCommandNeverRun(shared_ptr<Command> c) const noexcept {
+  for (const auto& o : _observers) o->commandNeverRun(c);
+}
+
+// Inform observers that a parent command launched a child command
+void Build::observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept {
+  for (const auto& o : _observers) o->launch(parent, child);
+}
+
+// Inform observers that command c modified artifact a, creating version v
+void Build::observeOutput(shared_ptr<Command> c,
+                          shared_ptr<Artifact> a,
+                          shared_ptr<Version> v) const noexcept {
+  for (const auto& o : _observers) o->output(c, a, v);
+}
+
+// Inform observers that command c accessed version v of artifact a
 void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
-                         InputType t) noexcept {
+                         InputType t) const noexcept {
   if (_plan.mustRerun(c) && !v->isCommitted()) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
@@ -68,6 +87,28 @@ void Build::observeInput(shared_ptr<Command> c,
   }
 
   for (const auto& o : _observers) o->input(c, a, v, t);
+}
+
+// Inform observers that command c did not find the expected version in artifact a
+// Instead of version `expected`, the command found version `observed`
+void Build::observeMismatch(shared_ptr<Command> c,
+                            shared_ptr<Artifact> a,
+                            shared_ptr<Version> observed,
+                            shared_ptr<Version> expected) const noexcept {
+  for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
+}
+
+// Inform observers that a given command's IR action would detect a change in the build env
+void Build::observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) const noexcept {
+  for (const auto& o : _observers) o->commandChanged(c, s);
+}
+
+// Inform observers that the version of an artifact produced during the build does not match the
+// on-disk version.
+void Build::observeFinalMismatch(shared_ptr<Artifact> a,
+                                 shared_ptr<Version> produced,
+                                 shared_ptr<Version> ondisk) const noexcept {
+  for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
 /************************ Command Tracing and Emulation ************************/
@@ -389,16 +430,11 @@ void Build::launch(shared_ptr<Command> c,
 
   // If we're emulating the launch of an unexecuted command, notify observers
   if (emulating && !child->hasExecuted()) {
-    // If we're emulating, we need to let the observers know if the child has not been run before
-    for (const auto& o : _observers) {
-      o->commandNeverRun(child);
-    }
+    observeCommandNeverRun(child);
   }
 
   // Inform observers of the launch
-  for (const auto& o : _observers) {
-    o->launch(c, child);
-  }
+  observeLaunch(c, child);
 
   // Is the child command being executed? If the parent is executing or the child is marked, yes.
   if (!emulating || _plan.mustRerun(child)) {
