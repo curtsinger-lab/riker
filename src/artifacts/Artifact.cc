@@ -143,7 +143,7 @@ optional<fs::path> Artifact::getPath(bool allow_uncommitted) const noexcept {
 }
 
 /// Get a parent directory for this artifact. The result may or may not be on the filesystem
-optional<shared_ptr<DirArtifact>> Artifact::getParentDir() const noexcept {
+optional<shared_ptr<DirArtifact>> Artifact::getParentDir() noexcept {
   // Get all the links to this artifact, both committed and uncommitted
   auto [committed_links, uncommitted_links] = getLinks();
 
@@ -160,7 +160,7 @@ optional<shared_ptr<DirArtifact>> Artifact::getParentDir() const noexcept {
   }
 
   // This artifact has no known parent directory
-  return nullopt;
+  return this->as<DirArtifact>();
 }
 
 // Generate and save a temporary path for this artifact. Returns the new path.

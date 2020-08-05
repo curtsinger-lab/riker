@@ -93,7 +93,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
       _event_queue.erase(iter);
 
       // Return the event
-      return *iter;
+      return tuple{child, wait_status};
     }
   }
 
