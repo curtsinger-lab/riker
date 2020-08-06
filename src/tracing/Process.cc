@@ -190,7 +190,6 @@ T Thread::readData(uintptr_t tracee_pointer) noexcept {
 
   // Do the read
   auto rc = process_vm_readv(_tid, &local, 1, &remote, 1, 0);
-
   // Check the result
   FAIL_IF(rc != sizeof(T)) << this << ": Error in readData(" << (void*)tracee_pointer << "). "
                            << ERR;
