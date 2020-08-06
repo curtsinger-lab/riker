@@ -192,7 +192,8 @@ T Thread::readData(uintptr_t tracee_pointer) noexcept {
   auto rc = process_vm_readv(_tid, &local, 1, &remote, 1, 0);
 
   // Check the result
-  FAIL_IF(rc != sizeof(T)) << "Failed to read data from traced process";
+  FAIL_IF(rc != sizeof(T)) << this << ": Error in readData(" << (void*)tracee_pointer << "). "
+                           << ERR;
 
   return result;
 }
@@ -218,7 +219,8 @@ vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
     auto rc = process_vm_readv(_tid, &local, 1, &remote, 1, 0);
 
     // Check for failure
-    FAIL_IF(rc == -1) << "Failed to read data from traced process: " << ERR;
+    FAIL_IF(rc == -1) << this << ": Error in readTerminatedArray(" << (void*)tracee_pointer << "). "
+                      << ERR;
 
     // Our position in the remote array is advanced by the number of bytes read. This will usually
     // be BatchSize, but reading can end early when we hit the end of a page/region
