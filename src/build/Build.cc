@@ -44,7 +44,7 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
 void Build::runSteps() noexcept {
   while (!_steps.empty()) {
     // Take the first step from the list
-    auto& [cmd, step] = _steps.front();
+    auto [cmd, step] = _steps.front();
     _steps.pop_front();
 
     // Can we emulate the command that created this IR step?

@@ -137,7 +137,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   optional<fs::path> getPath(bool allow_uncommitted = true) const noexcept;
 
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
-  optional<shared_ptr<DirArtifact>> getParentDir() const noexcept;
+  optional<shared_ptr<DirArtifact>> getParentDir() noexcept;
 
   /// Generate and save a temporary path for this artifact. Returns the new path.
   /// The caller must make sure this artifact is linked at the new temporary path.
