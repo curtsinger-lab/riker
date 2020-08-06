@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <fcntl.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/wait.h>
@@ -269,6 +270,63 @@ class Thread {
   void _readlinkat(int dfd, string pathname) noexcept;
   void _unlink(string pathname) noexcept { _unlinkat(AT_FDCWD, pathname, 0); }
   void _unlinkat(int dfd, string pathname, int flag) noexcept;
+
+  // Socket Operations
+  void _accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
+    FAIL << "accept(2) not yet implemented.";
+  }
+  void _bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
+    FAIL << "bind(2) not yet implemented.";
+  }
+  void _connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
+    FAIL << "connect(2) not yet implemented.";
+  }
+  void _getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
+    FAIL << "getpeername(2) not yet implemented.";
+  }
+  void _getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
+    FAIL << "getsockname(2) not yet implemented.";
+  }
+  void _getsockopt(int sockfd, int level, int optname, void* optval, socklen_t* optlen) noexcept {
+    FAIL << "getsockopt(2) not yet implemented.";
+  }
+  void _listen(int sockfd, int backlog) { FAIL << "listen(2) not yet implemented."; }
+  void _recvfrom(int sockfd,
+                 void* buf,
+                 size_t len,
+                 int flags,
+                 struct sockaddr* src_addr,
+                 socklen_t* addrlen) noexcept {
+    FAIL << "recvfrom(2) not yet implemented.";
+  }
+  void _recvmsg(int sockfd, struct msghdr* msg, int flags) noexcept {
+    FAIL << "recvmsg(2) not yet implemented.";
+  }
+  void _sendmsg(int sockfd, const struct msghdr* msg, int flags) {
+    FAIL << "sendmsg(2) not yet implemented.";
+  }
+  void _sendto(int sockfd,
+               const void* buf,
+               size_t len,
+               int flags,
+               const struct sockaddr* dest_addr,
+               socklen_t addrlen) {
+    FAIL << "sendto(2) not yet implemented.";
+  }
+  void _setsockopt(int sockfd,
+                   int level,
+                   int optname,
+                   const void* optval,
+                   socklen_t optlen) noexcept {
+    FAIL << "setsockopt(2) not yet implemented.";
+  }
+  void _shutdown(int sockfd, int how) { FAIL << "shutdown(2) not yet implemented."; }
+  void _socket(int domain, int type, int protocol) noexcept {
+    FAIL << "socket(2) not yet implemented.";
+  }
+  void _socketpair(int domain, int type, int protocol, int sv[2]) {
+    FAIL << "socketpair2) not yet implemented.";
+  }
 
   // Process State Operations
   void _chdir(string filename) noexcept;
