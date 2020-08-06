@@ -241,6 +241,7 @@ void Tracer::handleSyscall(shared_ptr<Thread> t) noexcept {
 
   const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
   if (entry.isTraced()) {
+    LOG(trace) << t << ": stopped on syscall " << entry.getName();
     entry.runHandler(t, regs);
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;

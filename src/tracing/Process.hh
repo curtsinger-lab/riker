@@ -275,12 +275,10 @@ class Thread {
   void _unlinkat(int dfd, string pathname, int flag) noexcept;
 
   // Socket Operations
-  void _accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
+  void _accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
     FAIL << "accept(2) not yet implemented.";
   }
-  void _bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) {
-    FAIL << "bind(2) not yet implemented.";
-  }
+  void _bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept;
   void _connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
     FAIL << "connect(2) not yet implemented.";
   }
@@ -324,12 +322,8 @@ class Thread {
     FAIL << "setsockopt(2) not yet implemented.";
   }
   void _shutdown(int sockfd, int how) { FAIL << "shutdown(2) not yet implemented."; }
-  void _socket(int domain, int type, int protocol) noexcept {
-    FAIL << "socket(2) not yet implemented.";
-  }
-  void _socketpair(int domain, int type, int protocol, int sv[2]) {
-    FAIL << "socketpair2) not yet implemented.";
-  }
+  void _socket(int domain, int type, int protocol) noexcept;
+  void _socketpair(int domain, int type, int protocol, int sv[2]) noexcept;
 
   // Process State Operations
   void _chdir(string filename) noexcept;

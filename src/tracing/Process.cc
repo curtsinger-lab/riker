@@ -1100,6 +1100,52 @@ void Thread::_unlinkat(int dfd, string pathname, int flags) noexcept {
   });
 }
 
+/************************ Socket Operations ************************/
+
+void Thread::_socket(int domain, int type, int protocol) noexcept {
+  WARN << "socket(2) not yet implemented. Emulating as an anonymous file.";
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    if (rc >= 0) {
+      auto ref = _build.file(_process->getCommand(), 0600);
+      _process->addFD(rc, ref, true, (type & SOCK_CLOEXEC) == SOCK_CLOEXEC);
+    }
+  });
+}
+
+void Thread::_bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
+  WARN << "bind(2) not yet implemented. Ignoring for now.";
+  resume();
+}
+
+void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept {
+  if (domain == AF_UNIX) {
+    finishSyscall([=](long rc) {
+      resume();
+
+      if (rc == 0) {
+        // Read the file descriptors
+        int sock1_fd = readData((uintptr_t)sv);
+        int sock2_fd = readData((uintptr_t)sv + sizeof(int));
+
+        // Are the sockets closed on exec?
+        bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
+
+        // Create an anonymous file to represent the socket
+        auto ref = _build.file(_process->getCommand(), 0600);
+
+        // Add the file descriptors
+        _process->addFD(sock1_fd, ref, true, cloexec);
+        _process->addFD(sock2_fd, ref, true, cloexec);
+      }
+    });
+  } else {
+    FAIL << "socketpair(2) for non-UNIX sockets is not implemented.";
+  }
+}
+
 /************************ Process State Operations ************************/
 
 void Thread::_chdir(string filename) noexcept {

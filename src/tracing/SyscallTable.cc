@@ -153,20 +153,20 @@ constexpr SyscallTable::SyscallTable() {
   /* 039 */  // skip getpid
   /* 040 */ TRACE(sendfile);
   /* 041 */ TRACE(socket);
-  /* 042 */ TRACE(connect);
-  /* 043 */ TRACE(accept);
+  /* 042 */  // TRACE(connect);
+  /* 043 */  // TRACE(accept);
   /* 044 */ TRACE(sendto);
   /* 045 */ TRACE(recvfrom);
   /* 046 */ TRACE(sendmsg);
   /* 047 */ TRACE(recvmsg);
-  /* 048 */ TRACE(shutdown);
-  /* 049 */ TRACE(bind);
-  /* 050 */ TRACE(listen);
-  /* 051 */ TRACE(getsockname);
-  /* 052 */ TRACE(getpeername);
+  /* 048 */  // TRACE(shutdown);
+  /* 049 */  // TRACE(bind);
+  /* 050 */  // TRACE(listen);
+  /* 051 */  // TRACE(getsockname);
+  /* 052 */  // TRACE(getpeername);
   /* 053 */ TRACE(socketpair);
-  /* 054 */ TRACE(setsockopt);
-  /* 055 */ TRACE(getsockopt);
+  /* 054 */  // TRACE(setsockopt);
+  /* 055 */  // TRACE(getsockopt);
   /* 056 */  // skip clone
   /* 057 */  // skip fork
   /* 058 */  // skip vfork
