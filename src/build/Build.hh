@@ -139,14 +139,15 @@ class Build {
   void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept;
 
   /// Inform observers that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) const
-      noexcept;
+  void observeOutput(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) const noexcept;
 
   /// Inform observers that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c,
                     shared_ptr<Artifact> a,
                     shared_ptr<Version> v,
-                    InputType t) const noexcept;
+                    InputType t) noexcept;
 
   /// Inform observers that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
@@ -198,4 +199,7 @@ class Build {
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;
+
+  /// The last write performed by any command
+  tuple<shared_ptr<Command>, shared_ptr<Ref>, shared_ptr<Version>> _last_write;
 };

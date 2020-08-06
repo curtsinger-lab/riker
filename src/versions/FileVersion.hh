@@ -72,11 +72,11 @@ class FileVersion final : public Version {
   /// Commit this version to the filesystem
   void commit(fs::path path, mode_t mode = 0600) noexcept;
 
-  /// Is this version fingerprinted in a way that allows us to check for a match?
-  bool hasFingerprint() const noexcept { return _fingerprint.has_value(); }
-
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path) noexcept override;
+
+  /// Check if this version has a fingerprint
+  virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

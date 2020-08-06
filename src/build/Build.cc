@@ -74,11 +74,18 @@ void Build::observeOutput(shared_ptr<Command> c,
   for (const auto& o : _observers) o->output(c, a, v);
 }
 
-// Inform observers that command c accessed version v of artifact a
+// Inform observers that command c  accessed version v of artifact a
 void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
-                         InputType t) const noexcept {
+                         InputType t) noexcept {
+  // Is this input accessing the last write we observed? We care specifically about
+  auto& [write_command, write_ref, write_version] = _last_write;
+  if (v == write_version && c != write_command) {
+    // Yes. The version is now accessed, so clear the last write
+    _last_write = {nullptr, nullptr, nullptr};
+  }
+
   if (_plan.mustRerun(c) && !v->isCommitted()) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
@@ -261,6 +268,13 @@ void Build::matchContent(shared_ptr<Command> c,
 
     ASSERT(expected) << "Unable to get content from " << ref->getArtifact();
 
+    // If this access is from the same command and reference as the last write, and the versions are
+    // the same, skip the trace step
+    if (_last_write == tuple{c, ref, expected}) {
+      LOG(exec) << "Skipping " << c << " access to " << ref->getArtifact();
+      return;
+    }
+
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
     if (!creator || creator != c) {
@@ -357,11 +371,22 @@ void Build::updateContent(shared_ptr<Command> c,
     // Apply the write
     written->applyTo(*this, c, ref->getArtifact());
 
+    // Save the last write
+    _last_write = {c, ref, written};
+
     // Add this write to the trace
     _trace->addStep(c, emulating, true);
 
   } else {
     // No. This is a traced operation
+
+    // Was the last write from the same command and reference?
+    auto [last_write_command, last_write_ref, last_write_version] = _last_write;
+    if (c == last_write_command && ref == last_write_ref && !last_write_version->hasFingerprint()) {
+      // Yes. We can skip the trace step.
+      LOG(exec) << "Skipping " << c << " write to " << ref->getArtifact();
+      return;
+    }
 
     // If a written version was not provided, ask the artifact for one
     if (!written) written = ref->getArtifact()->createContentVersion();
@@ -374,6 +399,8 @@ void Build::updateContent(shared_ptr<Command> c,
 
     // Update the artifact's content
     written->applyTo(*this, c, ref->getArtifact());
+
+    _last_write = {c, ref, written};
 
     // Add a new trace step
     _trace->addStep(c, make_shared<UpdateContent>(ref, written), false);

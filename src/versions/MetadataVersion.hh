@@ -96,11 +96,11 @@ class MetadataVersion final : public Version {
   /// Save the on-disk state to this version for later commit
   void save(fs::path path) noexcept;
 
-  /// Is this version fingerprinted in a way that allows us to check for a match?
-  bool hasFingerprint() const noexcept { return _metadata.has_value(); }
-
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path) noexcept override { save(path); }
+
+  /// Check if this version has a fingerprint
+  virtual bool hasFingerprint() const noexcept override { return _metadata.has_value(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

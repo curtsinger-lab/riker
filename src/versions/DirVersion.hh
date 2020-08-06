@@ -29,6 +29,9 @@ class ListedDir : public Version {
   /// Save a fingerprint for this version, which is always done on creation
   virtual void fingerprint(fs::path path) noexcept override {}
 
+  /// Check if this version has a fingerprint
+  virtual bool hasFingerprint() const noexcept override { return true; }
+
   /// Check if this list matches another list
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
     auto other_list = other->as<ListedDir>();
@@ -75,6 +78,9 @@ class DirVersion : public Version {
   /// Skip fingerprints for partial directory versions
   virtual void fingerprint(fs::path path) noexcept override {}
 
+  /// Check if this version has a fingerprint
+  virtual bool hasFingerprint() const noexcept override { return true; }
+
   /// Disallow direct comparisons of partial directory versions
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
     FAIL << "Attempted to match against a partial directory version";
@@ -95,8 +101,8 @@ class BaseDirVersion : public DirVersion {
                               string name) noexcept = 0;
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
-      noexcept = 0;
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
+                                        shared_ptr<DirArtifact> dir) const noexcept = 0;
 
   /// Apply this version to an artifact
   virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
@@ -128,8 +134,8 @@ class CreatedDir : public BaseDirVersion {
   }
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
-      noexcept override {
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
+                                        shared_ptr<DirArtifact> dir) const noexcept override {
     return make_shared<ListedDir>();
   }
 
@@ -164,8 +170,8 @@ class ExistingDir : public BaseDirVersion {
                               string name) noexcept override;
 
   /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
-      noexcept override;
+  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
+                                        shared_ptr<DirArtifact> dir) const noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "on-disk"; }
