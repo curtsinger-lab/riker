@@ -222,16 +222,17 @@ vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
     FAIL_IF(rc == -1) << this << ": Error in readTerminatedArray(" << (void*)tracee_pointer << "). "
                       << ERR;
 
-    // Our position in the remote array is advanced by the number of bytes read. This will usually
-    // be BatchSize, but reading can end early when we hit the end of a page/region
-    position += rc;
+    // The return code is the number of bytes read. This will often be BatchSize * sizeof(T), but
+    // can be smaller. Advance position (the index into the output array) by the number of complete
+    // elements read.
+    position += rc / sizeof(T);
 
     // Let the result vector know we're about to append a bunch of data
     result.reserve(result.size() + rc / sizeof(T));
 
     // Scan for a terminator
     for (size_t i = 0; i < rc / sizeof(T); i++) {
-      // If we find a termiantor, it's time to return
+      // If we find a terminator, it's time to return
       if (buffer[i] == Terminator) {
         // Insert all elements from buffer up to (but not including) the terminator
         result.insert(result.end(), buffer, buffer + i);
