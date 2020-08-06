@@ -17,11 +17,11 @@ using std::string;
 
 /**
  * A simple wrapper class around system call arguments that can convert them to known types by
- * reading from process memory.
+ * reading from a stopped thread.
  */
 class SyscallArgWrapper {
  public:
-  SyscallArgWrapper(Process& p, unsigned long val) : _proc(p), _val(val) {}
+  SyscallArgWrapper(Thread& t, unsigned long val) : _thread(t), _val(val) {}
 
   // Use static cast for most types
   template <typename T>
@@ -29,11 +29,11 @@ class SyscallArgWrapper {
     return static_cast<T>(_val);
   }
 
-  // Read a string from the process' memory
-  operator string() { return _proc.readString(_val); }
+  // Read a string from the thread's memory
+  operator string() { return _thread.readString(_val); }
 
-  // Read a vector of strings from the process' memory
-  operator vector<string>() { return _proc.readArgvArray(_val); }
+  // Read a vector of strings from the thread's memory
+  operator vector<string>() { return _thread.readArgvArray(_val); }
 
   // Cast directly to pointer types
   template <typename T>
@@ -42,69 +42,69 @@ class SyscallArgWrapper {
   }
 
  private:
-  Process& _proc;
+  Thread& _thread;
   unsigned long _val;
 };
 
 // Invoke a single-argument syscall handler
 template <class T1>
-void invoke_handler(void (Process::*handler)(T1 a1), Process& proc, user_regs_struct& regs) {
-  (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1));
+void invoke_handler(void (Thread::*handler)(T1 a1), Thread& thread, user_regs_struct& regs) {
+  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1));
 }
 
 // Invoke a two-argument syscall handler
 template <class T1, class T2>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2), Process& proc, user_regs_struct& regs) {
-  (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1),
-                    SyscallArgWrapper(proc, regs.SYSCALL_ARG2));
+void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2), Thread& thread, user_regs_struct& regs) {
+  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1),
+                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2));
 }
 
 // Invoke a three-argument syscall handler
 template <class T1, class T2, class T3>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3),
-                    Process& proc,
+void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3),
+                    Thread& thread,
                     user_regs_struct& regs) {
-  (proc.*(handler))(SyscallArgWrapper(proc, regs.SYSCALL_ARG1),
-                    SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
-                    SyscallArgWrapper(proc, regs.SYSCALL_ARG3));
+  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1),
+                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2),
+                      SyscallArgWrapper(thread, regs.SYSCALL_ARG3));
 }
 
 // Invoke a four-argument syscall handler
 template <class T1, class T2, class T3, class T4>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
-                    Process& proc,
+void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
+                    Thread& thread,
                     user_regs_struct& regs) {
-  (proc.*(handler))(
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4));
+  (thread.*(handler))(
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG1), SyscallArgWrapper(thread, regs.SYSCALL_ARG2),
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG3), SyscallArgWrapper(thread, regs.SYSCALL_ARG4));
 }
 
 // Invoke a five-argument syscall handler
 template <class T1, class T2, class T3, class T4, class T5>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
-                    Process& proc,
+void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
+                    Thread& thread,
                     user_regs_struct& regs) {
-  (proc.*(handler))(
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4),
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG5));
+  (thread.*(handler))(
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG1), SyscallArgWrapper(thread, regs.SYSCALL_ARG2),
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG3), SyscallArgWrapper(thread, regs.SYSCALL_ARG4),
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG5));
 }
 
 // Invoke a six-argument syscall handler
 template <class T1, class T2, class T3, class T4, class T5, class T6>
-void invoke_handler(void (Process::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
-                    Process& proc,
+void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
+                    Thread& thread,
                     user_regs_struct& regs) {
-  (proc.*(handler))(
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG1), SyscallArgWrapper(proc, regs.SYSCALL_ARG2),
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG3), SyscallArgWrapper(proc, regs.SYSCALL_ARG4),
-      SyscallArgWrapper(proc, regs.SYSCALL_ARG5), SyscallArgWrapper(proc, regs.SYSCALL_ARG6));
+  (thread.*(handler))(
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG1), SyscallArgWrapper(thread, regs.SYSCALL_ARG2),
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG3), SyscallArgWrapper(thread, regs.SYSCALL_ARG4),
+      SyscallArgWrapper(thread, regs.SYSCALL_ARG5), SyscallArgWrapper(thread, regs.SYSCALL_ARG6));
 }
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                            \
-  _syscalls[__NR_##name] = SyscallEntry(#name, [](Process& __proc, user_regs_struct& __regs) { \
-    invoke_handler(&Process::_##name, __proc, __regs);                                         \
+#define TRACE(name)                                                                          \
+  _syscalls[__NR_##name] = SyscallEntry(#name, [](Thread& __thr, user_regs_struct& __regs) { \
+    invoke_handler(&Thread::_##name, __thr, __regs);                                         \
   });
 
 /// The maximum number of system calls

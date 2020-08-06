@@ -101,12 +101,6 @@ class Build {
                      shared_ptr<Version> written = nullptr,
                      shared_ptr<UpdateContent> emulating = nullptr) noexcept;
 
-  /// Can a traced execveat skip a command with the given arguments?
-  shared_ptr<Command> can_skip(shared_ptr<Access> exe_ref, vector<string> args) noexcept;
-
-  /// The tracing layer is skipping a command, which is expected to run in the given process
-  void skip_launch(shared_ptr<Command> c, shared_ptr<Process> proc) noexcept;
-
   /// A command is launching a child command
   void launch(shared_ptr<Command> c,
               shared_ptr<Command> child,
@@ -139,9 +133,8 @@ class Build {
   void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept;
 
   /// Inform observers that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) const noexcept;
+  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) const
+      noexcept;
 
   /// Inform observers that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c,

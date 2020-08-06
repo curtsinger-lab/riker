@@ -51,57 +51,46 @@ class Process : public std::enable_shared_from_this<Process> {
       _root(root),
       _fds(fds) {}
 
-  shared_ptr<Process> fork(pid_t child_pid) noexcept {
-    return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
-  }
+  /// Get the process ID
+  pid_t getID() const noexcept { return _pid; }
+
+  /// Get the command this process is running
+  shared_ptr<Command> getCommand() const noexcept { return _command; }
+
+  /// Get the root directory
+  shared_ptr<Access> getRoot() const noexcept { return _root; }
+
+  /// Get the working directory
+  shared_ptr<Access> getWorkingDir() const noexcept { return _cwd; }
+
+  /// Set the working directory
+  void setWorkingDir(shared_ptr<Access> ref) noexcept;
+
+  /// Get a file descriptor entry
+  FileDescriptor& getFD(int fd) noexcept;
+
+  /// Add a file descriptor entry
+  FileDescriptor& addFD(int fd, shared_ptr<Ref> ref, bool writable, bool cloexec = false) noexcept;
+
+  /// Remove a file descriptor entry
+  void closeFD(int fd) noexcept;
+
+  /// Remove a file descriptor entry if it exists
+  void tryCloseFD(int fd) noexcept;
 
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }
 
+  /// Mark this process as exited
   void setExited() noexcept { _exited = true; }
 
-  /// Resume a traced process that is currently stopped
-  void resume() noexcept;
+  /// This process forked off a child process
+  shared_ptr<Process> fork(pid_t child_pid) noexcept {
+    return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
+  }
 
-  /// Resume a process that has stopped before a syscall, and run the provided handler when the
-  /// syscall finishes
-  void finishSyscall(function<void(long)> handler) noexcept;
-
-  /// Run the registered post-syscall handler
-  void syscallFinished() noexcept;
-
-  /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
-  unsigned long getEventMessage() noexcept;
-
-  /// Get the current register state for this process
-  user_regs_struct getRegisters() noexcept;
-
-  /// Change the register state for this process
-  void setRegisters(user_regs_struct& regs) noexcept;
-
-  /// Read a string from this process' memory
-  string readString(uintptr_t tracee_pointer) noexcept;
-
-  /// Read a value from this process' memory
-  template <typename T = uintptr_t>
-  T readData(uintptr_t tracee_pointer) noexcept;
-
-  /// Read a terminated array from this process' memory
-  template <typename T, T Terminator, size_t BatchSize = 128>
-  vector<T> readTerminatedArray(uintptr_t tracee_pointer) noexcept;
-
-  /// Read a null-terminated array of strings
-  vector<string> readArgvArray(uintptr_t tracee_pointer) noexcept;
-
-  /**
-   * The command running in this process referenced a path. Create an Access reference to track
-   * this reference and record it in the command.
-   * \param p     The path, as retrieved from the trace (MUST NOT BE NORMALIZED)
-   * \param flags The flags that control the access mode
-   * \param at    A file descriptor this access is made relative to
-   * \returns an Access instance that has been added to the current command
-   */
-  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
+  /// This process is executing a new file
+  void exec(shared_ptr<Access> exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
@@ -113,6 +102,86 @@ class Process : public std::enable_shared_from_this<Process> {
     if (p == nullptr) return o << "<null Process>";
     return o << *p;
   }
+
+ private:
+  /// This process is running as part of a build
+  Build& _build;
+
+  /// This process was launched under a specific tracer
+  Tracer& _tracer;
+
+  /// The command this process is running
+  shared_ptr<Command> _command;
+
+  /// The process' pid
+  pid_t _pid;
+
+  /// A reference to the process' current working directory
+  shared_ptr<Access> _cwd;
+
+  /// A reference to the process' current root directory
+  shared_ptr<Access> _root;
+
+  /// The process' file descriptor table
+  map<int, FileDescriptor> _fds;
+
+  /// Has this process exited?
+  bool _exited = false;
+};
+
+class Thread {
+ public:
+  Thread(Build& build, Tracer& tracer, shared_ptr<Process> process, pid_t tid) noexcept :
+      _build(build), _tracer(tracer), _process(process), _tid(tid) {}
+
+  /// Get the process this thread runs in
+  shared_ptr<Process> getProcess() const noexcept { return _process; }
+
+  /// Get the thread ID
+  pid_t getID() const noexcept { return _tid; }
+
+  /// Resume a traced thread that is currently stopped
+  void resume() noexcept;
+
+  /// Resume a thread that has stopped before a syscall, and run the provided handler when the
+  /// syscall finishes
+  void finishSyscall(function<void(long)> handler) noexcept;
+
+  /// Run the registered post-syscall handler
+  void syscallFinished() noexcept;
+
+  /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
+  unsigned long getEventMessage() noexcept;
+
+  /// Get the current register state for this thread
+  user_regs_struct getRegisters() noexcept;
+
+  /// Change the register state for this thread
+  void setRegisters(user_regs_struct& regs) noexcept;
+
+  /// Read a string from this thread's memory
+  string readString(uintptr_t tracee_pointer) noexcept;
+
+  /// Read a value from this thread's memory
+  template <typename T = uintptr_t>
+  T readData(uintptr_t tracee_pointer) noexcept;
+
+  /// Read a terminated array from this thread's memory
+  template <typename T, T Terminator, size_t BatchSize = 128>
+  vector<T> readTerminatedArray(uintptr_t tracee_pointer) noexcept;
+
+  /// Read a null-terminated array of strings
+  vector<string> readArgvArray(uintptr_t tracee_pointer) noexcept;
+
+  /**
+   * This thread referenced a path. Create an Access reference to track this reference and record it
+   * in the command.
+   * \param p     The path, as retrieved from the trace (MUST NOT BE NORMALIZED)
+   * \param flags The flags that control the access mode
+   * \param at    A file descriptor this access is made relative to
+   * \returns an Access instance that has been added to the current command
+   */
+  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
 
   /*** Handling for specific system calls ***/
 
@@ -213,22 +282,29 @@ class Process : public std::enable_shared_from_this<Process> {
   void _wait4(pid_t pid, int* wstatus, int options) noexcept;
   void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 
-  /// The build this process is running as a part of
+  /// Print a thread to an output stream
+  friend ostream& operator<<(ostream& o, const Thread& t) noexcept {
+    return o << "[Thread " << t._tid << " in " << t._process << "]";
+  }
+
+  /// Print a thread pointer
+  friend ostream& operator<<(ostream& o, const Thread* t) noexcept {
+    if (t == nullptr) return o << "<null Thread>";
+    return o << *t;
+  }
+
+ private:
+  /// This thread is running as a part of a build execution
   Build& _build;
 
-  /// The tracer tha manages this process
+  /// The tracer that is executing this thread
   Tracer& _tracer;
 
-  /// The command this process is running
-  shared_ptr<Command> _command;
+  /// The process this thread is executing in
+  shared_ptr<Process> _process;
 
-  /// Has this process exited?
-  bool _exited = false;
-
-  pid_t _pid;                     //< This process' PID
-  shared_ptr<Access> _cwd;        //< A reference to this process' current working directory
-  shared_ptr<Access> _root;       //< A reference to this process' current root directory
-  map<int, FileDescriptor> _fds;  //< This process' file descriptor table
+  /// The thread's tid
+  pid_t _tid;
 
   /// The handler function that should run when the next system call is finished
   function<void(long)> _post_syscall_handler;

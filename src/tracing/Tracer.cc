@@ -72,8 +72,8 @@ Tracer::~Tracer() noexcept {
 
 // Clean up any processes left in this tracer
 void Tracer::cleanup() noexcept {
-  for (auto [pid, process] : _processes) {
-    kill(pid, SIGKILL);
+  for (auto [tid, thread] : _threads) {
+    tgkill(thread->getProcess()->getID(), tid, SIGKILL);
   }
 }
 
@@ -88,7 +88,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
     auto [child, wait_status] = *iter;
 
     // If the current entry's pid is now a known process, process it
-    if (_processes.find(child) != _processes.end()) {
+    if (_threads.find(child) != _threads.end()) {
       // Drop the event from the queue
       _event_queue.erase(iter);
 
@@ -115,7 +115,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
     }
 
     // Does this event refer to a process we don't know about yet?
-    if (_processes.find(child) == _processes.end()) {
+    if (_threads.find(child) == _threads.end()) {
       // Yes. Queue the event so we can try another one.
       _event_queue.emplace_back(child, wait_status);
     } else {
@@ -142,36 +142,34 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
     auto [child, wait_status] = e.value();
 
-    const auto& p = _processes[child];
+    const auto& thread = _threads[child];
 
     if (WIFSTOPPED(wait_status)) {
       int status = wait_status >> 8;
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        handleSyscall(p);
+        handleSyscall(thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
-        handleFork(p);
+        handleFork(thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
-        auto regs = p->getRegisters();
-        handleClone(p, regs.SYSCALL_ARG1);
+        auto regs = thread->getRegisters();
+        handleClone(thread, regs.SYSCALL_ARG1);
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
-        auto regs = p->getRegisters();
-        LOGF(trace, "{}: finished syscall {}", p, SyscallTable::get(regs.SYSCALL_NUMBER).getName());
-        p->syscallFinished();
+        thread->syscallFinished();
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes. The process that called exec must have set a
         // post-syscall handler
-        p->syscallFinished();
+        thread->syscallFinished();
 
       } else if (WSTOPSIG(wait_status) == SIGSTOP) {
-        LOG(trace) << p << " got a wacky ptrace SIGSTOP";
+        LOG(trace) << thread << " got a wacky ptrace SIGSTOP";
         ptrace(PTRACE_CONT, child, nullptr, 0);
 
       } else {
@@ -183,44 +181,53 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
     } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
       // Stopped on exit
-      handleExit(p);
+      handleExit(thread);
     }
   }
 }
 
-void Tracer::handleClone(shared_ptr<Process> p, int flags) noexcept {
+void Tracer::handleClone(shared_ptr<Thread> t, int flags) noexcept {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
   // Get the new thread id and then resume execution
-  pid_t new_pid = p->getEventMessage();
-  p->resume();
+  pid_t new_tid = t->getEventMessage();
+  t->resume();
 
   // TODO: Handle flags
 
   // Threads in the same process just appear as pid references to the same process
-  _processes[new_pid] = _processes[p->_pid];
+  _threads[new_tid] = make_shared<Thread>(_build, *this, t->getProcess(), new_tid);
 }
 
-void Tracer::handleFork(shared_ptr<Process> p) noexcept {
+void Tracer::handleFork(shared_ptr<Thread> t) noexcept {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
   // Get the new process id and resume execution
-  pid_t new_pid = p->getEventMessage();
-  p->resume();
+  pid_t new_pid = t->getEventMessage();
+  t->resume();
 
   // If the call failed, do nothing
   if (new_pid == -1) return;
 
   // Create a new process running the same command
-  _processes[new_pid] = p->fork(new_pid);
+  auto new_proc = t->getProcess()->fork(new_pid);
+
+  // Record a new thread running in this process. It is the main thread, so pid and tid will be
+  // equal
+  _threads[new_pid] = make_shared<Thread>(_build, *this, new_proc, new_pid);
 }
 
-void Tracer::handleExit(shared_ptr<Process> p) noexcept {
-  _processes.erase(p->_pid);
-  p->setExited();
-  _exited.emplace(p->_pid, p);
+void Tracer::handleExit(shared_ptr<Thread> t) noexcept {
+  _threads.erase(t->getID());
+
+  // Is the thread that's exiting the main thread in its process?
+  auto proc = t->getProcess();
+  if (t->getID() == proc->getID()) {
+    proc->setExited();
+    _exited.emplace(proc->getID(), proc);
+  }
 }
 
 shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
@@ -229,14 +236,14 @@ shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
   return result;
 }
 
-void Tracer::handleSyscall(shared_ptr<Process> p) noexcept {
-  auto regs = p->getRegisters();
+void Tracer::handleSyscall(shared_ptr<Thread> t) noexcept {
+  auto regs = t->getRegisters();
 
   const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
   if (entry.isTraced()) {
-    entry.runHandler(p, regs);
+    entry.runHandler(t, regs);
   } else {
-    FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << p;
+    FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
   }
 }
 
@@ -422,9 +429,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  auto p = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
+  auto proc = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
+  _threads[child_pid] = make_shared<Thread>(_build, *this, proc, child_pid);
 
-  _processes[child_pid] = p;
-
-  return p;
+  return proc;
 }

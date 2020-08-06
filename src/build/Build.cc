@@ -407,48 +407,6 @@ void Build::updateContent(shared_ptr<Command> c,
   }
 }
 
-/// Can a traced execveat skip a command with the given arguments?
-shared_ptr<Command> Build::can_skip(shared_ptr<Access> exe_ref, vector<string> args) noexcept {
-  /*LOG(rebuild) << "Can we skip an exec of " << exe_ref << "?";
-
-  auto exe_path = exe_ref->getFullPath();
-
-  for (auto& [c, mode] : _plan) {
-    if (mode != RebuildMode::Skip) continue;
-    LOG(rebuild) << "Comparing to " << c;
-    if (c->getExecutable()->getFullPath() != exe_path) continue;
-    if (c->getArguments().size() != args.size()) continue;
-
-    bool matches = true;
-    for (int i = 0; matches && i < args.size(); i++) {
-      matches &= args[i] == c->getArguments()[i];
-    }
-
-    if (matches) return c;
-  }*/
-
-  return nullptr;
-}
-
-void Build::skip_launch(shared_ptr<Command> c, shared_ptr<Process> proc) noexcept {
-  LOG(exec) << "Skipped " << c << ". Returning to emulation mode";
-
-  // Make a record of the process "running" the command
-  auto [iter, inserted] = _running.emplace(c, proc);
-  ASSERT(inserted) << c << " was already running in " << iter->second;
-
-  LOG(exec) << iter->first << " suspended in " << iter->second;
-
-  // Has the emulated child already exited?
-  if (_exited.find(c) != _exited.end()) {
-    // Yes. Resume its process so it actually terminates
-    proc->resume();
-  } else {
-    // No. Switch to emulation, which will cause the command to exit at some point
-    runSteps();
-  }
-}
-
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c,
                    shared_ptr<Command> child,
@@ -539,13 +497,6 @@ void Build::exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulat
   if (emulating) {
     // Add the emulated step to the new trace
     _trace->addStep(c, emulating, true);
-
-    // If there is a process running this command, it is stalled waiting to be resumed.
-    auto iter = _running.find(c);
-    if (iter != _running.end()) {
-      LOG(exec) << "Ending process " << iter->second << ", which hosts the skipped command";
-      iter->second->resume();
-    }
 
   } else {
     // Add an exit action to this command's steps
