@@ -70,6 +70,9 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Get a file descriptor entry
   FileDescriptor& getFD(int fd) noexcept;
 
+  /// Check if this process has a particular file descriptor
+  bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
+
   /// Add a file descriptor entry
   FileDescriptor& addFD(int fd, shared_ptr<Ref> ref, bool writable, bool cloexec = false) noexcept;
 

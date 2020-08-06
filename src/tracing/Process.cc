@@ -54,8 +54,11 @@ FileDescriptor& Process::addFD(int fd, shared_ptr<Ref> ref, bool writable, bool 
 // Close a file descriptor
 void Process::closeFD(int fd) noexcept {
   auto iter = _fds.find(fd);
-  if (iter == _fds.end()) WARN << "Closing an unknown file descriptor " << fd << " in " << this;
-  _fds.erase(iter);
+  if (iter == _fds.end()) {
+    WARN << "Closing an unknown file descriptor " << fd << " in " << this;
+  } else {
+    _fds.erase(iter);
+  }
 }
 
 // Remove a file descriptor entry if it exists
@@ -107,9 +110,11 @@ shared_ptr<Access> Thread::makeAccess(fs::path p, AccessFlags flags, int at) noe
                          flags);
 
   // The path is resolved relative to some file descriptor
-  auto base = _process->getFD(at).getRef()->as<Access>();
+  auto descriptor = _process->getFD(at);
+  auto base = descriptor.getRef()->as<Access>();
 
-  ASSERT(base) << "Attempted to resolve a path relative to an anonymous reference";
+  ASSERT(base) << "Attempted to resolve path " << p << " relative to anonymous base "
+               << descriptor.getRef();
 
   return _build.access(_process->getCommand(), base, p.relative_path(), flags);
 }
@@ -200,6 +205,9 @@ T Thread::readData(uintptr_t tracee_pointer) noexcept {
 // Read an array of values up to a terminating value
 template <typename T, T Terminator, size_t BatchSize>
 vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
+  // If the pointer is null, return an empty array
+  if (tracee_pointer == 0) return vector<T>();
+
   // We will read BatchSize values at a time into this buffer
   T buffer[BatchSize];
 
@@ -375,17 +383,26 @@ void Thread::_pipe2(int* fds, int flags) noexcept {
 void Thread::_dup(int fd) noexcept {
   LOGF(trace, "{}: dup({})", this, fd);
 
-  // Finish the syscall to get the new file descriptor, then resume the process
-  finishSyscall([=](int newfd) {
-    resume();
+  // Is the provided file descriptor valid?
+  if (_process->hasFD(fd)) {
+    // Finish the syscall to get the new file descriptor, then resume the process
+    finishSyscall([=](int newfd) {
+      resume();
 
-    // If the syscall failed, do nothing
-    if (newfd == -1) return;
+      // If the syscall failed, do nothing
+      if (newfd == -1) return;
 
-    // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always false.
-    auto& descriptor = _process->getFD(fd);
-    _process->addFD(newfd, descriptor.getRef(), descriptor.isWritable(), false);
-  });
+      // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
+      // false.
+      auto& descriptor = _process->getFD(fd);
+      _process->addFD(newfd, descriptor.getRef(), descriptor.isWritable(), false);
+    });
+  } else {
+    finishSyscall([=](long rc) {
+      resume();
+      ASSERT(rc == -EBADF) << "dup of invalid file descriptor did not fail with EBADF";
+    });
+  }
 }
 
 void Thread::_dup3(int oldfd, int newfd, int flags) noexcept {
@@ -393,24 +410,31 @@ void Thread::_dup3(int oldfd, int newfd, int flags) noexcept {
 
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
-  finishSyscall([=](long rc) {
-    resume();
+  if (_process->hasFD(oldfd)) {
+    finishSyscall([=](long rc) {
+      resume();
 
-    // If the syscall failed, we have nothing more to do
-    // Note: this is different than a failed file access. This failure should not be affected
-    //       by the state of the filesystem, so we don't have to log it.
-    if (rc == -1) return;
+      // If the syscall failed, we have nothing more to do
+      // Note: this is different than a failed file access. This failure should not be affected
+      //       by the state of the filesystem, so we don't have to log it.
+      if (rc == -1) return;
 
-    // If there is an existing descriptor entry number newfd, it is silently closed
-    _process->tryCloseFD(newfd);
+      // If there is an existing descriptor entry number newfd, it is silently closed
+      _process->tryCloseFD(newfd);
 
-    // The new descriptor is only marked cloexec if the flag is provided.
-    bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
+      // The new descriptor is only marked cloexec if the flag is provided.
+      bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
-    // Duplicate the file descriptor
-    auto& descriptor = _process->getFD(oldfd);
-    _process->addFD(rc, descriptor.getRef(), descriptor.isWritable(), cloexec);
-  });
+      // Duplicate the file descriptor
+      auto& descriptor = _process->getFD(oldfd);
+      _process->addFD(rc, descriptor.getRef(), descriptor.isWritable(), cloexec);
+    });
+  } else {
+    finishSyscall([=](long rc) {
+      resume();
+      ASSERT(rc == -EBADF) << "dup3 of invalid file descriptor did not fail with EBADF";
+    });
+  }
 }
 
 void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
@@ -479,18 +503,21 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
     finishSyscall([=](long rc) {
       resume();
 
-      // This is a regular stat call (with an optional base directory descriptor)
-      auto ref = makeAccess(pathname, {}, dirfd);
-
-      // Record the outcome of the syscall
-      ref->expectResult(-rc);
-
-      // Log the success or failure
       if (rc == 0) {
+        // The stat succeeded
+        auto ref = makeAccess(pathname, {}, dirfd);
+        ref->expectResult(SUCCESS);
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
         _build.matchMetadata(_process->getCommand(), ref);
+
+      } else if (rc == -EACCES || rc == -ENOENT || rc == -ENOTDIR) {
+        // The stat failed with a filesystem-related error
+        auto ref = makeAccess(pathname, {}, dirfd);
+        ref->expectResult(-rc);
+      } else {
+        // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
     });
   }
