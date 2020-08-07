@@ -812,6 +812,13 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
   LOGF(trace, "{}: mkdirat({}, \"{}\", {:o})", this, dfd, pathname, mode);
 
   auto full_path = fs::path(pathname);
+
+  // Strip a trailing slash from pathname if it has one
+  if (full_path.filename().empty()) {
+    WARN << "Removing trailing slash from " << full_path;
+    full_path = full_path.parent_path();
+  }
+
   auto parent_path = full_path.parent_path();
   auto entry = full_path.filename();
 
