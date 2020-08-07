@@ -294,7 +294,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
                            shared_ptr<UpdateMetadata> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
+    ASSERT(emulating) << c << " tried to write metadata through an unresolved reference " << ref;
 
     // Record the change
     observeCommandChange(c, emulating);
@@ -346,7 +346,7 @@ void Build::updateContent(shared_ptr<Command> c,
                           shared_ptr<UpdateContent> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command tried to write through an unresolved reference";
+    ASSERT(emulating) << c << " tried to write through an unresolved reference " << ref;
 
     // Record the change
     observeCommandChange(c, emulating);
