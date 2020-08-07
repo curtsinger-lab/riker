@@ -271,7 +271,7 @@ void Build::matchContent(shared_ptr<Command> c,
     // If this access is from the same command and reference as the last write, and the versions are
     // the same, skip the trace step
     if (_last_write == tuple{c, ref, expected}) {
-      LOG(exec) << "Skipping " << c << " access to " << ref->getArtifact();
+      LOG(exec) << "Omitting " << c << " access to " << ref->getArtifact();
       return;
     }
 
