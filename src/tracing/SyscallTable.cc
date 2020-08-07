@@ -46,6 +46,11 @@ class SyscallArgWrapper {
   unsigned long _val;
 };
 
+// Invoke a no-argument syscall handler
+void invoke_handler(void (Thread::*handler)(), Thread& thread, user_regs_struct& regs) {
+  (thread.*(handler))();
+}
+
 // Invoke a single-argument syscall handler
 template <class T1>
 void invoke_handler(void (Thread::*handler)(T1 a1), Thread& thread, user_regs_struct& regs) {
@@ -167,11 +172,11 @@ constexpr SyscallTable::SyscallTable() {
   /* 053 */ TRACE(socketpair);
   /* 054 */  // TRACE(setsockopt);
   /* 055 */  // TRACE(getsockopt);
-  /* 056 */  // skip clone
-  /* 057 */  // skip fork
-  /* 058 */  // skip vfork
+  /* 056 */  // TRACE(clone);
+  /* 057 */  // TRACE(fork);
+  /* 058 */  // TRACE(vfork);
   /* 059 */ TRACE(execve);
-  /* 060 */  // skip exit
+  /* 060 */ TRACE(exit);
   /* 061 */ TRACE(wait4);
   /* 062 */  // skip kill
   /* 063 */  // skip uname
@@ -342,7 +347,7 @@ constexpr SyscallTable::SyscallTable() {
   /* 228 */  // skip clock_gettime
   /* 229 */  // skip clock_getres
   /* 230 */  // skip clock_nanosleep
-  /* 231 */  // skip exit_group
+  /* 231 */ TRACE(exit_group);
   /* 232 */  // skip epoll_wait
   /* 233 */  // skip epoll_ctl
   /* 234 */  // skip tgkill

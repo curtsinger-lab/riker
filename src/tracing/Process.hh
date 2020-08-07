@@ -330,6 +330,11 @@ class Thread {
   void _chroot(string filename) noexcept;
   void _pivot_root(string new_root, string put_old) noexcept;
   void _fchdir(int fd) noexcept;
+  void _fork() noexcept;
+  void _vfork() noexcept { _fork(); }
+  void _clone(void* fn, void* stack, int flags) noexcept;
+  void _exit(int status) noexcept;
+  void _exit_group(int status) noexcept;
   void _execve(string filename, vector<string> args, vector<string> env) noexcept {
     _execveat(AT_FDCWD, filename, args, env);
   }

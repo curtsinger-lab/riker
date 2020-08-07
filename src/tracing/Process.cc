@@ -131,7 +131,8 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
 }
 
 void Thread::resume() noexcept {
-  FAIL_IF(ptrace(PTRACE_CONT, _tid, nullptr, 0)) << "Failed to resume child: " << ERR;
+  int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
+  FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
 }
 
 void Thread::finishSyscall(function<void(long)> handler) noexcept {
@@ -141,7 +142,8 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
   _post_syscall_handler = handler;
 
   // Allow the tracee to resume until its syscall finishes
-  FAIL_IF(ptrace(PTRACE_SYSCALL, _tid, nullptr, 0)) << "Failed to resume child: " << ERR;
+  int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
+  FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
 }
 
 void Thread::syscallFinished() noexcept {
@@ -1189,6 +1191,35 @@ void Thread::_fchdir(int fd) noexcept {
       _process->setWorkingDir(a);
     }
   });
+}
+
+void Thread::_fork() noexcept {
+  LOGF(trace, "{}: fork()", this);
+
+  finishSyscall([=](long rc) {
+    resume();
+
+    LOGF(trace, "{}: finished fork(), returned {}", this, rc);
+  });
+}
+
+void Thread::_clone(void* fn, void* stack, int flags) noexcept {
+  LOGF(trace, "{}: clone({}, {}, 0x{:x})", this, fn, stack, (unsigned int)flags);
+
+  finishSyscall([=](long rc) {
+    LOGF(trace, "{}: finished clone(), returned {}", this, rc);
+    resume();
+  });
+}
+
+void Thread::_exit(int status) noexcept {
+  LOGF(trace, "{}: exit({})", this, status);
+  resume();
+}
+
+void Thread::_exit_group(int status) noexcept {
+  LOGF(trace, "{}: exit_group({})", this, status);
+  resume();
 }
 
 void Thread::_execveat(int dfd, string filename, vector<string> args, vector<string> env) noexcept {

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -32,11 +33,32 @@
 
 using std::list;
 using std::make_shared;
+using std::map;
 using std::nullopt;
 using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+
+string signalName(int sig) {
+  static map<int, string> signals{
+      {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},
+      {SIGILL, "SIGILL"},       {SIGTRAP, "SIGTRAP"},     {SIGABRT, "SIGABRT"},
+      {SIGIOT, "SIGIOT"},       {SIGBUS, "SIGBUS"},       {SIGFPE, "SIGFPE"},
+      {SIGKILL, "SIGKILL"},     {SIGUSR1, "SIGUSR1"},     {SIGSEGV, "SIGSEGV"},
+      {SIGUSR2, "SIGUSR2"},     {SIGPIPE, "SIGPIPE"},     {SIGALRM, "SIGALRM"},
+      {SIGTERM, "SIGTERM"},     {SIGSTKFLT, "SIGSTKFLT"}, {SIGCHLD, "SIGCHLD"},
+      {SIGCLD, "SIGCLD"},       {SIGCONT, "SIGCONT"},     {SIGSTOP, "SIGSTOP"},
+      {SIGTSTP, "SIGTSTP"},     {SIGTTIN, "SIGTTIN"},     {SIGTTOU, "SIGTTOU"},
+      {SIGURG, "SIGURG"},       {SIGXCPU, "SIGXCPU"},     {SIGXFSZ, "SIGXFSZ"},
+      {SIGVTALRM, "SIGVTALRM"}, {SIGPROF, "SIGPROF"},     {SIGWINCH, "SIGWINCH"},
+      {SIGIO, "SIGIO"},         {SIGPOLL, "SIGPOLL"},     {SIGPWR, "SIGPWR"},
+      {SIGSYS, "SIGSYS"}};
+
+  auto iter = signals.find(sig);
+  if (iter == signals.end()) return std::to_string(sig);
+  return iter->second;
+}
 
 /// A single global instance of this class is used to clean up tracers when there is a fatal error
 class TracerCleanup {
@@ -168,14 +190,25 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         // post-syscall handler
         thread->syscallFinished();
 
-      } else if (WSTOPSIG(wait_status) == SIGSTOP) {
-        LOG(trace) << thread << " got a wacky ptrace SIGSTOP";
-        ptrace(PTRACE_CONT, child, nullptr, 0);
+      } else if (WSTOPSIG(wait_status) == SIGSTOP || WSTOPSIG(wait_status) == SIGTSTP ||
+                 WSTOPSIG(wait_status) == SIGTTIN || WSTOPSIG(wait_status) == SIGTTOU) {
+        // The tracee was stopped by a stopping signal (one of the four above).
+        // This is either a signal delivery, or a group stop. We can find out by trying to get the
+        // signal information. That call will fail for group-stop signals.
+        siginfo_t info;
+        int rc = ptrace(PTRACE_GETSIGINFO, child, nullptr, &info);
+        if (rc == -1) {
+          LOG(trace) << thread << " in group-stop";
+          ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+
+        } else {
+          LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status));
+          ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+        }
 
       } else {
-        LOGF(trace, "{} stopped for an unknown reason ({:x}) with signal {}", p, status,
-             WSTOPSIG(wait_status));
         // The traced process received a signal. Just pass it along.
+        LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status));
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }
 
@@ -220,11 +253,14 @@ void Tracer::handleFork(shared_ptr<Thread> t) noexcept {
 }
 
 void Tracer::handleExit(shared_ptr<Thread> t) noexcept {
+  LOGF(trace, "{}: exited", t);
+
   _threads.erase(t->getID());
 
   // Is the thread that's exiting the main thread in its process?
   auto proc = t->getProcess();
   if (t->getID() == proc->getID()) {
+    LOGF(trace, "{}: exited", proc);
     proc->setExited();
     _exited.emplace(proc->getID(), proc);
   }
