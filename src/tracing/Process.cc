@@ -46,9 +46,14 @@ FileDescriptor& Process::getFD(int fd) noexcept {
 
 // Add a file descriptor entry
 FileDescriptor& Process::addFD(int fd, shared_ptr<Ref> ref, bool writable, bool cloexec) noexcept {
-  auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, writable, cloexec));
-  ASSERT(added) << "Attempted to overwrite an existing fd " << fd << " in " << this;
-  return iter->second;
+  auto it = _fds.find(fd);
+  if (it == _fds.end()) {
+    WARN << "Overwriting an existing fd " << fd << " in " << this;
+    _fds.erase(fd);
+    auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, writable, cloexec));
+    it = iter;
+  }
+  return it->second;
 }
 
 // Close a file descriptor

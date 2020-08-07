@@ -149,6 +149,10 @@ class null_logger {
 #define WARN LOG(warning)
 #define FAIL LOG(error)
 
+// Define conditional warning
+#define WARN_IF(cond) \
+  if (cond) WARN
+
 // Define conditional failure macros
 #define FAIL_IF(cond) \
   if (cond) FAIL
