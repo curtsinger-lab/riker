@@ -2,7 +2,7 @@ CC  = clang
 CXX = clang++
 MAKEFLAGS += -j
 
-COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O3
+COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O0
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -lstdc++fs -lfmt
 

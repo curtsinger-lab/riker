@@ -503,12 +503,18 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
-    resume();
+    finishSyscall([=](long rc) {
+      resume();
 
-    // This is essentially an fstat call
-    // Record the dependency on metadata
-    _build.matchMetadata(_process->getCommand(), _process->getFD(dirfd).getRef());
-
+      if (rc == 0) {
+        // This is essentially an fstat call
+        // Record the dependency on metadata
+        _build.matchMetadata(_process->getCommand(), _process->getFD(dirfd).getRef());
+      } else {
+        WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
+        // do nothing.
+      }
+    });
   } else {
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
@@ -1147,6 +1153,8 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
         // Read the file descriptors
         int sock1_fd = readData((uintptr_t)sv);
         int sock2_fd = readData((uintptr_t)sv + sizeof(int));
+
+        WARN << "socketpair fds are = {" << sock1_fd << ", " << sock2_fd << "}";
 
         // Are the sockets closed on exec?
         bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
