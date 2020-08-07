@@ -191,7 +191,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
                           shared_ptr<MatchMetadata> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command accessed metadata through an unresolved reference";
+    ASSERT(emulating) << c << " tried to access metadata through unresolved reference " << ref;
 
     // Report the change
     observeCommandChange(c, emulating);
@@ -239,7 +239,7 @@ void Build::matchContent(shared_ptr<Command> c,
                          shared_ptr<MatchContent> emulating) noexcept {
   // If the reference is not resolved, a change must have occurred
   if (!ref->isResolved()) {
-    ASSERT(emulating) << "A traced command accessed content through an unresolved reference";
+    ASSERT(emulating) << c << " tried to access content through unresolved reference " << ref;
 
     // Report the change
     observeCommandChange(c, emulating);
