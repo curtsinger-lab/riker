@@ -174,7 +174,8 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         handleSyscall(thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
-                 status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8))) {
+                 status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)) ||
+                 status == (SIGTRAP | (PTRACE_EVENT_FORK << 8) | (PTRACE_EVENT_VFORK << 8))) {
         handleFork(thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
@@ -202,13 +203,15 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
           ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
 
         } else {
-          LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status));
+          LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status))
+                     << " (status=" << status << ")";
           ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
         }
 
       } else {
         // The traced process received a signal. Just pass it along.
-        LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status));
+        LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status))
+                   << " (status=" << status << ")";
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }
 

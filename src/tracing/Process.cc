@@ -46,14 +46,13 @@ FileDescriptor& Process::getFD(int fd) noexcept {
 
 // Add a file descriptor entry
 FileDescriptor& Process::addFD(int fd, shared_ptr<Ref> ref, bool writable, bool cloexec) noexcept {
-  auto it = _fds.find(fd);
-  if (it == _fds.end()) {
+  if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
-    _fds.erase(fd);
-    auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, writable, cloexec));
-    it = iter;
+    _fds.erase(iter);
   }
-  return it->second;
+
+  auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, writable, cloexec));
+  return iter->second;
 }
 
 // Close a file descriptor
@@ -348,7 +347,12 @@ void Thread::_close(int fd) noexcept {
     resume();
 
     // If the syscall succeeded, remove the file descriptor
-    if (rc == 0) _process->closeFD(fd);
+    if (rc == 0) {
+      LOGF(trace, "{}: closing FD {}", this, fd);
+      _process->closeFD(fd);
+    } else {
+      LOGF(trace, "{}: close({}) returned error {}", this, rc, errors[-rc]);
+    }
   });
 }
 
