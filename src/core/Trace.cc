@@ -87,11 +87,17 @@ void Trace::resolveRefs(Build& build, shared_ptr<Env> env) noexcept {
   _root->resolvesTo(env->getRootDir());
 
   // Resolve the current working directory
-  _cwd->resolve(build, nullptr, true);
+  auto cwd_path = _cwd->getRelativePath();
+  auto cwd_result = env->getRootDir()->resolve(build, nullptr, nullptr, cwd_path.begin(),
+                                               cwd_path.end(), _cwd, true);
+  _cwd->resolvesTo(cwd_result);
   _cwd->getArtifact()->setName(".");
 
   // Resolve the dodo-launch executable
-  _exe->resolve(build, nullptr, true);
+  auto exe_path = _exe->getRelativePath();
+  auto exe_result = env->getRootDir()->resolve(build, nullptr, nullptr, exe_path.begin(),
+                                               exe_path.end(), _exe, true);
+  _exe->resolvesTo(exe_result);
 }
 
 // Print this trace
