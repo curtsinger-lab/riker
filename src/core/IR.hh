@@ -33,12 +33,6 @@ class MetadataVersion;
 class SymlinkVersion;
 class Version;
 
-// Set up a map from return codes to names
-inline static map<int8_t, string> errors = {
-    {SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-    {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-    {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
-
 /**
  * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation
  * or dependency we observed the last time a command executed.
