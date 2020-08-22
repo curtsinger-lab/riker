@@ -92,12 +92,6 @@ class Ref : public Step {
   /// Get the short name for this reference
   string getName() const noexcept { return "r" + std::to_string(getID()); }
 
-  /// Record the result of this access from a trace
-  void expectResult(int rc) noexcept { _expected_rc = rc; }
-
-  /// Get the expected result of this access
-  int getExpectedResult() const noexcept { return _expected_rc; }
-
   /// Get the result of resolving this reference
   Resolution getResolution() const noexcept { return _res; }
 
@@ -110,23 +104,8 @@ class Ref : public Step {
   /// A sub-type can report the result of resolving this artifact using this method
   void resolvesTo(Resolution res) noexcept { _res = res; }
 
- protected:
-  /// Print the observed or expected outcome of resolving this reference
-  ostream& printResolution(ostream& o) const noexcept {
-    if (isResolved()) {
-      // Print the artifact this pipe resolves to
-      o << " -> " << getArtifact();
-    } else {
-      o << " expect " << errors[_expected_rc];
-    }
-    return o;
-  }
-
  private:
-  /// The expected result from this access
-  int _expected_rc = SUCCESS;
-
-  SERIALIZE(BASE(Step), _expected_rc);
+  SERIALIZE(BASE(Step));
 
   /****** Transient Fields ******/
 
@@ -148,8 +127,7 @@ class Pipe final : public Ref {
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = PIPE()";
-    return Ref::printResolution(o);
+    return o << getName() << " = PIPE()";
   }
 
  private:
@@ -168,8 +146,7 @@ class File final : public Ref {
 
   /// Print a FILE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = FILE(" << std::oct << _mode << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = FILE(" << std::oct << _mode << ")";
   }
 
  private:
@@ -191,8 +168,7 @@ class Symlink final : public Ref {
 
   /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = SYMLINK(" << _target << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = SYMLINK(" << _target << ")";
   }
 
  private:
@@ -214,8 +190,7 @@ class Dir final : public Ref {
 
   /// Print a DIR reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = DIR(" << std::oct << _mode << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = DIR(" << std::oct << _mode << ")";
   }
 
  private:
@@ -259,8 +234,7 @@ class Access final : public Ref {
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
-    return Ref::printResolution(o);
+    return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
   }
 
  private:
@@ -276,6 +250,30 @@ class Access final : public Ref {
   // Create default constructor and specify fields for serialization
   Access() = default;
   SERIALIZE(BASE(Ref), _base, _path, _flags);
+};
+
+/**
+ * A command expects a reference to resolve a particular way
+ */
+class ExpectResult final : public Step {
+ public:
+  /// Create an ExpectResult predicate
+  ExpectResult(shared_ptr<Ref> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "EXPECT_RESULT(" << _ref->getName() << ", " << errors[_expected] << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;  //< The reference made earlier
+  int _expected;         //< The expected result of resolving the reference
+
+  // Create default constructor and specify fields for serialization
+  ExpectResult() noexcept = default;
+  SERIALIZE(BASE(Step), _ref, _expected);
 };
 
 /**

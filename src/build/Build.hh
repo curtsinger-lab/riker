@@ -84,6 +84,12 @@ class Build {
                             AccessFlags flags,
                             shared_ptr<Access> emulating = nullptr) noexcept;
 
+  /// A command expects a reference to resolve with a particular result
+  void expectResult(shared_ptr<Command> c,
+                    shared_ptr<Ref> ref,
+                    int expected,
+                    shared_ptr<ExpectResult> emulating = nullptr) noexcept;
+
   /// A command accesses metadata for an artifact and expects to find a particular version
   void matchMetadata(shared_ptr<Command> c,
                      shared_ptr<Ref> ref,

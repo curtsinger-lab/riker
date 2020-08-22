@@ -53,6 +53,11 @@ void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());
 }
 
+// Emulate an ExpectResult predicate
+void ExpectResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.expectResult(c, _ref, _expected, as<ExpectResult>());
+}
+
 // Emulate a MatchMetadata predicate
 void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.matchMetadata(c, _ref, _version, as<MatchMetadata>());

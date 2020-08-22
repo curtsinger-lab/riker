@@ -222,16 +222,29 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   auto result =
       base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), ref, !emulating);
 
-  // If the access is being emulated, check the result
-  if (emulating && result != ref->getExpectedResult()) {
-    observeCommandChange(c, emulating);
-  }
-
   // Save the result of the resolution
   ref->resolvesTo(result);
   saveResult(c, result);
 
   return ref;
+}
+
+// Command c expects a reference to resolve with a specific result
+void Build::expectResult(shared_ptr<Command> c,
+                         shared_ptr<Ref> ref,
+                         int expected,
+                         shared_ptr<ExpectResult> emulating) noexcept {
+  // Use or create an IR step
+  auto step = emulating;
+  if (!emulating) step = make_shared<ExpectResult>(ref, expected);
+
+  // Add the step to the output trace
+  _trace->addStep(c, step, static_cast<bool>(emulating));
+
+  // Does the resolved reference match the expected result?
+  if (emulating && ref->getResolution() != expected) {
+    observeCommandChange(c, emulating);
+  }
 }
 
 // Command c accesses an artifact's metadata

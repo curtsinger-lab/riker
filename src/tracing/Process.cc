@@ -32,8 +32,6 @@ namespace fs = std::filesystem;
 
 // Update a process' working directory
 void Process::setWorkingDir(shared_ptr<Access> ref) noexcept {
-  _cwd->expectResult(SUCCESS);
-  ASSERT(_cwd->isResolved()) << "Failed to resolve current working directory";
   _cwd = ref;
 }
 
@@ -292,7 +290,7 @@ void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept 
     // Check whether the openat call succeeded or failed
     if (fd >= 0) {
       // The command observed a successful openat, so add this predicate to the command log
-      ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), ref, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename;
 
@@ -320,7 +318,7 @@ void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept 
     } else {
       // The command observed a failed openat, so add the error predicate to the command log
       // Negate fd because syscalls return negative errors
-      ref->expectResult(-fd);
+      _build.expectResult(_process->getCommand(), ref, -fd);
     }
   });
 }
@@ -487,7 +485,7 @@ void Thread::_faccessat(int dirfd, string pathname, int mode, int flags) noexcep
     auto ref = makeAccess(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
     // Record the outcome of the reference
-    ref->expectResult(-rc);
+    _build.expectResult(_process->getCommand(), ref, -rc);
 
     if (rc == 0) {
       if (!ref->isResolved()) WARN << "Failed to resolve reference " << ref;
@@ -523,7 +521,7 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
       if (rc == 0) {
         // The stat succeeded
         auto ref = makeAccess(pathname, {}, dirfd);
-        ref->expectResult(SUCCESS);
+        _build.expectResult(_process->getCommand(), ref, SUCCESS);
         ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
@@ -532,7 +530,7 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
       } else if (rc == -EACCES || rc == -ENOENT || rc == -ENOTDIR) {
         // The stat failed with a filesystem-related error
         auto ref = makeAccess(pathname, {}, dirfd);
-        ref->expectResult(-rc);
+        _build.expectResult(_process->getCommand(), ref, -rc);
       } else {
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
@@ -581,7 +579,7 @@ void Thread::_fchownat(int dfd, string filename, uid_t user, gid_t group, int fl
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), ref, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
@@ -590,7 +588,7 @@ void Thread::_fchownat(int dfd, string filename, uid_t user, gid_t group, int fl
 
     } else {
       // No. Record the failure
-      ref->expectResult(-rc);
+      _build.expectResult(_process->getCommand(), ref, -rc);
     }
   });
 }
@@ -636,7 +634,7 @@ void Thread::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcep
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), ref, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact";
 
@@ -645,7 +643,7 @@ void Thread::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcep
 
     } else {
       // No. Record the failure
-      ref->expectResult(-rc);
+      _build.expectResult(_process->getCommand(), ref, -rc);
     }
   });
 }
@@ -754,7 +752,7 @@ void Thread::_truncate(string pathname, long length) noexcept {
     resume();
 
     // Record the outcome of the reference
-    ref->expectResult(-rc);
+    _build.expectResult(_process->getCommand(), ref, -rc);
 
     // Did the call succeed?
     if (rc == 0) {
@@ -840,10 +838,10 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the parent directory must succeed
-      parent_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), parent_ref, SUCCESS);
 
       // The entry must not exist prior to this call
-      entry_ref->expectResult(ENOENT);
+      _build.expectResult(_process->getCommand(), entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
       auto dir_ref = _build.dir(_process->getCommand(), mode);
@@ -854,8 +852,8 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      parent_ref->expectResult(parent_ref->getResolution());
-      entry_ref->expectResult(entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), parent_ref, parent_ref->getResolution());
+      _build.expectResult(_process->getCommand(), entry_ref, entry_ref->getResolution());
     }
   });
 }
@@ -897,20 +895,20 @@ void Thread::_renameat2(int old_dfd,
     // Did the syscall succeed?
     if (rc == 0) {
       // The accesses to the old directory and entry must have succeeded
-      old_dir_ref->expectResult(SUCCESS);
-      old_entry_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), old_dir_ref, SUCCESS);
+      _build.expectResult(_process->getCommand(), old_entry_ref, SUCCESS);
 
       // Unlink the old entry
       _build.updateContent(_process->getCommand(), old_dir_ref,
                            make_shared<RemoveEntry>(old_entry, old_entry_ref));
 
       // The access to the new directory must also have succeeded
-      new_dir_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), new_dir_ref, SUCCESS);
 
       // Is this an exchange or noreplace option?
       if (flags & RENAME_EXCHANGE) {
         // This is an exchange, so the new_entry_ref must exist
-        new_entry_ref->expectResult(SUCCESS);
+        _build.expectResult(_process->getCommand(), new_entry_ref, SUCCESS);
 
         // Unlink the new entry
         _build.updateContent(_process->getCommand(), new_dir_ref,
@@ -918,7 +916,7 @@ void Thread::_renameat2(int old_dfd,
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
-        new_entry_ref->expectResult(ENOENT);
+        _build.expectResult(_process->getCommand(), new_entry_ref, ENOENT);
       }
 
       // Link into the new entry
@@ -933,10 +931,12 @@ void Thread::_renameat2(int old_dfd,
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
       // change, that COULD change the syscall outcome.
-      old_dir_ref->expectResult(old_dir_ref->getResolution());
-      old_entry_ref->expectResult(old_entry_ref->getResolution());
-      new_dir_ref->expectResult(new_dir_ref->getResolution());
-      if (new_entry_ref) new_entry_ref->expectResult(new_entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), old_dir_ref, old_dir_ref->getResolution());
+      _build.expectResult(_process->getCommand(), old_entry_ref, old_entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), new_dir_ref, new_dir_ref->getResolution());
+      if (new_entry_ref) {
+        _build.expectResult(_process->getCommand(), new_entry_ref, new_entry_ref->getResolution());
+      }
     }
   });
 }
@@ -984,13 +984,13 @@ void Thread::_linkat(int old_dfd, string oldpath, int new_dfd, string newpath, i
     // Did the call succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      dir_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      entry_ref->expectResult(ENOENT);
+      _build.expectResult(_process->getCommand(), entry_ref, ENOENT);
 
       // The reference to the link target must succeed
-      target_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), target_ref, SUCCESS);
 
       // Record the link operation
       _build.updateContent(_process->getCommand(), dir_ref,
@@ -999,9 +999,9 @@ void Thread::_linkat(int old_dfd, string oldpath, int new_dfd, string newpath, i
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
       // record the result of resolving each of them.
-      dir_ref->expectResult(dir_ref->getResolution());
-      entry_ref->expectResult(entry_ref->getResolution());
-      target_ref->expectResult(target_ref->getResolution());
+      _build.expectResult(_process->getCommand(), dir_ref, dir_ref->getResolution());
+      _build.expectResult(_process->getCommand(), entry_ref, entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), target_ref, target_ref->getResolution());
     }
   });
 }
@@ -1026,10 +1026,10 @@ void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      dir_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      entry_ref->expectResult(ENOENT);
+      _build.expectResult(_process->getCommand(), entry_ref, ENOENT);
 
       // Make a symlink reference to get a new artifact
       auto symlink_ref = _build.symlink(_process->getCommand(), target);
@@ -1040,8 +1040,8 @@ void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      dir_ref->expectResult(dir_ref->getResolution());
-      entry_ref->expectResult(entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), dir_ref, dir_ref->getResolution());
+      _build.expectResult(_process->getCommand(), entry_ref, entry_ref->getResolution());
     }
   });
 }
@@ -1066,7 +1066,7 @@ void Thread::_readlinkat(int dfd, string pathname) noexcept {
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), ref, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
@@ -1075,7 +1075,7 @@ void Thread::_readlinkat(int dfd, string pathname) noexcept {
 
     } else {
       // No. Record the failure
-      ref->expectResult(-rc);
+      _build.expectResult(_process->getCommand(), ref, -rc);
     }
   });
 }
@@ -1109,8 +1109,8 @@ void Thread::_unlinkat(int dfd, string pathname, int flags) noexcept {
     // Did the call succeed?
     if (rc == 0) {
       // Both references must have succeeded
-      dir_ref->expectResult(SUCCESS);
-      entry_ref->expectResult(SUCCESS);
+      _build.expectResult(_process->getCommand(), dir_ref, SUCCESS);
+      _build.expectResult(_process->getCommand(), entry_ref, SUCCESS);
 
       // Perform the unlink
       _build.updateContent(_process->getCommand(), dir_ref,
@@ -1118,8 +1118,8 @@ void Thread::_unlinkat(int dfd, string pathname, int flags) noexcept {
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
-      dir_ref->expectResult(dir_ref->getResolution());
-      entry_ref->expectResult(entry_ref->getResolution());
+      _build.expectResult(_process->getCommand(), dir_ref, dir_ref->getResolution());
+      _build.expectResult(_process->getCommand(), entry_ref, entry_ref->getResolution());
     }
   });
 }
@@ -1177,12 +1177,16 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
 void Thread::_chdir(string filename) noexcept {
   LOGF(trace, "{}: chdir(\"{}\")", this, filename);
 
+  auto result = makeAccess(filename, AccessFlags{.x = true});
+
   finishSyscall([=](long rc) {
     resume();
 
+    _build.expectResult(_process->getCommand(), result, -rc);
+
     // Update the current working directory if the chdir call succeeded
     if (rc == 0) {
-      _process->setWorkingDir(makeAccess(filename, AccessFlags{.x = true}));
+      _process->setWorkingDir(result);
     }
   });
 }
@@ -1260,12 +1264,12 @@ void Thread::_execveat(int dfd, string filename, vector<string> args, vector<str
     // If we see something else, handle the error
     if (rc != -38) {
       // Failure! Record a failed reference. Negate rc because syscalls return negative errors
-      exe_ref->expectResult(-rc);
+      _build.expectResult(_process->getCommand(), exe_ref, -rc);
       return;
     }
 
     // If we reached this point, the executable reference was okay
-    exe_ref->expectResult(SUCCESS);
+    _build.expectResult(_process->getCommand(), exe_ref, SUCCESS);
 
     ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
 
@@ -1278,7 +1282,7 @@ void Thread::_execveat(int dfd, string filename, vector<string> args, vector<str
 
     // Now make the reference and expect success
     auto child_exe_ref = makeAccess(real_exe_path, AccessFlags{.r = true});
-    child_exe_ref->expectResult(SUCCESS);
+    _build.expectResult(_process->getCommand(), child_exe_ref, SUCCESS);
 
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
