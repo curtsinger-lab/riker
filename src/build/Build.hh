@@ -13,6 +13,7 @@
 #include "build/Resolution.hh"
 #include "core/Command.hh"
 #include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "core/Trace.hh"
 #include "tracing/Tracer.hh"
 
@@ -49,6 +50,12 @@ class Build {
    * \returns a tuple of the new traces produced by the run, and the environment in its final state
    */
   tuple<shared_ptr<Trace>, shared_ptr<Env>> run() noexcept;
+
+  /****** Reference Resolution ******/
+
+  RefResult saveResult(shared_ptr<Command> cmd, Resolution result) noexcept;
+
+  Resolution getResult(RefResult r) noexcept;
 
   /****** Tracing and Emulation Methods ******/
 
@@ -133,8 +140,9 @@ class Build {
   void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept;
 
   /// Inform observers that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c, shared_ptr<Artifact> a, shared_ptr<Version> v) const
-      noexcept;
+  void observeOutput(shared_ptr<Command> c,
+                     shared_ptr<Artifact> a,
+                     shared_ptr<Version> v) const noexcept;
 
   /// Inform observers that command c accessed version v of artifact a
   void observeInput(shared_ptr<Command> c,
@@ -195,4 +203,7 @@ class Build {
 
   /// The last write performed by any command
   tuple<shared_ptr<Command>, shared_ptr<Ref>, shared_ptr<Version>> _last_write;
+
+  /// The results of references resolved by each command
+  map<shared_ptr<Command>, vector<Resolution>> _ref_results;
 };

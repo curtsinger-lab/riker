@@ -119,6 +119,18 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
+/******** Reference Resolution *********/
+
+RefResult Build::saveResult(shared_ptr<Command> cmd, Resolution result) noexcept {
+  size_t index = _ref_results[cmd].size();
+  _ref_results[cmd].push_back(result);
+  return RefResult(cmd, index);
+}
+
+Resolution Build::getResult(RefResult r) noexcept {
+  return _ref_results[r.getCommand()][r.getIndex()];
+}
+
 /************************ Command Tracing and Emulation ************************/
 
 // Command c creates a new pipe
