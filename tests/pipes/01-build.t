@@ -9,8 +9,8 @@ Run the build
   $ $DODO --show
   dodo-launch
   Dodofile
-  sort
-  uniq
+  ((sort)|(uniq)) (re)
+  ((sort)|(uniq)) (re)
 
 Check the output
   $ cat output

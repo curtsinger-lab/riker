@@ -90,6 +90,7 @@ void Build::observeInput(shared_ptr<Command> c,
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
+    LOG(exec) << "Committing " << v << " to " << a << " on demand";
     a->commit(v);
   }
 
@@ -171,7 +172,9 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
   // Resolve the reference
-  ref->resolve(*this, c, !emulating);
+  auto result =
+      base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), ref, !emulating);
+  ref->resolvesTo(result);
 
   // If the access is being emulated, check the result
   if (emulating && ref->getResolution() != ref->getExpectedResult()) {
@@ -433,11 +436,17 @@ void Build::launch(shared_ptr<Command> c,
       // Yes. The child command will be executed by this build.
       child->setExecuted();
 
-      // The child command depends on all the references it inherits as file descriptors
+      // The child command requires that its working directory exists
+      child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
+
+      // The executable must be fully committed
+      child->getExecutable()->getArtifact()->commitAll();
+
+      // The child command also depends on the artifacts reachable through its initial FDs
       for (auto& [index, desc] : child->getInitialFDs()) {
+        // TODO: Check pipes as well. Skipping non-path references for now
         if (auto access = desc.getRef()->as<Access>()) {
-          LOG(artifact) << "Resolving " << access->getRelativePath();
-          access->resolve(*this, child, true);
+          access->getArtifact()->commitAll();
         }
       }
 
