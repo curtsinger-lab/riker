@@ -135,10 +135,18 @@ Resolution Build::getResult(RefResult r) noexcept {
 
 // Command c creates a new pipe
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
-  ref->resolvesTo(_env->getPipe(*this, c));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a pipe and save the resolved result
+  auto result = _env->getPipe(*this, c);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
@@ -146,10 +154,18 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
 shared_ptr<File> Build::file(shared_ptr<Command> c,
                              mode_t mode,
                              shared_ptr<File> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<File>(mode);
-  ref->resolvesTo(_env->createFile(*this, c, mode, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a file and save the resolved result
+  auto result = _env->createFile(*this, c, mode, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
@@ -157,19 +173,35 @@ shared_ptr<File> Build::file(shared_ptr<Command> c,
 shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    fs::path target,
                                    shared_ptr<Symlink> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
-  ref->resolvesTo(_env->getSymlink(*this, c, target, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a symlink and save the resolved result
+  auto result = _env->getSymlink(*this, c, target, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
 // Command c creates a new directory
 shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Dir>(mode);
-  ref->resolvesTo(_env->getDir(*this, c, mode, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a directory and save the resolved result
+  auto result = _env->getDir(*this, c, mode, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
@@ -183,18 +215,21 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   auto ref = emulating;
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
+  // Add the reference to the new build trace
+  _trace->addStep(c, ref, static_cast<bool>(emulating));
+
   // Resolve the reference
   auto result =
       base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), ref, !emulating);
-  ref->resolvesTo(result);
 
   // If the access is being emulated, check the result
-  if (emulating && ref->getResolution() != ref->getExpectedResult()) {
+  if (emulating && result != ref->getExpectedResult()) {
     observeCommandChange(c, emulating);
   }
 
-  // Add the reference to the new build trace
-  _trace->addStep(c, ref, static_cast<bool>(emulating));
+  // Save the result of the resolution
+  ref->resolvesTo(result);
+  saveResult(c, result);
 
   return ref;
 }
