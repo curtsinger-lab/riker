@@ -92,10 +92,3 @@ void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
 void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.exit(c, _exit_status, as<Exit>());
 }
-
-/******************* Access Methods ********************/
-
-int Access::open() const noexcept {
-  auto [open_flags, open_mode] = _flags.toOpen();
-  return ::open(getFullPath().c_str(), open_flags, open_mode);
-}

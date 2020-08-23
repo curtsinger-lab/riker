@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -17,6 +18,8 @@
 #include "util/serializer.hh"
 
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -103,6 +106,9 @@ class Ref : public Step {
 
   /// A sub-type can report the result of resolving this artifact using this method
   void resolvesTo(Resolution res) noexcept { _res = res; }
+
+  /// Get the path associated with this reference, if any
+  virtual optional<fs::path> getPath() const noexcept { return nullopt; }
 
  private:
   SERIALIZE(BASE(Step));
@@ -205,41 +211,39 @@ class Dir final : public Ref {
 class Access final : public Ref {
  public:
   /// Create an access reference to a path with given flags
-  Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
+  Access(shared_ptr<Ref> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Get the access that serves as the base for this one
-  const shared_ptr<Access>& getBase() const noexcept { return _base; }
+  const shared_ptr<Ref>& getBase() const noexcept { return _base; }
 
   /// Get the path of this reference, relative to the base access
   fs::path getRelativePath() const noexcept { return _path; }
 
-  /// Get the path this ACCESS reference uses
-  fs::path getFullPath() const noexcept {
-    if (_base) {
-      return _base->getFullPath() / _path;
-    } else {
-      return _path;
-    }
+  /// Get the full path for this reference
+  virtual optional<fs::path> getPath() const noexcept override {
+    if (!_base) return _path;
+
+    auto base_path = _base->getPath();
+    if (!base_path.has_value()) return nullopt;
+    return base_path.value() / _path;
   }
 
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const noexcept { return _flags; }
 
-  /// Open this reference
-  int open() const noexcept;
-
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
+    return o << getName() << " = ACCESS(" << _base->getName() << ", " << _path << ", ["
+             << getFlags() << "])";
   }
 
  private:
   /// The base used to resolve this reference, typically either cwd or root.
-  shared_ptr<Access> _base;
+  shared_ptr<Ref> _base;
 
   /// The path being accessed
   fs::path _path;

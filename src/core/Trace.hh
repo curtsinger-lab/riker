@@ -6,6 +6,7 @@
 #include <set>
 #include <tuple>
 
+#include "core/IR.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 
@@ -30,12 +31,7 @@ class Trace {
  private:
   // Private copy constructor allowed. Does not copy the commands or step list
   Trace(const Trace& other) noexcept :
-      _root(other._root),
-      _cwd(other._cwd),
-      _exe(other._exe),
-      _stdin(other._stdin),
-      _stdout(other._stdout),
-      _stderr(other._stderr) {}
+      _root(other._root), _stdin(other._stdin), _stdout(other._stdout), _stderr(other._stderr) {}
 
   // No need for copy assignment
   Trace& operator=(const Trace&) = delete;
@@ -43,12 +39,12 @@ class Trace {
  public:
   using StepList = list<tuple<shared_ptr<Command>, shared_ptr<Step>>>;
 
+  /// Create a default trace
+  Trace() noexcept;
+
   // Allow move
   Trace(Trace&&) noexcept = default;
   Trace& operator=(Trace&&) noexcept = default;
-
-  /// Create a trace with the default starting state
-  static shared_ptr<Trace> getDefault() noexcept;
 
   /// Make a clean trace with the same initial references, but no commands or steps.
   /// This relies on the private copy constructor above.
@@ -83,22 +79,13 @@ class Trace {
   }
 
  private:
-  /// Initialize this trace as a default trace
-  void init() noexcept;
-
   /// A reference to the initial root directory
-  shared_ptr<Access> _root;
-
-  /// A reference to the initial working directory
-  shared_ptr<Access> _cwd;
-
-  /// A reference to the first executable that runs in the trace
-  shared_ptr<Access> _exe;
+  shared_ptr<Ref> _root;
 
   // Refs to the standard pipes
-  shared_ptr<Pipe> _stdin;
-  shared_ptr<Pipe> _stdout;
-  shared_ptr<Pipe> _stderr;
+  shared_ptr<Ref> _stdin;
+  shared_ptr<Ref> _stdout;
+  shared_ptr<Ref> _stderr;
 
   /// A set of all the commands that appear in this trace
   set<shared_ptr<Command>> _commands;
@@ -106,6 +93,6 @@ class Trace {
   /// A sequence of tuples containing a command and a step performed by that command
   StepList _steps;
 
-  Trace() = default;
-  SERIALIZE(_stdin, _stdout, _stderr, _root, _cwd, _exe, _commands, _steps);
+  // Declare fields for serialization
+  SERIALIZE(_stdin, _stdout, _stderr, _root, _commands, _steps);
 };

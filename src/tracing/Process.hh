@@ -41,8 +41,8 @@ class Process : public std::enable_shared_from_this<Process> {
           Tracer& tracer,
           shared_ptr<Command> command,
           pid_t pid,
-          shared_ptr<Access> cwd,
-          shared_ptr<Access> root,
+          shared_ptr<Ref> cwd,
+          shared_ptr<Ref> root,
           map<int, FileDescriptor> fds) noexcept :
       _build(build),
       _tracer(tracer),
@@ -59,10 +59,10 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Command> getCommand() const noexcept { return _command; }
 
   /// Get the root directory
-  shared_ptr<Access> getRoot() const noexcept { return _root; }
+  shared_ptr<Ref> getRoot() const noexcept { return _root; }
 
   /// Get the working directory
-  shared_ptr<Access> getWorkingDir() const noexcept { return _cwd; }
+  shared_ptr<Ref> getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
   void setWorkingDir(shared_ptr<Access> ref) noexcept;
@@ -121,10 +121,10 @@ class Process : public std::enable_shared_from_this<Process> {
   pid_t _pid;
 
   /// A reference to the process' current working directory
-  shared_ptr<Access> _cwd;
+  shared_ptr<Ref> _cwd;
 
   /// A reference to the process' current root directory
-  shared_ptr<Access> _root;
+  shared_ptr<Ref> _root;
 
   /// The process' file descriptor table
   map<int, FileDescriptor> _fds;

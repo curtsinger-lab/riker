@@ -30,7 +30,7 @@ namespace fs = std::filesystem;
 
 string Command::getShortName(size_t limit) const noexcept {
   // By default, the short name is the executable
-  auto exe_path = _exe->getFullPath();
+  auto exe_path = _exe->getPath().value_or("<anon>");
 
   // If we have arguments, use args[0] instead of the exe name
   if (_args.size() > 0) exe_path = _args.front();

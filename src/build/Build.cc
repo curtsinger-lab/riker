@@ -207,7 +207,7 @@ shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> e
 
 // Command c accesses a path
 shared_ptr<Access> Build::access(shared_ptr<Command> c,
-                                 shared_ptr<Access> base,
+                                 shared_ptr<Ref> base,
                                  fs::path path,
                                  AccessFlags flags,
                                  shared_ptr<Access> emulating) noexcept {
@@ -286,8 +286,11 @@ void Build::matchMetadata(shared_ptr<Command> c,
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
     if (!creator || creator != c) {
-      // We can only take a fingerprint with a path
-      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
+      // We can only take a fingerprint with a committed path
+      auto path = ref->getArtifact()->getPath(false);
+      if (path.has_value()) {
+        expected->fingerprint(path.value());
+      }
     }
 
     // Add a match step to the trace
@@ -341,8 +344,11 @@ void Build::matchContent(shared_ptr<Command> c,
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
     if (!creator || creator != c) {
-      // We can only take a fingerprint with a path
-      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
+      // We can only take a fingerprint with a committed path
+      auto path = ref->getArtifact()->getPath(false);
+      if (path.has_value()) {
+        expected->fingerprint(path.value());
+      }
     }
 
     // Add a match step to the trace
