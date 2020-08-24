@@ -48,13 +48,6 @@ class Trace {
   Trace(Trace&&) noexcept = default;
   Trace& operator=(Trace&&) noexcept = default;
 
-  /// Make a clean trace with the same initial references, but no commands or steps.
-  /// This relies on the private copy constructor above.
-  shared_ptr<Trace> restart() noexcept { return shared_ptr<Trace>(new Trace(*this)); }
-
-  /// Resolve references to root, cwd, stdin, stdout, etc. in the given environment
-  void resolveRefs(Build& build, shared_ptr<Env> env) noexcept;
-
   /// Add a command to the trace
   void addCommand(shared_ptr<Command> c) noexcept { _commands.insert(c); }
 

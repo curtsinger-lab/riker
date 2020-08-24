@@ -26,11 +26,14 @@ using std::ostream;
 using std::shared_ptr;
 
 tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
-  // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
-  _trace->resolveRefs(*this, _env);
-
   // Emulate steps until we hit the end of the trace
-  runSteps();
+  for (auto& [cmd, step] : _steps) {
+    // Can we emulate the command that created this IR step?
+    if (_plan.canEmulate(cmd)) {
+      // Yes. Call its emulate method
+      step->emulate(cmd, *this);
+    }
+  }
 
   // Wait for all remaining processes to exit
   _tracer.wait();
@@ -39,20 +42,6 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
   _env->getRootDir()->checkFinalState(*this, "/");
 
   return {_trace, _env};
-}
-
-void Build::runSteps() noexcept {
-  while (!_steps.empty()) {
-    // Take the first step from the list
-    auto [cmd, step] = _steps.front();
-    _steps.pop_front();
-
-    // Can we emulate the command that created this IR step?
-    if (_plan.canEmulate(cmd)) {
-      // Yes. Call its emulate method
-      step->emulate(cmd, *this);
-    }
-  }
 }
 
 /************************ Observer Implementation ************************/

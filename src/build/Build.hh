@@ -37,10 +37,14 @@ class Build {
   /**
    * Create a build runner
    */
-  Build(shared_ptr<Trace> trace,
+  Build(shared_ptr<Trace> input_trace,
         RebuildPlan plan = RebuildPlan(),
         shared_ptr<Env> env = make_shared<Env>()) noexcept :
-      _steps(trace->getSteps()), _trace(trace->restart()), _plan(plan), _env(env), _tracer(*this) {}
+      _steps(input_trace->getSteps()),
+      _trace(make_shared<Trace>()),
+      _plan(plan),
+      _env(env),
+      _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -178,9 +182,6 @@ class Build {
                             shared_ptr<Version> ondisk) const noexcept;
 
  private:
-  /// Run steps in this build until we hit the end of the provided trace
-  void runSteps() noexcept;
-
   /// Is a particular command running?
   bool isRunning(shared_ptr<Command> c) const noexcept {
     return _running.find(c) != _running.end();

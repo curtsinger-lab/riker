@@ -68,16 +68,8 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
   return trace;
 }
 
-void Trace::resolveRefs(Build& build, shared_ptr<Env> env) noexcept {
-  // Resolve the root directory
-  //_root->resolvesTo(env->getRootDir());
-}
-
 // Print this trace
 ostream& Trace::print(ostream& o) const noexcept {
-  // Print the pre-build references
-  // o << _root << endl;
-
   for (auto& [c, s] : _steps) {
     if (c) {
       o << c << ": " << s << endl;
