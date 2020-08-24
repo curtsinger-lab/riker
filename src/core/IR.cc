@@ -53,6 +53,11 @@ void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.access(c, _base, _path, _flags, as<Access>());
 }
 
+// Emulate an ExpectResult predicate
+void ExpectResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.expectResult(c, _ref, _expected, as<ExpectResult>());
+}
+
 // Emulate a MatchMetadata predicate
 void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.matchMetadata(c, _ref, _version, as<MatchMetadata>());
@@ -86,11 +91,4 @@ void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
 // Emulate an exit action
 void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.exit(c, _exit_status, as<Exit>());
-}
-
-/******************* Access Methods ********************/
-
-int Access::open() const noexcept {
-  auto [open_flags, open_mode] = _flags.toOpen();
-  return ::open(getFullPath().c_str(), open_flags, open_mode);
 }

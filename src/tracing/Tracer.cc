@@ -312,10 +312,12 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
     // Handle reference types
     if (auto ref = info.getRef()->as<Access>()) {
-      // This is an access, so we have a path
+      // This is an access, so we have a path and flags
+      auto path = ref->getPath().value();
+      auto [open_flags, open_mode] = ref->getFlags().toOpen();
 
-      // Use the reference to open the file
-      int parent_fd = ref->open();
+      // Open the file
+      int parent_fd = ::open(path.c_str(), open_flags, open_mode);
       FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
       initial_fds.emplace_back(parent_fd, child_fd);
 
@@ -365,7 +367,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     }
 
     // Change to the initial working directory
-    int rc = ::chdir(cmd->getInitialWorkingDir()->getFullPath().c_str());
+    auto cwd_path = cmd->getInitialWorkingDir()->getPath();
+    ASSERT(cwd_path.has_value()) << "Current working directory does not have a path";
+    int rc = ::chdir(cwd_path.value().c_str());
     ASSERT(rc == 0) << "Failed to change to starting directory to launch " << cmd;
 
     // TODO: Change to the appropriate root directory
@@ -425,7 +429,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    execv(cmd->getExecutable()->getFullPath().c_str(), (char* const*)args.data());
+    auto exe_path = cmd->getExecutable()->getPath();
+    ASSERT(exe_path.has_value()) << "Executable has no path";
+    execv(exe_path.value().c_str(), (char* const*)args.data());
 
     // This is unreachable, unless execv fails
     FAIL << "Failed to start traced program: " << ERR;

@@ -56,7 +56,7 @@ shared_ptr<Trace> load_trace(string filename) noexcept {
     // Is there a version mismatch?
     if (version != ArchiveVersion) {
       WARN << "Build database is outdated. Initializing a default build.";
-      return Trace::getDefault();
+      return make_shared<Trace>();
     }
 
     // If the version matches, return the root of the build
@@ -64,7 +64,7 @@ shared_ptr<Trace> load_trace(string filename) noexcept {
 
   } catch (cereal::Exception& e) {
     // If loading failed, reutrn a default trace
-    return Trace::getDefault();
+    return make_shared<Trace>();
   }
 }
 
@@ -230,6 +230,7 @@ CEREAL_REGISTER_TYPE(Dir);
 CEREAL_REGISTER_TYPE(Access);
 
 // Predicates
+CEREAL_REGISTER_TYPE(ExpectResult);
 CEREAL_REGISTER_TYPE(MatchMetadata);
 CEREAL_REGISTER_TYPE(MatchContent);
 

@@ -40,11 +40,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a new command
-  Command(shared_ptr<Access> exe,
+  Command(shared_ptr<Ref> exe,
           vector<string> args,
           map<int, FileDescriptor> initial_fds,
-          shared_ptr<Access> initial_cwd,
-          shared_ptr<Access> initial_root) noexcept :
+          shared_ptr<Ref> initial_cwd,
+          shared_ptr<Ref> initial_root) noexcept :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -66,13 +66,13 @@ class Command : public std::enable_shared_from_this<Command> {
   string getFullName() const noexcept;
 
   /// Get the reference to the executable file this command runs
-  const shared_ptr<Access>& getExecutable() const noexcept { return _exe; }
+  shared_ptr<Ref> getExecutable() const noexcept { return _exe; }
 
   /// Get the working directory where this command is started
-  const shared_ptr<Access>& getInitialWorkingDir() const noexcept { return _initial_cwd; }
+  shared_ptr<Ref> getInitialWorkingDir() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  const shared_ptr<Access>& getInitialRootDir() const noexcept { return _initial_root; }
+  shared_ptr<Ref> getInitialRootDir() const noexcept { return _initial_root; }
 
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
@@ -107,7 +107,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// The executable file this command runs
-  shared_ptr<Access> _exe;
+  shared_ptr<Ref> _exe;
 
   /// The arguments passed to this command on startup
   vector<string> _args;
@@ -116,10 +116,10 @@ class Command : public std::enable_shared_from_this<Command> {
   map<int, FileDescriptor> _initial_fds;
 
   /// A reference to the directory where this command is started
-  shared_ptr<Access> _initial_cwd;
+  shared_ptr<Ref> _initial_cwd;
 
   /// A reference to the root directory in effect when this command is started
-  shared_ptr<Access> _initial_root;
+  shared_ptr<Ref> _initial_root;
 
   /// Has this command ever run?
   bool _executed = false;

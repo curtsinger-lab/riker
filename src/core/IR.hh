@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -17,6 +18,8 @@
 #include "util/serializer.hh"
 
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -32,12 +35,6 @@ class FileVersion;
 class MetadataVersion;
 class SymlinkVersion;
 class Version;
-
-// Set up a map from return codes to names
-inline static map<int8_t, string> errors = {
-    {SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-    {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-    {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
 
 /**
  * A Command's actions are tracked as a sequence of Steps, each corresponding to some operation
@@ -98,12 +95,6 @@ class Ref : public Step {
   /// Get the short name for this reference
   string getName() const noexcept { return "r" + std::to_string(getID()); }
 
-  /// Record the result of this access from a trace
-  void expectResult(int rc) noexcept { _expected_rc = rc; }
-
-  /// Get the expected result of this access
-  int getExpectedResult() const noexcept { return _expected_rc; }
-
   /// Get the result of resolving this reference
   Resolution getResolution() const noexcept { return _res; }
 
@@ -116,23 +107,11 @@ class Ref : public Step {
   /// A sub-type can report the result of resolving this artifact using this method
   void resolvesTo(Resolution res) noexcept { _res = res; }
 
- protected:
-  /// Print the observed or expected outcome of resolving this reference
-  ostream& printResolution(ostream& o) const noexcept {
-    if (isResolved()) {
-      // Print the artifact this pipe resolves to
-      o << " -> " << getArtifact();
-    } else {
-      o << " expect " << errors[_expected_rc];
-    }
-    return o;
-  }
+  /// Get the path associated with this reference, if any
+  virtual optional<fs::path> getPath() const noexcept { return nullopt; }
 
  private:
-  /// The expected result from this access
-  int _expected_rc = SUCCESS;
-
-  SERIALIZE(BASE(Step), _expected_rc);
+  SERIALIZE(BASE(Step));
 
   /****** Transient Fields ******/
 
@@ -154,8 +133,7 @@ class Pipe final : public Ref {
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = PIPE()";
-    return Ref::printResolution(o);
+    return o << getName() << " = PIPE()";
   }
 
  private:
@@ -174,8 +152,7 @@ class File final : public Ref {
 
   /// Print a FILE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = FILE(" << std::oct << _mode << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = FILE(" << std::oct << _mode << ")";
   }
 
  private:
@@ -197,8 +174,7 @@ class Symlink final : public Ref {
 
   /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = SYMLINK(" << _target << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = SYMLINK(" << _target << ")";
   }
 
  private:
@@ -220,8 +196,7 @@ class Dir final : public Ref {
 
   /// Print a DIR reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = DIR(" << std::oct << _mode << ")";
-    return Ref::printResolution(o);
+    return o << getName() << " = DIR(" << std::oct << _mode << ")";
   }
 
  private:
@@ -236,42 +211,39 @@ class Dir final : public Ref {
 class Access final : public Ref {
  public:
   /// Create an access reference to a path with given flags
-  Access(shared_ptr<Access> base, fs::path path, AccessFlags flags) noexcept :
+  Access(shared_ptr<Ref> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Get the access that serves as the base for this one
-  const shared_ptr<Access>& getBase() const noexcept { return _base; }
+  const shared_ptr<Ref>& getBase() const noexcept { return _base; }
 
   /// Get the path of this reference, relative to the base access
   fs::path getRelativePath() const noexcept { return _path; }
 
-  /// Get the path this ACCESS reference uses
-  fs::path getFullPath() const noexcept {
-    if (_base) {
-      return _base->getFullPath() / _path;
-    } else {
-      return _path;
-    }
+  /// Get the full path for this reference
+  virtual optional<fs::path> getPath() const noexcept override {
+    if (!_base) return _path;
+
+    auto base_path = _base->getPath();
+    if (!base_path.has_value()) return nullopt;
+    return base_path.value() / _path;
   }
 
   /// Get the flags used to create this reference
   const AccessFlags& getFlags() const noexcept { return _flags; }
 
-  /// Open this reference
-  int open() const noexcept;
-
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
-    o << getName() << " = ACCESS(" << getFullPath() << ", [" << getFlags() << "])";
-    return Ref::printResolution(o);
+    return o << getName() << " = ACCESS(" << _base->getName() << ", " << _path << ", ["
+             << getFlags() << "])";
   }
 
  private:
   /// The base used to resolve this reference, typically either cwd or root.
-  shared_ptr<Access> _base;
+  shared_ptr<Ref> _base;
 
   /// The path being accessed
   fs::path _path;
@@ -282,6 +254,30 @@ class Access final : public Ref {
   // Create default constructor and specify fields for serialization
   Access() = default;
   SERIALIZE(BASE(Ref), _base, _path, _flags);
+};
+
+/**
+ * A command expects a reference to resolve a particular way
+ */
+class ExpectResult final : public Step {
+ public:
+  /// Create an ExpectResult predicate
+  ExpectResult(shared_ptr<Ref> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "EXPECT_RESULT(" << _ref->getName() << ", " << errors[_expected] << ")";
+  }
+
+ private:
+  shared_ptr<Ref> _ref;  //< The reference made earlier
+  int _expected;         //< The expected result of resolving the reference
+
+  // Create default constructor and specify fields for serialization
+  ExpectResult() noexcept = default;
+  SERIALIZE(BASE(Step), _ref, _expected);
 };
 
 /**

@@ -119,14 +119,34 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
+/******** Reference Resolution *********/
+
+RefResult Build::saveResult(shared_ptr<Command> cmd, Resolution result) noexcept {
+  size_t index = _ref_results[cmd].size();
+  _ref_results[cmd].push_back(result);
+  return RefResult(cmd, index);
+}
+
+Resolution Build::getResult(RefResult r) noexcept {
+  return _ref_results[r.getCommand()][r.getIndex()];
+}
+
 /************************ Command Tracing and Emulation ************************/
 
 // Command c creates a new pipe
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Pipe>();
-  ref->resolvesTo(_env->getPipe(*this, c));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a pipe and save the resolved result
+  auto result = _env->getPipe(*this, c);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
@@ -134,10 +154,18 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
 shared_ptr<File> Build::file(shared_ptr<Command> c,
                              mode_t mode,
                              shared_ptr<File> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<File>(mode);
-  ref->resolvesTo(_env->createFile(*this, c, mode, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a file and save the resolved result
+  auto result = _env->createFile(*this, c, mode, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
@@ -145,25 +173,41 @@ shared_ptr<File> Build::file(shared_ptr<Command> c,
 shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
                                    fs::path target,
                                    shared_ptr<Symlink> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Symlink>(target);
-  ref->resolvesTo(_env->getSymlink(*this, c, target, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a symlink and save the resolved result
+  auto result = _env->getSymlink(*this, c, target, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
 // Command c creates a new directory
 shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+  // Use or create a trace step
   auto ref = emulating;
   if (!emulating) ref = make_shared<Dir>(mode);
-  ref->resolvesTo(_env->getDir(*this, c, mode, !emulating));
+
+  // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
+
+  // Create a directory and save the resolved result
+  auto result = _env->getDir(*this, c, mode, !emulating);
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
 }
 
 // Command c accesses a path
 shared_ptr<Access> Build::access(shared_ptr<Command> c,
-                                 shared_ptr<Access> base,
+                                 shared_ptr<Ref> base,
                                  fs::path path,
                                  AccessFlags flags,
                                  shared_ptr<Access> emulating) noexcept {
@@ -171,20 +215,36 @@ shared_ptr<Access> Build::access(shared_ptr<Command> c,
   auto ref = emulating;
   if (!emulating) ref = make_shared<Access>(base, path, flags);
 
-  // Resolve the reference
-  auto result =
-      base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), ref, !emulating);
-  ref->resolvesTo(result);
-
-  // If the access is being emulated, check the result
-  if (emulating && ref->getResolution() != ref->getExpectedResult()) {
-    observeCommandChange(c, emulating);
-  }
-
   // Add the reference to the new build trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
 
+  // Resolve the reference
+  auto result =
+      base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), ref, !emulating);
+
+  // Save the result of the resolution
+  ref->resolvesTo(result);
+  saveResult(c, result);
+
   return ref;
+}
+
+// Command c expects a reference to resolve with a specific result
+void Build::expectResult(shared_ptr<Command> c,
+                         shared_ptr<Ref> ref,
+                         int expected,
+                         shared_ptr<ExpectResult> emulating) noexcept {
+  // Use or create an IR step
+  auto step = emulating;
+  if (!emulating) step = make_shared<ExpectResult>(ref, expected);
+
+  // Add the step to the output trace
+  _trace->addStep(c, step, static_cast<bool>(emulating));
+
+  // Does the resolved reference match the expected result?
+  if (emulating && ref->getResolution() != expected) {
+    observeCommandChange(c, emulating);
+  }
 }
 
 // Command c accesses an artifact's metadata
@@ -226,8 +286,11 @@ void Build::matchMetadata(shared_ptr<Command> c,
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
     if (!creator || creator != c) {
-      // We can only take a fingerprint with a path
-      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
+      // We can only take a fingerprint with a committed path
+      auto path = ref->getArtifact()->getPath(false);
+      if (path.has_value()) {
+        expected->fingerprint(path.value());
+      }
     }
 
     // Add a match step to the trace
@@ -281,8 +344,11 @@ void Build::matchContent(shared_ptr<Command> c,
     // If a different command created this version, fingerprint it for later comparison
     auto creator = expected->getCreator();
     if (!creator || creator != c) {
-      // We can only take a fingerprint with a path
-      if (auto access = ref->as<Access>()) expected->fingerprint(access->getFullPath());
+      // We can only take a fingerprint with a committed path
+      auto path = ref->getArtifact()->getPath(false);
+      if (path.has_value()) {
+        expected->fingerprint(path.value());
+      }
     }
 
     // Add a match step to the trace
@@ -444,9 +510,15 @@ void Build::launch(shared_ptr<Command> c,
 
       // The child command also depends on the artifacts reachable through its initial FDs
       for (auto& [index, desc] : child->getInitialFDs()) {
-        // TODO: Check pipes as well. Skipping non-path references for now
-        if (auto access = desc.getRef()->as<Access>()) {
-          access->getArtifact()->commitAll();
+        auto artifact = desc.getRef()->getArtifact();
+
+        // TODO: Handle pipes eventually. Just skip them for now
+        if (artifact->as<PipeArtifact>()) continue;
+
+        if (artifact->canCommitAll()) {
+          artifact->commitAll();
+        } else {
+          WARN << "Launching " << child << " without committing referenced artifact " << artifact;
         }
       }
 
