@@ -28,6 +28,11 @@ using std::tuple;
 
 /******* Emulation *******/
 
+// Emulate a special reference
+void SpecialRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.specialRef(c, as<SpecialRef>());
+}
+
 // Emulate a pipe reference
 void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
   build.pipe(c, as<Pipe>());

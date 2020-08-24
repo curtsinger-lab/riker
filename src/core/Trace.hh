@@ -31,7 +31,7 @@ class Trace {
  private:
   // Private copy constructor allowed. Does not copy the commands or step list
   Trace(const Trace& other) noexcept :
-      _root(other._root), _stdin(other._stdin), _stdout(other._stdout), _stderr(other._stderr) {}
+      _root(other._root), _stdout(other._stdout), _stderr(other._stderr) {}
 
   // No need for copy assignment
   Trace& operator=(const Trace&) = delete;
@@ -83,7 +83,6 @@ class Trace {
   shared_ptr<Ref> _root;
 
   // Refs to the standard pipes
-  shared_ptr<Ref> _stdin;
   shared_ptr<Ref> _stdout;
   shared_ptr<Ref> _stderr;
 
@@ -94,5 +93,5 @@ class Trace {
   StepList _steps;
 
   // Declare fields for serialization
-  SERIALIZE(_stdin, _stdout, _stderr, _root, _commands, _steps);
+  SERIALIZE(_stdout, _stderr, _root, _commands, _steps);
 };

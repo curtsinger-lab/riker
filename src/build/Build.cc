@@ -133,6 +133,44 @@ Resolution Build::getResult(RefResult r) noexcept {
 
 /************************ Command Tracing and Emulation ************************/
 
+// Command c is issuing a special reference
+shared_ptr<Ref> Build::specialRef(shared_ptr<Command> c,
+                                  shared_ptr<SpecialRef> emulating) noexcept {
+  ASSERT(emulating) << "Special references should never be traced";
+
+  // Add the step to the output trace
+  _trace->addStep(c, emulating, true);
+
+  // Resolve the reference
+  shared_ptr<Artifact> result;
+  switch (emulating->getEntity()) {
+    case SpecialRef::stdin:
+      result = _env->getStdin(*this, c);
+      break;
+
+    case SpecialRef::stdout:
+      result = _env->getStdout(*this, c);
+      break;
+
+    case SpecialRef::stderr:
+      result = _env->getStderr(*this, c);
+      break;
+
+    case SpecialRef::root:
+      result = _env->getRootDir();
+      break;
+
+    default:
+      FAIL << "Unable to emulate unknown special reference " << emulating;
+  }
+
+  // Record the resolved artifact
+  emulating->resolvesTo(result);
+  saveResult(c, result);
+
+  return emulating;
+}
+
 // Command c creates a new pipe
 shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
   // Use or create a trace step

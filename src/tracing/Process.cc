@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"

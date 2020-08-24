@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
@@ -27,7 +28,9 @@ namespace fs = std::filesystem;
 
 Trace::Trace() noexcept {
   // Create the initial pipe references
-  _stdin = make_shared<Pipe>();
+  auto stdin = make_shared<SpecialRef>(SpecialRef::stdin);
+  _steps.emplace_back(nullptr, stdin);
+
   _stdout = make_shared<Pipe>();
   _stderr = make_shared<Pipe>();
 
@@ -45,7 +48,7 @@ Trace::Trace() noexcept {
   _steps.emplace_back(nullptr, exe);
 
   // Create a map of initial file descriptors
-  map<int, FileDescriptor> fds = {{0, FileDescriptor(_stdin, false)},
+  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin, false)},
                                   {1, FileDescriptor(_stdout, true)},
                                   {2, FileDescriptor(_stderr, true)}};
 
@@ -58,12 +61,6 @@ Trace::Trace() noexcept {
 }
 
 void Trace::resolveRefs(Build& build, shared_ptr<Env> env) noexcept {
-  // Resolve stdin
-  _stdin->resolvesTo(env->getPipe(build, nullptr));
-  _stdin->getArtifact()->setName("stdin");
-  auto stdin_pipe = _stdin->getArtifact()->as<PipeArtifact>();
-  stdin_pipe->setFDs(0, -1);
-
   // Resolve stdout
   _stdout->resolvesTo(env->getPipe(build, nullptr));
   _stdout->getArtifact()->setName("stdout");
@@ -83,7 +80,6 @@ void Trace::resolveRefs(Build& build, shared_ptr<Env> env) noexcept {
 // Print this trace
 ostream& Trace::print(ostream& o) const noexcept {
   // Print the pre-build references
-  o << _stdin << endl;
   o << _stdout << endl;
   o << _stderr << endl;
   o << _root << endl;
