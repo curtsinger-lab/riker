@@ -5,7 +5,9 @@
 #include <unistd.h>
 
 #define RootBuildCommand "Dodofile"
+#define Makefile "Makefile"
 #define ShellCommand "/bin/sh"
+#define MakeCommand "/usr/bin/make"
 
 int main() {
   // First, try to execute the root build file
@@ -15,14 +17,20 @@ int main() {
   if (faccessat(AT_FDCWD, RootBuildCommand, R_OK, AT_EACCESS) == 0) {
     // The buildfile is not executable, but we have read access. Run it with /bin/sh
     execl(ShellCommand, ShellCommand, RootBuildCommand, NULL);
-    fprintf(stderr, "Failed to run " RootBuildCommand " with shell " ShellCommand ": %s\n",
-            strerror(errno));
-
+    // fprintf(stderr, "Failed to run %s with shell " ShellCommand ": %s\n", cmd, strerror(errno));
   } else {
-    // The buildfile is neither executable nor readable. This won't work.
-    fprintf(stderr, "Unable to access " RootBuildCommand ".\n");
-    fprintf(stderr, "  This file must be directly executable or runnable with " ShellCommand ".\n");
+    // The Dodofile is either unreadable or it doesn't exist at all.
+    // Is there a readable Makefile available?
+    if (faccessat(AT_FDCWD, Makefile, R_OK, AT_EACCESS) == 0) {
+      execl(MakeCommand, MakeCommand, NULL);
+    }
   }
+
+  // Looks like those did not work
+  fprintf(stderr, "Unable to find either " RootBuildCommand " or " Makefile ".\n");
+  fprintf(stderr, "  A " RootBuildCommand
+                  " file should be present and be directly \
+                   executable or runnable with " ShellCommand ".\n");
 
   return 2;
 }
