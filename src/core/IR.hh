@@ -144,6 +144,7 @@ class SpecialRef final : public Ref {
 
   /// Print a special reference
   virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = ";
     switch (_entity) {
       case stdin:
         return o << "STDIN";
