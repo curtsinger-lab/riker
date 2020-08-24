@@ -6,20 +6,23 @@ A full trace contains a sequence of TraceIR steps, each marked with the command 
 ## References
 References are steps that produce a reference that can be used to reach an artifact. Each reference is resolved at run/emulation time, and can return either an artifact or an error code. In addition to the parameters specified with each reference type, every reference stores the expected outcome of resolving that reference, either SUCCESS or one of the standard POSIX error codes. Any change in the outcome of resolving a reference indicates that a command's input has changed.
 
-**`Pipe() : Reference`**  
-Create a reference to an anonymous pipe.
+**`SpecialRef() : Ref`**  
+Create a reference to a special artifact. Currently these include stdin, stdout, stderr, and the root directory.
 
-**`Symlink(dest : string) : Reference`**  
-Create a reference to an anonymous symbolic link with a given destination
+**`PipeRef() : Ref`**  
+Create a reference to a new anonymous pipe.
 
-**`Dir() : Reference`**  
-Create a reference to an anonymous, empty directory.
+**`SymlinkRef(dest : string) : Ref`**  
+Create a reference to a new anonymous symbolic link with a given destination
 
-**`File() : Reference`**
-Create a reference to an anonymous, empty file.
+**`DirRef() : Ref`**  
+Create a reference to a new anonymous directory.
 
-**`Access(base : Access, path : string, flags : AccessFlags) : Reference`**  
-Create a reference to a specific path, relative to some artifact reached via the `base` reference. The reference could resolve to any type of artifact. Access flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
+**`FileRef() : Ref`**
+Create a reference to a new anonymous file.
+
+**`PathRef(base : Ref, path : string, flags : AccessFlags) : Ref`**  
+Create a reference to a specific path, relative to some artifact reached via the `base` reference. The reference could resolve to any type of artifact. The flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
 
 ## Predicates
 **`MatchMetadata(ref : Reference, v : MetadataVersion)`**  
