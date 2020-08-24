@@ -44,13 +44,13 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
   trace->_steps.emplace_back(nullptr, root);
 
   // Create a reference to the current working directory and add it to the trace
-  auto cwd = make_shared<Access>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
+  auto cwd = make_shared<PathRef>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
   trace->_steps.emplace_back(nullptr, cwd);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   fs::path dodo = readlink("/proc/self/exe");
   fs::path dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-  auto exe = make_shared<Access>(root, dodo_launch, AccessFlags{.r = true, .x = true});
+  auto exe = make_shared<PathRef>(root, dodo_launch, AccessFlags{.r = true, .x = true});
   trace->_steps.emplace_back(nullptr, exe);
 
   // Create a map of initial file descriptors

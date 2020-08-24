@@ -311,8 +311,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto ref = info.getRef()->as<Access>()) {
-      // This is an access, so we have a path and flags
+    if (auto ref = info.getRef()->as<PathRef>()) {
+      // This is a path reference, so we have a path and flags
       auto path = ref->getPath().value();
       auto [open_flags, open_mode] = ref->getFlags().toOpen();
 

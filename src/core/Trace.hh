@@ -16,11 +16,9 @@ using std::set;
 using std::shared_ptr;
 using std::tuple;
 
-class Access;
 class Build;
 class Command;
 class Env;
-class Pipe;
 class Step;
 
 /**

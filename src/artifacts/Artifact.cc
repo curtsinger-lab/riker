@@ -283,7 +283,7 @@ Resolution Artifact::resolve(Build& build,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             shared_ptr<Access> ref,
+                             shared_ptr<PathRef> ref,
                              bool committed) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {

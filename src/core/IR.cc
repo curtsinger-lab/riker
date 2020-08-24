@@ -34,28 +34,28 @@ void SpecialRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
 }
 
 // Emulate a pipe reference
-void Pipe::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.pipe(c, as<Pipe>());
+void PipeRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.pipeRef(c, as<PipeRef>());
 }
 
 // Emulate an anonymous file reference
-void File::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.file(c, _mode, as<File>());
+void FileRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.fileRef(c, _mode, as<FileRef>());
 }
 
 // Emulate a symlink reference
-void Symlink::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.symlink(c, _target, as<Symlink>());
+void SymlinkRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.symlinkRef(c, _target, as<SymlinkRef>());
 }
 
 // Emulate a dir reference
-void Dir::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.dir(c, _mode, as<Dir>());
+void DirRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.dirRef(c, _mode, as<DirRef>());
 }
 
 // Emulate a path access reference
-void Access::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.access(c, _base, _path, _flags, as<Access>());
+void PathRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.pathRef(c, _base, _path, _flags, as<PathRef>());
 }
 
 // Emulate an ExpectResult predicate

@@ -68,30 +68,31 @@ class Build {
   shared_ptr<Ref> specialRef(shared_ptr<Command> c,
                              shared_ptr<SpecialRef> emulating = nullptr) noexcept;
 
-  /// A command creates a new pipe
-  shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;
+  /// A command references a new anonymous pipe
+  shared_ptr<PipeRef> pipeRef(shared_ptr<Command> c,
+                              shared_ptr<PipeRef> emulating = nullptr) noexcept;
 
-  /// A command creates a new file
-  shared_ptr<File> file(shared_ptr<Command> c,
-                        mode_t mode,
-                        shared_ptr<File> emulating = nullptr) noexcept;
+  /// A command references a new anonymous file
+  shared_ptr<FileRef> fileRef(shared_ptr<Command> c,
+                              mode_t mode,
+                              shared_ptr<FileRef> emulating = nullptr) noexcept;
 
-  /// A command creates a new symbolic link
-  shared_ptr<Symlink> symlink(shared_ptr<Command> c,
-                              fs::path target,
-                              shared_ptr<Symlink> emulating = nullptr) noexcept;
+  /// A command references a new anonymous symlink
+  shared_ptr<SymlinkRef> symlinkRef(shared_ptr<Command> c,
+                                    fs::path target,
+                                    shared_ptr<SymlinkRef> emulating = nullptr) noexcept;
 
-  /// A command creates a new directory
-  shared_ptr<Dir> dir(shared_ptr<Command> c,
-                      mode_t mode,
-                      shared_ptr<Dir> emulating = nullptr) noexcept;
+  /// A command references a new anonymous directory
+  shared_ptr<DirRef> dirRef(shared_ptr<Command> c,
+                            mode_t mode,
+                            shared_ptr<DirRef> emulating = nullptr) noexcept;
 
   /// A command makes a reference with a path
-  shared_ptr<Access> access(shared_ptr<Command> c,
-                            shared_ptr<Ref> base,
-                            fs::path path,
-                            AccessFlags flags,
-                            shared_ptr<Access> emulating = nullptr) noexcept;
+  shared_ptr<PathRef> pathRef(shared_ptr<Command> c,
+                              shared_ptr<Ref> base,
+                              fs::path path,
+                              AccessFlags flags,
+                              shared_ptr<PathRef> emulating = nullptr) noexcept;
 
   /// A command expects a reference to resolve with a particular result
   void expectResult(shared_ptr<Command> c,

@@ -20,12 +20,11 @@ using std::string;
 
 namespace fs = std::filesystem;
 
-class Access;
 class Artifact;
 class Build;
 class Command;
 class DirArtifact;
-class Pipe;
+class PathRef;
 class PipeArtifact;
 class Ref;
 class SymlinkArtifact;

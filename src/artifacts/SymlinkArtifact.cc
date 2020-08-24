@@ -98,7 +98,7 @@ Resolution SymlinkArtifact::resolve(Build& build,
                                     shared_ptr<Artifact> prev,
                                     fs::path::iterator current,
                                     fs::path::iterator end,
-                                    shared_ptr<Access> ref,
+                                    shared_ptr<PathRef> ref,
                                     bool committed) noexcept {
   auto& flags = ref->getFlags();
 

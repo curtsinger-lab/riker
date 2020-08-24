@@ -161,10 +161,10 @@ shared_ptr<Ref> Build::specialRef(shared_ptr<Command> c,
 }
 
 // Command c creates a new pipe
-shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
+shared_ptr<PipeRef> Build::pipeRef(shared_ptr<Command> c, shared_ptr<PipeRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Pipe>();
+  if (!emulating) ref = make_shared<PipeRef>();
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -178,12 +178,12 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
 }
 
 // Command c creates a new file
-shared_ptr<File> Build::file(shared_ptr<Command> c,
-                             mode_t mode,
-                             shared_ptr<File> emulating) noexcept {
+shared_ptr<FileRef> Build::fileRef(shared_ptr<Command> c,
+                                   mode_t mode,
+                                   shared_ptr<FileRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<File>(mode);
+  if (!emulating) ref = make_shared<FileRef>(mode);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -197,12 +197,12 @@ shared_ptr<File> Build::file(shared_ptr<Command> c,
 }
 
 // Command c creates a new symbolic link
-shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
-                                   fs::path target,
-                                   shared_ptr<Symlink> emulating) noexcept {
+shared_ptr<SymlinkRef> Build::symlinkRef(shared_ptr<Command> c,
+                                         fs::path target,
+                                         shared_ptr<SymlinkRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Symlink>(target);
+  if (!emulating) ref = make_shared<SymlinkRef>(target);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -216,10 +216,12 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
 }
 
 // Command c creates a new directory
-shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+shared_ptr<DirRef> Build::dirRef(shared_ptr<Command> c,
+                                 mode_t mode,
+                                 shared_ptr<DirRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Dir>(mode);
+  if (!emulating) ref = make_shared<DirRef>(mode);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -233,14 +235,14 @@ shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> e
 }
 
 // Command c accesses a path
-shared_ptr<Access> Build::access(shared_ptr<Command> c,
-                                 shared_ptr<Ref> base,
-                                 fs::path path,
-                                 AccessFlags flags,
-                                 shared_ptr<Access> emulating) noexcept {
+shared_ptr<PathRef> Build::pathRef(shared_ptr<Command> c,
+                                   shared_ptr<Ref> base,
+                                   fs::path path,
+                                   AccessFlags flags,
+                                   shared_ptr<PathRef> emulating) noexcept {
   // Get a reference, either using the existing one we are emulating, or creating a new one
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Access>(base, path, flags);
+  if (!emulating) ref = make_shared<PathRef>(base, path, flags);
 
   // Add the reference to the new build trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));

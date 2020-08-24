@@ -94,7 +94,7 @@ class Process : public std::enable_shared_from_this<Process> {
   }
 
   /// This process is executing a new file
-  void exec(shared_ptr<Access> exe_ref, vector<string> args, vector<string> env) noexcept;
+  void exec(shared_ptr<PathRef> exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
@@ -185,7 +185,7 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  shared_ptr<Access> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
+  shared_ptr<PathRef> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
 
   /*** Handling for specific system calls ***/
 
