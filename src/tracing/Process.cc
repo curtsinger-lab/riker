@@ -31,7 +31,9 @@ namespace fs = std::filesystem;
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(shared_ptr<Access> ref) noexcept {
+void Process::setWorkingDir(shared_ptr<Ref> ref) noexcept {
+  ASSERT(ref->getPath().has_value())
+      << "Cannot set working directory to an artifact without a path";
   _cwd = ref;
 }
 
@@ -112,13 +114,8 @@ shared_ptr<Access> Thread::makeAccess(fs::path p, AccessFlags flags, int at) noe
                          flags);
 
   // The path is resolved relative to some file descriptor
-  auto descriptor = _process->getFD(at);
-  auto base = descriptor.getRef()->as<Access>();
-
-  ASSERT(base) << "Attempted to resolve path " << p << " relative to anonymous base "
-               << descriptor.getRef();
-
-  return _build.access(_process->getCommand(), base, p.relative_path(), flags);
+  return _build.access(_process->getCommand(), _process->getFD(at).getRef(), p.relative_path(),
+                       flags);
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
@@ -1208,15 +1205,8 @@ void Thread::_fchdir(int fd) noexcept {
     resume();
 
     if (rc == 0) {
-      // Get the path to the artifact this descriptor references
-      const auto& descriptor = _process->getFD(fd);
-      auto a = descriptor.getRef()->as<Access>();
-
-      // Make sure there really is a path
-      ASSERT(a) << "fchdir to an artifact with no path should not succeed";
-
       // Update the working directory
-      _process->setWorkingDir(a);
+      _process->setWorkingDir(_process->getFD(fd).getRef());
     }
   });
 }

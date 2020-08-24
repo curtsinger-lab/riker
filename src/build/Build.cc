@@ -510,9 +510,15 @@ void Build::launch(shared_ptr<Command> c,
 
       // The child command also depends on the artifacts reachable through its initial FDs
       for (auto& [index, desc] : child->getInitialFDs()) {
-        // TODO: Check pipes as well. Skipping non-path references for now
-        if (auto access = desc.getRef()->as<Access>()) {
-          access->getArtifact()->commitAll();
+        auto artifact = desc.getRef()->getArtifact();
+
+        // TODO: Handle pipes eventually. Just skip them for now
+        if (artifact->as<PipeArtifact>()) continue;
+
+        if (artifact->canCommitAll()) {
+          artifact->commitAll();
+        } else {
+          WARN << "Launching " << child << " without committing referenced artifact " << artifact;
         }
       }
 

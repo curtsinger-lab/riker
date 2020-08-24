@@ -65,7 +65,7 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Ref> getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
-  void setWorkingDir(shared_ptr<Access> ref) noexcept;
+  void setWorkingDir(shared_ptr<Ref> ref) noexcept;
 
   /// Get a file descriptor entry
   FileDescriptor& getFD(int fd) noexcept;
