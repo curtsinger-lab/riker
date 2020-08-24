@@ -122,6 +122,52 @@ class Ref : public Step {
   Resolution _res;
 };
 
+/// Create a reference to a special artifact (standard pipes, root directory, etc.)
+class SpecialRef final : public Ref {
+ public:
+  enum Entity { stdin, stdout, stderr, root };
+
+  /// Create a new special reference
+  SpecialRef(Entity entity) noexcept : _entity(entity) {}
+
+  /// Get the entity this special reference refers to
+  Entity getEntity() const noexcept { return _entity; }
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Get the path associated with this reference
+  virtual optional<fs::path> getPath() const noexcept override {
+    if (_entity == root) return "/";
+    return nullopt;
+  }
+
+  /// Print a special reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = ";
+    switch (_entity) {
+      case stdin:
+        return o << "STDIN";
+
+      case stdout:
+        return o << "STDOUT";
+
+      case stderr:
+        return o << "STDERR";
+
+      case root:
+        return o << "ROOT";
+    }
+  }
+
+ private:
+  Entity _entity;
+
+  // Create a default constructor and declare fields for serialization
+  SpecialRef() noexcept = default;
+  SERIALIZE(BASE(Ref), _entity);
+};
+
 /// Create a reference to a new pipe
 class Pipe final : public Ref {
  public:

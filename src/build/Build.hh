@@ -17,6 +17,7 @@
 #include "core/Trace.hh"
 #include "tracing/Tracer.hh"
 
+using std::make_shared;
 using std::optional;
 using std::ostream;
 using std::set;
@@ -58,6 +59,10 @@ class Build {
   Resolution getResult(RefResult r) noexcept;
 
   /****** Tracing and Emulation Methods ******/
+
+  /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
+  shared_ptr<Ref> specialRef(shared_ptr<Command> c,
+                             shared_ptr<SpecialRef> emulating = nullptr) noexcept;
 
   /// A command creates a new pipe
   shared_ptr<Pipe> pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating = nullptr) noexcept;

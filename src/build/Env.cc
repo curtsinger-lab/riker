@@ -30,6 +30,30 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+shared_ptr<PipeArtifact> Env::getStdin(Build& build, shared_ptr<Command> c) noexcept {
+  if (!_stdin) {
+    _stdin = getPipe(build, c);
+    _stdin->setFDs(0, -1);
+  }
+  return _stdin;
+}
+
+shared_ptr<PipeArtifact> Env::getStdout(Build& build, shared_ptr<Command> c) noexcept {
+  if (!_stdout) {
+    _stdout = getPipe(build, c);
+    _stdout->setFDs(-1, 1);
+  }
+  return _stdout;
+}
+
+shared_ptr<PipeArtifact> Env::getStderr(Build& build, shared_ptr<Command> c) noexcept {
+  if (!_stderr) {
+    _stderr = getPipe(build, c);
+    _stderr->setFDs(-1, 2);
+  }
+  return _stderr;
+}
+
 shared_ptr<DirArtifact> Env::getRootDir() noexcept {
   if (!_root_dir) {
     auto a = getFilesystemArtifact("/");

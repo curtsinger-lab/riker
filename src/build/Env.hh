@@ -8,7 +8,6 @@
 
 #include <sys/types.h>
 
-#include "artifacts/DirArtifact.hh"
 #include "build/BuildObserver.hh"
 #include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
@@ -25,6 +24,7 @@ class Access;
 class Artifact;
 class Build;
 class Command;
+class DirArtifact;
 class Pipe;
 class PipeArtifact;
 class Ref;
@@ -46,6 +46,15 @@ class Env : public std::enable_shared_from_this<Env> {
   // Disallow Copy
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
+
+  /// Get the standard input pipe
+  shared_ptr<PipeArtifact> getStdin(Build& build, shared_ptr<Command> c) noexcept;
+
+  /// Get the standard output pipe
+  shared_ptr<PipeArtifact> getStdout(Build& build, shared_ptr<Command> c) noexcept;
+
+  /// Get the standard error pipe
+  shared_ptr<PipeArtifact> getStderr(Build& build, shared_ptr<Command> c) noexcept;
 
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir() noexcept;
@@ -113,8 +122,11 @@ class Env : public std::enable_shared_from_this<Env> {
   /// The next unique ID for a temporary file
   size_t _next_temp_id = 0;
 
-  /// An artifact that corresponds to the root directory
-  shared_ptr<DirArtifact> _root_dir;
+  // Special artifacts
+  shared_ptr<PipeArtifact> _stdin;    //< Standard input
+  shared_ptr<PipeArtifact> _stdout;   //< Standard output
+  shared_ptr<PipeArtifact> _stderr;   //< Standard error
+  shared_ptr<DirArtifact> _root_dir;  //< The root directory
 
   /// A set of all the artifacts used during the build
   set<shared_ptr<Artifact>> _artifacts;

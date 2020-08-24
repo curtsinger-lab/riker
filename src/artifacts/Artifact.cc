@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "artifacts/DirArtifact.hh"
 #include "build/AccessTypes.hh"
 #include "build/Build.hh"
 #include "build/Env.hh"

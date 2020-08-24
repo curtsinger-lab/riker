@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "artifacts/DirArtifact.hh"
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "core/AccessFlags.hh"
@@ -50,8 +51,8 @@ Resolution ExistingDir::getEntry(Build& build,
 }
 
 // Create a listed directory version from an existing directory
-shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env, shared_ptr<DirArtifact> dir) const
-    noexcept {
+shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env,
+                                           shared_ptr<DirArtifact> dir) const noexcept {
   auto result = make_shared<ListedDir>();
 
   // Get a path to the directory, but only allow committed paths
