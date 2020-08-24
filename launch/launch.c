@@ -29,8 +29,8 @@ int main() {
   // Looks like those did not work
   fprintf(stderr, "Unable to find either " RootBuildCommand " or " Makefile ".\n");
   fprintf(stderr, "  A " RootBuildCommand
-                  " file should be present and be directly \
-                   executable or runnable with " ShellCommand ".\n");
+                  " file should be present and be either directly"
+                  " executable or runnable with " ShellCommand ".\n");
 
   return 2;
 }

@@ -25,8 +25,8 @@ Now make the build file unreadable as well
 Run a build, which should fail
   $ $DODO --show
   dodo-launch
-  Unable to access Dodofile.
-    This file must be directly executable or runnable with /bin/sh.
+  Unable to find either Dodofile or Makefile.
+    A Dodofile file should be present and be either directly executable or runnable with /bin/sh.
 
 Make the Dodofile readable and executable again
   $ chmod u+rx Dodofile
