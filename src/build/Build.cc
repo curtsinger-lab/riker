@@ -108,18 +108,6 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
-/******** Reference Resolution *********/
-
-RefResult Build::saveResult(shared_ptr<Command> cmd, Resolution result) noexcept {
-  size_t index = _ref_results[cmd].size();
-  _ref_results[cmd].push_back(result);
-  return RefResult(cmd, index);
-}
-
-Resolution Build::getResult(RefResult r) noexcept {
-  return _ref_results[r.getCommand()][r.getIndex()];
-}
-
 /************************ Command Tracing and Emulation ************************/
 
 // Command c is issuing a special reference
@@ -155,7 +143,6 @@ shared_ptr<Ref> Build::specialRef(shared_ptr<Command> c,
 
   // Record the resolved artifact
   emulating->resolvesTo(result);
-  saveResult(c, result);
 
   return emulating;
 }
@@ -172,7 +159,6 @@ shared_ptr<PipeRef> Build::pipeRef(shared_ptr<Command> c, shared_ptr<PipeRef> em
   // Create a pipe and save the resolved result
   auto result = _env->getPipe(*this, c);
   ref->resolvesTo(result);
-  saveResult(c, result);
 
   return ref;
 }
@@ -191,7 +177,6 @@ shared_ptr<FileRef> Build::fileRef(shared_ptr<Command> c,
   // Create a file and save the resolved result
   auto result = _env->createFile(*this, c, mode, !emulating);
   ref->resolvesTo(result);
-  saveResult(c, result);
 
   return ref;
 }
@@ -210,7 +195,6 @@ shared_ptr<SymlinkRef> Build::symlinkRef(shared_ptr<Command> c,
   // Create a symlink and save the resolved result
   auto result = _env->getSymlink(*this, c, target, !emulating);
   ref->resolvesTo(result);
-  saveResult(c, result);
 
   return ref;
 }
@@ -229,7 +213,6 @@ shared_ptr<DirRef> Build::dirRef(shared_ptr<Command> c,
   // Create a directory and save the resolved result
   auto result = _env->getDir(*this, c, mode, !emulating);
   ref->resolvesTo(result);
-  saveResult(c, result);
 
   return ref;
 }
@@ -253,7 +236,6 @@ shared_ptr<PathRef> Build::pathRef(shared_ptr<Command> c,
 
   // Save the result of the resolution
   ref->resolvesTo(result);
-  saveResult(c, result);
 
   return ref;
 }
