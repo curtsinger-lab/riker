@@ -162,9 +162,13 @@ Resolution Build::resolveSpecialRef(shared_ptr<Command> c,
     case SpecialRef::root:
       return _env->getRootDir();
 
-    default:
-      FAIL << "Unable to emulate unknown special reference";
-      return EFAULT;
+    case SpecialRef::cwd:
+      auto cwd_path = fs::current_path().relative_path();
+      auto res = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
+                                             AccessFlags{.x = true}, result, false);
+      ASSERT(res) << "Failed to resolve current working directory";
+      res->setName(".");
+      return res;
   }
 }
 

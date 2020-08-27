@@ -48,8 +48,7 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
   trace->_steps.emplace_back(nullptr, root);
 
   // Create a reference to the current working directory and add it to the trace
-  auto cwd_ref =
-      make_shared<PathRef>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
+  auto cwd_ref = make_shared<SpecialRef>(SpecialRef::cwd);
   auto cwd = make_shared<Resolve>(cwd_ref);
   trace->_steps.emplace_back(nullptr, cwd);
 
