@@ -85,40 +85,40 @@ void Resolve::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 // Emulate an ExpectResult predicate
 void ExpectResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateExpectResult(c, _ref, _expected, this->as<ExpectResult>());
+  build.emulateExpectResult(c, _ref, _expected);
 }
 
 // Emulate a MatchMetadata predicate
 void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateMatchMetadata(c, _ref, _version, this->as<MatchMetadata>());
+  build.emulateMatchMetadata(c, _ref, _version);
 }
 
 // Emulate a MatchContent predicate
 void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateMatchContent(c, _ref, _version, this->as<MatchContent>());
+  build.emulateMatchContent(c, _ref, _version);
 }
 
 // Emulate an UpdateMetadata IR step
 void UpdateMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateUpdateMetadata(c, _ref, _version, this->as<UpdateMetadata>());
+  build.emulateUpdateMetadata(c, _ref, _version);
 }
 
 // Emulate an UpdateContent IR step
 void UpdateContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateUpdateContent(c, _ref, _version, this->as<UpdateContent>());
+  build.emulateUpdateContent(c, _ref, _version);
 }
 
 // Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateLaunch(c, _cmd, this->as<Launch>());
+  build.emulateLaunch(c, _cmd);
 }
 
 // Emulate a join action
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateJoin(c, _cmd, _exit_status, this->as<Join>());
+  build.emulateJoin(c, _cmd, _exit_status);
 }
 
 // Emulate an exit action
 void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateExit(c, _exit_status, this->as<Exit>());
+  build.emulateExit(c, _exit_status);
 }

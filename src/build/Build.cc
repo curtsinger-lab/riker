@@ -238,9 +238,9 @@ shared_ptr<Resolve> Build::emulateResolve(shared_ptr<Command> c,
 // Command c expects a reference to resolve with a specific result
 void Build::emulateExpectResult(shared_ptr<Command> c,
                                 shared_ptr<Resolve> ref,
-                                int expected,
-                                shared_ptr<ExpectResult> step) noexcept {
-  // Add the emulated step to the output trace
+                                int expected) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<ExpectResult>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // Does the resolved reference match the expected result?
@@ -252,9 +252,9 @@ void Build::emulateExpectResult(shared_ptr<Command> c,
 // Command c accesses an artifact's metadata
 void Build::emulateMatchMetadata(shared_ptr<Command> c,
                                  shared_ptr<Resolve> ref,
-                                 shared_ptr<MetadataVersion> expected,
-                                 shared_ptr<MatchMetadata> step) noexcept {
-  // Add the emulated step to the output trace
+                                 shared_ptr<MetadataVersion> expected) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<MatchMetadata>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
@@ -271,9 +271,9 @@ void Build::emulateMatchMetadata(shared_ptr<Command> c,
 // Command c accesses an artifact's content
 void Build::emulateMatchContent(shared_ptr<Command> c,
                                 shared_ptr<Resolve> ref,
-                                shared_ptr<Version> expected,
-                                shared_ptr<MatchContent> step) noexcept {
-  // Add the emulated step to the output trace
+                                shared_ptr<Version> expected) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<MatchContent>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
@@ -290,9 +290,9 @@ void Build::emulateMatchContent(shared_ptr<Command> c,
 // Command c modifies an artifact
 void Build::emulateUpdateMetadata(shared_ptr<Command> c,
                                   shared_ptr<Resolve> ref,
-                                  shared_ptr<MetadataVersion> written,
-                                  shared_ptr<UpdateMetadata> step) noexcept {
-  // Add the emulated step to the output trace
+                                  shared_ptr<MetadataVersion> written) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<UpdateMetadata>(ref, written);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
@@ -316,9 +316,9 @@ void Build::emulateUpdateMetadata(shared_ptr<Command> c,
 // Command c modifies an artifact
 void Build::emulateUpdateContent(shared_ptr<Command> c,
                                  shared_ptr<Resolve> ref,
-                                 shared_ptr<Version> written,
-                                 shared_ptr<UpdateContent> step) noexcept {
-  // Add the emulated step to the output trace
+                                 shared_ptr<Version> written) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<UpdateContent>(ref, written);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
@@ -343,10 +343,9 @@ void Build::emulateUpdateContent(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-void Build::emulateLaunch(shared_ptr<Command> c,
-                          shared_ptr<Command> child,
-                          shared_ptr<Launch> step) noexcept {
-  // Add the emulated step to the output trace
+void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<Launch>(child);
   _trace->addEmulatedStep(c, step);
 
   // Add the child to the trace
@@ -401,9 +400,9 @@ void Build::emulateLaunch(shared_ptr<Command> c,
 // This command joined with a child command
 void Build::emulateJoin(shared_ptr<Command> c,
                         shared_ptr<Command> child,
-                        int exit_status,
-                        shared_ptr<Join> step) noexcept {
-  // Add the emulated step to the output trace
+                        int exit_status) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<Join>(child, exit_status);
   _trace->addEmulatedStep(c, step);
 
   // If the child command is running in the tracer, wait for it
@@ -415,8 +414,9 @@ void Build::emulateJoin(shared_ptr<Command> c,
   }
 }
 
-void Build::emulateExit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> step) noexcept {
-  // Add the emulated step to the output trace
+void Build::emulateExit(shared_ptr<Command> c, int exit_status) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<Exit>(exit_status);
   _trace->addEmulatedStep(c, step);
 
   // Record that the command has exited

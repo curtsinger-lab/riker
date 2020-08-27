@@ -127,48 +127,36 @@ class Build {
                                      shared_ptr<Resolve> step) noexcept;
 
   /// A command expects a reference to resolve with a particular result
-  void emulateExpectResult(shared_ptr<Command> c,
-                           shared_ptr<Resolve> ref,
-                           int expected,
-                           shared_ptr<ExpectResult> step) noexcept;
+  void emulateExpectResult(shared_ptr<Command> c, shared_ptr<Resolve> ref, int expected) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   void emulateMatchMetadata(shared_ptr<Command> c,
                             shared_ptr<Resolve> ref,
-                            shared_ptr<MetadataVersion> expected,
-                            shared_ptr<MatchMetadata> step) noexcept;
+                            shared_ptr<MetadataVersion> expected) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
   void emulateMatchContent(shared_ptr<Command> c,
                            shared_ptr<Resolve> ref,
-                           shared_ptr<Version> expected,
-                           shared_ptr<MatchContent> step) noexcept;
+                           shared_ptr<Version> expected) noexcept;
 
   /// A command modifies the metadata for an artifact
   void emulateUpdateMetadata(shared_ptr<Command> c,
                              shared_ptr<Resolve>,
-                             shared_ptr<MetadataVersion> written,
-                             shared_ptr<UpdateMetadata> step) noexcept;
+                             shared_ptr<MetadataVersion> written) noexcept;
 
   /// A command writes a new version to an artifact
   void emulateUpdateContent(shared_ptr<Command> c,
                             shared_ptr<Resolve> ref,
-                            shared_ptr<Version> written,
-                            shared_ptr<UpdateContent> step) noexcept;
+                            shared_ptr<Version> written) noexcept;
 
   /// A command is launching a child command
-  void emulateLaunch(shared_ptr<Command> c,
-                     shared_ptr<Command> child,
-                     shared_ptr<Launch> step) noexcept;
+  void emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
 
   /// A command is joining with a child command
-  void emulateJoin(shared_ptr<Command> c,
-                   shared_ptr<Command> child,
-                   int exit_status,
-                   shared_ptr<Join> step) noexcept;
+  void emulateJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
 
   /// A command has exited with an exit code
-  void emulateExit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> step) noexcept;
+  void emulateExit(shared_ptr<Command> c, int exit_status) noexcept;
 
   /********** Trace IR Steps **********/
 
