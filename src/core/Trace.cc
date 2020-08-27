@@ -14,7 +14,6 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
-#include "util/path.hh"
 
 using std::endl;
 using std::make_shared;
@@ -53,9 +52,7 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
   trace->_steps.emplace_back(nullptr, cwd);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
-  fs::path dodo = readlink("/proc/self/exe");
-  fs::path dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-  auto exe_ref = make_shared<PathRef>(root, dodo_launch, AccessFlags{.r = true, .x = true});
+  auto exe_ref = make_shared<SpecialRef>(SpecialRef::launch_exe);
   auto exe = make_shared<Resolve>(exe_ref);
   trace->_steps.emplace_back(nullptr, exe);
 

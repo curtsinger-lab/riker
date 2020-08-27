@@ -366,7 +366,7 @@ class Exit final : public Step {
 /// Create a reference to a special artifact (standard pipes, root directory, etc.)
 class SpecialRef final : public Ref {
  public:
-  enum Entity { stdin, stdout, stderr, root, cwd };
+  enum Entity { stdin, stdout, stderr, root, cwd, launch_exe };
 
   /// Create a new special reference
   SpecialRef(Entity entity) noexcept : _entity(entity) {}
@@ -403,6 +403,9 @@ class SpecialRef final : public Ref {
 
       case cwd:
         return o << "cwd";
+
+      case launch_exe:
+        return o << "launch_exe";
     }
   }
 

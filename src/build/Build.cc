@@ -15,6 +15,7 @@
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
+#include "util/path.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -149,26 +150,29 @@ Resolution Build::resolveSpecialRef(shared_ptr<Command> c,
                                     SpecialRef::Entity entity,
                                     shared_ptr<Resolve> result,
                                     bool committed) noexcept {
-  switch (entity) {
-    case SpecialRef::stdin:
-      return _env->getStdin(*this, c);
-
-    case SpecialRef::stdout:
-      return _env->getStdout(*this, c);
-
-    case SpecialRef::stderr:
-      return _env->getStderr(*this, c);
-
-    case SpecialRef::root:
-      return _env->getRootDir();
-
-    case SpecialRef::cwd:
-      auto cwd_path = fs::current_path().relative_path();
-      auto res = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
-                                             AccessFlags{.x = true}, result, false);
-      ASSERT(res) << "Failed to resolve current working directory";
-      res->setName(".");
-      return res;
+  if (entity == SpecialRef::stdin) {
+    return _env->getStdin(*this, c);
+  } else if (entity == SpecialRef::stdout) {
+    return _env->getStdout(*this, c);
+  } else if (entity == SpecialRef::stderr) {
+    return _env->getStderr(*this, c);
+  } else if (entity == SpecialRef::root) {
+    return _env->getRootDir();
+  } else if (entity == SpecialRef::cwd) {
+    auto cwd_path = fs::current_path().relative_path();
+    auto res = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
+                                           AccessFlags{.x = true}, result, false);
+    ASSERT(res) << "Failed to resolve current working directory";
+    res->setName(".");
+    return res;
+  } else if (entity == SpecialRef::launch_exe) {
+    auto dodo = readlink("/proc/self/exe");
+    auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
+    return _env->getRootDir()->resolve(*this, c, nullptr, dodo_launch.begin(), dodo_launch.end(),
+                                       AccessFlags{.x = true}, result, false);
+  } else {
+    FAIL << "Unknown special reference";
+    return EFAULT;
   }
 }
 
