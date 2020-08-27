@@ -55,6 +55,9 @@ class Build {
    */
   tuple<shared_ptr<Trace>, shared_ptr<Env>> run() noexcept;
 
+  /// Print information about this build
+  ostream& print(ostream& o) const noexcept;
+
   /********** Create References **********/
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
@@ -116,59 +119,87 @@ class Build {
                             shared_ptr<Resolve> result,
                             bool committed) noexcept;
 
-  /********** Trace or Emulate IR Steps **********/
+  /********** Emulate IR Steps **********/
 
   /// A command resolves a reference
-  shared_ptr<Resolve> resolve(shared_ptr<Command> c,
-                              shared_ptr<Ref> ref,
-                              shared_ptr<Resolve> emulating = nullptr) noexcept;
+  shared_ptr<Resolve> emulateResolve(shared_ptr<Command> c,
+                                     shared_ptr<Ref> ref,
+                                     shared_ptr<Resolve> step) noexcept;
 
   /// A command expects a reference to resolve with a particular result
-  void expectResult(shared_ptr<Command> c,
-                    shared_ptr<Resolve> ref,
-                    int expected,
-                    shared_ptr<ExpectResult> emulating = nullptr) noexcept;
+  void emulateExpectResult(shared_ptr<Command> c,
+                           shared_ptr<Resolve> ref,
+                           int expected,
+                           shared_ptr<ExpectResult> step) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
-  void matchMetadata(shared_ptr<Command> c,
-                     shared_ptr<Resolve> ref,
-                     shared_ptr<MetadataVersion> expected = nullptr,
-                     shared_ptr<MatchMetadata> emulating = nullptr) noexcept;
+  void emulateMatchMetadata(shared_ptr<Command> c,
+                            shared_ptr<Resolve> ref,
+                            shared_ptr<MetadataVersion> expected,
+                            shared_ptr<MatchMetadata> step) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
-  void matchContent(shared_ptr<Command> c,
-                    shared_ptr<Resolve> ref,
-                    shared_ptr<Version> expected = nullptr,
-                    shared_ptr<MatchContent> emulating = nullptr) noexcept;
+  void emulateMatchContent(shared_ptr<Command> c,
+                           shared_ptr<Resolve> ref,
+                           shared_ptr<Version> expected,
+                           shared_ptr<MatchContent> step) noexcept;
 
   /// A command modifies the metadata for an artifact
-  void updateMetadata(shared_ptr<Command> c,
-                      shared_ptr<Resolve>,
-                      shared_ptr<MetadataVersion> written = nullptr,
-                      shared_ptr<UpdateMetadata> emulating = nullptr) noexcept;
+  void emulateUpdateMetadata(shared_ptr<Command> c,
+                             shared_ptr<Resolve>,
+                             shared_ptr<MetadataVersion> written,
+                             shared_ptr<UpdateMetadata> step) noexcept;
 
   /// A command writes a new version to an artifact
-  void updateContent(shared_ptr<Command> c,
-                     shared_ptr<Resolve> ref,
-                     shared_ptr<Version> written = nullptr,
-                     shared_ptr<UpdateContent> emulating = nullptr) noexcept;
+  void emulateUpdateContent(shared_ptr<Command> c,
+                            shared_ptr<Resolve> ref,
+                            shared_ptr<Version> written,
+                            shared_ptr<UpdateContent> step) noexcept;
 
   /// A command is launching a child command
-  void launch(shared_ptr<Command> c,
-              shared_ptr<Command> child,
-              shared_ptr<Launch> emulating = nullptr) noexcept;
+  void emulateLaunch(shared_ptr<Command> c,
+                     shared_ptr<Command> child,
+                     shared_ptr<Launch> step) noexcept;
 
   /// A command is joining with a child command
-  void join(shared_ptr<Command> c,
-            shared_ptr<Command> child,
-            int exit_status,
-            shared_ptr<Join> emulating = nullptr) noexcept;
+  void emulateJoin(shared_ptr<Command> c,
+                   shared_ptr<Command> child,
+                   int exit_status,
+                   shared_ptr<Join> step) noexcept;
 
   /// A command has exited with an exit code
-  void exit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> emulating = nullptr) noexcept;
+  void emulateExit(shared_ptr<Command> c, int exit_status, shared_ptr<Exit> step) noexcept;
 
-  /// Print information about this build
-  ostream& print(ostream& o) const noexcept;
+  /********** Trace IR Steps **********/
+
+  /// A command resolves a reference
+  shared_ptr<Resolve> traceResolve(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept;
+
+  /// A command expects a reference to resolve with a particular result
+  void traceExpectResult(shared_ptr<Command> c, shared_ptr<Resolve> ref, int expected) noexcept;
+
+  /// A command accesses metadata for an artifact and expects to find a particular version
+  void traceMatchMetadata(shared_ptr<Command> c, shared_ptr<Resolve> ref) noexcept;
+
+  /// A command accesses content for an artifact and expects to find a particular version
+  void traceMatchContent(shared_ptr<Command> c, shared_ptr<Resolve> ref) noexcept;
+
+  /// A command modifies the metadata for an artifact
+  void traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<Resolve>) noexcept;
+
+  /// A command writes a new version to an artifact
+  void traceUpdateContent(shared_ptr<Command> c,
+                          shared_ptr<Resolve> ref,
+                          shared_ptr<Version> written = nullptr) noexcept;
+
+  /// A command is launching a child command
+  void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
+
+  /// A command is joining with a child command
+  void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
+
+  /// A command has exited with an exit code
+  void traceExit(shared_ptr<Command> c, int exit_status) noexcept;
 
   /********** Observer Interface **********/
 

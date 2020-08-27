@@ -80,45 +80,45 @@ Resolution PathRef::resolve(shared_ptr<Command> c,
 
 // Emulate a Resolve step
 void Resolve::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.resolve(c, _ref, as<Resolve>());
+  build.emulateResolve(c, _ref, this->as<Resolve>());
 }
 
 // Emulate an ExpectResult predicate
 void ExpectResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.expectResult(c, _ref, _expected, as<ExpectResult>());
+  build.emulateExpectResult(c, _ref, _expected, this->as<ExpectResult>());
 }
 
 // Emulate a MatchMetadata predicate
 void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.matchMetadata(c, _ref, _version, as<MatchMetadata>());
+  build.emulateMatchMetadata(c, _ref, _version, this->as<MatchMetadata>());
 }
 
 // Emulate a MatchContent predicate
 void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.matchContent(c, _ref, _version, as<MatchContent>());
+  build.emulateMatchContent(c, _ref, _version, this->as<MatchContent>());
 }
 
 // Emulate an UpdateMetadata IR step
 void UpdateMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.updateMetadata(c, _ref, _version, as<UpdateMetadata>());
+  build.emulateUpdateMetadata(c, _ref, _version, this->as<UpdateMetadata>());
 }
 
 // Emulate an UpdateContent IR step
 void UpdateContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.updateContent(c, _ref, _version, as<UpdateContent>());
+  build.emulateUpdateContent(c, _ref, _version, this->as<UpdateContent>());
 }
 
 // Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.launch(c, _cmd, as<Launch>());
+  build.emulateLaunch(c, _cmd, this->as<Launch>());
 }
 
 // Emulate a join action
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.join(c, _cmd, _exit_status, as<Join>());
+  build.emulateJoin(c, _cmd, _exit_status, this->as<Join>());
 }
 
 // Emulate an exit action
 void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.exit(c, _exit_status, as<Exit>());
+  build.emulateExit(c, _exit_status, this->as<Exit>());
 }
