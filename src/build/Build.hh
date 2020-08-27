@@ -55,65 +55,101 @@ class Build {
    */
   tuple<shared_ptr<Trace>, shared_ptr<Env>> run() noexcept;
 
-  /****** Tracing and Emulation Methods ******/
+  /********** Create References **********/
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
-  shared_ptr<Ref> specialRef(shared_ptr<Command> c,
-                             shared_ptr<SpecialRef> emulating = nullptr) noexcept;
+  shared_ptr<SpecialRef> createSpecialRef(SpecialRef::Entity entity) noexcept;
 
   /// A command references a new anonymous pipe
-  shared_ptr<PipeRef> pipeRef(shared_ptr<Command> c,
-                              shared_ptr<PipeRef> emulating = nullptr) noexcept;
+  shared_ptr<PipeRef> createPipeRef() noexcept;
 
   /// A command references a new anonymous file
-  shared_ptr<FileRef> fileRef(shared_ptr<Command> c,
-                              mode_t mode,
-                              shared_ptr<FileRef> emulating = nullptr) noexcept;
+  shared_ptr<FileRef> createFileRef(mode_t mode) noexcept;
 
   /// A command references a new anonymous symlink
-  shared_ptr<SymlinkRef> symlinkRef(shared_ptr<Command> c,
-                                    fs::path target,
-                                    shared_ptr<SymlinkRef> emulating = nullptr) noexcept;
+  shared_ptr<SymlinkRef> createSymlinkRef(fs::path target) noexcept;
 
   /// A command references a new anonymous directory
-  shared_ptr<DirRef> dirRef(shared_ptr<Command> c,
-                            mode_t mode,
-                            shared_ptr<DirRef> emulating = nullptr) noexcept;
+  shared_ptr<DirRef> createDirRef(mode_t mode) noexcept;
 
   /// A command makes a reference with a path
-  shared_ptr<PathRef> pathRef(shared_ptr<Command> c,
-                              shared_ptr<Ref> base,
-                              fs::path path,
-                              AccessFlags flags,
-                              shared_ptr<PathRef> emulating = nullptr) noexcept;
+  shared_ptr<PathRef> createPathRef(shared_ptr<Resolve> base,
+                                    fs::path path,
+                                    AccessFlags flags) noexcept;
+
+  /********** Resolve References **********/
+
+  /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
+  Resolution resolveSpecialRef(shared_ptr<Command> c,
+                               SpecialRef::Entity entity,
+                               shared_ptr<Resolve> result,
+                               bool committed) noexcept;
+
+  /// A command references a new anonymous pipe
+  Resolution resolvePipeRef(shared_ptr<Command> c,
+                            shared_ptr<Resolve> result,
+                            bool committed) noexcept;
+
+  /// A command references a new anonymous file
+  Resolution resolveFileRef(shared_ptr<Command> c,
+                            mode_t mode,
+                            shared_ptr<Resolve> result,
+                            bool committed) noexcept;
+
+  /// A command references a new anonymous symlink
+  Resolution resolveSymlinkRef(shared_ptr<Command> c,
+                               fs::path target,
+                               shared_ptr<Resolve> result,
+                               bool committed) noexcept;
+
+  /// A command references a new anonymous directory
+  Resolution resolveDirRef(shared_ptr<Command> c,
+                           mode_t mode,
+                           shared_ptr<Resolve> result,
+                           bool committed) noexcept;
+
+  /// A command makes a reference with a path
+  Resolution resolvePathRef(shared_ptr<Command> c,
+                            shared_ptr<Resolve> base,
+                            fs::path path,
+                            AccessFlags flags,
+                            shared_ptr<Resolve> result,
+                            bool committed) noexcept;
+
+  /********** Trace or Emulate IR Steps **********/
+
+  /// A command resolves a reference
+  shared_ptr<Resolve> resolve(shared_ptr<Command> c,
+                              shared_ptr<Ref> ref,
+                              shared_ptr<Resolve> emulating = nullptr) noexcept;
 
   /// A command expects a reference to resolve with a particular result
   void expectResult(shared_ptr<Command> c,
-                    shared_ptr<Ref> ref,
+                    shared_ptr<Resolve> ref,
                     int expected,
                     shared_ptr<ExpectResult> emulating = nullptr) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   void matchMetadata(shared_ptr<Command> c,
-                     shared_ptr<Ref> ref,
+                     shared_ptr<Resolve> ref,
                      shared_ptr<MetadataVersion> expected = nullptr,
                      shared_ptr<MatchMetadata> emulating = nullptr) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
   void matchContent(shared_ptr<Command> c,
-                    shared_ptr<Ref> ref,
+                    shared_ptr<Resolve> ref,
                     shared_ptr<Version> expected = nullptr,
                     shared_ptr<MatchContent> emulating = nullptr) noexcept;
 
   /// A command modifies the metadata for an artifact
   void updateMetadata(shared_ptr<Command> c,
-                      shared_ptr<Ref>,
+                      shared_ptr<Resolve>,
                       shared_ptr<MetadataVersion> written = nullptr,
                       shared_ptr<UpdateMetadata> emulating = nullptr) noexcept;
 
   /// A command writes a new version to an artifact
   void updateContent(shared_ptr<Command> c,
-                     shared_ptr<Ref> ref,
+                     shared_ptr<Resolve> ref,
                      shared_ptr<Version> written = nullptr,
                      shared_ptr<UpdateContent> emulating = nullptr) noexcept;
 
@@ -208,5 +244,5 @@ class Build {
   vector<shared_ptr<BuildObserver>> _observers;
 
   /// The last write performed by any command
-  tuple<shared_ptr<Command>, shared_ptr<Ref>, shared_ptr<Version>> _last_write;
+  tuple<shared_ptr<Command>, shared_ptr<Resolve>, shared_ptr<Version>> _last_write;
 };

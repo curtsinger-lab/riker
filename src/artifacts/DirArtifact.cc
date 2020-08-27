@@ -194,7 +194,8 @@ Resolution DirArtifact::resolve(Build& build,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
-                                shared_ptr<PathRef> ref,
+                                AccessFlags flags,
+                                shared_ptr<Resolve> result,
                                 bool committed) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
@@ -203,7 +204,7 @@ Resolution DirArtifact::resolve(Build& build,
   // If this is the last entry on the path, resolution reaches this artifact
   if (current == end) {
     // If the requested access is not allowed, return EACCES
-    if (!checkAccess(build, c, ref->getFlags())) return EACCES;
+    if (!checkAccess(build, c, flags)) return EACCES;
 
     // Access was allowed, so return this artifact
     return shared_from_this();
@@ -217,17 +218,19 @@ Resolution DirArtifact::resolve(Build& build,
   fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, ref, committed);
+  if (entry == ".")
+    return resolve(build, c, shared_from_this(), current, end, flags, result, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(build, c, shared_from_this(), current, end, ref, committed);
+    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags, result,
+                                   committed);
   }
 
   // We'll track the result of the resolution here
-  Resolution result;
+  Resolution res;
 
   // Check the map of known entries for a match
   auto entries_iter = _entries.find(entry);
@@ -241,9 +244,9 @@ Resolution DirArtifact::resolve(Build& build,
 
     // Is there an artifact to resolve to?
     if (a) {
-      result = a;
+      res = a;
     } else {
-      result = ENOENT;
+      res = ENOENT;
     }
 
     // Add a path resolution input from the version that matched
@@ -251,9 +254,9 @@ Resolution DirArtifact::resolve(Build& build,
 
   } else {
     // There's no match in the directory entry map. We need to check the base version for a match
-    result = _base_dir_version->getEntry(build, _env, as<DirArtifact>(), entry);
-    if (result) {
-      shared_ptr<Artifact> a = result;
+    res = _base_dir_version->getEntry(build, _env, as<DirArtifact>(), entry);
+    if (res) {
+      shared_ptr<Artifact> a = res;
       _entries[entry] = {_base_dir_version, a};
     } else {
       _entries[entry] = {_base_dir_version, nullptr};
@@ -268,13 +271,11 @@ Resolution DirArtifact::resolve(Build& build,
   if (current == end) {
     // This is the last entry in the resolution path
 
-    auto flags = ref->getFlags();
-
     // Was the reference required to create this entry?
-    if (flags.create && flags.exclusive && result) return EEXIST;
+    if (flags.create && flags.exclusive && res) return EEXIST;
 
     // If the resolution failed, can this access create it?
-    if (flags.create && result == ENOENT) {
+    if (flags.create && res == ENOENT) {
       // Can we write to this directory? If not, return an error
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
@@ -282,35 +283,35 @@ Resolution DirArtifact::resolve(Build& build,
       auto newfile = _env->createFile(build, c, flags.mode, committed);
 
       // Mark the final reference as resolved so we can link the file
-      ref->resolvesTo(newfile);
+      result->resolvesTo(newfile);
 
       // Link the new file into this directory
-      auto link_version = make_shared<AddEntry>(entry, ref);
+      auto link_version = make_shared<AddEntry>(entry, result);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
       updateContent(build, c, link_version);
 
       // The resolution result is now the newly-created file
-      result = newfile;
+      res = newfile;
 
       // THe newly-created file is linked in this directory
-      result->addLinkUpdate(as<DirArtifact>(), entry, link_version);
+      res->addLinkUpdate(as<DirArtifact>(), entry, link_version);
     }
 
     // If the result was an error, return it
-    if (!result) return result;
+    if (!res) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return result->resolve(build, c, shared_from_this(), current, end, ref, committed);
+    return res->resolve(build, c, shared_from_this(), current, end, flags, result, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
-    if (result) {
-      return result->resolve(build, c, shared_from_this(), current, end, ref, committed);
+    if (res) {
+      return res->resolve(build, c, shared_from_this(), current, end, flags, result, committed);
     }
 
     // Otherwise return the error from the resolution
-    return result;
+    return res;
   }
 }
 

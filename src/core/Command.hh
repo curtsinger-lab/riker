@@ -38,11 +38,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
  public:
   /// Create a new command
-  Command(shared_ptr<Ref> exe,
+  Command(shared_ptr<Resolve> exe,
           vector<string> args,
           map<int, FileDescriptor> initial_fds,
-          shared_ptr<Ref> initial_cwd,
-          shared_ptr<Ref> initial_root) noexcept :
+          shared_ptr<Resolve> initial_cwd,
+          shared_ptr<Resolve> initial_root) noexcept :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -64,13 +64,13 @@ class Command : public std::enable_shared_from_this<Command> {
   string getFullName() const noexcept;
 
   /// Get the reference to the executable file this command runs
-  shared_ptr<Ref> getExecutable() const noexcept { return _exe; }
+  shared_ptr<Resolve> getExecutable() const noexcept { return _exe; }
 
   /// Get the working directory where this command is started
-  shared_ptr<Ref> getInitialWorkingDir() const noexcept { return _initial_cwd; }
+  shared_ptr<Resolve> getInitialWorkingDir() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  shared_ptr<Ref> getInitialRootDir() const noexcept { return _initial_root; }
+  shared_ptr<Resolve> getInitialRootDir() const noexcept { return _initial_root; }
 
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
@@ -105,7 +105,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// The executable file this command runs
-  shared_ptr<Ref> _exe;
+  shared_ptr<Resolve> _exe;
 
   /// The arguments passed to this command on startup
   vector<string> _args;
@@ -114,10 +114,10 @@ class Command : public std::enable_shared_from_this<Command> {
   map<int, FileDescriptor> _initial_fds;
 
   /// A reference to the directory where this command is started
-  shared_ptr<Ref> _initial_cwd;
+  shared_ptr<Resolve> _initial_cwd;
 
   /// A reference to the root directory in effect when this command is started
-  shared_ptr<Ref> _initial_root;
+  shared_ptr<Resolve> _initial_root;
 
   /// Has this command ever run?
   bool _executed = false;

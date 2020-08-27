@@ -311,17 +311,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto ref = info.getRef()->as<PathRef>()) {
-      // This is a path reference, so we have a path and flags
-      auto path = ref->getPath().value();
-      auto [open_flags, open_mode] = ref->getFlags().toOpen();
-
-      // Open the file
-      int parent_fd = ::open(path.c_str(), open_flags, open_mode);
-      FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
-      initial_fds.emplace_back(parent_fd, child_fd);
-
-    } else if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
+    if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
       // Does the descriptor refer to the writing end of the pipe?
       if (info.isWritable()) {
         initial_fds.emplace_back(pipe->getWriteFD(), child_fd);
@@ -329,18 +319,25 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
         initial_fds.emplace_back(pipe->getReadFD(), child_fd);
       }
 
+    } else if (auto file = info.getRef()->getArtifact()->as<FileArtifact>()) {
+      // This is a file reference. Get a path to open.
+      auto path = file->getPath();
+      ASSERT(path.has_value()) << "File has no path: " << file;
+
+      // Get flags to pass to the open call
+      auto [open_flags, open_mode] = info.getFlags().toOpen();
+
+      // Open the file
+      int parent_fd = ::open(path.value().c_str(), open_flags, open_mode);
+      FAIL_IF(parent_fd < 0) << "Failed to open " << file;
+      initial_fds.emplace_back(parent_fd, child_fd);
+
     } else {
       WARN << "Skipping initial file descriptor " << child_fd << " for " << cmd << ": " << info;
     }
   }
 
-  // In terms of overall structure, this is a bog standard fork/exec spawning function.
-  //
-  // The bulk of the complexity here is setting up tracing. Instead of just attaching
-  // ptrace and asking our caller to repeatedly use PTRACE_SYSCALL to step through
-  // syscalls, which can be incredibly expensive, we aim to only trigger a stop on
-  // a useful subset. To accomplish this, we instally a seccomp-bpf filter that returns
-  // SECCOMP_RET_TRACE when we want a stop.
+  // Launch a child process
   pid_t child_pid = fork();
   FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
 
@@ -364,8 +361,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     }
 
     // Change to the initial working directory
-    auto cwd_path = cmd->getInitialWorkingDir()->getPath();
-    ASSERT(cwd_path.has_value()) << "Current working directory does not have a path";
+    auto cwd = cmd->getInitialWorkingDir()->getArtifact();
+    auto cwd_path = cwd->getPath(false);
+    ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
     ASSERT(rc == 0) << "Failed to change to starting directory to launch " << cmd;
 
@@ -426,8 +424,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    auto exe_path = cmd->getExecutable()->getPath();
-    ASSERT(exe_path.has_value()) << "Executable has no path";
+    auto exe = cmd->getExecutable()->getArtifact();
+    auto exe_path = exe->getPath(false);
+    ASSERT(exe_path.has_value()) << "Executable has no committed path";
     execv(exe_path.value().c_str(), (char* const*)args.data());
 
     // This is unreachable, unless execv fails
