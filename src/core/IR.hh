@@ -122,18 +122,64 @@ class Ref : public Step {
   Resolution _res;
 };
 
-/// Create a reference to a new pipe
-class Pipe final : public Ref {
+/// Create a reference to a special artifact (standard pipes, root directory, etc.)
+class SpecialRef final : public Ref {
  public:
-  /// Create a pipe
-  Pipe() noexcept = default;
+  enum Entity { stdin, stdout, stderr, root };
+
+  /// Create a new special reference
+  SpecialRef(Entity entity) noexcept : _entity(entity) {}
+
+  /// Get the entity this special reference refers to
+  Entity getEntity() const noexcept { return _entity; }
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Get the path associated with this reference
+  virtual optional<fs::path> getPath() const noexcept override {
+    if (_entity == root) return "/";
+    return nullopt;
+  }
+
+  /// Print a special reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    o << getName() << " = ";
+    switch (_entity) {
+      case stdin:
+        return o << "stdin";
+
+      case stdout:
+        return o << "stdout";
+
+      case stderr:
+        return o << "stderr";
+
+      case root:
+        return o << "root";
+    }
+  }
+
+ private:
+  Entity _entity;
+
+  // Create a default constructor and declare fields for serialization
+  SpecialRef() noexcept = default;
+  SERIALIZE(BASE(Ref), _entity);
+};
+
+/// Create a reference to a new anonymous pipe
+class PipeRef final : public Ref {
+ public:
+  /// Create a reference to an anonymous pipe
+  PipeRef() noexcept = default;
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a PIPE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = PIPE()";
+    return o << getName() << " = PipeRef()";
   }
 
  private:
@@ -141,77 +187,77 @@ class Pipe final : public Ref {
   SERIALIZE(BASE(Ref));
 };
 
-/// Create a reference to a new file
-class File final : public Ref {
+/// Create a reference to a new anonymous file
+class FileRef final : public Ref {
  public:
-  /// Create a file
-  File(mode_t mode) noexcept : _mode(mode) {}
+  /// Create a reference to an anonymous file
+  FileRef(mode_t mode) noexcept : _mode(mode) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a FILE reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = FILE(" << std::oct << _mode << ")";
+    return o << getName() << " = FileRef(" << std::oct << _mode << ")";
   }
 
  private:
   mode_t _mode;
 
   // Specify fields for serialization
-  File() = default;
+  FileRef() = default;
   SERIALIZE(BASE(Ref), _mode);
 };
 
-/// Create a reference to a new symlink
-class Symlink final : public Ref {
+/// Create a reference to a new anonymous symlink
+class SymlinkRef final : public Ref {
  public:
-  // Create a symlink
-  Symlink(fs::path target) noexcept : _target(target) {}
+  // Create a reference to an anonymous symlink
+  SymlinkRef(fs::path target) noexcept : _target(target) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = SYMLINK(" << _target << ")";
+    return o << getName() << " = SymlinkRef(" << _target << ")";
   }
 
  private:
   fs::path _target;
 
   // Specify fields for serialization
-  Symlink() = default;
+  SymlinkRef() = default;
   SERIALIZE(BASE(Ref), _target);
 };
 
-/// Create a reference to a new directory
-class Dir final : public Ref {
+/// Create a reference to a new anonymous directory
+class DirRef final : public Ref {
  public:
-  /// Create a directory
-  Dir(mode_t mode) noexcept : _mode(mode) {}
+  /// Create a reference to an anonymous directory
+  DirRef(mode_t mode) noexcept : _mode(mode) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a DIR reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = DIR(" << std::oct << _mode << ")";
+    return o << getName() << " = DirRef(" << std::oct << _mode << ")";
   }
 
  private:
   mode_t _mode;
 
   // Specify fields for serialization
-  Dir() = default;
+  DirRef() = default;
   SERIALIZE(BASE(Ref), _mode);
 };
 
-/// Access a filesystem path with a given set of flags
-class Access final : public Ref {
+/// Make a reference to a filesystem path
+class PathRef final : public Ref {
  public:
-  /// Create an access reference to a path with given flags
-  Access(shared_ptr<Ref> base, fs::path path, AccessFlags flags) noexcept :
+  /// Create a reference to a filesystem path
+  PathRef(shared_ptr<Ref> base, fs::path path, AccessFlags flags) noexcept :
       _base(base), _path(path), _flags(flags) {}
 
   /// Emulate this step in the context of a given build
@@ -237,7 +283,7 @@ class Access final : public Ref {
 
   /// Print an ACCESS reference
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = ACCESS(" << _base->getName() << ", " << _path << ", ["
+    return o << getName() << " = PathRef(" << _base->getName() << ", " << _path << ", ["
              << getFlags() << "])";
   }
 
@@ -252,7 +298,7 @@ class Access final : public Ref {
   AccessFlags _flags;
 
   // Create default constructor and specify fields for serialization
-  Access() = default;
+  PathRef() = default;
   SERIALIZE(BASE(Ref), _base, _path, _flags);
 };
 
@@ -268,7 +314,7 @@ class ExpectResult final : public Step {
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "EXPECT_RESULT(" << _ref->getName() << ", " << errors[_expected] << ")";
+    return o << "ExpectResult(" << _ref->getName() << ", " << errors[_expected] << ")";
   }
 
  private:
@@ -294,7 +340,7 @@ class MatchMetadata final : public Step {
 
   /// Print a MATCH predicate
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "MATCH_METADATA(" << _ref->getName() << ", " << _version << ")";
+    return o << "MatchMetadata(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -320,7 +366,7 @@ class MatchContent final : public Step {
 
   /// Print a MATCH predicate
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "MATCH_CONTENT(" << _ref->getName() << ", " << _version << ")";
+    return o << "MatchContent(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -346,7 +392,7 @@ class Launch final : public Step {
 
   /// Print a LAUNCH action
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "LAUNCH(" << _cmd << ")";
+    return o << "Launch(" << _cmd << ")";
   }
 
  private:
@@ -371,7 +417,7 @@ class Join final : public Step {
 
   /// Print a JOIN action
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "JOIN(" << _cmd << ", " << _exit_status << ")";
+    return o << "Join(" << _cmd << ", " << _exit_status << ")";
   }
 
  private:
@@ -393,7 +439,7 @@ class Exit final : public Step {
 
   /// Print an EXIT action
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "EXIT(" << _exit_status << ")";
+    return o << "Exit(" << _exit_status << ")";
   }
 
  private:
@@ -418,7 +464,7 @@ class UpdateMetadata final : public Step {
 
   /// Print an UpdateMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "UPDATE_METADATA(" << _ref->getName() << ", " << _version << ")";
+    return o << "UpdateMetadata(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:
@@ -444,7 +490,7 @@ class UpdateContent final : public Step {
 
   /// Print an UpdateContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "UPDATE_CONTENT(" << _ref->getName() << ", " << _version << ")";
+    return o << "UpdateContent(" << _ref->getName() << ", " << _version << ")";
   }
 
  private:

@@ -194,7 +194,7 @@ Resolution DirArtifact::resolve(Build& build,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
-                                shared_ptr<Access> ref,
+                                shared_ptr<PathRef> ref,
                                 bool committed) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries

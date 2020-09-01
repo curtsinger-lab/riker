@@ -58,7 +58,7 @@ class SymlinkArtifact : public Artifact {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             shared_ptr<Access> ref,
+                             shared_ptr<PathRef> ref,
                              bool committed) noexcept override;
 
  private:

@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
@@ -71,7 +72,7 @@ void Process::tryCloseFD(int fd) noexcept {
 }
 
 // The process is executing a new file
-void Process::exec(shared_ptr<Access> exe_ref, vector<string> args, vector<string> env) noexcept {
+void Process::exec(shared_ptr<PathRef> exe_ref, vector<string> args, vector<string> env) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
@@ -103,19 +104,19 @@ void Process::exec(shared_ptr<Access> exe_ref, vector<string> args, vector<strin
   // over-approximate the set of commands that have a file mmapped.
 }
 
-shared_ptr<Access> Thread::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
+shared_ptr<PathRef> Thread::makeAccess(fs::path p, AccessFlags flags, int at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute())
-    return _build.access(_process->getCommand(), _process->getRoot(), p.relative_path(), flags);
+    return _build.pathRef(_process->getCommand(), _process->getRoot(), p.relative_path(), flags);
 
   // Handle the special CWD file descriptor to resolve relative to cwd
   if (at == AT_FDCWD)
-    return _build.access(_process->getCommand(), _process->getWorkingDir(), p.relative_path(),
-                         flags);
+    return _build.pathRef(_process->getCommand(), _process->getWorkingDir(), p.relative_path(),
+                          flags);
 
   // The path is resolved relative to some file descriptor
-  return _build.access(_process->getCommand(), _process->getFD(at).getRef(), p.relative_path(),
-                       flags);
+  return _build.pathRef(_process->getCommand(), _process->getFD(at).getRef(), p.relative_path(),
+                        flags);
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
@@ -296,7 +297,7 @@ void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept 
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if ((flags & O_TMPFILE) == O_TMPFILE) {
-        auto anon = _build.file(_process->getCommand(), mode);
+        auto anon = _build.fileRef(_process->getCommand(), mode);
 
         // Record the reference in the process' file descriptor table
         _process->addFD(fd, anon, ref->getFlags().w, cloexec);
@@ -371,7 +372,7 @@ void Thread::_pipe2(int* fds, int flags) noexcept {
     resume();
 
     // Make a reference to a pipe
-    auto ref = _build.pipe(_process->getCommand());
+    auto ref = _build.pipeRef(_process->getCommand());
 
     ASSERT(ref->isResolved()) << "Failed to get artifact for pipe";
 
@@ -841,7 +842,7 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
       _build.expectResult(_process->getCommand(), entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
-      auto dir_ref = _build.dir(_process->getCommand(), mode);
+      auto dir_ref = _build.dirRef(_process->getCommand(), mode);
 
       // Link the directory into the parent dir
       _build.updateContent(_process->getCommand(), parent_ref,
@@ -881,7 +882,7 @@ void Thread::_renameat2(int old_dfd,
   auto new_dir_ref = makeAccess(new_dir, AccessFlags{.w = true}, new_dfd);
 
   // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
-  shared_ptr<Access> new_entry_ref;
+  shared_ptr<PathRef> new_entry_ref;
   if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
     new_entry_ref = makeAccess(new_path, AccessFlags{.nofollow = true}, new_dfd);
   }
@@ -1029,7 +1030,7 @@ void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
       _build.expectResult(_process->getCommand(), entry_ref, ENOENT);
 
       // Make a symlink reference to get a new artifact
-      auto symlink_ref = _build.symlink(_process->getCommand(), target);
+      auto symlink_ref = _build.symlinkRef(_process->getCommand(), target);
 
       // Link the symlink into the directory
       _build.updateContent(_process->getCommand(), dir_ref,
@@ -1130,7 +1131,7 @@ void Thread::_socket(int domain, int type, int protocol) noexcept {
     resume();
 
     if (rc >= 0) {
-      auto ref = _build.file(_process->getCommand(), 0600);
+      auto ref = _build.fileRef(_process->getCommand(), 0600);
       _process->addFD(rc, ref, true, (type & SOCK_CLOEXEC) == SOCK_CLOEXEC);
     }
   });
@@ -1157,7 +1158,7 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
         bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
 
         // Create an anonymous file to represent the socket
-        auto ref = _build.file(_process->getCommand(), 0600);
+        auto ref = _build.fileRef(_process->getCommand(), 0600);
 
         // Add the file descriptors
         _process->addFD(sock1_fd, ref, true, cloexec);

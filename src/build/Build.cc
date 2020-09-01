@@ -26,11 +26,14 @@ using std::ostream;
 using std::shared_ptr;
 
 tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
-  // Resolve all the initial references in the trace (root, cwd, stdin, stdout, etc.)
-  _trace->resolveRefs(*this, _env);
-
   // Emulate steps until we hit the end of the trace
-  runSteps();
+  for (auto& [cmd, step] : _steps) {
+    // Can we emulate the command that created this IR step?
+    if (_plan.canEmulate(cmd)) {
+      // Yes. Call its emulate method
+      step->emulate(cmd, *this);
+    }
+  }
 
   // Wait for all remaining processes to exit
   _tracer.wait();
@@ -39,20 +42,6 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
   _env->getRootDir()->checkFinalState(*this, "/");
 
   return {_trace, _env};
-}
-
-void Build::runSteps() noexcept {
-  while (!_steps.empty()) {
-    // Take the first step from the list
-    auto [cmd, step] = _steps.front();
-    _steps.pop_front();
-
-    // Can we emulate the command that created this IR step?
-    if (_plan.canEmulate(cmd)) {
-      // Yes. Call its emulate method
-      step->emulate(cmd, *this);
-    }
-  }
 }
 
 /************************ Observer Implementation ************************/
@@ -133,11 +122,49 @@ Resolution Build::getResult(RefResult r) noexcept {
 
 /************************ Command Tracing and Emulation ************************/
 
+// Command c is issuing a special reference
+shared_ptr<Ref> Build::specialRef(shared_ptr<Command> c,
+                                  shared_ptr<SpecialRef> emulating) noexcept {
+  ASSERT(emulating) << "Special references should never be traced";
+
+  // Add the step to the output trace
+  _trace->addStep(c, emulating, true);
+
+  // Resolve the reference
+  shared_ptr<Artifact> result;
+  switch (emulating->getEntity()) {
+    case SpecialRef::stdin:
+      result = _env->getStdin(*this, c);
+      break;
+
+    case SpecialRef::stdout:
+      result = _env->getStdout(*this, c);
+      break;
+
+    case SpecialRef::stderr:
+      result = _env->getStderr(*this, c);
+      break;
+
+    case SpecialRef::root:
+      result = _env->getRootDir();
+      break;
+
+    default:
+      FAIL << "Unable to emulate unknown special reference " << emulating;
+  }
+
+  // Record the resolved artifact
+  emulating->resolvesTo(result);
+  saveResult(c, result);
+
+  return emulating;
+}
+
 // Command c creates a new pipe
-shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) noexcept {
+shared_ptr<PipeRef> Build::pipeRef(shared_ptr<Command> c, shared_ptr<PipeRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Pipe>();
+  if (!emulating) ref = make_shared<PipeRef>();
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -151,12 +178,12 @@ shared_ptr<Pipe> Build::pipe(shared_ptr<Command> c, shared_ptr<Pipe> emulating) 
 }
 
 // Command c creates a new file
-shared_ptr<File> Build::file(shared_ptr<Command> c,
-                             mode_t mode,
-                             shared_ptr<File> emulating) noexcept {
+shared_ptr<FileRef> Build::fileRef(shared_ptr<Command> c,
+                                   mode_t mode,
+                                   shared_ptr<FileRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<File>(mode);
+  if (!emulating) ref = make_shared<FileRef>(mode);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -170,12 +197,12 @@ shared_ptr<File> Build::file(shared_ptr<Command> c,
 }
 
 // Command c creates a new symbolic link
-shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
-                                   fs::path target,
-                                   shared_ptr<Symlink> emulating) noexcept {
+shared_ptr<SymlinkRef> Build::symlinkRef(shared_ptr<Command> c,
+                                         fs::path target,
+                                         shared_ptr<SymlinkRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Symlink>(target);
+  if (!emulating) ref = make_shared<SymlinkRef>(target);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -189,10 +216,12 @@ shared_ptr<Symlink> Build::symlink(shared_ptr<Command> c,
 }
 
 // Command c creates a new directory
-shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> emulating) noexcept {
+shared_ptr<DirRef> Build::dirRef(shared_ptr<Command> c,
+                                 mode_t mode,
+                                 shared_ptr<DirRef> emulating) noexcept {
   // Use or create a trace step
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Dir>(mode);
+  if (!emulating) ref = make_shared<DirRef>(mode);
 
   // Add the step to the output trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));
@@ -206,14 +235,14 @@ shared_ptr<Dir> Build::dir(shared_ptr<Command> c, mode_t mode, shared_ptr<Dir> e
 }
 
 // Command c accesses a path
-shared_ptr<Access> Build::access(shared_ptr<Command> c,
-                                 shared_ptr<Ref> base,
-                                 fs::path path,
-                                 AccessFlags flags,
-                                 shared_ptr<Access> emulating) noexcept {
+shared_ptr<PathRef> Build::pathRef(shared_ptr<Command> c,
+                                   shared_ptr<Ref> base,
+                                   fs::path path,
+                                   AccessFlags flags,
+                                   shared_ptr<PathRef> emulating) noexcept {
   // Get a reference, either using the existing one we are emulating, or creating a new one
   auto ref = emulating;
-  if (!emulating) ref = make_shared<Access>(base, path, flags);
+  if (!emulating) ref = make_shared<PathRef>(base, path, flags);
 
   // Add the reference to the new build trace
   _trace->addStep(c, ref, static_cast<bool>(emulating));

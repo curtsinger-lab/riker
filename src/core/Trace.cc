@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
@@ -25,69 +26,50 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-Trace::Trace() noexcept {
+shared_ptr<Trace> Trace::getDefault() noexcept {
+  auto trace = make_shared<Trace>();
+
   // Create the initial pipe references
-  _stdin = make_shared<Pipe>();
-  _stdout = make_shared<Pipe>();
-  _stderr = make_shared<Pipe>();
+  auto stdin = make_shared<SpecialRef>(SpecialRef::stdin);
+  trace->_steps.emplace_back(nullptr, stdin);
+
+  auto stdout = make_shared<SpecialRef>(SpecialRef::stdout);
+  trace->_steps.emplace_back(nullptr, stdout);
+
+  auto stderr = make_shared<SpecialRef>(SpecialRef::stderr);
+  trace->_steps.emplace_back(nullptr, stderr);
 
   // Create a reference to the root directory
-  _root = make_shared<Access>(nullptr, "/", AccessFlags{.x = true});
+  auto root = make_shared<SpecialRef>(SpecialRef::root);
+  trace->_steps.emplace_back(nullptr, root);
 
   // Create a reference to the current working directory and add it to the trace
-  auto cwd = make_shared<Access>(_root, fs::current_path().relative_path(), AccessFlags{.x = true});
-  _steps.emplace_back(nullptr, cwd);
+  auto cwd = make_shared<PathRef>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
+  trace->_steps.emplace_back(nullptr, cwd);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   fs::path dodo = readlink("/proc/self/exe");
   fs::path dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-  auto exe = make_shared<Access>(_root, dodo_launch, AccessFlags{.r = true, .x = true});
-  _steps.emplace_back(nullptr, exe);
+  auto exe = make_shared<PathRef>(root, dodo_launch, AccessFlags{.r = true, .x = true});
+  trace->_steps.emplace_back(nullptr, exe);
 
   // Create a map of initial file descriptors
-  map<int, FileDescriptor> fds = {{0, FileDescriptor(_stdin, false)},
-                                  {1, FileDescriptor(_stdout, true)},
-                                  {2, FileDescriptor(_stderr, true)}};
+  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin, false)},
+                                  {1, FileDescriptor(stdout, true)},
+                                  {2, FileDescriptor(stderr, true)}};
 
   // Make a root command
-  auto root_cmd = make_shared<Command>(exe, vector<string>{"dodo-launch"}, fds, cwd, _root);
+  auto root_cmd = make_shared<Command>(exe, vector<string>{"dodo-launch"}, fds, cwd, root);
 
   // Make a launch action for the root command
   auto launch = make_shared<Launch>(root_cmd);
-  _steps.emplace_back(nullptr, launch);
-}
+  trace->_steps.emplace_back(nullptr, launch);
 
-void Trace::resolveRefs(Build& build, shared_ptr<Env> env) noexcept {
-  // Resolve stdin
-  _stdin->resolvesTo(env->getPipe(build, nullptr));
-  _stdin->getArtifact()->setName("stdin");
-  auto stdin_pipe = _stdin->getArtifact()->as<PipeArtifact>();
-  stdin_pipe->setFDs(0, -1);
-
-  // Resolve stdout
-  _stdout->resolvesTo(env->getPipe(build, nullptr));
-  _stdout->getArtifact()->setName("stdout");
-  auto stdout_pipe = _stdout->getArtifact()->as<PipeArtifact>();
-  stdout_pipe->setFDs(-1, 1);
-
-  // Resolve stderr
-  _stderr->resolvesTo(env->getPipe(build, nullptr));
-  _stderr->getArtifact()->setName("stderr");
-  auto stderr_pipe = _stderr->getArtifact()->as<PipeArtifact>();
-  stderr_pipe->setFDs(-1, 2);
-
-  // Resolve the root directory
-  _root->resolvesTo(env->getRootDir());
+  return trace;
 }
 
 // Print this trace
 ostream& Trace::print(ostream& o) const noexcept {
-  // Print the pre-build references
-  o << _stdin << endl;
-  o << _stdout << endl;
-  o << _stderr << endl;
-  o << _root << endl;
-
   for (auto& [c, s] : _steps) {
     if (c) {
       o << c << ": " << s << endl;

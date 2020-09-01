@@ -16,11 +16,9 @@ using std::set;
 using std::shared_ptr;
 using std::tuple;
 
-class Access;
 class Build;
 class Command;
 class Env;
-class Pipe;
 class Step;
 
 /**
@@ -30,8 +28,7 @@ class Step;
 class Trace {
  private:
   // Private copy constructor allowed. Does not copy the commands or step list
-  Trace(const Trace& other) noexcept :
-      _root(other._root), _stdin(other._stdin), _stdout(other._stdout), _stderr(other._stderr) {}
+  Trace(const Trace& other) noexcept {}
 
   // No need for copy assignment
   Trace& operator=(const Trace&) = delete;
@@ -39,19 +36,15 @@ class Trace {
  public:
   using StepList = list<tuple<shared_ptr<Command>, shared_ptr<Step>>>;
 
-  /// Create a default trace
-  Trace() noexcept;
+  /// Create an empty trace
+  Trace() noexcept = default;
+
+  /// Initialize a default trace
+  static shared_ptr<Trace> getDefault() noexcept;
 
   // Allow move
   Trace(Trace&&) noexcept = default;
   Trace& operator=(Trace&&) noexcept = default;
-
-  /// Make a clean trace with the same initial references, but no commands or steps.
-  /// This relies on the private copy constructor above.
-  shared_ptr<Trace> restart() noexcept { return shared_ptr<Trace>(new Trace(*this)); }
-
-  /// Resolve references to root, cwd, stdin, stdout, etc. in the given environment
-  void resolveRefs(Build& build, shared_ptr<Env> env) noexcept;
 
   /// Add a command to the trace
   void addCommand(shared_ptr<Command> c) noexcept { _commands.insert(c); }
@@ -79,14 +72,6 @@ class Trace {
   }
 
  private:
-  /// A reference to the initial root directory
-  shared_ptr<Ref> _root;
-
-  // Refs to the standard pipes
-  shared_ptr<Ref> _stdin;
-  shared_ptr<Ref> _stdout;
-  shared_ptr<Ref> _stderr;
-
   /// A set of all the commands that appear in this trace
   set<shared_ptr<Command>> _commands;
 
@@ -94,5 +79,5 @@ class Trace {
   StepList _steps;
 
   // Declare fields for serialization
-  SERIALIZE(_stdin, _stdout, _stderr, _root, _commands, _steps);
+  SERIALIZE(_commands, _steps);
 };

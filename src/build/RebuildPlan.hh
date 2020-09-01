@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "core/Command.hh"
+#include "ui/options.hh"
 
 using std::endl;
 using std::map;

@@ -21,11 +21,9 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-class Access;
 class Artifact;
 class Build;
 class BuildObserver;
-class Pipe;
 class Ref;
 class Step;
 

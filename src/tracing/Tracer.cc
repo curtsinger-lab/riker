@@ -311,8 +311,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto ref = info.getRef()->as<Access>()) {
-      // This is an access, so we have a path and flags
+    if (auto ref = info.getRef()->as<PathRef>()) {
+      // This is a path reference, so we have a path and flags
       auto path = ref->getPath().value();
       auto [open_flags, open_mode] = ref->getFlags().toOpen();
 
@@ -321,10 +321,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       FAIL_IF(parent_fd < 0) << "Failed to open reference " << ref;
       initial_fds.emplace_back(parent_fd, child_fd);
 
-    } else if (auto ref = info.getRef()->as<Pipe>()) {
-      // This is a pipe. Get the artifact.
-      auto pipe = ref->getArtifact()->as<PipeArtifact>();
-
+    } else if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
       // Does the descriptor refer to the writing end of the pipe?
       if (info.isWritable()) {
         initial_fds.emplace_back(pipe->getWriteFD(), child_fd);

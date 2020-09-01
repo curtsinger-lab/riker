@@ -26,7 +26,6 @@ using std::tuple;
 
 namespace fs = std::filesystem;
 
-class Access;
 class AddEntry;
 class Build;
 class Command;
@@ -36,6 +35,7 @@ class Env;
 class FileVersion;
 class ListedDir;
 class MetadataVersion;
+class PathRef;
 class Ref;
 class SymlinkVersion;
 class RemoveEntry;
@@ -130,8 +130,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
   /// entry) to the version that creates that link. The first map holds committed links, while the
   /// second map holds uncommitted links.
-  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks() const
-      noexcept;
+  tuple<map<Link, shared_ptr<DirVersion>>, map<Link, shared_ptr<DirVersion>>> getLinks()
+      const noexcept;
 
   /// Get a path to this artifact that may or may not be committed to the filesystem
   optional<fs::path> getPath(bool allow_uncommitted = true) const noexcept;
@@ -225,7 +225,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             shared_ptr<Access> ref,
+                             shared_ptr<PathRef> ref,
                              bool committed) noexcept;
 
   /****** Utility Methods ******/
