@@ -9,15 +9,14 @@ If you want to run all of the tests, `cd` to the project root directory and type
 Running test cases
 ...s.............s.s.s.......s........s.sss.s.................
 # Ran 62 tests, 10 skipped.
-Tests ran in 20.95 seconds
+Tests ran in 20.45 seconds
 ```
 
-A `.` indicates a passing test and an `s` indicates a skipped test.  Skipped tests are usually reserved for work-in-progress features; we unkip such tests once features are mature and expected to work.
+A `.` indicates a passing test and an `s` indicates a skipped test.  Skipped tests are usually reserved for work-in-progress features; we unskip such tests once features are mature and expected to work.
 
 ### Diagnosing failed test cases
 
 If one or more tests fail, output will look like the following:
-
 
 ```
 Running test cases
@@ -38,7 +37,7 @@ where a `!` indicates a failed test.  The two failed tests in this case are indi
 
 and correspond to the `tests/buildfile/01-sh-Dodofile.t` and `tests/buildfile/02-c-Dodofile.t` tests, respectively.
 
-Failed tests log diagnostic information in a `.err` file.  For a given test, e.g., `buildfile/01-sh-Dodofile.t`, you can view the difference between what `cram` expected (in `01-sh-Dodofile.t`) and what it got (in `01-sh-Dodofile.t.err`):
+Failed tests log diagnostic information to an `.err` file in the test directory.  For a given test, e.g., `buildfile/01-sh-Dodofile.t`, you can view the difference between what `cram` expected (in `01-sh-Dodofile.t`) and what it got (in `01-sh-Dodofile.t.err`) with something like:
 
 ```
 $ diff tests/buildfile/01-sh-Dodofile.t*

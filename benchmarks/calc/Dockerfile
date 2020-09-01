@@ -1,5 +1,5 @@
 # Based on vscode development dockerfile from Microsoft
-FROM ubuntu:19.10
+FROM ubuntu:20.04
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
@@ -13,7 +13,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     # 
     # Install git, compilers, and other dev tools
-    && apt-get -y install git gcc clang libfmt-dev time build-essential python-cram graphviz \
+    && apt-get -y install git gcc clang libfmt-dev time build-essential python3-cram graphviz \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -29,16 +29,28 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # download git
-RUN apt-get install git
+RUN apt-get install git wget
+
+# download and install dodo
+RUN mkdir -p dodo \
+    && cd dodo \
+    && git clone https://github.com/curtsinger-lab/dodo.git \
+    && cd dodo \
+    && make
 
 # install calc dependencies
-RUN apt-get install libreadline-dev groff-base
+RUN apt-get update \
+    && apt-get -y install libreadline-dev groff-base
 
-# download and install the latest tagged relase of calc (2.12.7.2)
+# download and install the latest tagged release of calc (2.12.7.2)
 # and patch Makefile so that clang does not die on warnings
-RUN git clone https://github.com/lcn2/calc.git \
+RUN mkdir -p benchmark \
+    && cd benchmark \
+    && git clone https://github.com/lcn2/calc.git \
     && cd calc \
     && git checkout 2.12.7.2
+
+ADD run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
