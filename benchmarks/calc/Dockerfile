@@ -29,13 +29,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # download git
-RUN apt-get install git wget
+RUN apt-get install git
 
 # download and install dodo
-RUN mkdir -p dodo \
-    && cd dodo \
-    && git clone https://github.com/curtsinger-lab/dodo.git \
-    && cd dodo \
+ADD src /dodo/src
+
+ADD deps /dodo/deps
+
+ADD launch /dodo/launch
+
+ADD Makefile /dodo/
+
+RUN cd dodo \
     && make
 
 # install calc dependencies
@@ -50,7 +55,7 @@ RUN mkdir -p benchmark \
     && cd calc \
     && git checkout 2.12.7.2
 
-ADD run.sh /benchmark/
+ADD benchmarks/calc/run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
