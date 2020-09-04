@@ -14,7 +14,6 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/IR.hh"
-#include "util/path.hh"
 
 using std::endl;
 using std::make_shared;
@@ -30,40 +29,38 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
   auto trace = make_shared<Trace>();
 
   // Create the initial pipe references
-  auto stdin = make_shared<SpecialRef>(SpecialRef::stdin);
-  trace->_steps.emplace_back(nullptr, stdin);
+  auto stdin_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stdin, stdin_ref));
 
-  auto stdout = make_shared<SpecialRef>(SpecialRef::stdout);
-  trace->_steps.emplace_back(nullptr, stdout);
+  auto stdout_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stdout, stdout_ref));
 
-  auto stderr = make_shared<SpecialRef>(SpecialRef::stderr);
-  trace->_steps.emplace_back(nullptr, stderr);
+  auto stderr_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stderr, stderr_ref));
 
   // Create a reference to the root directory
-  auto root = make_shared<SpecialRef>(SpecialRef::root);
-  trace->_steps.emplace_back(nullptr, root);
+  auto root_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::root, root_ref));
 
   // Create a reference to the current working directory and add it to the trace
-  auto cwd = make_shared<PathRef>(root, fs::current_path().relative_path(), AccessFlags{.x = true});
-  trace->_steps.emplace_back(nullptr, cwd);
+  auto cwd_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::cwd, cwd_ref));
 
   // Set up the reference to the dodo-launch executable and add it to the trace
-  fs::path dodo = readlink("/proc/self/exe");
-  fs::path dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-  auto exe = make_shared<PathRef>(root, dodo_launch, AccessFlags{.r = true, .x = true});
-  trace->_steps.emplace_back(nullptr, exe);
+  auto exe_ref = make_shared<RefResult>();
+  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::launch_exe, exe_ref));
 
   // Create a map of initial file descriptors
-  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin, false)},
-                                  {1, FileDescriptor(stdout, true)},
-                                  {2, FileDescriptor(stderr, true)}};
+  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref, AccessFlags{.r = true})},
+                                  {1, FileDescriptor(stdout_ref, AccessFlags{.w = true})},
+                                  {2, FileDescriptor(stderr_ref, AccessFlags{.w = true})}};
 
   // Make a root command
-  auto root_cmd = make_shared<Command>(exe, vector<string>{"dodo-launch"}, fds, cwd, root);
+  auto root_cmd =
+      make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref);
 
   // Make a launch action for the root command
-  auto launch = make_shared<Launch>(root_cmd);
-  trace->_steps.emplace_back(nullptr, launch);
+  trace->_steps.emplace_back(nullptr, make_shared<Launch>(root_cmd));
 
   return trace;
 }

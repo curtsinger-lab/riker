@@ -26,74 +26,74 @@ using std::ostream;
 using std::shared_ptr;
 using std::tuple;
 
-/******* Emulation *******/
+/****** Emulate IR Steps ******/
 
-// Emulate a special reference
+// Emulate a SpecialRef step
 void SpecialRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.specialRef(c, as<SpecialRef>());
+  build.emulateSpecialRef(c, _entity, _output);
 }
 
-// Emulate a pipe reference
+// Emulate a PipeRef step
 void PipeRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.pipeRef(c, as<PipeRef>());
+  build.emulatePipeRef(c, _output);
 }
 
-// Emulate an anonymous file reference
+// Emulate a FileRef step
 void FileRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.fileRef(c, _mode, as<FileRef>());
+  build.emulateFileRef(c, _mode, _output);
 }
 
-// Emulate a symlink reference
+// Emulate a SymlinkRef step
 void SymlinkRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.symlinkRef(c, _target, as<SymlinkRef>());
+  build.emulateSymlinkRef(c, _target, _output);
 }
 
-// Emulate a dir reference
+// Emulate a DirRef step
 void DirRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.dirRef(c, _mode, as<DirRef>());
+  build.emulateDirRef(c, _mode, _output);
 }
 
-// Emulate a path access reference
+// Emulate a PathRef step
 void PathRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.pathRef(c, _base, _path, _flags, as<PathRef>());
+  build.emulatePathRef(c, _base, _path, _flags, _output);
 }
 
 // Emulate an ExpectResult predicate
 void ExpectResult::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.expectResult(c, _ref, _expected, as<ExpectResult>());
+  build.emulateExpectResult(c, _ref, _expected);
 }
 
 // Emulate a MatchMetadata predicate
 void MatchMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.matchMetadata(c, _ref, _version, as<MatchMetadata>());
+  build.emulateMatchMetadata(c, _ref, _version);
 }
 
 // Emulate a MatchContent predicate
 void MatchContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.matchContent(c, _ref, _version, as<MatchContent>());
+  build.emulateMatchContent(c, _ref, _version);
 }
 
 // Emulate an UpdateMetadata IR step
 void UpdateMetadata::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.updateMetadata(c, _ref, _version, as<UpdateMetadata>());
+  build.emulateUpdateMetadata(c, _ref, _version);
 }
 
 // Emulate an UpdateContent IR step
 void UpdateContent::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.updateContent(c, _ref, _version, as<UpdateContent>());
+  build.emulateUpdateContent(c, _ref, _version);
 }
 
 // Emulate a launch action
 void Launch::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.launch(c, _cmd, as<Launch>());
+  build.emulateLaunch(c, _cmd);
 }
 
 // Emulate a join action
 void Join::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.join(c, _cmd, _exit_status, as<Join>());
+  build.emulateJoin(c, _cmd, _exit_status);
 }
 
 // Emulate an exit action
 void Exit::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.exit(c, _exit_status, as<Exit>());
+  build.emulateExit(c, _exit_status);
 }

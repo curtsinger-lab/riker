@@ -283,12 +283,13 @@ Resolution Artifact::resolve(Build& build,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             shared_ptr<PathRef> ref,
+                             AccessFlags flags,
+                             shared_ptr<RefResult> result,
                              bool committed) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
-    if (!checkAccess(build, c, ref->getFlags())) return EACCES;
+    if (!checkAccess(build, c, flags)) return EACCES;
     if (committed) commitAll();
     return shared_from_this();
   }

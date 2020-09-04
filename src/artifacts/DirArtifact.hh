@@ -63,7 +63,8 @@ class DirArtifact final : public Artifact {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             shared_ptr<PathRef> ref,
+                             AccessFlags flags,
+                             shared_ptr<RefResult> result,
                              bool committed) noexcept override;
 
   /// Apply a link version to this artifact

@@ -41,8 +41,8 @@ class Process : public std::enable_shared_from_this<Process> {
           Tracer& tracer,
           shared_ptr<Command> command,
           pid_t pid,
-          shared_ptr<Ref> cwd,
-          shared_ptr<Ref> root,
+          shared_ptr<RefResult> cwd,
+          shared_ptr<RefResult> root,
           map<int, FileDescriptor> fds) noexcept :
       _build(build),
       _tracer(tracer),
@@ -59,13 +59,13 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Command> getCommand() const noexcept { return _command; }
 
   /// Get the root directory
-  shared_ptr<Ref> getRoot() const noexcept { return _root; }
+  shared_ptr<RefResult> getRoot() const noexcept { return _root; }
 
   /// Get the working directory
-  shared_ptr<Ref> getWorkingDir() const noexcept { return _cwd; }
+  shared_ptr<RefResult> getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
-  void setWorkingDir(shared_ptr<Ref> ref) noexcept;
+  void setWorkingDir(shared_ptr<RefResult> ref) noexcept;
 
   /// Get a file descriptor entry
   FileDescriptor& getFD(int fd) noexcept;
@@ -74,7 +74,10 @@ class Process : public std::enable_shared_from_this<Process> {
   bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
 
   /// Add a file descriptor entry
-  FileDescriptor& addFD(int fd, shared_ptr<Ref> ref, bool writable, bool cloexec = false) noexcept;
+  FileDescriptor& addFD(int fd,
+                        shared_ptr<RefResult> ref,
+                        AccessFlags flags,
+                        bool cloexec = false) noexcept;
 
   /// Remove a file descriptor entry
   void closeFD(int fd) noexcept;
@@ -94,7 +97,7 @@ class Process : public std::enable_shared_from_this<Process> {
   }
 
   /// This process is executing a new file
-  void exec(shared_ptr<PathRef> exe_ref, vector<string> args, vector<string> env) noexcept;
+  void exec(shared_ptr<RefResult> exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
@@ -121,10 +124,10 @@ class Process : public std::enable_shared_from_this<Process> {
   pid_t _pid;
 
   /// A reference to the process' current working directory
-  shared_ptr<Ref> _cwd;
+  shared_ptr<RefResult> _cwd;
 
   /// A reference to the process' current root directory
-  shared_ptr<Ref> _root;
+  shared_ptr<RefResult> _root;
 
   /// The process' file descriptor table
   map<int, FileDescriptor> _fds;
@@ -140,6 +143,9 @@ class Thread {
 
   /// Get the process this thread runs in
   shared_ptr<Process> getProcess() const noexcept { return _process; }
+
+  /// Get the command this thread's process is running
+  shared_ptr<Command> getCommand() const noexcept { return _process->getCommand(); }
 
   /// Get the thread ID
   pid_t getID() const noexcept { return _tid; }
@@ -185,7 +191,7 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  shared_ptr<PathRef> makeAccess(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
+  shared_ptr<RefResult> makePathRef(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
 
   /*** Handling for specific system calls ***/
 
