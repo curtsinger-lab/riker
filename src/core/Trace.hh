@@ -15,6 +15,7 @@ using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+using std::unique_ptr;
 
 class Build;
 class Command;
@@ -34,7 +35,7 @@ class Trace {
   Trace& operator=(const Trace&) = delete;
 
  public:
-  using StepList = list<tuple<shared_ptr<Command>, shared_ptr<Step>>>;
+  using StepList = list<tuple<shared_ptr<Command>, unique_ptr<Step>>>;
 
   /// Create an empty trace
   Trace() noexcept = default;
@@ -53,19 +54,21 @@ class Trace {
   const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
 
   /// Add a step to the trace
-  void addEmulatedStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept {
-    _steps.emplace_back(c, s);
+  const unique_ptr<Step>& addEmulatedStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept {
     LOG(ir) << c << ": emulated " << s;
+    auto& inserted = _steps.emplace_back(c, std::move(s));
+    return std::get<1>(inserted);
   }
 
   /// Add a step to the trace
-  void addTracedStep(shared_ptr<Command> c, shared_ptr<Step> s) noexcept {
-    _steps.emplace_back(c, s);
+  const unique_ptr<Step>& addTracedStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept {
     LOG(ir) << c << ": traced " << s;
+    auto& inserted = _steps.emplace_back(c, std::move(s));
+    return std::get<1>(inserted);
   }
 
   /// Get the list of IR steps in this trace
-  const StepList& getSteps() const noexcept { return _steps; }
+  StepList&& getSteps() noexcept { return std::move(_steps); }
 
   /// Print this trace
   ostream& print(ostream& o) const noexcept;

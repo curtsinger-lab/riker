@@ -17,6 +17,7 @@
 
 using std::endl;
 using std::make_shared;
+using std::make_unique;
 using std::map;
 using std::ostream;
 using std::shared_ptr;
@@ -30,25 +31,25 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
 
   // Create the initial pipe references
   auto stdin_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stdin, stdin_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stdin, stdin_ref));
 
   auto stdout_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stdout, stdout_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stdout, stdout_ref));
 
   auto stderr_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::stderr, stderr_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stderr, stderr_ref));
 
   // Create a reference to the root directory
   auto root_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::root, root_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::root, root_ref));
 
   // Create a reference to the current working directory and add it to the trace
   auto cwd_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::cwd, cwd_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::cwd, cwd_ref));
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   auto exe_ref = make_shared<RefResult>();
-  trace->_steps.emplace_back(nullptr, make_shared<SpecialRef>(SpecialRef::launch_exe, exe_ref));
+  trace->_steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::launch_exe, exe_ref));
 
   // Create a map of initial file descriptors
   map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref, AccessFlags{.r = true})},
@@ -60,7 +61,7 @@ shared_ptr<Trace> Trace::getDefault() noexcept {
       make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref);
 
   // Make a launch action for the root command
-  trace->_steps.emplace_back(nullptr, make_shared<Launch>(root_cmd));
+  trace->_steps.emplace_back(nullptr, make_unique<Launch>(root_cmd));
 
   return trace;
 }

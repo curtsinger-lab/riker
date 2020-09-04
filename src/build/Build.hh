@@ -199,7 +199,7 @@ class Build {
                        shared_ptr<Version> expected) const noexcept;
 
   /// Inform observers that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, shared_ptr<const Step> s) const noexcept;
+  void observeCommandChange(shared_ptr<Command> c, const unique_ptr<Step>& s) const noexcept;
 
   /// Inform observers that the version of an artifact produced during the build does not match the
   /// on-disk version.

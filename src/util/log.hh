@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <utility>
 
 #include <fmt/core.h>
@@ -34,6 +35,12 @@ enum class LogCategory : int {
   rebuild = 32,
   exec = 64
 };
+
+// Printing unique_ptr values is allowed
+template <class T>
+static std::ostream& operator<<(std::ostream& o, const std::unique_ptr<T>& p) {
+  return o << p.get();
+}
 
 /**
  * This class is used for logging to the console. The macros defined below return an instance of

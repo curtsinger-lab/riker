@@ -43,10 +43,10 @@ void do_build() noexcept {
   auto rebuild = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  Build(trace).addObserver(rebuild).run();
+  auto [trace2, _] = Build(trace).addObserver(rebuild).run();
 
   // Now run the trace again with the planned rebuild steps
-  auto [final_trace, final_env] = Build(trace, rebuild->planBuild()).run();
+  auto [final_trace, final_env] = Build(trace2, rebuild->planBuild()).run();
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();

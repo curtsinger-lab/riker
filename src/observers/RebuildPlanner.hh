@@ -100,7 +100,7 @@ class RebuildPlanner final : public BuildObserver {
 
   /// IR step s in command c observed a change
   virtual void commandChanged(shared_ptr<Command> c,
-                              shared_ptr<const Step> s) noexcept override final {
+                              const unique_ptr<Step>& s) noexcept override final {
     // Record the change
     LOG(rebuild) << c << " observed change while emulating " << s;
     _changed.insert(c);

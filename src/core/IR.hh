@@ -70,13 +70,10 @@ class Step : public std::enable_shared_from_this<Step> {
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const noexcept = 0;
 
-  /// Stream print wrapper for Step references
-  friend ostream& operator<<(ostream& o, const Step& s) noexcept { return s.print(o); }
-
   /// Stream print wrapper for Step pointers
   friend ostream& operator<<(ostream& o, const Step* s) noexcept {
     if (s == nullptr) return o << "<null Step>";
-    return o << *s;
+    return s->print(o);
   }
 
  private:
