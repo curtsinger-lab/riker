@@ -17,25 +17,32 @@ template <class Domain>
 class UniqueID {
  public:
   // Default constructor assigns an ID
-  UniqueID() noexcept : _assigned_id(getNextID()) {}
+  UniqueID() noexcept {}
 
   // Copy constructor assigns a new ID to the copy
-  UniqueID(const UniqueID&) noexcept : _assigned_id(getNextID()) {}
+  UniqueID(const UniqueID&) noexcept : _assigned(false) {}
 
   // Move constructor can move the ID
   UniqueID(UniqueID&&) noexcept = default;
 
   // Copy assignment assigns a new ID to the copy
-  UniqueID& operator=(const UniqueID&) noexcept { _assigned_id = getNextID(); }
+  UniqueID& operator=(const UniqueID&) noexcept { _assigned = false; }
 
   // Move assignment can move the unique ID
   UniqueID& operator=(UniqueID&&) noexcept = default;
 
   // Get the assigned ID
-  operator size_t() const noexcept { return _assigned_id; }
+  operator size_t() const noexcept {
+    if (!_assigned) {
+      _assigned_id = getNextID();
+      _assigned = true;
+    }
+    return _assigned_id;
+  }
 
  private:
-  size_t _assigned_id;
+  mutable bool _assigned = false;
+  mutable size_t _assigned_id;
 
   static size_t getNextID() noexcept {
     static size_t next_id = 0;

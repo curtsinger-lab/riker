@@ -29,13 +29,11 @@ using std::string;
 namespace fs = std::filesystem;
 
 string Command::getShortName(size_t limit) const noexcept {
-  // By default, the short name is the executable
-  auto exe_path = _exe->getResult()->getPath().value_or("<anon>");
+  // A command with no arguments is anonymous. This shouldn't happen, but better to be safe.
+  if (_args.size() == 0) return "<anon>";
 
-  // If we have arguments, use args[0] instead of the exe name
-  if (_args.size() > 0) exe_path = _args.front();
-
-  // If the exe_path is an absolute path, use the filename
+  // The first argument to the command is its name. Treat it as a path for now
+  fs::path exe_path = _args.front();
   if (exe_path.is_absolute()) exe_path = exe_path.filename();
 
   // The output starts with the executable name
