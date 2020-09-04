@@ -155,13 +155,17 @@ void Build::emulateSpecialRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous pipe
-void Build::emulatePipeRef(shared_ptr<Command> c, shared_ptr<RefResult> output) noexcept {
+void Build::emulatePipeRef(shared_ptr<Command> c,
+                           shared_ptr<RefResult> read_end,
+                           shared_ptr<RefResult> write_end) noexcept {
   // Create an IR step and add it to the output trace
-  auto step = make_shared<PipeRef>(output);
+  auto step = make_shared<PipeRef>(read_end, write_end);
   _trace->addEmulatedStep(c, step);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getPipe(*this, c));
+  auto pipe = _env->getPipe(*this, c);
+  read_end->resolvesTo(pipe);
+  write_end->resolvesTo(pipe);
 }
 
 // A command references a new anonymous file
@@ -411,18 +415,22 @@ void Build::emulateExit(shared_ptr<Command> c, int exit_status) noexcept {
 /************************ Trace IR Steps ************************/
 
 // A command references a new anonymous pipe
-shared_ptr<RefResult> Build::tracePipeRef(shared_ptr<Command> c) noexcept {
-  // Create a RefResult to hold the result of the resolution
-  auto output = make_shared<RefResult>();
+tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
+    shared_ptr<Command> c) noexcept {
+  // Create RefResults to hold the two ends of the pipe
+  auto read_end = make_shared<RefResult>();
+  auto write_end = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  auto step = make_shared<PipeRef>(output);
+  auto step = make_shared<PipeRef>(read_end, write_end);
   _trace->addTracedStep(c, step);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getPipe(*this, c));
+  auto pipe = _env->getPipe(*this, c);
+  read_end->resolvesTo(pipe);
+  write_end->resolvesTo(pipe);
 
-  return output;
+  return {read_end, write_end};
 }
 
 // A command references a new anonymous file

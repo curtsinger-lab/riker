@@ -378,15 +378,15 @@ void Thread::_pipe2(int* fds, int flags) noexcept {
     resume();
 
     // Make a reference to a pipe
-    auto ref = _build.tracePipeRef(getCommand());
-    ASSERT(ref->getResult()) << "Failed to get artifact for pipe";
+    auto [read_ref, write_ref] = _build.tracePipeRef(getCommand());
+    ASSERT(read_ref->getResult() && write_ref->getResult()) << "Failed to get artifact for pipe";
 
     // Check if this pipe is closed on exec
     bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
 
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, ref, AccessFlags{.r = true}, cloexec);
-    _process->addFD(write_pipefd, ref, AccessFlags{.w = true}, cloexec);
+    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, cloexec);
+    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, cloexec);
   });
 }
 

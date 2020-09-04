@@ -188,23 +188,24 @@ class SpecialRef final : public Step {
 class PipeRef final : public Step {
  public:
   /// Create a reference to an anonymous pipe
-  PipeRef(shared_ptr<RefResult> output) noexcept : _output(output) {}
+  PipeRef(shared_ptr<RefResult> read_end, shared_ptr<RefResult> write_end) noexcept :
+      _read_end(read_end), _write_end(write_end) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a PipeRef step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << _output << " = PipeRef()";
+    return o << "[" << _read_end << ", " << _write_end << "] = PipeRef()";
   }
 
  private:
-  /// The artifact or error code produced by resolving this reference is stored in this RefResult
-  shared_ptr<RefResult> _output;
+  shared_ptr<RefResult> _read_end;   //< A reference to the read end of the pipe
+  shared_ptr<RefResult> _write_end;  //< A reference to the write end of the pipe
 
   // Create a default constructor and declare fields for serialization
   PipeRef() noexcept = default;
-  SERIALIZE(BASE(Step), _output);
+  SERIALIZE(BASE(Step), _read_end, _write_end);
 };
 
 /// Create a reference to a new anonymous file

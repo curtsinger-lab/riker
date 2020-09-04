@@ -66,7 +66,9 @@ class Build {
                          shared_ptr<RefResult> output) noexcept;
 
   /// A command references a new anonymous pipe
-  void emulatePipeRef(shared_ptr<Command> c, shared_ptr<RefResult> output) noexcept;
+  void emulatePipeRef(shared_ptr<Command> c,
+                      shared_ptr<RefResult> read_end,
+                      shared_ptr<RefResult> write_end) noexcept;
 
   /// A command references a new anonymous file
   void emulateFileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> output) noexcept;
@@ -121,7 +123,7 @@ class Build {
   /********** Trace IR Steps **********/
 
   /// A traced command referenced a new anonymous pipe
-  shared_ptr<RefResult> tracePipeRef(shared_ptr<Command> c) noexcept;
+  tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> tracePipeRef(shared_ptr<Command> c) noexcept;
 
   /// A traced command referenced a new anonymous file
   shared_ptr<RefResult> traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept;

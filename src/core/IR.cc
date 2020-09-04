@@ -35,7 +35,7 @@ void SpecialRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
 
 // Emulate a PipeRef step
 void PipeRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulatePipeRef(c, _output);
+  build.emulatePipeRef(c, _read_end, _write_end);
 }
 
 // Emulate a FileRef step
