@@ -99,7 +99,7 @@ Resolution SymlinkArtifact::resolve(Build& build,
                                     fs::path::iterator current,
                                     fs::path::iterator end,
                                     AccessFlags flags,
-                                    shared_ptr<Resolve> result,
+                                    shared_ptr<RefResult> result,
                                     bool committed) noexcept {
   // If requested, commit this artifact
   if (committed) commitAll();

@@ -109,194 +109,176 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
-/************************ Create References ************************/
+/************************ Emulate IR Steps ************************/
 
-/// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
-shared_ptr<SpecialRef> Build::createSpecialRef(SpecialRef::Entity entity) noexcept {
-  return make_shared<SpecialRef>(entity);
-}
+void Build::emulateSpecialRef(shared_ptr<Command> c,
+                              SpecialRef::Entity entity,
+                              shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<SpecialRef>(entity, output);
+  _trace->addEmulatedStep(c, step);
 
-/// A command references a new anonymous pipe
-shared_ptr<PipeRef> Build::createPipeRef() noexcept {
-  return make_shared<PipeRef>();
-}
-
-/// A command references a new anonymous file
-shared_ptr<FileRef> Build::createFileRef(mode_t mode) noexcept {
-  return make_shared<FileRef>(mode);
-}
-
-/// A command references a new anonymous symlink
-shared_ptr<SymlinkRef> Build::createSymlinkRef(fs::path target) noexcept {
-  return make_shared<SymlinkRef>(target);
-}
-
-/// A command references a new anonymous directory
-shared_ptr<DirRef> Build::createDirRef(mode_t mode) noexcept {
-  return make_shared<DirRef>(mode);
-}
-
-/// A command makes a reference with a path
-shared_ptr<PathRef> Build::createPathRef(shared_ptr<Resolve> base,
-                                         fs::path path,
-                                         AccessFlags flags) noexcept {
-  return make_shared<PathRef>(base, path, flags);
-}
-
-/************************ Resolve References ************************/
-
-// Command c is issuing a special reference
-Resolution Build::resolveSpecialRef(shared_ptr<Command> c,
-                                    SpecialRef::Entity entity,
-                                    shared_ptr<Resolve> result,
-                                    bool committed) noexcept {
+  // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    return _env->getStdin(*this, c);
+    output->resolvesTo(_env->getStdin(*this, c));
+
   } else if (entity == SpecialRef::stdout) {
-    return _env->getStdout(*this, c);
+    output->resolvesTo(_env->getStdout(*this, c));
+
   } else if (entity == SpecialRef::stderr) {
-    return _env->getStderr(*this, c);
+    output->resolvesTo(_env->getStderr(*this, c));
+
   } else if (entity == SpecialRef::root) {
-    return _env->getRootDir();
+    output->resolvesTo(_env->getRootDir());
+
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto res = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
-                                           AccessFlags{.x = true}, result, false);
-    ASSERT(res) << "Failed to resolve current working directory";
-    res->setName(".");
-    return res;
+    auto result = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
+                                              AccessFlags{.x = true}, output, false);
+    ASSERT(result) << "Failed to resolve current working directory";
+    result->setName(".");
+
+    output->resolvesTo(result);
+
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-    return _env->getRootDir()->resolve(*this, c, nullptr, dodo_launch.begin(), dodo_launch.end(),
-                                       AccessFlags{.x = true}, result, false);
+    auto result =
+        _env->getRootDir()->resolve(*this, c, nullptr, dodo_launch.begin(), dodo_launch.end(),
+                                    AccessFlags{.x = true}, output, false);
+
+    output->resolvesTo(result);
+
   } else {
     FAIL << "Unknown special reference";
-    return EFAULT;
   }
 }
 
-// Command c creates a new pipe
-Resolution Build::resolvePipeRef(shared_ptr<Command> c,
-                                 shared_ptr<Resolve> result,
-                                 bool committed) noexcept {
-  return _env->getPipe(*this, c);
-}
-
-// Command c creates a new file
-Resolution Build::resolveFileRef(shared_ptr<Command> c,
-                                 mode_t mode,
-                                 shared_ptr<Resolve> result,
-                                 bool committed) noexcept {
-  return _env->createFile(*this, c, mode, committed);
-}
-
-// Command c creates a new symbolic link
-Resolution Build::resolveSymlinkRef(shared_ptr<Command> c,
-                                    fs::path target,
-                                    shared_ptr<Resolve> result,
-                                    bool committed) noexcept {
-  return _env->getSymlink(*this, c, target, committed);
-}
-
-// Command c creates a new directory
-Resolution Build::resolveDirRef(shared_ptr<Command> c,
-                                mode_t mode,
-                                shared_ptr<Resolve> result,
-                                bool committed) noexcept {
-  return _env->getDir(*this, c, mode, committed);
-}
-
-// Command c accesses a path
-Resolution Build::resolvePathRef(shared_ptr<Command> c,
-                                 shared_ptr<Resolve> base,
-                                 fs::path path,
-                                 AccessFlags flags,
-                                 shared_ptr<Resolve> result,
-                                 bool committed) noexcept {
-  ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
-  return base->getArtifact()->resolve(*this, c, nullptr, path.begin(), path.end(), flags, result,
-                                      committed);
-}
-
-/************************ Emulate IR Steps ************************/
-
-// Command c resolves a reference
-shared_ptr<Resolve> Build::emulateResolve(shared_ptr<Command> c,
-                                          shared_ptr<Ref> ref,
-                                          shared_ptr<Resolve> step) noexcept {
-  // Add the emulated step to the output trace
+// A command references a new anonymous pipe
+void Build::emulatePipeRef(shared_ptr<Command> c, shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<PipeRef>(output);
   _trace->addEmulatedStep(c, step);
 
-  // Resolve the reference and save the result
-  auto result = ref->resolve(c, *this, step, false);
-  step->resolvesTo(result);
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getPipe(*this, c));
+}
 
-  return step;
+// A command references a new anonymous file
+void Build::emulateFileRef(shared_ptr<Command> c,
+                           mode_t mode,
+                           shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<FileRef>(mode, output);
+  _trace->addEmulatedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->createFile(*this, c, mode, false));
+}
+
+// A command references a new anonymous symlink
+void Build::emulateSymlinkRef(shared_ptr<Command> c,
+                              fs::path target,
+                              shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<SymlinkRef>(target, output);
+  _trace->addEmulatedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getSymlink(*this, c, target, false));
+}
+
+// A command references a new anonymous directory
+void Build::emulateDirRef(shared_ptr<Command> c,
+                          mode_t mode,
+                          shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<DirRef>(mode, output);
+  _trace->addEmulatedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getDir(*this, c, mode, false));
+}
+
+// A command makes a reference with a path
+void Build::emulatePathRef(shared_ptr<Command> c,
+                           shared_ptr<RefResult> base,
+                           fs::path path,
+                           AccessFlags flags,
+                           shared_ptr<RefResult> output) noexcept {
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<PathRef>(base, path, flags, output);
+  _trace->addEmulatedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
+  auto result =
+      base->getResult()->resolve(*this, c, nullptr, path.begin(), path.end(), flags, output, false);
+  output->resolvesTo(result);
 }
 
 // Command c expects a reference to resolve with a specific result
 void Build::emulateExpectResult(shared_ptr<Command> c,
-                                shared_ptr<Resolve> ref,
+                                shared_ptr<RefResult> ref,
                                 int expected) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<ExpectResult>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // Does the resolved reference match the expected result?
-  if (ref->getResolution() != expected) {
+  if (ref->getResult() != expected) {
     observeCommandChange(c, step);
   }
 }
 
 // Command c accesses an artifact's metadata
 void Build::emulateMatchMetadata(shared_ptr<Command> c,
-                                 shared_ptr<Resolve> ref,
+                                 shared_ptr<RefResult> ref,
                                  shared_ptr<MetadataVersion> expected) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<MatchMetadata>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
+  if (!ref->getResult()) {
     // Report the change and return
     observeCommandChange(c, step);
     return;
   }
 
   // Perform the comparison
-  ref->getArtifact()->matchMetadata(*this, c, expected);
+  ref->getResult()->matchMetadata(*this, c, expected);
 }
 
 // Command c accesses an artifact's content
 void Build::emulateMatchContent(shared_ptr<Command> c,
-                                shared_ptr<Resolve> ref,
+                                shared_ptr<RefResult> ref,
                                 shared_ptr<Version> expected) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<MatchContent>(ref, expected);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
+  if (!ref->getResult()) {
     // Report the change and return
     observeCommandChange(c, step);
     return;
   }
 
   // Perform the comparison
-  ref->getArtifact()->matchContent(*this, c, expected);
+  ref->getResult()->matchContent(*this, c, expected);
 }
 
 // Command c modifies an artifact
 void Build::emulateUpdateMetadata(shared_ptr<Command> c,
-                                  shared_ptr<Resolve> ref,
+                                  shared_ptr<RefResult> ref,
                                   shared_ptr<MetadataVersion> written) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<UpdateMetadata>(ref, written);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
+  if (!ref->getResult()) {
     // Record the change and return
     observeCommandChange(c, step);
     return;
@@ -310,19 +292,19 @@ void Build::emulateUpdateMetadata(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Apply the write
-  ref->getArtifact()->updateMetadata(*this, c, written);
+  ref->getResult()->updateMetadata(*this, c, written);
 }
 
 // Command c modifies an artifact
 void Build::emulateUpdateContent(shared_ptr<Command> c,
-                                 shared_ptr<Resolve> ref,
+                                 shared_ptr<RefResult> ref,
                                  shared_ptr<Version> written) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<UpdateContent>(ref, written);
   _trace->addEmulatedStep(c, step);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
+  if (!ref->getResult()) {
     // Record the change and return
     observeCommandChange(c, step);
     return;
@@ -336,7 +318,7 @@ void Build::emulateUpdateContent(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Apply the write
-  written->applyTo(*this, c, ref->getArtifact());
+  written->applyTo(*this, c, ref->getResult());
 
   // Save the last write
   _last_write = {c, ref, written};
@@ -373,14 +355,14 @@ void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noex
     child->setExecuted();
 
     // The child command requires that its working directory exists
-    child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
+    child->getInitialWorkingDir()->getResult()->mustExist(*this, child);
 
     // The executable must be fully committed
-    child->getExecutable()->getArtifact()->commitAll();
+    child->getExecutable()->getResult()->commitAll();
 
     // The child command also depends on the artifacts reachable through its initial FDs
     for (auto& [index, desc] : child->getInitialFDs()) {
-      auto artifact = desc.getRef()->getArtifact();
+      auto artifact = desc.getRef()->getResult();
 
       // TODO: Handle pipes eventually. Just skip them for now
       if (artifact->as<PipeArtifact>()) continue;
@@ -428,22 +410,90 @@ void Build::emulateExit(shared_ptr<Command> c, int exit_status) noexcept {
 
 /************************ Trace IR Steps ************************/
 
-// Command c resolves a reference
-shared_ptr<Resolve> Build::traceResolve(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+// A command references a new anonymous pipe
+shared_ptr<RefResult> Build::tracePipeRef(shared_ptr<Command> c) noexcept {
+  // Create a RefResult to hold the result of the resolution
+  auto output = make_shared<RefResult>();
+
   // Create an IR step and add it to the output trace
-  auto step = make_shared<Resolve>(ref);
+  auto step = make_shared<PipeRef>(output);
   _trace->addTracedStep(c, step);
 
-  // Resolve the reference and save the result
-  auto result = ref->resolve(c, *this, step, true);
-  step->resolvesTo(result);
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getPipe(*this, c));
 
-  return step;
+  return output;
+}
+
+// A command references a new anonymous file
+shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept {
+  // Create a RefResult to hold the result of the resolution
+  auto output = make_shared<RefResult>();
+
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<FileRef>(mode, output);
+  _trace->addTracedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->createFile(*this, c, mode, true));
+
+  return output;
+}
+
+// A command references a new anonymous symlink
+shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path target) noexcept {
+  // Create a RefResult to hold the result of the resolution
+  auto output = make_shared<RefResult>();
+
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<SymlinkRef>(target, output);
+  _trace->addTracedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getSymlink(*this, c, target, true));
+
+  return output;
+}
+
+// A command references a new anonymous directory
+shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept {
+  // Create a RefResult to hold the result of the resolution
+  auto output = make_shared<RefResult>();
+
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<DirRef>(mode, output);
+  _trace->addTracedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  output->resolvesTo(_env->getDir(*this, c, mode, true));
+
+  return output;
+}
+
+// A command makes a reference with a path
+shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
+                                          shared_ptr<RefResult> base,
+                                          fs::path path,
+                                          AccessFlags flags) noexcept {
+  // Create a RefResult to hold the result of the resolution
+  auto output = make_shared<RefResult>();
+
+  // Create an IR step and add it to the output trace
+  auto step = make_shared<PathRef>(base, path, flags, output);
+  _trace->addTracedStep(c, step);
+
+  // Resolve the reference and save the result in output
+  ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
+  auto result =
+      base->getResult()->resolve(*this, c, nullptr, path.begin(), path.end(), flags, output, true);
+  output->resolvesTo(result);
+
+  return output;
 }
 
 // Command c expects a reference to resolve with a specific result
 void Build::traceExpectResult(shared_ptr<Command> c,
-                              shared_ptr<Resolve> ref,
+                              shared_ptr<RefResult> ref,
                               int expected) noexcept {
   // Create an IR step and add it to the output trace
   auto step = make_shared<ExpectResult>(ref, expected);
@@ -451,9 +501,9 @@ void Build::traceExpectResult(shared_ptr<Command> c,
 }
 
 // Command c accesses an artifact's metadata
-void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<Resolve> ref) noexcept {
+void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // Get the artifact whose metadata is being accessed
-  auto artifact = ref->getArtifact();
+  auto artifact = ref->getResult();
   ASSERT(artifact) << "Tried to access metadata through unresolved reference " << ref;
 
   // Get the current metadata from the artifact
@@ -476,9 +526,9 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<Resolve> ref) n
 }
 
 // Command c accesses an artifact's content
-void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<Resolve> ref) noexcept {
+void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // Get the artifact whose content is being accessed
-  auto artifact = ref->getArtifact();
+  auto artifact = ref->getResult();
   ASSERT(artifact) << "Tried to access content through an unresolved reference " << ref;
 
   // Get the current content of the artifact
@@ -505,9 +555,9 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<Resolve> ref) no
 }
 
 // Command c modifies an artifact
-void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<Resolve> ref) noexcept {
+void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // Get the artifact whose metadata is being written
-  auto artifact = ref->getArtifact();
+  auto artifact = ref->getResult();
   ASSERT(artifact) << "Tried to write metadata through an unresolved reference " << ref;
 
   // Record the update and get the written version
@@ -527,10 +577,10 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<Resolve> ref) 
 
 // Command c modifies an artifact
 void Build::traceUpdateContent(shared_ptr<Command> c,
-                               shared_ptr<Resolve> ref,
+                               shared_ptr<RefResult> ref,
                                shared_ptr<Version> written) noexcept {
   // Get the artifact whose content is being written
-  auto artifact = ref->getArtifact();
+  auto artifact = ref->getResult();
   ASSERT(artifact) << "Tried to write content through an unresolved reference " << ref;
 
   // Was the last write from the same command and reference?
@@ -582,14 +632,14 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
   child->setExecuted();
 
   // The child command requires that its working directory exists
-  child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
+  child->getInitialWorkingDir()->getResult()->mustExist(*this, child);
 
   // The executable must be fully committed
-  child->getExecutable()->getArtifact()->commitAll();
+  child->getExecutable()->getResult()->commitAll();
 
   // The child command also depends on the artifacts reachable through its initial FDs
   for (auto& [index, desc] : child->getInitialFDs()) {
-    auto artifact = desc.getRef()->getArtifact();
+    auto artifact = desc.getRef()->getResult();
 
     // TODO: Handle pipes eventually. Just skip them for now
     if (artifact->as<PipeArtifact>()) continue;

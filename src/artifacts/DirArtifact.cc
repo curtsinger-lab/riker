@@ -195,7 +195,7 @@ Resolution DirArtifact::resolve(Build& build,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
                                 AccessFlags flags,
-                                shared_ptr<Resolve> result,
+                                shared_ptr<RefResult> result,
                                 bool committed) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
@@ -320,7 +320,7 @@ void DirArtifact::updateContent(Build& build,
                                 shared_ptr<Command> c,
                                 shared_ptr<AddEntry> writing) noexcept {
   auto entry = writing->getEntryName();
-  auto artifact = writing->getTarget()->getArtifact();
+  auto artifact = writing->getTarget()->getResult();
 
   // Check for an existing entry with the same name
   auto iter = _entries.find(entry);

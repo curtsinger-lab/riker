@@ -26,61 +26,36 @@ using std::ostream;
 using std::shared_ptr;
 using std::tuple;
 
-/****** Resolve References ******/
-
-// Emulate a special reference
-Resolution SpecialRef::resolve(shared_ptr<Command> c,
-                               Build& build,
-                               shared_ptr<Resolve> result,
-                               bool committed) noexcept {
-  return build.resolveSpecialRef(c, _entity, result, committed);
-}
-
-// Emulate a pipe reference
-Resolution PipeRef::resolve(shared_ptr<Command> c,
-                            Build& build,
-                            shared_ptr<Resolve> result,
-                            bool committed) noexcept {
-  return build.resolvePipeRef(c, result, committed);
-}
-
-// Emulate an anonymous file reference
-Resolution FileRef::resolve(shared_ptr<Command> c,
-                            Build& build,
-                            shared_ptr<Resolve> result,
-                            bool committed) noexcept {
-  return build.resolveFileRef(c, _mode, result, committed);
-}
-
-// Emulate a symlink reference
-Resolution SymlinkRef::resolve(shared_ptr<Command> c,
-                               Build& build,
-                               shared_ptr<Resolve> result,
-                               bool committed) noexcept {
-  return build.resolveSymlinkRef(c, _target, result, committed);
-}
-
-// Emulate a dir reference
-Resolution DirRef::resolve(shared_ptr<Command> c,
-                           Build& build,
-                           shared_ptr<Resolve> result,
-                           bool committed) noexcept {
-  return build.resolveDirRef(c, _mode, result, committed);
-}
-
-// Emulate a path access reference
-Resolution PathRef::resolve(shared_ptr<Command> c,
-                            Build& build,
-                            shared_ptr<Resolve> result,
-                            bool committed) noexcept {
-  return build.resolvePathRef(c, _base, _path, _flags, result, committed);
-}
-
 /****** Emulate IR Steps ******/
 
-// Emulate a Resolve step
-void Resolve::emulate(shared_ptr<Command> c, Build& build) noexcept {
-  build.emulateResolve(c, _ref, this->as<Resolve>());
+// Emulate a SpecialRef step
+void SpecialRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulateSpecialRef(c, _entity, _output);
+}
+
+// Emulate a PipeRef step
+void PipeRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulatePipeRef(c, _output);
+}
+
+// Emulate a FileRef step
+void FileRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulateFileRef(c, _mode, _output);
+}
+
+// Emulate a SymlinkRef step
+void SymlinkRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulateSymlinkRef(c, _target, _output);
+}
+
+// Emulate a DirRef step
+void DirRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulateDirRef(c, _mode, _output);
+}
+
+// Emulate a PathRef step
+void PathRef::emulate(shared_ptr<Command> c, Build& build) noexcept {
+  build.emulatePathRef(c, _base, _path, _flags, _output);
 }
 
 // Emulate an ExpectResult predicate

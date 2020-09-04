@@ -34,7 +34,6 @@ class Command;
 class Env;
 class FileVersion;
 class MetadataVersion;
-class Resolve;
 class SymlinkVersion;
 class Version;
 
@@ -84,83 +83,252 @@ class Step : public std::enable_shared_from_this<Step> {
   SERIALIZE_EMPTY();
 };
 
-/**
- * Any time a command makes a reference to an artifact we will record it with an IR step that is a
- * subclass of Ref. Refs do not necessarily resolve to artifacts (they could fail) but
- * we can encode predicates about the outcome of a reference.
+/***
+ * A RefResult instance is a bit like a register; it is serialized as the destination where a
+ * resolved reference will be saved. An IR Step that resolves a reference will also have a RefResult
+ * pointer where it will store the resolution result. When serialized, RefResults hold no data; the
+ * only important aspect of a RefResult in the serialized trace is its identity. One step will
+ * resolve a reference and save the outcome in a RefResult, and later steps may reference that
+ * RefResult to modify or compare contents of the resolved artifact.
  */
-class Ref : public std::enable_shared_from_this<Ref> {
+class RefResult final {
  public:
-  /// Get the path associated with this reference, if any
-  virtual optional<fs::path> getPath() const noexcept { return nullopt; }
+  /// Default constructor
+  RefResult() noexcept = default;
 
-  /// Resolve this reference
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept = 0;
+  // Disallow Copy
+  RefResult(const RefResult&) = delete;
+  RefResult& operator=(const RefResult&) = delete;
 
-  /// Print this Ref to an output stream
-  virtual ostream& print(ostream& o) const noexcept = 0;
+  // Allow Move
+  RefResult(RefResult&&) noexcept = default;
+  RefResult& operator=(RefResult&&) noexcept = default;
 
-  /// Stream print wrapper for Ref references
-  friend ostream& operator<<(ostream& o, const Ref& r) noexcept { return r.print(o); }
+  /// Get this RefResult's unique ID
+  size_t getID() const noexcept { return _id; }
 
-  /// Stream print wrapper for Ref pointers
-  friend ostream& operator<<(ostream& o, const Ref* r) noexcept {
-    if (r == nullptr) return o << "<null Ref>";
+  /// Get a short name for this RefResult
+  string getName() const noexcept { return "r" + std::to_string(getID()); }
+
+  /// Get the resolution result
+  Resolution getResult() const noexcept { return _result; }
+
+  /// Save a resolution result in this RefResult
+  void resolvesTo(Resolution r) noexcept { _result = r; }
+
+  /// Print a RefResult
+  ostream& print(ostream& o) const noexcept { return o << getName(); }
+
+  /// Stream print wrapper for RefResult references
+  friend ostream& operator<<(ostream& o, const RefResult& r) noexcept { return r.print(o); }
+
+  /// Stream print wrapper for RefResult pointers
+  friend ostream& operator<<(ostream& o, const RefResult* r) noexcept {
+    if (r == nullptr) return o << "<null RefResult>";
     return o << *r;
   }
 
  private:
+  /// RefResults are serialized, but we only track their identity. All other fields are transient.
   SERIALIZE_EMPTY();
+
+  /// A unique identifier for this reference result
+  UniqueID<RefResult> _id;
+
+  /// The outcome of a reference resolution saved in this RefResult
+  Resolution _result;
 };
 
-class Resolve final : public Step {
+/**
+ * Resolve a reference to a special artifact like stdin, stdout, the root directory, etc.
+ */
+class SpecialRef final : public Step {
  public:
-  Resolve(shared_ptr<Ref> ref) noexcept : _ref(ref) {}
+  enum Entity { stdin, stdout, stderr, root, cwd, launch_exe };
 
-  /// Get the reference this step resolves
-  shared_ptr<Ref> getRef() const noexcept { return _ref; }
+  /// Create a new special reference
+  SpecialRef(Entity entity, shared_ptr<RefResult> output) noexcept :
+      _entity(entity), _output(output) {}
 
-  /// Get the unique ID for this reference
-  size_t getID() const noexcept { return _id; }
+  /// Get the entity this special reference refers to
+  Entity getEntity() const noexcept { return _entity; }
 
-  /// Get the short name for this reference
-  string getName() const noexcept { return "r" + std::to_string(getID()); }
+  /// Get the name of the entity this special reference refers to
+  string getEntityName() const noexcept {
+    if (_entity == stdin) return "STDIN";
+    if (_entity == stdout) return "STDOUT";
+    if (_entity == stderr) return "STDERR";
+    if (_entity == root) return "ROOT";
+    if (_entity == cwd) return "CWD";
+    if (_entity == launch_exe) return "LAUNCH_EXE";
+    return "UNKNOWN";
+  }
 
-  /// Get the result of resolving this reference
-  Resolution getResolution() const noexcept { return _res; }
-
-  /// Check if this reference is resolved
-  bool isResolved() const noexcept { return _res; }
-
-  /// Get the artifact this reference resolved to
-  shared_ptr<Artifact> getArtifact() const noexcept { return _res; }
-
-  /// A sub-type can report the result of resolving this artifact using this method
-  void resolvesTo(Resolution res) noexcept { _res = res; }
-
+  /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
+  /// Print a SpecialRef step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << getName() << " = Resolve(" << _ref << ")";
+    return o << _output << " = " << getEntityName();
   }
 
  private:
-  shared_ptr<Ref> _ref;
+  /// The special artifact this reference refers to
+  Entity _entity;
+
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
+
+  // Create a default constructor and declare fields for serialization
+  SpecialRef() noexcept = default;
+  SERIALIZE(BASE(Step), _entity, _output);
+};
+
+/// Create a reference to a new anonymous pipe
+class PipeRef final : public Step {
+ public:
+  /// Create a reference to an anonymous pipe
+  PipeRef(shared_ptr<RefResult> output) noexcept : _output(output) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a PipeRef step
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << _output << " = PipeRef()";
+  }
+
+ private:
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
+
+  // Create a default constructor and declare fields for serialization
+  PipeRef() noexcept = default;
+  SERIALIZE(BASE(Step), _output);
+};
+
+/// Create a reference to a new anonymous file
+class FileRef final : public Step {
+ public:
+  /// Create a reference to an anonymous file
+  FileRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a FileRef step
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << _output << " = FileRef(" << std::oct << _mode << ")";
+  }
+
+ private:
+  /// The value that should be passed in the open() syscall's mode parameter
+  mode_t _mode;
+
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
+
+  // Create a default constructor and declare fields for serialization
+  FileRef() = default;
+  SERIALIZE(BASE(Step), _mode, _output);
+};
+
+/// Create a reference to a new anonymous symlink
+class SymlinkRef final : public Step {
+ public:
+  // Create a reference to an anonymous symlink
+  SymlinkRef(fs::path target, shared_ptr<RefResult> output) noexcept :
+      _target(target), _output(output) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a SYMLINK reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << _output << " = SymlinkRef(" << _target << ")";
+  }
+
+ private:
+  /// The target path for the new symlink
+  fs::path _target;
+
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
+
+  // Create a default constructor and specify fields for serialization
+  SymlinkRef() = default;
+  SERIALIZE(BASE(Step), _target, _output);
+};
+
+/// Create a reference to a new anonymous directory
+class DirRef final : public Step {
+ public:
+  /// Create a reference to an anonymous directory
+  DirRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Print a DIR reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << _output << " = DirRef(" << std::oct << _mode << ")";
+  }
+
+ private:
+  /// The value that should be passed as the open() syscall's mode parameter
+  mode_t _mode;
+
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
+
+  // Create a default constructor and specify fields for serialization
+  DirRef() = default;
+  SERIALIZE(BASE(Step), _mode, _output);
+};
+
+/// Make a reference to a filesystem path
+class PathRef final : public Step {
+ public:
+  /// Create a reference to a filesystem path
+  PathRef(shared_ptr<RefResult> base,
+          fs::path path,
+          AccessFlags flags,
+          shared_ptr<RefResult> output) noexcept :
+      _base(base), _path(path), _flags(flags), _output(output) {}
+
+  /// Emulate this step in the context of a given build
+  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
+
+  /// Get the access that serves as the base for this one
+  const shared_ptr<RefResult>& getBase() const noexcept { return _base; }
+
+  /// Get the path of this reference, relative to the base access
+  fs::path getRelativePath() const noexcept { return _path; }
+
+  /// Get the flags used to create this reference
+  const AccessFlags& getFlags() const noexcept { return _flags; }
+
+  /// Print an ACCESS reference
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << _output << " = PathRef(" << _base << ", " << _path << ", [" << getFlags() << "])";
+  }
+
+ private:
+  /// The base used to resolve this reference, usually either cwd or root.
+  shared_ptr<RefResult> _base;
+
+  /// The path being accessed
+  fs::path _path;
+
+  /// The relevant flags for the access
+  AccessFlags _flags;
+
+  /// The artifact or error code produced by resolving this reference is stored in this RefResult
+  shared_ptr<RefResult> _output;
 
   // Create default constructor and specify fields for serialization
-  Resolve() noexcept = default;
-  SERIALIZE(BASE(Step), _ref);
-
-  /****** Transient Fields ******/
-
-  /// Assign a unique ID to each reference
-  UniqueID<Resolve> _id;
-
-  /// The result of resolving this reference
-  Resolution _res;
+  PathRef() = default;
+  SERIALIZE(BASE(Step), _base, _path, _flags, _output);
 };
 
 /**
@@ -168,19 +336,23 @@ class Resolve final : public Step {
  */
 class ExpectResult final : public Step {
  public:
-  /// Create an ExpectResult predicate
-  ExpectResult(shared_ptr<Resolve> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
+  /// Create an ExpectResult IR step
+  ExpectResult(shared_ptr<RefResult> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
+  /// Print an ExpectResult IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "ExpectResult(" << _ref->getName() << ", " << errors[_expected] << ")";
+    return o << "ExpectResult(" << _ref << ", " << errors[_expected] << ")";
   }
 
  private:
-  shared_ptr<Resolve> _ref;  //< The result of resolving a reference
-  int _expected;             //< The expected result of resolving the reference
+  /// The result of some reference resolution
+  shared_ptr<RefResult> _ref;
+
+  /// The expected outcome of the reference resolution
+  int _expected;
 
   // Create default constructor and specify fields for serialization
   ExpectResult() noexcept = default;
@@ -192,20 +364,20 @@ class ExpectResult final : public Step {
  */
 class MatchMetadata final : public Step {
  public:
-  /// Create a MatchMetadata predicate
-  MatchMetadata(shared_ptr<Resolve> ref, shared_ptr<MetadataVersion> version) noexcept :
+  /// Create a MatchMetadata IR step
+  MatchMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a MATCH predicate
+  /// Print a MatchMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "MatchMetadata(" << _ref->getName() << ", " << _version << ")";
+    return o << "MatchMetadata(" << _ref << ", " << _version << ")";
   }
 
  private:
-  shared_ptr<Resolve> _ref;              //< The reference being examined
+  shared_ptr<RefResult> _ref;            //< A resolved reference to the artifact being accessed
   shared_ptr<MetadataVersion> _version;  //< The expected metadata
 
   // Create default constructor and specify fields for serialization
@@ -218,20 +390,20 @@ class MatchMetadata final : public Step {
  */
 class MatchContent final : public Step {
  public:
-  /// Create a MatchContent predicate
-  MatchContent(shared_ptr<Resolve> ref, shared_ptr<Version> version) noexcept :
+  /// Create a MatchContent IR step
+  MatchContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a MATCH predicate
+  /// Print a MatchContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "MatchContent(" << _ref->getName() << ", " << _version << ")";
+    return o << "MatchContent(" << _ref << ", " << _version << ")";
   }
 
  private:
-  shared_ptr<Resolve> _ref;      //< The reference being examined
+  shared_ptr<RefResult> _ref;    //< A resolved reference to the artifact being accessed
   shared_ptr<Version> _version;  //< The expected content
 
   // Create default constructor and specify fields for serialization
@@ -245,7 +417,7 @@ class MatchContent final : public Step {
 class UpdateMetadata final : public Step {
  public:
   /// Create an UpdateMetadata IR step
-  UpdateMetadata(shared_ptr<Resolve> ref, shared_ptr<MetadataVersion> version) noexcept :
+  UpdateMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -253,12 +425,12 @@ class UpdateMetadata final : public Step {
 
   /// Print an UpdateMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "UpdateMetadata(" << _ref->getName() << ", " << _version << ")";
+    return o << "UpdateMetadata(" << _ref << ", " << _version << ")";
   }
 
  private:
-  shared_ptr<Resolve> _ref;
-  shared_ptr<MetadataVersion> _version;
+  shared_ptr<RefResult> _ref;            //< A resolved reference to the artifact being written
+  shared_ptr<MetadataVersion> _version;  //< The version written to the referenced artifact
 
   // Create default constructor and specify fields for serialization
   UpdateMetadata() = default;
@@ -271,7 +443,7 @@ class UpdateMetadata final : public Step {
 class UpdateContent final : public Step {
  public:
   /// Create an UpdateContent IR step
-  UpdateContent(shared_ptr<Resolve> ref, shared_ptr<Version> version) noexcept :
+  UpdateContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
 
   /// Emulate this step in the context of a given build
@@ -279,12 +451,12 @@ class UpdateContent final : public Step {
 
   /// Print an UpdateContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "UpdateContent(" << _ref->getName() << ", " << _version << ")";
+    return o << "UpdateContent(" << _ref << ", " << _version << ")";
   }
 
  private:
-  shared_ptr<Resolve> _ref;
-  shared_ptr<Version> _version;
+  shared_ptr<RefResult> _ref;    //< A resolved reference to the artifact being written
+  shared_ptr<Version> _version;  //< The version written to the referenced artifact
 
   // Create default constructor and specify fields for serialization
   UpdateContent() = default;
@@ -297,13 +469,13 @@ class UpdateContent final : public Step {
  */
 class Launch final : public Step {
  public:
-  /// Create a LAUNCH action
+  /// Create a Launch IR step
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a LAUNCH action
+  /// Print a Launch IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "Launch(" << _cmd << ")";
   }
@@ -322,13 +494,13 @@ class Launch final : public Step {
  */
 class Join final : public Step {
  public:
-  /// Create a JOIN action
+  /// Create a Join IR step
   Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print a JOIN action
+  /// Print a JOin IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "Join(" << _cmd << ", " << _exit_status << ")";
   }
@@ -344,13 +516,13 @@ class Join final : public Step {
 
 class Exit final : public Step {
  public:
-  /// Create an EXIT action
+  /// Create an Exit IR step
   Exit(int exit_status) noexcept : _exit_status(exit_status) {}
 
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
-  /// Print an EXIT action
+  /// Print an Exit IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "Exit(" << _exit_status << ")";
   }
@@ -361,204 +533,4 @@ class Exit final : public Step {
   // Create default constructor and specify fields for serialization
   Exit() = default;
   SERIALIZE(BASE(Step), _exit_status);
-};
-
-/// Create a reference to a special artifact (standard pipes, root directory, etc.)
-class SpecialRef final : public Ref {
- public:
-  enum Entity { stdin, stdout, stderr, root, cwd, launch_exe };
-
-  /// Create a new special reference
-  SpecialRef(Entity entity) noexcept : _entity(entity) {}
-
-  /// Get the entity this special reference refers to
-  Entity getEntity() const noexcept { return _entity; }
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Get the path associated with this reference
-  virtual optional<fs::path> getPath() const noexcept override {
-    if (_entity == root) return "/";
-    return nullopt;
-  }
-
-  /// Print a special reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    switch (_entity) {
-      case stdin:
-        return o << "stdin";
-
-      case stdout:
-        return o << "stdout";
-
-      case stderr:
-        return o << "stderr";
-
-      case root:
-        return o << "root";
-
-      case cwd:
-        return o << "cwd";
-
-      case launch_exe:
-        return o << "launch_exe";
-    }
-  }
-
- private:
-  Entity _entity;
-
-  // Create a default constructor and declare fields for serialization
-  SpecialRef() noexcept = default;
-  SERIALIZE(BASE(Ref), _entity);
-};
-
-/// Create a reference to a new anonymous pipe
-class PipeRef final : public Ref {
- public:
-  /// Create a reference to an anonymous pipe
-  PipeRef() noexcept = default;
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Print a PIPE reference
-  virtual ostream& print(ostream& o) const noexcept override { return o << "PipeRef()"; }
-
- private:
-  // Specify fields for serialization
-  SERIALIZE(BASE(Ref));
-};
-
-/// Create a reference to a new anonymous file
-class FileRef final : public Ref {
- public:
-  /// Create a reference to an anonymous file
-  FileRef(mode_t mode) noexcept : _mode(mode) {}
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Print a FILE reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    return o << "FileRef(" << std::oct << _mode << ")";
-  }
-
- private:
-  mode_t _mode;
-
-  // Specify fields for serialization
-  FileRef() = default;
-  SERIALIZE(BASE(Ref), _mode);
-};
-
-/// Create a reference to a new anonymous symlink
-class SymlinkRef final : public Ref {
- public:
-  // Create a reference to an anonymous symlink
-  SymlinkRef(fs::path target) noexcept : _target(target) {}
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Print a SYMLINK reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    return o << "SymlinkRef(" << _target << ")";
-  }
-
- private:
-  fs::path _target;
-
-  // Specify fields for serialization
-  SymlinkRef() = default;
-  SERIALIZE(BASE(Ref), _target);
-};
-
-/// Create a reference to a new anonymous directory
-class DirRef final : public Ref {
- public:
-  /// Create a reference to an anonymous directory
-  DirRef(mode_t mode) noexcept : _mode(mode) {}
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Print a DIR reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    return o << "DirRef(" << std::oct << _mode << ")";
-  }
-
- private:
-  mode_t _mode;
-
-  // Specify fields for serialization
-  DirRef() = default;
-  SERIALIZE(BASE(Ref), _mode);
-};
-
-/// Make a reference to a filesystem path
-class PathRef final : public Ref {
- public:
-  /// Create a reference to a filesystem path
-  PathRef(shared_ptr<Resolve> base, fs::path path, AccessFlags flags) noexcept :
-      _base(base), _path(path), _flags(flags) {}
-
-  /// Resolve this reference in the context of a given build
-  virtual Resolution resolve(shared_ptr<Command> c,
-                             Build& build,
-                             shared_ptr<Resolve> result,
-                             bool committed) noexcept override;
-
-  /// Get the access that serves as the base for this one
-  const shared_ptr<Resolve>& getBase() const noexcept { return _base; }
-
-  /// Get the path of this reference, relative to the base access
-  fs::path getRelativePath() const noexcept { return _path; }
-
-  /// Get the full path for this reference
-  virtual optional<fs::path> getPath() const noexcept override {
-    if (!_base) return _path;
-
-    auto base_path = _base->getArtifact()->getPath();
-    if (!base_path.has_value()) return nullopt;
-    return base_path.value() / _path;
-  }
-
-  /// Get the flags used to create this reference
-  const AccessFlags& getFlags() const noexcept { return _flags; }
-
-  /// Print an ACCESS reference
-  virtual ostream& print(ostream& o) const noexcept override {
-    return o << "PathRef(" << _base->getName() << ", " << _path << ", [" << getFlags() << "])";
-  }
-
- private:
-  /// The base used to resolve this reference, typically either cwd or root.
-  shared_ptr<Resolve> _base;
-
-  /// The path being accessed
-  fs::path _path;
-
-  /// The relevant flags for the access
-  AccessFlags _flags;
-
-  // Create default constructor and specify fields for serialization
-  PathRef() = default;
-  SERIALIZE(BASE(Ref), _base, _path, _flags);
 };

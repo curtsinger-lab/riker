@@ -284,7 +284,7 @@ Resolution Artifact::resolve(Build& build,
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
-                             shared_ptr<Resolve> result,
+                             shared_ptr<RefResult> result,
                              bool committed) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {

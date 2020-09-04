@@ -36,7 +36,7 @@ class FileVersion;
 class ListedDir;
 class MetadataVersion;
 class PathRef;
-class Resolve;
+class RefResult;
 class SymlinkVersion;
 class RemoveEntry;
 class Version;
@@ -226,7 +226,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
-                             shared_ptr<Resolve> result,
+                             shared_ptr<RefResult> result,
                              bool committed) noexcept;
 
   /****** Utility Methods ******/

@@ -184,13 +184,13 @@ class ExistingDir : public BaseDirVersion {
 class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  AddEntry(string entry, shared_ptr<Resolve> target) noexcept : _entry(entry), _target(target) {}
+  AddEntry(string entry, shared_ptr<RefResult> target) noexcept : _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version links
   string getEntryName() const noexcept { return _entry; }
 
   /// Get the target of the newly-linked entry
-  shared_ptr<Resolve> getTarget() const noexcept { return _target; }
+  shared_ptr<RefResult> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override {
@@ -216,7 +216,7 @@ class AddEntry : public DirVersion {
 
  private:
   string _entry;
-  shared_ptr<Resolve> _target;
+  shared_ptr<RefResult> _target;
 
   // Create a default constructor and declare fields for serialization
   AddEntry() = default;
@@ -227,13 +227,14 @@ class AddEntry : public DirVersion {
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(string entry, shared_ptr<Resolve> target) noexcept : _entry(entry), _target(target) {}
+  RemoveEntry(string entry, shared_ptr<RefResult> target) noexcept :
+      _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
 
   /// Get a reference to the artifact that is unlinked
-  shared_ptr<Resolve> getTarget() const noexcept { return _target; }
+  shared_ptr<RefResult> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -257,7 +258,7 @@ class RemoveEntry : public DirVersion {
   string _entry;
 
   /// A reference to the artifact that is unlinked by this version
-  shared_ptr<Resolve> _target;
+  shared_ptr<RefResult> _target;
 
   // Create a default constructor and declare fields for serialization
   RemoveEntry() = default;

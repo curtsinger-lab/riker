@@ -79,7 +79,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // Get the artifact we are linking
-  auto artifact = _target->getArtifact();
+  auto artifact = _target->getResult();
 
   // First, check to see if the artifact has a temporary path
   auto temp_path = artifact->takeTemporaryPath();
@@ -159,7 +159,7 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
   if (isCommitted()) return;
 
   // Get the artifact we're unlinking
-  auto artifact = _target->getArtifact();
+  auto artifact = _target->getResult();
 
   // We need to know all the links to this artifact
   auto [committed_links, uncommitted_links] = artifact->getLinks();
