@@ -29,7 +29,7 @@ using std::shared_ptr;
 
 tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
   // Emulate steps until we hit the end of the trace
-  for (auto& [cmd, step] : _steps) {
+  for (auto& [cmd, step] : _input_trace->getSteps()) {
     // Can we emulate the command that created this IR step?
     if (_plan.canEmulate(cmd)) {
       // Yes. Call its emulate method

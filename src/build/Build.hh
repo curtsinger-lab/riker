@@ -39,7 +39,7 @@ class Build {
   Build(shared_ptr<Trace> input_trace,
         RebuildPlan plan = RebuildPlan(),
         shared_ptr<Env> env = make_shared<Env>()) noexcept :
-      _steps(input_trace->getSteps()),
+      _input_trace(input_trace),
       _trace(make_shared<Trace>()),
       _plan(plan),
       _env(env),
@@ -214,8 +214,8 @@ class Build {
   }
 
  private:
-  /// The trace this build is running
-  Trace::StepList _steps;
+  /// The trace this build is emulating or re-running
+  shared_ptr<Trace> _input_trace;
 
   /// The trace of steps performed by this build
   shared_ptr<Trace> _trace;

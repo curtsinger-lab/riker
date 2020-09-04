@@ -67,8 +67,8 @@ class Trace {
     return std::get<1>(inserted);
   }
 
-  /// Get the list of IR steps in this trace
-  StepList&& getSteps() noexcept { return std::move(_steps); }
+  /// Get the list of steps in this trace
+  const StepList& getSteps() const noexcept { return _steps; }
 
   /// Print this trace
   ostream& print(ostream& o) const noexcept;
