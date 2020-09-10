@@ -43,10 +43,11 @@ void do_build() noexcept {
   auto rebuild = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  auto [trace2, _] = Build(trace).addObserver(rebuild).run();
+  Build(trace).addObserver(rebuild).run();
 
   // Now run the trace again with the planned rebuild steps
-  auto [final_trace, final_env] = Build(trace2, rebuild->planBuild()).run();
+  auto output_trace = make_shared<Trace>();
+  auto final_env = Build(trace, rebuild->planBuild(), output_trace).run();
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
@@ -55,7 +56,7 @@ void do_build() noexcept {
   fs::create_directories(OutputDir);
 
   // Serialize the build trace
-  save_trace(DatabaseFilename, final_trace);
+  save_trace(DatabaseFilename, output_trace);
 }
 
 /**
@@ -167,7 +168,7 @@ void do_stats(bool list_artifacts) noexcept {
   auto trace = load_trace(DatabaseFilename);
 
   // Emulate the trace
-  auto [final_trace, final_env] = Build(trace).run();
+  auto final_env = Build(trace).run();
 
   // Count the number of versions of artifacts
   size_t version_count = 0;

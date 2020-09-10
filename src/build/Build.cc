@@ -27,7 +27,7 @@ using std::make_unique;
 using std::ostream;
 using std::shared_ptr;
 
-tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
+shared_ptr<Env> Build::run() noexcept {
   // Emulate steps until we hit the end of the trace
   for (auto& [cmd, step] : _input_trace->getSteps()) {
     // Can we emulate the command that created this IR step?
@@ -43,7 +43,7 @@ tuple<shared_ptr<Trace>, shared_ptr<Env>> Build::run() noexcept {
   // Compare the final state of all artifacts to the actual filesystem
   _env->getRootDir()->checkFinalState(*this, "/");
 
-  return {_trace, _env};
+  return _env;
 }
 
 /************************ Observer Implementation ************************/
@@ -98,7 +98,7 @@ void Build::observeMismatch(shared_ptr<Command> c,
 }
 
 // Inform observers that a given command's IR action would detect a change in the build env
-void Build::observeCommandChange(shared_ptr<Command> c, const unique_ptr<Step>& s) const noexcept {
+void Build::observeCommandChange(shared_ptr<Command> c, const Step& s) const noexcept {
   for (const auto& o : _observers) o->commandChanged(c, s);
 }
 
@@ -114,9 +114,12 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
 
 void Build::emulateSpecialRef(shared_ptr<Command> c,
                               SpecialRef::Entity entity,
-                              shared_ptr<RefResult> output) noexcept {
+                              shared_ptr<RefResult> output,
+                              const SpecialRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<SpecialRef>(entity, output));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<SpecialRef>(entity, output));
+  }
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
@@ -157,9 +160,12 @@ void Build::emulateSpecialRef(shared_ptr<Command> c,
 // A command references a new anonymous pipe
 void Build::emulatePipeRef(shared_ptr<Command> c,
                            shared_ptr<RefResult> read_end,
-                           shared_ptr<RefResult> write_end) noexcept {
+                           shared_ptr<RefResult> write_end,
+                           const PipeRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<PipeRef>(read_end, write_end));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<PipeRef>(read_end, write_end));
+  }
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
@@ -170,9 +176,12 @@ void Build::emulatePipeRef(shared_ptr<Command> c,
 // A command references a new anonymous file
 void Build::emulateFileRef(shared_ptr<Command> c,
                            mode_t mode,
-                           shared_ptr<RefResult> output) noexcept {
+                           shared_ptr<RefResult> output,
+                           const FileRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<FileRef>(mode, output));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<FileRef>(mode, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->createFile(*this, c, mode, false));
@@ -181,9 +190,12 @@ void Build::emulateFileRef(shared_ptr<Command> c,
 // A command references a new anonymous symlink
 void Build::emulateSymlinkRef(shared_ptr<Command> c,
                               fs::path target,
-                              shared_ptr<RefResult> output) noexcept {
+                              shared_ptr<RefResult> output,
+                              const SymlinkRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<SymlinkRef>(target, output));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<SymlinkRef>(target, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getSymlink(*this, c, target, false));
@@ -192,9 +204,12 @@ void Build::emulateSymlinkRef(shared_ptr<Command> c,
 // A command references a new anonymous directory
 void Build::emulateDirRef(shared_ptr<Command> c,
                           mode_t mode,
-                          shared_ptr<RefResult> output) noexcept {
+                          shared_ptr<RefResult> output,
+                          const DirRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<DirRef>(mode, output));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<DirRef>(mode, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getDir(*this, c, mode, false));
@@ -205,9 +220,12 @@ void Build::emulatePathRef(shared_ptr<Command> c,
                            shared_ptr<RefResult> base,
                            fs::path path,
                            AccessFlags flags,
-                           shared_ptr<RefResult> output) noexcept {
+                           shared_ptr<RefResult> output,
+                           const PathRef& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<PathRef>(base, path, flags, output));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<PathRef>(base, path, flags, output));
+  }
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
@@ -219,27 +237,33 @@ void Build::emulatePathRef(shared_ptr<Command> c,
 // Command c expects a reference to resolve with a specific result
 void Build::emulateExpectResult(shared_ptr<Command> c,
                                 shared_ptr<RefResult> ref,
-                                int expected) noexcept {
+                                int expected,
+                                const ExpectResult& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<ExpectResult>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<ExpectResult>(ref, expected));
+  }
 
   // Does the resolved reference match the expected result?
   if (ref->getResult() != expected) {
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
   }
 }
 
 // Command c accesses an artifact's metadata
 void Build::emulateMatchMetadata(shared_ptr<Command> c,
                                  shared_ptr<RefResult> ref,
-                                 shared_ptr<MetadataVersion> expected) noexcept {
+                                 shared_ptr<MetadataVersion> expected,
+                                 const MatchMetadata& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<MatchMetadata>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<MatchMetadata>(ref, expected));
+  }
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
     // Report the change and return
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
     return;
   }
 
@@ -250,14 +274,17 @@ void Build::emulateMatchMetadata(shared_ptr<Command> c,
 // Command c accesses an artifact's content
 void Build::emulateMatchContent(shared_ptr<Command> c,
                                 shared_ptr<RefResult> ref,
-                                shared_ptr<Version> expected) noexcept {
+                                shared_ptr<Version> expected,
+                                const MatchContent& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<MatchContent>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<MatchContent>(ref, expected));
+  }
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
     // Report the change and return
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
     return;
   }
 
@@ -268,14 +295,17 @@ void Build::emulateMatchContent(shared_ptr<Command> c,
 // Command c modifies an artifact
 void Build::emulateUpdateMetadata(shared_ptr<Command> c,
                                   shared_ptr<RefResult> ref,
-                                  shared_ptr<MetadataVersion> written) noexcept {
+                                  shared_ptr<MetadataVersion> written,
+                                  const UpdateMetadata& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<UpdateMetadata>(ref, written));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<UpdateMetadata>(ref, written));
+  }
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
     // Record the change and return
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
     return;
   }
 
@@ -293,14 +323,17 @@ void Build::emulateUpdateMetadata(shared_ptr<Command> c,
 // Command c modifies an artifact
 void Build::emulateUpdateContent(shared_ptr<Command> c,
                                  shared_ptr<RefResult> ref,
-                                 shared_ptr<Version> written) noexcept {
+                                 shared_ptr<Version> written,
+                                 const UpdateContent& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<UpdateContent>(ref, written));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<UpdateContent>(ref, written));
+  }
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
     // Record the change and return
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
     return;
   }
 
@@ -319,12 +352,16 @@ void Build::emulateUpdateContent(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+void Build::emulateLaunch(shared_ptr<Command> c,
+                          shared_ptr<Command> child,
+                          const Launch& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<Launch>(child));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<Launch>(child));
 
-  // Add the child to the trace
-  _trace->addCommand(child);
+    // Add the child to the trace
+    _output_trace->addCommand(child);
+  }
 
   LOG(exec) << c << " launching " << child;
 
@@ -375,22 +412,27 @@ void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noex
 // This command joined with a child command
 void Build::emulateJoin(shared_ptr<Command> c,
                         shared_ptr<Command> child,
-                        int exit_status) noexcept {
+                        int exit_status,
+                        const Join& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  auto& step = _trace->addEmulatedStep(c, make_unique<Join>(child, exit_status));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<Join>(child, exit_status));
+  }
 
   // If the child command is running in the tracer, wait for it
   if (isRunning(child)) _tracer.wait(_running[child]);
 
   // Did the child command's exit status match the expected result?
   if (child->getExitStatus() != exit_status) {
-    observeCommandChange(c, step);
+    observeCommandChange(c, emulating);
   }
 }
 
-void Build::emulateExit(shared_ptr<Command> c, int exit_status) noexcept {
+void Build::emulateExit(shared_ptr<Command> c, int exit_status, const Exit& emulating) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addEmulatedStep(c, make_unique<Exit>(exit_status));
+  if (_output_trace) {
+    _output_trace->addEmulatedStep(c, make_unique<Exit>(exit_status));
+  }
 
   // Record that the command has exited
   _exited.insert(c);
@@ -409,7 +451,9 @@ tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
   auto write_end = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<PipeRef>(read_end, write_end));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<PipeRef>(read_end, write_end));
+  }
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
@@ -425,7 +469,9 @@ shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) no
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<FileRef>(mode, output));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<FileRef>(mode, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->createFile(*this, c, mode, true));
@@ -439,7 +485,9 @@ shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path tar
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<SymlinkRef>(target, output));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<SymlinkRef>(target, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getSymlink(*this, c, target, true));
@@ -453,7 +501,9 @@ shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noe
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<DirRef>(mode, output));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<DirRef>(mode, output));
+  }
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getDir(*this, c, mode, true));
@@ -470,7 +520,9 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<PathRef>(base, path, flags, output));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<PathRef>(base, path, flags, output));
+  }
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
@@ -486,7 +538,9 @@ void Build::traceExpectResult(shared_ptr<Command> c,
                               shared_ptr<RefResult> ref,
                               int expected) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<ExpectResult>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<ExpectResult>(ref, expected));
+  }
 }
 
 // Command c accesses an artifact's metadata
@@ -500,7 +554,9 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<MatchMetadata>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<MatchMetadata>(ref, expected));
+  }
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -528,7 +584,9 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
   if (_last_write == tuple{c, ref, expected}) return;
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<MatchContent>(ref, expected));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<MatchContent>(ref, expected));
+  }
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -552,7 +610,9 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref
   ASSERT(written) << "Unable to get written metadata version from " << artifact;
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<UpdateMetadata>(ref, written));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<UpdateMetadata>(ref, written));
+  }
 
   // The calling command created this version
   written->createdBy(c);
@@ -581,7 +641,9 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   ASSERT(written) << "Failed to get written version for " << artifact;
 
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<UpdateContent>(ref, written));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<UpdateContent>(ref, written));
+  }
 
   // This apply operation was traced, so the written version is committed
   written->setCommitted();
@@ -599,10 +661,12 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
 // This command launches a child command
 void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<Launch>(child));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<Launch>(child));
 
-  // Add the child command to the trace
-  _trace->addCommand(child);
+    // Add the child command to the trace
+    _output_trace->addCommand(child);
+  }
 
   // Inform observers of the launch
   observeLaunch(c, child);
@@ -639,7 +703,9 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
 // This command joined with a child command
 void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<Join>(child, exit_status));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<Join>(child, exit_status));
+  }
 
   // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
   child->setExitStatus(exit_status);
@@ -647,7 +713,9 @@ void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit
 
 void Build::traceExit(shared_ptr<Command> c, int exit_status) noexcept {
   // Create an IR step and add it to the output trace
-  _trace->addTracedStep(c, make_unique<Exit>(exit_status));
+  if (_output_trace) {
+    _output_trace->addTracedStep(c, make_unique<Exit>(exit_status));
+  }
 
   // Record that the command has exited
   _exited.insert(c);
