@@ -55,6 +55,14 @@ RUN mkdir -p benchmark \
     && cd calc \
     && git checkout 2.12.7.2
 
+# import local patches
+ADD benchmarks/calc/Werror.patch /benchmark/calc
+
+# apply local patches
+RUN cd /benchmark/calc \
+    && git apply Werror.patch
+
+# add benchmarking script
 ADD benchmarks/calc/run.sh /benchmark/
 
 # Go back to default apt frontend
