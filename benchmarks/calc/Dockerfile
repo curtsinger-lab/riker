@@ -45,7 +45,7 @@ RUN cd dodo \
 
 # install calc dependencies
 RUN apt-get update \
-    && apt-get -y install libreadline-dev groff-base
+    && apt-get -y install libreadline-dev groff-base bsdmainutils
 
 # download and install the latest tagged release of calc (2.12.7.2)
 # and patch Makefile so that clang does not die on warnings
