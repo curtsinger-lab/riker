@@ -36,9 +36,9 @@ class Build {
   /**
    * Create a build runner
    */
-  Build(shared_ptr<Trace> input_trace,
+  Build(InputTrace& input_trace,
         RebuildPlan plan = RebuildPlan(),
-        shared_ptr<Trace> output_trace = nullptr,
+        OutputTrace* output_trace = nullptr,
         shared_ptr<Env> env = make_shared<Env>()) noexcept :
       _input_trace(input_trace),
       _output_trace(output_trace),
@@ -238,10 +238,10 @@ class Build {
 
  private:
   /// The trace this build is emulating or re-running
-  shared_ptr<Trace> _input_trace;
+  InputTrace& _input_trace;
 
   /// The trace of steps performed by this build
-  shared_ptr<Trace> _output_trace;
+  OutputTrace* _output_trace;
 
   /// The rebuild plan
   RebuildPlan _plan;

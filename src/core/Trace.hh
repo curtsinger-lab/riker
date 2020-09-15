@@ -1,71 +1,46 @@
 #pragma once
 
+#include <filesystem>
+#include <fstream>
 #include <list>
 #include <memory>
 #include <ostream>
-#include <set>
+#include <string>
 #include <tuple>
 
-#include "core/IR.hh"
-#include "util/log.hh"
-#include "util/serializer.hh"
+#include <cereal/archives/binary.hpp>
 
+using std::ifstream;
 using std::list;
+using std::ofstream;
 using std::ostream;
-using std::set;
 using std::shared_ptr;
+using std::string;
 using std::tuple;
 using std::unique_ptr;
 
-class Build;
 class Command;
-class Env;
 class Step;
 
 /**
- * A Trace instance captures a full trace of a build execution, and tracks each command that runs as
- * part of that build.
+ * An input trace is a build trace loaded from disk
  */
-class Trace {
- private:
-  // Private copy constructor allowed. Does not copy the commands or step list
-  Trace(const Trace& other) noexcept {}
-
-  // No need for copy assignment
-  Trace& operator=(const Trace&) = delete;
-
+class InputTrace {
  public:
   using StepList = list<tuple<shared_ptr<Command>, unique_ptr<Step>>>;
 
-  /// Create an empty trace
-  Trace() noexcept = default;
+  /**
+   * Load a trace from a given path. If the trace does not load, fall back to a default trace.
+   */
+  InputTrace(string filename) noexcept;
 
-  /// Initialize a default trace
-  static shared_ptr<Trace> getDefault() noexcept;
+  // Disallow copy
+  InputTrace(const InputTrace&) = delete;
+  InputTrace& operator=(const InputTrace&) = delete;
 
   // Allow move
-  Trace(Trace&&) noexcept = default;
-  Trace& operator=(Trace&&) noexcept = default;
-
-  /// Add a command to the trace
-  void addCommand(shared_ptr<Command> c) noexcept { _commands.insert(c); }
-
-  /// Get the set of commands in this trace
-  const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
-
-  /// Add a step to the trace
-  const unique_ptr<Step>& addEmulatedStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept {
-    LOG(ir) << c << ": emulated " << s;
-    auto& inserted = _steps.emplace_back(c, std::move(s));
-    return std::get<1>(inserted);
-  }
-
-  /// Add a step to the trace
-  const unique_ptr<Step>& addTracedStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept {
-    LOG(ir) << c << ": traced " << s;
-    auto& inserted = _steps.emplace_back(c, std::move(s));
-    return std::get<1>(inserted);
-  }
+  InputTrace(InputTrace&&) = default;
+  InputTrace& operator=(InputTrace&&) = default;
 
   /// Get the list of steps in this trace
   const StepList& getSteps() const noexcept { return _steps; }
@@ -73,20 +48,38 @@ class Trace {
   /// Print this trace
   ostream& print(ostream& o) const noexcept;
 
-  friend ostream& operator<<(ostream& o, const Trace& t) noexcept { return t.print(o); }
-
-  friend ostream& operator<<(ostream& o, const Trace* t) noexcept {
-    if (t == nullptr) return o << "<null Trace>";
-    return t->print(o);
-  }
+  friend ostream& operator<<(ostream& o, const InputTrace& t) noexcept { return t.print(o); }
 
  private:
-  /// A set of all the commands that appear in this trace
-  set<shared_ptr<Command>> _commands;
+  /// Initialize the list of steps to a default trace
+  void initDefault() noexcept;
 
   /// A sequence of tuples containing a command and a step performed by that command
   StepList _steps;
+};
 
-  // Declare fields for serialization
-  SERIALIZE(_commands, _steps);
+/**
+ * An output trace is used to write a trace to disk
+ */
+class OutputTrace {
+ public:
+  /// Create a trace at the given path
+  OutputTrace(string filename) noexcept;
+
+  /// Finalize an output trace
+  ~OutputTrace() noexcept;
+
+  // Disallow copy
+  OutputTrace(const OutputTrace&) = delete;
+  OutputTrace& operator=(const OutputTrace&) = delete;
+
+  /// Add a step to this trace
+  void addStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept;
+
+ private:
+  ofstream _output;
+  cereal::BinaryOutputArchive _archive;
+
+  using StepList = list<tuple<shared_ptr<Command>, unique_ptr<Step>>>;
+  StepList _steps;
 };

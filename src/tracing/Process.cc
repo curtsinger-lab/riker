@@ -63,7 +63,7 @@ FileDescriptor& Process::addFD(int fd,
 void Process::closeFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter == _fds.end()) {
-    WARN << "Closing an unknown file descriptor " << fd << " in " << this;
+    LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
     _fds.erase(iter);
   }

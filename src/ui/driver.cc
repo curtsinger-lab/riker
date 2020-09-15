@@ -12,11 +12,11 @@
 #include <CLI/CLI.hpp>
 
 #include "build/Build.hh"
+#include "core/Trace.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
-#include "util/serializer.hh"
 
 using std::cout;
 using std::endl;
@@ -36,8 +36,11 @@ const fs::path DatabaseFilename = ".dodo/db";
 
 /// Run the `build` subcommand.
 void do_build() noexcept {
+  // Make sure the output directory exists
+  fs::create_directories(OutputDir);
+
   // Load a trace, or set up a default build if necessary
-  auto trace = load_trace(DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -46,17 +49,15 @@ void do_build() noexcept {
   Build(trace).addObserver(rebuild).run();
 
   // Now run the trace again with the planned rebuild steps
-  auto output_trace = make_shared<Trace>();
+  auto output_trace = new OutputTrace(".dodo/newdb");
   auto final_env = Build(trace, rebuild->planBuild(), output_trace).run();
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
 
-  // Make sure the output directory exists
-  fs::create_directories(OutputDir);
+  delete output_trace;
 
-  // Serialize the build trace
-  save_trace(DatabaseFilename, output_trace);
+  fs::rename(".dodo/newdb", ".dodo/db");
 }
 
 /**
@@ -64,7 +65,7 @@ void do_build() noexcept {
  */
 void do_check() noexcept {
   // Load a build, or set up a default build if necessary
-  auto trace = load_trace(DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto rebuild = make_shared<RebuildPlanner>();
@@ -100,7 +101,7 @@ void do_check() noexcept {
  */
 void do_trace(string output) noexcept {
   // Load the build trace
-  auto trace = load_trace(DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Print it
   if (output == "-") {
@@ -128,7 +129,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  auto trace = load_trace(DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Create the Graph observer and attach it to the build
   auto graph = make_shared<Graph>(show_all);
@@ -165,7 +166,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
  */
 void do_stats(bool list_artifacts) noexcept {
   // Load the serialized build trace
-  auto trace = load_trace(DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Emulate the trace
   auto final_env = Build(trace).run();
@@ -178,8 +179,8 @@ void do_stats(bool list_artifacts) noexcept {
 
   // Print statistics
   cout << "Build Statistics:" << endl;
-  cout << "  Commands: " << trace->getCommands().size() << endl;
-  cout << "  Steps: " << trace->getSteps().size() << endl;
+  cout << "  Commands: " << 0 << endl;
+  cout << "  Steps: " << trace.getSteps().size() << endl;
   cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
   cout << "  Artifact Versions: " << version_count << endl;
 
