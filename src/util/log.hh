@@ -138,43 +138,46 @@ class logger {
   }
 
   /// Decodes the given flag and appends it to the given std:string.
-  static void fcntl_decode(int flags, std::string s) {
+  static std::unique_ptr<std::string> fcntl_decode(int flags) {
+    auto s = std::make_unique<std::string>();
     bool noflag = true;
 
     // decode O_RDONLY, O_WRONLY, O_RDWR
     if ((flags & O_WRONLY) == O_WRONLY) {
-      s.append("0_WRONLY");
+      s->append("0_WRONLY");
       noflag = false;
     } else if ((flags & O_RDWR) == O_RDWR) {
-      s.append("O_RDWR");
+      s->append("O_RDWR");
       noflag = false;
     } else {
-      s.append("O_RDONLY");
+      s->append("O_RDONLY");
       noflag = false;
     }
 
     // pretty printer
-    auto dec = [](std::string s, int flags, int flag, const char* fstr, bool noflag) {
+    auto dec = [](std::string* s, int flags, int flag, const char* fstr, bool noflag) {
       if ((flags & flag) == flag) {
-        if (!noflag) s.append("|");
-        s.append(fstr);
+        if (!noflag) s->append("|");
+        s->append(fstr);
         return false;
       }
       return noflag;
     };
 
     // decode the rest
-    noflag = dec(s, flags, O_CREAT, "O_CREAT", noflag);
-    noflag = dec(s, flags, O_EXCL, "O_EXCL", noflag);
-    noflag = dec(s, flags, O_NOCTTY, "O_NOCTTY", noflag);
-    noflag = dec(s, flags, O_TRUNC, "O_TRUNC", noflag);
-    noflag = dec(s, flags, O_DIRECTORY, "O_DIRECTORY", noflag);
-    noflag = dec(s, flags, O_NOFOLLOW, "O_NOFOLLOW", noflag);
-    noflag = dec(s, flags, O_CLOEXEC, "O_CLOEXEC", noflag);
-    noflag = dec(s, flags, O_TMPFILE, "O_TMPFILE", noflag);
+    noflag = dec(s.get(), flags, O_CREAT, "O_CREAT", noflag);
+    noflag = dec(s.get(), flags, O_EXCL, "O_EXCL", noflag);
+    noflag = dec(s.get(), flags, O_NOCTTY, "O_NOCTTY", noflag);
+    noflag = dec(s.get(), flags, O_TRUNC, "O_TRUNC", noflag);
+    noflag = dec(s.get(), flags, O_DIRECTORY, "O_DIRECTORY", noflag);
+    noflag = dec(s.get(), flags, O_NOFOLLOW, "O_NOFOLLOW", noflag);
+    noflag = dec(s.get(), flags, O_CLOEXEC, "O_CLOEXEC", noflag);
+    noflag = dec(s.get(), flags, O_TMPFILE, "O_TMPFILE", noflag);
 
     // append flags in octal
-    s.append(fmt::format(" ({o})", flags));
+    s->append(fmt::format(" ({:o})", flags));
+
+    return s;
   }
 };
 
