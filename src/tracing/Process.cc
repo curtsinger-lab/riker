@@ -278,7 +278,9 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 /************************* File Opening, Creation, and Closing ************************/
 
 void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
-  LOGF(trace, "{}: openat({}, \"{}\", {}, {:o})", this, dfd, filename, flags, mode);
+  std::string sflags("");
+  logger::fcntl_decode(flags, sflags);
+  LOGF(trace, "{}: openat({}, \"{}\", {}, {:o})", this, dfd, filename, sflags, mode);
 
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
