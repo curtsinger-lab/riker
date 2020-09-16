@@ -19,7 +19,9 @@ using std::string;
 using std::tuple;
 using std::unique_ptr;
 
+class Build;
 class Command;
+class Env;
 class Step;
 
 /**
@@ -42,8 +44,8 @@ class InputTrace {
   InputTrace(InputTrace&&) = default;
   InputTrace& operator=(InputTrace&&) = default;
 
-  /// Get the list of steps in this trace
-  const StepList& getSteps() const noexcept { return _steps; }
+  /// Run this trace
+  shared_ptr<Env> run(Build& build) noexcept;
 
   /// Print this trace
   ostream& print(ostream& o) const noexcept;

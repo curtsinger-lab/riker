@@ -23,6 +23,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "build/Build.hh"
 #include "build/Env.hh"
 #include "core/AccessFlags.hh"
 #include "core/Command.hh"
@@ -219,6 +220,14 @@ ostream& InputTrace::print(ostream& o) const noexcept {
     }
   }
   return o;
+}
+
+// Run this trace
+shared_ptr<Env> InputTrace::run(Build& build) noexcept {
+  for (auto& [command, step] : _steps) {
+    build.runStep(command, *step);
+  }
+  return build.finish();
 }
 
 OutputTrace::OutputTrace(string filename) noexcept :

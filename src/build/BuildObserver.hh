@@ -45,7 +45,7 @@ class BuildObserver {
   virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c, const Step& s) noexcept {}
+  virtual void commandChanged(shared_ptr<Command> c) noexcept {}
 
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}

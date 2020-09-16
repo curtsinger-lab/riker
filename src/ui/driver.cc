@@ -46,11 +46,14 @@ void do_build() noexcept {
   auto rebuild = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  Build(trace).addObserver(rebuild).run();
+  Build phase1;
+  phase1.addObserver(rebuild);
+  trace.run(phase1);
 
   // Now run the trace again with the planned rebuild steps
   auto output_trace = new OutputTrace(".dodo/newdb");
-  auto final_env = Build(trace, rebuild->planBuild(), output_trace).run();
+  Build phase2(rebuild->planBuild(), output_trace);
+  auto final_env = trace.run(phase2);
 
   // Commit the final state of the build to the filesystem and take fingerprints
   final_env->commitFinalState();
@@ -71,7 +74,10 @@ void do_check() noexcept {
   auto rebuild = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  Build(trace).addObserver(rebuild).run();
+  Build phase1;
+  phase1.addObserver(rebuild);
+
+  trace.run(phase1);
 
   // Print commands whose inputs have changed
   if (rebuild->getChanged().size() > 0) {
@@ -135,7 +141,9 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   auto graph = make_shared<Graph>(show_all);
 
   // Set up a build to emulate the trace
-  Build(trace).addObserver(graph).run();
+  Build phase1;
+  phase1.addObserver(graph);
+  trace.run(phase1);
 
   if (no_render) {
     ofstream f(output);
@@ -169,7 +177,8 @@ void do_stats(bool list_artifacts) noexcept {
   InputTrace trace(DatabaseFilename);
 
   // Emulate the trace
-  auto final_env = Build(trace).run();
+  Build runner;
+  auto final_env = trace.run(runner);
 
   // Count the number of versions of artifacts
   size_t version_count = 0;
@@ -180,7 +189,7 @@ void do_stats(bool list_artifacts) noexcept {
   // Print statistics
   cout << "Build Statistics:" << endl;
   cout << "  Commands: " << 0 << endl;
-  cout << "  Steps: " << trace.getSteps().size() << endl;
+  cout << "  Steps: " << 0 << endl;
   cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
   cout << "  Artifact Versions: " << version_count << endl;
 
