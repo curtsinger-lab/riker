@@ -44,6 +44,24 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+enum class RecordType : uint8_t {
+  SpecialRef,
+  PipeRef,
+  FileRef,
+  SymlinkRef,
+  DirRef,
+  PathRef,
+  ExpectResult,
+  MatchMetadata,
+  MatchContent,
+  UpdateMetadata,
+  UpdateContent,
+  Launch,
+  Join,
+  Exit,
+  End
+};
+
 InputTrace::InputTrace(string filename) noexcept {
   try {
     // Open the file for reading. Must pass std::ios::binary!
@@ -53,25 +71,103 @@ InputTrace::InputTrace(string filename) noexcept {
     cereal::BinaryInputArchive archive(f);
 
     // Loop until we hit the end of the trace
-    bool at_end = false;
-    while (!at_end) {
-      // Load a command and step from the trace archive
-      shared_ptr<Command> command;
-      unique_ptr<Step> step;
-      archive(command, step);
-
-      // If the command and step are both nullptr, that indicates the end of the trace
-      if (command == nullptr && step == nullptr) {
-        at_end = true;
-      } else {
-        // If we receieved a non-null step, add it to the trace list
-        _steps.emplace_back(command, std::move(step));
-      }
+    while (true) {
+      auto more = readRecord(archive);
+      if (!more) break;
     }
   } catch (cereal::Exception& e) {
     // If loading failed, initialize a default trace
     initDefault();
   }
+}
+
+bool InputTrace::readRecord(cereal::BinaryInputArchive& archive) {
+  // Load the tag for the next record
+  RecordType tag;
+  archive(tag);
+
+  shared_ptr<Command> command;
+
+  // What kind of record is this?
+  if (tag == RecordType::SpecialRef) {
+    auto step = make_unique<SpecialRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::PipeRef) {
+    auto step = make_unique<PipeRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::FileRef) {
+    auto step = make_unique<FileRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::SymlinkRef) {
+    auto step = make_unique<SymlinkRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::DirRef) {
+    auto step = make_unique<DirRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::PathRef) {
+    auto step = make_unique<PathRef>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::ExpectResult) {
+    auto step = make_unique<ExpectResult>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::MatchMetadata) {
+    auto step = make_unique<MatchMetadata>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::MatchContent) {
+    auto step = make_unique<MatchContent>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::UpdateMetadata) {
+    auto step = make_unique<UpdateMetadata>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::UpdateContent) {
+    auto step = make_unique<UpdateContent>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::Launch) {
+    auto step = make_unique<Launch>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::Join) {
+    auto step = make_unique<Join>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::Exit) {
+    auto step = make_unique<Exit>();
+    archive(command, *step);
+    _steps.emplace_back(command, std::move(step));
+
+  } else if (tag == RecordType::End) {
+    // There are no more records to read
+    return false;
+
+  } else {
+    FAIL << "Unknown record type";
+  }
+
+  return true;
 }
 
 void InputTrace::initDefault() noexcept {
@@ -131,14 +227,61 @@ OutputTrace::OutputTrace(string filename) noexcept :
 OutputTrace::~OutputTrace() noexcept {
   // Write out the list of steps
   for (auto& [c, s] : _steps) {
-    _archive(c, s);
+    writeRecord(c, s.get());
   }
 
-  // Write the null marker at the end of the trace
-  shared_ptr<Command> c = nullptr;
-  unique_ptr<Step> s = nullptr;
-  _archive(c, s);
+  // Mark the end of the trace
+  _archive(RecordType::End);
 }
+
+void OutputTrace::writeRecord(shared_ptr<Command> command, Step* step) noexcept {
+  if (auto v = dynamic_cast<SpecialRef*>(step)) {
+    _archive(RecordType::SpecialRef, command, *v);
+
+  } else if (auto v = dynamic_cast<PipeRef*>(step)) {
+    _archive(RecordType::PipeRef, command, *v);
+
+  } else if (auto v = dynamic_cast<FileRef*>(step)) {
+    _archive(RecordType::FileRef, command, *v);
+
+  } else if (auto v = dynamic_cast<SymlinkRef*>(step)) {
+    _archive(RecordType::SymlinkRef, command, *v);
+
+  } else if (auto v = dynamic_cast<DirRef*>(step)) {
+    _archive(RecordType::DirRef, command, *v);
+
+  } else if (auto v = dynamic_cast<PathRef*>(step)) {
+    _archive(RecordType::PathRef, command, *v);
+
+  } else if (auto v = dynamic_cast<ExpectResult*>(step)) {
+    _archive(RecordType::ExpectResult, command, *v);
+
+  } else if (auto v = dynamic_cast<MatchMetadata*>(step)) {
+    _archive(RecordType::MatchMetadata, command, *v);
+
+  } else if (auto v = dynamic_cast<MatchContent*>(step)) {
+    _archive(RecordType::MatchContent, command, *v);
+
+  } else if (auto v = dynamic_cast<UpdateMetadata*>(step)) {
+    _archive(RecordType::UpdateMetadata, command, *v);
+
+  } else if (auto v = dynamic_cast<UpdateContent*>(step)) {
+    _archive(RecordType::UpdateContent, command, *v);
+
+  } else if (auto v = dynamic_cast<Launch*>(step)) {
+    _archive(RecordType::Launch, command, *v);
+
+  } else if (auto v = dynamic_cast<Join*>(step)) {
+    _archive(RecordType::Join, command, *v);
+
+  } else if (auto v = dynamic_cast<Exit*>(step)) {
+    _archive(RecordType::Exit, command, *v);
+
+  } else {
+    FAIL << "Unknown IR step type";
+  }
+}
+
 void OutputTrace::addStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept {
   _steps.emplace_back(c, std::move(s));
 }
@@ -166,8 +309,6 @@ namespace std {
   }
 }
 
-enum Foo { Bar = 1, Baz = 2, Flib = 2 };
-
 /** Register types and polymorphic relationships **/
 
 // Versions
@@ -180,19 +321,3 @@ CEREAL_REGISTER_TYPE(AddEntry);
 CEREAL_REGISTER_TYPE(RemoveEntry);
 CEREAL_REGISTER_TYPE(CreatedDir);
 CEREAL_REGISTER_TYPE(ListedDir);
-
-// IR Steps
-CEREAL_REGISTER_TYPE(SpecialRef);
-CEREAL_REGISTER_TYPE(PipeRef);
-CEREAL_REGISTER_TYPE(FileRef);
-CEREAL_REGISTER_TYPE(SymlinkRef);
-CEREAL_REGISTER_TYPE(DirRef);
-CEREAL_REGISTER_TYPE(PathRef);
-CEREAL_REGISTER_TYPE(ExpectResult);
-CEREAL_REGISTER_TYPE(MatchMetadata);
-CEREAL_REGISTER_TYPE(MatchContent);
-CEREAL_REGISTER_TYPE(UpdateMetadata);
-CEREAL_REGISTER_TYPE(UpdateContent);
-CEREAL_REGISTER_TYPE(Launch);
-CEREAL_REGISTER_TYPE(Join);
-CEREAL_REGISTER_TYPE(Exit);

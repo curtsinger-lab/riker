@@ -66,9 +66,6 @@ class Step {
     if (s == nullptr) return o << "<null Step>";
     return s->print(o);
   }
-
- private:
-  SERIALIZE_EMPTY();
 };
 
 /***
@@ -134,6 +131,9 @@ class SpecialRef final : public Step {
  public:
   enum Entity { stdin, stdout, stderr, root, cwd, launch_exe };
 
+  /// Default constructor for serialization
+  SpecialRef() noexcept = default;
+
   /// Create a new special reference
   SpecialRef(Entity entity, shared_ptr<RefResult> output) noexcept :
       _entity(entity), _output(output) {}
@@ -167,14 +167,16 @@ class SpecialRef final : public Step {
   /// The artifact or error code produced by resolving this reference is stored in this RefResult
   shared_ptr<RefResult> _output;
 
-  // Create a default constructor and declare fields for serialization
-  SpecialRef() noexcept = default;
-  SERIALIZE(BASE(Step), _entity, _output);
+  // Declare fields for serialization
+  SERIALIZE(_entity, _output);
 };
 
 /// Create a reference to a new anonymous pipe
 class PipeRef final : public Step {
  public:
+  /// Default constructor for serialization
+  PipeRef() noexcept = default;
+
   /// Create a reference to an anonymous pipe
   PipeRef(shared_ptr<RefResult> read_end, shared_ptr<RefResult> write_end) noexcept :
       _read_end(read_end), _write_end(write_end) {}
@@ -191,14 +193,16 @@ class PipeRef final : public Step {
   shared_ptr<RefResult> _read_end;   //< A reference to the read end of the pipe
   shared_ptr<RefResult> _write_end;  //< A reference to the write end of the pipe
 
-  // Create a default constructor and declare fields for serialization
-  PipeRef() noexcept = default;
-  SERIALIZE(BASE(Step), _read_end, _write_end);
+  // Ddeclare fields for serialization
+  SERIALIZE(_read_end, _write_end);
 };
 
 /// Create a reference to a new anonymous file
 class FileRef final : public Step {
  public:
+  /// Default constructor for serialization
+  FileRef() noexcept = default;
+
   /// Create a reference to an anonymous file
   FileRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
 
@@ -217,14 +221,16 @@ class FileRef final : public Step {
   /// The artifact or error code produced by resolving this reference is stored in this RefResult
   shared_ptr<RefResult> _output;
 
-  // Create a default constructor and declare fields for serialization
-  FileRef() = default;
-  SERIALIZE(BASE(Step), _mode, _output);
+  // Declare fields for serialization
+  SERIALIZE(_mode, _output);
 };
 
 /// Create a reference to a new anonymous symlink
 class SymlinkRef final : public Step {
  public:
+  /// Default constructor for serialization
+  SymlinkRef() noexcept = default;
+
   // Create a reference to an anonymous symlink
   SymlinkRef(fs::path target, shared_ptr<RefResult> output) noexcept :
       _target(target), _output(output) {}
@@ -244,14 +250,16 @@ class SymlinkRef final : public Step {
   /// The artifact or error code produced by resolving this reference is stored in this RefResult
   shared_ptr<RefResult> _output;
 
-  // Create a default constructor and specify fields for serialization
-  SymlinkRef() = default;
-  SERIALIZE(BASE(Step), _target, _output);
+  // Specify fields for serialization
+  SERIALIZE(_target, _output);
 };
 
 /// Create a reference to a new anonymous directory
 class DirRef final : public Step {
  public:
+  /// Default constructor for serialization
+  DirRef() noexcept = default;
+
   /// Create a reference to an anonymous directory
   DirRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
 
@@ -270,14 +278,16 @@ class DirRef final : public Step {
   /// The artifact or error code produced by resolving this reference is stored in this RefResult
   shared_ptr<RefResult> _output;
 
-  // Create a default constructor and specify fields for serialization
-  DirRef() = default;
-  SERIALIZE(BASE(Step), _mode, _output);
+  // Specify fields for serialization
+  SERIALIZE(_mode, _output);
 };
 
 /// Make a reference to a filesystem path
 class PathRef final : public Step {
  public:
+  /// Default constructor for serialization
+  PathRef() noexcept = default;
+
   /// Create a reference to a filesystem path
   PathRef(shared_ptr<RefResult> base,
           fs::path path,
@@ -315,9 +325,8 @@ class PathRef final : public Step {
   /// The artifact or error code produced by resolving this reference is stored in this RefResult
   shared_ptr<RefResult> _output;
 
-  // Create default constructor and specify fields for serialization
-  PathRef() = default;
-  SERIALIZE(BASE(Step), _base, _path, _flags, _output);
+  // Specify fields for serialization
+  SERIALIZE(_base, _path, _flags, _output);
 };
 
 /**
@@ -325,6 +334,9 @@ class PathRef final : public Step {
  */
 class ExpectResult final : public Step {
  public:
+  /// Default constructor for serialization
+  ExpectResult() noexcept = default;
+
   /// Create an ExpectResult IR step
   ExpectResult(shared_ptr<RefResult> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
 
@@ -343,9 +355,8 @@ class ExpectResult final : public Step {
   /// The expected outcome of the reference resolution
   int _expected;
 
-  // Create default constructor and specify fields for serialization
-  ExpectResult() noexcept = default;
-  SERIALIZE(BASE(Step), _ref, _expected);
+  // Specify fields for serialization
+  SERIALIZE(_ref, _expected);
 };
 
 /**
@@ -353,6 +364,9 @@ class ExpectResult final : public Step {
  */
 class MatchMetadata final : public Step {
  public:
+  /// Default constructor for serialization
+  MatchMetadata() noexcept = default;
+
   /// Create a MatchMetadata IR step
   MatchMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
@@ -369,9 +383,8 @@ class MatchMetadata final : public Step {
   shared_ptr<RefResult> _ref;            //< A resolved reference to the artifact being accessed
   shared_ptr<MetadataVersion> _version;  //< The expected metadata
 
-  // Create default constructor and specify fields for serialization
-  MatchMetadata() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
+  // Specify fields for serialization
+  SERIALIZE(_ref, _version);
 };
 
 /**
@@ -379,6 +392,9 @@ class MatchMetadata final : public Step {
  */
 class MatchContent final : public Step {
  public:
+  /// Default constructor for serialization
+  MatchContent() noexcept = default;
+
   /// Create a MatchContent IR step
   MatchContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
@@ -395,9 +411,8 @@ class MatchContent final : public Step {
   shared_ptr<RefResult> _ref;    //< A resolved reference to the artifact being accessed
   shared_ptr<Version> _version;  //< The expected content
 
-  // Create default constructor and specify fields for serialization
-  MatchContent() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
+  // Specify fields for serialization
+  SERIALIZE(_ref, _version);
 };
 
 /**
@@ -405,6 +420,9 @@ class MatchContent final : public Step {
  */
 class UpdateMetadata final : public Step {
  public:
+  /// Default constructor for serialization
+  UpdateMetadata() noexcept = default;
+
   /// Create an UpdateMetadata IR step
   UpdateMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
@@ -421,9 +439,8 @@ class UpdateMetadata final : public Step {
   shared_ptr<RefResult> _ref;            //< A resolved reference to the artifact being written
   shared_ptr<MetadataVersion> _version;  //< The version written to the referenced artifact
 
-  // Create default constructor and specify fields for serialization
-  UpdateMetadata() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
+  // Specify fields for serialization
+  SERIALIZE(_ref, _version);
 };
 
 /**
@@ -431,6 +448,9 @@ class UpdateMetadata final : public Step {
  */
 class UpdateContent final : public Step {
  public:
+  /// Default constructor for serialization
+  UpdateContent() noexcept = default;
+
   /// Create an UpdateContent IR step
   UpdateContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
@@ -447,9 +467,8 @@ class UpdateContent final : public Step {
   shared_ptr<RefResult> _ref;    //< A resolved reference to the artifact being written
   shared_ptr<Version> _version;  //< The version written to the referenced artifact
 
-  // Create default constructor and specify fields for serialization
-  UpdateContent() = default;
-  SERIALIZE(BASE(Step), _ref, _version);
+  // Specify fields for serialization
+  SERIALIZE(_ref, _version);
 };
 
 /**
@@ -458,6 +477,9 @@ class UpdateContent final : public Step {
  */
 class Launch final : public Step {
  public:
+  /// Default constructor for serialization
+  Launch() noexcept = default;
+
   /// Create a Launch IR step
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
 
@@ -472,9 +494,8 @@ class Launch final : public Step {
  private:
   shared_ptr<Command> _cmd;  //< The command that is being launched
 
-  // Create default constructor and specify fields for serialization
-  Launch() = default;
-  SERIALIZE(BASE(Step), _cmd);
+  // Specify fields for serialization
+  SERIALIZE(_cmd);
 };
 
 /**
@@ -483,6 +504,9 @@ class Launch final : public Step {
  */
 class Join final : public Step {
  public:
+  /// Default constructor for serialization
+  Join() noexcept = default;
+
   /// Create a Join IR step
   Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
@@ -498,13 +522,15 @@ class Join final : public Step {
   shared_ptr<Command> _cmd;  //< The command that was joined with
   int _exit_status;          //< The exit status of the child
 
-  // Create default constructor and specify fields for serialization
-  Join() = default;
-  SERIALIZE(BASE(Step), _cmd, _exit_status);
+  // Specify fields for serialization
+  SERIALIZE(_cmd, _exit_status);
 };
 
 class Exit final : public Step {
  public:
+  /// Default constructor for serialization
+  Exit() noexcept = default;
+
   /// Create an Exit IR step
   Exit(int exit_status) noexcept : _exit_status(exit_status) {}
 
@@ -519,7 +545,6 @@ class Exit final : public Step {
  private:
   int _exit_status;
 
-  // Create default constructor and specify fields for serialization
-  Exit() = default;
-  SERIALIZE(BASE(Step), _exit_status);
+  // Specify fields for serialization
+  SERIALIZE(_exit_status);
 };

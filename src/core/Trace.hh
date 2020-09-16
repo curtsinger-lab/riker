@@ -54,6 +54,9 @@ class InputTrace {
   /// Initialize the list of steps to a default trace
   void initDefault() noexcept;
 
+  /// Read a record from the trace
+  bool readRecord(cereal::BinaryInputArchive& archive);
+
   /// A sequence of tuples containing a command and a step performed by that command
   StepList _steps;
 };
@@ -77,6 +80,8 @@ class OutputTrace {
   void addStep(shared_ptr<Command> c, unique_ptr<Step>&& s) noexcept;
 
  private:
+  void writeRecord(shared_ptr<Command> command, Step* step) noexcept;
+
   ofstream _output;
   cereal::BinaryOutputArchive _archive;
 
