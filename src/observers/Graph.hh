@@ -189,8 +189,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c observes a change when executing an IR step
-  virtual void commandChanged(shared_ptr<Command> c,
-                              const unique_ptr<Step>& s) noexcept override final {
+  virtual void commandChanged(shared_ptr<Command> c, const Step& s) noexcept override final {
     _changed_commands.insert(c);
   }
 

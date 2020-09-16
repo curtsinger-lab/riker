@@ -7,14 +7,6 @@
 using std::shared_ptr;
 using std::string;
 
-class Trace;
-
-/// Load a build trace, or return a default trace if there is no existing trace
-shared_ptr<Trace> load_trace(string filename) noexcept;
-
-/// Save a build trace to a file
-void save_trace(string filename, shared_ptr<Trace> trace) noexcept;
-
 namespace cereal {
   class access;
 }

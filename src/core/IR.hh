@@ -47,7 +47,7 @@ class Version;
  * - Predicate: a statement about a reference that was true on the example build
  * - Action: a modification to system state performed by the command
  */
-class Step : public std::enable_shared_from_this<Step> {
+class Step {
  public:
   /// Use a default virtual destructor
   virtual ~Step() noexcept = default;
@@ -55,20 +55,11 @@ class Step : public std::enable_shared_from_this<Step> {
   /// Emulate this step in the context of a given build
   virtual void emulate(shared_ptr<Command> c, Build& build) noexcept = 0;
 
-  /// Try to cast this IR step to an instance of a specific IR step type.
-  template <class T>
-  shared_ptr<T> as() noexcept {
-    return std::dynamic_pointer_cast<T>(shared_from_this());
-  }
-
-  /// Const equivalent
-  template <class T>
-  shared_ptr<const T> as() const noexcept {
-    return std::dynamic_pointer_cast<const T>(shared_from_this());
-  }
-
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const noexcept = 0;
+
+  /// Stream print wrapper for Step references
+  friend ostream& operator<<(ostream& o, const Step& s) noexcept { return s.print(o); }
 
   /// Stream print wrapper for Step pointers
   friend ostream& operator<<(ostream& o, const Step* s) noexcept {
