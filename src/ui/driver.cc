@@ -52,13 +52,8 @@ void do_build() noexcept {
 
   // Now run the trace again with the planned rebuild steps
   auto output_trace = new OutputTrace(".dodo/newdb");
-  Build phase2(rebuild->planBuild(), output_trace);
-  auto final_env = trace.run(phase2);
-
-  // Commit the final state of the build to the filesystem and take fingerprints
-  final_env->commitFinalState();
-
-  delete output_trace;
+  Build phase2(true, rebuild->planBuild(), output_trace);
+  trace.run(phase2);
 
   fs::rename(".dodo/newdb", ".dodo/db");
 }
@@ -177,8 +172,9 @@ void do_stats(bool list_artifacts) noexcept {
   InputTrace trace(DatabaseFilename);
 
   // Emulate the trace
-  Build runner;
-  auto final_env = trace.run(runner);
+  Build build;
+  trace.run(build);
+  auto final_env = build.getEnvironment();
 
   // Count the number of versions of artifacts
   size_t version_count = 0;

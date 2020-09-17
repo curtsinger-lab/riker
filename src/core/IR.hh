@@ -52,9 +52,6 @@ class Step {
   /// Use a default virtual destructor
   virtual ~Step() noexcept = default;
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept = 0;
-
   /// Print this Step to an output stream
   virtual ostream& print(ostream& o) const noexcept = 0;
 
@@ -152,9 +149,6 @@ class SpecialRef final : public Step {
     return "UNKNOWN";
   }
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a SpecialRef step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << _output << " = " << getEntityName();
@@ -181,9 +175,6 @@ class PipeRef final : public Step {
   PipeRef(shared_ptr<RefResult> read_end, shared_ptr<RefResult> write_end) noexcept :
       _read_end(read_end), _write_end(write_end) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a PipeRef step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "[" << _read_end << ", " << _write_end << "] = PipeRef()";
@@ -205,9 +196,6 @@ class FileRef final : public Step {
 
   /// Create a reference to an anonymous file
   FileRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a FileRef step
   virtual ostream& print(ostream& o) const noexcept override {
@@ -235,9 +223,6 @@ class SymlinkRef final : public Step {
   SymlinkRef(fs::path target, shared_ptr<RefResult> output) noexcept :
       _target(target), _output(output) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a SYMLINK reference
   virtual ostream& print(ostream& o) const noexcept override {
     return o << _output << " = SymlinkRef(" << _target << ")";
@@ -262,9 +247,6 @@ class DirRef final : public Step {
 
   /// Create a reference to an anonymous directory
   DirRef(mode_t mode, shared_ptr<RefResult> output) noexcept : _mode(mode), _output(output) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a DIR reference
   virtual ostream& print(ostream& o) const noexcept override {
@@ -294,9 +276,6 @@ class PathRef final : public Step {
           AccessFlags flags,
           shared_ptr<RefResult> output) noexcept :
       _base(base), _path(path), _flags(flags), _output(output) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Get the access that serves as the base for this one
   const shared_ptr<RefResult>& getBase() const noexcept { return _base; }
@@ -340,9 +319,6 @@ class ExpectResult final : public Step {
   /// Create an ExpectResult IR step
   ExpectResult(shared_ptr<RefResult> ref, int expected) noexcept : _ref(ref), _expected(expected) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print an ExpectResult IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "ExpectResult(" << _ref << ", " << errors[_expected] << ")";
@@ -371,9 +347,6 @@ class MatchMetadata final : public Step {
   MatchMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a MatchMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "MatchMetadata(" << _ref << ", " << _version << ")";
@@ -398,9 +371,6 @@ class MatchContent final : public Step {
   /// Create a MatchContent IR step
   MatchContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print a MatchContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
@@ -427,9 +397,6 @@ class UpdateMetadata final : public Step {
   UpdateMetadata(shared_ptr<RefResult> ref, shared_ptr<MetadataVersion> version) noexcept :
       _ref(ref), _version(version) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print an UpdateMetadata IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "UpdateMetadata(" << _ref << ", " << _version << ")";
@@ -454,9 +421,6 @@ class UpdateContent final : public Step {
   /// Create an UpdateContent IR step
   UpdateContent(shared_ptr<RefResult> ref, shared_ptr<Version> version) noexcept :
       _ref(ref), _version(version) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an UpdateContent IR step
   virtual ostream& print(ostream& o) const noexcept override {
@@ -483,9 +447,6 @@ class Launch final : public Step {
   /// Create a Launch IR step
   Launch(shared_ptr<Command> cmd) noexcept : _cmd(cmd) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a Launch IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "Launch(" << _cmd << ")";
@@ -510,9 +471,6 @@ class Join final : public Step {
   /// Create a Join IR step
   Join(shared_ptr<Command> cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
-
   /// Print a JOin IR step
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "Join(" << _cmd << ", " << _exit_status << ")";
@@ -533,9 +491,6 @@ class Exit final : public Step {
 
   /// Create an Exit IR step
   Exit(int exit_status) noexcept : _exit_status(exit_status) {}
-
-  /// Emulate this step in the context of a given build
-  virtual void emulate(shared_ptr<Command> c, Build& build) noexcept override;
 
   /// Print an Exit IR step
   virtual ostream& print(ostream& o) const noexcept override {

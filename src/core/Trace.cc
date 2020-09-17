@@ -46,9 +46,9 @@ using std::string;
 using std::vector;
 
 struct SpecialRefRecord : public Record {
-  shared_ptr<Command> cmd;
-  SpecialRef::Entity entity;
-  shared_ptr<RefResult> output;
+  shared_ptr<Command> _cmd;
+  SpecialRef::Entity _entity;
+  shared_ptr<RefResult> _output;
 
   /// Default constructor for serialization
   SpecialRefRecord() noexcept = default;
@@ -56,15 +56,15 @@ struct SpecialRefRecord : public Record {
   SpecialRefRecord(shared_ptr<Command> cmd,
                    SpecialRef::Entity entity,
                    shared_ptr<RefResult> output) noexcept :
-      cmd(cmd), entity(entity), output(output) {}
+      _cmd(cmd), _entity(entity), _output(output) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(cmd, make_unique<SpecialRef>(entity, output));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.specialRef(_cmd, _entity, _output);
   }
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), cmd, entity, output);
+    archive(cereal::base_class<Record>(this), _cmd, _entity, _output);
   }
 };
 
@@ -83,8 +83,8 @@ struct PipeRefRecord : public Record {
                 shared_ptr<RefResult> write_end) noexcept :
       _cmd(cmd), _read_end(read_end), _write_end(write_end) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<PipeRef>(_read_end, _write_end));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.pipeRef(_cmd, _read_end, _write_end);
   }
 
   template <class Archive>
@@ -106,8 +106,8 @@ struct FileRefRecord : public Record {
   FileRefRecord(shared_ptr<Command> cmd, mode_t mode, shared_ptr<RefResult> output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<FileRef>(_mode, _output));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.fileRef(_cmd, _mode, _output);
   }
 
   template <class Archive>
@@ -130,8 +130,8 @@ struct SymlinkRefRecord : public Record {
       :
       _cmd(cmd), _target(target), _output(output) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<SymlinkRef>(_target, _output));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.symlinkRef(_cmd, _target, _output);
   }
 
   template <class Archive>
@@ -153,8 +153,8 @@ struct DirRefRecord : public Record {
   DirRefRecord(shared_ptr<Command> cmd, mode_t mode, shared_ptr<RefResult> output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<DirRef>(_mode, _output));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.dirRef(_cmd, _mode, _output);
   }
 
   template <class Archive>
@@ -182,8 +182,8 @@ struct PathRefRecord : public Record {
                 shared_ptr<RefResult> output) noexcept :
       _cmd(cmd), _base(base), _path(path), _flags(flags), _output(output) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<PathRef>(_base, _path, _flags, _output));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.pathRef(_cmd, _base, _path, _flags, _output);
   }
 
   template <class Archive>
@@ -205,8 +205,8 @@ struct ExpectResultRecord : public Record {
   ExpectResultRecord(shared_ptr<Command> cmd, shared_ptr<RefResult> ref, int expected) noexcept :
       _cmd(cmd), _ref(ref), _expected(expected) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<ExpectResult>(_ref, _expected));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.expectResult(_cmd, _ref, _expected);
   }
 
   template <class Archive>
@@ -230,8 +230,8 @@ struct MatchMetadataRecord : public Record {
                       shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<MatchMetadata>(_ref, _version));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.matchMetadata(_cmd, _ref, _version);
   }
 
   template <class Archive>
@@ -255,8 +255,8 @@ struct MatchContentRecord : public Record {
                      shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<MatchContent>(_ref, _version));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.matchContent(_cmd, _ref, _version);
   }
 
   template <class Archive>
@@ -280,8 +280,8 @@ struct UpdateMetadataRecord : public Record {
                        shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<UpdateMetadata>(_ref, _version));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.updateMetadata(_cmd, _ref, _version);
   }
 
   template <class Archive>
@@ -305,8 +305,8 @@ struct UpdateContentRecord : public Record {
                       shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<UpdateContent>(_ref, _version));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.updateContent(_cmd, _ref, _version);
   }
 
   template <class Archive>
@@ -327,8 +327,8 @@ struct LaunchRecord : public Record {
   LaunchRecord(shared_ptr<Command> cmd, shared_ptr<Command> child) noexcept :
       _cmd(cmd), _child(child) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<Launch>(_child));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.launch(_cmd, _child);
   }
 
   template <class Archive>
@@ -350,8 +350,8 @@ struct JoinRecord : public Record {
   JoinRecord(shared_ptr<Command> cmd, shared_ptr<Command> child, int exit_status) noexcept :
       _cmd(cmd), _child(child), _exit_status(exit_status) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<Join>(_child, _exit_status));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.join(_cmd, _child, _exit_status);
   }
 
   template <class Archive>
@@ -372,8 +372,8 @@ struct ExitRecord : public Record {
   ExitRecord(shared_ptr<Command> cmd, int exit_status) noexcept :
       _cmd(cmd), _exit_status(exit_status) {}
 
-  virtual void handleInput(InputTrace& input) noexcept override {
-    input.addStep(_cmd, make_unique<Exit>(_exit_status));
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.exit(_cmd, _exit_status);
   }
 
   template <class Archive>
@@ -387,7 +387,9 @@ CEREAL_REGISTER_TYPE(ExitRecord);
 struct EndRecord : public Record {
   EndRecord() noexcept = default;
 
-  virtual void handleInput(InputTrace& input) noexcept override { input.done(); }
+  virtual bool isEnd() const noexcept override { return true; }
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {}
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -408,11 +410,12 @@ InputTrace::InputTrace(string filename) noexcept {
     cereal::BinaryInputArchive archive(f);
 
     // Loop until we hit the end of the trace
-    _done = false;
-    while (!_done) {
+    bool done = false;
+    while (!done) {
       unique_ptr<Record> record;
       archive(record);
-      record->handleInput(*this);
+      done = record->isEnd();
+      _records.emplace_back(std::move(record));
     }
   } catch (cereal::Exception& e) {
     initDefault();
@@ -420,30 +423,30 @@ InputTrace::InputTrace(string filename) noexcept {
 }
 
 void InputTrace::initDefault() noexcept {
-  // Clear the step list
-  _steps.clear();
+  // Clear the list of records
+  _records.clear();
 
   // Create the initial pipe references
   auto stdin_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stdin, stdin_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stdin, stdin_ref));
 
   auto stdout_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stdout, stdout_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stdout, stdout_ref));
 
   auto stderr_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::stderr, stderr_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stderr, stderr_ref));
 
   // Create a reference to the root directory
   auto root_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::root, root_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::root, root_ref));
 
   // Create a reference to the current working directory and add it to the trace
   auto cwd_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::cwd, cwd_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::cwd, cwd_ref));
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   auto exe_ref = make_shared<RefResult>();
-  _steps.emplace_back(nullptr, make_unique<SpecialRef>(SpecialRef::launch_exe, exe_ref));
+  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::launch_exe, exe_ref));
 
   // Create a map of initial file descriptors
   map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref, AccessFlags{.r = true})},
@@ -455,41 +458,27 @@ void InputTrace::initDefault() noexcept {
       make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref);
 
   // Make a launch action for the root cmd
-  _steps.emplace_back(nullptr, make_unique<Launch>(root_cmd));
+  _records.emplace_back(new LaunchRecord(nullptr, root_cmd));
 }
 
 // Print this trace
 ostream& InputTrace::print(ostream& o) const noexcept {
-  for (auto& [c, s] : _steps) {
+  /*for (auto& [c, s] : _steps) {
     if (c) {
       o << c << ": " << s << endl;
     } else {
       o << s << endl;
     }
-  }
+  }*/
   return o;
 }
 
 // Run this trace
-shared_ptr<Env> InputTrace::run(Build& build) noexcept {
-  for (auto& [cmd, step] : _steps) {
-    build.runStep(cmd, *step);
+void InputTrace::run(TraceHandler& handler) noexcept {
+  for (auto& record : _records) {
+    record->handle(*this, handler);
   }
-  return build.finish();
-}
-
-OutputTrace::~OutputTrace() noexcept {
-  ofstream out(_filename, std::ios::binary);
-  cereal::BinaryOutputArchive archive(out);
-
-  // Write out the list of records
-  for (auto& r : _records) {
-    archive(r);
-  }
-
-  unique_ptr<Record> end(new EndRecord());
-  // Mark the end of the trace
-  archive(end);
+  handler.finish();
 }
 
 /// Add a SpecialRef IR step to the output trace
@@ -586,6 +575,20 @@ void OutputTrace::join(shared_ptr<Command> cmd,
 /// Add a Exit IR step to the output trace
 void OutputTrace::exit(shared_ptr<Command> cmd, int exit_status) noexcept {
   _records.emplace_back(new ExitRecord(cmd, exit_status));
+}
+
+void OutputTrace::finish() noexcept {
+  ofstream out(_filename, std::ios::binary);
+  cereal::BinaryOutputArchive archive(out);
+
+  // Write out the list of records
+  for (auto& r : _records) {
+    archive(r);
+  }
+
+  unique_ptr<Record> end(new EndRecord());
+  // Mark the end of the trace
+  archive(end);
 }
 
 /// Serialization function for struct timespec

@@ -27,22 +27,6 @@ using std::make_unique;
 using std::ostream;
 using std::shared_ptr;
 
-void Build::runStep(shared_ptr<Command> command, Step& step) noexcept {
-  if (_plan.canEmulate(command)) {
-    step.emulate(command, *this);
-  }
-}
-
-shared_ptr<Env> Build::finish() noexcept {
-  // Wait for all remaining processes to exit
-  _tracer.wait();
-
-  // Compare the final state of all artifacts to the actual filesystem
-  _env->getRootDir()->checkFinalState(*this, "/");
-
-  return _env;
-}
-
 /************************ Observer Implementation ************************/
 
 // Inform observers that a command has never run
@@ -107,11 +91,28 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
 }
 
-/************************ Emulate IR Steps ************************/
+/************************ Handle IR steps from a loaded trace ************************/
 
-void Build::emulateSpecialRef(shared_ptr<Command> c,
-                              SpecialRef::Entity entity,
-                              shared_ptr<RefResult> output) noexcept {
+void Build::finish() noexcept {
+  // Wait for all remaining processes to exit
+  _tracer.wait();
+
+  // Compare the final state of all artifacts to the actual filesystem
+  _env->getRootDir()->checkFinalState(*this, "/");
+
+  /// Commit the final environment state to the filesystem
+  if (_commit) _env->commitFinalState();
+
+  // If there is an output trace, pass along the finished state
+  if (_output_trace) _output_trace->finish();
+}
+
+void Build::specialRef(shared_ptr<Command> c,
+                       SpecialRef::Entity entity,
+                       shared_ptr<RefResult> output) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->specialRef(c, entity, output);
@@ -154,9 +155,12 @@ void Build::emulateSpecialRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous pipe
-void Build::emulatePipeRef(shared_ptr<Command> c,
-                           shared_ptr<RefResult> read_end,
-                           shared_ptr<RefResult> write_end) noexcept {
+void Build::pipeRef(shared_ptr<Command> c,
+                    shared_ptr<RefResult> read_end,
+                    shared_ptr<RefResult> write_end) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->pipeRef(c, read_end, write_end);
@@ -169,9 +173,10 @@ void Build::emulatePipeRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous file
-void Build::emulateFileRef(shared_ptr<Command> c,
-                           mode_t mode,
-                           shared_ptr<RefResult> output) noexcept {
+void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> output) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->fileRef(c, mode, output);
@@ -182,9 +187,12 @@ void Build::emulateFileRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous symlink
-void Build::emulateSymlinkRef(shared_ptr<Command> c,
-                              fs::path target,
-                              shared_ptr<RefResult> output) noexcept {
+void Build::symlinkRef(shared_ptr<Command> c,
+                       fs::path target,
+                       shared_ptr<RefResult> output) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->symlinkRef(c, target, output);
@@ -195,9 +203,10 @@ void Build::emulateSymlinkRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous directory
-void Build::emulateDirRef(shared_ptr<Command> c,
-                          mode_t mode,
-                          shared_ptr<RefResult> output) noexcept {
+void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> output) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->dirRef(c, mode, output);
@@ -208,11 +217,14 @@ void Build::emulateDirRef(shared_ptr<Command> c,
 }
 
 // A command makes a reference with a path
-void Build::emulatePathRef(shared_ptr<Command> c,
-                           shared_ptr<RefResult> base,
-                           fs::path path,
-                           AccessFlags flags,
-                           shared_ptr<RefResult> output) noexcept {
+void Build::pathRef(shared_ptr<Command> c,
+                    shared_ptr<RefResult> base,
+                    fs::path path,
+                    AccessFlags flags,
+                    shared_ptr<RefResult> output) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->pathRef(c, base, path, flags, output);
@@ -226,9 +238,10 @@ void Build::emulatePathRef(shared_ptr<Command> c,
 }
 
 // Command c expects a reference to resolve with a specific result
-void Build::emulateExpectResult(shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref,
-                                int expected) noexcept {
+void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int expected) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->expectResult(c, ref, expected);
@@ -241,9 +254,12 @@ void Build::emulateExpectResult(shared_ptr<Command> c,
 }
 
 // Command c accesses an artifact's metadata
-void Build::emulateMatchMetadata(shared_ptr<Command> c,
-                                 shared_ptr<RefResult> ref,
-                                 shared_ptr<MetadataVersion> expected) noexcept {
+void Build::matchMetadata(shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref,
+                          shared_ptr<MetadataVersion> expected) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->matchMetadata(c, ref, expected);
@@ -261,9 +277,12 @@ void Build::emulateMatchMetadata(shared_ptr<Command> c,
 }
 
 // Command c accesses an artifact's content
-void Build::emulateMatchContent(shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref,
-                                shared_ptr<Version> expected) noexcept {
+void Build::matchContent(shared_ptr<Command> c,
+                         shared_ptr<RefResult> ref,
+                         shared_ptr<Version> expected) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->matchContent(c, ref, expected);
@@ -281,9 +300,12 @@ void Build::emulateMatchContent(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
-void Build::emulateUpdateMetadata(shared_ptr<Command> c,
-                                  shared_ptr<RefResult> ref,
-                                  shared_ptr<MetadataVersion> written) noexcept {
+void Build::updateMetadata(shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref,
+                           shared_ptr<MetadataVersion> written) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->updateMetadata(c, ref, written);
@@ -308,9 +330,12 @@ void Build::emulateUpdateMetadata(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
-void Build::emulateUpdateContent(shared_ptr<Command> c,
-                                 shared_ptr<RefResult> ref,
-                                 shared_ptr<Version> written) noexcept {
+void Build::updateContent(shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref,
+                          shared_ptr<Version> written) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->updateContent(c, ref, written);
@@ -338,7 +363,10 @@ void Build::emulateUpdateContent(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   LOG(exec) << c << " launching " << child;
 
   // If we're emulating the launch of an unexecuted command, notify observers
@@ -391,9 +419,10 @@ void Build::emulateLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noex
 }
 
 // This command joined with a child command
-void Build::emulateJoin(shared_ptr<Command> c,
-                        shared_ptr<Command> child,
-                        int exit_status) noexcept {
+void Build::join(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->join(c, child, exit_status);
@@ -408,7 +437,10 @@ void Build::emulateJoin(shared_ptr<Command> c,
   }
 }
 
-void Build::emulateExit(shared_ptr<Command> c, int exit_status) noexcept {
+void Build::exit(shared_ptr<Command> c, int exit_status) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
   // Create an IR step and add it to the output trace
   if (_output_trace) {
     _output_trace->exit(c, exit_status);
