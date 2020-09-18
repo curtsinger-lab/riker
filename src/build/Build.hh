@@ -12,7 +12,8 @@
 #include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
 #include "core/Command.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
+#include "core/SpecialRefs.hh"
 #include "core/Trace.hh"
 #include "core/TraceHandler.hh"
 #include "tracing/Tracer.hh"
@@ -57,7 +58,7 @@ class Build : public TraceHandler {
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
   virtual void specialRef(shared_ptr<Command> c,
-                          SpecialRef::Entity entity,
+                          SpecialRef entity,
                           shared_ptr<RefResult> output) noexcept override;
 
   /// A command references a new anonymous pipe

@@ -16,7 +16,6 @@
 #include "artifacts/SymlinkArtifact.hh"
 #include "build/Build.hh"
 #include "core/Command.hh"
-#include "core/IR.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/path.hh"

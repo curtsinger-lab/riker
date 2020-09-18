@@ -11,7 +11,7 @@
 #include "build/Env.hh"
 #include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/options.hh"
@@ -108,7 +108,7 @@ void Build::finish() noexcept {
 }
 
 void Build::specialRef(shared_ptr<Command> c,
-                       SpecialRef::Entity entity,
+                       SpecialRef entity,
                        shared_ptr<RefResult> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;

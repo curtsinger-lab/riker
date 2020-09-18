@@ -10,24 +10,23 @@
 
 #include <cereal/archives/binary.hpp>
 
-#include "core/IR.hh"
+#include "core/SpecialRefs.hh"
 #include "core/TraceHandler.hh"
 
 using std::ifstream;
 using std::list;
 using std::ofstream;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 using std::unique_ptr;
+
+namespace fs = std::filesystem;
 
 class Build;
 class Command;
-class Env;
 class InputTrace;
-class Step;
 
+/// A trace is saved on disk as a series of records. Sub-classes are defined in Trace.cc
 struct Record {
   Record() noexcept = default;
   virtual ~Record() = default;
@@ -45,11 +44,7 @@ struct Record {
  */
 class InputTrace {
  public:
-  using StepList = list<tuple<shared_ptr<Command>, unique_ptr<Step>>>;
-
-  /**
-   * Load a trace from a given path. If the trace does not load, fall back to a default trace.
-   */
+  /// Load an input trace from a given path, or produce a default starting trace if no trace exists
   InputTrace(string filename) noexcept;
 
   // Disallow copy
@@ -63,17 +58,12 @@ class InputTrace {
   /// Run this trace
   void run(TraceHandler& handler) noexcept;
 
-  /// Print this trace
-  ostream& print(ostream& o) const noexcept;
-
-  friend ostream& operator<<(ostream& o, const InputTrace& t) noexcept { return t.print(o); }
-
  private:
   /// Initialize the list of steps to a default trace
   void initDefault() noexcept;
 
  private:
-  /// The list of records loaded from the trace
+  /// The list of records loaded from the trace file
   list<unique_ptr<Record>> _records;
 };
 
@@ -91,7 +81,7 @@ class OutputTrace : public TraceHandler {
 
   /// Add a SpecialRef IR step to the output trace
   virtual void specialRef(shared_ptr<Command> command,
-                          SpecialRef::Entity entity,
+                          SpecialRef entity,
                           shared_ptr<RefResult> output) noexcept override;
 
   /// Add a PipeRef IR step to the output trace
@@ -161,6 +151,9 @@ class OutputTrace : public TraceHandler {
   virtual void finish() noexcept override;
 
  private:
+  /// The path where this trace will be written
   string _filename;
+
+  /// The list of records to write
   list<unique_ptr<Record>> _records;
 };

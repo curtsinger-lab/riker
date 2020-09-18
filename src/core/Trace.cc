@@ -28,7 +28,8 @@
 #include "core/AccessFlags.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
+#include "core/SpecialRefs.hh"
 #include "util/log.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
@@ -47,14 +48,14 @@ using std::vector;
 
 struct SpecialRefRecord : public Record {
   shared_ptr<Command> _cmd;
-  SpecialRef::Entity _entity;
+  SpecialRef _entity;
   shared_ptr<RefResult> _output;
 
   /// Default constructor for serialization
   SpecialRefRecord() noexcept = default;
 
   SpecialRefRecord(shared_ptr<Command> cmd,
-                   SpecialRef::Entity entity,
+                   SpecialRef entity,
                    shared_ptr<RefResult> output) noexcept :
       _cmd(cmd), _entity(entity), _output(output) {}
 
@@ -461,18 +462,6 @@ void InputTrace::initDefault() noexcept {
   _records.emplace_back(new LaunchRecord(nullptr, root_cmd));
 }
 
-// Print this trace
-ostream& InputTrace::print(ostream& o) const noexcept {
-  /*for (auto& [c, s] : _steps) {
-    if (c) {
-      o << c << ": " << s << endl;
-    } else {
-      o << s << endl;
-    }
-  }*/
-  return o;
-}
-
 // Run this trace
 void InputTrace::run(TraceHandler& handler) noexcept {
   for (auto& record : _records) {
@@ -483,7 +472,7 @@ void InputTrace::run(TraceHandler& handler) noexcept {
 
 /// Add a SpecialRef IR step to the output trace
 void OutputTrace::specialRef(shared_ptr<Command> cmd,
-                             SpecialRef::Entity entity,
+                             SpecialRef entity,
                              shared_ptr<RefResult> output) noexcept {
   _records.emplace_back(new SpecialRefRecord(cmd, entity, output));
 }

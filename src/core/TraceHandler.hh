@@ -3,10 +3,13 @@
 #include <filesystem>
 #include <memory>
 
-#include "core/IR.hh"
+#include "core/AccessFlags.hh"
+#include "core/SpecialRefs.hh"
 
 class Command;
+class MetadataVersion;
 class RefResult;
+class Version;
 
 using std::shared_ptr;
 
@@ -16,7 +19,7 @@ class TraceHandler {
  public:
   /// Handle a SpecialRef IR step
   virtual void specialRef(shared_ptr<Command> command,
-                          SpecialRef::Entity entity,
+                          SpecialRef entity,
                           shared_ptr<RefResult> output) noexcept = 0;
 
   /// Handle a PipeRef IR step

@@ -6,7 +6,7 @@
 #include <set>
 
 #include "build/Resolution.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"

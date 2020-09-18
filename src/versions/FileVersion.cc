@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "core/IR.hh"
 #include "util/log.hh"
 
 using std::nullopt;

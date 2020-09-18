@@ -12,7 +12,7 @@
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "ui/options.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"

@@ -15,6 +15,7 @@
 #include "core/Trace.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
+#include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 
@@ -106,10 +107,12 @@ void do_trace(string output) noexcept {
 
   // Print it
   if (output == "-") {
-    cout << trace;
+    TracePrinter printer(cout);
+    trace.run(printer);
   } else {
-    ofstream f(output);
-    f << trace;
+    ofstream o(output);
+    TracePrinter printer(o);
+    trace.run(printer);
   }
 }
 

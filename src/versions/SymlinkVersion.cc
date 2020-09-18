@@ -6,8 +6,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "core/IR.hh"
-
 using std::shared_ptr;
 
 namespace fs = std::filesystem;

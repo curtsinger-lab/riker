@@ -6,8 +6,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "core/IR.hh"
-
 using std::nullopt;
 using std::shared_ptr;
 

@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "core/AccessFlags.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "util/serializer.hh"
 
 using std::shared_ptr;
