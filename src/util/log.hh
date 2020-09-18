@@ -189,10 +189,13 @@ class null_logger {
   }
 };
 
+// Is a given log type enabled?
+#define LOG_ENABLED(type) \
+  static_cast<bool>(logger::log_categories & static_cast<int>(LogCategory::type))
+
 // Define the main logging macro
-#define LOG(type)                                                   \
-  if (logger::log_categories & static_cast<int>(LogCategory::type)) \
-  logger(__FILE__, __LINE__, LogCategory::type, #type)
+#define LOG(type) \
+  if (LOG_ENABLED(type)) logger(__FILE__, __LINE__, LogCategory::type, #type)
 
 #define LOGF(type, format_str, ...) LOG(type) << fmt::format(format_str, __VA_ARGS__)
 
