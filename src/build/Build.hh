@@ -19,11 +19,13 @@
 #include "tracing/Tracer.hh"
 
 using std::make_shared;
+using std::make_unique;
 using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+using std::unique_ptr;
 using std::vector;
 
 class Version;
@@ -34,22 +36,54 @@ class Version;
  * dependencies and changes detected during the build.
  */
 class Build : public TraceHandler {
+ private:
+  /// Create a build runner
+  Build(bool commit, RebuildPlan plan, OutputTrace* output_trace) noexcept :
+      _commit(commit),
+      _plan(plan),
+      _output_trace(output_trace),
+      _env(make_shared<Env>()),
+      _tracer(make_unique<Tracer>(*this)) {}
+
  public:
-  /**
-   * Create a build runner
-   */
-  Build(bool commit = false,
-        RebuildPlan plan = RebuildPlan(),
-        OutputTrace* output_trace = nullptr,
-        shared_ptr<Env> env = make_shared<Env>()) noexcept :
-      _commit(commit), _output_trace(output_trace), _plan(plan), _env(env), _tracer(*this) {}
+  /// Create a build runner that exclusively emulates trace steps
+  static Build emulate() noexcept { return Build(false, RebuildPlan(), nullptr); }
+
+  /// Create a build runner that executes a rebuild plan
+  static Build rebuild(RebuildPlan plan, OutputTrace* output_trace) noexcept {
+    return Build(true, plan, output_trace);
+  }
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
 
+  // Allow Move
+  Build(Build&&) = default;
+  Build& operator=(Build&&) = default;
+
   /// Get the environment used in this build
   shared_ptr<Env> getEnvironment() const noexcept { return _env; }
+
+  /// Get the number of steps this build has executed
+  size_t getStepCount() const noexcept { return _emulated_step_count + _traced_step_count; }
+
+  /// Get the number of steps this build emulated
+  size_t getEmulatedStepCount() const noexcept { return _emulated_step_count; }
+
+  /// Get the number of steps this build traced
+  size_t getTracedStepCount() const noexcept { return _traced_step_count; }
+
+  /// Get the number of commands this build has executed
+  size_t getCommandCount() const noexcept {
+    return _emulated_command_count + _traced_command_count;
+  }
+
+  /// Get the number of commands this build emulated
+  size_t getEmulatedCommandCount() const noexcept { return _emulated_command_count; }
+
+  /// Get the numebr of commands this build traced
+  size_t getTracedCommandCount() const noexcept { return _traced_command_count; }
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
@@ -221,20 +255,32 @@ class Build : public TraceHandler {
   }
 
  private:
+  /// The number of IR steps emulated in this build
+  size_t _emulated_step_count = 0;
+
+  /// The number of IR steps traced in this build
+  size_t _traced_step_count = 0;
+
+  /// The count of commands emulated in this build
+  size_t _emulated_command_count = 0;
+
+  /// The count of commands traced in this build
+  size_t _traced_command_count = 0;
+
   /// Should this build commit the environment to the filesystem when it's finished?
   bool _commit;
 
-  /// The trace of steps performed by this build
-  OutputTrace* _output_trace;
-
   /// The rebuild plan
   RebuildPlan _plan;
+
+  /// The trace of steps performed by this build
+  OutputTrace* _output_trace;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;
 
   /// The tracer that will be used to execute any commands that must rerun
-  Tracer _tracer;
+  unique_ptr<Tracer> _tracer;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is only
   /// being emulated

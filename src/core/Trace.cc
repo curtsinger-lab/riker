@@ -463,7 +463,7 @@ void InputTrace::initDefault() noexcept {
 }
 
 // Run this trace
-void InputTrace::run(TraceHandler& handler) noexcept {
+void InputTrace::sendTo(TraceHandler& handler) noexcept {
   for (auto& record : _records) {
     record->handle(*this, handler);
   }

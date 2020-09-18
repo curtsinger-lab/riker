@@ -17,6 +17,9 @@ namespace fs = std::filesystem;
 
 class TraceHandler {
  public:
+  /// Called when the trace is finished
+  virtual void finish() noexcept {}
+
   /// Handle a SpecialRef IR step
   virtual void specialRef(shared_ptr<Command> command,
                           SpecialRef entity,
@@ -84,7 +87,4 @@ class TraceHandler {
 
   /// Handle an Exit IR step
   virtual void exit(shared_ptr<Command> command, int exit_status) noexcept = 0;
-
-  /// Called when the trace is finished
-  virtual void finish() noexcept {}
 };

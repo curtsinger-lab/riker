@@ -55,8 +55,11 @@ class InputTrace {
   InputTrace(InputTrace&&) = default;
   InputTrace& operator=(InputTrace&&) = default;
 
-  /// Run this trace
-  void run(TraceHandler& handler) noexcept;
+  /// Send the loaded trace to a trace handler
+  void sendTo(TraceHandler& handler) noexcept;
+
+  /// Send the loaded trace to a trace handler
+  void sendTo(TraceHandler&& handler) noexcept { sendTo(handler); }
 
  private:
   /// Initialize the list of steps to a default trace
@@ -78,6 +81,9 @@ class OutputTrace : public TraceHandler {
   // Disallow copy
   OutputTrace(const OutputTrace&) = delete;
   OutputTrace& operator=(const OutputTrace&) = delete;
+
+  /// Trace output is finished
+  virtual void finish() noexcept override;
 
   /// Add a SpecialRef IR step to the output trace
   virtual void specialRef(shared_ptr<Command> command,
@@ -146,9 +152,6 @@ class OutputTrace : public TraceHandler {
 
   /// Add a Exit IR step to the output trace
   virtual void exit(shared_ptr<Command> command, int exit_status) noexcept override;
-
-  /// Trace output is finished
-  virtual void finish() noexcept override;
 
  private:
   /// The path where this trace will be written

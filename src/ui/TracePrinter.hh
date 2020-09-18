@@ -14,7 +14,11 @@ class RefResult;
 
 class TracePrinter : public TraceHandler {
  public:
+  /// Create a trace printer that writes to a provided ostream
   TracePrinter(ostream& out) : _out(out) {}
+
+  /// Create a trace printer that writes to a provided ostream (rvalue reference form)
+  TracePrinter(ostream&& out) : _out(out) {}
 
   virtual void specialRef(shared_ptr<Command> c,
                           SpecialRef entity,
