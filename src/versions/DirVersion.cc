@@ -4,13 +4,14 @@
 #include <memory>
 
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "core/AccessFlags.hh"
-#include "core/IR.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 

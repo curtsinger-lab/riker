@@ -15,6 +15,7 @@
 #include "core/Trace.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
+#include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 
@@ -43,20 +44,16 @@ void do_build() noexcept {
   InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
-  auto rebuild = make_shared<RebuildPlanner>();
+  auto planner = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  Build(trace).addObserver(rebuild).run();
+  trace.sendTo(Build::emulate().addObserver(planner));
 
   // Now run the trace again with the planned rebuild steps
   auto output_trace = new OutputTrace(".dodo/newdb");
-  auto final_env = Build(trace, rebuild->planBuild(), output_trace).run();
+  trace.sendTo(Build::rebuild(planner->planBuild(), output_trace));
 
-  // Commit the final state of the build to the filesystem and take fingerprints
-  final_env->commitFinalState();
-
-  delete output_trace;
-
+  // Move the new trace into place
   fs::rename(".dodo/newdb", ".dodo/db");
 }
 
@@ -68,31 +65,31 @@ void do_check() noexcept {
   InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
-  auto rebuild = make_shared<RebuildPlanner>();
+  auto planner = make_shared<RebuildPlanner>();
 
   // Emulate the loaded trace
-  Build(trace).addObserver(rebuild).run();
+  trace.sendTo(Build::emulate().addObserver(planner));
 
   // Print commands whose inputs have changed
-  if (rebuild->getChanged().size() > 0) {
+  if (planner->getChanged().size() > 0) {
     cout << "Commands with changed inputs:" << endl;
-    for (const auto& c : rebuild->getChanged()) {
+    for (const auto& c : planner->getChanged()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
   }
 
   // Print commands whose output is needed
-  if (rebuild->getOutputNeeded().size() > 0) {
+  if (planner->getOutputNeeded().size() > 0) {
     cout << "Commands whose output is missing or modified:" << endl;
-    for (const auto& c : rebuild->getOutputNeeded()) {
+    for (const auto& c : planner->getOutputNeeded()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
   }
 
   // Print the rebuild plan
-  cout << rebuild->planBuild();
+  cout << planner->planBuild();
 }
 
 /**
@@ -100,15 +97,11 @@ void do_check() noexcept {
  * \param output  The name of the output file, or "-" for stdout
  */
 void do_trace(string output) noexcept {
-  // Load the build trace
-  InputTrace trace(DatabaseFilename);
-
-  // Print it
+  // Are we printing to stdout or a file?
   if (output == "-") {
-    cout << trace;
+    InputTrace(DatabaseFilename).sendTo(TracePrinter(cout));
   } else {
-    ofstream f(output);
-    f << trace;
+    InputTrace(DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
   }
 }
 
@@ -131,11 +124,9 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   // Load the build trace
   InputTrace trace(DatabaseFilename);
 
-  // Create the Graph observer and attach it to the build
+  // Create a graph observer and emulate the build
   auto graph = make_shared<Graph>(show_all);
-
-  // Set up a build to emulate the trace
-  Build(trace).addObserver(graph).run();
+  trace.sendTo(Build::emulate().addObserver(graph));
 
   if (no_render) {
     ofstream f(output);
@@ -169,7 +160,9 @@ void do_stats(bool list_artifacts) noexcept {
   InputTrace trace(DatabaseFilename);
 
   // Emulate the trace
-  auto final_env = Build(trace).run();
+  auto build = Build::emulate();
+  trace.sendTo(build);
+  auto final_env = build.getEnvironment();
 
   // Count the number of versions of artifacts
   size_t version_count = 0;
@@ -179,8 +172,8 @@ void do_stats(bool list_artifacts) noexcept {
 
   // Print statistics
   cout << "Build Statistics:" << endl;
-  cout << "  Commands: " << 0 << endl;
-  cout << "  Steps: " << trace.getSteps().size() << endl;
+  cout << "  Commands: " << build.getCommandCount() << endl;
+  cout << "  Steps: " << build.getStepCount() << endl;
   cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
   cout << "  Artifact Versions: " << version_count << endl;
 

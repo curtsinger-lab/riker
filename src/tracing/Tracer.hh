@@ -31,6 +31,10 @@ class Tracer {
   /// Destroy this tracer
   ~Tracer() noexcept;
 
+  // Disallow copy
+  Tracer(const Tracer&) = delete;
+  Tracer& operator=(const Tracer&) = delete;
+
   /// Start a command in this tracer
   shared_ptr<Process> start(shared_ptr<Command> cmd) noexcept;
 

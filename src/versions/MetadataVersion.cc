@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "core/IR.hh"
+#include "artifacts/Artifact.hh"
 
 using std::nullopt;
 using std::shared_ptr;

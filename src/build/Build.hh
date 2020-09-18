@@ -12,16 +12,20 @@
 #include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
 #include "core/Command.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
+#include "core/SpecialRefs.hh"
 #include "core/Trace.hh"
+#include "core/TraceHandler.hh"
 #include "tracing/Tracer.hh"
 
 using std::make_shared;
+using std::make_unique;
 using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+using std::unique_ptr;
 using std::vector;
 
 class Version;
@@ -31,119 +35,133 @@ class Version;
  * the build environment, emulating or running each of the commands, and notifying any observers of
  * dependencies and changes detected during the build.
  */
-class Build {
- public:
-  /**
-   * Create a build runner
-   */
-  Build(InputTrace& input_trace,
-        RebuildPlan plan = RebuildPlan(),
-        OutputTrace* output_trace = nullptr,
-        shared_ptr<Env> env = make_shared<Env>()) noexcept :
-      _input_trace(input_trace),
-      _output_trace(output_trace),
+class Build : public TraceHandler {
+ private:
+  /// Create a build runner
+  Build(bool commit, RebuildPlan plan, OutputTrace* output_trace) noexcept :
+      _commit(commit),
       _plan(plan),
-      _env(env),
-      _tracer(*this) {}
+      _output_trace(output_trace),
+      _env(make_shared<Env>()),
+      _tracer(make_unique<Tracer>(*this)) {}
+
+ public:
+  /// Create a build runner that exclusively emulates trace steps
+  static Build emulate() noexcept { return Build(false, RebuildPlan(), nullptr); }
+
+  /// Create a build runner that executes a rebuild plan
+  static Build rebuild(RebuildPlan plan, OutputTrace* output_trace) noexcept {
+    return Build(true, plan, output_trace);
+  }
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
 
-  /**
-   * Run a build trace in a given environment.
-   * \returns a tuple of the new traces produced by the run, and the environment in its final state
-   */
-  shared_ptr<Env> run() noexcept;
+  // Allow Move
+  Build(Build&&) = default;
+  Build& operator=(Build&&) = default;
+
+  /// Get the environment used in this build
+  shared_ptr<Env> getEnvironment() const noexcept { return _env; }
+
+  /// Get the number of steps this build has executed
+  size_t getStepCount() const noexcept { return _emulated_step_count + _traced_step_count; }
+
+  /// Get the number of steps this build emulated
+  size_t getEmulatedStepCount() const noexcept { return _emulated_step_count; }
+
+  /// Get the number of steps this build traced
+  size_t getTracedStepCount() const noexcept { return _traced_step_count; }
+
+  /// Get the number of commands this build has executed
+  size_t getCommandCount() const noexcept {
+    return _emulated_command_count + _traced_command_count;
+  }
+
+  /// Get the number of commands this build emulated
+  size_t getEmulatedCommandCount() const noexcept { return _emulated_command_count; }
+
+  /// Get the numebr of commands this build traced
+  size_t getTracedCommandCount() const noexcept { return _traced_command_count; }
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
 
-  /********** Emulate IR Steps **********/
+  /********** Handle IR steps supplied from a loaded trace **********/
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
-  void emulateSpecialRef(shared_ptr<Command> c,
-                         SpecialRef::Entity entity,
-                         shared_ptr<RefResult> output,
-                         const SpecialRef& emulating) noexcept;
+  virtual void specialRef(shared_ptr<Command> c,
+                          SpecialRef entity,
+                          shared_ptr<RefResult> output) noexcept override;
 
   /// A command references a new anonymous pipe
-  void emulatePipeRef(shared_ptr<Command> c,
-                      shared_ptr<RefResult> read_end,
-                      shared_ptr<RefResult> write_end,
-                      const PipeRef& emulating) noexcept;
+  virtual void pipeRef(shared_ptr<Command> c,
+                       shared_ptr<RefResult> read_end,
+                       shared_ptr<RefResult> write_end) noexcept override;
 
   /// A command references a new anonymous file
-  void emulateFileRef(shared_ptr<Command> c,
-                      mode_t mode,
-                      shared_ptr<RefResult> output,
-                      const FileRef& emulating) noexcept;
+  virtual void fileRef(shared_ptr<Command> c,
+                       mode_t mode,
+                       shared_ptr<RefResult> output) noexcept override;
 
   /// A command references a new anonymous symlink
-  void emulateSymlinkRef(shared_ptr<Command> c,
-                         fs::path target,
-                         shared_ptr<RefResult> output,
-                         const SymlinkRef& emulating) noexcept;
+  virtual void symlinkRef(shared_ptr<Command> c,
+                          fs::path target,
+                          shared_ptr<RefResult> output) noexcept override;
 
   /// A command references a new anonymous directory
-  void emulateDirRef(shared_ptr<Command> c,
-                     mode_t mode,
-                     shared_ptr<RefResult> output,
-                     const DirRef& emulating) noexcept;
+  virtual void dirRef(shared_ptr<Command> c,
+                      mode_t mode,
+                      shared_ptr<RefResult> output) noexcept override;
 
   /// A command makes a reference with a path
-  void emulatePathRef(shared_ptr<Command> c,
-                      shared_ptr<RefResult> base,
-                      fs::path path,
-                      AccessFlags flags,
-                      shared_ptr<RefResult> output,
-                      const PathRef& emulating) noexcept;
+  virtual void pathRef(shared_ptr<Command> c,
+                       shared_ptr<RefResult> base,
+                       fs::path path,
+                       AccessFlags flags,
+                       shared_ptr<RefResult> output) noexcept override;
 
   /// A command expects a reference to resolve with a particular result
-  void emulateExpectResult(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref,
-                           int expected,
-                           const ExpectResult& emulating) noexcept;
+  virtual void expectResult(shared_ptr<Command> c,
+                            shared_ptr<RefResult> ref,
+                            int expected) noexcept override;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
-  void emulateMatchMetadata(shared_ptr<Command> c,
-                            shared_ptr<RefResult> ref,
-                            shared_ptr<MetadataVersion> expected,
-                            const MatchMetadata& emulating) noexcept;
+  virtual void matchMetadata(shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref,
+                             shared_ptr<MetadataVersion> expected) noexcept override;
 
   /// A command accesses content for an artifact and expects to find a particular version
-  void emulateMatchContent(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref,
-                           shared_ptr<Version> expected,
-                           const MatchContent& emulating) noexcept;
+  virtual void matchContent(shared_ptr<Command> c,
+                            shared_ptr<RefResult> ref,
+                            shared_ptr<Version> expected) noexcept override;
 
   /// A command modifies the metadata for an artifact
-  void emulateUpdateMetadata(shared_ptr<Command> c,
-                             shared_ptr<RefResult>,
-                             shared_ptr<MetadataVersion> written,
-                             const UpdateMetadata& emulating) noexcept;
+  virtual void updateMetadata(shared_ptr<Command> c,
+                              shared_ptr<RefResult>,
+                              shared_ptr<MetadataVersion> written) noexcept override;
 
   /// A command writes a new version to an artifact
-  void emulateUpdateContent(shared_ptr<Command> c,
-                            shared_ptr<RefResult> ref,
-                            shared_ptr<Version> written,
-                            const UpdateContent& emulating) noexcept;
+  virtual void updateContent(shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref,
+                             shared_ptr<Version> written) noexcept override;
 
   /// A command is launching a child command
-  void emulateLaunch(shared_ptr<Command> c,
-                     shared_ptr<Command> child,
-                     const Launch& emulating) noexcept;
+  virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override;
 
   /// A command is joining with a child command
-  void emulateJoin(shared_ptr<Command> c,
-                   shared_ptr<Command> child,
-                   int exit_status,
-                   const Join& emulating) noexcept;
+  virtual void join(shared_ptr<Command> c,
+                    shared_ptr<Command> child,
+                    int exit_status) noexcept override;
 
   /// A command has exited with an exit code
-  void emulateExit(shared_ptr<Command> c, int exit_status, const Exit& emulating) noexcept;
+  virtual void exit(shared_ptr<Command> c, int exit_status) noexcept override;
 
-  /********** Trace IR Steps **********/
+  /// Finish running an emulated build
+  virtual void finish() noexcept override;
+
+  /********** Handle IR steps delivered from the tracing layer **********/
 
   /// A traced command referenced a new anonymous pipe
   tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> tracePipeRef(shared_ptr<Command> c) noexcept;
@@ -222,7 +240,7 @@ class Build {
                        shared_ptr<Version> expected) const noexcept;
 
   /// Inform observers that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c, const Step& s) const noexcept;
+  void observeCommandChange(shared_ptr<Command> c) const noexcept;
 
   /// Inform observers that the version of an artifact produced during the build does not match the
   /// on-disk version.
@@ -237,20 +255,32 @@ class Build {
   }
 
  private:
-  /// The trace this build is emulating or re-running
-  InputTrace& _input_trace;
+  /// The number of IR steps emulated in this build
+  size_t _emulated_step_count = 0;
 
-  /// The trace of steps performed by this build
-  OutputTrace* _output_trace;
+  /// The number of IR steps traced in this build
+  size_t _traced_step_count = 0;
+
+  /// The count of commands emulated in this build
+  size_t _emulated_command_count = 0;
+
+  /// The count of commands traced in this build
+  size_t _traced_command_count = 0;
+
+  /// Should this build commit the environment to the filesystem when it's finished?
+  bool _commit;
 
   /// The rebuild plan
   RebuildPlan _plan;
+
+  /// The trace of steps performed by this build
+  OutputTrace* _output_trace;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;
 
   /// The tracer that will be used to execute any commands that must rerun
-  Tracer _tracer;
+  unique_ptr<Tracer> _tracer;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is only
   /// being emulated

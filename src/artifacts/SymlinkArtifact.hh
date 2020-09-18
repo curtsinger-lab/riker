@@ -6,13 +6,14 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "core/IR.hh"
 
 using std::map;
 using std::shared_ptr;
 using std::string;
 
 namespace fs = std::filesystem;
+
+class RefResult;
 
 class SymlinkArtifact : public Artifact {
  public:

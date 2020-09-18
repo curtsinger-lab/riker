@@ -19,7 +19,7 @@
 
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 
 using std::function;
 using std::make_shared;

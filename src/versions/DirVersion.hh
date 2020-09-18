@@ -6,11 +6,12 @@
 #include <set>
 
 #include "build/Resolution.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::make_shared;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
@@ -18,6 +19,7 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 class Build;
+class DirArtifact;
 class Env;
 
 /// A ListedDir version stores a list of all entries in a directory. It does not need to be a

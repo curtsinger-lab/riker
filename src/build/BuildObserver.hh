@@ -2,8 +2,6 @@
 
 #include <memory>
 
-#include "build/AccessTypes.hh"
-
 using std::shared_ptr;
 using std::unique_ptr;
 
@@ -12,6 +10,12 @@ class Command;
 class Predicate;
 class Step;
 class Version;
+
+enum class InputType {
+  PathResolution,  // The input is a dependency for path resolution
+  Accessed,        // The input is accessed directly
+  Exists,          // The input must exist, but its specific contents do not matter
+};
 
 /**
  * This serves as a base class for any utility that needs dependency and change information
@@ -45,7 +49,7 @@ class BuildObserver {
   virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
 
   /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c, const Step& s) noexcept {}
+  virtual void commandChanged(shared_ptr<Command> c) noexcept {}
 
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}

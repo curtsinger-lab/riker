@@ -12,7 +12,7 @@
 #include "build/Build.hh"
 #include "build/Env.hh"
 #include "build/Resolution.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 

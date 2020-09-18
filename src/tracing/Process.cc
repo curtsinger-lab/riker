@@ -14,7 +14,7 @@
 #include "build/Build.hh"
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
-#include "core/IR.hh"
+#include "core/RefResult.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
 #include "util/log.hh"

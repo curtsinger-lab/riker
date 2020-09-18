@@ -4,6 +4,7 @@
 #include <memory>
 #include <ostream>
 
+#include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
