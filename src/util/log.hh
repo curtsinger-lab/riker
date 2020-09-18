@@ -62,15 +62,21 @@ class logger {
       static_cast<int>(LogCategory::error) | static_cast<int>(LogCategory::warning);
 
  private:
-  bool _abort;  // Should the program abort when the log message is finished?
-  bool _done;   // Is this the final command in the log output?
+  bool _enabled;  // Should this logger print anything?
+  bool _abort;    // Should the program abort when the log message is finished?
+  bool _done;     // Is this the final command in the log output?
 
  public:
   logger(const char* source_file,
          int source_line,
          LogCategory category,
          const char* category_name) noexcept :
-      _abort(category == LogCategory::error), _done(true) {
+      _enabled(static_cast<bool>(logger::log_categories & static_cast<int>(category))),
+      _abort(category == LogCategory::error),
+      _done(true) {
+    // Stop immediately if this logger is not enabled
+    if (!_enabled) return;
+
     // Set the color for the log category text
     if (!disable_color) {
       if (category == LogCategory::error) {
@@ -109,7 +115,7 @@ class logger {
   }
 
   ~logger() noexcept {
-    if (_done) {
+    if (_enabled && _done) {
       // End color output and print a newline
       if (!disable_color) cerr << END_COLOR;
       cerr << "\n";
@@ -133,9 +139,14 @@ class logger {
 
   template <typename T>
   logger&& operator<<(const T& t) noexcept {
-    cerr << t;
+    if (_enabled) cerr << t;
     return move(*this);
   }
+
+  using StreamType = decltype(std::cerr);
+  using EndlType = StreamType& (*)(StreamType&);
+
+  logger&& operator<<(EndlType e) { return move(*this); }
 
   /// Decodes the given flag and appends it to the given std:string.
   static std::string fcntl_decode(int flags) {
@@ -144,7 +155,7 @@ class logger {
 
     // decode O_RDONLY, O_WRONLY, O_RDWR
     if ((flags & O_WRONLY) == O_WRONLY) {
-      s.append("0_WRONLY");
+      s.append("O_WRONLY");
       noflag = false;
     } else if ((flags & O_RDWR) == O_RDWR) {
       s.append("O_RDWR");
@@ -181,21 +192,11 @@ class logger {
   }
 };
 
-class null_logger {
- public:
-  template <typename T>
-  null_logger& operator<<(T t) noexcept {
-    return *this;
-  }
-};
-
 // Is a given log type enabled?
 #define LOG_ENABLED(type) \
   static_cast<bool>(logger::log_categories & static_cast<int>(LogCategory::type))
 
-// Define the main logging macro
-#define LOG(type) \
-  if (LOG_ENABLED(type)) logger(__FILE__, __LINE__, LogCategory::type, #type)
+#define LOG(type) logger(__FILE__, __LINE__, LogCategory::type, #type)
 
 #define LOGF(type, format_str, ...) LOG(type) << fmt::format(format_str, __VA_ARGS__)
 
