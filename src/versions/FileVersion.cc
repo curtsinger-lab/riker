@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "artifacts/Artifact.hh"
 #include "util/log.hh"
 
 using std::nullopt;

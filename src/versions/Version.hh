@@ -1,17 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <string>
-#include <utility>
 
-#include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
 
-using std::optional;
 using std::ostream;
-using std::pair;
 using std::shared_ptr;
 using std::string;
 using std::weak_ptr;
@@ -19,7 +15,8 @@ using std::weak_ptr;
 class Artifact;
 class Build;
 class Command;
-class Ref;
+
+namespace fs = std::filesystem;
 
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
