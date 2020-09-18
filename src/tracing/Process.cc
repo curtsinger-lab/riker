@@ -297,7 +297,8 @@ void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept 
       // The command observed a successful openat, so add this predicate to the command log
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
-      ASSERT(ref->getResult()) << "Failed to locate artifact for opened file: " << filename;
+      ASSERT(ref->getResult()) << "Failed to locate artifact for opened file: " << filename
+                               << " (received " << ref->getResult() << " from emulator)";
 
       // Is this new descriptor closed on exec?
       bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
