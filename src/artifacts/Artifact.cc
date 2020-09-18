@@ -8,8 +8,8 @@
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "build/AccessTypes.hh"
 #include "build/Build.hh"
+#include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "core/Command.hh"
 #include "core/RefResult.hh"

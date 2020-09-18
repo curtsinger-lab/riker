@@ -9,7 +9,7 @@
 #include <string>
 #include <tuple>
 
-#include "build/AccessTypes.hh"
+#include "build/BuildObserver.hh"
 #include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
 #include "ui/options.hh"
