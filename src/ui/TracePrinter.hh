@@ -3,6 +3,7 @@
 #include <memory>
 #include <ostream>
 
+#include "build/Resolution.hh"
 #include "core/SpecialRefs.hh"
 #include "core/TraceHandler.hh"
 
@@ -96,7 +97,7 @@ class TracePrinter : public TraceHandler {
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override {
     if (c) _out << c << ": ";
-    _out << "ExpectResult(" << ref << ", " << expected << ")" << endl;
+    _out << "ExpectResult(" << ref << ", " << errors[expected] << ")" << endl;
   }
 
   virtual void matchMetadata(shared_ptr<Command> c,
