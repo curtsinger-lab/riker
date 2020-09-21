@@ -29,24 +29,23 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
   // group of the running process/command. These should probably be encoded with the reference.
   // We're also not checking against supplementary groups.
 
-  if (_metadata.value().uid == getuid()) {
-    if (flags.r && !(mode & S_IRUSR)) return false;
-    if (flags.w && !(mode & S_IWUSR)) return false;
-    if (flags.x && !(mode & S_IXUSR)) return false;
-    return true;
+  // get user/group for artifact
+  auto a_uid = _metadata.value().uid;
+  auto a_gid = _metadata.value().gid;
 
-  } else if (_metadata.value().gid == getgid()) {
-    if (flags.r && !(mode & S_IRGRP)) return false;
-    if (flags.w && !(mode & S_IWGRP)) return false;
-    if (flags.x && !(mode & S_IXGRP)) return false;
-    return true;
+  // compute capabilities
+  bool can_r = (a_uid == getuid() && (mode & S_IRUSR)) || (a_gid == getgid() && (mode & S_IRGRP)) ||
+               (mode & S_IROTH);
+  bool can_w = (a_uid == getuid() && (mode & S_IWUSR)) || (a_gid == getgid() && (mode & S_IWGRP)) ||
+               (mode & S_IWOTH);
+  bool can_x = (a_uid == getuid() && (mode & S_IXUSR)) || (a_gid == getgid() && (mode & S_IXGRP)) ||
+               (mode & S_IXOTH);
 
-  } else {
-    if (flags.r && !(mode & S_IROTH)) return false;
-    if (flags.w && !(mode & S_IWOTH)) return false;
-    if (flags.x && !(mode & S_IXOTH)) return false;
-    return true;
-  }
+  // is the user requesting a capability that they do not have?
+  if (flags.r && !can_r) return false;
+  if (flags.w && !can_w) return false;
+  if (flags.x && !can_x) return false;
+  return true;
 }
 
 // Save metadata
