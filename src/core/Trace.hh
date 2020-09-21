@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <list>
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -15,6 +16,7 @@
 
 using std::ifstream;
 using std::list;
+using std::map;
 using std::ofstream;
 using std::shared_ptr;
 using std::string;
@@ -25,6 +27,8 @@ namespace fs = std::filesystem;
 class Build;
 class Command;
 class InputTrace;
+
+using command_id_t = uint32_t;
 
 /// A trace is saved on disk as a series of records. Sub-classes are defined in Trace.cc
 struct Record {
@@ -61,11 +65,24 @@ class InputTrace {
   /// Send the loaded trace to a trace handler
   void sendTo(TraceHandler&& handler) noexcept { sendTo(handler); }
 
+  /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
+  /// the original instance will be used and not the new one.
+  void addCommand(command_id_t id, shared_ptr<Command> cmd) {
+    auto iter = _commands.find(id);
+    if (iter == _commands.end()) _commands.emplace_hint(iter, id, cmd);
+  }
+
+  /// Get a command from its ID
+  shared_ptr<Command> getCommand(command_id_t id) { return _commands.at(id); }
+
  private:
   /// Initialize the list of steps to a default trace
   void initDefault() noexcept;
 
  private:
+  /// The map from command IDs to command instances. Startup steps run in command 0
+  map<command_id_t, shared_ptr<Command>> _commands = {{0, nullptr}};
+
   /// The list of records loaded from the trace file
   list<unique_ptr<Record>> _records;
 };
@@ -81,6 +98,16 @@ class OutputTrace : public TraceHandler {
   // Disallow copy
   OutputTrace(const OutputTrace&) = delete;
   OutputTrace& operator=(const OutputTrace&) = delete;
+
+  // Add a new command to the output trace and return its unique ID
+  command_id_t addCommand(shared_ptr<Command> cmd) noexcept {
+    command_id_t id = _commands.size();
+    _commands.emplace(cmd, id);
+    return id;
+  }
+
+  // Get the ID for a command instance
+  size_t getCommandID(shared_ptr<Command> cmd) const noexcept { return _commands.at(cmd); }
 
   /// Trace output is finished
   virtual void finish() noexcept override;
@@ -159,4 +186,7 @@ class OutputTrace : public TraceHandler {
 
   /// The list of records to write
   list<unique_ptr<Record>> _records;
+
+  /// The map from commands to their IDs in the output trace
+  map<shared_ptr<Command>, command_id_t> _commands = {{nullptr, 0}};
 };
