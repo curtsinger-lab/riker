@@ -368,22 +368,20 @@ struct UpdateContentRecord : public Record {
 CEREAL_REGISTER_TYPE(UpdateContentRecord);
 
 struct AddEntryRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _dir;
+  Command::ID _cmd;
+  RefResult::ID _dir;
   string _name;
-  shared_ptr<RefResult> _target;
+  RefResult::ID _target;
 
   /// Default constructor for serialization
   AddEntryRecord() noexcept = default;
 
-  AddEntryRecord(shared_ptr<Command> cmd,
-                 shared_ptr<RefResult> dir,
-                 string name,
-                 shared_ptr<RefResult> target) noexcept :
+  AddEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.addEntry(_cmd, _dir, _name, _target);
+    handler.addEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
+                     input.getRefResult(_target));
   }
 
   template <class Archive>
@@ -395,22 +393,21 @@ struct AddEntryRecord : public Record {
 CEREAL_REGISTER_TYPE(AddEntryRecord);
 
 struct RemoveEntryRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _dir;
+  Command::ID _cmd;
+  RefResult::ID _dir;
   string _name;
-  shared_ptr<RefResult> _target;
+  RefResult::ID _target;
 
   /// Default constructor for serialization
   RemoveEntryRecord() noexcept = default;
 
-  RemoveEntryRecord(shared_ptr<Command> cmd,
-                    shared_ptr<RefResult> dir,
-                    string name,
-                    shared_ptr<RefResult> target) noexcept :
+  RemoveEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept
+      :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.removeEntry(_cmd, _dir, _name, _target);
+    handler.removeEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
+                        input.getRefResult(_target));
   }
 
   template <class Archive>
@@ -660,7 +657,8 @@ void OutputTrace::addEntry(shared_ptr<Command> cmd,
                            shared_ptr<RefResult> dir,
                            string name,
                            shared_ptr<RefResult> target) noexcept {
-  _records.emplace_back(new AddEntryRecord(cmd, dir, name, target));
+  _records.emplace_back(
+      new AddEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));
 }
 
 /// Add a RemoveEntry IR step to the output trace
@@ -668,7 +666,8 @@ void OutputTrace::removeEntry(shared_ptr<Command> cmd,
                               shared_ptr<RefResult> dir,
                               string name,
                               shared_ptr<RefResult> target) noexcept {
-  _records.emplace_back(new RemoveEntryRecord(cmd, dir, name, target));
+  _records.emplace_back(
+      new RemoveEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));
 }
 
 /// Add a Launch IR step to the output trace
