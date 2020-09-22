@@ -140,9 +140,10 @@ class TracePrinter : public TraceHandler {
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(shared_ptr<Command> c,
                            shared_ptr<RefResult> dir,
-                           string name) noexcept override {
+                           string name,
+                           shared_ptr<RefResult> target) noexcept override {
     if (c) _out << c << ": ";
-    _out << "RemoveEntry(" << dir << ", \"" << name << "\")" << endl;
+    _out << "RemoveEntry(" << dir << ", \"" << name << "\", " << target << ")" << endl;
   }
 
   virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override {

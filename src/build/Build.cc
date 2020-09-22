@@ -431,15 +431,70 @@ void Build::updateContent(shared_ptr<Command> c,
 }
 
 /// Handle an AddEntry IR step
-void Build::addEntry(shared_ptr<Command> command,
+void Build::addEntry(shared_ptr<Command> c,
                      shared_ptr<RefResult> dir,
                      string name,
-                     shared_ptr<RefResult> target) noexcept {}
+                     shared_ptr<RefResult> target) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
+  // Count an emulated step
+  _emulated_step_count++;
+
+  // Log the emulated step
+  TracePrinter(LOG(ir) << "emulated ").addEntry(c, dir, name, target);
+
+  // Create an IR step and add it to the output trace
+  if (_output_trace) {
+    _output_trace->addEntry(c, dir, name, target);
+  }
+
+  // If the directory reference or target references did not resolve, a change must have occurred
+  if (!dir->getResult() || !target->getResult()) {
+    // Record the change and return
+    observeCommandChange(c);
+    return;
+  }
+
+  // Create an AddEntry version to apply to the directory
+  auto written = make_shared<AddEntry>(name, target);
+  written->setCommitted(false);
+  written->createdBy(c);
+  written->applyTo(*this, c, dir->getResult());
+}
 
 /// Handle a RemoveEntry IR step
-void Build::removeEntry(shared_ptr<Command> command,
+void Build::removeEntry(shared_ptr<Command> c,
                         shared_ptr<RefResult> dir,
-                        string name) noexcept {}
+                        string name,
+                        shared_ptr<RefResult> target) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
+  // Count an emulated step
+  _emulated_step_count++;
+
+  // Log the emulated step
+  TracePrinter(LOG(ir) << "emulated ").removeEntry(c, dir, name, target);
+
+  // Create an IR step and add it to the output trace
+  if (_output_trace) {
+    _output_trace->removeEntry(c, dir, name, target);
+  }
+
+  // If the directory reference or target references did not resolve, a change must have occurred
+  if (!dir->getResult() || !target->getResult()) {
+    // Record the change and return
+    observeCommandChange(c);
+    return;
+  }
+
+  // Create a RemoveEntry version to apply to the directory
+  auto written = make_shared<RemoveEntry>(name, target);
+  written->setCommitted(false);
+  written->createdBy(c);
+  written->applyTo(*this, c, dir->getResult());
+}
 
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
@@ -834,15 +889,58 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
 }
 
 // A traced command is adding an entry to a directory
-void Build::traceAddEntry(shared_ptr<Command> command,
+void Build::traceAddEntry(shared_ptr<Command> c,
                           shared_ptr<RefResult> dir,
                           string name,
-                          shared_ptr<RefResult> target) noexcept {}
+                          shared_ptr<RefResult> target) noexcept {
+  // Count a traced step
+  _traced_step_count++;
+
+  // Get the directory artifact that is being added to
+  auto dir_artifact = dir->getResult();
+  ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
+
+  // Create an IR step and add it to the output trace
+  if (_output_trace) {
+    _output_trace->addEntry(c, dir, name, target);
+  }
+
+  // Create an AddEntry version to apply to the directory
+  auto written = make_shared<AddEntry>(name, target);
+  written->setCommitted();
+  written->createdBy(c);
+  written->applyTo(*this, c, dir_artifact);
+
+  // Log the traced step
+  TracePrinter(LOG(ir) << "traced ").addEntry(c, dir, name, target);
+}
 
 // A traced command is removing an entry from a directory
-void Build::traceRemoveEntry(shared_ptr<Command> command,
+void Build::traceRemoveEntry(shared_ptr<Command> c,
                              shared_ptr<RefResult> dir,
-                             string name) noexcept {}
+                             string name,
+                             shared_ptr<RefResult> target) noexcept {
+  // Count a traced step
+  _traced_step_count++;
+
+  // Get the directory artifact that is being removed from
+  auto dir_artifact = dir->getResult();
+  ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
+
+  // Create an IR step and add it to the output trace
+  if (_output_trace) {
+    _output_trace->removeEntry(c, dir, name, target);
+  }
+
+  // Create an AddEntry version to apply to the directory
+  auto written = make_shared<RemoveEntry>(name, target);
+  written->setCommitted();
+  written->createdBy(c);
+  written->applyTo(*this, c, dir_artifact);
+
+  // Log the traced step
+  TracePrinter(LOG(ir) << "traced ").removeEntry(c, dir, name, target);
+}
 
 // This command launches a child command
 void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {

@@ -156,7 +156,8 @@ class Build : public TraceHandler {
   /// A command removes an entry from a directory
   virtual void removeEntry(shared_ptr<Command> command,
                            shared_ptr<RefResult> dir,
-                           string name) noexcept override;
+                           string name,
+                           shared_ptr<RefResult> target) noexcept override;
 
   /// A command is launching a child command
   virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override;
@@ -218,7 +219,8 @@ class Build : public TraceHandler {
   /// Handle a RemoveEntry IR step
   void traceRemoveEntry(shared_ptr<Command> command,
                         shared_ptr<RefResult> dir,
-                        string name) noexcept;
+                        string name,
+                        shared_ptr<RefResult> target) noexcept;
 
   /// A command is launching a child command
   void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;

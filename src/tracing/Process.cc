@@ -852,7 +852,7 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
       auto dir_ref = _build.traceDirRef(getCommand(), mode);
 
       // Link the directory into the parent dir
-      _build.traceUpdateContent(getCommand(), parent_ref, make_shared<AddEntry>(entry, dir_ref));
+      _build.traceAddEntry(getCommand(), parent_ref, entry, dir_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -904,8 +904,7 @@ void Thread::_renameat2(int old_dfd,
       _build.traceExpectResult(getCommand(), old_entry_ref, SUCCESS);
 
       // Unlink the old entry
-      _build.traceUpdateContent(getCommand(), old_dir_ref,
-                                make_shared<RemoveEntry>(old_entry, old_entry_ref));
+      _build.traceRemoveEntry(getCommand(), old_dir_ref, old_entry, old_entry_ref);
 
       // The access to the new directory must also have succeeded
       _build.traceExpectResult(getCommand(), new_dir_ref, SUCCESS);
@@ -916,8 +915,7 @@ void Thread::_renameat2(int old_dfd,
         _build.traceExpectResult(getCommand(), new_entry_ref, SUCCESS);
 
         // Unlink the new entry
-        _build.traceUpdateContent(getCommand(), new_dir_ref,
-                                  make_shared<RemoveEntry>(new_entry, new_entry_ref));
+        _build.traceRemoveEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
 
       } else if (flags & RENAME_NOREPLACE) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -925,13 +923,11 @@ void Thread::_renameat2(int old_dfd,
       }
 
       // Link into the new entry
-      _build.traceUpdateContent(getCommand(), new_dir_ref,
-                                make_shared<AddEntry>(new_entry, old_entry_ref));
+      _build.traceAddEntry(getCommand(), new_dir_ref, new_entry, old_entry_ref);
 
       // If this is an exchange, we also have to perform the swapped link
       if (flags & RENAME_EXCHANGE) {
-        _build.traceUpdateContent(getCommand(), old_dir_ref,
-                                  make_shared<AddEntry>(old_entry, new_entry_ref));
+        _build.traceAddEntry(getCommand(), old_dir_ref, old_entry, new_entry_ref);
       }
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
@@ -999,7 +995,7 @@ void Thread::_linkat(int old_dfd, string oldpath, int new_dfd, string newpath, i
       _build.traceExpectResult(getCommand(), target_ref, SUCCESS);
 
       // Record the link operation
-      _build.traceUpdateContent(getCommand(), dir_ref, make_shared<AddEntry>(entry, target_ref));
+      _build.traceAddEntry(getCommand(), dir_ref, entry, target_ref);
 
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
@@ -1040,7 +1036,7 @@ void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
       auto symlink_ref = _build.traceSymlinkRef(getCommand(), target);
 
       // Link the symlink into the directory
-      _build.traceUpdateContent(getCommand(), dir_ref, make_shared<AddEntry>(entry, symlink_ref));
+      _build.traceAddEntry(getCommand(), dir_ref, entry, symlink_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -1117,7 +1113,7 @@ void Thread::_unlinkat(int dfd, string pathname, int flags) noexcept {
       _build.traceExpectResult(getCommand(), entry_ref, SUCCESS);
 
       // Perform the unlink
-      _build.traceUpdateContent(getCommand(), dir_ref, make_shared<RemoveEntry>(entry, entry_ref));
+      _build.traceRemoveEntry(getCommand(), dir_ref, entry, entry_ref);
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.

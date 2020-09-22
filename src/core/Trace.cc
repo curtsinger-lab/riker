@@ -318,6 +318,60 @@ struct UpdateContentRecord : public Record {
 
 CEREAL_REGISTER_TYPE(UpdateContentRecord);
 
+struct AddEntryRecord : public Record {
+  shared_ptr<Command> _cmd;
+  shared_ptr<RefResult> _dir;
+  string _name;
+  shared_ptr<RefResult> _target;
+
+  /// Default constructor for serialization
+  AddEntryRecord() noexcept = default;
+
+  AddEntryRecord(shared_ptr<Command> cmd,
+                 shared_ptr<RefResult> dir,
+                 string name,
+                 shared_ptr<RefResult> target) noexcept :
+      _cmd(cmd), _dir(dir), _name(name), _target(target) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.addEntry(_cmd, _dir, _name, _target);
+  }
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _dir, _name, _target);
+  }
+};
+
+CEREAL_REGISTER_TYPE(AddEntryRecord);
+
+struct RemoveEntryRecord : public Record {
+  shared_ptr<Command> _cmd;
+  shared_ptr<RefResult> _dir;
+  string _name;
+  shared_ptr<RefResult> _target;
+
+  /// Default constructor for serialization
+  RemoveEntryRecord() noexcept = default;
+
+  RemoveEntryRecord(shared_ptr<Command> cmd,
+                    shared_ptr<RefResult> dir,
+                    string name,
+                    shared_ptr<RefResult> target) noexcept :
+      _cmd(cmd), _dir(dir), _name(name), _target(target) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.removeEntry(_cmd, _dir, _name, _target);
+  }
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _dir, _name, _target);
+  }
+};
+
+CEREAL_REGISTER_TYPE(RemoveEntryRecord);
+
 struct LaunchRecord : public Record {
   shared_ptr<Command> _cmd;
   shared_ptr<Command> _child;
@@ -550,15 +604,20 @@ void OutputTrace::updateContent(shared_ptr<Command> cmd,
 }
 
 /// Add an AddEntry IR step to the output trace
-void OutputTrace::addEntry(shared_ptr<Command> command,
+void OutputTrace::addEntry(shared_ptr<Command> cmd,
                            shared_ptr<RefResult> dir,
                            string name,
-                           shared_ptr<RefResult> target) noexcept {}
+                           shared_ptr<RefResult> target) noexcept {
+  _records.emplace_back(new AddEntryRecord(cmd, dir, name, target));
+}
 
 /// Add a RemoveEntry IR step to the output trace
-void OutputTrace::removeEntry(shared_ptr<Command> command,
+void OutputTrace::removeEntry(shared_ptr<Command> cmd,
                               shared_ptr<RefResult> dir,
-                              string name) noexcept {}
+                              string name,
+                              shared_ptr<RefResult> target) noexcept {
+  _records.emplace_back(new RemoveEntryRecord(cmd, dir, name, target));
+}
 
 /// Add a Launch IR step to the output trace
 void OutputTrace::launch(shared_ptr<Command> cmd, shared_ptr<Command> child) noexcept {
@@ -622,7 +681,5 @@ CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
-CEREAL_REGISTER_TYPE(AddEntry);
-CEREAL_REGISTER_TYPE(RemoveEntry);
 CEREAL_REGISTER_TYPE(CreatedDir);
 CEREAL_REGISTER_TYPE(ListedDir);
