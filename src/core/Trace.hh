@@ -50,7 +50,7 @@ struct Record {
 class InputTrace {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(string filename) noexcept;
+  InputTrace(fs::path filename) noexcept : _filename(filename) {}
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -89,18 +89,18 @@ class InputTrace {
   }
 
  private:
-  /// Initialize the list of steps to a default trace
-  void initDefault() noexcept;
+  /// Send a default trace to a trace handler
+  void sendDefault(TraceHandler& handler) noexcept;
 
  private:
+  /// The path to the loaded trace
+  fs::path _filename;
+
   /// The map from command IDs to command instances. Startup steps run in command 0
   map<Command::ID, shared_ptr<Command>> _commands = {{0, nullptr}};
 
   /// The map from RefResult IDs to instances
   map<RefResult::ID, shared_ptr<RefResult>> _ref_results;
-
-  /// The list of records loaded from the trace file
-  list<unique_ptr<Record>> _records;
 };
 
 /**

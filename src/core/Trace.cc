@@ -48,6 +48,8 @@ using std::string;
 using std::tuple;
 using std::vector;
 
+enum : size_t { ArchiveMagic = 0xD0D0D035178357, ArchiveVersion = 101 };
+
 struct CommandRecord : public Record {
   Command::ID _id;
   RefResult::ID _root_id;
@@ -500,75 +502,97 @@ CEREAL_REGISTER_TYPE(EndRecord);
 
 /*********************************/
 
-InputTrace::InputTrace(string filename) noexcept {
+// Run this trace
+void InputTrace::sendTo(TraceHandler& handler) noexcept {
+  bool use_default = false;
+
   try {
     // Open the file for reading. Must pass std::ios::binary!
-    ifstream f(filename, std::ios::binary);
+    ifstream f(_filename, std::ios::binary);
 
     // Initialize cereal's binary archive reader
     cereal::BinaryInputArchive archive(f);
 
-    // Loop until we hit the end of the trace
-    bool done = false;
-    while (!done) {
-      unique_ptr<Record> record;
-      archive(record);
-      done = record->isEnd();
-      _records.emplace_back(std::move(record));
+    // Load the version header from the trace file
+    size_t magic;
+    size_t version;
+    archive(magic, version);
+
+    // Check the magic number and version
+    if (magic != ArchiveMagic) {
+      WARN << "Saved trace does appears to be invalid. Running a full build.";
+      use_default = true;
+    } else if (version != ArchiveVersion) {
+      WARN << "Saved trace is not the correct version. Running a full build.";
+      use_default = true;
     }
+
+    // If we are not using a default trace, load it now
+    if (!use_default) {
+      // Loop until we hit the end of the trace
+      bool done = false;
+      while (!done) {
+        unique_ptr<Record> record;
+        archive(record);
+        done = record->isEnd();
+        record->handle(*this, handler);
+      }
+    }
+
   } catch (cereal::Exception& e) {
-    initDefault();
+    // If there is an exception when loading the trace, revert to a default trace
+    use_default = true;
   }
+
+  if (use_default) sendDefault(handler);
+
+  handler.finish();
 }
 
-void InputTrace::initDefault() noexcept {
-  // Clear the list of records
-  _records.clear();
-
+void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   Command::ID no_cmd_id = 0;
+  auto no_cmd = getCommand(no_cmd_id);
 
   // Create the initial pipe references
   RefResult::ID stdin_ref_id = 0;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::stdin, stdin_ref_id));
+  auto stdin_ref = getRefResult(stdin_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stdin, stdin_ref);
 
   RefResult::ID stdout_ref_id = 1;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::stdout, stdout_ref_id));
+  auto stdout_ref = getRefResult(stdout_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stdout, stdout_ref);
 
   RefResult::ID stderr_ref_id = 2;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::stderr, stderr_ref_id));
+  auto stderr_ref = getRefResult(stderr_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stderr, stderr_ref);
 
   // Create a reference to the root directory
   RefResult::ID root_ref_id = 3;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::root, root_ref_id));
+  auto root_ref = getRefResult(root_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::root, root_ref);
 
   // Create a reference to the current working directory and add it to the trace
   RefResult::ID cwd_ref_id = 4;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::cwd, cwd_ref_id));
+  auto cwd_ref = getRefResult(cwd_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::cwd, cwd_ref);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   RefResult::ID exe_ref_id = 5;
-  _records.emplace_back(new SpecialRefRecord(no_cmd_id, SpecialRef::launch_exe, exe_ref_id));
+  auto exe_ref = getRefResult(exe_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::launch_exe, exe_ref);
 
   // Create a map of initial file descriptors
-  map<int, tuple<RefResult::ID, AccessFlags>> fds = {{0, {stdin_ref_id, AccessFlags{.r = true}}},
-                                                     {1, {stdout_ref_id, AccessFlags{.w = true}}},
-                                                     {2, {stderr_ref_id, AccessFlags{.w = true}}}};
+  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref, AccessFlags{.r = true})},
+                                  {1, FileDescriptor(stdout_ref, AccessFlags{.w = true})},
+                                  {2, FileDescriptor(stderr_ref, AccessFlags{.w = true})}};
 
-  // Create a record for the root command
+  // Create a root command
   Command::ID root_cmd_id = 1;
-  _records.emplace_back(new CommandRecord(root_cmd_id, root_ref_id, cwd_ref_id, exe_ref_id,
-                                          vector<string>{"dodo-launch"}, fds, false, 0));
+  addCommand(root_cmd_id,
+             make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref));
 
-  // Make a launch action for the root cmd
-  _records.emplace_back(new LaunchRecord(no_cmd_id, root_cmd_id));
-}
-
-// Run this trace
-void InputTrace::sendTo(TraceHandler& handler) noexcept {
-  for (auto& record : _records) {
-    record->handle(*this, handler);
-  }
-  handler.finish();
+  // Launch the root command
+  handler.launch(no_cmd, getCommand(root_cmd_id));
 }
 
 /// Add a SpecialRef IR step to the output trace
@@ -705,6 +729,9 @@ void OutputTrace::exit(shared_ptr<Command> cmd, int exit_status) noexcept {
 void OutputTrace::finish() noexcept {
   ofstream out(_filename, std::ios::binary);
   cereal::BinaryOutputArchive archive(out);
+
+  // Write out the magic number and version
+  archive(ArchiveMagic, ArchiveVersion);
 
   // Write out the list of records
   for (auto& r : _records) {
