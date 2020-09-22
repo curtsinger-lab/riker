@@ -219,10 +219,6 @@ class AddEntry : public DirVersion {
  private:
   string _entry;
   shared_ptr<RefResult> _target;
-
-  // Create a default constructor and declare fields for serialization
-  AddEntry() = default;
-  SERIALIZE(BASE(DirVersion), _entry, _target);
 };
 
 /// A RemoveEntry version updates a directory so it no longer has a specific entry
@@ -261,8 +257,4 @@ class RemoveEntry : public DirVersion {
 
   /// A reference to the artifact that is unlinked by this version
   shared_ptr<RefResult> _target;
-
-  // Create a default constructor and declare fields for serialization
-  RemoveEntry() = default;
-  SERIALIZE(BASE(DirVersion), _entry, _target);
 };

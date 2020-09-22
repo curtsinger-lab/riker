@@ -197,6 +197,18 @@ class OutputTrace : public TraceHandler {
                              shared_ptr<RefResult> ref,
                              shared_ptr<Version> version) noexcept override;
 
+  /// Add an AddEntry IR step to the output trace
+  virtual void addEntry(shared_ptr<Command> command,
+                        shared_ptr<RefResult> dir,
+                        string name,
+                        shared_ptr<RefResult> target) noexcept override;
+
+  /// Add a RemoveEntry IR step to the output trace
+  virtual void removeEntry(shared_ptr<Command> command,
+                           shared_ptr<RefResult> dir,
+                           string name,
+                           shared_ptr<RefResult> target) noexcept override;
+
   /// Add a Launch IR step to the output trace
   virtual void launch(shared_ptr<Command> command, shared_ptr<Command> child) noexcept override;
 

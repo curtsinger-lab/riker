@@ -147,6 +147,18 @@ class Build : public TraceHandler {
                              shared_ptr<RefResult> ref,
                              shared_ptr<Version> written) noexcept override;
 
+  /// A command adds an entry to a directory
+  virtual void addEntry(shared_ptr<Command> command,
+                        shared_ptr<RefResult> dir,
+                        string name,
+                        shared_ptr<RefResult> target) noexcept override;
+
+  /// A command removes an entry from a directory
+  virtual void removeEntry(shared_ptr<Command> command,
+                           shared_ptr<RefResult> dir,
+                           string name,
+                           shared_ptr<RefResult> target) noexcept override;
+
   /// A command is launching a child command
   virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override;
 
@@ -197,6 +209,18 @@ class Build : public TraceHandler {
   void traceUpdateContent(shared_ptr<Command> c,
                           shared_ptr<RefResult> ref,
                           shared_ptr<Version> written = nullptr) noexcept;
+
+  /// Handle an AddEntry IR step
+  void traceAddEntry(shared_ptr<Command> command,
+                     shared_ptr<RefResult> dir,
+                     string name,
+                     shared_ptr<RefResult> target) noexcept;
+
+  /// Handle a RemoveEntry IR step
+  void traceRemoveEntry(shared_ptr<Command> command,
+                        shared_ptr<RefResult> dir,
+                        string name,
+                        shared_ptr<RefResult> target) noexcept;
 
   /// A command is launching a child command
   void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
