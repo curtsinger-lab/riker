@@ -6,7 +6,6 @@
 
 #include "build/Resolution.hh"
 #include "util/UniqueID.hh"
-#include "util/serializer.hh"
 
 using std::ostream;
 using std::string;
@@ -60,9 +59,6 @@ class RefResult final {
   }
 
  private:
-  /// RefResults are serialized, but we only track their identity. All other fields are transient.
-  SERIALIZE_EMPTY();
-
   /// A unique identifier for this reference result
   UniqueID<RefResult> _id;
 
