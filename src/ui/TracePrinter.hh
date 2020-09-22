@@ -128,6 +128,23 @@ class TracePrinter : public TraceHandler {
     _out << "UpdateContent(" << ref << ", " << written << ")" << endl;
   }
 
+  /// Handle an AddEntry IR step
+  virtual void addEntry(shared_ptr<Command> c,
+                        shared_ptr<RefResult> dir,
+                        string name,
+                        shared_ptr<RefResult> target) noexcept override {
+    if (c) _out << c << ": ";
+    _out << "AddEntry(" << dir << ", \"" << name << "\", " << target << ")" << endl;
+  }
+
+  /// Handle a RemoveEntry IR step
+  virtual void removeEntry(shared_ptr<Command> c,
+                           shared_ptr<RefResult> dir,
+                           string name) noexcept override {
+    if (c) _out << c << ": ";
+    _out << "RemoveEntry(" << dir << ", \"" << name << "\")" << endl;
+  }
+
   virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override {
     if (c) _out << c << ": ";
     _out << "Launch(" << child << ")" << endl;

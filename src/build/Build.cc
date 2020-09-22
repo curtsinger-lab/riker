@@ -430,6 +430,17 @@ void Build::updateContent(shared_ptr<Command> c,
   _last_write = {c, ref, written};
 }
 
+/// Handle an AddEntry IR step
+void Build::addEntry(shared_ptr<Command> command,
+                     shared_ptr<RefResult> dir,
+                     string name,
+                     shared_ptr<RefResult> target) noexcept {}
+
+/// Handle a RemoveEntry IR step
+void Build::removeEntry(shared_ptr<Command> command,
+                        shared_ptr<RefResult> dir,
+                        string name) noexcept {}
+
 // This command launches a child command
 void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   // If this step comes from a command we cannot emulate, skip it
@@ -821,6 +832,17 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   // Update the last write record
   _last_write = {c, ref, written};
 }
+
+// A traced command is adding an entry to a directory
+void Build::traceAddEntry(shared_ptr<Command> command,
+                          shared_ptr<RefResult> dir,
+                          string name,
+                          shared_ptr<RefResult> target) noexcept {}
+
+// A traced command is removing an entry from a directory
+void Build::traceRemoveEntry(shared_ptr<Command> command,
+                             shared_ptr<RefResult> dir,
+                             string name) noexcept {}
 
 // This command launches a child command
 void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {

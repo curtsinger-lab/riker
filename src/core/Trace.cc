@@ -549,6 +549,17 @@ void OutputTrace::updateContent(shared_ptr<Command> cmd,
   _records.emplace_back(new UpdateContentRecord(cmd, ref, version));
 }
 
+/// Add an AddEntry IR step to the output trace
+void OutputTrace::addEntry(shared_ptr<Command> command,
+                           shared_ptr<RefResult> dir,
+                           string name,
+                           shared_ptr<RefResult> target) noexcept {}
+
+/// Add a RemoveEntry IR step to the output trace
+void OutputTrace::removeEntry(shared_ptr<Command> command,
+                              shared_ptr<RefResult> dir,
+                              string name) noexcept {}
+
 /// Add a Launch IR step to the output trace
 void OutputTrace::launch(shared_ptr<Command> cmd, shared_ptr<Command> child) noexcept {
   _records.emplace_back(new LaunchRecord(cmd, child));
