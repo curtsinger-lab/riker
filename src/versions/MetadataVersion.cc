@@ -25,21 +25,44 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
 
   auto mode = _metadata.value().mode;
 
-  // TODO: Currently checking against the current user and group. This should use the user and
-  // group of the running process/command. These should probably be encoded with the reference.
-  // We're also not checking against supplementary groups.
+  // TODO: Currently checking against the dodo process's effective user and group(s). This check
+  // should instead use the user and group(s) of the emulated process/command. Such attributes
+  // should probably be stored within the reference.
 
-  // get user/group for artifact
-  auto a_uid = _metadata.value().uid;
-  auto a_gid = _metadata.value().gid;
+  // if the user's effective uid is root, bypass all checks
+  gid_t gid = getegid();
+  uid_t uid = geteuid();
+  if (uid == 0) {
+    return true;
+  }
 
-  // compute capabilities
-  bool can_r = (a_uid == getuid() && (mode & S_IRUSR)) || (a_gid == getgid() && (mode & S_IRGRP)) ||
-               (mode & S_IROTH);
-  bool can_w = (a_uid == getuid() && (mode & S_IWUSR)) || (a_gid == getgid() && (mode & S_IWGRP)) ||
-               (mode & S_IWOTH);
-  bool can_x = (a_uid == getuid() && (mode & S_IXUSR)) || (a_gid == getgid() && (mode & S_IXGRP)) ||
-               (mode & S_IXOTH);
+  // get supplementary groups
+  int n = getgroups(0, NULL);
+  gid_t sgrps[n];
+  getgroups(n, sgrps);
+
+  // user/group for artifact
+  uid_t a_uid = _metadata.value().uid;
+  gid_t a_gid = _metadata.value().gid;
+
+  // compute file access capabilities
+  bool can_r =
+      (a_uid == uid && (mode & S_IRUSR)) || (a_gid == gid && (mode & S_IRGRP)) || (mode & S_IROTH);
+  for (gid_t s_gid : sgrps) {
+    can_r = can_r || (a_gid == s_gid && (mode & S_IRGRP));  // supplementary groups
+  }
+
+  bool can_w =
+      (a_uid == uid && (mode & S_IWUSR)) || (a_gid == gid && (mode & S_IWGRP)) || (mode & S_IWOTH);
+  for (gid_t s_gid : sgrps) {
+    can_w = can_w || (a_gid == s_gid && (mode & S_IWGRP));  // supplementary groups
+  }
+
+  bool can_x =
+      (a_uid == uid && (mode & S_IXUSR)) || (a_gid == gid && (mode & S_IXGRP)) || (mode & S_IXOTH);
+  for (gid_t s_gid : sgrps) {
+    can_x = can_x || (a_gid == s_gid && (mode & S_IXGRP));  // supplementary groups
+  }
 
   // is the user requesting a capability that they do not have?
   if (flags.r && !can_r) return false;
