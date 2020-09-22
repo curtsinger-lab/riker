@@ -21,6 +21,9 @@ using std::string;
  */
 class RefResult final {
  public:
+  /// The type for a RefResult ID
+  using ID = uint32_t;
+
   /// Default constructor
   RefResult() noexcept = default;
 

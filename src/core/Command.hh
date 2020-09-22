@@ -37,6 +37,9 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class RebuildPlanner;
 
  public:
+  /// The type of a command ID
+  using ID = uint32_t;
+
   /// Create a new command
   Command(shared_ptr<RefResult> exe,
           vector<string> args,
@@ -124,8 +127,4 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The exit status recorded for this command after its last execution
   int _exit_status;
-
-  // Create default constructor and specify fields for serialization
-  Command() = default;
-  SERIALIZE(_exe, _args, _initial_fds, _initial_cwd, _initial_root, _executed, _exit_status);
 };
