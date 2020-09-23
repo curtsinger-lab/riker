@@ -79,18 +79,15 @@ void AddEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) 
 void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
-  // Get the artifact we are linking
-  auto artifact = _target->getResult();
-
-  // First, check to see if the artifact has a temporary path
-  auto temp_path = artifact->takeTemporaryPath();
+  // First, check to see if the linked artifact has a temporary path
+  auto temp_path = _target->takeTemporaryPath();
   if (temp_path.has_value()) {
     // The artifact has a temporary path. We can move it to its new committed location
-    LOG(artifact) << "Moving " << artifact << " from temporary location to " << dir_path / _entry;
+    LOG(artifact) << "Moving " << _target << " from temporary location to " << dir_path / _entry;
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), (dir_path / _entry).c_str());
-    ASSERT(rc == 0) << "Failed to move " << artifact << " from a temporary location: " << ERR;
+    ASSERT(rc == 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
@@ -98,7 +95,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   }
 
   // The artifact does not have a temporary path. Get all the links to this artifact
-  auto [committed_links, uncommitted_links] = artifact->getLinks();
+  auto [committed_links, uncommitted_links] = _target->getLinks();
 
   // Does the artifact have at least one committed link?
   if (committed_links.size() > 0) {
@@ -113,7 +110,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
 
     // There is at least one committed link. If the artifact is a directory, we need to move it. If
     // not, we can hard link to it.
-    if (auto artifact_dir = artifact->as<DirArtifact>()) {
+    if (auto artifact_dir = _target->as<DirArtifact>()) {
       // The artifact is a directory
       FAIL << "Moving directories is not supported yet";
 
@@ -131,7 +128,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
         ASSERT(rc == 0) << "Failed to remove existing link at " << new_path;
         rc = ::link(existing_path.c_str(), new_path.c_str());
       }
-      ASSERT(rc == 0) << "Failed to hard link " << artifact << " to " << dir_path / _entry << ": "
+      ASSERT(rc == 0) << "Failed to hard link " << _target << " to " << dir_path / _entry << ": "
                       << ERR;
 
       // Mark this version as committed and return
@@ -146,7 +143,7 @@ void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
     Version::setCommitted();
 
     // Now commit the artifact
-    artifact->commitAll();
+    _target->commitAll();
   }
 }
 
@@ -159,20 +156,17 @@ void RemoveEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> 
 void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
-  // Get the artifact we're unlinking
-  auto artifact = _target->getResult();
-
-  // We need to know all the links to this artifact
-  auto [committed_links, uncommitted_links] = artifact->getLinks();
+  // We need to know all the links to the artifact being unlinked
+  auto [committed_links, uncommitted_links] = _target->getLinks();
 
   // If this artifact has uncommitted links but is losing its last committed link...
   if (committed_links.size() == 1 && uncommitted_links.size() > 0) {
     // We need to preserve the artifact. We'll move it to a temporary location.
-    auto temp_path = artifact->assignTemporaryPath();
+    auto temp_path = _target->assignTemporaryPath();
 
     // Move the artifact
     int rc = ::rename((dir_path / _entry).c_str(), temp_path.c_str());
-    ASSERT(rc == 0) << "Failed to move " << artifact << " to a temporary location: " << ERR;
+    ASSERT(rc == 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
@@ -181,7 +175,7 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
 
   // The artifact is either losing its last link (committed and uncommitted) or has remaining
   // links We need to unlink or rmdir it, depending on the type of artifact
-  if (auto artifact_dir = artifact->as<DirArtifact>()) {
+  if (auto artifact_dir = _target->as<DirArtifact>()) {
     // The artifact is a directory. We will call rmdir, but first we need to commit any pending
     // versions that will remove the directory's entries
     artifact_dir->commitAll();
@@ -195,7 +189,7 @@ void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcep
   } else {
     // The artifact is a file, symlink etc. that can be hard linked. Just unlink it.
     int rc = ::unlink((dir_path / _entry).c_str());
-    ASSERT(rc == 0) << "Failed to unlink " << artifact << " from " << dir_path / _entry << ": "
+    ASSERT(rc == 0) << "Failed to unlink " << _target << " from " << dir_path / _entry << ": "
                     << ERR;
 
     // Mark this version as committed and return

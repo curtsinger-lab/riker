@@ -58,13 +58,15 @@ class DirArtifact final : public Artifact {
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
 
+  // Un-hide the shorthand version of resolve()
+  using Artifact::resolve;
+
   virtual Resolution resolve(Build& build,
                              shared_ptr<Command> c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
-                             shared_ptr<RefResult> result,
                              bool committed) noexcept override;
 
   /// Apply a link version to this artifact

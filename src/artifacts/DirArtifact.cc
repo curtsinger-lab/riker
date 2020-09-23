@@ -195,7 +195,6 @@ Resolution DirArtifact::resolve(Build& build,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
                                 AccessFlags flags,
-                                shared_ptr<RefResult> result,
                                 bool committed) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
@@ -218,15 +217,13 @@ Resolution DirArtifact::resolve(Build& build,
   fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".")
-    return resolve(build, c, shared_from_this(), current, end, flags, result, committed);
+  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, flags, committed);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags, result,
-                                   committed);
+    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags, committed);
   }
 
   // We'll track the result of the resolution here
@@ -282,11 +279,8 @@ Resolution DirArtifact::resolve(Build& build,
       // Create a new file
       auto newfile = _env->createFile(build, c, flags.mode, committed);
 
-      // Mark the final reference as resolved so we can link the file
-      result->resolvesTo(newfile);
-
       // Link the new file into this directory
-      auto link_version = make_shared<AddEntry>(entry, result);
+      auto link_version = make_shared<AddEntry>(entry, newfile);
       link_version->createdBy(c);
       if (committed) link_version->setCommitted();
       updateContent(build, c, link_version);
@@ -305,12 +299,12 @@ Resolution DirArtifact::resolve(Build& build,
     if (!res) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res->resolve(build, c, shared_from_this(), current, end, flags, result, committed);
+    return res->resolve(build, c, shared_from_this(), current, end, flags, committed);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res) {
-      return res->resolve(build, c, shared_from_this(), current, end, flags, result, committed);
+      return res->resolve(build, c, shared_from_this(), current, end, flags, committed);
     }
 
     // Otherwise return the error from the resolution
@@ -323,7 +317,7 @@ void DirArtifact::updateContent(Build& build,
                                 shared_ptr<Command> c,
                                 shared_ptr<AddEntry> writing) noexcept {
   auto entry = writing->getEntryName();
-  auto artifact = writing->getTarget()->getResult();
+  auto artifact = writing->getTarget();
 
   // Check for an existing entry with the same name
   auto iter = _entries.find(entry);
