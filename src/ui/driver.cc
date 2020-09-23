@@ -209,7 +209,7 @@ static bool stderr_supports_colors() noexcept {
  */
 int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)
-  if (!stderr_supports_colors()) logger::disable_color = true;
+  if (!stderr_supports_colors()) logger_options::disable_color = true;
 
   // Set up a CLI app for command line parsing
   CLI::App app;
@@ -221,27 +221,37 @@ int main(int argc, char* argv[]) noexcept {
   app.fallthrough();
 
   /************* Global Options *************/
-  app.add_flag("--debug", logger::debug, "Print source locations with log messages");
-  app.add_flag("--no-color", logger::disable_color, "Disable color terminal output");
+  app.add_flag("--debug", logger_options::debug, "Print source locations with log messages");
+  app.add_flag("--no-color", logger_options::disable_color, "Disable color terminal output");
 
-  app.add_option_function<set<int>>(
+  app.add_option_function<set<string>>(
          "--log",
-         [&](set<int> categories) {
+         [&](set<string> categories) {
            for (auto category : categories) {
-             logger::log_categories |= category;
+             if (category == "warning" || category == "all") {
+               logger<LogCategory::warning>::enabled = true;
+             }
+             if (category == "trace" || category == "all") {
+               logger<LogCategory::trace>::enabled = true;
+             }
+             if (category == "ir" || category == "all") {
+               logger<LogCategory::ir>::enabled = true;
+             }
+             if (category == "artifact" || category == "all") {
+               logger<LogCategory::artifact>::enabled = true;
+             }
+             if (category == "rebuild" || category == "all") {
+               logger<LogCategory::rebuild>::enabled = true;
+             }
+             if (category == "exec" || category == "all") {
+               logger<LogCategory::exec>::enabled = true;
+             }
            }
          },
          "Display log messages from one or more categories")
       ->type_name("CATEGORY")
-      ->transform(CLI::CheckedTransformer(
-                      map<string, int>{{"warning", static_cast<int>(LogCategory::warning)},
-                                       {"trace", static_cast<int>(LogCategory::trace)},
-                                       {"ir", static_cast<int>(LogCategory::ir)},
-                                       {"artifact", static_cast<int>(LogCategory::artifact)},
-                                       {"rebuild", static_cast<int>(LogCategory::rebuild)},
-                                       {"exec", static_cast<int>(LogCategory::exec)},
-                                       {"all", 0xFFFFFFFF}},
-                      CLI::ignore_case)
+      ->transform(CLI::IsMember({"warning", "trace", "ir", "artifact", "rebuild", "exec", "all"},
+                                CLI::ignore_case)
                       .description("{warning, trace, ir, artifact, rebuild, exec, all}"))
       ->delimiter(',');
 

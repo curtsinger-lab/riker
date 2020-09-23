@@ -56,7 +56,4 @@ class FileDescriptor {
   /// When file descriptors are serialized, it's because they appear in a command's initial file
   /// descriptor table. That means they were not closed on exec by definition.
   bool _cloexec = false;
-
-  // Declare fields for serialization
-  SERIALIZE(_ref, _flags);
 };

@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <fcntl.h>
@@ -44,23 +45,78 @@ using std::map;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::vector;
 
+enum : size_t { ArchiveMagic = 0xD0D0D035178357, ArchiveVersion = 101 };
+
+struct CommandRecord : public Record {
+  Command::ID _id;
+  RefResult::ID _root_id;
+  RefResult::ID _cwd_id;
+  RefResult::ID _exe_id;
+  vector<string> _args;
+  map<int, tuple<RefResult::ID, AccessFlags>> _initial_fds;
+  bool _executed;
+  int _exit_status;
+
+  /// Default constructor for serialization
+  CommandRecord() noexcept = default;
+
+  CommandRecord(Command::ID id,
+                RefResult::ID root_id,
+                RefResult::ID cwd_id,
+                RefResult::ID exe_id,
+                vector<string> args,
+                map<int, tuple<RefResult::ID, AccessFlags>> initial_fds,
+                bool executed,
+                int exit_status) :
+      _id(id),
+      _root_id(root_id),
+      _cwd_id(cwd_id),
+      _exe_id(exe_id),
+      _args(args),
+      _initial_fds(initial_fds),
+      _executed(executed),
+      _exit_status(exit_status) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    map<int, FileDescriptor> fds;
+    for (auto [fd, info] : _initial_fds) {
+      auto [ref_id, flags] = info;
+      fds[fd] = FileDescriptor(input.getRefResult(ref_id), flags);
+    }
+
+    auto cmd = make_shared<Command>(input.getRefResult(_exe_id), _args, fds,
+                                    input.getRefResult(_cwd_id), input.getRefResult(_root_id));
+    if (_executed) cmd->setExecuted();
+    cmd->setExitStatus(_exit_status);
+
+    input.addCommand(_id, cmd);
+  }
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _id, _root_id, _cwd_id, _exe_id, _args, _initial_fds,
+            _executed, _exit_status);
+  }
+};
+
+CEREAL_REGISTER_TYPE(CommandRecord);
+
 struct SpecialRefRecord : public Record {
-  shared_ptr<Command> _cmd;
+  Command::ID _cmd;
   SpecialRef _entity;
-  shared_ptr<RefResult> _output;
+  RefResult::ID _output;
 
   /// Default constructor for serialization
   SpecialRefRecord() noexcept = default;
 
-  SpecialRefRecord(shared_ptr<Command> cmd,
-                   SpecialRef entity,
-                   shared_ptr<RefResult> output) noexcept :
+  SpecialRefRecord(Command::ID cmd, SpecialRef entity, RefResult::ID output) noexcept :
       _cmd(cmd), _entity(entity), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.specialRef(_cmd, _entity, _output);
+    handler.specialRef(input.getCommand(_cmd), _entity, input.getRefResult(_output));
   }
 
   template <class Archive>
@@ -72,20 +128,19 @@ struct SpecialRefRecord : public Record {
 CEREAL_REGISTER_TYPE(SpecialRefRecord);
 
 struct PipeRefRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _read_end;
-  shared_ptr<RefResult> _write_end;
+  Command::ID _cmd;
+  RefResult::ID _read_end;
+  RefResult::ID _write_end;
 
   /// Default constructor for serialization
   PipeRefRecord() noexcept = default;
 
-  PipeRefRecord(shared_ptr<Command> cmd,
-                shared_ptr<RefResult> read_end,
-                shared_ptr<RefResult> write_end) noexcept :
+  PipeRefRecord(Command::ID cmd, RefResult::ID read_end, RefResult::ID write_end) noexcept :
       _cmd(cmd), _read_end(read_end), _write_end(write_end) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.pipeRef(_cmd, _read_end, _write_end);
+    handler.pipeRef(input.getCommand(_cmd), input.getRefResult(_read_end),
+                    input.getRefResult(_write_end));
   }
 
   template <class Archive>
@@ -97,18 +152,18 @@ struct PipeRefRecord : public Record {
 CEREAL_REGISTER_TYPE(PipeRefRecord);
 
 struct FileRefRecord : public Record {
-  shared_ptr<Command> _cmd;
+  Command::ID _cmd;
   mode_t _mode;
-  shared_ptr<RefResult> _output;
+  RefResult::ID _output;
 
   /// Default constructor for serialization
   FileRefRecord() noexcept = default;
 
-  FileRefRecord(shared_ptr<Command> cmd, mode_t mode, shared_ptr<RefResult> output) noexcept :
+  FileRefRecord(Command::ID cmd, mode_t mode, RefResult::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.fileRef(_cmd, _mode, _output);
+    handler.fileRef(input.getCommand(_cmd), _mode, input.getRefResult(_output));
   }
 
   template <class Archive>
@@ -120,19 +175,18 @@ struct FileRefRecord : public Record {
 CEREAL_REGISTER_TYPE(FileRefRecord);
 
 struct SymlinkRefRecord : public Record {
-  shared_ptr<Command> _cmd;
+  Command::ID _cmd;
   fs::path _target;
-  shared_ptr<RefResult> _output;
+  RefResult::ID _output;
 
   /// Default constructor for serialization
   SymlinkRefRecord() noexcept = default;
 
-  SymlinkRefRecord(shared_ptr<Command> cmd, fs::path target, shared_ptr<RefResult> output) noexcept
-      :
+  SymlinkRefRecord(Command::ID cmd, fs::path target, RefResult::ID output) noexcept :
       _cmd(cmd), _target(target), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.symlinkRef(_cmd, _target, _output);
+    handler.symlinkRef(input.getCommand(_cmd), _target, input.getRefResult(_output));
   }
 
   template <class Archive>
@@ -144,18 +198,18 @@ struct SymlinkRefRecord : public Record {
 CEREAL_REGISTER_TYPE(SymlinkRefRecord);
 
 struct DirRefRecord : public Record {
-  shared_ptr<Command> _cmd;
+  Command::ID _cmd;
   mode_t _mode;
-  shared_ptr<RefResult> _output;
+  RefResult::ID _output;
 
   /// Default constructor for serialization
   DirRefRecord() noexcept = default;
 
-  DirRefRecord(shared_ptr<Command> cmd, mode_t mode, shared_ptr<RefResult> output) noexcept :
+  DirRefRecord(Command::ID cmd, mode_t mode, RefResult::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.dirRef(_cmd, _mode, _output);
+    handler.dirRef(input.getCommand(_cmd), _mode, input.getRefResult(_output));
   }
 
   template <class Archive>
@@ -167,24 +221,25 @@ struct DirRefRecord : public Record {
 CEREAL_REGISTER_TYPE(DirRefRecord);
 
 struct PathRefRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _base;
+  Command::ID _cmd;
+  RefResult::ID _base;
   fs::path _path;
   AccessFlags _flags;
-  shared_ptr<RefResult> _output;
+  RefResult::ID _output;
 
   /// Default constructor for serialization
   PathRefRecord() noexcept = default;
 
-  PathRefRecord(shared_ptr<Command> cmd,
-                shared_ptr<RefResult> base,
+  PathRefRecord(Command::ID cmd,
+                RefResult::ID base,
                 fs::path path,
                 AccessFlags flags,
-                shared_ptr<RefResult> output) noexcept :
+                RefResult::ID output) noexcept :
       _cmd(cmd), _base(base), _path(path), _flags(flags), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.pathRef(_cmd, _base, _path, _flags, _output);
+    handler.pathRef(input.getCommand(_cmd), input.getRefResult(_base), _path, _flags,
+                    input.getRefResult(_output));
   }
 
   template <class Archive>
@@ -196,18 +251,18 @@ struct PathRefRecord : public Record {
 CEREAL_REGISTER_TYPE(PathRefRecord);
 
 struct ExpectResultRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _ref;
+  Command::ID _cmd;
+  RefResult::ID _ref;
   int _expected;
 
   /// Default constructor for serialization
   ExpectResultRecord() noexcept = default;
 
-  ExpectResultRecord(shared_ptr<Command> cmd, shared_ptr<RefResult> ref, int expected) noexcept :
+  ExpectResultRecord(Command::ID cmd, RefResult::ID ref, int expected) noexcept :
       _cmd(cmd), _ref(ref), _expected(expected) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.expectResult(_cmd, _ref, _expected);
+    handler.expectResult(input.getCommand(_cmd), input.getRefResult(_ref), _expected);
   }
 
   template <class Archive>
@@ -219,20 +274,20 @@ struct ExpectResultRecord : public Record {
 CEREAL_REGISTER_TYPE(ExpectResultRecord);
 
 struct MatchMetadataRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _ref;
+  Command::ID _cmd;
+  RefResult::ID _ref;
   shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
   MatchMetadataRecord() noexcept = default;
 
-  MatchMetadataRecord(shared_ptr<Command> cmd,
-                      shared_ptr<RefResult> ref,
+  MatchMetadataRecord(Command::ID cmd,
+                      RefResult::ID ref,
                       shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.matchMetadata(_cmd, _ref, _version);
+    handler.matchMetadata(input.getCommand(_cmd), input.getRefResult(_ref), _version);
   }
 
   template <class Archive>
@@ -244,20 +299,18 @@ struct MatchMetadataRecord : public Record {
 CEREAL_REGISTER_TYPE(MatchMetadataRecord);
 
 struct MatchContentRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _ref;
+  Command::ID _cmd;
+  RefResult::ID _ref;
   shared_ptr<Version> _version;
 
   /// Default constructor for serialization
   MatchContentRecord() noexcept = default;
 
-  MatchContentRecord(shared_ptr<Command> cmd,
-                     shared_ptr<RefResult> ref,
-                     shared_ptr<Version> version) noexcept :
+  MatchContentRecord(Command::ID cmd, RefResult::ID ref, shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.matchContent(_cmd, _ref, _version);
+    handler.matchContent(input.getCommand(_cmd), input.getRefResult(_ref), _version);
   }
 
   template <class Archive>
@@ -269,20 +322,20 @@ struct MatchContentRecord : public Record {
 CEREAL_REGISTER_TYPE(MatchContentRecord);
 
 struct UpdateMetadataRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _ref;
+  Command::ID _cmd;
+  RefResult::ID _ref;
   shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(shared_ptr<Command> cmd,
-                       shared_ptr<RefResult> ref,
+  UpdateMetadataRecord(Command::ID cmd,
+                       RefResult::ID ref,
                        shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.updateMetadata(_cmd, _ref, _version);
+    handler.updateMetadata(input.getCommand(_cmd), input.getRefResult(_ref), _version);
   }
 
   template <class Archive>
@@ -294,20 +347,18 @@ struct UpdateMetadataRecord : public Record {
 CEREAL_REGISTER_TYPE(UpdateMetadataRecord);
 
 struct UpdateContentRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<RefResult> _ref;
+  Command::ID _cmd;
+  RefResult::ID _ref;
   shared_ptr<Version> _version;
 
   /// Default constructor for serialization
   UpdateContentRecord() noexcept = default;
 
-  UpdateContentRecord(shared_ptr<Command> cmd,
-                      shared_ptr<RefResult> ref,
-                      shared_ptr<Version> version) noexcept :
+  UpdateContentRecord(Command::ID cmd, RefResult::ID ref, shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.updateContent(_cmd, _ref, _version);
+    handler.updateContent(input.getCommand(_cmd), input.getRefResult(_ref), _version);
   }
 
   template <class Archive>
@@ -318,18 +369,68 @@ struct UpdateContentRecord : public Record {
 
 CEREAL_REGISTER_TYPE(UpdateContentRecord);
 
+struct AddEntryRecord : public Record {
+  Command::ID _cmd;
+  RefResult::ID _dir;
+  string _name;
+  RefResult::ID _target;
+
+  /// Default constructor for serialization
+  AddEntryRecord() noexcept = default;
+
+  AddEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept :
+      _cmd(cmd), _dir(dir), _name(name), _target(target) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.addEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
+                     input.getRefResult(_target));
+  }
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _dir, _name, _target);
+  }
+};
+
+CEREAL_REGISTER_TYPE(AddEntryRecord);
+
+struct RemoveEntryRecord : public Record {
+  Command::ID _cmd;
+  RefResult::ID _dir;
+  string _name;
+  RefResult::ID _target;
+
+  /// Default constructor for serialization
+  RemoveEntryRecord() noexcept = default;
+
+  RemoveEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept
+      :
+      _cmd(cmd), _dir(dir), _name(name), _target(target) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
+    handler.removeEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
+                        input.getRefResult(_target));
+  }
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _dir, _name, _target);
+  }
+};
+
+CEREAL_REGISTER_TYPE(RemoveEntryRecord);
+
 struct LaunchRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<Command> _child;
+  Command::ID _cmd;
+  Command::ID _child;
 
   /// Default constructor for serialization
   LaunchRecord() noexcept = default;
 
-  LaunchRecord(shared_ptr<Command> cmd, shared_ptr<Command> child) noexcept :
-      _cmd(cmd), _child(child) {}
+  LaunchRecord(Command::ID cmd, Command::ID child) noexcept : _cmd(cmd), _child(child) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.launch(_cmd, _child);
+    handler.launch(input.getCommand(_cmd), input.getCommand(_child));
   }
 
   template <class Archive>
@@ -341,18 +442,18 @@ struct LaunchRecord : public Record {
 CEREAL_REGISTER_TYPE(LaunchRecord);
 
 struct JoinRecord : public Record {
-  shared_ptr<Command> _cmd;
-  shared_ptr<Command> _child;
+  Command::ID _cmd;
+  Command::ID _child;
   int _exit_status;
 
   /// Default constructor for serialization
   JoinRecord() noexcept = default;
 
-  JoinRecord(shared_ptr<Command> cmd, shared_ptr<Command> child, int exit_status) noexcept :
+  JoinRecord(Command::ID cmd, Command::ID child, int exit_status) noexcept :
       _cmd(cmd), _child(child), _exit_status(exit_status) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.join(_cmd, _child, _exit_status);
+    handler.join(input.getCommand(_cmd), input.getCommand(_child), _exit_status);
   }
 
   template <class Archive>
@@ -364,17 +465,16 @@ struct JoinRecord : public Record {
 CEREAL_REGISTER_TYPE(JoinRecord);
 
 struct ExitRecord : public Record {
-  shared_ptr<Command> _cmd;
+  Command::ID _cmd;
   int _exit_status;
 
   /// Default constructor for serialization
   ExitRecord() noexcept = default;
 
-  ExitRecord(shared_ptr<Command> cmd, int exit_status) noexcept :
-      _cmd(cmd), _exit_status(exit_status) {}
+  ExitRecord(Command::ID cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
-    handler.exit(_cmd, _exit_status);
+    handler.exit(input.getCommand(_cmd), _exit_status);
   }
 
   template <class Archive>
@@ -402,107 +502,133 @@ CEREAL_REGISTER_TYPE(EndRecord);
 
 /*********************************/
 
-InputTrace::InputTrace(string filename) noexcept {
+// Run this trace
+void InputTrace::sendTo(TraceHandler& handler) noexcept {
+  bool use_default = false;
+
   try {
     // Open the file for reading. Must pass std::ios::binary!
-    ifstream f(filename, std::ios::binary);
+    ifstream f(_filename, std::ios::binary);
 
     // Initialize cereal's binary archive reader
     cereal::BinaryInputArchive archive(f);
 
-    // Loop until we hit the end of the trace
-    bool done = false;
-    while (!done) {
-      unique_ptr<Record> record;
-      archive(record);
-      done = record->isEnd();
-      _records.emplace_back(std::move(record));
+    // Load the version header from the trace file
+    size_t magic;
+    size_t version;
+    archive(magic, version);
+
+    // Check the magic number and version
+    if (magic != ArchiveMagic) {
+      WARN << "Saved trace does appears to be invalid. Running a full build.";
+      use_default = true;
+    } else if (version != ArchiveVersion) {
+      WARN << "Saved trace is not the correct version. Running a full build.";
+      use_default = true;
     }
+
+    // If we are not using a default trace, load it now
+    if (!use_default) {
+      // Loop until we hit the end of the trace
+      bool done = false;
+      while (!done) {
+        unique_ptr<Record> record;
+        archive(record);
+        done = record->isEnd();
+        record->handle(*this, handler);
+      }
+    }
+
   } catch (cereal::Exception& e) {
-    initDefault();
+    // If there is an exception when loading the trace, revert to a default trace
+    use_default = true;
   }
+
+  if (use_default) sendDefault(handler);
+
+  handler.finish();
 }
 
-void InputTrace::initDefault() noexcept {
-  // Clear the list of records
-  _records.clear();
+void InputTrace::sendDefault(TraceHandler& handler) noexcept {
+  Command::ID no_cmd_id = 0;
+  auto no_cmd = getCommand(no_cmd_id);
 
   // Create the initial pipe references
-  auto stdin_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stdin, stdin_ref));
+  RefResult::ID stdin_ref_id = 0;
+  auto stdin_ref = getRefResult(stdin_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stdin, stdin_ref);
 
-  auto stdout_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stdout, stdout_ref));
+  RefResult::ID stdout_ref_id = 1;
+  auto stdout_ref = getRefResult(stdout_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stdout, stdout_ref);
 
-  auto stderr_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::stderr, stderr_ref));
+  RefResult::ID stderr_ref_id = 2;
+  auto stderr_ref = getRefResult(stderr_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::stderr, stderr_ref);
 
   // Create a reference to the root directory
-  auto root_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::root, root_ref));
+  RefResult::ID root_ref_id = 3;
+  auto root_ref = getRefResult(root_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::root, root_ref);
 
   // Create a reference to the current working directory and add it to the trace
-  auto cwd_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::cwd, cwd_ref));
+  RefResult::ID cwd_ref_id = 4;
+  auto cwd_ref = getRefResult(cwd_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::cwd, cwd_ref);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
-  auto exe_ref = make_shared<RefResult>();
-  _records.emplace_back(new SpecialRefRecord(nullptr, SpecialRef::launch_exe, exe_ref));
+  RefResult::ID exe_ref_id = 5;
+  auto exe_ref = getRefResult(exe_ref_id);
+  handler.specialRef(no_cmd, SpecialRef::launch_exe, exe_ref);
 
   // Create a map of initial file descriptors
   map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref, AccessFlags{.r = true})},
                                   {1, FileDescriptor(stdout_ref, AccessFlags{.w = true})},
                                   {2, FileDescriptor(stderr_ref, AccessFlags{.w = true})}};
 
-  // Make a root cmd
-  auto root_cmd =
-      make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref);
+  // Create a root command
+  Command::ID root_cmd_id = 1;
+  addCommand(root_cmd_id,
+             make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref));
 
-  // Make a launch action for the root cmd
-  _records.emplace_back(new LaunchRecord(nullptr, root_cmd));
-}
-
-// Run this trace
-void InputTrace::sendTo(TraceHandler& handler) noexcept {
-  for (auto& record : _records) {
-    record->handle(*this, handler);
-  }
-  handler.finish();
+  // Launch the root command
+  handler.launch(no_cmd, getCommand(root_cmd_id));
 }
 
 /// Add a SpecialRef IR step to the output trace
 void OutputTrace::specialRef(shared_ptr<Command> cmd,
                              SpecialRef entity,
                              shared_ptr<RefResult> output) noexcept {
-  _records.emplace_back(new SpecialRefRecord(cmd, entity, output));
+  _records.emplace_back(new SpecialRefRecord(getCommandID(cmd), entity, getRefResultID(output)));
 }
 
 /// Add a PipeRef IR step to the output trace
 void OutputTrace::pipeRef(shared_ptr<Command> cmd,
                           shared_ptr<RefResult> read_end,
                           shared_ptr<RefResult> write_end) noexcept {
-  _records.emplace_back(new PipeRefRecord(cmd, read_end, write_end));
+  _records.emplace_back(
+      new PipeRefRecord(getCommandID(cmd), getRefResultID(read_end), getRefResultID(write_end)));
 }
 
 /// Add a FileRef IR step to the output trace
 void OutputTrace::fileRef(shared_ptr<Command> cmd,
                           mode_t mode,
                           shared_ptr<RefResult> output) noexcept {
-  _records.emplace_back(new FileRefRecord(cmd, mode, output));
+  _records.emplace_back(new FileRefRecord(getCommandID(cmd), mode, getRefResultID(output)));
 }
 
 /// Add a SymlinkRef IR step to the output trace
 void OutputTrace::symlinkRef(shared_ptr<Command> cmd,
                              fs::path target,
                              shared_ptr<RefResult> output) noexcept {
-  _records.emplace_back(new SymlinkRefRecord(cmd, target, output));
+  _records.emplace_back(new SymlinkRefRecord(getCommandID(cmd), target, getRefResultID(output)));
 }
 
 /// Add a DirRef IR step to the output trace
 void OutputTrace::dirRef(shared_ptr<Command> cmd,
                          mode_t mode,
                          shared_ptr<RefResult> output) noexcept {
-  _records.emplace_back(new DirRefRecord(cmd, mode, output));
+  _records.emplace_back(new DirRefRecord(getCommandID(cmd), mode, getRefResultID(output)));
 }
 
 /// Add a PathRef IR step to the output trace
@@ -511,64 +637,101 @@ void OutputTrace::pathRef(shared_ptr<Command> cmd,
                           fs::path path,
                           AccessFlags flags,
                           shared_ptr<RefResult> output) noexcept {
-  _records.emplace_back(new PathRefRecord(cmd, base, path, flags, output));
+  _records.emplace_back(new PathRefRecord(getCommandID(cmd), getRefResultID(base), path, flags,
+                                          getRefResultID(output)));
 }
 
 /// Add a ExpectResult IR step to the output trace
 void OutputTrace::expectResult(shared_ptr<Command> cmd,
                                shared_ptr<RefResult> ref,
                                int expected) noexcept {
-  _records.emplace_back(new ExpectResultRecord(cmd, ref, expected));
+  _records.emplace_back(new ExpectResultRecord(getCommandID(cmd), getRefResultID(ref), expected));
 }
 
 /// Add a MatchMetadata IR step to the output trace
 void OutputTrace::matchMetadata(shared_ptr<Command> cmd,
                                 shared_ptr<RefResult> ref,
                                 shared_ptr<MetadataVersion> version) noexcept {
-  _records.emplace_back(new MatchMetadataRecord(cmd, ref, version));
+  _records.emplace_back(new MatchMetadataRecord(getCommandID(cmd), getRefResultID(ref), version));
 }
 
 /// Add a MatchContent IR step to the output trace
 void OutputTrace::matchContent(shared_ptr<Command> cmd,
                                shared_ptr<RefResult> ref,
                                shared_ptr<Version> version) noexcept {
-  _records.emplace_back(new MatchContentRecord(cmd, ref, version));
+  _records.emplace_back(new MatchContentRecord(getCommandID(cmd), getRefResultID(ref), version));
 }
 
 /// Add a UpdateMetadata IR step to the output trace
 void OutputTrace::updateMetadata(shared_ptr<Command> cmd,
                                  shared_ptr<RefResult> ref,
                                  shared_ptr<MetadataVersion> version) noexcept {
-  _records.emplace_back(new UpdateMetadataRecord(cmd, ref, version));
+  _records.emplace_back(new UpdateMetadataRecord(getCommandID(cmd), getRefResultID(ref), version));
 }
 
 /// Add a UpdateContent IR step to the output trace
 void OutputTrace::updateContent(shared_ptr<Command> cmd,
                                 shared_ptr<RefResult> ref,
                                 shared_ptr<Version> version) noexcept {
-  _records.emplace_back(new UpdateContentRecord(cmd, ref, version));
+  _records.emplace_back(new UpdateContentRecord(getCommandID(cmd), getRefResultID(ref), version));
+}
+
+/// Add an AddEntry IR step to the output trace
+void OutputTrace::addEntry(shared_ptr<Command> cmd,
+                           shared_ptr<RefResult> dir,
+                           string name,
+                           shared_ptr<RefResult> target) noexcept {
+  _records.emplace_back(
+      new AddEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));
+}
+
+/// Add a RemoveEntry IR step to the output trace
+void OutputTrace::removeEntry(shared_ptr<Command> cmd,
+                              shared_ptr<RefResult> dir,
+                              string name,
+                              shared_ptr<RefResult> target) noexcept {
+  _records.emplace_back(
+      new RemoveEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));
 }
 
 /// Add a Launch IR step to the output trace
 void OutputTrace::launch(shared_ptr<Command> cmd, shared_ptr<Command> child) noexcept {
-  _records.emplace_back(new LaunchRecord(cmd, child));
+  // Add the launched command to the set of commands
+  Command::ID child_id = addCommand(child);
+  RefResult::ID root_id = getRefResultID(child->getInitialRootDir());
+  RefResult::ID cwd_id = getRefResultID(child->getInitialWorkingDir());
+  RefResult::ID exe_id = getRefResultID(child->getExecutable());
+
+  map<int, tuple<RefResult::ID, AccessFlags>> fds;
+  for (auto [fd, info] : child->getInitialFDs()) {
+    fds[fd] = {getRefResultID(info.getRef()), info.getFlags()};
+  }
+
+  _records.emplace_back(new CommandRecord(child_id, root_id, cwd_id, exe_id, child->getArguments(),
+                                          fds, child->hasExecuted(), child->getExitStatus()));
+
+  // Create the record for the launch IR step
+  _records.emplace_back(new LaunchRecord(getCommandID(cmd), getCommandID(child)));
 }
 
 /// Add a Join IR step to the output trace
 void OutputTrace::join(shared_ptr<Command> cmd,
                        shared_ptr<Command> child,
                        int exit_status) noexcept {
-  _records.emplace_back(new JoinRecord(cmd, child, exit_status));
+  _records.emplace_back(new JoinRecord(getCommandID(cmd), getCommandID(child), exit_status));
 }
 
 /// Add a Exit IR step to the output trace
 void OutputTrace::exit(shared_ptr<Command> cmd, int exit_status) noexcept {
-  _records.emplace_back(new ExitRecord(cmd, exit_status));
+  _records.emplace_back(new ExitRecord(getCommandID(cmd), exit_status));
 }
 
 void OutputTrace::finish() noexcept {
   ofstream out(_filename, std::ios::binary);
   cereal::BinaryOutputArchive archive(out);
+
+  // Write out the magic number and version
+  archive(ArchiveMagic, ArchiveVersion);
 
   // Write out the list of records
   for (auto& r : _records) {
@@ -611,7 +774,5 @@ CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 
 // Directory version types
-CEREAL_REGISTER_TYPE(AddEntry);
-CEREAL_REGISTER_TYPE(RemoveEntry);
 CEREAL_REGISTER_TYPE(CreatedDir);
 CEREAL_REGISTER_TYPE(ListedDir);

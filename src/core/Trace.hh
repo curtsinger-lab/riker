@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <list>
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -10,11 +11,15 @@
 
 #include <cereal/archives/binary.hpp>
 
+#include "core/Command.hh"
+#include "core/RefResult.hh"
 #include "core/SpecialRefs.hh"
 #include "core/TraceHandler.hh"
 
 using std::ifstream;
 using std::list;
+using std::make_shared;
+using std::map;
 using std::ofstream;
 using std::shared_ptr;
 using std::string;
@@ -45,7 +50,7 @@ struct Record {
 class InputTrace {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(string filename) noexcept;
+  InputTrace(fs::path filename) noexcept : _filename(filename) {}
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -61,13 +66,41 @@ class InputTrace {
   /// Send the loaded trace to a trace handler
   void sendTo(TraceHandler&& handler) noexcept { sendTo(handler); }
 
- private:
-  /// Initialize the list of steps to a default trace
-  void initDefault() noexcept;
+  /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
+  /// the original instance will be used and not the new one.
+  void addCommand(Command::ID id, shared_ptr<Command> cmd) noexcept {
+    auto iter = _commands.find(id);
+    if (iter == _commands.end()) _commands.emplace_hint(iter, id, cmd);
+  }
+
+  /// Get a command from its ID
+  shared_ptr<Command> getCommand(Command::ID id) const noexcept { return _commands.at(id); }
+
+  /// Get a RefResult from its ID
+  shared_ptr<RefResult> getRefResult(RefResult::ID id) noexcept {
+    auto iter = _ref_results.find(id);
+    if (iter == _ref_results.end()) {
+      auto result = make_shared<RefResult>();
+      _ref_results.emplace_hint(iter, id, result);
+      return result;
+    } else {
+      return iter->second;
+    }
+  }
 
  private:
-  /// The list of records loaded from the trace file
-  list<unique_ptr<Record>> _records;
+  /// Send a default trace to a trace handler
+  void sendDefault(TraceHandler& handler) noexcept;
+
+ private:
+  /// The path to the loaded trace
+  fs::path _filename;
+
+  /// The map from command IDs to command instances. Startup steps run in command 0
+  map<Command::ID, shared_ptr<Command>> _commands = {{0, nullptr}};
+
+  /// The map from RefResult IDs to instances
+  map<RefResult::ID, shared_ptr<RefResult>> _ref_results;
 };
 
 /**
@@ -81,6 +114,28 @@ class OutputTrace : public TraceHandler {
   // Disallow copy
   OutputTrace(const OutputTrace&) = delete;
   OutputTrace& operator=(const OutputTrace&) = delete;
+
+  /// Add a new command to the output trace and return its unique ID
+  Command::ID addCommand(shared_ptr<Command> cmd) noexcept {
+    Command::ID id = _commands.size();
+    _commands.emplace(cmd, id);
+    return id;
+  }
+
+  /// Get the ID for a command instance
+  Command::ID getCommandID(shared_ptr<Command> cmd) const noexcept { return _commands.at(cmd); }
+
+  /// Get the ID for a RefResult instance
+  RefResult::ID getRefResultID(shared_ptr<RefResult> result) noexcept {
+    auto iter = _ref_results.find(result);
+    if (iter == _ref_results.end()) {
+      RefResult::ID id = _ref_results.size();
+      _ref_results.emplace_hint(iter, result, id);
+      return id;
+    } else {
+      return iter->second;
+    }
+  }
 
   /// Trace output is finished
   virtual void finish() noexcept override;
@@ -142,6 +197,18 @@ class OutputTrace : public TraceHandler {
                              shared_ptr<RefResult> ref,
                              shared_ptr<Version> version) noexcept override;
 
+  /// Add an AddEntry IR step to the output trace
+  virtual void addEntry(shared_ptr<Command> command,
+                        shared_ptr<RefResult> dir,
+                        string name,
+                        shared_ptr<RefResult> target) noexcept override;
+
+  /// Add a RemoveEntry IR step to the output trace
+  virtual void removeEntry(shared_ptr<Command> command,
+                           shared_ptr<RefResult> dir,
+                           string name,
+                           shared_ptr<RefResult> target) noexcept override;
+
   /// Add a Launch IR step to the output trace
   virtual void launch(shared_ptr<Command> command, shared_ptr<Command> child) noexcept override;
 
@@ -159,4 +226,10 @@ class OutputTrace : public TraceHandler {
 
   /// The list of records to write
   list<unique_ptr<Record>> _records;
+
+  /// The map from commands to their IDs in the output trace
+  map<shared_ptr<Command>, Command::ID> _commands = {{nullptr, 0}};
+
+  /// The map from RefResults to their IDs in the output trace
+  map<shared_ptr<RefResult>, RefResult::ID> _ref_results;
 };
