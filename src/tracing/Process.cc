@@ -681,10 +681,10 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
   } else {
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
-      auto ref_flags = AccessFlags::fromStat(flags);
-      auto ref = makePathRef(pathname, ref_flags, dirfd);
-
       resume();
+
+      // Make the reference
+      auto ref = makePathRef(pathname, AccessFlags::fromStat(flags), dirfd);
 
       if (rc == 0) {
         // The stat succeeded
@@ -696,7 +696,6 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
 
       } else if (rc == -EACCES || rc == -ENOENT || rc == -ENOTDIR) {
         // The stat failed with a filesystem-related error
-        auto ref = makePathRef(pathname, {}, dirfd);
         _build.traceExpectResult(getCommand(), ref, -rc);
       } else {
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
