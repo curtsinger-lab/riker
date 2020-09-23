@@ -224,8 +224,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   Resolution resolve(Build& build,
                      shared_ptr<Command> c,
                      fs::path path,
-                     AccessFlags flags) noexcept {
-    return resolve(build, c, nullptr, path.begin(), path.end(), flags);
+                     AccessFlags flags,
+                     size_t symlink_limit = 40) noexcept {
+    return resolve(build, c, nullptr, path.begin(), path.end(), flags, symlink_limit);
   }
 
   /**
@@ -245,7 +246,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             AccessFlags flags) noexcept;
+                             AccessFlags flags,
+                             size_t symlink_limit) noexcept;
 
   /****** Utility Methods ******/
 

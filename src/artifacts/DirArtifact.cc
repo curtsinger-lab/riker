@@ -194,7 +194,8 @@ Resolution DirArtifact::resolve(Build& build,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
-                                AccessFlags flags) noexcept {
+                                AccessFlags flags,
+                                size_t symlink_limit) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
   while (current != end && current->empty()) current++;
@@ -216,13 +217,15 @@ Resolution DirArtifact::resolve(Build& build,
   fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, flags);
+  if (entry == ".")
+    return resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags);
+    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags,
+                                   symlink_limit);
   }
 
   // We'll track the result of the resolution here
@@ -294,12 +297,12 @@ Resolution DirArtifact::resolve(Build& build,
     if (!res) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res->resolve(build, c, shared_from_this(), current, end, flags);
+    return res->resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res) {
-      return res->resolve(build, c, shared_from_this(), current, end, flags);
+      return res->resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
     }
 
     // Otherwise return the error from the resolution
