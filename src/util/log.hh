@@ -30,15 +30,7 @@ using std::experimental::source_location;
 #define END_COLOR "\033[01;0m"
 
 /// Specify log categories, and indicate each with a distinct bit
-enum class LogCategory : int {
-  error = 1,
-  warning = 2,
-  trace = 4,
-  ir = 8,
-  artifact = 16,
-  rebuild = 32,
-  exec = 64
-};
+enum class LogCategory { error, warning, trace, ir, artifact, rebuild, exec };
 
 constexpr const char* getLogCategoryName(LogCategory category) {
   if (category == LogCategory::error) return "error";
@@ -57,7 +49,7 @@ static std::ostream& operator<<(std::ostream& o, const std::unique_ptr<T>& p) {
   return o << p.get();
 }
 
-struct logger_options {
+namespace logger_options {
   /// When set, disable color terminal output
   inline static bool disable_color = false;
 
@@ -77,14 +69,11 @@ class logger {
   /// Is this logger enabled? By default, error and warning are enabled, while others are disabled.
   inline static bool enabled = (category == LogCategory::error || category == LogCategory::warning);
 
+  /// What is the name of this logger?
   inline static constexpr const char* name = getLogCategoryName(category);
 
- private:
-  bool _enabled;  // Should this logger print anything?
-  bool _done;     // Is this the final command in the log output?
-
  public:
-  logger(source_location location = source_location::current()) noexcept : _done(true) {
+  logger(source_location location = source_location::current()) noexcept {
     // Stop immediately if this logger is not enabled
     if (!enabled) return;
 
@@ -120,46 +109,39 @@ class logger {
     }
   }
 
-  logger(logger&& other) noexcept {
-    _done = other._done;
-    other._done = false;
-  }
-
   ~logger() noexcept {
     if (!enabled) return;
 
-    if (_done) {
-      // End color output and print a newline
-      if (!logger_options::disable_color) cerr << END_COLOR;
-      cerr << "\n";
-      cerr << std::dec;
+    // End color output and print a newline
+    if (!logger_options::disable_color) cerr << END_COLOR;
+    cerr << "\n";
+    cerr << std::dec;
 
-      // If this log is a fatal
-      if (category == LogCategory::error) {
-        // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
-        if (logger_options::debug)
-          abort();
-        else
-          exit(2);
-      }
+    // If this log is a fatal
+    if (category == LogCategory::error) {
+      // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
+      if (logger_options::debug)
+        abort();
+      else
+        exit(2);
     }
   }
 
-  void operator=(logger&& other) noexcept {
-    _done = other._done;
-    other._done = false;
-  }
-
   template <typename T>
-  logger&& operator<<(const T& t) noexcept {
+  logger& operator<<(const T& t) noexcept {
     if (enabled) cerr << t;
-    return move(*this);
+    return *this;
   }
+};
 
-  using StreamType = decltype(std::cerr);
-  using EndlType = StreamType& (*)(StreamType&);
-
-  logger&& operator<<(EndlType e) { return move(*this); }
+/// A null logger never prints anything, but can serve as a stand-in for a logger when logging is
+/// disabled (e.g. by turning off assert checking)
+class null_logger {
+ public:
+  template <class T>
+  null_logger& operator<<(const T& t) noexcept {
+    return *this;
+  }
 };
 
 #define LOG(type) \
