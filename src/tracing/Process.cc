@@ -681,11 +681,13 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
   } else {
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
+      auto ref_flags = AccessFlags::fromStat(flags);
+      auto ref = makePathRef(pathname, ref_flags, dirfd);
+
       resume();
 
       if (rc == 0) {
         // The stat succeeded
-        auto ref = makePathRef(pathname, {}, dirfd);
         _build.traceExpectResult(getCommand(), ref, SUCCESS);
         ASSERT(ref->getResult()) << "Unable to locate artifact for stat-ed file " << ref;
 
