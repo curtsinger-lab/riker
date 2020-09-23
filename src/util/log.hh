@@ -51,10 +51,10 @@ static std::ostream& operator<<(std::ostream& o, const std::unique_ptr<T>& p) {
 
 namespace logger_options {
   /// When set, disable color terminal output
-  inline static bool disable_color = false;
+  inline bool disable_color = false;
 
   /// When set, include source locations in log messages
-  inline static bool debug = false;
+  inline bool debug = false;
 };
 
 /**
