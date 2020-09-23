@@ -119,7 +119,7 @@ void Build::specialRef(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").specialRef(c, entity, output);
+  LOG(ir) << "emulated " << TracePrinter::SpecialRefPrinter{c, entity, output};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -173,7 +173,7 @@ void Build::pipeRef(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").pipeRef(c, read_end, write_end);
+  LOG(ir) << "emulated " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -195,7 +195,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> ou
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").fileRef(c, mode, output);
+  LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -217,7 +217,7 @@ void Build::symlinkRef(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").symlinkRef(c, target, output);
+  LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -237,7 +237,7 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> out
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").dirRef(c, mode, output);
+  LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -261,7 +261,7 @@ void Build::pathRef(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").pathRef(c, base, path, flags, output);
+  LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -284,7 +284,7 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").expectResult(c, ref, expected);
+  LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -308,7 +308,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").matchMetadata(c, ref, expected);
+  LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -337,7 +337,7 @@ void Build::matchContent(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").matchContent(c, ref, expected);
+  LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -366,7 +366,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").updateMetadata(c, ref, written);
+  LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref, written};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -402,7 +402,7 @@ void Build::updateContent(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").updateContent(c, ref, written);
+  LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref, written};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -442,7 +442,7 @@ void Build::addEntry(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").addEntry(c, dir, name, target);
+  LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir, name, target};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -475,7 +475,7 @@ void Build::removeEntry(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").removeEntry(c, dir, name, target);
+  LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir, name, target};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -505,7 +505,7 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").launch(c, child);
+  LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{c, child};
 
   LOG(exec) << c << " launching " << child;
 
@@ -573,7 +573,7 @@ void Build::join(shared_ptr<Command> c, shared_ptr<Command> child, int exit_stat
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").join(c, child, exit_status);
+  LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -597,7 +597,7 @@ void Build::exit(shared_ptr<Command> c, int exit_status) noexcept {
   _emulated_step_count++;
 
   // Log the emulated step
-  TracePrinter(LOG(ir) << "emulated ").exit(c, exit_status);
+  LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
 
   // Create an IR step and add it to the output trace
   if (_output_trace) {
@@ -634,7 +634,7 @@ tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
   write_end->resolvesTo(pipe);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").pipeRef(c, read_end, write_end);
+  LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   return {read_end, write_end};
 }
@@ -656,7 +656,7 @@ shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) no
   output->resolvesTo(_env->createFile(*this, c, mode, true));
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").fileRef(c, mode, output);
+  LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
 
   return output;
 }
@@ -678,7 +678,7 @@ shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path tar
   output->resolvesTo(_env->getSymlink(*this, c, target, true));
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").symlinkRef(c, target, output);
+  LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   return output;
 }
@@ -700,7 +700,7 @@ shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noe
   output->resolvesTo(_env->getDir(*this, c, mode, true));
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").dirRef(c, mode, output);
+  LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
 
   return output;
 }
@@ -728,7 +728,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   output->resolvesTo(result);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").pathRef(c, base, path, flags, output);
+  LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   return output;
 }
@@ -746,7 +746,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   }
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").expectResult(c, ref, expected);
+  LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, ref, expected};
 }
 
 // Command c accesses an artifact's metadata
@@ -778,7 +778,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   }
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").matchMetadata(c, ref, expected);
+  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, ref, expected};
 }
 
 // Command c accesses an artifact's content
@@ -814,7 +814,7 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
   }
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").matchContent(c, ref, expected);
+  LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, ref, expected};
 }
 
 // Command c modifies an artifact
@@ -842,7 +842,7 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref
   written->setCommitted();
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").updateMetadata(c, ref, written);
+  LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref, written};
 }
 
 // Command c modifies an artifact
@@ -882,7 +882,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   written->applyTo(*this, c, artifact);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").updateContent(c, ref, written);
+  LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref, written};
 
   // Update the last write record
   _last_write = {c, ref, written};
@@ -912,7 +912,7 @@ void Build::traceAddEntry(shared_ptr<Command> c,
   written->applyTo(*this, c, dir_artifact);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").addEntry(c, dir, name, target);
+  LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir, name, target};
 }
 
 // A traced command is removing an entry from a directory
@@ -939,7 +939,7 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
   written->applyTo(*this, c, dir_artifact);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").removeEntry(c, dir, name, target);
+  LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir, name, target};
 }
 
 // This command launches a child command
@@ -985,7 +985,7 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
   }
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").launch(c, child);
+  LOG(ir) << "traced " << TracePrinter::LaunchPrinter{c, child};
 }
 
 // This command joined with a child command
@@ -1002,7 +1002,7 @@ void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit
   child->setExitStatus(exit_status);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").join(c, child, exit_status);
+  LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 }
 
 void Build::traceExit(shared_ptr<Command> c, int exit_status) noexcept {
@@ -1021,5 +1021,5 @@ void Build::traceExit(shared_ptr<Command> c, int exit_status) noexcept {
   c->setExitStatus(exit_status);
 
   // Log the traced step
-  TracePrinter(LOG(ir) << "traced ").exit(c, exit_status);
+  LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 }
