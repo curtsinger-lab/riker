@@ -294,8 +294,11 @@ Resolution DirArtifact::resolve(Build& build,
       // The resolution result is now the newly-created file
       res = newfile;
 
-      // THe newly-created file is linked in this directory
+      // The newly-created file is linked in this directory
       res->addLinkUpdate(as<DirArtifact>(), entry, link_version);
+
+      // return the artifact we just created and stop resolution
+      return res;
     }
 
     // If the result was an error, return it
