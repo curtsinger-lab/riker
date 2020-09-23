@@ -563,7 +563,7 @@ void Thread::_dup(int fd) noexcept {
       resume();
 
       // If the syscall failed, do nothing
-      if (newfd == -1) return;
+      if (newfd < 0) return;
 
       // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
       // false.
@@ -846,7 +846,7 @@ void Thread::_write(int fd) noexcept {
     resume();
 
     // If the write syscall failed, there's no need to log a write
-    if (rc == -1) return;
+    if (rc < 0) return;
 
     // Record the update to the artifact contents
     _build.traceUpdateContent(getCommand(), descriptor.getRef());
@@ -858,7 +858,7 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
 
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
-  if (fd == -1) {
+  if (fd < 0) {
     LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
     resume();
     return;
@@ -1113,7 +1113,7 @@ void Thread::_getdents(int fd) noexcept {
   finishSyscall([=](long rc) {
     resume();
 
-    if (rc != -1) {
+    if (rc == 0) {
       // Create a dependency on the artifact's directory list
       const auto& descriptor = _process->getFD(fd);
       _build.traceMatchContent(getCommand(), descriptor.getRef());
