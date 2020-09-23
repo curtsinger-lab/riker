@@ -590,7 +590,7 @@ void Thread::_dup3(int oldfd, int newfd, int flags) noexcept {
       // If the syscall failed, we have nothing more to do
       // Note: this is different than a failed file access. This failure should not be affected
       //       by the state of the filesystem, so we don't have to log it.
-      if (rc == -1) return;
+      if (rc < 0) return;
 
       // If there is an existing descriptor entry number newfd, it is silently closed
       _process->tryCloseFD(newfd);
