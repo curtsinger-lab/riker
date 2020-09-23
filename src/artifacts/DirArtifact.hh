@@ -66,8 +66,7 @@ class DirArtifact final : public Artifact {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             AccessFlags flags,
-                             bool committed) noexcept override;
+                             AccessFlags flags) noexcept override;
 
   /// Apply a link version to this artifact
   virtual void updateContent(Build& build,

@@ -102,6 +102,11 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 }
 
+void FileArtifact::setCommitted() noexcept {
+  _content_version->setCommitted();
+  Artifact::setCommitted();
+}
+
 /// Get the current content version for this artifact
 shared_ptr<Version> FileArtifact::getContent(Build& build,
                                              shared_ptr<Command> c,

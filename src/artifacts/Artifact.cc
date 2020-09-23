@@ -51,6 +51,14 @@ string Artifact::getName() const noexcept {
   return string();
 }
 
+void Artifact::setCommitted() noexcept {
+  _metadata_version->setCommitted();
+  for (auto& [weak_dir, entry, weak_version] : _link_updates) {
+    auto version = weak_version.lock();
+    if (version) version->setCommitted();
+  }
+}
+
 void Artifact::addLinkUpdate(shared_ptr<DirArtifact> dir,
                              string entry,
                              shared_ptr<DirVersion> v) noexcept {
@@ -283,13 +291,11 @@ Resolution Artifact::resolve(Build& build,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             AccessFlags flags,
-                             bool committed) noexcept {
+                             AccessFlags flags) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(build, c, flags)) return EACCES;
-    if (committed) commitAll();
     return shared_from_this();
   }
 

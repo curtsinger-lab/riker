@@ -60,7 +60,10 @@ void Build::observeInput(shared_ptr<Command> c,
     _last_write = {nullptr, nullptr, nullptr};
   }
 
-  if (_plan.mustRerun(c) && !v->isCommitted()) {
+  // If the accessing command is running, make sure this file is available.
+  // One exception is when a command accesses its own output; we can skip that case because the
+  // output will eventually be marked as committed.
+  if (_plan.mustRerun(c) && !v->isCommitted() && v->getCreator() != c) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
@@ -141,7 +144,7 @@ void Build::specialRef(shared_ptr<Command> c,
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto result = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.x = true}, false);
+    auto result = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.x = true});
     ASSERT(result) << "Failed to resolve current working directory";
     result->setName(".");
 
@@ -150,7 +153,7 @@ void Build::specialRef(shared_ptr<Command> c,
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-    auto result = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.x = true}, false);
+    auto result = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.x = true});
 
     output->resolvesTo(result);
 
@@ -267,7 +270,7 @@ void Build::pathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getResult()->resolve(*this, c, path, flags, false);
+  auto result = base->getResult()->resolve(*this, c, path, flags);
   output->resolvesTo(result);
 }
 
@@ -719,8 +722,11 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getResult()->resolve(*this, c, path, flags, true);
+  auto result = base->getResult()->resolve(*this, c, path, flags);
   output->resolvesTo(result);
+
+  // If the reference could have created a file, mark that file's versions and links as committed
+  if (result && flags.create) result->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};

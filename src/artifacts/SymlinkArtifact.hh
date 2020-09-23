@@ -59,8 +59,7 @@ class SymlinkArtifact : public Artifact {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             AccessFlags flags,
-                             bool committed) noexcept override;
+                             AccessFlags flags) noexcept override;
 
  private:
   /// The currrent version of this symlink

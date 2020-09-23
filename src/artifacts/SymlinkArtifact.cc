@@ -98,11 +98,7 @@ Resolution SymlinkArtifact::resolve(Build& build,
                                     shared_ptr<Artifact> prev,
                                     fs::path::iterator current,
                                     fs::path::iterator end,
-                                    AccessFlags flags,
-                                    bool committed) noexcept {
-  // If requested, commit this artifact
-  if (committed) commitAll();
-
+                                    AccessFlags flags) noexcept {
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (current == end && flags.nofollow) return shared_from_this();
 
@@ -120,13 +116,13 @@ Resolution SymlinkArtifact::resolve(Build& build,
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(build, c, dest, flags, committed);
+    return prev->resolve(build, c, dest, flags);
 
   } else {
     // Strip the leading slash from the path
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return _env->getRootDir()->resolve(build, c, dest, flags, committed);
+    return _env->getRootDir()->resolve(build, c, dest, flags);
   }
 }

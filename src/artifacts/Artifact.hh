@@ -119,6 +119,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept;
 
+  /// Mark all versions and paths to this artifact as committed
+  virtual void setCommitted() noexcept;
+
   /************ Path Manipulation ************/
 
   /// A link is a tuple of a directory and an entry name in that directory
@@ -221,9 +224,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   Resolution resolve(Build& build,
                      shared_ptr<Command> c,
                      fs::path path,
-                     AccessFlags flags,
-                     bool committed) noexcept {
-    return resolve(build, c, nullptr, path.begin(), path.end(), flags, committed);
+                     AccessFlags flags) noexcept {
+    return resolve(build, c, nullptr, path.begin(), path.end(), flags);
   }
 
   /**
@@ -243,8 +245,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
-                             AccessFlags flags,
-                             bool committed) noexcept;
+                             AccessFlags flags) noexcept;
 
   /****** Utility Methods ******/
 

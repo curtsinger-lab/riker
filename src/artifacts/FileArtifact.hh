@@ -45,6 +45,9 @@ class FileArtifact : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
 
+  /// Mark all versions of this artifact as committed
+  virtual void setCommitted() noexcept override;
+
   /************ Content Operations ************/
 
   /// Get the current content version for this artifact

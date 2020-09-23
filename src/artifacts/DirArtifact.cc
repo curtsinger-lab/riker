@@ -194,8 +194,7 @@ Resolution DirArtifact::resolve(Build& build,
                                 shared_ptr<Artifact> prev,
                                 fs::path::iterator current,
                                 fs::path::iterator end,
-                                AccessFlags flags,
-                                bool committed) noexcept {
+                                AccessFlags flags) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
   while (current != end && current->empty()) current++;
@@ -217,13 +216,13 @@ Resolution DirArtifact::resolve(Build& build,
   fs::path entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, flags, committed);
+  if (entry == ".") return resolve(build, c, shared_from_this(), current, end, flags);
 
   // Are we looking for the parent directory?
   if (entry == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags, committed);
+    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags);
   }
 
   // We'll track the result of the resolution here
@@ -235,9 +234,6 @@ Resolution DirArtifact::resolve(Build& build,
     // Found a match.
     // Get the version responsible for this entry and the artifact it mapped (possibly null)
     auto [v, a] = entries_iter->second;
-
-    // Make sure the version is committed if requested
-    if (committed) commit(v);
 
     // Is there an artifact to resolve to?
     if (a) {
@@ -277,12 +273,11 @@ Resolution DirArtifact::resolve(Build& build,
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env->createFile(build, c, flags.mode, committed);
+      auto newfile = _env->createFile(build, c, flags.mode, false);
 
       // Link the new file into this directory
       auto link_version = make_shared<AddEntry>(entry, newfile);
       link_version->createdBy(c);
-      if (committed) link_version->setCommitted();
       updateContent(build, c, link_version);
 
       // The resolution result is now the newly-created file
@@ -299,12 +294,12 @@ Resolution DirArtifact::resolve(Build& build,
     if (!res) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res->resolve(build, c, shared_from_this(), current, end, flags, committed);
+    return res->resolve(build, c, shared_from_this(), current, end, flags);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res) {
-      return res->resolve(build, c, shared_from_this(), current, end, flags, committed);
+      return res->resolve(build, c, shared_from_this(), current, end, flags);
     }
 
     // Otherwise return the error from the resolution
