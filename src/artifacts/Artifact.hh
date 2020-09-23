@@ -210,13 +210,31 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Directory Operations ************/
 
   /**
+   * Resolve a path relative to this artifact
+   * \param build The running build that issued this request
+   * \param c     The command this resolution is performed on behalf of
+   * \param path  The path being resolved
+   * \param flags The access mode requested
+   * \param committed If true, an accesses or actions taken during resolution should be committed
+   * \returns a resolution result, which is either an artifact or an error code
+   */
+  Resolution resolve(Build& build,
+                     shared_ptr<Command> c,
+                     fs::path path,
+                     AccessFlags flags,
+                     bool committed) noexcept {
+    return resolve(build, c, nullptr, path.begin(), path.end(), flags, committed);
+  }
+
+  /**
    * Resolve a path relative to this artifact.
+   * \param build     The running build that issued this request
    * \param c         The command this resolution is performed on behalf of
    * \param prev      The previously-visited artifact along this path. This won't always be the
    *                    parent directory, since paths can include ".." entries
    * \param current   An iterator to the next part of the path to be resolved
    * \param end       An iterator to the end of the path
-   * \param ref       The reference that is being resolved
+   * \param flags     The access mode requested for the final resolved file
    * \param committed If true, any accesses or actions taken during resolution should be committed.
    * \returns a resolution result, which is either an artifact or an error code
    */
@@ -226,7 +244,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
-                             shared_ptr<RefResult> result,
                              bool committed) noexcept;
 
   /****** Utility Methods ******/

@@ -186,13 +186,13 @@ class ExistingDir : public BaseDirVersion {
 class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  AddEntry(string entry, shared_ptr<RefResult> target) noexcept : _entry(entry), _target(target) {}
+  AddEntry(string entry, shared_ptr<Artifact> target) noexcept : _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version links
   string getEntryName() const noexcept { return _entry; }
 
   /// Get the target of the newly-linked entry
-  shared_ptr<RefResult> getTarget() const noexcept { return _target; }
+  shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override {
@@ -213,26 +213,26 @@ class AddEntry : public DirVersion {
 
   /// Print a link version
   virtual ostream& print(ostream& o) const noexcept override {
-    return o << "[dir: link " << _entry << " -> " << _target->getName() << "]";
+    return o << "[dir: link " << _entry << " -> " << _target << "]";
   }
 
  private:
   string _entry;
-  shared_ptr<RefResult> _target;
+  shared_ptr<Artifact> _target;
 };
 
 /// A RemoveEntry version updates a directory so it no longer has a specific entry
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(string entry, shared_ptr<RefResult> target) noexcept :
+  RemoveEntry(string entry, shared_ptr<Artifact> target) noexcept :
       _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version removes
   string getEntryName() const noexcept { return _entry; }
 
   /// Get a reference to the artifact that is unlinked
-  shared_ptr<RefResult> getTarget() const noexcept { return _target; }
+  shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -256,5 +256,5 @@ class RemoveEntry : public DirVersion {
   string _entry;
 
   /// A reference to the artifact that is unlinked by this version
-  shared_ptr<RefResult> _target;
+  shared_ptr<Artifact> _target;
 };

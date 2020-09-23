@@ -141,8 +141,7 @@ void Build::specialRef(shared_ptr<Command> c,
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto result = _env->getRootDir()->resolve(*this, c, nullptr, cwd_path.begin(), cwd_path.end(),
-                                              AccessFlags{.x = true}, output, false);
+    auto result = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.x = true}, false);
     ASSERT(result) << "Failed to resolve current working directory";
     result->setName(".");
 
@@ -151,9 +150,7 @@ void Build::specialRef(shared_ptr<Command> c,
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-    auto result =
-        _env->getRootDir()->resolve(*this, c, nullptr, dodo_launch.begin(), dodo_launch.end(),
-                                    AccessFlags{.x = true}, output, false);
+    auto result = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.x = true}, false);
 
     output->resolvesTo(result);
 
@@ -270,8 +267,7 @@ void Build::pathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result =
-      base->getResult()->resolve(*this, c, nullptr, path.begin(), path.end(), flags, output, false);
+  auto result = base->getResult()->resolve(*this, c, path, flags, false);
   output->resolvesTo(result);
 }
 
@@ -457,7 +453,7 @@ void Build::addEntry(shared_ptr<Command> c,
   }
 
   // Create an AddEntry version to apply to the directory
-  auto written = make_shared<AddEntry>(name, target);
+  auto written = make_shared<AddEntry>(name, target->getResult());
   written->setCommitted(false);
   written->createdBy(c);
   written->applyTo(*this, c, dir->getResult());
@@ -490,7 +486,7 @@ void Build::removeEntry(shared_ptr<Command> c,
   }
 
   // Create a RemoveEntry version to apply to the directory
-  auto written = make_shared<RemoveEntry>(name, target);
+  auto written = make_shared<RemoveEntry>(name, target->getResult());
   written->setCommitted(false);
   written->createdBy(c);
   written->applyTo(*this, c, dir->getResult());
@@ -723,8 +719,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result =
-      base->getResult()->resolve(*this, c, nullptr, path.begin(), path.end(), flags, output, true);
+  auto result = base->getResult()->resolve(*this, c, path, flags, true);
   output->resolvesTo(result);
 
   // Log the traced step
@@ -906,7 +901,7 @@ void Build::traceAddEntry(shared_ptr<Command> c,
   }
 
   // Create an AddEntry version to apply to the directory
-  auto written = make_shared<AddEntry>(name, target);
+  auto written = make_shared<AddEntry>(name, target->getResult());
   written->setCommitted();
   written->createdBy(c);
   written->applyTo(*this, c, dir_artifact);
@@ -933,7 +928,7 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
   }
 
   // Create an AddEntry version to apply to the directory
-  auto written = make_shared<RemoveEntry>(name, target);
+  auto written = make_shared<RemoveEntry>(name, target->getResult());
   written->setCommitted();
   written->createdBy(c);
   written->applyTo(*this, c, dir_artifact);
