@@ -77,17 +77,17 @@ class Thread {
   /*** Handling for specific system calls ***/
 
   // File Opening, Creation, and Closing
-  void _open(string f, o_flags flags, mode_t mode) noexcept {
+  void _open(string f, o_flags flags, mode_flags mode) noexcept {
     _openat(at_fd::cwd(), f, flags, mode);
   }
-  void _openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noexcept;
-  void _creat(string p, mode_t mode) noexcept {
+  void _openat(at_fd dfd, string filename, o_flags flags, mode_flags mode) noexcept;
+  void _creat(string p, mode_flags mode) noexcept {
     _open(p, o_flags(O_CREAT | O_WRONLY | O_TRUNC), mode);
   }
-  void _mknod(string f, mode_t mode, unsigned dev) noexcept {
+  void _mknod(string f, mode_flags mode, unsigned dev) noexcept {
     _mknodat(at_fd::cwd(), f, mode, dev);
   }
-  void _mknodat(at_fd dfd, string filename, mode_t mode, unsigned dev) noexcept;
+  void _mknodat(at_fd dfd, string filename, mode_flags mode, unsigned dev) noexcept;
   void _close(int fd) noexcept;
 
   // Pipes
@@ -125,9 +125,11 @@ class Thread {
   }
   void _fchown(int fd, uid_t user, gid_t group) noexcept;
   void _fchownat(at_fd dfd, string filename, uid_t user, gid_t group, int flag) noexcept;
-  void _chmod(string filename, mode_t mode) noexcept { _fchmodat(at_fd::cwd(), filename, mode, 0); }
-  void _fchmod(int fd, mode_t mode) noexcept;
-  void _fchmodat(at_fd dfd, string filename, mode_t mode, int flags) noexcept;
+  void _chmod(string filename, mode_flags mode) noexcept {
+    _fchmodat(at_fd::cwd(), filename, mode, 0);
+  }
+  void _fchmod(int fd, mode_flags mode) noexcept;
+  void _fchmodat(at_fd dfd, string filename, mode_flags mode, int flags) noexcept;
 
   // File Content Operations
   void _read(int fd) noexcept;
@@ -150,8 +152,8 @@ class Thread {
   void _vmsplice(int fd) noexcept { _write(fd); }
 
   // Directory Operations
-  void _mkdir(string p, mode_t mode) noexcept { _mkdirat(at_fd::cwd(), p, mode); }
-  void _mkdirat(at_fd dfd, string pathname, mode_t mode) noexcept;
+  void _mkdir(string p, mode_flags mode) noexcept { _mkdirat(at_fd::cwd(), p, mode); }
+  void _mkdirat(at_fd dfd, string pathname, mode_flags mode) noexcept;
   void _rmdir(string pathname) noexcept { _unlinkat(at_fd::cwd(), pathname, AT_REMOVEDIR); }
   void _rename(string n1, string n2) noexcept { _renameat(at_fd::cwd(), n1, at_fd::cwd(), n2); }
   void _renameat(at_fd d1, string n1, at_fd d2, string n2) noexcept {

@@ -197,8 +197,8 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 
 /************************* File Opening, Creation, and Closing ************************/
 
-void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noexcept {
-  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, flags, mode_printer(mode));
+void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_flags mode) noexcept {
+  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, flags, mode);
 
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
@@ -221,7 +221,7 @@ void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noe
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.has<O_TMPFILE>()) {
-        auto anon_ref = _build.traceFileRef(getCommand(), mode);
+        auto anon_ref = _build.traceFileRef(getCommand(), mode.getMode());
 
         // Record the reference in the process' file descriptor table
         _process->addFD(fd, anon_ref, ref_flags, flags.has<O_CLOEXEC>());
@@ -245,10 +245,10 @@ void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noe
   });
 }
 
-void Thread::_mknodat(at_fd dfd, string filename, mode_t mode, unsigned dev) noexcept {
-  LOGF(trace, "{}: mknodat({}, \"{}\", {}, {})", this, dfd, filename, mode_printer(mode), dev);
+void Thread::_mknodat(at_fd dfd, string filename, mode_flags mode, unsigned dev) noexcept {
+  LOGF(trace, "{}: mknodat({}, \"{}\", {}, {})", this, dfd, filename, mode, dev);
 
-  if ((mode & S_IFMT) == S_IFREG) {
+  if (mode.isRegularFile()) {
     // Handle regular file creation with openat
     _openat(dfd, filename, o_flags(O_CREAT | O_EXCL), mode);
   } else {
@@ -511,8 +511,8 @@ void Thread::_fchownat(at_fd dfd, string filename, uid_t user, gid_t group, int 
   });
 }
 
-void Thread::_fchmod(int fd, mode_t mode) noexcept {
-  LOGF(trace, "{}: fchmod({}, {})", this, fd, mode_printer(mode));
+void Thread::_fchmod(int fd, mode_flags mode) noexcept {
+  LOGF(trace, "{}: fchmod({}, {})", this, fd, mode);
 
   // Get the file descriptor entry
   auto& descriptor = _process->getFD(fd);
@@ -532,8 +532,8 @@ void Thread::_fchmod(int fd, mode_t mode) noexcept {
   });
 }
 
-void Thread::_fchmodat(at_fd dfd, string filename, mode_t mode, int flags) noexcept {
-  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode_printer(mode),
+void Thread::_fchmodat(at_fd dfd, string filename, mode_flags mode, int flags) noexcept {
+  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode,
        at_flags_printer(flags));
 
   // Make a reference to the file that will be chmod-ed.
@@ -731,8 +731,8 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
 
 /************************ Directory Operations ************************/
 
-void Thread::_mkdirat(at_fd dfd, string pathname, mode_t mode) noexcept {
-  LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd, pathname, mode_printer(mode));
+void Thread::_mkdirat(at_fd dfd, string pathname, mode_flags mode) noexcept {
+  LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd, pathname, mode);
 
   auto full_path = fs::path(pathname);
 
@@ -763,7 +763,7 @@ void Thread::_mkdirat(at_fd dfd, string pathname, mode_t mode) noexcept {
       _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
-      auto dir_ref = _build.traceDirRef(getCommand(), mode);
+      auto dir_ref = _build.traceDirRef(getCommand(), mode.getMode());
 
       // Link the directory into the parent dir
       _build.traceAddEntry(getCommand(), parent_ref, entry, dir_ref);

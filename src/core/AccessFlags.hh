@@ -39,16 +39,18 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(o_flags flags, uint16_t mode) noexcept {
-    return AccessFlags{.r = flags.readable(),
-                       .w = flags.writable(),
-                       .nofollow = flags.has<O_NOFOLLOW>(),
-                       .truncate = flags.has<O_TRUNC>(),
-                       .create = flags.has<O_CREAT>(),
-                       .exclusive = flags.has<O_EXCL>(),
-                       .append = flags.has<O_APPEND>(),
-                       .directory = flags.has<O_DIRECTORY>(),
-                       .mode = mode};
+  static AccessFlags fromOpen(o_flags flags, mode_flags mode) noexcept {
+    AccessFlags f;
+    f.r = flags.readable();
+    f.w = flags.writable();
+    f.nofollow = flags.has<O_NOFOLLOW>();
+    f.truncate = flags.has<O_TRUNC>();
+    f.create = flags.has<O_CREAT>();
+    f.exclusive = flags.has<O_EXCL>();
+    f.append = flags.has<O_APPEND>();
+    f.directory = flags.has<O_DIRECTORY>();
+    f.mode = mode.getMode();
+    return f;
   }
 
   /// Generate flags for the open() call from this AccessFlags instance

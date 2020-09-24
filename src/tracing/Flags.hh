@@ -38,25 +38,50 @@ class at_fd {
   int _fd;
 };
 
-class mode_printer {
+class mode_flags {
  public:
-  mode_printer(mode_t mode) : _mode(mode) {}
+  mode_flags(mode_t mode) : _mode(mode) {}
 
-  friend ostream& operator<<(ostream& o, const mode_printer& p) noexcept {
+  /// Check if the flags include specific option
+  template <int flag>
+  bool has() const noexcept {
+    return (_mode & flag) == flag;
+  }
+
+  bool isSocket() const noexcept { return (_mode & S_IFMT) == S_IFSOCK; }
+  bool isSymlink() const noexcept { return (_mode & S_IFMT) == S_IFLNK; }
+  bool isRegularFile() const noexcept { return (_mode & S_IFMT) == S_IFREG; }
+  bool isBlockDevice() const noexcept { return (_mode & S_IFMT) == S_IFBLK; }
+  bool isCharDevice() const noexcept { return (_mode & S_IFMT) == S_IFCHR; }
+  bool isFIFO() const noexcept { return (_mode & S_IFMT) == S_IFIFO; }
+
+  bool userRead() const noexcept { return has<S_IRUSR>(); }
+  bool userWrite() const noexcept { return has<S_IWUSR>(); }
+  bool userExecute() const noexcept { return has<S_IXUSR>(); }
+  bool groupRead() const noexcept { return has<S_IRGRP>(); }
+  bool groupWrite() const noexcept { return has<S_IWGRP>(); }
+  bool groupExecute() const noexcept { return has<S_IXGRP>(); }
+  bool otherRead() const noexcept { return has<S_IROTH>(); }
+  bool otherWrite() const noexcept { return has<S_IWOTH>(); }
+  bool otherExecute() const noexcept { return has<S_IXOTH>(); }
+  bool setUID() const noexcept { return has<S_ISUID>(); }
+  bool setGID() const noexcept { return has<S_ISGID>(); }
+  bool sticky() const noexcept { return has<S_ISVTX>(); }
+
+  mode_t getMode() const noexcept { return _mode; }
+
+  friend ostream& operator<<(ostream& o, const mode_flags& p) noexcept {
     if (p._mode == 0) return o << 0;
 
-    o << ((p._mode & S_IRUSR) ? 'r' : '-');
-    o << ((p._mode & S_IWUSR) ? 'w' : '-');
-    o << ((p._mode & S_IXUSR) ? ((p._mode & S_ISUID) ? 's' : 'x')
-                              : ((p._mode & S_ISUID) ? 'S' : '-'));
-    o << ((p._mode & S_IRGRP) ? 'r' : '-');
-    o << ((p._mode & S_IWGRP) ? 'w' : '-');
-    o << ((p._mode & S_IXGRP) ? ((p._mode & S_ISGID) ? 's' : 'x')
-                              : ((p._mode & S_ISGID) ? 'S' : '-'));
-    o << ((p._mode & S_IROTH) ? 'r' : '-');
-    o << ((p._mode & S_IWOTH) ? 'w' : '-');
-    o << ((p._mode & S_IXOTH) ? ((p._mode & S_ISVTX) ? 't' : 'x')
-                              : ((p._mode & S_ISVTX) ? 'T' : '-'));
+    o << (p.userRead() ? 'r' : '-');
+    o << (p.userWrite() ? 'w' : '-');
+    o << (p.userExecute() ? (p.setUID() ? 's' : 'x') : (p.setUID() ? 'S' : '-'));
+    o << (p.groupRead() ? 'r' : '-');
+    o << (p.groupWrite() ? 'w' : '-');
+    o << (p.groupExecute() ? (p.setGID() ? 's' : 'x') : (p.setGID() ? 'S' : '-'));
+    o << (p.otherRead() ? 'r' : '-');
+    o << (p.otherWrite() ? 'w' : '-');
+    o << (p.otherExecute() ? (p.sticky() ? 't' : 'x') : (p.sticky() ? 'T' : '-'));
 
     o << fmt::format(" ({:o})", p._mode);
     return o;
