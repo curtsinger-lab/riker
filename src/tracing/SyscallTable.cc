@@ -39,6 +39,9 @@ class SyscallArgWrapper {
   // Get mode_flags from the register value
   operator mode_flags() { return mode_flags(_val); }
 
+  // Get rename_flags from the register value
+  operator rename_flags() { return rename_flags(_val); }
+
   // Read a string from the thread's memory
   operator string() { return _thread.readString(_val); }
 

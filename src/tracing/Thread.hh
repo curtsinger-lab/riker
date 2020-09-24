@@ -157,9 +157,13 @@ class Thread {
   void _rmdir(string pathname) noexcept { _unlinkat(at_fd::cwd(), pathname, AT_REMOVEDIR); }
   void _rename(string n1, string n2) noexcept { _renameat(at_fd::cwd(), n1, at_fd::cwd(), n2); }
   void _renameat(at_fd d1, string n1, at_fd d2, string n2) noexcept {
-    _renameat2(d1, n1, d2, n2, 0);
+    _renameat2(d1, n1, d2, n2, rename_flags());
   }
-  void _renameat2(at_fd old_dfd, string oldpath, at_fd new_dfd, string newpath, int flags) noexcept;
+  void _renameat2(at_fd old_dfd,
+                  string oldpath,
+                  at_fd new_dfd,
+                  string newpath,
+                  rename_flags flags) noexcept;
   void _getdents(int fd) noexcept;
   void _getdents64(int fd) noexcept { _getdents(fd); }
 

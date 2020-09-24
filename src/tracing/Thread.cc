@@ -780,9 +780,9 @@ void Thread::_renameat2(at_fd old_dfd,
                         string old_name,
                         at_fd new_dfd,
                         string new_name,
-                        int flags) noexcept {
+                        rename_flags flags) noexcept {
   LOGF(trace, "{}: renameat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, old_name, new_dfd,
-       new_name, rename_flags_printer(flags));
+       new_name, flags);
 
   // Break the path to the existing file into directory and entry parts
   auto old_path = fs::path(old_name);
@@ -804,7 +804,7 @@ void Thread::_renameat2(at_fd old_dfd,
 
   // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
   shared_ptr<RefResult> new_entry_ref;
-  if ((flags & RENAME_EXCHANGE) || (flags & RENAME_NOREPLACE)) {
+  if (flags.exchange() || flags.noreplace()) {
     new_entry_ref = makePathRef(new_path, AccessFlags{.nofollow = true}, new_dfd);
   }
 
@@ -824,14 +824,14 @@ void Thread::_renameat2(at_fd old_dfd,
       _build.traceExpectResult(getCommand(), new_dir_ref, SUCCESS);
 
       // Is this an exchange or noreplace option?
-      if (flags & RENAME_EXCHANGE) {
+      if (flags.exchange()) {
         // This is an exchange, so the new_entry_ref must exist
         _build.traceExpectResult(getCommand(), new_entry_ref, SUCCESS);
 
         // Unlink the new entry
         _build.traceRemoveEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
 
-      } else if (flags & RENAME_NOREPLACE) {
+      } else if (flags.noreplace()) {
         // This is a noreplace rename, so new_entry_ref must not exist
         _build.traceExpectResult(getCommand(), new_entry_ref, ENOENT);
       }
@@ -840,7 +840,7 @@ void Thread::_renameat2(at_fd old_dfd,
       _build.traceAddEntry(getCommand(), new_dir_ref, new_entry, old_entry_ref);
 
       // If this is an exchange, we also have to perform the swapped link
-      if (flags & RENAME_EXCHANGE) {
+      if (flags.exchange()) {
         _build.traceAddEntry(getCommand(), old_dir_ref, old_entry, new_entry_ref);
       }
     } else {

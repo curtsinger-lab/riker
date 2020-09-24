@@ -109,7 +109,7 @@ class o_flags {
   /// Do the flags include a request for read access?
   bool readable() const noexcept { return has<O_RDWR>() || (has<O_RDONLY>() && !has<O_WRONLY>()); }
 
-  /// Do teh flags include a request for write access?
+  /// Do the flags include a request for write access?
   bool writable() const noexcept { return has<O_RDWR>() || has<O_WRONLY>(); }
 
   friend ostream& operator<<(ostream& o, const o_flags& p) noexcept {
@@ -190,11 +190,17 @@ class at_flags_printer {
   int _flags;
 };
 
-class rename_flags_printer {
+class rename_flags {
  public:
-  rename_flags_printer(int flags) : _flags(flags) {}
+  rename_flags() noexcept : _flags(0) {}
 
-  friend ostream& operator<<(ostream& o, const rename_flags_printer& p) noexcept {
+  rename_flags(int flags) noexcept : _flags(flags) {}
+
+  bool exchange() const noexcept { return has<RENAME_EXCHANGE>(); }
+  bool noreplace() const noexcept { return has<RENAME_NOREPLACE>(); }
+  bool whiteout() const noexcept { return has<RENAME_WHITEOUT>(); }
+
+  friend ostream& operator<<(ostream& o, const rename_flags& p) noexcept {
     bool noflag = true;
 
     // pretty printer
@@ -212,6 +218,13 @@ class rename_flags_printer {
     dec(RENAME_WHITEOUT, "RENAME_WHITEOUT");
 
     return o << fmt::format(" ({:o})", p._flags);
+  }
+
+ private:
+  // Check if the flags include specific option
+  template <int flag>
+  bool has() const noexcept {
+    return (_flags & flag) == flag;
   }
 
  private:
