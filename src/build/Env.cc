@@ -18,7 +18,7 @@
 #include "core/Command.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
-#include "util/path.hh"
+#include "util/wrappers.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"

@@ -16,7 +16,7 @@
 #include "tracing/Tracer.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
-#include "util/path.hh"
+#include "util/wrappers.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"

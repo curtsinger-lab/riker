@@ -7,6 +7,7 @@
 #include <sys/types.h>
 
 #include "artifacts/Artifact.hh"
+#include "util/wrappers.hh"
 
 using std::nullopt;
 using std::shared_ptr;
@@ -36,39 +37,55 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
     return true;
   }
 
-  // get supplementary groups
-  int n = getgroups(0, NULL);
-  gid_t sgrps[n];
-  getgroups(n, sgrps);
-
   // user/group for artifact
   uid_t a_uid = _metadata.value().uid;
   gid_t a_gid = _metadata.value().gid;
 
-  // compute file access capabilities
-  bool can_r =
-      (a_uid == uid && (mode & S_IRUSR)) || (a_gid == gid && (mode & S_IRGRP)) || (mode & S_IROTH);
-  for (gid_t s_gid : sgrps) {
-    can_r = can_r || (a_gid == s_gid && (mode & S_IRGRP));  // supplementary groups
+  // Keep track of which permissions we still need to satisfy
+  bool read_needed = flags.r;
+  bool write_needed = flags.w;
+  bool execute_needed = flags.x;
+
+  // If we've satisfied all needed permissions, stop checking
+  if (!read_needed && !write_needed && !execute_needed) return true;
+
+  // Check for permissions granted to the owner
+  if (uid == a_uid) {
+    if (mode & S_IRUSR) read_needed = false;
+    if (mode & S_IWUSR) write_needed = false;
+    if (mode & S_IXUSR) execute_needed = false;
   }
 
-  bool can_w =
-      (a_uid == uid && (mode & S_IWUSR)) || (a_gid == gid && (mode & S_IWGRP)) || (mode & S_IWOTH);
-  for (gid_t s_gid : sgrps) {
-    can_w = can_w || (a_gid == s_gid && (mode & S_IWGRP));  // supplementary groups
+  // If we've satisfied all needed permissions, stop checking
+  if (!read_needed && !write_needed && !execute_needed) return true;
+
+  // Check for permissions granted to the primary group
+  if (gid == a_gid) {
+    if (mode & S_IRGRP) read_needed = false;
+    if (mode & S_IWGRP) write_needed = false;
+    if (mode & S_IXGRP) execute_needed = false;
   }
 
-  bool can_x =
-      (a_uid == uid && (mode & S_IXUSR)) || (a_gid == gid && (mode & S_IXGRP)) || (mode & S_IXOTH);
-  for (gid_t s_gid : sgrps) {
-    can_x = can_x || (a_gid == s_gid && (mode & S_IXGRP));  // supplementary groups
+  // If we've satisfied all needed permissions, stop checking
+  if (!read_needed && !write_needed && !execute_needed) return true;
+
+  // Check for permissions granted to world
+  if (mode & S_IROTH) read_needed = false;
+  if (mode & S_IWOTH) write_needed = false;
+  if (mode & S_IXOTH) execute_needed = false;
+
+  // If we've satisfied all needed permissions, stop checking
+  if (!read_needed && !write_needed && !execute_needed) return true;
+
+  // Check for permissions granted to the supplementary groups
+  if (getgroups().find(a_gid) != getgroups().end()) {
+    if (mode & S_IRGRP) read_needed = false;
+    if (mode & S_IWGRP) write_needed = false;
+    if (mode & S_IXGRP) execute_needed = false;
   }
 
-  // is the user requesting a capability that they do not have?
-  if (flags.r && !can_r) return false;
-  if (flags.w && !can_w) return false;
-  if (flags.x && !can_x) return false;
-  return true;
+  // Access is granted as long as all requested permissions were granted
+  return !read_needed && !write_needed && !execute_needed;
 }
 
 // Save metadata

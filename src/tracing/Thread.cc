@@ -19,7 +19,7 @@
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
 #include "util/log.hh"
-#include "util/path.hh"
+#include "util/wrappers.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -334,6 +334,12 @@ void Thread::_dup(int fd) noexcept {
 
 void Thread::_dup3(int oldfd, int newfd, o_flags flags) noexcept {
   LOGF(trace, "{}: dup3({}, {}, {})", this, oldfd, newfd, flags);
+
+  // If newfd and oldfd are equal, dup2/dup3 just checks if the fd is valid. No need to trace.
+  if (newfd == oldfd) {
+    resume();
+    return;
+  }
 
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table

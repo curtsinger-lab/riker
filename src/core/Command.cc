@@ -12,7 +12,7 @@
 #include "build/Build.hh"
 #include "core/AccessFlags.hh"
 #include "ui/options.hh"
-#include "util/path.hh"
+#include "util/wrappers.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
