@@ -33,6 +33,9 @@ class SyscallArgWrapper {
   // Get an at_fd from the register value
   operator at_fd() { return at_fd(_val); }
 
+  // Get o_flags from the register value
+  operator o_flags() { return o_flags(_val); }
+
   // Read a string from the thread's memory
   operator string() { return _thread.readString(_val); }
 

@@ -197,9 +197,8 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 
 /************************* File Opening, Creation, and Closing ************************/
 
-void Thread::_openat(at_fd dfd, string filename, int flags, mode_t mode) noexcept {
-  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, o_flags_printer(flags),
-       mode_printer(mode));
+void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noexcept {
+  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, flags, mode_printer(mode));
 
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
@@ -220,15 +219,12 @@ void Thread::_openat(at_fd dfd, string filename, int flags, mode_t mode) noexcep
       ASSERT(ref->getResult()) << "Failed to locate artifact for opened file: " << filename
                                << " (received " << ref->getResult() << " from emulator)";
 
-      // Is this new descriptor closed on exec?
-      bool cloexec = ((flags & O_CLOEXEC) == O_CLOEXEC);
-
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
-      if ((flags & O_TMPFILE) == O_TMPFILE) {
+      if (flags.has<O_TMPFILE>()) {
         auto anon_ref = _build.traceFileRef(getCommand(), mode);
 
         // Record the reference in the process' file descriptor table
-        _process->addFD(fd, anon_ref, ref_flags, cloexec);
+        _process->addFD(fd, anon_ref, ref_flags, flags.has<O_CLOEXEC>());
 
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
@@ -238,7 +234,7 @@ void Thread::_openat(at_fd dfd, string filename, int flags, mode_t mode) noexcep
         }
 
         // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(fd, ref, ref_flags, cloexec);
+        _process->addFD(fd, ref, ref_flags, flags.has<O_CLOEXEC>());
       }
 
     } else {
@@ -254,7 +250,7 @@ void Thread::_mknodat(at_fd dfd, string filename, mode_t mode, unsigned dev) noe
 
   if ((mode & S_IFMT) == S_IFREG) {
     // Handle regular file creation with openat
-    _openat(dfd, filename, O_CREAT | O_EXCL, mode);
+    _openat(dfd, filename, o_flags(O_CREAT | O_EXCL), mode);
   } else {
     // TODO: Handle named pipes?
 
@@ -282,8 +278,8 @@ void Thread::_close(int fd) noexcept {
 
 /************************ Pipes ************************/
 
-void Thread::_pipe2(int* fds, int flags) noexcept {
-  LOGF(trace, "{}: pipe2({}, {})", this, (void*)fds, o_flags_printer(flags));
+void Thread::_pipe2(int* fds, o_flags flags) noexcept {
+  LOGF(trace, "{}: pipe2({}, {})", this, (void*)fds, flags);
 
   finishSyscall([=](long rc) {
     // There is nothing to do if the syscall fails, but why would that ever happen?
@@ -303,12 +299,9 @@ void Thread::_pipe2(int* fds, int flags) noexcept {
     auto [read_ref, write_ref] = _build.tracePipeRef(getCommand());
     ASSERT(read_ref->getResult() && write_ref->getResult()) << "Failed to get artifact for pipe";
 
-    // Check if this pipe is closed on exec
-    bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
-
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, cloexec);
-    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, cloexec);
+    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, flags.has<O_CLOEXEC>());
+    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, flags.has<O_CLOEXEC>());
   });
 }
 
@@ -339,8 +332,8 @@ void Thread::_dup(int fd) noexcept {
   }
 }
 
-void Thread::_dup3(int oldfd, int newfd, int flags) noexcept {
-  LOGF(trace, "{}: dup3({}, {}, {})", this, oldfd, newfd, o_flags_printer(flags));
+void Thread::_dup3(int oldfd, int newfd, o_flags flags) noexcept {
+  LOGF(trace, "{}: dup3({}, {}, {})", this, oldfd, newfd, flags);
 
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
@@ -356,12 +349,9 @@ void Thread::_dup3(int oldfd, int newfd, int flags) noexcept {
       // If there is an existing descriptor entry number newfd, it is silently closed
       _process->tryCloseFD(newfd);
 
-      // The new descriptor is only marked cloexec if the flag is provided.
-      bool cloexec = (flags & O_CLOEXEC) == O_CLOEXEC;
-
       // Duplicate the file descriptor
       auto& descriptor = _process->getFD(oldfd);
-      _process->addFD(rc, descriptor.getRef(), descriptor.getFlags(), cloexec);
+      _process->addFD(rc, descriptor.getRef(), descriptor.getFlags(), flags.has<O_CLOEXEC>());
     });
   } else {
     finishSyscall([=](long rc) {
@@ -382,7 +372,7 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
     // fcntl(F_DUPFD_CLOEXEC) is just like a dup call, followed by setting cloexec to true
     // int newfd = _dup(fd);  // _dup will resume the process and return the new fd to us
     // _fds.at(newfd).setCloexec(true);
-    _dup3(fd, -1, FD_CLOEXEC);
+    _dup3(fd, -1, o_flags(O_CLOEXEC));
 
   } else if (cmd == F_SETFD) {
     resume();

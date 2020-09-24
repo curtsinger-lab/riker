@@ -66,12 +66,28 @@ class mode_printer {
   mode_t _mode;
 };
 
-/// A pretty-printing wrapper for flags passed to openat
-class o_flags_printer {
+/// A wrapper for O_* flags provided to system calls
+class o_flags {
  public:
-  o_flags_printer(int flags) : _flags(flags) {}
+  /// Create a default o_flags value
+  o_flags() noexcept : _flags(0) {}
 
-  friend ostream& operator<<(ostream& o, const o_flags_printer& p) noexcept {
+  /// Create a wrapper for O_* flags from an integer value
+  explicit o_flags(int flags) noexcept : _flags(flags) {}
+
+  /// Check if the flags include specific option
+  template <int flag>
+  bool has() const noexcept {
+    return (_flags & flag) == flag;
+  }
+
+  /// Do the flags include a request for read access?
+  bool readable() const noexcept { return has<O_RDWR>() || (has<O_RDONLY>() && !has<O_WRONLY>()); }
+
+  /// Do teh flags include a request for write access?
+  bool writable() const noexcept { return has<O_RDWR>() || has<O_WRONLY>(); }
+
+  friend ostream& operator<<(ostream& o, const o_flags& p) noexcept {
     bool noflag = true;
 
     // decode O_RDWR, O_RDONLY, O_WRONLY. Check O_RDWR first in case O_RDWR == O_RDONLY | O_WRONLY

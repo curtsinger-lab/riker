@@ -77,9 +77,13 @@ class Thread {
   /*** Handling for specific system calls ***/
 
   // File Opening, Creation, and Closing
-  void _open(string f, int flags, mode_t mode) noexcept { _openat(at_fd::cwd(), f, flags, mode); }
-  void _openat(at_fd dfd, string filename, int flags, mode_t mode) noexcept;
-  void _creat(string p, mode_t mode) noexcept { _open(p, O_CREAT | O_WRONLY | O_TRUNC, mode); }
+  void _open(string f, o_flags flags, mode_t mode) noexcept {
+    _openat(at_fd::cwd(), f, flags, mode);
+  }
+  void _openat(at_fd dfd, string filename, o_flags flags, mode_t mode) noexcept;
+  void _creat(string p, mode_t mode) noexcept {
+    _open(p, o_flags(O_CREAT | O_WRONLY | O_TRUNC), mode);
+  }
   void _mknod(string f, mode_t mode, unsigned dev) noexcept {
     _mknodat(at_fd::cwd(), f, mode, dev);
   }
@@ -87,13 +91,13 @@ class Thread {
   void _close(int fd) noexcept;
 
   // Pipes
-  void _pipe(int* fds) noexcept { _pipe2(fds, 0); }
-  void _pipe2(int* fds, int flags) noexcept;
+  void _pipe(int* fds) noexcept { _pipe2(fds, o_flags()); }
+  void _pipe2(int* fds, o_flags flags) noexcept;
 
   // File Descriptor Manipulation
   void _dup(int fd) noexcept;
-  void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, 0); }
-  void _dup3(int oldfd, int newfd, int flags) noexcept;
+  void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, o_flags()); }
+  void _dup3(int oldfd, int newfd, o_flags flags) noexcept;
   void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
 
   // Metadata Operations

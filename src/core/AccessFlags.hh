@@ -5,6 +5,7 @@
 
 #include <fcntl.h>
 
+#include "tracing/Flags.hh"
 #include "util/serializer.hh"
 
 using std::ostream;
@@ -38,18 +39,16 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(int flags, uint16_t mode) noexcept {
-    AccessFlags f;
-    f.r = (flags & O_RDONLY) == O_RDONLY || (flags & O_RDWR) == O_RDWR;
-    f.w = (flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR;
-    f.nofollow = (flags & O_NOFOLLOW) == O_NOFOLLOW;
-    f.truncate = (flags & O_TRUNC) == O_TRUNC;
-    f.create = (flags & O_CREAT) == O_CREAT;
-    f.exclusive = (flags & O_EXCL) == O_EXCL;
-    f.append = (flags & O_APPEND) == O_APPEND;
-    f.directory = (flags & O_DIRECTORY) == O_DIRECTORY;
-    f.mode = mode;
-    return f;
+  static AccessFlags fromOpen(o_flags flags, uint16_t mode) noexcept {
+    return AccessFlags{.r = flags.readable(),
+                       .w = flags.writable(),
+                       .nofollow = flags.has<O_NOFOLLOW>(),
+                       .truncate = flags.has<O_TRUNC>(),
+                       .create = flags.has<O_CREAT>(),
+                       .exclusive = flags.has<O_EXCL>(),
+                       .append = flags.has<O_APPEND>(),
+                       .directory = flags.has<O_DIRECTORY>(),
+                       .mode = mode};
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
