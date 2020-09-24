@@ -7,6 +7,7 @@
 
 #include <grp.h>
 #include <limits.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 using std::optional;
@@ -29,6 +30,16 @@ inline fs::path readlink(fs::path path) noexcept {
   string result(buffer, buffer + bytes_read);
   free(buffer);
   return result;
+}
+
+inline tuple<gid_t, uid_t> get_identity() noexcept {
+  static optional<tuple<gid_t, uid_t>> _identity;
+
+  if (!_identity.has_value()) {
+    _identity = {getegid(), geteuid()};
+  }
+
+  return _identity.value();
 }
 
 inline const set<gid_t>& getgroups() noexcept {

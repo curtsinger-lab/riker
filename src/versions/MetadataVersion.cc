@@ -31,11 +31,8 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
   // should probably be stored within the reference.
 
   // if the user's effective uid is root, bypass all checks
-  gid_t gid = getegid();
-  uid_t uid = geteuid();
-  if (uid == 0) {
-    return true;
-  }
+  auto [gid, uid] = get_identity();
+  if (uid == 0) return true;
 
   // user/group for artifact
   uid_t a_uid = _metadata.value().uid;
