@@ -43,12 +43,12 @@ struct AccessFlags {
     AccessFlags f;
     f.r = flags.readable();
     f.w = flags.writable();
-    f.nofollow = flags.has<O_NOFOLLOW>();
-    f.truncate = flags.has<O_TRUNC>();
-    f.create = flags.has<O_CREAT>();
-    f.exclusive = flags.has<O_EXCL>();
-    f.append = flags.has<O_APPEND>();
-    f.directory = flags.has<O_DIRECTORY>();
+    f.nofollow = flags.nofollow();
+    f.truncate = flags.trunc();
+    f.create = flags.creat();
+    f.exclusive = flags.excl();
+    f.append = flags.append();
+    f.directory = flags.directory();
     f.mode = mode.getMode();
     return f;
   }

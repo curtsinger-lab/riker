@@ -100,17 +100,20 @@ class o_flags {
   /// Create a wrapper for O_* flags from an integer value
   explicit o_flags(int flags) noexcept : _flags(flags) {}
 
-  /// Check if the flags include specific option
-  template <int flag>
-  bool has() const noexcept {
-    return (_flags & flag) == flag;
-  }
-
   /// Do the flags include a request for read access?
   bool readable() const noexcept { return has<O_RDWR>() || (has<O_RDONLY>() && !has<O_WRONLY>()); }
 
   /// Do the flags include a request for write access?
   bool writable() const noexcept { return has<O_RDWR>() || has<O_WRONLY>(); }
+
+  bool append() const noexcept { return has<O_APPEND>(); }
+  bool cloexec() const noexcept { return has<O_CLOEXEC>(); }
+  bool creat() const noexcept { return has<O_CREAT>(); }
+  bool directory() const noexcept { return has<O_DIRECTORY>(); }
+  bool excl() const noexcept { return has<O_EXCL>(); }
+  bool nofollow() const noexcept { return has<O_NOFOLLOW>(); }
+  bool tmpfile() const noexcept { return has<O_TMPFILE>(); }
+  bool trunc() const noexcept { return has<O_TRUNC>(); }
 
   friend ostream& operator<<(ostream& o, const o_flags& p) noexcept {
     bool noflag = true;
@@ -137,6 +140,7 @@ class o_flags {
     };
 
     // decode the rest
+    dec(O_APPEND, "O_APPEND");
     dec(O_CLOEXEC, "O_CLOEXEC");
     dec(O_CREAT, "O_CREAT");
     dec(O_DIRECT, "O_DIRECT");
@@ -152,6 +156,13 @@ class o_flags {
     o << fmt::format(" ({:o})", p._flags);
 
     return o;
+  }
+
+ private:
+  /// Check if the flags include specific option
+  template <int flag>
+  bool has() const noexcept {
+    return (_flags & flag) == flag;
   }
 
  private:

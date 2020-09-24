@@ -220,11 +220,11 @@ void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_flags mode)
                                << " (received " << ref->getResult() << " from emulator)";
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
-      if (flags.has<O_TMPFILE>()) {
+      if (flags.tmpfile()) {
         auto anon_ref = _build.traceFileRef(getCommand(), mode.getMode());
 
         // Record the reference in the process' file descriptor table
-        _process->addFD(fd, anon_ref, ref_flags, flags.has<O_CLOEXEC>());
+        _process->addFD(fd, anon_ref, ref_flags, flags.cloexec());
 
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
@@ -234,7 +234,7 @@ void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_flags mode)
         }
 
         // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(fd, ref, ref_flags, flags.has<O_CLOEXEC>());
+        _process->addFD(fd, ref, ref_flags, flags.cloexec());
       }
 
     } else {
@@ -300,8 +300,8 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
     ASSERT(read_ref->getResult() && write_ref->getResult()) << "Failed to get artifact for pipe";
 
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, flags.has<O_CLOEXEC>());
-    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, flags.has<O_CLOEXEC>());
+    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, flags.cloexec());
+    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, flags.cloexec());
   });
 }
 
@@ -351,7 +351,7 @@ void Thread::_dup3(int oldfd, int newfd, o_flags flags) noexcept {
 
       // Duplicate the file descriptor
       auto& descriptor = _process->getFD(oldfd);
-      _process->addFD(rc, descriptor.getRef(), descriptor.getFlags(), flags.has<O_CLOEXEC>());
+      _process->addFD(rc, descriptor.getRef(), descriptor.getFlags(), flags.cloexec());
     });
   } else {
     finishSyscall([=](long rc) {
