@@ -70,12 +70,12 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the mode and flags parameters to the access syscall
-  static AccessFlags fromAccess(int mode, int flags) noexcept {
+  static AccessFlags fromAccess(int mode, at_flags flags) noexcept {
     AccessFlags f;
     f.r = (mode & R_OK) == R_OK;
     f.w = (mode & W_OK) == W_OK;
     f.x = (mode & X_OK) == X_OK;
-    f.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+    f.nofollow = flags.symlink_nofollow();
     return f;
   }
 
@@ -93,9 +93,9 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the stat syscall
-  static AccessFlags fromStat(int flags) noexcept {
+  static AccessFlags fromStat(at_flags flags) noexcept {
     AccessFlags f;
-    f.nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+    f.nofollow = flags.symlink_nofollow();
     return f;
   }
 

@@ -388,7 +388,7 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 
 /************************ Metadata Operations ************************/
 
-void Thread::_faccessat(at_fd dirfd, string pathname, int mode, int flags) noexcept {
+void Thread::_faccessat(at_fd dirfd, string pathname, int mode, at_flags flags) noexcept {
   LOGF(trace, "{}: faccessat({}, \"{}\", {}, {})", this, dirfd, pathname, mode, flags);
 
   // Finish the syscall so we can see its result
@@ -410,13 +410,12 @@ void Thread::_faccessat(at_fd dirfd, string pathname, int mode, int flags) noexc
   });
 }
 
-void Thread::_fstatat(at_fd dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
-  LOGF(trace, "{}: fstatat({}, \"{}\", {}, {})", this, dirfd, pathname, (void*)statbuf,
-       at_flags_printer(flags));
+void Thread::_fstatat(at_fd dirfd, string pathname, struct stat* statbuf, at_flags flags) noexcept {
+  LOGF(trace, "{}: fstatat({}, \"{}\", {}, {})", this, dirfd, pathname, (void*)statbuf, flags);
 
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
-  if ((flags & AT_EMPTY_PATH) == AT_EMPTY_PATH) {
+  if (flags.empty_path()) {
     finishSyscall([=](long rc) {
       resume();
 
@@ -476,12 +475,15 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
   });
 }
 
-void Thread::_fchownat(at_fd dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
-  LOGF(trace, "{}: fchownat({}, \"{}\", {}, {}, {})", this, dfd, filename, user, group,
-       at_flags_printer(flags));
+void Thread::_fchownat(at_fd dfd,
+                       string filename,
+                       uid_t user,
+                       gid_t group,
+                       at_flags flags) noexcept {
+  LOGF(trace, "{}: fchownat({}, \"{}\", {}, {}, {})", this, dfd, filename, user, group, flags);
 
   // Make a reference to the file that will be chown-ed.
-  bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+  bool nofollow = flags.symlink_nofollow();
   auto ref = makePathRef(filename, AccessFlags{.nofollow = nofollow}, dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
@@ -532,12 +534,11 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
   });
 }
 
-void Thread::_fchmodat(at_fd dfd, string filename, mode_flags mode, int flags) noexcept {
-  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode,
-       at_flags_printer(flags));
+void Thread::_fchmodat(at_fd dfd, string filename, mode_flags mode, at_flags flags) noexcept {
+  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode, flags);
 
   // Make a reference to the file that will be chmod-ed.
-  bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
+  bool nofollow = flags.symlink_nofollow();
   auto ref = makePathRef(filename, AccessFlags{.nofollow = nofollow}, dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
@@ -877,9 +878,9 @@ void Thread::_linkat(at_fd old_dfd,
                      string oldpath,
                      at_fd new_dfd,
                      string newpath,
-                     int flags) noexcept {
+                     at_flags flags) noexcept {
   LOGF(trace, "{}: linkat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, oldpath, new_dfd, newpath,
-       at_flags_printer(flags));
+       flags);
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto link_path = fs::path(newpath);
@@ -894,7 +895,7 @@ void Thread::_linkat(at_fd old_dfd,
 
   // Get a reference to the artifact we are linking into the directory
   AccessFlags target_flags = {.nofollow = true};
-  if (flags & AT_SYMLINK_FOLLOW) target_flags.nofollow = false;
+  if (flags.symlink_nofollow()) target_flags.nofollow = false;
 
   auto target_ref = makePathRef(oldpath, target_flags, old_dfd);
 
@@ -998,8 +999,8 @@ void Thread::_readlinkat(at_fd dfd, string pathname) noexcept {
   });
 }
 
-void Thread::_unlinkat(at_fd dfd, string pathname, int flags) noexcept {
-  LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd, pathname, at_flags_printer(flags));
+void Thread::_unlinkat(at_fd dfd, string pathname, at_flags flags) noexcept {
+  LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd, pathname, flags);
 
   // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
 

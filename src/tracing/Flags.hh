@@ -169,11 +169,19 @@ class o_flags {
   int _flags;
 };
 
-class at_flags_printer {
+class at_flags {
  public:
-  at_flags_printer(int flags) : _flags(flags) {}
+  at_flags() noexcept : _flags(0) {}
 
-  friend ostream& operator<<(ostream& o, const at_flags_printer& p) noexcept {
+  at_flags(int flags) noexcept : _flags(flags) {}
+
+  bool eaccess() const noexcept { return has<AT_EACCESS>(); }
+  bool empty_path() const noexcept { return has<AT_EMPTY_PATH>(); }
+  bool symlink_follow() const noexcept { return has<AT_SYMLINK_FOLLOW>(); }
+  bool symlink_nofollow() const noexcept { return has<AT_SYMLINK_NOFOLLOW>(); }
+  bool removedir() const noexcept { return has<AT_REMOVEDIR>(); }
+
+  friend ostream& operator<<(ostream& o, const at_flags& p) noexcept {
     if (p._flags == 0) return o << 0;
 
     bool noflag = true;
@@ -188,13 +196,20 @@ class at_flags_printer {
     };
 
     // Decode the flags
-    dec(AT_EACCESS, "AT_EACESS");
+    dec(AT_EACCESS, "AT_EACCESS");
     dec(AT_EMPTY_PATH, "AT_EMPTY_PATH");
     dec(AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW");
     dec(AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW");
     dec(AT_REMOVEDIR, "AT_REMOVEDIR");
 
     return o << fmt::format(" ({:o})", p._flags);
+  }
+
+ private:
+  // Check if the flags include specific option
+  template <int flag>
+  bool has() const noexcept {
+    return (_flags & flag) == flag;
   }
 
  private:

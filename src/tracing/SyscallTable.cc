@@ -36,6 +36,9 @@ class SyscallArgWrapper {
   // Get o_flags from the register value
   operator o_flags() { return o_flags(_val); }
 
+  // Get at_flags from the register value
+  operator at_flags() { return at_flags(_val); }
+
   // Get mode_flags from the register value
   operator mode_flags() { return mode_flags(_val); }
 
