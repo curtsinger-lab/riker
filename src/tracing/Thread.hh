@@ -9,6 +9,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include "tracing/Flags.hh"
 #include "tracing/Process.hh"
 
 using std::function;
@@ -69,16 +70,20 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  shared_ptr<RefResult> makePathRef(fs::path p, AccessFlags flags, int at = AT_FDCWD) noexcept;
+  shared_ptr<RefResult> makePathRef(fs::path p,
+                                    AccessFlags flags,
+                                    at_fd at = at_fd::cwd()) noexcept;
 
   /*** Handling for specific system calls ***/
 
   // File Opening, Creation, and Closing
-  void _open(string f, int flags, mode_t mode) noexcept { _openat(AT_FDCWD, f, flags, mode); }
-  void _openat(int dfd, string filename, int flags, mode_t mode) noexcept;
+  void _open(string f, int flags, mode_t mode) noexcept { _openat(at_fd::cwd(), f, flags, mode); }
+  void _openat(at_fd dfd, string filename, int flags, mode_t mode) noexcept;
   void _creat(string p, mode_t mode) noexcept { _open(p, O_CREAT | O_WRONLY | O_TRUNC, mode); }
-  void _mknod(string f, mode_t mode, unsigned dev) noexcept { _mknodat(AT_FDCWD, f, mode, dev); }
-  void _mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept;
+  void _mknod(string f, mode_t mode, unsigned dev) noexcept {
+    _mknodat(at_fd::cwd(), f, mode, dev);
+  }
+  void _mknodat(at_fd dfd, string filename, mode_t mode, unsigned dev) noexcept;
   void _close(int fd) noexcept;
 
   // Pipes
@@ -92,31 +97,33 @@ class Thread {
   void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
 
   // Metadata Operations
-  void _access(string pathname, int mode) noexcept { _faccessat(AT_FDCWD, pathname, mode, 0); }
-  void _faccessat(int dirfd, string pathname, int mode, int flags) noexcept;
+  void _access(string pathname, int mode) noexcept { _faccessat(at_fd::cwd(), pathname, mode, 0); }
+  void _faccessat(at_fd dirfd, string pathname, int mode, int flags) noexcept;
   void _stat(string pathname, struct stat* statbuf) noexcept {
-    _fstatat(AT_FDCWD, pathname, statbuf, 0);
+    _fstatat(at_fd::cwd(), pathname, statbuf, 0);
   }
   void _lstat(string pathname, struct stat* statbuf) noexcept {
-    _fstatat(AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW);
+    _fstatat(at_fd::cwd(), pathname, statbuf, AT_SYMLINK_NOFOLLOW);
   }
-  void _fstat(int fd, struct stat* statbuf) noexcept { _fstatat(fd, "", statbuf, AT_EMPTY_PATH); }
-  void _fstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept;
-  void _newfstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
+  void _fstat(int fd, struct stat* statbuf) noexcept {
+    _fstatat(at_fd(fd), "", statbuf, AT_EMPTY_PATH);
+  }
+  void _fstatat(at_fd dirfd, string pathname, struct stat* statbuf, int flags) noexcept;
+  void _newfstatat(at_fd dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
     _fstatat(dirfd, pathname, statbuf, flags);
   }
-  void _statx(int dfd, string pathname, int flags) noexcept {
+  void _statx(at_fd dfd, string pathname, int flags) noexcept {
     _fstatat(dfd, pathname, nullptr, flags);
   }
-  void _chown(string f, uid_t usr, gid_t grp) noexcept { _fchownat(AT_FDCWD, f, usr, grp, 0); }
+  void _chown(string f, uid_t usr, gid_t grp) noexcept { _fchownat(at_fd::cwd(), f, usr, grp, 0); }
   void _lchown(string f, uid_t usr, gid_t grp) noexcept {
-    _fchownat(AT_FDCWD, f, usr, grp, AT_SYMLINK_NOFOLLOW);
+    _fchownat(at_fd::cwd(), f, usr, grp, AT_SYMLINK_NOFOLLOW);
   }
   void _fchown(int fd, uid_t user, gid_t group) noexcept;
-  void _fchownat(int dfd, string filename, uid_t user, gid_t group, int flag) noexcept;
-  void _chmod(string filename, mode_t mode) noexcept { _fchmodat(AT_FDCWD, filename, mode, 0); }
+  void _fchownat(at_fd dfd, string filename, uid_t user, gid_t group, int flag) noexcept;
+  void _chmod(string filename, mode_t mode) noexcept { _fchmodat(at_fd::cwd(), filename, mode, 0); }
   void _fchmod(int fd, mode_t mode) noexcept;
-  void _fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept;
+  void _fchmodat(at_fd dfd, string filename, mode_t mode, int flags) noexcept;
 
   // File Content Operations
   void _read(int fd) noexcept;
@@ -139,24 +146,30 @@ class Thread {
   void _vmsplice(int fd) noexcept { _write(fd); }
 
   // Directory Operations
-  void _mkdir(string p, mode_t mode) noexcept { _mkdirat(AT_FDCWD, p, mode); }
-  void _mkdirat(int dfd, string pathname, mode_t mode) noexcept;
-  void _rmdir(string pathname) noexcept { _unlinkat(AT_FDCWD, pathname, AT_REMOVEDIR); }
-  void _rename(string n1, string n2) noexcept { _renameat(AT_FDCWD, n1, AT_FDCWD, n2); }
-  void _renameat(int d1, string n1, int d2, string n2) noexcept { _renameat2(d1, n1, d2, n2, 0); }
-  void _renameat2(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept;
+  void _mkdir(string p, mode_t mode) noexcept { _mkdirat(at_fd::cwd(), p, mode); }
+  void _mkdirat(at_fd dfd, string pathname, mode_t mode) noexcept;
+  void _rmdir(string pathname) noexcept { _unlinkat(at_fd::cwd(), pathname, AT_REMOVEDIR); }
+  void _rename(string n1, string n2) noexcept { _renameat(at_fd::cwd(), n1, at_fd::cwd(), n2); }
+  void _renameat(at_fd d1, string n1, at_fd d2, string n2) noexcept {
+    _renameat2(d1, n1, d2, n2, 0);
+  }
+  void _renameat2(at_fd old_dfd, string oldpath, at_fd new_dfd, string newpath, int flags) noexcept;
   void _getdents(int fd) noexcept;
   void _getdents64(int fd) noexcept { _getdents(fd); }
 
   // Link and Symlink Operations
-  void _link(string oldname, string newname) { _linkat(AT_FDCWD, oldname, AT_FDCWD, newname, 0); }
-  void _linkat(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept;
-  void _symlink(string oldname, string newname) noexcept { _symlinkat(oldname, AT_FDCWD, newname); }
-  void _symlinkat(string oldname, int newdfd, string newname) noexcept;
-  void _readlink(string path) noexcept { _readlinkat(AT_FDCWD, path); }
-  void _readlinkat(int dfd, string pathname) noexcept;
-  void _unlink(string pathname) noexcept { _unlinkat(AT_FDCWD, pathname, 0); }
-  void _unlinkat(int dfd, string pathname, int flag) noexcept;
+  void _link(string oldname, string newname) {
+    _linkat(at_fd::cwd(), oldname, at_fd::cwd(), newname, 0);
+  }
+  void _linkat(at_fd old_dfd, string oldpath, at_fd new_dfd, string newpath, int flags) noexcept;
+  void _symlink(string oldname, string newname) noexcept {
+    _symlinkat(oldname, at_fd::cwd(), newname);
+  }
+  void _symlinkat(string oldname, at_fd newdfd, string newname) noexcept;
+  void _readlink(string path) noexcept { _readlinkat(at_fd::cwd(), path); }
+  void _readlinkat(at_fd dfd, string pathname) noexcept;
+  void _unlink(string pathname) noexcept { _unlinkat(at_fd::cwd(), pathname, 0); }
+  void _unlinkat(at_fd dfd, string pathname, int flag) noexcept;
 
   // Socket Operations
   void _accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
@@ -220,9 +233,9 @@ class Thread {
   void _exit(int status) noexcept;
   void _exit_group(int status) noexcept;
   void _execve(string filename, vector<string> args, vector<string> env) noexcept {
-    _execveat(AT_FDCWD, filename, args, env);
+    _execveat(at_fd::cwd(), filename, args, env);
   }
-  void _execveat(int dfd, string filename, vector<string> args, vector<string> env) noexcept;
+  void _execveat(at_fd dfd, string filename, vector<string> args, vector<string> env) noexcept;
   void _wait4(pid_t pid, int* wstatus, int options) noexcept;
   void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 

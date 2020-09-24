@@ -15,6 +15,7 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/RefResult.hh"
+#include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
 #include "util/log.hh"
@@ -27,19 +28,20 @@ using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
-shared_ptr<RefResult> Thread::makePathRef(fs::path p, AccessFlags flags, int at) noexcept {
+shared_ptr<RefResult> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
     return _build.tracePathRef(getCommand(), _process->getRoot(), p.relative_path(), flags);
   }
 
   // Handle the special CWD file descriptor to resolve relative to cwd
-  if (at == AT_FDCWD) {
+  if (at.isCWD()) {
     return _build.tracePathRef(getCommand(), _process->getWorkingDir(), p.relative_path(), flags);
   }
 
   // The path is resolved relative to some file descriptor
-  return _build.tracePathRef(getCommand(), _process->getFD(at).getRef(), p.relative_path(), flags);
+  return _build.tracePathRef(getCommand(), _process->getFD(at.getFD()).getRef(), p.relative_path(),
+                             flags);
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
@@ -189,173 +191,15 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
   return args;
 }
 
-/****** Pretty Printers for Syscall Arguments ******/
-
-/// A pretty-printing wrapper for the directory file descriptor passed to *at syscalls
-class dfd_printer {
- public:
-  dfd_printer(int fd) : _fd(fd) {}
-
-  friend ostream& operator<<(ostream& o, const dfd_printer& p) noexcept {
-    if (p._fd == AT_FDCWD) {
-      return o << "AT_FDCWD";
-    } else {
-      return o << p._fd;
-    }
-  }
-
- private:
-  int _fd;
-};
-
-class mode_printer {
- public:
-  mode_printer(mode_t mode) : _mode(mode) {}
-
-  friend ostream& operator<<(ostream& o, const mode_printer& p) noexcept {
-    if (p._mode == 0) return o << 0;
-
-    o << ((p._mode & S_IRUSR) ? 'r' : '-');
-    o << ((p._mode & S_IWUSR) ? 'w' : '-');
-    o << ((p._mode & S_IXUSR) ? ((p._mode & S_ISUID) ? 's' : 'x')
-                              : ((p._mode & S_ISUID) ? 'S' : '-'));
-    o << ((p._mode & S_IRGRP) ? 'r' : '-');
-    o << ((p._mode & S_IWGRP) ? 'w' : '-');
-    o << ((p._mode & S_IXGRP) ? ((p._mode & S_ISGID) ? 's' : 'x')
-                              : ((p._mode & S_ISGID) ? 'S' : '-'));
-    o << ((p._mode & S_IROTH) ? 'r' : '-');
-    o << ((p._mode & S_IWOTH) ? 'w' : '-');
-    o << ((p._mode & S_IXOTH) ? ((p._mode & S_ISVTX) ? 't' : 'x')
-                              : ((p._mode & S_ISVTX) ? 'T' : '-'));
-
-    o << fmt::format(" ({:o})", p._mode);
-    return o;
-  }
-
- private:
-  mode_t _mode;
-};
-
-/// A pretty-printing wrapper for flags passed to openat
-class o_flags_printer {
- public:
-  o_flags_printer(int flags) : _flags(flags) {}
-
-  friend ostream& operator<<(ostream& o, const o_flags_printer& p) noexcept {
-    bool noflag = true;
-
-    // decode O_RDWR, O_RDONLY, O_WRONLY. Check O_RDWR first in case O_RDWR == O_RDONLY | O_WRONLY
-    if ((p._flags & O_RDWR) == O_RDWR) {
-      o << "O_RDWR";
-      noflag = false;
-    } else if ((p._flags & O_WRONLY) == O_WRONLY) {
-      o << "O_WRONLY";
-      noflag = false;
-    } else if ((p._flags & O_RDONLY) == O_RDONLY) {
-      o << "O_RDONLY";
-      noflag = false;
-    }
-
-    // pretty printer
-    auto dec = [&](int flag, const char* fstr) {
-      if ((p._flags & flag) == flag) {
-        if (!noflag) o << "|";
-        o << fstr;
-        noflag = false;
-      }
-    };
-
-    // decode the rest
-    dec(O_CLOEXEC, "O_CLOEXEC");
-    dec(O_CREAT, "O_CREAT");
-    dec(O_DIRECT, "O_DIRECT");
-    dec(O_DIRECTORY, "O_DIRECTORY");
-    dec(O_EXCL, "O_EXCL");
-    dec(O_NOCTTY, "O_NOCTTY");
-    dec(O_NOFOLLOW, "O_NOFOLLOW");
-    dec(O_NONBLOCK, "O_NONBLOCK");
-    dec(O_TMPFILE, "O_TMPFILE");
-    dec(O_TRUNC, "O_TRUNC");
-
-    // append flags in octal
-    o << fmt::format(" ({:o})", p._flags);
-
-    return o;
-  }
-
- private:
-  int _flags;
-};
-
-class at_flags_printer {
- public:
-  at_flags_printer(int flags) : _flags(flags) {}
-
-  friend ostream& operator<<(ostream& o, const at_flags_printer& p) noexcept {
-    if (p._flags == 0) return o << 0;
-
-    bool noflag = true;
-
-    // pretty printer
-    auto dec = [&](int flag, const char* fstr) {
-      if ((p._flags & flag) == flag) {
-        if (!noflag) o << "|";
-        o << fstr;
-        noflag = false;
-      }
-    };
-
-    // Decode the flags
-    dec(AT_EACCESS, "AT_EACESS");
-    dec(AT_EMPTY_PATH, "AT_EMPTY_PATH");
-    dec(AT_SYMLINK_FOLLOW, "AT_SYMLINK_FOLLOW");
-    dec(AT_SYMLINK_NOFOLLOW, "AT_SYMLINK_NOFOLLOW");
-    dec(AT_REMOVEDIR, "AT_REMOVEDIR");
-
-    return o << fmt::format(" ({:o})", p._flags);
-  }
-
- private:
-  int _flags;
-};
-
-class rename_flags_printer {
- public:
-  rename_flags_printer(int flags) : _flags(flags) {}
-
-  friend ostream& operator<<(ostream& o, const rename_flags_printer& p) noexcept {
-    bool noflag = true;
-
-    // pretty printer
-    auto dec = [&](int flag, const char* fstr) {
-      if ((p._flags & flag) == flag) {
-        if (!noflag) o << "|";
-        o << fstr;
-        noflag = false;
-      }
-    };
-
-    // Decode the flags
-    dec(RENAME_EXCHANGE, "RENAME_EXCHANGE");
-    dec(RENAME_NOREPLACE, "RENAME_NOREPLACE");
-    dec(RENAME_WHITEOUT, "RENAME_WHITEOUT");
-
-    return o << fmt::format(" ({:o})", p._flags);
-  }
-
- private:
-  int _flags;
-};
-
 /****************************************************/
 /********** System call handling functions **********/
 /****************************************************/
 
 /************************* File Opening, Creation, and Closing ************************/
 
-void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept {
-  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd_printer(dfd), filename,
-       o_flags_printer(flags), mode_printer(mode));
+void Thread::_openat(at_fd dfd, string filename, int flags, mode_t mode) noexcept {
+  LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, o_flags_printer(flags),
+       mode_printer(mode));
 
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
@@ -405,9 +249,8 @@ void Thread::_openat(int dfd, string filename, int flags, mode_t mode) noexcept 
   });
 }
 
-void Thread::_mknodat(int dfd, string filename, mode_t mode, unsigned dev) noexcept {
-  LOGF(trace, "{}: mknodat({}, \"{}\", {}, {})", this, dfd_printer(dfd), filename,
-       mode_printer(mode), dev);
+void Thread::_mknodat(at_fd dfd, string filename, mode_t mode, unsigned dev) noexcept {
+  LOGF(trace, "{}: mknodat({}, \"{}\", {}, {})", this, dfd, filename, mode_printer(mode), dev);
 
   if ((mode & S_IFMT) == S_IFREG) {
     // Handle regular file creation with openat
@@ -555,8 +398,8 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 
 /************************ Metadata Operations ************************/
 
-void Thread::_faccessat(int dirfd, string pathname, int mode, int flags) noexcept {
-  LOGF(trace, "{}: faccessat({}, \"{}\", {}, {})", this, dfd_printer(dirfd), pathname, mode, flags);
+void Thread::_faccessat(at_fd dirfd, string pathname, int mode, int flags) noexcept {
+  LOGF(trace, "{}: faccessat({}, \"{}\", {}, {})", this, dirfd, pathname, mode, flags);
 
   // Finish the syscall so we can see its result
   finishSyscall([=](long rc) {
@@ -577,8 +420,8 @@ void Thread::_faccessat(int dirfd, string pathname, int mode, int flags) noexcep
   });
 }
 
-void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
-  LOGF(trace, "{}: fstatat({}, \"{}\", {}, {})", this, dfd_printer(dirfd), pathname, (void*)statbuf,
+void Thread::_fstatat(at_fd dirfd, string pathname, struct stat* statbuf, int flags) noexcept {
+  LOGF(trace, "{}: fstatat({}, \"{}\", {}, {})", this, dirfd, pathname, (void*)statbuf,
        at_flags_printer(flags));
 
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
@@ -590,7 +433,7 @@ void Thread::_fstatat(int dirfd, string pathname, struct stat* statbuf, int flag
       if (rc == 0) {
         // This is essentially an fstat call
         // Record the dependency on metadata
-        _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd).getRef());
+        _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()).getRef());
       } else {
         WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
         // do nothing.
@@ -643,8 +486,8 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
   });
 }
 
-void Thread::_fchownat(int dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
-  LOGF(trace, "{}: fchownat({}, \"{}\", {}, {}, {})", this, dfd_printer(dfd), filename, user, group,
+void Thread::_fchownat(at_fd dfd, string filename, uid_t user, gid_t group, int flags) noexcept {
+  LOGF(trace, "{}: fchownat({}, \"{}\", {}, {}, {})", this, dfd, filename, user, group,
        at_flags_printer(flags));
 
   // Make a reference to the file that will be chown-ed.
@@ -699,9 +542,9 @@ void Thread::_fchmod(int fd, mode_t mode) noexcept {
   });
 }
 
-void Thread::_fchmodat(int dfd, string filename, mode_t mode, int flags) noexcept {
-  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd_printer(dfd), filename,
-       mode_printer(mode), at_flags_printer(flags));
+void Thread::_fchmodat(at_fd dfd, string filename, mode_t mode, int flags) noexcept {
+  LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode_printer(mode),
+       at_flags_printer(flags));
 
   // Make a reference to the file that will be chmod-ed.
   bool nofollow = (flags & AT_SYMLINK_NOFOLLOW) == AT_SYMLINK_NOFOLLOW;
@@ -898,8 +741,8 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
 
 /************************ Directory Operations ************************/
 
-void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
-  LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd_printer(dfd), pathname, mode_printer(mode));
+void Thread::_mkdirat(at_fd dfd, string pathname, mode_t mode) noexcept {
+  LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd, pathname, mode_printer(mode));
 
   auto full_path = fs::path(pathname);
 
@@ -943,13 +786,13 @@ void Thread::_mkdirat(int dfd, string pathname, mode_t mode) noexcept {
   });
 }
 
-void Thread::_renameat2(int old_dfd,
+void Thread::_renameat2(at_fd old_dfd,
                         string old_name,
-                        int new_dfd,
+                        at_fd new_dfd,
                         string new_name,
                         int flags) noexcept {
-  LOGF(trace, "{}: renameat({}, \"{}\", {}, \"{}\", {})", this, dfd_printer(old_dfd), old_name,
-       dfd_printer(new_dfd), new_name, rename_flags_printer(flags));
+  LOGF(trace, "{}: renameat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, old_name, new_dfd,
+       new_name, rename_flags_printer(flags));
 
   // Break the path to the existing file into directory and entry parts
   auto old_path = fs::path(old_name);
@@ -1040,9 +883,13 @@ void Thread::_getdents(int fd) noexcept {
 
 /************************ Link and Symlink Operations ************************/
 
-void Thread::_linkat(int old_dfd, string oldpath, int new_dfd, string newpath, int flags) noexcept {
-  LOGF(trace, "{}: linkat({}, \"{}\", {}, \"{}\", {})", this, dfd_printer(old_dfd), oldpath,
-       dfd_printer(new_dfd), newpath, at_flags_printer(flags));
+void Thread::_linkat(at_fd old_dfd,
+                     string oldpath,
+                     at_fd new_dfd,
+                     string newpath,
+                     int flags) noexcept {
+  LOGF(trace, "{}: linkat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, oldpath, new_dfd, newpath,
+       at_flags_printer(flags));
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto link_path = fs::path(newpath);
@@ -1088,8 +935,8 @@ void Thread::_linkat(int old_dfd, string oldpath, int new_dfd, string newpath, i
   });
 }
 
-void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
-  LOGF(trace, "{}: symlinkat(\"{}\", {}, \"{}\")", this, target, dfd_printer(dfd), newpath);
+void Thread::_symlinkat(string target, at_fd dfd, string newpath) noexcept {
+  LOGF(trace, "{}: symlinkat(\"{}\", {}, \"{}\")", this, target, dfd, newpath);
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto link_path = fs::path(newpath);
@@ -1127,8 +974,8 @@ void Thread::_symlinkat(string target, int dfd, string newpath) noexcept {
   });
 }
 
-void Thread::_readlinkat(int dfd, string pathname) noexcept {
-  LOGF(trace, "{}: readlinkat({}, \"{}\")", this, dfd_printer(dfd), pathname);
+void Thread::_readlinkat(at_fd dfd, string pathname) noexcept {
+  LOGF(trace, "{}: readlinkat({}, \"{}\")", this, dfd, pathname);
 
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
@@ -1161,9 +1008,8 @@ void Thread::_readlinkat(int dfd, string pathname) noexcept {
   });
 }
 
-void Thread::_unlinkat(int dfd, string pathname, int flags) noexcept {
-  LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd_printer(dfd), pathname,
-       at_flags_printer(flags));
+void Thread::_unlinkat(at_fd dfd, string pathname, int flags) noexcept {
+  LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd, pathname, at_flags_printer(flags));
 
   // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
 
@@ -1325,9 +1171,11 @@ void Thread::_exit_group(int status) noexcept {
   resume();
 }
 
-void Thread::_execveat(int dfd, string filename, vector<string> args, vector<string> env) noexcept {
-  LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd_printer(dfd), filename,
-       fmt::join(args, "\", \""));
+void Thread::_execveat(at_fd dfd,
+                       string filename,
+                       vector<string> args,
+                       vector<string> env) noexcept {
+  LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd, filename, fmt::join(args, "\", \""));
 
   // The parent command needs execute access to the exec-ed path
   auto exe_ref = makePathRef(filename, AccessFlags{.x = true}, dfd);

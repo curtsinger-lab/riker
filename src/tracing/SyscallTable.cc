@@ -7,6 +7,7 @@
 
 #include <syscall.h>
 
+#include "tracing/Flags.hh"
 #include "tracing/Thread.hh"
 #include "util/log.hh"
 
@@ -28,6 +29,9 @@ class SyscallArgWrapper {
   operator T() {
     return static_cast<T>(_val);
   }
+
+  // Get an at_fd from the register value
+  operator at_fd() { return at_fd(_val); }
 
   // Read a string from the thread's memory
   operator string() { return _thread.readString(_val); }
