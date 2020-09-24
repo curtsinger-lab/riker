@@ -28,6 +28,7 @@
 #include "core/FileDescriptor.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
+#include "tracing/Thread.hh"
 #include "util/log.hh"
 #include "versions/Version.hh"
 

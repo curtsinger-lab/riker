@@ -7,7 +7,7 @@
 
 #include <syscall.h>
 
-#include "tracing/Process.hh"
+#include "tracing/Thread.hh"
 #include "util/log.hh"
 
 using std::array;
