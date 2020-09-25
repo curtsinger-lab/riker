@@ -19,10 +19,11 @@ class PipeArtifact final : public FileArtifact {
   void open() noexcept {
     if (_read_fd == -1 && _write_fd == -1) {
       int pipefds[2];
-      int rc = pipe(pipefds);
+      int rc = pipe2(pipefds, O_CLOEXEC);
       ASSERT(rc == 0) << "Failed to create pipe";
       _read_fd = pipefds[0];
       _write_fd = pipefds[1];
+      LOG(exec) << "Created pipe with read fd " << _read_fd << " and write fd " << _write_fd;
     }
   }
 
