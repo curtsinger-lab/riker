@@ -21,7 +21,7 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 // Commit a base directory version
-void BaseDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+void BaseDirVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
   // This directory better be one we've created, otherwise it should have been committed already
@@ -40,7 +40,7 @@ void AddEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) 
 }
 
 // Commit the addition of an entry to a directory
-void AddEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+void AddEntry::commit(fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // First, check to see if the linked artifact has a temporary path
@@ -117,7 +117,7 @@ void RemoveEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> 
 }
 
 // Commit the removal of an entry from a directory
-void RemoveEntry::commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept {
+void RemoveEntry::commit(fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // We need to know all the links to the artifact being unlinked

@@ -56,10 +56,10 @@ void DirArtifact::commit(shared_ptr<Version> v) noexcept {
     path = getPath(false);
   }
   ASSERT(path.has_value()) << "Committing to a directory with no path";
-  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
+  _base_dir_version->commit(path.value());
 
   if (auto dv = v->as<DirVersion>()) {
-    dv->commit(this->as<DirArtifact>(), path.value());
+    dv->commit(path.value());
   } else if (v == _metadata_version) {
     _metadata_version->commit(path.value());
   } else {
@@ -98,12 +98,12 @@ void DirArtifact::commitAll() noexcept {
     path = getPath(false);
   }
   ASSERT(path.has_value()) << "Committing to a directory with no path";
-  _base_dir_version->commit(this->as<DirArtifact>(), path.value());
+  _base_dir_version->commit(path.value());
 
   // Commit the versions needed for each entry
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    version->commit(this->as<DirArtifact>(), path.value());
+    version->commit(path.value());
   }
 
   // Commit metadata

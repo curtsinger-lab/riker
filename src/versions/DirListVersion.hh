@@ -17,8 +17,6 @@ using std::string;
 
 namespace fs = std::filesystem;
 
-class Command;
-
 /**
  * A DirListVersion stores a list of all entries in a directory. This version is created
  * on-demand when a command lists the contents of a directory. These versions can be matched against
@@ -45,14 +43,14 @@ class DirListVersion : public Version {
   virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: listed]"; }
 
   /// Add an entry to this listed directory version
-  void addEntry(string name) noexcept { _entries.insert(name); }
+  void addEntry(fs::path entry) noexcept { _entries.insert(entry); }
 
   /// Remove an entry from this listed directory version
-  void removeEntry(string name) noexcept { _entries.erase(name); }
+  void removeEntry(fs::path entry) noexcept { _entries.erase(entry); }
 
  private:
   /// The names of entries in the directory
-  set<string> _entries;
+  set<fs::path> _entries;
 
   SERIALIZE(BASE(Version), _entries);
 };

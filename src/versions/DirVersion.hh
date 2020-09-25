@@ -34,7 +34,7 @@ class DirVersion : public Version {
   virtual bool canCommit() const noexcept = 0;
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
+  virtual void commit(fs::path dir_path) noexcept = 0;
 
   /// DirVersions always have a fingerprint
   virtual bool hasFingerprint() const noexcept override { return true; }
@@ -58,7 +58,7 @@ class BaseDirVersion : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override {
@@ -109,7 +109,7 @@ class AddEntry : public DirVersion {
   }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
@@ -144,7 +144,7 @@ class RemoveEntry : public DirVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
+  virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
