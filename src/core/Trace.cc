@@ -372,13 +372,13 @@ CEREAL_REGISTER_TYPE(UpdateContentRecord);
 struct AddEntryRecord : public Record {
   Command::ID _cmd;
   RefResult::ID _dir;
-  string _name;
+  fs::path _name;
   RefResult::ID _target;
 
   /// Default constructor for serialization
   AddEntryRecord() noexcept = default;
 
-  AddEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept :
+  AddEntryRecord(Command::ID cmd, RefResult::ID dir, fs::path name, RefResult::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
@@ -397,14 +397,16 @@ CEREAL_REGISTER_TYPE(AddEntryRecord);
 struct RemoveEntryRecord : public Record {
   Command::ID _cmd;
   RefResult::ID _dir;
-  string _name;
+  fs::path _name;
   RefResult::ID _target;
 
   /// Default constructor for serialization
   RemoveEntryRecord() noexcept = default;
 
-  RemoveEntryRecord(Command::ID cmd, RefResult::ID dir, string name, RefResult::ID target) noexcept
-      :
+  RemoveEntryRecord(Command::ID cmd,
+                    RefResult::ID dir,
+                    fs::path name,
+                    RefResult::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override {
@@ -679,7 +681,7 @@ void OutputTrace::updateContent(shared_ptr<Command> cmd,
 /// Add an AddEntry IR step to the output trace
 void OutputTrace::addEntry(shared_ptr<Command> cmd,
                            shared_ptr<RefResult> dir,
-                           string name,
+                           fs::path name,
                            shared_ptr<RefResult> target) noexcept {
   _records.emplace_back(
       new AddEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));
@@ -688,7 +690,7 @@ void OutputTrace::addEntry(shared_ptr<Command> cmd,
 /// Add a RemoveEntry IR step to the output trace
 void OutputTrace::removeEntry(shared_ptr<Command> cmd,
                               shared_ptr<RefResult> dir,
-                              string name,
+                              fs::path name,
                               shared_ptr<RefResult> target) noexcept {
   _records.emplace_back(
       new RemoveEntryRecord(getCommandID(cmd), getRefResultID(dir), name, getRefResultID(target)));

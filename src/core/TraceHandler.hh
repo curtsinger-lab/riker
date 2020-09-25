@@ -80,13 +80,13 @@ class TraceHandler {
   /// Handle an AddEntry IR step
   virtual void addEntry(shared_ptr<Command> command,
                         shared_ptr<RefResult> dir,
-                        string name,
+                        fs::path name,
                         shared_ptr<RefResult> target) noexcept = 0;
 
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(shared_ptr<Command> command,
                            shared_ptr<RefResult> dir,
-                           string name,
+                           fs::path name,
                            shared_ptr<RefResult> target) noexcept = 0;
 
   /// Handle a Launch IR step

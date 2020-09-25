@@ -432,7 +432,7 @@ void Build::updateContent(shared_ptr<Command> c,
 /// Handle an AddEntry IR step
 void Build::addEntry(shared_ptr<Command> c,
                      shared_ptr<RefResult> dir,
-                     string name,
+                     fs::path name,
                      shared_ptr<RefResult> target) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -462,7 +462,7 @@ void Build::addEntry(shared_ptr<Command> c,
 /// Handle a RemoveEntry IR step
 void Build::removeEntry(shared_ptr<Command> c,
                         shared_ptr<RefResult> dir,
-                        string name,
+                        fs::path name,
                         shared_ptr<RefResult> target) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -886,7 +886,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
 // A traced command is adding an entry to a directory
 void Build::traceAddEntry(shared_ptr<Command> c,
                           shared_ptr<RefResult> dir,
-                          string name,
+                          fs::path name,
                           shared_ptr<RefResult> target) noexcept {
   // Count a traced step
   _traced_step_count++;
@@ -910,7 +910,7 @@ void Build::traceAddEntry(shared_ptr<Command> c,
 // A traced command is removing an entry from a directory
 void Build::traceRemoveEntry(shared_ptr<Command> c,
                              shared_ptr<RefResult> dir,
-                             string name,
+                             fs::path name,
                              shared_ptr<RefResult> target) noexcept {
   // Count a traced step
   _traced_step_count++;
