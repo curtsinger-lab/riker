@@ -214,14 +214,15 @@ Resolution DirArtifact::resolve(Build& build,
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
   // iterator
-  fs::path entry = *current++;
+  auto entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry == ".")
+  if (entry.string() == ".") {
     return resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
+  }
 
   // Are we looking for the parent directory?
-  if (entry == "..") {
+  if (entry.string() == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
     return parent.value()->resolve(build, c, shared_from_this(), current, end, flags,

@@ -125,10 +125,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Path Manipulation ************/
 
   /// A link is a tuple of a directory and an entry name in that directory
-  using Link = tuple<shared_ptr<DirArtifact>, string>;
+  using Link = tuple<shared_ptr<DirArtifact>, fs::path>;
 
   /// Inform this artifact that it is linked or unlinked
-  void addLinkUpdate(shared_ptr<DirArtifact> dir, string entry, shared_ptr<DirVersion> v) noexcept;
+  void addLinkUpdate(shared_ptr<DirArtifact> dir,
+                     fs::path entry,
+                     shared_ptr<DirVersion> v) noexcept;
 
   /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
   /// entry) to the version that creates that link. The first map holds committed links, while the
@@ -278,7 +280,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   shared_ptr<MetadataVersion> _metadata_version;
 
   /// A link update records a directory, entry name, and the version that creates/removes the link
-  using LinkUpdate = tuple<weak_ptr<DirArtifact>, string, weak_ptr<DirVersion>>;
+  using LinkUpdate = tuple<weak_ptr<DirArtifact>, fs::path, weak_ptr<DirVersion>>;
 
   /// Keep track of the sequence of links and unlinks to this artifact
   list<LinkUpdate> _link_updates;

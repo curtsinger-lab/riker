@@ -60,7 +60,7 @@ void Artifact::setCommitted() noexcept {
 }
 
 void Artifact::addLinkUpdate(shared_ptr<DirArtifact> dir,
-                             string entry,
+                             fs::path entry,
                              shared_ptr<DirVersion> v) noexcept {
   // Record the link update
   // TODO: We can cancel out old updates that have been overwritten by newer committed updates.
