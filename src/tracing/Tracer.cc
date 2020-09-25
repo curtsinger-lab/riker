@@ -316,8 +316,12 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       // Does the descriptor refer to the writing end of the pipe?
       if (info.isWritable()) {
         initial_fds.emplace_back(pipe->getWriteFD(), child_fd);
+        LOG(exec) << "Launching child with pipe write fd " << child_fd << ", duped from "
+                  << pipe->getWriteFD();
       } else {
         initial_fds.emplace_back(pipe->getReadFD(), child_fd);
+        LOG(exec) << "Launching child with pipe read fd " << child_fd << ", duped from "
+                  << pipe->getReadFD();
       }
 
     } else if (auto file = info.getRef()->getResult()->as<FileArtifact>()) {
@@ -333,6 +337,8 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
       FAIL_IF(parent_fd < 0) << "Failed to open " << file;
       initial_fds.emplace_back(parent_fd, child_fd);
 
+      LOG(exec) << "Launching child with file fd " << child_fd << ", duped from " << parent_fd;
+
     } else {
       WARN << "Skipping initial file descriptor " << child_fd << " for " << cmd << ": " << info;
     }
@@ -345,7 +351,10 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // Close FDs in the parent
   if (child_pid > 0) {
     for (auto [parent_fd, child_fd] : initial_fds) {
-      if (parent_fd != child_fd) close(parent_fd);
+      if (parent_fd != child_fd) {
+        LOG(exec) << "Closing fd " << parent_fd << " in parent";
+        close(parent_fd);
+      }
     }
   }
 
@@ -356,6 +365,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     // necessary and that there are no ordering constraints on duping (e.g. if the
     // child fd for one entry matches the parent fd of another).
     for (const auto& [parent_fd, child_fd] : initial_fds) {
+      LOG(exec) << "Duping fd " << parent_fd << " to " << child_fd << " in child";
       int rc = dup2(parent_fd, child_fd);
 
       FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;

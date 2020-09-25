@@ -18,9 +18,6 @@ Check the output
   b
   c
 
-SKIP! This test deadlocks because pipe setup on incremental builds is not quite right.
-  $ exit 80
-
 Now change the input
   $ cp input2 input
 
