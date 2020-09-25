@@ -163,7 +163,22 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<Version> DirArtifact::getContent(Build& build,
                                             shared_ptr<Command> c,
                                             InputType t) noexcept {
-  auto result = _base_dir_version->getList(_env, as<DirArtifact>());
+  // Create a DirListVersion to hold the list of directory entries
+  auto result = make_shared<DirListVersion>();
+
+  // If this directory was NOT created, get the list of entries from the filesystem
+  if (!_base_dir_version->getCreated()) {
+    // Get a path to the directory, but only allow committed paths
+    auto path = getPath(false);
+    ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
+
+    for (auto& entry : fs::directory_iterator(path.value())) {
+      auto name = entry.path().stem();
+      if (name != ".dodo") {
+        result->addEntry(entry.path().stem());
+      }
+    }
+  }
 
   // The command listing this directory depends on its base version
   build.observeInput(c, shared_from_this(), _base_dir_version, t);
@@ -250,17 +265,40 @@ Resolution DirArtifact::resolve(Build& build,
     build.observeInput(c, shared_from_this(), v, InputType::PathResolution);
 
   } else {
-    // There's no match in the directory entry map. We need to check the base version for a match
-    res = _base_dir_version->getEntry(build, _env, as<DirArtifact>(), entry);
-    if (res) {
-      shared_ptr<Artifact> a = res;
-      _entries[entry] = {_base_dir_version, a};
-    } else {
-      _entries[entry] = {_base_dir_version, nullptr};
-    }
-
     // Add a path resolution input from the base version
     build.observeInput(c, shared_from_this(), _base_dir_version, InputType::PathResolution);
+
+    // There's no match in the directory entry map. We need to check the base version for a match
+    if (_base_dir_version->getCreated()) {
+      // A created directory does not have any entries that don't appear in the map.
+      res = ENOENT;
+
+    } else {
+      // Create a path to the entry. Start with a committed path to this directory
+      auto dir_path = getPath(false);
+      ASSERT(dir_path.has_value()) << "Directory has no path!";
+      auto entry_path = dir_path.value() / entry;
+
+      // Try to get the artifact from the filesystem
+      auto artifact = _env->getFilesystemArtifact(entry_path);
+
+      // Did we get an artifact?
+      if (artifact) {
+        // Yes. Hang on to the result
+        res = artifact;
+
+        // Inform the artifact of its link in the current directory
+        artifact->addLinkUpdate(this->as<DirArtifact>(), entry, _base_dir_version);
+
+        // Add the entry to this directory's map
+        _entries[entry] = {_base_dir_version, artifact};
+
+      } else {
+        // Record the absence of this entry and set the result to ENOENT
+        _entries[entry] = {_base_dir_version, nullptr};
+        res = ENOENT;
+      }
+    }
   }
 
   // We now have either a resolved artifact or an error code. The next step depends on whether

@@ -772,7 +772,4 @@ namespace std {
 CEREAL_REGISTER_TYPE(MetadataVersion);
 CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
-
-// Directory version types
-CEREAL_REGISTER_TYPE(CreatedDir);
-CEREAL_REGISTER_TYPE(ListedDir);
+CEREAL_REGISTER_TYPE(DirListVersion);

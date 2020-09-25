@@ -13,61 +13,25 @@
 #include "build/Env.hh"
 #include "core/AccessFlags.hh"
 #include "util/serializer.hh"
+#include "versions/DirListVersion.hh"
 #include "versions/Version.hh"
 
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
-// Commit a directory creation
-void CreatedDir::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
+// Commit a base directory version
+void BaseDirVersion::commit(shared_ptr<DirArtifact> dir, fs::path path) noexcept {
   if (isCommitted()) return;
+
+  // This directory better be one we've created, otherwise it should have been committed already
+  ASSERT(_created) << "An on-disk directory is somehow not committed";
 
   int rc = ::mkdir(path.c_str(), 0755);
   ASSERT(rc == 0) << "Failed to create directory " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();
-}
-
-// Check if an existing directory has a specific entry
-Resolution ExistingDir::getEntry(Build& build,
-                                 shared_ptr<Env> env,
-                                 shared_ptr<DirArtifact> dir,
-                                 string name) noexcept {
-  // Create a path to the entry. Start with a committed path to the directory
-  auto dir_path = dir->getPath(false);
-  ASSERT(dir_path.has_value()) << "Directory has no path!";
-  auto path = dir_path.value() / name;
-
-  // Try to get the artifact from the filesystem
-  auto artifact = env->getFilesystemArtifact(path);
-
-  // If no artifact was returned, it must not exist
-  if (!artifact) return ENOENT;
-
-  // We found an artifact, so record its presence
-  artifact->addLinkUpdate(dir, name, this->as<ExistingDir>());
-  return artifact;
-}
-
-// Create a listed directory version from an existing directory
-shared_ptr<ListedDir> ExistingDir::getList(shared_ptr<Env> env,
-                                           shared_ptr<DirArtifact> dir) const noexcept {
-  auto result = make_shared<ListedDir>();
-
-  // Get a path to the directory, but only allow committed paths
-  auto path = dir->getPath(false);
-  ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
-
-  for (auto& entry : fs::directory_iterator(path.value())) {
-    auto name = entry.path().stem();
-    if (name != ".dodo") {
-      result->addEntry(entry.path().stem());
-    }
-  }
-
-  return result;
 }
 
 // Apply an AddEntry version to an artifact

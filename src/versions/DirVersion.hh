@@ -9,6 +9,7 @@
 #include "core/RefResult.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
+#include "versions/DirListVersion.hh"
 #include "versions/Version.hh"
 
 using std::make_shared;
@@ -22,53 +23,11 @@ class Build;
 class DirArtifact;
 class Env;
 
-/// A ListedDir version stores a list of all entries in a directory. It does not need to be a
-/// DirVersion because it cannot be committed or applied, only matched to a directory.
-class ListedDir : public Version {
- public:
-  ListedDir() noexcept = default;
-
-  /// Save a fingerprint for this version, which is always done on creation
-  virtual void fingerprint(fs::path path) noexcept override {}
-
-  /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Check if this list matches another list
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    auto other_list = other->as<ListedDir>();
-    if (!other_list) return false;
-    return _entries == other_list->_entries;
-  }
-
-  /// Get the name for the type of version this is
-  virtual string getTypeName() const noexcept override { return "listed"; }
-
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
-    FAIL << "Cannot apply a listed directory version";
-  }
-
-  /// Print this version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: listed]"; }
-
- protected:
-  friend class DirArtifact;
-  friend class ExistingDir;
-
-  /// Add an entry to this listed directory version
-  void addEntry(string name) noexcept { _entries.insert(name); }
-
-  /// Remove an entry from this listed directory version
-  void removeEntry(string name) noexcept { _entries.erase(name); }
-
- private:
-  set<string> _entries;
-
-  SERIALIZE(BASE(Version), _entries);
-};
-
-/// Base class for all of the various types of directory versions
+/**
+ * A DirVersion represents some part of the state of a directory. Subclasses of DirVersion can
+ * encode complete versions that describe all of the contents of the directory, or partial versions
+ * that describe an update to a single entry in the directory.
+ */
 class DirVersion : public Version {
  public:
   /// Can this version be committed to the filesystem?
@@ -77,109 +36,56 @@ class DirVersion : public Version {
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept = 0;
 
-  /// Skip fingerprints for partial directory versions
-  virtual void fingerprint(fs::path path) noexcept override {}
-
-  /// Check if this version has a fingerprint
+  /// DirVersions always have a fingerprint
   virtual bool hasFingerprint() const noexcept override { return true; }
-
-  /// Disallow direct comparisons of partial directory versions
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    FAIL << "Attempted to match against a partial directory version";
-    return false;
-  }
 
  private:
   SERIALIZE(BASE(Version));
 };
 
-/// Every directory has a base version that serves as the last stop when checking for entries
+/**
+ * A BaseDirVersion encodes the starting state for a directory artifact. Every directory has exactly
+ * one of these versions. Any updates to the directory are layered on top of the base version.
+ */
 class BaseDirVersion : public DirVersion {
  public:
-  /// Check for a named entry in this directory version
-  virtual Resolution getEntry(Build& build,
-                              shared_ptr<Env> env,
-                              shared_ptr<DirArtifact> dir,
-                              string name) noexcept = 0;
+  BaseDirVersion(bool created) noexcept : _created(created) { setCommitted(!created); }
 
-  /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
-                                        shared_ptr<DirArtifact> dir) const noexcept = 0;
+  /// Does the base version represent a newly created directory?
+  bool getCreated() const noexcept { return _created; }
 
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
-    FAIL << "Cannot apply a base directory version";
-  }
-
- private:
-  SERIALIZE(BASE(DirVersion));
-};
-
-/// A version to represent a directory that was created during the build
-class CreatedDir : public BaseDirVersion {
- public:
-  /// Create a new empty directory version
-  CreatedDir() noexcept = default;
-
-  /// Can this version be committed to the filesystem?
+  /// We can always commit the base version. It is either already on disk, or a newly created dir
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Commit this version to the filesystem
   virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override;
 
-  /// Check if this version has a specific entry
-  virtual Resolution getEntry(Build& build,
-                              shared_ptr<Env> env,
-                              shared_ptr<DirArtifact> dir,
-                              string name) noexcept override {
-    return ENOENT;
-  }
-
-  /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
-                                        shared_ptr<DirArtifact> dir) const noexcept override {
-    return make_shared<ListedDir>();
-  }
-
   /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "empty"; }
+  virtual string getTypeName() const noexcept override {
+    if (_created) {
+      return "empty";
+    } else {
+      return "on-disk";
+    }
+  }
 
-  /// Print an empty directory version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: empty]"; }
+  /// Print this directory version
+  virtual ostream& print(ostream& o) const noexcept override {
+    if (_created) {
+      return o << "[dir: empty]";
+    } else {
+      return o << "[dir: on-disk]";
+    }
+  }
 
  private:
-  // Specify fields for serialization
-  SERIALIZE(BASE(BaseDirVersion));
-};
+  /// Does this version encode the creation of a new directory? If not, accessing entries requires
+  /// checks against the actual filesystem.
+  bool _created;
 
-/// An existing directory version checks for entries against the directory on the filesystem
-class ExistingDir : public BaseDirVersion {
- public:
-  ExistingDir() noexcept = default;
-
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return true; }
-
-  /// Commit this version to the filesystem
-  virtual void commit(shared_ptr<DirArtifact> dir, fs::path dir_path) noexcept override {
-    FAIL_IF(!isCommitted()) << "An existing directory " << dir << " was in an uncommitted state";
-  }
-
-  /// Check if this version has a specific entry
-  virtual Resolution getEntry(Build& build,
-                              shared_ptr<Env> env,
-                              shared_ptr<DirArtifact> dir,
-                              string name) noexcept override;
-
-  /// Create a listed directory version from this base directory
-  virtual shared_ptr<ListedDir> getList(shared_ptr<Env> env,
-                                        shared_ptr<DirArtifact> dir) const noexcept override;
-
-  /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "on-disk"; }
-
-  /// Print an existing directory version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: on-disk state]"; }
+  // Create default constructor and declare fields for serialization
+  BaseDirVersion() noexcept = default;
+  SERIALIZE(BASE(DirVersion), _created);
 };
 
 /// An AddEntry version updates a directory with a new entry

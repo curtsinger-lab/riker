@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 
+#include "util/log.hh"
 #include "util/serializer.hh"
 
 using std::ostream;
@@ -52,19 +53,30 @@ class Version : public std::enable_shared_from_this<Version> {
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Save a fingerprint of this version for later comparison
-  virtual void fingerprint(fs::path path) noexcept = 0;
+  virtual void fingerprint(fs::path path) noexcept {
+    // Do nothing by default. Subclasses can override this if fingerprinting is possible.
+  }
 
   /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept = 0;
+  virtual bool hasFingerprint() const noexcept {
+    // No fingerprints by default. Subclasses can override this.
+    return false;
+  }
 
   /// Check if this version matches another
-  virtual bool matches(shared_ptr<Version> other) const noexcept = 0;
+  virtual bool matches(shared_ptr<Version> other) const noexcept {
+    // Match is not implemented by default
+    FAIL << "Un-implemented comparison of versions " << this << " and " << other;
+    return false;
+  }
 
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
   /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept = 0;
+  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
+    FAIL << "Version " << this << " cannot be applied to an artifact";
+  }
 
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;

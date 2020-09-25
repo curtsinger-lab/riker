@@ -123,7 +123,7 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
 
   } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
-    auto dv = make_shared<ExistingDir>();
+    auto dv = make_shared<BaseDirVersion>(false);
     dv->setCommitted();
     a = make_shared<DirArtifact>(shared_from_this(), mv, dv);
 
@@ -228,7 +228,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
   if (committed) mv->setCommitted();
 
-  auto dv = make_shared<CreatedDir>();
+  auto dv = make_shared<BaseDirVersion>(true);
   if (committed) dv->setCommitted();
 
   auto dir = make_shared<DirArtifact>(shared_from_this(), mv, dv);

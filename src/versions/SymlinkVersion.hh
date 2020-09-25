@@ -24,9 +24,6 @@ class SymlinkVersion : public Version {
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;
 
-  /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path) noexcept override {}
-
   /// Check if this version has a fingerprint
   virtual bool hasFingerprint() const noexcept override { return true; }
 
@@ -38,11 +35,6 @@ class SymlinkVersion : public Version {
 
   /// Get the destination of this symlink
   const fs::path& getDestination() const noexcept { return _dest; }
-
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override {
-    FAIL << "Cannot apply a symlink version to an artifact";
-  }
 
   /// Print this symlink version
   virtual ostream& print(ostream& o) const noexcept override {
