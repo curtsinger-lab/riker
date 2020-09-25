@@ -987,7 +987,8 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
     resume();
 
     // We're making a reference to a symlink, so don't follow links
-    auto ref = makePathRef(pathname, AccessFlags{.nofollow = true}, dfd);
+    auto ref =
+        makePathRef(pathname, AccessFlags{.nofollow = true, .type = AccessType::Symlink}, dfd);
 
     // Did the call succeed?
     if (rc >= 0) {
@@ -1019,7 +1020,11 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
   auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref = makePathRef(pathname, AccessFlags{.nofollow = true}, dfd);
+  auto entry_ref =
+      makePathRef(pathname,
+                  AccessFlags{.nofollow = true,
+                              .type = flags.removedir() ? AccessType::Dir : AccessType::NotDir},
+                  dfd);
 
   // If this call is removing a directory, depend on the directory contents
   if (entry_ref->getResult()) {

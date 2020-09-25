@@ -11,6 +11,8 @@
 using std::ostream;
 using std::pair;
 
+enum class AccessType { Any, Dir, NotDir, Symlink };
+
 /// This struct encodes the flags specified when making an access to a particular reference
 struct AccessFlags {
   union {
@@ -23,17 +25,17 @@ struct AccessFlags {
       bool create : 1;     //< Does the reference create an artifact if none exists?
       bool exclusive : 1;  //< Does the reference require creation?
       bool append : 1;     //< Is the file opened in append mode?
-      bool directory : 1;  //< Is the open expected to return a directory?
     };
     uint16_t _data = 0;
   };
-  uint16_t mode = 0;  //< The file access modifiers
+  AccessType type = AccessType::Any;  //< What type of artifact is this access expected to reach?
+  uint16_t mode = 0;                  //< The file access modifiers
 
   // Declare fields for serialization
   template <class Archive>
   void serialize(Archive& archive) {
     // Serialze the integer representation of all the relevant flags
-    archive(_data);
+    archive(_data, type);
     // Only include the mode field if the create flag is set
     if (create) archive(mode);
   }
@@ -48,7 +50,13 @@ struct AccessFlags {
     f.create = flags.creat();
     f.exclusive = flags.excl();
     f.append = flags.append();
-    f.directory = flags.directory();
+
+    if (flags.directory()) {
+      f.type = AccessType::Dir;
+    } else if (flags.writable()) {
+      f.type = AccessType::NotDir;
+    }
+
     f.mode = mode.getMode();
     return f;
   }
@@ -64,7 +72,7 @@ struct AccessFlags {
     if (create) flags |= O_CREAT;
     if (exclusive) flags |= O_EXCL;
     if (append) flags |= O_APPEND;
-    if (directory) flags |= O_DIRECTORY;
+    if (type == AccessType::Dir) flags |= O_DIRECTORY;
 
     return {flags, mode};
   }

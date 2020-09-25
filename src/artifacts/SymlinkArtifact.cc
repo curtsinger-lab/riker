@@ -103,7 +103,14 @@ Resolution SymlinkArtifact::resolve(Build& build,
   if (symlink_limit == 0) return ELOOP;
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
-  if (current == end && flags.nofollow) return shared_from_this();
+  if (current == end && flags.nofollow) {
+    // Did the access expect to get a symlink?
+    if (flags.type == AccessType::Dir) {
+      return ENOTDIR;
+    } else {
+      return shared_from_this();
+    }
+  }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
   build.observeInput(c, shared_from_this(), _symlink_version, InputType::PathResolution);

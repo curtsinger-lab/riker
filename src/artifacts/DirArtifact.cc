@@ -220,8 +220,12 @@ Resolution DirArtifact::resolve(Build& build,
     // If the requested access is not allowed, return EACCES
     if (!checkAccess(build, c, flags)) return EACCES;
 
-    // Access was allowed, so return this artifact
-    return shared_from_this();
+    // The access was allowed. Did the access expect to reach a directory?
+    if (flags.type == AccessType::Any || flags.type == AccessType::Dir) {
+      return shared_from_this();
+    } else {
+      return EISDIR;
+    }
   }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory

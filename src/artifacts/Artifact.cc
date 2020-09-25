@@ -297,7 +297,15 @@ Resolution Artifact::resolve(Build& build,
   if (current == end) {
     // Check to see if the requested access mode is supported
     if (!checkAccess(build, c, flags)) return EACCES;
-    return shared_from_this();
+
+    // Access is allowed. Did the access expect a specific type of artifact?
+    if (flags.type == AccessType::Dir) {
+      return ENOTDIR;
+    } else if (flags.type == AccessType::Symlink) {
+      return EINVAL;
+    } else {
+      return shared_from_this();
+    }
   }
 
   return ENOTDIR;
