@@ -318,18 +318,10 @@ Resolution DirArtifact::resolve(Build& build,
       auto newfile = _env->createFile(build, c, flags.mode, false);
 
       // Link the new file into this directory
-      auto link_version = make_shared<AddEntry>(entry, newfile);
-      link_version->createdBy(c);
-      updateContent(build, c, link_version);
-
-      // The resolution result is now the newly-created file
-      res = newfile;
-
-      // The newly-created file is linked in this directory
-      res->addLinkUpdate(as<DirArtifact>(), entry, link_version);
+      auto link_version = addEntry(build, c, entry, newfile);
 
       // return the artifact we just created and stop resolution
-      return res;
+      return newfile;
     }
 
     // If the result was an error, return it
@@ -349,41 +341,47 @@ Resolution DirArtifact::resolve(Build& build,
   }
 }
 
-// Apply a link version to this artifact
-void DirArtifact::updateContent(Build& build,
-                                shared_ptr<Command> c,
-                                shared_ptr<AddEntry> writing) noexcept {
-  auto entry = writing->getEntryName();
-  auto artifact = writing->getTarget();
-
+// Add a directory entry to this artifact
+shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
+                                             shared_ptr<Command> c,
+                                             fs::path entry,
+                                             shared_ptr<Artifact> target) noexcept {
   // Check for an existing entry with the same name
   auto iter = _entries.find(entry);
   if (iter != _entries.end()) {
     // TODO: We will overwrite the old entry. How do we track that?
-    // TODO: AddEntry versions should be tagged with an `overwrite` flag
   }
 
+  // Create a partial version to track the committed state of this entry
+  auto writing = make_shared<AddEntry>(entry, target);
+  writing->createdBy(c);
+
   // For this link to be committed, we need the artifact to exist or be committable
-  artifact->mustExist(build, c);
+  target->mustExist(build, c);
 
   // Inform the artifact of its new link
-  artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
+  target->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
   // Add the new entry to the entries map
-  _entries[entry] = {writing, artifact};
+  _entries[entry] = {writing, target};
 
   // Notify the build of this output
   build.observeOutput(c, shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
+
+  return writing;
 }
 
-// Apply an unlink version to this artifact
-void DirArtifact::updateContent(Build& build,
-                                shared_ptr<Command> c,
-                                shared_ptr<RemoveEntry> writing) noexcept {
-  auto entry = writing->getEntryName();
+// Remove a directory entry from this artifact
+shared_ptr<DirVersion> DirArtifact::removeEntry(Build& build,
+                                                shared_ptr<Command> c,
+                                                fs::path entry,
+                                                shared_ptr<Artifact> target) noexcept {
+  // Create a partial version to track the committed state of this update
+  auto writing = make_shared<RemoveEntry>(entry, target);
+  writing->createdBy(c);
 
   // Do we have a record of an entry with the given name?
   auto iter = _entries.find(entry);
@@ -413,4 +411,6 @@ void DirArtifact::updateContent(Build& build,
 
   // Record this version in the artifact as well
   appendVersion(writing);
+
+  return writing;
 }

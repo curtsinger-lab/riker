@@ -58,6 +58,18 @@ class DirArtifact final : public Artifact {
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
 
+  /// Add a directory entry to this artifact
+  virtual shared_ptr<DirVersion> addEntry(Build& build,
+                                          shared_ptr<Command> c,
+                                          fs::path entry,
+                                          shared_ptr<Artifact> target) noexcept override;
+
+  /// Remove a directory entry from this artifact
+  virtual shared_ptr<DirVersion> removeEntry(Build& build,
+                                             shared_ptr<Command> c,
+                                             fs::path entry,
+                                             shared_ptr<Artifact> target) noexcept override;
+
   // Un-hide the shorthand version of resolve()
   using Artifact::resolve;
 
@@ -68,16 +80,6 @@ class DirArtifact final : public Artifact {
                              fs::path::iterator end,
                              AccessFlags flags,
                              size_t symlink_limit) noexcept override;
-
-  /// Apply a link version to this artifact
-  virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<AddEntry> writing) noexcept override;
-
-  /// Apply an unlink version to this artifact
-  virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RemoveEntry> writing) noexcept override;
 
  private:
   /// The base directory version is the backstop for all resolution queries. This is either an

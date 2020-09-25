@@ -114,9 +114,6 @@ class AddEntry : public DirVersion {
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
 
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
-
   /// Print a link version
   virtual ostream& print(ostream& o) const noexcept override {
     return o << "[dir: link " << _entry << " -> " << _target << "]";
@@ -148,9 +145,6 @@ class RemoveEntry : public DirVersion {
 
   /// Get the name for this version type
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
-
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
 
   /// Print an unlink version
   virtual ostream& print(ostream& o) const noexcept override {

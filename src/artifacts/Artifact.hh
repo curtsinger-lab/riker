@@ -198,21 +198,25 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 
-  /// Update this artifact's content with an AddEntry version
-  virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<AddEntry> writing) noexcept {
-    WARN << c << ": tried to apply version " << writing << " to artifact " << this;
-  }
-
-  /// Update this artifact's content with a RemoveEntry version
-  virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RemoveEntry> writing) noexcept {
-    WARN << c << ": tried to apply version " << writing << " to artifact " << this;
-  }
-
   /************ Directory Operations ************/
+
+  /// Add a directory entry to this artifact
+  virtual shared_ptr<DirVersion> addEntry(Build& build,
+                                          shared_ptr<Command> c,
+                                          fs::path entry,
+                                          shared_ptr<Artifact> target) noexcept {
+    WARN << c << ": tried to add an entry to non-directory artifact " << this;
+    return nullptr;
+  }
+
+  /// Remove a directory entry from this artifact
+  virtual shared_ptr<DirVersion> removeEntry(Build& build,
+                                             shared_ptr<Command> c,
+                                             fs::path entry,
+                                             shared_ptr<Artifact> target) noexcept {
+    WARN << c << ": tried to remove an entry from non-directory artifact " << this;
+    return nullptr;
+  }
 
   /**
    * Resolve a path relative to this artifact

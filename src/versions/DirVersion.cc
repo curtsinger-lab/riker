@@ -34,11 +34,6 @@ void BaseDirVersion::commit(fs::path path) noexcept {
   Version::setCommitted();
 }
 
-// Apply an AddEntry version to an artifact
-void AddEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->updateContent(b, c, this->as<AddEntry>());
-}
-
 // Commit the addition of an entry to a directory
 void AddEntry::commit(fs::path dir_path) noexcept {
   if (isCommitted()) return;
@@ -109,11 +104,6 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     // Now commit the artifact
     _target->commitAll();
   }
-}
-
-// Apply an RemoveEntry version to an artifact
-void RemoveEntry::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->updateContent(b, c, this->as<RemoveEntry>());
 }
 
 // Commit the removal of an entry from a directory

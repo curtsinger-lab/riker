@@ -455,11 +455,8 @@ void Build::addEntry(shared_ptr<Command> c,
     return;
   }
 
-  // Create an AddEntry version to apply to the directory
-  auto written = make_shared<AddEntry>(name, target->getResult());
-  written->setCommitted(false);
-  written->createdBy(c);
-  written->applyTo(*this, c, dir->getResult());
+  // Add the entry to the directory
+  dir->getResult()->addEntry(*this, c, name, target->getResult());
 }
 
 /// Handle a RemoveEntry IR step
@@ -488,11 +485,8 @@ void Build::removeEntry(shared_ptr<Command> c,
     return;
   }
 
-  // Create a RemoveEntry version to apply to the directory
-  auto written = make_shared<RemoveEntry>(name, target->getResult());
-  written->setCommitted(false);
-  written->createdBy(c);
-  written->applyTo(*this, c, dir->getResult());
+  // Remove the entry from the directory
+  dir->getResult()->removeEntry(*this, c, name, target->getResult());
 }
 
 // This command launches a child command
@@ -906,11 +900,8 @@ void Build::traceAddEntry(shared_ptr<Command> c,
     _output_trace->addEntry(c, dir, name, target);
   }
 
-  // Create an AddEntry version to apply to the directory
-  auto written = make_shared<AddEntry>(name, target->getResult());
-  written->setCommitted();
-  written->createdBy(c);
-  written->applyTo(*this, c, dir_artifact);
+  // Add the entry to the directory and mark the update as committed
+  dir_artifact->addEntry(*this, c, name, target->getResult())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir, name, target};
@@ -933,11 +924,8 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
     _output_trace->removeEntry(c, dir, name, target);
   }
 
-  // Create an AddEntry version to apply to the directory
-  auto written = make_shared<RemoveEntry>(name, target->getResult());
-  written->setCommitted();
-  written->createdBy(c);
-  written->applyTo(*this, c, dir_artifact);
+  // Remove the entry from the directory and mark the update as committed
+  dir_artifact->removeEntry(*this, c, name, target->getResult())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir, name, target};
