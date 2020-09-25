@@ -295,6 +295,8 @@ Resolution Artifact::resolve(Build& build,
                              size_t symlink_limit) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {
+    LOG(artifact) << "End of resolution in " << this;
+
     // Check to see if the requested access mode is supported
     if (!checkAccess(build, c, flags)) return EACCES;
 

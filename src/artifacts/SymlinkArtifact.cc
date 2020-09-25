@@ -104,9 +104,13 @@ Resolution SymlinkArtifact::resolve(Build& build,
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (current == end && flags.nofollow) {
+    LOG(artifact) << "End of resolution in " << this;
+
     // Did the access expect to get a symlink?
     if (flags.type == AccessType::Dir) {
       return ENOTDIR;
+    } else if (flags.type == AccessType::File) {
+      return ELOOP;
     } else {
       return shared_from_this();
     }

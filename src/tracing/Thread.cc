@@ -109,12 +109,7 @@ string Thread::readString(uintptr_t tracee_pointer) noexcept {
 
 fs::path Thread::readPath(uintptr_t tracee_pointer) noexcept {
   // Read a string and convert it to an fs::path
-  fs::path path = readString(tracee_pointer);
-
-  // If the path has a trailing slash, remove it
-  if (path.filename().empty()) path = path.parent_path();
-
-  return path;
+  return readString(tracee_pointer);
 }
 
 // Read a value of type T from this process
@@ -209,6 +204,13 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 
 void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept {
   LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, flags, mode);
+
+  // If the O_CREAT was specified and filename has a trailing slash, the result is EISDIR and we do
+  // not need to trace any interaction here
+  if (flags.creat() && filename.filename().empty()) {
+    resume();
+    return;
+  }
 
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
@@ -754,6 +756,9 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
 void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
   LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd, pathname, mode);
 
+  // Strip a trailing slash from the pathname if it has one
+  if (pathname.filename().empty()) pathname = pathname.parent_path();
+
   auto parent_path = pathname.parent_path();
   auto entry = pathname.filename();
 
@@ -795,6 +800,12 @@ void Thread::_renameat2(at_fd old_dfd,
                         rename_flags flags) noexcept {
   LOGF(trace, "{}: renameat({}, {}, {}, {}, {})", this, old_dfd, old_path, new_dfd, new_path,
        flags);
+
+  // Strip a trailing slash from the old path if it has one
+  if (old_path.filename().empty()) old_path = old_path.parent_path();
+
+  // Strip a trailing slash from the new path if it has one
+  if (new_path.filename().empty()) new_path = new_path.parent_path();
 
   // Break the path to the existing file into directory and entry parts
   auto old_dir = old_path.parent_path();
@@ -891,6 +902,9 @@ void Thread::_linkat(at_fd old_dfd,
   LOGF(trace, "{}: linkat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, oldpath, new_dfd, newpath,
        flags);
 
+  // Strip a trailing slash from the new path if it has one
+  if (newpath.filename().empty()) newpath = newpath.parent_path();
+
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto dir_path = newpath.parent_path();
   auto entry = newpath.filename();
@@ -936,6 +950,9 @@ void Thread::_linkat(at_fd old_dfd,
 
 void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
   LOGF(trace, "{}: symlinkat(\"{}\", {}, \"{}\")", this, target, dfd, newpath);
+
+  // Strip a trailing slash from newpath if it has one
+  if (newpath.filename().empty()) newpath = newpath.parent_path();
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto dir_path = newpath.parent_path();
@@ -1010,7 +1027,8 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
 void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
   LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd, pathname, flags);
 
-  // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
+  // Strip a trailing slash from pathname if it has one
+  if (pathname.filename().empty()) pathname = pathname.parent_path();
 
   // Split the pathname into the parent and entry
   auto dir_path = pathname.parent_path();

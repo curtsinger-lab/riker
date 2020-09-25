@@ -740,9 +740,9 @@ void Build::traceExpectResult(shared_ptr<Command> c,
     _output_trace->expectResult(c, ref, expected);
   }
 
-  // Turn this code on to check the expect result against our filesystem model
-  // WARN_IF(ref->getResult() != expected) << "Traced result " << ref->getResult()
-  //                                      << " does not match expected value " << errors[expected];
+  // Check the expect result against our filesystem model
+  WARN_IF(ref->getResult() != expected) << "Traced result " << ref->getResult()
+                                        << " does not match expected value " << errors[expected];
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, ref, expected};

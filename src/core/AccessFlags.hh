@@ -11,7 +11,7 @@
 using std::ostream;
 using std::pair;
 
-enum class AccessType { Any, Dir, NotDir, Symlink };
+enum class AccessType { Any, Dir, NotDir, Symlink, File };
 
 /// This struct encodes the flags specified when making an access to a particular reference
 struct AccessFlags {
@@ -53,7 +53,9 @@ struct AccessFlags {
 
     if (flags.directory()) {
       f.type = AccessType::Dir;
-    } else if (flags.writable()) {
+    } else if (flags.nofollow()) {
+      f.type = AccessType::File;
+    } else if (flags.writable() || flags.creat() || flags.trunc()) {
       f.type = AccessType::NotDir;
     }
 
