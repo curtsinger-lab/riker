@@ -107,6 +107,16 @@ string Thread::readString(uintptr_t tracee_pointer) noexcept {
   return string(data.begin(), data.end());
 }
 
+fs::path Thread::readPath(uintptr_t tracee_pointer) noexcept {
+  // Read a string and convert it to an fs::path
+  fs::path path = readString(tracee_pointer);
+
+  // If the path has a trailing slash, remove it
+  if (path.filename().empty()) path = path.parent_path();
+
+  return path;
+}
+
 // Read a value of type T from this process
 template <typename T>
 T Thread::readData(uintptr_t tracee_pointer) noexcept {
@@ -197,7 +207,7 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 
 /************************* File Opening, Creation, and Closing ************************/
 
-void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_flags mode) noexcept {
+void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept {
   LOGF(trace, "{}: openat({}, \"{}\", {}, {})", this, dfd, filename, flags, mode);
 
   // Get a reference from the given path
@@ -245,7 +255,7 @@ void Thread::_openat(at_fd dfd, string filename, o_flags flags, mode_flags mode)
   });
 }
 
-void Thread::_mknodat(at_fd dfd, string filename, mode_flags mode, unsigned dev) noexcept {
+void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept {
   LOGF(trace, "{}: mknodat({}, \"{}\", {}, {})", this, dfd, filename, mode, dev);
 
   if (mode.isRegularFile()) {
@@ -394,7 +404,7 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 
 /************************ Metadata Operations ************************/
 
-void Thread::_faccessat(at_fd dirfd, string pathname, int mode, at_flags flags) noexcept {
+void Thread::_faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags) noexcept {
   LOGF(trace, "{}: faccessat({}, \"{}\", {}, {})", this, dirfd, pathname, mode, flags);
 
   // Finish the syscall so we can see its result
@@ -416,7 +426,10 @@ void Thread::_faccessat(at_fd dirfd, string pathname, int mode, at_flags flags) 
   });
 }
 
-void Thread::_fstatat(at_fd dirfd, string pathname, struct stat* statbuf, at_flags flags) noexcept {
+void Thread::_fstatat(at_fd dirfd,
+                      fs::path pathname,
+                      struct stat* statbuf,
+                      at_flags flags) noexcept {
   LOGF(trace, "{}: fstatat({}, \"{}\", {}, {})", this, dirfd, pathname, (void*)statbuf, flags);
 
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
@@ -482,7 +495,7 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
 }
 
 void Thread::_fchownat(at_fd dfd,
-                       string filename,
+                       fs::path filename,
                        uid_t user,
                        gid_t group,
                        at_flags flags) noexcept {
@@ -540,7 +553,7 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
   });
 }
 
-void Thread::_fchmodat(at_fd dfd, string filename, mode_flags mode, at_flags flags) noexcept {
+void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags flags) noexcept {
   LOGF(trace, "{}: fchmodat({}, \"{}\", {}, {})", this, dfd, filename, mode, flags);
 
   // Make a reference to the file that will be chmod-ed.
@@ -661,7 +674,7 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
   });
 }
 
-void Thread::_truncate(string pathname, long length) noexcept {
+void Thread::_truncate(fs::path pathname, long length) noexcept {
   LOGF(trace, "{}: truncate(\"{}\", {})", this, pathname, length);
 
   // Make an access to the reference that will be truncated
@@ -738,25 +751,17 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
 
 /************************ Directory Operations ************************/
 
-void Thread::_mkdirat(at_fd dfd, string pathname, mode_flags mode) noexcept {
+void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
   LOGF(trace, "{}: mkdirat({}, \"{}\", {})", this, dfd, pathname, mode);
 
-  auto full_path = fs::path(pathname);
-
-  // Strip a trailing slash from pathname if it has one
-  if (full_path.filename().empty()) {
-    WARN << "Removing trailing slash from " << full_path;
-    full_path = full_path.parent_path();
-  }
-
-  auto parent_path = full_path.parent_path();
-  auto entry = full_path.filename();
+  auto parent_path = pathname.parent_path();
+  auto entry = pathname.filename();
 
   // Make a reference to the parent directory where the new directory will be added
   auto parent_ref = makePathRef(parent_path, AccessFlags{.w = true}, dfd);
 
   // Make a reference to the new directory entry that will be created
-  auto entry_ref = makePathRef(full_path, AccessFlags{}, dfd);
+  auto entry_ref = makePathRef(pathname, AccessFlags{}, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -784,15 +789,14 @@ void Thread::_mkdirat(at_fd dfd, string pathname, mode_flags mode) noexcept {
 }
 
 void Thread::_renameat2(at_fd old_dfd,
-                        string old_name,
+                        fs::path old_path,
                         at_fd new_dfd,
-                        string new_name,
+                        fs::path new_path,
                         rename_flags flags) noexcept {
-  LOGF(trace, "{}: renameat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, old_name, new_dfd,
-       new_name, flags);
+  LOGF(trace, "{}: renameat({}, {}, {}, {}, {})", this, old_dfd, old_path, new_dfd, new_path,
+       flags);
 
   // Break the path to the existing file into directory and entry parts
-  auto old_path = fs::path(old_name);
   auto old_dir = old_path.parent_path();
   auto old_entry = old_path.filename();
 
@@ -802,7 +806,6 @@ void Thread::_renameat2(at_fd old_dfd,
   auto old_entry_ref = makePathRef(old_path, AccessFlags{.nofollow = true}, old_dfd);
 
   // Break the path to the new file into directory and entry parts
-  auto new_path = fs::path(new_name);
   auto new_dir = new_path.parent_path();
   auto new_entry = new_path.filename();
 
@@ -881,23 +884,22 @@ void Thread::_getdents(int fd) noexcept {
 /************************ Link and Symlink Operations ************************/
 
 void Thread::_linkat(at_fd old_dfd,
-                     string oldpath,
+                     fs::path oldpath,
                      at_fd new_dfd,
-                     string newpath,
+                     fs::path newpath,
                      at_flags flags) noexcept {
   LOGF(trace, "{}: linkat({}, \"{}\", {}, \"{}\", {})", this, old_dfd, oldpath, new_dfd, newpath,
        flags);
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
-  auto link_path = fs::path(newpath);
-  auto dir_path = link_path.parent_path();
-  auto entry = link_path.filename();
+  auto dir_path = newpath.parent_path();
+  auto entry = newpath.filename();
 
   // Get a reference to the directory, which we will be writing
   auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, new_dfd);
 
   // Get a reference to the link we are creating
-  auto entry_ref = makePathRef(link_path, AccessFlags{}, new_dfd);
+  auto entry_ref = makePathRef(newpath, AccessFlags{}, new_dfd);
 
   // Get a reference to the artifact we are linking into the directory
   AccessFlags target_flags = {.nofollow = true};
@@ -932,19 +934,18 @@ void Thread::_linkat(at_fd old_dfd,
   });
 }
 
-void Thread::_symlinkat(string target, at_fd dfd, string newpath) noexcept {
+void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
   LOGF(trace, "{}: symlinkat(\"{}\", {}, \"{}\")", this, target, dfd, newpath);
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
-  auto link_path = fs::path(newpath);
-  auto dir_path = link_path.parent_path();
-  auto entry = link_path.filename();
+  auto dir_path = newpath.parent_path();
+  auto entry = newpath.filename();
 
   // Get a reference to the directory, which we will be writing
   auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the link we are creating
-  auto entry_ref = makePathRef(link_path, AccessFlags{}, dfd);
+  auto entry_ref = makePathRef(newpath, AccessFlags{}, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -971,12 +972,12 @@ void Thread::_symlinkat(string target, at_fd dfd, string newpath) noexcept {
   });
 }
 
-void Thread::_readlinkat(at_fd dfd, string pathname) noexcept {
+void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
   LOGF(trace, "{}: readlinkat({}, \"{}\")", this, dfd, pathname);
 
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
-  if (pathname.find("/proc/self") != string::npos) {
+  if (pathname.string().find("/proc/self") != string::npos) {
     resume();
     return;
   }
@@ -1005,21 +1006,20 @@ void Thread::_readlinkat(at_fd dfd, string pathname) noexcept {
   });
 }
 
-void Thread::_unlinkat(at_fd dfd, string pathname, at_flags flags) noexcept {
+void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
   LOGF(trace, "{}: unlinkat({}, \"{}\", {})", this, dfd, pathname, flags);
 
   // TODO: Make sure pathname does not refer to a directory, unless AT_REMOVEDIR is set
 
   // Split the pathname into the parent and entry
-  auto path = fs::path(pathname);
-  auto dir_path = path.parent_path();
-  auto entry = path.filename();
+  auto dir_path = pathname.parent_path();
+  auto entry = pathname.filename();
 
   // Get a reference to the directory, which we will be writing
   auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref = makePathRef(path, AccessFlags{.nofollow = true}, dfd);
+  auto entry_ref = makePathRef(pathname, AccessFlags{.nofollow = true}, dfd);
 
   // If this call is removing a directory, depend on the directory contents
   if (entry_ref->getResult()) {
@@ -1099,7 +1099,7 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
 
 /************************ Process State Operations ************************/
 
-void Thread::_chdir(string filename) noexcept {
+void Thread::_chdir(fs::path filename) noexcept {
   LOGF(trace, "{}: chdir(\"{}\")", this, filename);
 
   auto ref = makePathRef(filename, AccessFlags{.x = true});
@@ -1116,12 +1116,12 @@ void Thread::_chdir(string filename) noexcept {
   });
 }
 
-void Thread::_chroot(string filename) noexcept {
+void Thread::_chroot(fs::path filename) noexcept {
   LOGF(trace, "{}: chroot(\"{}\")", this, filename);
   FAIL << "Builds that use chroot are not supported.";
 }
 
-void Thread::_pivot_root(string new_root, string put_old) noexcept {
+void Thread::_pivot_root(fs::path new_root, fs::path put_old) noexcept {
   LOGF(trace, "{}: pivot_root(\"{}\", \"{}\")", this, new_root, put_old);
   FAIL << "Builds that use pivot_root are not supported.";
 }
@@ -1169,7 +1169,7 @@ void Thread::_exit_group(int status) noexcept {
 }
 
 void Thread::_execveat(at_fd dfd,
-                       string filename,
+                       fs::path filename,
                        vector<string> args,
                        vector<string> env) noexcept {
   LOGF(trace, "{}: execveat({}, \"{}\", [\"{}\"])", this, dfd, filename, fmt::join(args, "\", \""));

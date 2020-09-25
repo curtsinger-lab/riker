@@ -48,6 +48,9 @@ class SyscallArgWrapper {
   // Read a string from the thread's memory
   operator string() { return _thread.readString(_val); }
 
+  // Get an fs::path from the thread's memory
+  operator fs::path() { return _thread.readPath(_val); }
+
   // Read a vector of strings from the thread's memory
   operator vector<string>() { return _thread.readArgvArray(_val); }
 
