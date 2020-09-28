@@ -12,6 +12,7 @@
 
 #include <cereal/archives/binary.hpp>
 
+#include "data/Record.hh"
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/RefResult.hh"
@@ -27,23 +28,6 @@ using std::unique_ptr;
 using std::vector;
 
 namespace fs = std::filesystem;
-
-class Build;
-class Command;
-class InputTrace;
-
-/// A trace is saved on disk as a series of records. Sub-classes are defined in Trace.cc
-struct Record {
-  Record() noexcept = default;
-  virtual ~Record() = default;
-
-  virtual bool isEnd() const noexcept { return false; }
-
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept = 0;
-
-  template <class Archive>
-  void serialize(Archive& archive) {}
-};
 
 /**
  * An input trace is a build trace loaded from disk
