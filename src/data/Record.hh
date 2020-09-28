@@ -24,6 +24,8 @@ using std::vector;
 class InputTrace;
 class TraceHandler;
 
+enum : size_t { ArchiveMagic = 0xD0D0D035178357, ArchiveVersion = 101 };
+
 /// A trace is saved on disk as a series of records. Sub-classes are defined in Trace.cc
 struct Record {
   Record() noexcept = default;

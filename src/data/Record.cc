@@ -1,7 +1,7 @@
 #include "Record.hh"
 
 #include "data/AccessFlags.hh"
-#include "data/Trace.hh"
+#include "data/InputTrace.hh"
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "versions/DirListVersion.hh"

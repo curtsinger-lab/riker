@@ -11,7 +11,8 @@
 
 #include <CLI/CLI.hpp>
 
-#include "data/Trace.hh"
+#include "data/InputTrace.hh"
+#include "data/OutputTrace.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"

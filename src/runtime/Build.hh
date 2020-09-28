@@ -7,7 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "data/Trace.hh"
+#include "data/InputTrace.hh"
+#include "data/OutputTrace.hh"
 #include "interfaces/BuildObserver.hh"
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
