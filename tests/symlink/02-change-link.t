@@ -3,11 +3,11 @@ Move to test directory
 
 Clean up any leftover state
   $ rm -rf .dodo
-  $ rm -f output dir/output
+  $ rm -f dir1/output dir2/output
 
-Make sure dir/link is a symlink to dir/..
-  $ rm -f dir/link
-  $ ln -s .. dir/link
+Make sure link is a symlink to dir1
+  $ rm -f link
+  $ ln -s dir1 link
 
 Run the build
   $ $DODO --show
@@ -17,14 +17,14 @@ Run the build
   cat input2
   cat input3
 
-Make sure both cats wrote to the same output file
-  $ cat output
-  This is another test
-  And here's a third test
+Check the state of dir1/output
+  $ cat dir1/output
+  Written to link/output
+  Appended to dir1/output
 
-Now change the link to refer to dir/.
-  $ rm dir/link
-  $ ln -s . dir/link
+Now change the link to refer to dir2
+  $ rm link
+  $ ln -s dir2 link
 
 Run a rebuild
   $ $DODO --show
@@ -32,18 +32,18 @@ Run a rebuild
   cat input2
   cat input3
 
-Check the output
-  $ cat output
-  This is a test
-  And here's a third test
+Check the stat of dir1/output and dir2/output
+  $ cat dir1/output
+  Written to dir1/output
+  Appended to dir1/output
 
-  $ cat dir/output
-  This is another test
+  $ cat dir2/output
+  Written to link/output
 
 Put the link back how it was
-  $ unlink dir/link
-  $ ln -s .. dir/link
+  $ unlink link
+  $ ln -s dir1 link
 
 Clean up
   $ rm -rf .dodo 
-  $ rm -f output dir/output
+  $ rm -f dir1/output dir2/output
