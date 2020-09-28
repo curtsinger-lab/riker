@@ -83,14 +83,14 @@ void SymlinkArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
+void SymlinkArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState(build, path);
 }
 
 Resolution SymlinkArtifact::resolve(Build& build,

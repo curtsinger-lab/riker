@@ -7,18 +7,21 @@
 #include <sys/types.h>
 
 #include "artifacts/Artifact.hh"
+#include "interfaces/TraceHandler.hh"
 #include "util/wrappers.hh"
 
 using std::nullopt;
 using std::shared_ptr;
 
-bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept {
+bool MetadataVersion::checkAccess(TraceHandler& handler,
+                                  shared_ptr<Artifact> artifact,
+                                  AccessFlags flags) noexcept {
   // If we don't have a saved value for metadata but this version is committed, go save it now
   if (!_metadata.has_value() && isCommitted()) {
     // Get a path to the artifact, including only committed paths
     auto path = artifact->getPath(false);
     ASSERT(path.has_value()) << "Committed artifact has no path";
-    save(path.value());
+    save(handler, path.value());
   }
 
   // Make sure we have metadata to check access against
@@ -86,7 +89,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
 }
 
 // Save metadata
-void MetadataVersion::save(fs::path path) noexcept {
+void MetadataVersion::save(TraceHandler& handler, fs::path path) noexcept {
   if (_metadata.has_value()) return;
 
   struct stat statbuf;

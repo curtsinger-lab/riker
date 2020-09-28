@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
+#include "interfaces/TraceHandler.hh"
 #include "util/log.hh"
 
 using std::nullopt;
@@ -34,7 +35,7 @@ void FileVersion::commit(fs::path path, mode_t mode) noexcept {
 }
 
 // Save a fingerprint of this version
-void FileVersion::fingerprint(fs::path path) noexcept {
+void FileVersion::fingerprint(TraceHandler& handler, fs::path path) noexcept {
   if (hasFingerprint()) return;
 
   // Get stat data and save it

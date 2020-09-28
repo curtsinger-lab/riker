@@ -73,7 +73,7 @@ class FileVersion final : public Version {
   void commit(fs::path path, mode_t mode = 0600) noexcept;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path) noexcept override;
+  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override;
 
   /// Check if this version has a fingerprint
   virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }

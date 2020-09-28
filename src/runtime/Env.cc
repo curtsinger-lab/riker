@@ -68,10 +68,6 @@ shared_ptr<DirArtifact> Env::getRootDir() noexcept {
   return _root_dir;
 }
 
-void Env::commitFinalState() noexcept {
-  getRootDir()->applyFinalState("/");
-}
-
 fs::path Env::getTempPath() noexcept {
   // Make sure the temporary directory exsits
   fs::path tmpdir = ".dodo/tmp";

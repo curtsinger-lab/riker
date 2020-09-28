@@ -106,7 +106,7 @@ void Build::finish() noexcept {
   _env->getRootDir()->checkFinalState(*this, "/");
 
   /// Commit the final environment state to the filesystem
-  if (_commit) _env->commitFinalState();
+  if (_commit) _env->getRootDir()->applyFinalState(*this, "/");
 
   // Inform the output trace that it is finished
   _output_trace.finish();
@@ -722,11 +722,11 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (!creator || creator != c) {
+  if (creator != c && !expected->hasFingerprint()) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(path.value());
+      expected->fingerprint(*this, path.value());
     }
   }
 
@@ -756,11 +756,11 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (!creator || creator != c) {
+  if (creator != c && !expected->hasFingerprint()) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(path.value());
+      expected->fingerprint(*this, path.value());
     }
   }
 

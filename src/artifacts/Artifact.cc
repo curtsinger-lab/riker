@@ -193,14 +193,14 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flags) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
-  return _metadata_version->checkAccess(shared_from_this(), flags);
+  return _metadata_version->checkAccess(build, shared_from_this(), flags);
 }
 
 // Compare all final versions of this artifact to the filesystem state
 void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path);
+    v->fingerprint(build, path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -214,11 +214,11 @@ void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(fs::path path) noexcept {
+void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
   // If we don't have a fingerprint of the metadata, take one
   if (!_metadata_version->hasFingerprint()) {
     ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _metadata_version->fingerprint(path);
+    _metadata_version->fingerprint(build, path);
   }
 
   // Make sure metadata for this artifact is committed

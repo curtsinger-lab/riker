@@ -56,9 +56,6 @@ class Env : public std::enable_shared_from_this<Env> {
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir() noexcept;
 
-  /// Commit the final state of all artifacts to the filesystem
-  void commitFinalState() noexcept;
-
   /// Get a unique path to a temporary file in the build directory
   fs::path getTempPath() noexcept;
 

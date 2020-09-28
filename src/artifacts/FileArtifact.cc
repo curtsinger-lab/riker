@@ -75,7 +75,7 @@ void FileArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
 void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();
-    v->fingerprint(path);
+    v->fingerprint(build, path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -92,18 +92,18 @@ void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState(fs::path path) noexcept {
+void FileArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   // If we don't already have a content fingerprint, take one
   if (!_content_version->hasFingerprint()) {
     ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _content_version->fingerprint(path);
+    _content_version->fingerprint(build, path);
   }
 
   // Make sure the content is committed
   _content_version->commit(path);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState(build, path);
 }
 
 void FileArtifact::setCommitted() noexcept {

@@ -79,7 +79,9 @@ class MetadataVersion final : public Version {
   MetadataVersion(Metadata&& m) noexcept : _metadata(m) {}
 
   /// Check if a given access is allowed by the mode bits in this metadata record
-  bool checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
+  bool checkAccess(TraceHandler& handler,
+                   shared_ptr<Artifact> artifact,
+                   AccessFlags flags) noexcept;
 
   /// Get the mode field from this metadata version
   mode_t getMode() const noexcept;
@@ -94,13 +96,18 @@ class MetadataVersion final : public Version {
   void commit(fs::path path, bool commit_permissions = true) noexcept;
 
   /// Save the on-disk state to this version for later commit
-  void save(fs::path path) noexcept;
+  virtual void save(TraceHandler& handler, fs::path path) noexcept override;
+
+  /// Check if this version has a saved copy
+  virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path) noexcept override { save(path); }
+  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override {
+    save(handler, path);
+  }
 
   /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept override { return _metadata.has_value(); }
+  virtual bool hasFingerprint() const noexcept override { return isSaved(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

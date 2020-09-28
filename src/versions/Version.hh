@@ -16,6 +16,7 @@ using std::weak_ptr;
 class Artifact;
 class Build;
 class Command;
+class TraceHandler;
 
 namespace fs = std::filesystem;
 
@@ -52,15 +53,26 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as committed
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
-  /// Save a fingerprint of this version for later comparison
-  virtual void fingerprint(fs::path path) noexcept {
-    // Do nothing by default. Subclasses can override this if fingerprinting is possible.
+  /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
+  virtual void save(TraceHandler& handler, fs::path path) noexcept {}
+
+  /// Check if this version has a saved copy
+  virtual bool isSaved() const noexcept {
+    // Versions are unsaved by default
+    return false;
+  }
+
+  /// Save a fingerprint of this version for later comparison. If a new fingerprint is saved, inform
+  /// the provided TraceHandler.
+  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept {
+    // By default, fingerprinting a version just saves it
+    save(handler, path);
   }
 
   /// Check if this version has a fingerprint
   virtual bool hasFingerprint() const noexcept {
-    // No fingerprints by default. Subclasses can override this.
-    return false;
+    // By default, check for a saved copy
+    return isSaved();
   }
 
   /// Check if this version matches another

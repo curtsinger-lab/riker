@@ -45,7 +45,7 @@ class SymlinkArtifact : public Artifact {
   virtual void checkFinalState(Build& build, fs::path path) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept override;
+  virtual void applyFinalState(Build& build, fs::path path) noexcept override;
 
   /************ Symlink Operations ************/
 

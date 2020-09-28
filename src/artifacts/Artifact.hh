@@ -117,7 +117,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void checkFinalState(Build& build, fs::path path) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path) noexcept;
+  virtual void applyFinalState(Build& build, fs::path path) noexcept;
 
   /// Mark all versions and paths to this artifact as committed
   virtual void setCommitted() noexcept;

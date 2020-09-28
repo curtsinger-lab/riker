@@ -145,18 +145,18 @@ void DirArtifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(fs::path path) noexcept {
+void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
   commitAll();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(path);
+  Artifact::applyFinalState(build, path);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(path / name);
+    if (artifact) artifact->applyFinalState(build, path / name);
   }
 }
 
