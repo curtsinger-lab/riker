@@ -9,9 +9,9 @@
 #include <string>
 #include <tuple>
 
-#include "build/BuildObserver.hh"
 #include "build/Resolution.hh"
 #include "core/AccessFlags.hh"
+#include "interfaces/BuildObserver.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 

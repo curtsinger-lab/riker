@@ -4,7 +4,7 @@
 #include <ostream>
 
 #include "build/Resolution.hh"
-#include "core/TraceHandler.hh"
+#include "interfaces/TraceHandler.hh"
 
 using std::endl;
 using std::ostream;

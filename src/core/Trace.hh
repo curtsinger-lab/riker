@@ -14,7 +14,7 @@
 
 #include "core/Command.hh"
 #include "core/RefResult.hh"
-#include "core/TraceHandler.hh"
+#include "interfaces/TraceHandler.hh"
 
 using std::ifstream;
 using std::list;

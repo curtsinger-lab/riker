@@ -13,6 +13,7 @@
 #include "build/Env.hh"
 #include "build/Resolution.hh"
 #include "core/RefResult.hh"
+#include "interfaces/BuildObserver.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 

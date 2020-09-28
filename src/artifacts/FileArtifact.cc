@@ -5,6 +5,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/Build.hh"
+#include "interfaces/BuildObserver.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"

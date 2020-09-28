@@ -7,14 +7,14 @@
 #include <tuple>
 #include <vector>
 
-#include "build/BuildObserver.hh"
 #include "build/Env.hh"
 #include "build/RebuildPlan.hh"
 #include "build/Resolution.hh"
 #include "core/Command.hh"
 #include "core/RefResult.hh"
 #include "core/Trace.hh"
-#include "core/TraceHandler.hh"
+#include "interfaces/BuildObserver.hh"
+#include "interfaces/TraceHandler.hh"
 #include "tracing/Tracer.hh"
 
 using std::make_shared;

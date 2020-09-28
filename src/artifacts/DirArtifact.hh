@@ -7,6 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/Resolution.hh"
+#include "interfaces/BuildObserver.hh"
 #include "versions/DirVersion.hh"
 
 using std::map;

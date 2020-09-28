@@ -4,6 +4,7 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "interfaces/BuildObserver.hh"
 
 using std::shared_ptr;
 using std::string;
