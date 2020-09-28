@@ -38,29 +38,34 @@ class Version;
 class Build : public TraceHandler {
  private:
   /// Create a build runner
-  Build(bool commit, RebuildPlan plan, OutputTrace* output_trace) noexcept :
+  Build(bool commit, RebuildPlan plan, TraceHandler& output_trace) noexcept :
       _commit(commit),
       _plan(plan),
       _output_trace(output_trace),
       _env(make_shared<Env>()),
       _tracer(make_unique<Tracer>(*this)) {}
 
+  /// Create a build runner
+  Build(bool commit, RebuildPlan plan, TraceHandler&& output_trace = TraceHandler()) noexcept :
+      Build(commit, plan, output_trace) {}
+
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate() noexcept { return Build(false, RebuildPlan(), nullptr); }
+  static Build emulate() noexcept { return Build(false, RebuildPlan()); }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(RebuildPlan plan, OutputTrace* output_trace) noexcept {
+  static Build rebuild(RebuildPlan plan, TraceHandler& output_trace) noexcept {
+    return Build(true, plan, output_trace);
+  }
+
+  /// Create a build runner that executes a rebuild plan
+  static Build rebuild(RebuildPlan plan, TraceHandler&& output_trace) noexcept {
     return Build(true, plan, output_trace);
   }
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
-
-  // Allow Move
-  Build(Build&&) = default;
-  Build& operator=(Build&&) = default;
 
   /// Get the environment used in this build
   shared_ptr<Env> getEnvironment() const noexcept { return _env; }
@@ -297,8 +302,8 @@ class Build : public TraceHandler {
   /// The rebuild plan
   RebuildPlan _plan;
 
-  /// The trace of steps performed by this build
-  OutputTrace* _output_trace;
+  /// Trace steps are sent to this trace handler, typically an OutputTrace
+  TraceHandler& _output_trace;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;

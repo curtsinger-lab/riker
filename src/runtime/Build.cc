@@ -108,8 +108,8 @@ void Build::finish() noexcept {
   /// Commit the final environment state to the filesystem
   if (_commit) _env->commitFinalState();
 
-  // If there is an output trace, pass along the finished state
-  if (_output_trace) _output_trace->finish();
+  // Inform the output trace that it is finished
+  _output_trace.finish();
 }
 
 void Build::specialRef(shared_ptr<Command> c,
@@ -125,9 +125,7 @@ void Build::specialRef(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::SpecialRefPrinter{c, entity, output};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->specialRef(c, entity, output);
-  }
+  _output_trace.specialRef(c, entity, output);
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
@@ -176,9 +174,7 @@ void Build::pipeRef(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->pipeRef(c, read_end, write_end);
-  }
+  _output_trace.pipeRef(c, read_end, write_end);
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
@@ -198,9 +194,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> ou
   LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->fileRef(c, mode, output);
-  }
+  _output_trace.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->createFile(*this, c, mode, false));
@@ -220,9 +214,7 @@ void Build::symlinkRef(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->symlinkRef(c, target, output);
-  }
+  _output_trace.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getSymlink(*this, c, target, false));
@@ -240,9 +232,7 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> out
   LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->dirRef(c, mode, output);
-  }
+  _output_trace.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getDir(*this, c, mode, false));
@@ -264,9 +254,7 @@ void Build::pathRef(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->pathRef(c, base, path, flags, output);
-  }
+  _output_trace.pathRef(c, base, path, flags, output);
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
@@ -286,9 +274,7 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
   LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->expectResult(c, ref, expected);
-  }
+  _output_trace.expectResult(c, ref, expected);
 
   // Does the resolved reference match the expected result?
   if (ref->getResult() != expected) {
@@ -310,9 +296,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->matchMetadata(c, ref, expected);
-  }
+  _output_trace.matchMetadata(c, ref, expected);
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
@@ -339,9 +323,7 @@ void Build::matchContent(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, ref, expected};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->matchContent(c, ref, expected);
-  }
+  _output_trace.matchContent(c, ref, expected);
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
@@ -368,9 +350,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref, written};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->updateMetadata(c, ref, written);
-  }
+  _output_trace.updateMetadata(c, ref, written);
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
@@ -404,9 +384,7 @@ void Build::updateContent(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref, written};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->updateContent(c, ref, written);
-  }
+  _output_trace.updateContent(c, ref, written);
 
   // If the reference is not resolved, a change must have occurred
   if (!ref->getResult()) {
@@ -444,9 +422,7 @@ void Build::addEntry(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir, name, target};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->addEntry(c, dir, name, target);
-  }
+  _output_trace.addEntry(c, dir, name, target);
 
   // If the directory reference or target references did not resolve, a change must have occurred
   if (!dir->getResult() || !target->getResult()) {
@@ -474,9 +450,7 @@ void Build::removeEntry(shared_ptr<Command> c,
   LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir, name, target};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->removeEntry(c, dir, name, target);
-  }
+  _output_trace.removeEntry(c, dir, name, target);
 
   // If the directory reference or target references did not resolve, a change must have occurred
   if (!dir->getResult() || !target->getResult()) {
@@ -552,9 +526,7 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   }
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->launch(c, child);
-  }
+  _output_trace.launch(c, child);
 }
 
 // This command joined with a child command
@@ -569,9 +541,7 @@ void Build::join(shared_ptr<Command> c, shared_ptr<Command> child, int exit_stat
   LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->join(c, child, exit_status);
-  }
+  _output_trace.join(c, child, exit_status);
 
   // If the child command is running in the tracer, wait for it
   if (isRunning(child)) _tracer->wait(_running[child]);
@@ -593,9 +563,7 @@ void Build::exit(shared_ptr<Command> c, int exit_status) noexcept {
   LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->exit(c, exit_status);
-  }
+  _output_trace.exit(c, exit_status);
 
   // Record that the command has exited
   _exited.insert(c);
@@ -617,9 +585,7 @@ tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
   auto write_end = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->pipeRef(c, read_end, write_end);
-  }
+  _output_trace.pipeRef(c, read_end, write_end);
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
@@ -641,9 +607,7 @@ shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) no
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->fileRef(c, mode, output);
-  }
+  _output_trace.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->createFile(*this, c, mode, true));
@@ -663,9 +627,7 @@ shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path tar
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->symlinkRef(c, target, output);
-  }
+  _output_trace.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getSymlink(*this, c, target, true));
@@ -685,9 +647,7 @@ shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noe
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->dirRef(c, mode, output);
-  }
+  _output_trace.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getDir(*this, c, mode, true));
@@ -710,9 +670,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   auto output = make_shared<RefResult>();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->pathRef(c, base, path, flags, output);
-  }
+  _output_trace.pathRef(c, base, path, flags, output);
 
   // Resolve the reference and save the result in output
   ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
@@ -736,9 +694,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   _traced_step_count++;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->expectResult(c, ref, expected);
-  }
+  _output_trace.expectResult(c, ref, expected);
 
   // Check the expect result against our filesystem model
   WARN_IF(ref->getResult() != expected) << "Traced result " << ref->getResult()
@@ -762,9 +718,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->matchMetadata(c, ref, expected);
-  }
+  _output_trace.matchMetadata(c, ref, expected);
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -798,9 +752,7 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
   if (_last_write == tuple{c, ref, expected}) return;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->matchContent(c, ref, expected);
-  }
+  _output_trace.matchContent(c, ref, expected);
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -830,9 +782,7 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref
   ASSERT(written) << "Unable to get written metadata version from " << artifact;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->updateMetadata(c, ref, written);
-  }
+  _output_trace.updateMetadata(c, ref, written);
 
   // The calling command created this version
   written->createdBy(c);
@@ -867,9 +817,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   ASSERT(written) << "Failed to get written version for " << artifact;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->updateContent(c, ref, written);
-  }
+  _output_trace.updateContent(c, ref, written);
 
   // This apply operation was traced, so the written version is committed
   written->setCommitted();
@@ -900,9 +848,7 @@ void Build::traceAddEntry(shared_ptr<Command> c,
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->addEntry(c, dir, name, target);
-  }
+  _output_trace.addEntry(c, dir, name, target);
 
   // Add the entry to the directory and mark the update as committed
   dir_artifact->addEntry(*this, c, name, target->getResult())->setCommitted();
@@ -924,9 +870,7 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->removeEntry(c, dir, name, target);
-  }
+  _output_trace.removeEntry(c, dir, name, target);
 
   // Remove the entry from the directory and mark the update as committed
   dir_artifact->removeEntry(*this, c, name, target->getResult())->setCommitted();
@@ -945,9 +889,7 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
   child->setExecuted();
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->launch(c, child);
-  }
+  _output_trace.launch(c, child);
 
   // Inform observers of the launch
   observeLaunch(c, child);
@@ -987,9 +929,7 @@ void Build::traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit
   _traced_step_count++;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->join(c, child, exit_status);
-  }
+  _output_trace.join(c, child, exit_status);
 
   // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
   child->setExitStatus(exit_status);
@@ -1003,9 +943,7 @@ void Build::traceExit(shared_ptr<Command> c, int exit_status) noexcept {
   _traced_step_count++;
 
   // Create an IR step and add it to the output trace
-  if (_output_trace) {
-    _output_trace->exit(c, exit_status);
-  }
+  _output_trace.exit(c, exit_status);
 
   // Record that the command has exited
   _exited.insert(c);

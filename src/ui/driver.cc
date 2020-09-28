@@ -35,6 +35,7 @@ const char* RootBuildCommand = "Dodofile";
 const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
+const fs::path NewDatabaseFilename = ".dodo/newdb";
 
 /// Run the `build` subcommand.
 void do_build() noexcept {
@@ -51,11 +52,10 @@ void do_build() noexcept {
   trace.sendTo(Build::emulate().addObserver(planner));
 
   // Now run the trace again with the planned rebuild steps
-  auto output_trace = new OutputTrace(".dodo/newdb");
-  trace.sendTo(Build::rebuild(planner->planBuild(), output_trace));
+  trace.sendTo(Build::rebuild(planner->planBuild(), OutputTrace(NewDatabaseFilename)));
 
   // Move the new trace into place
-  fs::rename(".dodo/newdb", ".dodo/db");
+  fs::rename(NewDatabaseFilename, DatabaseFilename);
 }
 
 /**
