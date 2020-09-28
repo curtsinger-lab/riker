@@ -4,7 +4,6 @@
 #include <memory>
 
 #include "core/AccessFlags.hh"
-#include "core/SpecialRefs.hh"
 
 class Command;
 class MetadataVersion;
@@ -14,6 +13,9 @@ class Version;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
+
+/// Unique IDs for the entities reachable via special references
+enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
 
 class TraceHandler {
  public:

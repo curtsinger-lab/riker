@@ -13,7 +13,6 @@
 #include "build/Resolution.hh"
 #include "core/Command.hh"
 #include "core/RefResult.hh"
-#include "core/SpecialRefs.hh"
 #include "core/Trace.hh"
 #include "core/TraceHandler.hh"
 #include "tracing/Tracer.hh"

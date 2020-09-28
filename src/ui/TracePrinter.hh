@@ -4,7 +4,6 @@
 #include <ostream>
 
 #include "build/Resolution.hh"
-#include "core/SpecialRefs.hh"
 #include "core/TraceHandler.hh"
 
 using std::endl;

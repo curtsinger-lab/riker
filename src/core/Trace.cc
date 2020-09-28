@@ -30,7 +30,6 @@
 #include "core/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "core/RefResult.hh"
-#include "core/SpecialRefs.hh"
 #include "util/log.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
