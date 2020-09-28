@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <memory>
 
-#include "core/AccessFlags.hh"
+#include "data/AccessFlags.hh"
 
 class Command;
 class MetadataVersion;

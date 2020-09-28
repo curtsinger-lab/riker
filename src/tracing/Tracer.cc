@@ -23,9 +23,9 @@
 #include <unistd.h>
 
 #include "artifacts/PipeArtifact.hh"
-#include "build/Build.hh"
-#include "build/Command.hh"
-#include "core/FileDescriptor.hh"
+#include "data/FileDescriptor.hh"
+#include "runtime/Build.hh"
+#include "runtime/Command.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"

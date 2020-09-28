@@ -8,11 +8,11 @@
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "build/Build.hh"
-#include "build/Command.hh"
-#include "build/Env.hh"
-#include "build/RefResult.hh"
 #include "interfaces/BuildObserver.hh"
+#include "runtime/Build.hh"
+#include "runtime/Command.hh"
+#include "runtime/Env.hh"
+#include "runtime/RefResult.hh"
 #include "ui/options.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"

@@ -9,9 +9,9 @@
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "build/Build.hh"
-#include "build/Env.hh"
-#include "core/AccessFlags.hh"
+#include "data/AccessFlags.hh"
+#include "runtime/Build.hh"
+#include "runtime/Env.hh"
 #include "util/serializer.hh"
 #include "versions/DirListVersion.hh"
 #include "versions/Version.hh"

@@ -6,9 +6,9 @@
 #include <set>
 
 #include "artifacts/Artifact.hh"
-#include "build/Command.hh"
-#include "build/Env.hh"
 #include "interfaces/BuildObserver.hh"
+#include "runtime/Command.hh"
+#include "runtime/Env.hh"
 #include "versions/Version.hh"
 
 using std::endl;

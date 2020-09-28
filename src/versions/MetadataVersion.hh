@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "core/AccessFlags.hh"
+#include "data/AccessFlags.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 

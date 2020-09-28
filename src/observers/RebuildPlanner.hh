@@ -5,9 +5,9 @@
 #include <set>
 
 #include "artifacts/Artifact.hh"
-#include "build/Command.hh"
-#include "build/RebuildPlan.hh"
 #include "interfaces/BuildObserver.hh"
+#include "runtime/Command.hh"
+#include "runtime/RebuildPlan.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"

@@ -3,8 +3,8 @@
 #include <memory>
 #include <ostream>
 
-#include "build/Resolution.hh"
 #include "interfaces/TraceHandler.hh"
+#include "runtime/Resolution.hh"
 
 using std::endl;
 using std::ostream;

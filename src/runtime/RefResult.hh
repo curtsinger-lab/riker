@@ -4,7 +4,7 @@
 #include <ostream>
 #include <string>
 
-#include "build/Resolution.hh"
+#include "runtime/Resolution.hh"
 #include "util/UniqueID.hh"
 
 using std::ostream;

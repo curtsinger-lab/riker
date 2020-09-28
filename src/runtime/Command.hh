@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "core/AccessFlags.hh"
-#include "core/FileDescriptor.hh"
+#include "data/AccessFlags.hh"
+#include "data/FileDescriptor.hh"
 
 using std::list;
 using std::map;

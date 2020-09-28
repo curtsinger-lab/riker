@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "build/Command.hh"
-#include "core/FileDescriptor.hh"
+#include "data/FileDescriptor.hh"
+#include "runtime/Command.hh"
 
 using std::make_shared;
 using std::map;

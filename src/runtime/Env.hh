@@ -8,8 +8,8 @@
 
 #include <sys/types.h>
 
-#include "build/Resolution.hh"
-#include "core/AccessFlags.hh"
+#include "data/AccessFlags.hh"
+#include "runtime/Resolution.hh"
 
 using std::map;
 using std::set;

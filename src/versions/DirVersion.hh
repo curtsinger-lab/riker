@@ -5,8 +5,8 @@
 #include <ostream>
 #include <set>
 
-#include "build/RefResult.hh"
-#include "build/Resolution.hh"
+#include "runtime/RefResult.hh"
+#include "runtime/Resolution.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/DirListVersion.hh"

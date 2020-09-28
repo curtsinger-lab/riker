@@ -9,11 +9,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "build/Build.hh"
-#include "build/Env.hh"
-#include "build/RefResult.hh"
-#include "build/Resolution.hh"
 #include "interfaces/BuildObserver.hh"
+#include "runtime/Build.hh"
+#include "runtime/Env.hh"
+#include "runtime/RefResult.hh"
+#include "runtime/Resolution.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 

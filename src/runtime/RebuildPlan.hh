@@ -4,7 +4,7 @@
 #include <map>
 #include <memory>
 
-#include "build/Command.hh"
+#include "runtime/Command.hh"
 #include "ui/options.hh"
 
 using std::endl;

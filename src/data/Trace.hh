@@ -12,9 +12,9 @@
 
 #include <cereal/archives/binary.hpp>
 
-#include "build/Command.hh"
-#include "build/RefResult.hh"
 #include "interfaces/TraceHandler.hh"
+#include "runtime/Command.hh"
+#include "runtime/RefResult.hh"
 
 using std::ifstream;
 using std::list;

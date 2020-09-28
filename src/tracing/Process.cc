@@ -3,10 +3,10 @@
 #include <memory>
 
 #include "artifacts/Artifact.hh"
-#include "build/Build.hh"
-#include "build/Command.hh"
-#include "build/RefResult.hh"
-#include "core/FileDescriptor.hh"
+#include "data/FileDescriptor.hh"
+#include "runtime/Build.hh"
+#include "runtime/Command.hh"
+#include "runtime/RefResult.hh"
 #include "util/log.hh"
 
 using std::shared_ptr;

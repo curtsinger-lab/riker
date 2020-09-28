@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "artifacts/DirArtifact.hh"
-#include "build/Build.hh"
+#include "runtime/Build.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 

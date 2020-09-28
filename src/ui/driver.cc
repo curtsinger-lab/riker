@@ -11,10 +11,10 @@
 
 #include <CLI/CLI.hpp>
 
-#include "build/Build.hh"
-#include "core/Trace.hh"
+#include "data/Trace.hh"
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
+#include "runtime/Build.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
