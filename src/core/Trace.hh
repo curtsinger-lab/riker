@@ -12,8 +12,8 @@
 
 #include <cereal/archives/binary.hpp>
 
-#include "core/Command.hh"
-#include "core/RefResult.hh"
+#include "build/Command.hh"
+#include "build/RefResult.hh"
 #include "interfaces/TraceHandler.hh"
 
 using std::ifstream;

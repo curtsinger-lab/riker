@@ -4,9 +4,9 @@
 
 #include "artifacts/Artifact.hh"
 #include "build/Build.hh"
-#include "core/Command.hh"
+#include "build/Command.hh"
+#include "build/RefResult.hh"
 #include "core/FileDescriptor.hh"
-#include "core/RefResult.hh"
 #include "util/log.hh"
 
 using std::shared_ptr;

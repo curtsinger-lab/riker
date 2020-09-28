@@ -24,7 +24,7 @@
 
 #include "artifacts/PipeArtifact.hh"
 #include "build/Build.hh"
-#include "core/Command.hh"
+#include "build/Command.hh"
 #include "core/FileDescriptor.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"

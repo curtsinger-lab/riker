@@ -6,8 +6,8 @@
 #include <set>
 
 #include "artifacts/Artifact.hh"
+#include "build/Command.hh"
 #include "build/Env.hh"
-#include "core/Command.hh"
 #include "interfaces/BuildObserver.hh"
 #include "versions/Version.hh"
 

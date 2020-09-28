@@ -9,9 +9,9 @@
 
 #include "artifacts/DirArtifact.hh"
 #include "build/Build.hh"
+#include "build/Command.hh"
 #include "build/Env.hh"
-#include "core/Command.hh"
-#include "core/RefResult.hh"
+#include "build/RefResult.hh"
 #include "interfaces/BuildObserver.hh"
 #include "ui/options.hh"
 #include "versions/DirVersion.hh"

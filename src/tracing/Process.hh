@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "core/Command.hh"
+#include "build/Command.hh"
 #include "core/FileDescriptor.hh"
 
 using std::make_shared;

@@ -7,11 +7,11 @@
 #include <tuple>
 #include <vector>
 
+#include "build/Command.hh"
 #include "build/Env.hh"
 #include "build/RebuildPlan.hh"
+#include "build/RefResult.hh"
 #include "build/Resolution.hh"
-#include "core/Command.hh"
-#include "core/RefResult.hh"
 #include "core/Trace.hh"
 #include "interfaces/BuildObserver.hh"
 #include "interfaces/TraceHandler.hh"

@@ -15,7 +15,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "build/Build.hh"
-#include "core/Command.hh"
+#include "build/Command.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"

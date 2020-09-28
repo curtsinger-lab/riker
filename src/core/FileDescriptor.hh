@@ -2,8 +2,8 @@
 
 #include <memory>
 
+#include "build/RefResult.hh"
 #include "core/AccessFlags.hh"
-#include "core/RefResult.hh"
 #include "util/serializer.hh"
 
 using std::shared_ptr;
