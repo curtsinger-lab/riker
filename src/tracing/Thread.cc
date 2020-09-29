@@ -28,6 +28,17 @@ using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
+fs::path Thread::getPath(at_fd fd) const noexcept {
+  if (fd.isCWD()) {
+    auto cwd = _process->getWorkingDir()->getResult()->getPath();
+    if (cwd.has_value()) return cwd.value();
+  } else {
+    auto path = _process->getFD(fd.getFD()).getRef()->getResult()->getPath();
+    if (path.has_value()) return path.value();
+  }
+  return "<no path>";
+}
+
 shared_ptr<RefResult> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
@@ -203,7 +214,7 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 /************************* File Opening, Creation, and Closing ************************/
 
 void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept {
-  LOGF(trace, "{}: openat({}, {}, {}, {})", this, dfd, filename, flags, mode);
+  LOGF(trace, "{}: openat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, flags, mode);
 
   // If the O_CREAT was specified and filename has a trailing slash, the result is EISDIR and we do
   // not need to trace any interaction here
@@ -258,7 +269,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
 }
 
 void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept {
-  LOGF(trace, "{}: mknodat({}, {}, {}, {})", this, dfd, filename, mode, dev);
+  LOGF(trace, "{}: mknodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, dev);
 
   if (mode.isRegularFile()) {
     // Handle regular file creation with openat
@@ -407,7 +418,8 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
 /************************ Metadata Operations ************************/
 
 void Thread::_faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags) noexcept {
-  LOGF(trace, "{}: faccessat({}, {}, {}, {})", this, dirfd, pathname, mode, flags);
+  LOGF(trace, "{}: faccessat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname, mode,
+       flags);
 
   // Finish the syscall so we can see its result
   finishSyscall([=](long rc) {
@@ -432,7 +444,8 @@ void Thread::_fstatat(at_fd dirfd,
                       fs::path pathname,
                       struct stat* statbuf,
                       at_flags flags) noexcept {
-  LOGF(trace, "{}: fstatat({}, {}, {}, {})", this, dirfd, pathname, (void*)statbuf, flags);
+  LOGF(trace, "{}: fstatat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname,
+       (void*)statbuf, flags);
 
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
@@ -501,7 +514,8 @@ void Thread::_fchownat(at_fd dfd,
                        uid_t user,
                        gid_t group,
                        at_flags flags) noexcept {
-  LOGF(trace, "{}: fchownat({}, {}, {}, {}, {})", this, dfd, filename, user, group, flags);
+  LOGF(trace, "{}: fchownat({}={}, {}, {}, {}, {})", this, dfd, getPath(dfd), filename, user, group,
+       flags);
 
   // Make a reference to the file that will be chown-ed.
   bool nofollow = flags.symlink_nofollow();
@@ -556,7 +570,7 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
 }
 
 void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags flags) noexcept {
-  LOGF(trace, "{}: fchmodat({}, {}, {}, {})", this, dfd, filename, mode, flags);
+  LOGF(trace, "{}: fchmodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, flags);
 
   // Make a reference to the file that will be chmod-ed.
   bool nofollow = flags.symlink_nofollow();
@@ -754,7 +768,7 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
 /************************ Directory Operations ************************/
 
 void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
-  LOGF(trace, "{}: mkdirat({}, {}, {})", this, dfd, pathname, mode);
+  LOGF(trace, "{}: mkdirat({}={}, {}, {})", this, dfd, getPath(dfd), pathname, mode);
 
   // Strip a trailing slash from the pathname if it has one
   if (pathname.filename().empty()) pathname = pathname.parent_path();
@@ -798,8 +812,8 @@ void Thread::_renameat2(at_fd old_dfd,
                         at_fd new_dfd,
                         fs::path new_path,
                         rename_flags flags) noexcept {
-  LOGF(trace, "{}: renameat({}, {}, {}, {}, {})", this, old_dfd, old_path, new_dfd, new_path,
-       flags);
+  LOGF(trace, "{}: renameat({}={}, {}, {}={}, {}, {})", this, old_dfd, getPath(old_dfd), old_path,
+       new_dfd, getPath(new_dfd), new_path, flags);
 
   // Strip a trailing slash from the old path if it has one
   if (old_path.filename().empty()) old_path = old_path.parent_path();
@@ -899,7 +913,8 @@ void Thread::_linkat(at_fd old_dfd,
                      at_fd new_dfd,
                      fs::path newpath,
                      at_flags flags) noexcept {
-  LOGF(trace, "{}: linkat({}, {}, {}, {}, {})", this, old_dfd, oldpath, new_dfd, newpath, flags);
+  LOGF(trace, "{}: linkat({}={}, {}, {}={}, {}, {})", this, old_dfd, getPath(old_dfd), oldpath,
+       new_dfd, getPath(new_dfd), newpath, flags);
 
   // Strip a trailing slash from the new path if it has one
   if (newpath.filename().empty()) newpath = newpath.parent_path();
@@ -948,7 +963,7 @@ void Thread::_linkat(at_fd old_dfd,
 }
 
 void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
-  LOGF(trace, "{}: symlinkat({}, {}, {})", this, target, dfd, newpath);
+  LOGF(trace, "{}: symlinkat({}, {}={}, {})", this, target, dfd, getPath(dfd), newpath);
 
   // Strip a trailing slash from newpath if it has one
   if (newpath.filename().empty()) newpath = newpath.parent_path();
@@ -989,7 +1004,7 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
 }
 
 void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
-  LOGF(trace, "{}: readlinkat({}, {})", this, dfd, pathname);
+  LOGF(trace, "{}: readlinkat({}={}, {})", this, dfd, getPath(dfd), pathname);
 
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
@@ -1024,7 +1039,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
 }
 
 void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
-  LOGF(trace, "{}: unlinkat({}, {}, {})", this, dfd, pathname, flags);
+  LOGF(trace, "{}: unlinkat({}={}, {}, {})", this, dfd, getPath(dfd), pathname, flags);
 
   // Strip a trailing slash from pathname if it has one
   if (pathname.filename().empty()) pathname = pathname.parent_path();
@@ -1194,7 +1209,8 @@ void Thread::_execveat(at_fd dfd,
                        fs::path filename,
                        vector<string> args,
                        vector<string> env) noexcept {
-  LOGF(trace, "{}: execveat({}, {}, [\"{}\"])", this, dfd, filename, fmt::join(args, "\", \""));
+  LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", this, dfd, getPath(dfd), filename,
+       fmt::join(args, "\", \""));
 
   // The parent command needs execute access to the exec-ed path
   auto exe_ref = makePathRef(filename, AccessFlags{.x = true}, dfd);

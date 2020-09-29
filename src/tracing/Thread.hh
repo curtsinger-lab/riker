@@ -68,6 +68,9 @@ class Thread {
   /// Read a null-terminated array of strings
   vector<string> readArgvArray(uintptr_t tracee_pointer) noexcept;
 
+  /// Get the path associated with a file descriptor that may be AT_FDCWD
+  fs::path getPath(at_fd fd) const noexcept;
+
   /**
    * This thread referenced a path. Create an Access reference to track this reference and record it
    * in the command.
