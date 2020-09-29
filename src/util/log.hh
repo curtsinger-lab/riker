@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <fmt/core.h>
 #include <fmt/ostream.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 using std::cerr;
 using std::move;
@@ -120,10 +122,20 @@ class logger {
     // If this log is a fatal
     if (category == LogCategory::error) {
       // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
-      if (logger_options::debug)
+      if (logger_options::debug) {
+        // Make sure we can save a core file
+        struct rlimit limits = {.rlim_cur = RLIM_INFINITY, .rlim_max = RLIM_INFINITY};
+        int rc = setrlimit(RLIMIT_CORE, &limits);
+
+        if (rc == -1) {
+          logger<LogCategory::warning>() << "Failed to enable a core dump. Run `ulimit -c "
+                                            "unlimited` to save a core file on failure.";
+        }
+
         abort();
-      else
+      } else {
         exit(2);
+      }
     }
   }
 

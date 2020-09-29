@@ -10,3 +10,4 @@ out.pdf
 out.svg
 out.png
 tests/*/*.t.err
+**/core
