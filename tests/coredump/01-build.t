@@ -1,6 +1,3 @@
-SKIP! This test does not work.
-  $ exit 80
-
 Run an initial build
 
 Move to test directory

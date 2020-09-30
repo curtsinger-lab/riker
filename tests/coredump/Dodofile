@@ -1,4 +1,6 @@
 #!/bin/sh
 
+ulimit -c unlimited
+test -f core && echo "this should not print"
 ./abort
 test -f core && echo "core exists"
