@@ -1,0 +1,4 @@
+#!/bin/sh
+
+./Configure -n linux
+make
