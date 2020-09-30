@@ -1,0 +1,4 @@
+#!/bin/sh
+
+./abort
+test -f core && echo "core exists"
