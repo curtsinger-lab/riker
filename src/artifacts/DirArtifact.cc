@@ -334,12 +334,14 @@ Resolution DirArtifact::resolve(Build& build,
     if (!res) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res->resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
+    return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,
+                                      symlink_limit);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res) {
-      return res->resolve(build, c, shared_from_this(), current, end, flags, symlink_limit);
+      return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,
+                                        symlink_limit);
     }
 
     // Otherwise return the error from the resolution

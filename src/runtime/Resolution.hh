@@ -48,9 +48,6 @@ class Resolution {
   /// Coerce this resolution result to a boolean
   operator bool() const noexcept { return static_cast<bool>(_artifact.lock()); }
 
-  /// Coerce this resolution result to an artifact pointer
-  operator shared_ptr<Artifact>() const noexcept { return _artifact.lock(); }
-
   /// Coerce this resolution result to an int
   operator int() const noexcept { return _rc; }
 
@@ -59,9 +56,6 @@ class Resolution {
 
   /// Compare this resolution to an int
   bool operator!=(int rc) const noexcept { return _rc != rc; }
-
-  /// Access the artifact in this result as a pointer
-  shared_ptr<Artifact> operator->() const noexcept { return _artifact.lock(); }
 
   /// Print the result of a resolution
   friend ostream& operator<<(ostream& o, const Resolution& r) noexcept {
