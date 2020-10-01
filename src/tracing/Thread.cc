@@ -498,6 +498,12 @@ void Thread::_fstatat(at_fd dirfd,
         // do nothing.
       }
     });
+  } else if (pathname.empty()) {
+    // fstatat does not allow empty paths if AT_EMPTY_PATH is not passed. No need to trace the
+    // failure.
+    resume();
+    return;
+
   } else {
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
@@ -553,9 +559,14 @@ void Thread::_fchownat(at_fd dfd,
   LOGF(trace, "{}: fchownat({}={}, {}, {}, {}, {})", this, dfd, getPath(dfd), filename, user, group,
        flags);
 
-  // Make a reference to the file that will be chown-ed.
-  bool nofollow = flags.symlink_nofollow();
-  auto ref = makePathRef(filename, AccessFlags{.nofollow = nofollow}, dfd);
+  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no effects
+  if (!flags.empty_path() && filename.empty()) {
+    resume();
+    return;
+  }
+
+  // Get a reference to the artifact being chowned
+  auto ref = makePathRef(filename, AccessFlags{.nofollow = flags.symlink_nofollow()}, dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -608,9 +619,14 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
 void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags flags) noexcept {
   LOGF(trace, "{}: fchmodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, flags);
 
-  // Make a reference to the file that will be chmod-ed.
-  bool nofollow = flags.symlink_nofollow();
-  auto ref = makePathRef(filename, AccessFlags{.nofollow = nofollow}, dfd);
+  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no effects
+  if (!flags.empty_path() && filename.empty()) {
+    resume();
+    return;
+  }
+
+  // Get a reference to the artifact being chmoded
+  auto ref = makePathRef(filename, AccessFlags{.nofollow = flags.symlink_nofollow()}, dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -890,8 +906,8 @@ void Thread::_renameat2(at_fd old_dfd,
         return;
 
       } else {
-        // No. The rename() call proceeds, but the command depends on these two references reaching
-        // different artifacts.
+        // No. The rename() call proceeds, but the command depends on these two references
+        // reaching different artifacts.
         _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
                                 RefComparison::DifferentInstances);
       }
@@ -966,6 +982,8 @@ void Thread::_linkat(at_fd old_dfd,
 
   // Strip a trailing slash from the new path if it has one
   if (newpath.filename().empty()) newpath = newpath.parent_path();
+
+  WARN_IF(flags.empty_path()) << "linkat() with AT_EMPTY_PATH is not supported yet";
 
   // The newpath string is the path to the new link. Split that into the directory and entry.
   auto dir_path = newpath.parent_path();
