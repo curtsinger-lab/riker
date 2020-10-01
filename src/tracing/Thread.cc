@@ -30,10 +30,10 @@ namespace fs = std::filesystem;
 
 fs::path Thread::getPath(at_fd fd) const noexcept {
   if (fd.isCWD()) {
-    auto cwd = _process->getWorkingDir()->getResult()->getPath();
+    auto cwd = _process->getWorkingDir()->getArtifact()->getPath();
     if (cwd.has_value()) return cwd.value();
   } else {
-    auto path = _process->getFD(fd.getFD()).getRef()->getResult()->getPath();
+    auto path = _process->getFD(fd.getFD()).getRef()->getArtifact()->getPath();
     if (path.has_value()) return path.value();
   }
   return "<no path>";
@@ -239,8 +239,8 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
       // The command observed a successful openat, so add this predicate to the command log
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
-      ASSERT(ref->getResult()) << "Failed to locate artifact for opened file: " << filename
-                               << " (received " << ref->getResult() << " from emulator)";
+      ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename
+                                << " (received " << ref->getResult() << " from emulator)";
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.tmpfile()) {
@@ -320,7 +320,7 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
 
     // Make a reference to a pipe
     auto [read_ref, write_ref] = _build.tracePipeRef(getCommand());
-    ASSERT(read_ref->getResult() && write_ref->getResult()) << "Failed to get artifact for pipe";
+    ASSERT(read_ref->isResolved() && write_ref->isResolved()) << "Failed to get artifact for pipe";
 
     // Fill in the file descriptor entries
     _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, flags.cloexec());
@@ -433,7 +433,7 @@ void Thread::_faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags
     _build.traceExpectResult(getCommand(), ref, -rc);
 
     if (rc == 0) {
-      if (!ref->getResult()) WARN << "Failed to resolve reference " << ref;
+      if (!ref->isResolved()) WARN << "Failed to resolve reference " << ref;
       // Don't abort here because the dodo self-build accesses /proc/self.
       // We need to fix these references for real at some point.
     }
@@ -473,7 +473,7 @@ void Thread::_fstatat(at_fd dirfd,
       if (rc == 0) {
         // The stat succeeded
         _build.traceExpectResult(getCommand(), ref, SUCCESS);
-        ASSERT(ref->getResult()) << "Unable to locate artifact for stat-ed file " << ref;
+        ASSERT(ref->isResolved()) << "Unable to locate artifact for stat-ed file " << ref;
 
         // Record the dependence on the artifact's metadata
         _build.traceMatchMetadata(getCommand(), ref);
@@ -523,7 +523,7 @@ void Thread::_fchownat(at_fd dfd,
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
-  if (ref->getResult()) {
+  if (ref->isResolved()) {
     _build.traceMatchMetadata(getCommand(), ref);
   }
 
@@ -536,7 +536,7 @@ void Thread::_fchownat(at_fd dfd,
       // Yes. Record the successful reference
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
-      ASSERT(ref->getResult()) << "Failed to get artifact";
+      ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
       _build.traceUpdateMetadata(getCommand(), ref);
@@ -578,7 +578,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
-  if (ref->getResult()) {
+  if (ref->isResolved()) {
     _build.traceMatchMetadata(getCommand(), ref);
   }
 
@@ -591,7 +591,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
       // Yes. Record the successful reference
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
-      ASSERT(ref->getResult()) << "Failed to get artifact";
+      ASSERT(ref->isResolved()) << "Failed to get artifact";
 
       // We've now set the artifact's metadata
       _build.traceUpdateMetadata(getCommand(), ref);
@@ -698,7 +698,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
 
   // If length is non-zero, we depend on the previous contents
   // This only applies if the artifact exists
-  if (length > 0 && ref->getResult()) {
+  if (length > 0 && ref->isResolved()) {
     _build.traceMatchContent(getCommand(), ref);
   }
 
@@ -712,7 +712,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
     // Did the call succeed?
     if (rc == 0) {
       // Make sure the artifact actually existed
-      ASSERT(ref->getResult()) << "Failed to get artifact for truncated file";
+      ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
 
       // Record the update to the artifact contents
       _build.traceUpdateContent(getCommand(), ref);
@@ -846,7 +846,7 @@ void Thread::_renameat2(at_fd old_dfd,
     // Did the syscall succeed?
     if (rc == 0) {
       // Do the old and new entries refer to the same artifact?
-      if (old_entry_ref->getResult().getArtifact() == new_entry_ref->getResult().getArtifact()) {
+      if (old_entry_ref->getArtifact() == new_entry_ref->getArtifact()) {
         // Yes. The rename() call is finished, but the command depends on these two references
         // reaching the same artifact.
         _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
@@ -1038,7 +1038,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
       // Yes. Record the successful reference
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
-      ASSERT(ref->getResult()) << "Failed to get artifact for successfully-read link";
+      ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
       _build.traceMatchContent(getCommand(), ref);
@@ -1071,8 +1071,8 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
                   dfd);
 
   // If this call is removing a directory, depend on the directory contents
-  if (entry_ref->getResult()) {
-    if (auto dir = entry_ref->getResult()->as<DirArtifact>()) {
+  if (entry_ref->isResolved()) {
+    if (auto dir = entry_ref->getArtifact()->as<DirArtifact>()) {
       _build.traceMatchContent(getCommand(), entry_ref);
     }
   }
@@ -1242,7 +1242,7 @@ void Thread::_execveat(at_fd dfd,
     // If we reached this point, the executable reference was okay
     _build.traceExpectResult(getCommand(), exe_ref, SUCCESS);
 
-    ASSERT(exe_ref->getResult()) << "Executable file failed to resolve";
+    ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
 
     // Update the process state with the new executable
     _process->exec(exe_ref, args, env);
@@ -1255,7 +1255,7 @@ void Thread::_execveat(at_fd dfd,
     auto child_exe_ref = makePathRef(real_exe_path, AccessFlags{.r = true});
     _build.traceExpectResult(getCommand(), child_exe_ref, SUCCESS);
 
-    ASSERT(child_exe_ref->getResult()) << "Failed to locate artifact for executable file";
+    ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
     _build.traceMatchContent(getCommand(), child_exe_ref);

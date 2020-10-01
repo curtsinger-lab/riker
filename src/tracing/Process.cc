@@ -19,7 +19,7 @@ namespace fs = std::filesystem;
 
 // Update a process' working directory
 void Process::setWorkingDir(shared_ptr<RefResult> ref) noexcept {
-  ASSERT(ref->getResult()->getPath(false).has_value())
+  ASSERT(ref->getArtifact()->getPath(false).has_value())
       << "Cannot set working directory to an artifact without a committed path";
   _cwd = ref;
 }

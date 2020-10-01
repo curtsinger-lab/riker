@@ -40,6 +40,15 @@ class RefResult final {
   /// Get a short name for this RefResult
   string getName() const noexcept { return "r" + std::to_string(getID()); }
 
+  /// Get the artifact reached via this reference
+  shared_ptr<Artifact> getArtifact() const noexcept { return _result.getArtifact(); }
+
+  /// Get the result code returned to this reference
+  int getResultCode() const noexcept { return _result.getResultCode(); }
+
+  /// Check if this reference resolved successfully
+  bool isResolved() const noexcept { return _result.getResultCode() == SUCCESS; }
+
   /// Get the resolution result
   Resolution getResult() const noexcept { return _result; }
 

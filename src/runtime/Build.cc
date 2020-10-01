@@ -257,8 +257,8 @@ void Build::pathRef(shared_ptr<Command> c,
   _output_trace.pathRef(c, base, path, flags, output);
 
   // Resolve the reference and save the result in output
-  ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getResult()->resolve(*this, c, path, flags);
+  ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
+  auto result = base->getArtifact()->resolve(*this, c, path, flags);
   output->resolvesTo(result);
 }
 
@@ -281,11 +281,11 @@ void Build::compareRefs(shared_ptr<Command> c,
 
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
-    if (ref1->getResult().getArtifact() != ref2->getResult().getArtifact()) {
+    if (ref1->getArtifact() != ref2->getArtifact()) {
       observeCommandChange(c);
     }
   } else if (type == RefComparison::DifferentInstances) {
-    if (ref1->getResult().getArtifact() == ref2->getResult().getArtifact()) {
+    if (ref1->getArtifact() == ref2->getArtifact()) {
       observeCommandChange(c);
     }
   } else {
@@ -308,7 +308,7 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
   _output_trace.expectResult(c, ref, expected);
 
   // Does the resolved reference match the expected result?
-  if (ref->getResult() != expected) {
+  if (ref->getResultCode() != expected) {
     observeCommandChange(c);
   }
 }
@@ -330,14 +330,14 @@ void Build::matchMetadata(shared_ptr<Command> c,
   _output_trace.matchMetadata(c, ref, expected);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->getResult()) {
+  if (!ref->isResolved()) {
     // Report the change and return
     observeCommandChange(c);
     return;
   }
 
   // Perform the comparison
-  ref->getResult()->matchMetadata(*this, c, expected);
+  ref->getArtifact()->matchMetadata(*this, c, expected);
 }
 
 // Command c accesses an artifact's content
@@ -357,14 +357,14 @@ void Build::matchContent(shared_ptr<Command> c,
   _output_trace.matchContent(c, ref, expected);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->getResult()) {
+  if (!ref->isResolved()) {
     // Report the change and return
     observeCommandChange(c);
     return;
   }
 
   // Perform the comparison
-  ref->getResult()->matchContent(*this, c, expected);
+  ref->getArtifact()->matchContent(*this, c, expected);
 }
 
 // Command c modifies an artifact
@@ -384,7 +384,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
   _output_trace.updateMetadata(c, ref, written);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->getResult()) {
+  if (!ref->isResolved()) {
     // Record the change and return
     observeCommandChange(c);
     return;
@@ -398,7 +398,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Apply the write
-  ref->getResult()->updateMetadata(*this, c, written);
+  ref->getArtifact()->updateMetadata(*this, c, written);
 }
 
 // Command c modifies an artifact
@@ -418,7 +418,7 @@ void Build::updateContent(shared_ptr<Command> c,
   _output_trace.updateContent(c, ref, written);
 
   // If the reference is not resolved, a change must have occurred
-  if (!ref->getResult()) {
+  if (!ref->isResolved()) {
     // Record the change and return
     observeCommandChange(c);
     return;
@@ -432,7 +432,7 @@ void Build::updateContent(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Apply the write
-  written->applyTo(*this, c, ref->getResult());
+  written->applyTo(*this, c, ref->getArtifact());
 
   // Save the last write
   _last_write = {c, ref, written};
@@ -456,14 +456,14 @@ void Build::addEntry(shared_ptr<Command> c,
   _output_trace.addEntry(c, dir, name, target);
 
   // If the directory reference or target references did not resolve, a change must have occurred
-  if (!dir->getResult() || !target->getResult()) {
+  if (!dir->isResolved() || !target->isResolved()) {
     // Record the change and return
     observeCommandChange(c);
     return;
   }
 
   // Add the entry to the directory
-  dir->getResult()->addEntry(*this, c, name, target->getResult());
+  dir->getArtifact()->addEntry(*this, c, name, target->getArtifact());
 }
 
 /// Handle a RemoveEntry IR step
@@ -484,14 +484,14 @@ void Build::removeEntry(shared_ptr<Command> c,
   _output_trace.removeEntry(c, dir, name, target);
 
   // If the directory reference or target references did not resolve, a change must have occurred
-  if (!dir->getResult() || !target->getResult()) {
+  if (!dir->isResolved() || !target->isResolved()) {
     // Record the change and return
     observeCommandChange(c);
     return;
   }
 
   // Remove the entry from the directory
-  dir->getResult()->removeEntry(*this, c, name, target->getResult());
+  dir->getArtifact()->removeEntry(*this, c, name, target->getArtifact());
 }
 
 // This command launches a child command
@@ -530,14 +530,14 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
     child->setExecuted();
 
     // The child command requires that its working directory exists
-    child->getInitialWorkingDir()->getResult()->mustExist(*this, child);
+    child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
 
     // The executable must be fully committed
-    child->getExecutable()->getResult()->commitAll();
+    child->getExecutable()->getArtifact()->commitAll();
 
     // The child command also depends on the artifacts reachable through its initial FDs
     for (auto& [index, desc] : child->getInitialFDs()) {
-      auto artifact = desc.getRef()->getResult();
+      auto artifact = desc.getRef()->getArtifact();
 
       // TODO: Handle pipes eventually. Just skip them for now
       if (artifact->as<PipeArtifact>()) continue;
@@ -704,8 +704,8 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   _output_trace.pathRef(c, base, path, flags, output);
 
   // Resolve the reference and save the result in output
-  ASSERT(base->getResult()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getResult()->resolve(*this, c, path, flags);
+  ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
+  auto result = base->getArtifact()->resolve(*this, c, path, flags);
   output->resolvesTo(result);
 
   // If the reference could have created a file, mark that file's versions and links as committed
@@ -740,13 +740,13 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   _traced_step_count++;
 
   // If no expected result was provided, use the result from the reference itself
-  if (expected == -1) expected = ref->getResult();
+  if (expected == -1) expected = ref->getResultCode();
 
   // Create an IR step and add it to the output trace
   _output_trace.expectResult(c, ref, expected);
 
   // Check the expect result against our filesystem model
-  WARN_IF(ref->getResult() != expected)
+  WARN_IF(ref->getResultCode() != expected)
       << "Reference resolved to " << ref->getResult() << ", which does not match syscall result "
       << errors[expected];
 
@@ -760,7 +760,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   _traced_step_count++;
 
   // Get the artifact whose metadata is being accessed
-  auto artifact = ref->getResult();
+  auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to access metadata through unresolved reference " << ref;
 
   // Get the current metadata from the artifact
@@ -790,7 +790,7 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
   _traced_step_count++;
 
   // Get the artifact whose content is being accessed
-  auto artifact = ref->getResult();
+  auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to access content through an unresolved reference " << ref;
 
   // Get the current content of the artifact
@@ -824,7 +824,7 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref
   _traced_step_count++;
 
   // Get the artifact whose metadata is being written
-  auto artifact = ref->getResult();
+  auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to write metadata through an unresolved reference " << ref;
 
   // Record the update and get the written version
@@ -852,7 +852,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   _traced_step_count++;
 
   // Get the artifact whose content is being written
-  auto artifact = ref->getResult();
+  auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to write content through an unresolved reference " << ref;
 
   // Was the last write from the same command and reference?
@@ -894,18 +894,18 @@ void Build::traceAddEntry(shared_ptr<Command> c,
   _traced_step_count++;
 
   // Get the directory artifact that is being added to
-  auto dir_artifact = dir->getResult();
+  auto dir_artifact = dir->getArtifact();
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
 
   // Make sure the reference to the artifact being linked is resolved
-  ASSERT(target->getResult()) << "Cannot add entry " << name << " to " << dir_artifact
-                              << " using unresolved reference " << target;
+  ASSERT(target->isResolved()) << "Cannot add entry " << name << " to " << dir_artifact
+                               << " using unresolved reference " << target;
 
   // Create an IR step and add it to the output trace
   _output_trace.addEntry(c, dir, name, target);
 
   // Add the entry to the directory and mark the update as committed
-  dir_artifact->addEntry(*this, c, name, target->getResult())->setCommitted();
+  dir_artifact->addEntry(*this, c, name, target->getArtifact())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir, name, target};
@@ -920,18 +920,18 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
   _traced_step_count++;
 
   // Get the directory artifact that is being removed from
-  auto dir_artifact = dir->getResult();
+  auto dir_artifact = dir->getArtifact();
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
 
   // Make sure the reference to the artifact being linked is resolved
-  ASSERT(target->getResult()) << "Cannot remove entry " << name << " from " << dir_artifact
-                              << " using unresolved reference " << target;
+  ASSERT(target->isResolved()) << "Cannot remove entry " << name << " from " << dir_artifact
+                               << " using unresolved reference " << target;
 
   // Create an IR step and add it to the output trace
   _output_trace.removeEntry(c, dir, name, target);
 
   // Remove the entry from the directory and mark the update as committed
-  dir_artifact->removeEntry(*this, c, name, target->getResult())->setCommitted();
+  dir_artifact->removeEntry(*this, c, name, target->getArtifact())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir, name, target};
@@ -958,14 +958,14 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
   }
 
   // The child command requires that its working directory exists
-  child->getInitialWorkingDir()->getResult()->mustExist(*this, child);
+  child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
 
   // The executable must be fully committed
-  child->getExecutable()->getResult()->commitAll();
+  child->getExecutable()->getArtifact()->commitAll();
 
   // The child command also depends on the artifacts reachable through its initial FDs
   for (auto& [index, desc] : child->getInitialFDs()) {
-    auto artifact = desc.getRef()->getResult();
+    auto artifact = desc.getRef()->getArtifact();
 
     // TODO: Handle pipes eventually. Just skip them for now
     if (artifact->as<PipeArtifact>()) continue;

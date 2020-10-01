@@ -42,6 +42,9 @@ class Resolution {
   /// Get the artifact reached via this resolution
   shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
 
+  /// Get the result code returned to this resolution
+  int getResultCode() const noexcept { return _rc; }
+
   /// Coerce this resolution result to a boolean
   operator bool() const noexcept { return static_cast<bool>(_artifact.lock()); }
 

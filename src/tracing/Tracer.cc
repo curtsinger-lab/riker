@@ -307,12 +307,12 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
     // Make sure the reference has already been resolved
-    ASSERT(info.getRef()->getResult())
+    ASSERT(info.getRef()->isResolved())
         << "Tried to launch a command with an unresolved reference in its "
            "initial file descriptor table";
 
     // Handle reference types
-    if (auto pipe = info.getRef()->getResult()->as<PipeArtifact>()) {
+    if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
       // Does the descriptor refer to the writing end of the pipe?
       if (info.isWritable()) {
         initial_fds.emplace_back(pipe->getWriteFD(), child_fd);
@@ -324,7 +324,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
                   << pipe->getReadFD();
       }
 
-    } else if (auto file = info.getRef()->getResult()->as<FileArtifact>()) {
+    } else if (auto file = info.getRef()->getArtifact()->as<FileArtifact>()) {
       // This is a file reference. Get a path to open.
       auto path = file->getPath();
       ASSERT(path.has_value()) << "File has no path: " << file;
@@ -372,7 +372,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     }
 
     // Change to the initial working directory
-    auto cwd = cmd->getInitialWorkingDir()->getResult();
+    auto cwd = cmd->getInitialWorkingDir()->getArtifact();
     auto cwd_path = cwd->getPath(false);
     ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
@@ -435,7 +435,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    auto exe = cmd->getExecutable()->getResult();
+    auto exe = cmd->getExecutable()->getArtifact();
     auto exe_path = exe->getPath(false);
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
     execv(exe_path.value().c_str(), (char* const*)args.data());
