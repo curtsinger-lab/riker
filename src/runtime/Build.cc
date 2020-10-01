@@ -739,6 +739,9 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   // Count a traced step
   _traced_step_count++;
 
+  // If no expected result was provided, use the result from the reference itself
+  if (expected == -1) expected = ref->getResult();
+
   // Create an IR step and add it to the output trace
   _output_trace.expectResult(c, ref, expected);
 

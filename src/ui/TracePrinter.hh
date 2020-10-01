@@ -246,7 +246,7 @@ class TracePrinter : public TraceHandler {
         typestr = "Unknown";
       }
 
-      return o << "CompareRefs(" << p.ref1 << ", " << p.ref1 << ", " << typestr << ")";
+      return o << "CompareRefs(" << p.ref1 << ", " << p.ref2 << ", " << typestr << ")";
     }
   };
 

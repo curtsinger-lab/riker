@@ -211,7 +211,9 @@ class Build : public TraceHandler {
                         RefComparison type) noexcept;
 
   /// A command expects a reference to resolve with a particular result
-  void traceExpectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int expected) noexcept;
+  void traceExpectResult(shared_ptr<Command> c,
+                         shared_ptr<RefResult> ref,
+                         int expected = -1) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   void traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;

@@ -801,8 +801,8 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      _build.traceExpectResult(getCommand(), parent_ref, parent_ref->getResult());
-      _build.traceExpectResult(getCommand(), entry_ref, entry_ref->getResult());
+      _build.traceExpectResult(getCommand(), parent_ref);
+      _build.traceExpectResult(getCommand(), entry_ref);
     }
   });
 }
@@ -881,11 +881,11 @@ void Thread::_renameat2(at_fd old_dfd,
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
       // change, that COULD change the syscall outcome.
-      _build.traceExpectResult(getCommand(), old_dir_ref, old_dir_ref->getResult());
-      _build.traceExpectResult(getCommand(), old_entry_ref, old_entry_ref->getResult());
-      _build.traceExpectResult(getCommand(), new_dir_ref, new_dir_ref->getResult());
+      _build.traceExpectResult(getCommand(), old_dir_ref);
+      _build.traceExpectResult(getCommand(), old_entry_ref);
+      _build.traceExpectResult(getCommand(), new_dir_ref);
       if (new_entry_ref) {
-        _build.traceExpectResult(getCommand(), new_entry_ref, new_entry_ref->getResult());
+        _build.traceExpectResult(getCommand(), new_entry_ref);
       }
     }
   });
@@ -955,9 +955,9 @@ void Thread::_linkat(at_fd old_dfd,
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
       // record the result of resolving each of them.
-      _build.traceExpectResult(getCommand(), dir_ref, dir_ref->getResult());
-      _build.traceExpectResult(getCommand(), entry_ref, entry_ref->getResult());
-      _build.traceExpectResult(getCommand(), target_ref, target_ref->getResult());
+      _build.traceExpectResult(getCommand(), dir_ref);
+      _build.traceExpectResult(getCommand(), entry_ref);
+      _build.traceExpectResult(getCommand(), target_ref);
     }
   });
 }
@@ -997,8 +997,8 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      _build.traceExpectResult(getCommand(), dir_ref, dir_ref->getResult());
-      _build.traceExpectResult(getCommand(), entry_ref, entry_ref->getResult());
+      _build.traceExpectResult(getCommand(), dir_ref);
+      _build.traceExpectResult(getCommand(), entry_ref);
     }
   });
 }
@@ -1079,8 +1079,8 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
-      _build.traceExpectResult(getCommand(), dir_ref, dir_ref->getResult());
-      _build.traceExpectResult(getCommand(), entry_ref, entry_ref->getResult());
+      _build.traceExpectResult(getCommand(), dir_ref);
+      _build.traceExpectResult(getCommand(), entry_ref);
     }
   });
 }
