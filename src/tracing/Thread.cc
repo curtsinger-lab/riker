@@ -845,8 +845,20 @@ void Thread::_renameat2(at_fd old_dfd,
 
     // Did the syscall succeed?
     if (rc == 0) {
-      // If the the old entry and new entry references refer to the same artifact, do nothing
-      if (old_entry_ref->getResult() == new_entry_ref->getResult()) return;
+      // Do the old and new entries refer to the same artifact?
+      if (old_entry_ref->getResult().getArtifact() == new_entry_ref->getResult().getArtifact()) {
+        // Yes. The rename() call is finished, but the command depends on these two references
+        // reaching the same artifact.
+        _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
+                                RefComparison::SameInstance);
+        return;
+
+      } else {
+        // No. The rename() call proceeds, but the command depends on these two references reaching
+        // different artifacts.
+        _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
+                                RefComparison::DifferentInstances);
+      }
 
       // The accesses to the old directory and entry must have succeeded
       _build.traceExpectResult(getCommand(), old_dir_ref, SUCCESS);

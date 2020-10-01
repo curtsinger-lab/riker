@@ -281,11 +281,11 @@ void Build::compareRefs(shared_ptr<Command> c,
 
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
-    if (ref1->getResult() != ref2->getResult()) {
+    if (ref1->getResult().getArtifact() != ref2->getResult().getArtifact()) {
       observeCommandChange(c);
     }
   } else if (type == RefComparison::DifferentInstances) {
-    if (ref1->getResult() == ref2->getResult()) {
+    if (ref1->getResult().getArtifact() == ref2->getResult().getArtifact()) {
       observeCommandChange(c);
     }
   } else {
