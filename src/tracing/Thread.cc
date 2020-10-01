@@ -837,17 +837,17 @@ void Thread::_renameat2(at_fd old_dfd,
   // Make a reference to the new directory
   auto new_dir_ref = makePathRef(new_dir, AccessFlags{.w = true}, new_dfd);
 
-  // If either RENAME_EXCHANGE or RENAME_NOREPLACE is specified, make a reference to the new entry
-  shared_ptr<RefResult> new_entry_ref;
-  if (flags.exchange() || flags.noreplace()) {
-    new_entry_ref = makePathRef(new_path, AccessFlags{.nofollow = true}, new_dfd);
-  }
+  // Make a reference to the new entry
+  auto new_entry_ref = makePathRef(new_path, AccessFlags{.nofollow = true}, new_dfd);
 
   finishSyscall([=](long rc) {
     resume();
 
     // Did the syscall succeed?
     if (rc == 0) {
+      // If the the old entry and new entry references refer to the same artifact, do nothing
+      if (old_entry_ref->getResult() == new_entry_ref->getResult()) return;
+
       // The accesses to the old directory and entry must have succeeded
       _build.traceExpectResult(getCommand(), old_dir_ref, SUCCESS);
       _build.traceExpectResult(getCommand(), old_entry_ref, SUCCESS);

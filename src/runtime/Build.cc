@@ -848,6 +848,10 @@ void Build::traceAddEntry(shared_ptr<Command> c,
   auto dir_artifact = dir->getResult();
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
 
+  // Make sure the reference to the artifact being linked is resolved
+  ASSERT(target->getResult()) << "Cannot add entry " << name << " to " << dir_artifact
+                              << " using unresolved reference " << target;
+
   // Create an IR step and add it to the output trace
   _output_trace.addEntry(c, dir, name, target);
 
@@ -869,6 +873,10 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
   // Get the directory artifact that is being removed from
   auto dir_artifact = dir->getResult();
   ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
+
+  // Make sure the reference to the artifact being linked is resolved
+  ASSERT(target->getResult()) << "Cannot remove entry " << name << " from " << dir_artifact
+                              << " using unresolved reference " << target;
 
   // Create an IR step and add it to the output trace
   _output_trace.removeEntry(c, dir, name, target);

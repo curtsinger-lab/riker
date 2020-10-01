@@ -57,6 +57,15 @@ class Resolution {
   /// Access the artifact in this result as a pointer
   shared_ptr<Artifact> operator->() const noexcept { return _artifact.lock(); }
 
+  /// Compare two Resolutions
+  bool operator==(const Resolution& other) const noexcept {
+    if (_rc == SUCCESS) {
+      return other._rc == SUCCESS && _artifact.lock() == other._artifact.lock();
+    } else {
+      return _rc == other._rc;
+    }
+  }
+
   /// Print the result of a resolution
   friend ostream& operator<<(ostream& o, const Resolution& r) noexcept {
     auto a = r._artifact.lock();
