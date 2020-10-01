@@ -223,6 +223,12 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
     return;
   }
 
+  // If the provided name is too long, the result is ENAMETOOLONG and we can do nothing
+  if (filename.string().length() > NAME_MAX) {
+    resume();
+    return;
+  }
+
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
@@ -274,9 +280,39 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
   if (mode.isRegularFile()) {
     // Handle regular file creation with openat
     _openat(dfd, filename, o_flags(O_CREAT | O_EXCL), mode);
-  } else {
-    // TODO: Handle named pipes?
 
+  } else if (mode.isFIFO()) {
+    // Create a named pipe
+    auto dir = filename.parent_path();
+    auto entry = filename.filename();
+
+    // Create references to the containing directory and entry
+    auto dir_ref = makePathRef(dir, AccessFlags{.w = true}, dfd);
+    auto entry_ref = makePathRef(filename, AccessFlags{}, dfd);
+
+    finishSyscall([=](long rc) {
+      // Resume the blocked thread
+      resume();
+
+      if (rc == 0) {
+        // Record the outcomes for the two references
+        _build.traceExpectResult(getCommand(), dir_ref, SUCCESS);
+        _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
+
+        // Create a pipe
+        auto [read_end, write_end] = _build.tracePipeRef(getCommand());
+
+        // Link the pipe into the directory
+        _build.traceAddEntry(getCommand(), dir_ref, entry, read_end);
+
+      } else {
+        // The syscall failed. Record the outcome of both references
+        _build.traceExpectResult(getCommand(), dir_ref);
+        _build.traceExpectResult(getCommand(), entry_ref);
+      }
+    });
+
+  } else {
     WARN << "Unsupported use of mknodat";
     resume();
   }
