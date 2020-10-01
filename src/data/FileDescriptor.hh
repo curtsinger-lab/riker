@@ -41,7 +41,7 @@ class FileDescriptor {
 
   /// Print a file descriptor
   friend ostream& operator<<(ostream& o, const FileDescriptor& fd) noexcept {
-    o << fd._ref << (fd._cloexec ? " (cloexec)" : "") << " -> " << fd._ref->getResult();
+    o << fd._ref << (fd._cloexec ? " (cloexec)" : "") << " -> " << fd._ref->getResolution();
     return o;
   }
 

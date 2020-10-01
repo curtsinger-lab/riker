@@ -50,7 +50,7 @@ class RefResult final {
   bool isResolved() const noexcept { return _result.getResultCode() == SUCCESS; }
 
   /// Get the resolution result
-  Resolution getResult() const noexcept { return _result; }
+  Resolution getResolution() const noexcept { return _result; }
 
   /// Save a resolution result in this RefResult
   void resolvesTo(Resolution r) noexcept { _result = r; }

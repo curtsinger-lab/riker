@@ -747,7 +747,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
 
   // Check the expect result against our filesystem model
   WARN_IF(ref->getResultCode() != expected)
-      << "Reference resolved to " << ref->getResult() << ", which does not match syscall result "
+      << "Reference resolved to " << ref->getResolution() << ", which does not match syscall result "
       << errors[expected];
 
   // Log the traced step

@@ -240,7 +240,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
       _build.traceExpectResult(getCommand(), ref, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename
-                                << " (received " << ref->getResult() << " from emulator)";
+                                << " (received " << ref->getResolution() << " from emulator)";
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.tmpfile()) {
