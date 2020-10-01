@@ -143,7 +143,7 @@ void Build::specialRef(shared_ptr<Command> c,
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
     auto result = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.x = true});
-    ASSERT(result) << "Failed to resolve current working directory";
+    ASSERT(result.isSuccess()) << "Failed to resolve current working directory";
     result.getArtifact()->setName(".");
 
     output->resolvesTo(result);
@@ -709,7 +709,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   output->resolvesTo(result);
 
   // If the reference could have created a file, mark that file's versions and links as committed
-  if (result && flags.create) result.getArtifact()->setCommitted();
+  if (result.isSuccess() && flags.create) result.getArtifact()->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
@@ -748,7 +748,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   // Check the expect result against our filesystem model
   WARN_IF(ref->getResultCode() != expected)
       << "Reference resolved to " << ref->getResolution()
-      << ", which does not match syscall result " << errors[expected];
+      << ", which does not match syscall result " << getErrorName(expected);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, ref, expected};

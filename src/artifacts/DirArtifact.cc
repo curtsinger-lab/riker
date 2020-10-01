@@ -313,7 +313,7 @@ Resolution DirArtifact::resolve(Build& build,
     // This is the last entry in the resolution path
 
     // Was the reference required to create this entry?
-    if (flags.create && flags.exclusive && res) return EEXIST;
+    if (flags.create && flags.exclusive && res.isSuccess()) return EEXIST;
 
     // If the resolution failed, can this access create it?
     if (flags.create && res == ENOENT) {
@@ -331,7 +331,7 @@ Resolution DirArtifact::resolve(Build& build,
     }
 
     // If the result was an error, return it
-    if (!res) return res;
+    if (!res.isSuccess()) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
     return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,
@@ -339,7 +339,7 @@ Resolution DirArtifact::resolve(Build& build,
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
-    if (res) {
+    if (res.isSuccess()) {
       return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,
                                         symlink_limit);
     }

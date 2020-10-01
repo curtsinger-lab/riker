@@ -1,18 +1,22 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
+#include <tuple>
 
 #include <grp.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+using std::map;
 using std::optional;
 using std::set;
 using std::string;
+using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -56,4 +60,19 @@ inline const set<gid_t>& getgroups() noexcept {
   }
 
   return _groups.value();
+}
+
+inline string getErrorName(int err) noexcept {
+  // Set up a map from return codes to names
+  static map<int8_t, string> errors = {
+      {0, "SUCCESS"},     {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
+      {EEXIST, "EEXIST"}, {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
+      {ELOOP, "ELOOP"},   {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
+
+  auto iter = errors.find(err);
+  if (iter == errors.end()) {
+    return "UNKNOWN (" + std::to_string(err) + ")";
+  } else {
+    return iter->second;
+  }
 }

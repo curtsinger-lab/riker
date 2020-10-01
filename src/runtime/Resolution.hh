@@ -6,6 +6,7 @@
 #include <string>
 
 #include "util/log.hh"
+#include "util/wrappers.hh"
 
 using std::map;
 using std::ostream;
@@ -17,12 +18,6 @@ class Artifact;
 
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int8_t { SUCCESS = 0 };
-
-// Set up a map from return codes to names
-inline static map<int8_t, string> errors = {
-    {SUCCESS, "SUCCESS"}, {EACCES, "EACCES"}, {EDQUOT, "EDQUOT"},
-    {EEXIST, "EEXIST"},   {EINVAL, "EINVAL"}, {EISDIR, "EISDIR"},
-    {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"}, {ENOTDIR, "ENOTDIR"}};
 
 class Resolution {
  public:
@@ -45,11 +40,8 @@ class Resolution {
   /// Get the result code returned to this resolution
   int getResultCode() const noexcept { return _rc; }
 
-  /// Coerce this resolution result to a boolean
-  operator bool() const noexcept { return static_cast<bool>(_artifact.lock()); }
-
-  /// Coerce this resolution result to an int
-  operator int() const noexcept { return _rc; }
+  /// Did this resolution succeed?
+  bool isSuccess() const noexcept { return _rc == SUCCESS; }
 
   /// Compare this resolution to an int
   bool operator==(int rc) const noexcept { return _rc == rc; }
@@ -63,7 +55,7 @@ class Resolution {
     if (a) {
       return o << a;
     } else {
-      return o << errors[r._rc];
+      return o << getErrorName(r._rc);
     }
   }
 

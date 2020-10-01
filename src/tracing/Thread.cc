@@ -294,7 +294,7 @@ void Thread::_close(int fd) noexcept {
       LOGF(trace, "{}: closing FD {}", this, fd);
       _process->closeFD(fd);
     } else {
-      LOGF(trace, "{}: close({}) returned error {}", this, rc, errors[-rc]);
+      LOGF(trace, "{}: close({}) returned error {}", this, rc, getErrorName(-rc));
     }
   });
 }

@@ -5,6 +5,7 @@
 
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Resolution.hh"
+#include "util/wrappers.hh"
 
 using std::endl;
 using std::ostream;
@@ -258,7 +259,7 @@ class TracePrinter : public TraceHandler {
 
     friend ostream& operator<<(ostream& o, const ExpectResultPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "ExpectResult(" << p.ref << ", " << errors[p.expected] << ")";
+      return o << "ExpectResult(" << p.ref << ", " << getErrorName(p.expected) << ")";
     }
   };
 
