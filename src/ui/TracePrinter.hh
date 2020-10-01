@@ -60,6 +60,14 @@ class TracePrinter : public TraceHandler {
     _out << PathRefPrinter{c, base, path, flags, output} << endl;
   }
 
+  /// A command depends on the outcome of comparing two different references
+  virtual void compareRefs(shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept override {
+    _out << CompareRefsPrinter{c, ref1, ref2, type} << endl;
+  }
+
   virtual void expectResult(shared_ptr<Command> c,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override {
@@ -217,6 +225,28 @@ class TracePrinter : public TraceHandler {
     friend ostream& operator<<(ostream& o, const PathRefPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
       return o << p.output << " = PathRef(" << p.base << ", " << p.path << ", " << p.flags << ")";
+    }
+  };
+
+  /// A wrapper struct used to print CompareRefs IR steps
+  struct CompareRefsPrinter {
+    shared_ptr<Command> c;
+    shared_ptr<RefResult> ref1;
+    shared_ptr<RefResult> ref2;
+    RefComparison type;
+
+    friend ostream& operator<<(ostream& o, const CompareRefsPrinter& p) noexcept {
+      if (p.c) o << p.c << ": ";
+      string typestr;
+      if (p.type == RefComparison::SameInstance) {
+        typestr = "SameInstance";
+      } else if (p.type == RefComparison::DifferentInstances) {
+        typestr = "DifferentInstances";
+      } else {
+        typestr = "Unknown";
+      }
+
+      return o << "CompareRefs(" << p.ref1 << ", " << p.ref1 << ", " << typestr << ")";
     }
   };
 

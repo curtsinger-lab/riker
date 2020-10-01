@@ -17,6 +17,9 @@ namespace fs = std::filesystem;
 /// Unique IDs for the entities reachable via special references
 enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
 
+/// Different ways to compare references with a CompareRefs predicate
+enum class RefComparison { SameInstance, DifferentInstances };
+
 class TraceHandler {
  public:
   /// Called when the trace is finished
@@ -53,6 +56,12 @@ class TraceHandler {
                        fs::path path,
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept {};
+
+  /// Handle a CompareRefs IR step
+  virtual void compareRefs(shared_ptr<Command> command,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept {};
 
   /// Handle an ExpectResult IR step
   virtual void expectResult(shared_ptr<Command> command,

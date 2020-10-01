@@ -127,6 +127,12 @@ class Build : public TraceHandler {
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept override;
 
+  /// A command depends on the outcome of comparing two different references
+  virtual void compareRefs(shared_ptr<Command> command,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept override;
+
   /// A command expects a reference to resolve with a particular result
   virtual void expectResult(shared_ptr<Command> c,
                             shared_ptr<RefResult> ref,
@@ -197,6 +203,12 @@ class Build : public TraceHandler {
                                      shared_ptr<RefResult> base,
                                      fs::path path,
                                      AccessFlags flags) noexcept;
+
+  /// A command compares two references and expects a specific result
+  void traceCompareRefs(shared_ptr<Command> c,
+                        shared_ptr<RefResult> ref1,
+                        shared_ptr<RefResult> ref2,
+                        RefComparison type) noexcept;
 
   /// A command expects a reference to resolve with a particular result
   void traceExpectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int expected) noexcept;

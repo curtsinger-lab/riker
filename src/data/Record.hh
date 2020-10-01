@@ -22,7 +22,6 @@ using std::tuple;
 using std::vector;
 
 class InputTrace;
-class TraceHandler;
 
 enum : size_t { ArchiveMagic = 0xD0D0D035178357, ArchiveVersion = 101 };
 
@@ -195,6 +194,29 @@ struct PathRefRecord : public Record {
   template <class Archive>
   void serialize(Archive& archive) {
     archive(cereal::base_class<Record>(this), _cmd, _base, _path, _flags, _output);
+  }
+};
+
+struct CompareRefsRecord : public Record {
+  Command::ID _cmd;
+  RefResult::ID _ref1;
+  RefResult::ID _ref2;
+  RefComparison _type;
+
+  /// Default constructor for serialization
+  CompareRefsRecord() noexcept = default;
+
+  CompareRefsRecord(Command::ID cmd,
+                    RefResult::ID ref1,
+                    RefResult::ID ref2,
+                    RefComparison type) noexcept :
+      _cmd(cmd), _ref1(ref1), _ref2(ref2), _type(type) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _ref1, _ref2, _type);
   }
 };
 

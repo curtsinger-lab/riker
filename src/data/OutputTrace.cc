@@ -62,6 +62,15 @@ void OutputTrace::pathRef(shared_ptr<Command> cmd,
                                           getRefResultID(output)));
 }
 
+/// Add a CompareRefs IR step to the output trace
+void OutputTrace::compareRefs(shared_ptr<Command> cmd,
+                              shared_ptr<RefResult> ref1,
+                              shared_ptr<RefResult> ref2,
+                              RefComparison type) noexcept {
+  _records.emplace_back(
+      new CompareRefsRecord(getCommandID(cmd), getRefResultID(ref1), getRefResultID(ref2), type));
+}
+
 /// Add a ExpectResult IR step to the output trace
 void OutputTrace::expectResult(shared_ptr<Command> cmd,
                                shared_ptr<RefResult> ref,

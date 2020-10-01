@@ -262,6 +262,37 @@ void Build::pathRef(shared_ptr<Command> c,
   output->resolvesTo(result);
 }
 
+// Command c depends on the outcome of comparing two different references
+void Build::compareRefs(shared_ptr<Command> c,
+                        shared_ptr<RefResult> ref1,
+                        shared_ptr<RefResult> ref2,
+                        RefComparison type) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
+  // Count an emulated step
+  _emulated_step_count++;
+
+  // Log the emulated step
+  LOG(ir) << "emulated " << TracePrinter::CompareRefsPrinter{c, ref1, ref2, type};
+
+  // Create an IR step and add it to the output trace
+  _output_trace.compareRefs(c, ref1, ref2, type);
+
+  // Does the comparison resolve as expected?
+  if (type == RefComparison::SameInstance) {
+    if (ref1->getResult() != ref2->getResult()) {
+      observeCommandChange(c);
+    }
+  } else if (type == RefComparison::DifferentInstances) {
+    if (ref1->getResult() == ref2->getResult()) {
+      observeCommandChange(c);
+    }
+  } else {
+    FAIL << "Unknown reference comparison type";
+  }
+}
+
 // Command c expects a reference to resolve with a specific result
 void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
@@ -684,6 +715,21 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   return output;
+}
+
+// Command c expects two references to compare with a specific result
+void Build::traceCompareRefs(shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref1,
+                             shared_ptr<RefResult> ref2,
+                             RefComparison type) noexcept {
+  // Count a traced step
+  _traced_step_count++;
+
+  // Create an IR step and add it to the output trace
+  _output_trace.compareRefs(c, ref1, ref2, type);
+
+  // Log the traced step
+  LOG(ir) << "trace " << TracePrinter::CompareRefsPrinter{c, ref1, ref2, type};
 }
 
 // Command c expects a reference to resolve with a specific result

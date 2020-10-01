@@ -17,6 +17,7 @@ CEREAL_REGISTER_TYPE(FileRefRecord);
 CEREAL_REGISTER_TYPE(SymlinkRefRecord);
 CEREAL_REGISTER_TYPE(DirRefRecord);
 CEREAL_REGISTER_TYPE(PathRefRecord);
+CEREAL_REGISTER_TYPE(CompareRefsRecord);
 CEREAL_REGISTER_TYPE(ExpectResultRecord);
 CEREAL_REGISTER_TYPE(MatchMetadataRecord);
 CEREAL_REGISTER_TYPE(MatchContentRecord);
@@ -81,6 +82,12 @@ void DirRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
 void PathRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
   handler.pathRef(input.getCommand(_cmd), input.getRefResult(_base), _path, _flags,
                   input.getRefResult(_output));
+}
+
+// Send a CompareRefs IR step from an input trace to a trace handler
+void CompareRefsRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+  handler.compareRefs(input.getCommand(_cmd), input.getRefResult(_ref1), input.getRefResult(_ref2),
+                      _type);
 }
 
 // Send an ExpectResult IR step from an input trace to a trace handler
