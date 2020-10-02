@@ -1,0 +1,63 @@
+--- setup_testsets.sh	2001-10-01 08:16:49.000000000 +0000
++++ ../../setup_testsets.sh	2020-10-02 20:02:34.765354226 +0000
+@@ -126,11 +126,11 @@
+ 
+ ######################################################################
+ # Run config script
+-printf "Run config.sh ..? [y] "
+-read cmd
+-if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
++#printf "Run config.sh ..? [y] "
++#read cmd
++#if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
+ 	config.sh
+-fi
++#fi
+ printf "\n----------------------------------------------------------\n"
+ 
+ # Common cleanup needed
+@@ -152,8 +152,8 @@
+ cd $INSTDIR
+ 
+ printf "\n\n----------------------------------------------------------\n"
+-printf "Building the test framework ... enter the root password\n"
+-su root -c make
++printf "Building the test framework ... \n"
++echo "rewtpazz" | su root -c make
+ if [ $? -ne 0 ]; then
+   echo "Test framework compilation failed. Aborting"
+   exit 1
+@@ -173,9 +173,9 @@
+ 
+ ######################################################################
+ # Parameterisation
+-printf "Install tetexec.cfg ..? [y] "
+-read cmd
+-if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
++#printf "Install tetexec.cfg ..? [y] "
++#read cmd
++#if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
+ 
+   echo "Parameterizing the $TET_EXECUTE/tetexec.cfg file"
+ 
+@@ -200,15 +200,15 @@
+   cat $TET_EXECUTE/tetexec.cfg.old|$VSXDIR/install/scripts/editcfg.sh .newparams > $TET_EXECUTE/tetexec.cfg
+   rm -f .newparams
+ 
+-fi
++#fi
+ 
+ ######################################################################
+ # Build & Execute testsets
+-printf "Build and Execute testsets ..? [y]"
+-read cmd
+-if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
++#printf "Build and Execute testsets ..? [y]"
++#read cmd
++#if [ "$cmd" = "Y" -o "$cmd" = "y" -o "$cmd" = "" ] ; then
+   sh run_testsets.sh
+-fi
++#fi
+ 
+ echo 
+ echo "In order to re run the test suites at a later date run the"
