@@ -111,6 +111,37 @@ void FileArtifact::setCommitted() noexcept {
   Artifact::setCommitted();
 }
 
+/// A traced command is about to (possibly) read from this artifact
+void FileArtifact::beforeRead(Build& build,
+                              shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref) noexcept {
+  // Do nothing before a read
+}
+
+/// A traced command just read from this artifact
+void FileArtifact::afterRead(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref) noexcept {
+  // The command now depends on the content of this file
+  build.traceMatchContent(c, ref);
+}
+
+/// A traced command is about to (possibly) write to this artifact
+void FileArtifact::beforeWrite(Build& build,
+                               shared_ptr<Command> c,
+                               shared_ptr<RefResult> ref) noexcept {
+  // The command now depends on the content of this file
+  build.traceMatchContent(c, ref);
+}
+
+/// A trace command just wrote to this artifact
+void FileArtifact::afterWrite(Build& build,
+                              shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref) noexcept {
+  // The command wrote to this file
+  build.traceUpdateContent(c, ref);
+}
+
 /// Get the current content version for this artifact
 shared_ptr<Version> FileArtifact::getContent(Build& build,
                                              shared_ptr<Command> c,

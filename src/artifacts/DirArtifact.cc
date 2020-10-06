@@ -160,6 +160,35 @@ void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   }
 }
 
+/// A traced command is about to (possibly) read from this artifact
+void DirArtifact::beforeRead(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref) noexcept {
+  // Do nothing before a read
+}
+
+/// A traced command just read from this artifact
+void DirArtifact::afterRead(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<RefResult> ref) noexcept {
+  // The command now depends on the content of this directory
+  build.traceMatchContent(c, ref);
+}
+
+/// A traced command is about to (possibly) write to this artifact
+void DirArtifact::beforeWrite(Build& build,
+                              shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref) noexcept {
+  FAIL << "A traced command is attempting to write to a directory.";
+}
+
+/// A trace command just wrote to this artifact
+void DirArtifact::afterWrite(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref) noexcept {
+  FAIL << "A traced command attempted to write to a directory.";
+}
+
 // Get a version that lists all the entries in this directory
 shared_ptr<Version> DirArtifact::getContent(Build& build,
                                             shared_ptr<Command> c,

@@ -47,12 +47,34 @@ class SymlinkArtifact : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(Build& build, fs::path path) noexcept override;
 
-  /************ Symlink Operations ************/
+  /************ Content Operations ************/
+
+  /// A traced command is about to (possibly) read from this artifact
+  virtual void beforeRead(Build& build,
+                          shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref) noexcept override;
+
+  /// A traced command just read from this artifact
+  virtual void afterRead(Build& build,
+                         shared_ptr<Command> c,
+                         shared_ptr<RefResult> ref) noexcept override;
+
+  /// A traced command is about to (possibly) write to this artifact
+  virtual void beforeWrite(Build& build,
+                           shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref) noexcept override;
+
+  /// A trace command just wrote to this artifact
+  virtual void afterWrite(Build& build,
+                          shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref) noexcept override;
 
   /// Get the current symlink version of this artifact
   virtual shared_ptr<Version> getContent(Build& build,
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
+
+  /************ Symlink Operations ************/
 
   virtual Resolution resolve(Build& build,
                              shared_ptr<Command> c,

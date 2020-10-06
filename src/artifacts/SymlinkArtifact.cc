@@ -17,6 +17,35 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
   _symlink_version = sv;
 }
 
+/// A traced command is about to (possibly) read from this artifact
+void SymlinkArtifact::beforeRead(Build& build,
+                                 shared_ptr<Command> c,
+                                 shared_ptr<RefResult> ref) noexcept {
+  // Do nothing before a read
+}
+
+/// A traced command just read from this artifact
+void SymlinkArtifact::afterRead(Build& build,
+                                shared_ptr<Command> c,
+                                shared_ptr<RefResult> ref) noexcept {
+  // The command now depends on the content of this file
+  build.traceMatchContent(c, ref);
+}
+
+/// A traced command is about to (possibly) write to this artifact
+void SymlinkArtifact::beforeWrite(Build& build,
+                                  shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref) noexcept {
+  FAIL << "A traced command tried to write to a symlink";
+}
+
+/// A trace command just wrote to this artifact
+void SymlinkArtifact::afterWrite(Build& build,
+                                 shared_ptr<Command> c,
+                                 shared_ptr<RefResult> ref) noexcept {
+  FAIL << "A traced command tried to write to a symlink";
+}
+
 // Get the current symlink version of this artifact
 shared_ptr<Version> SymlinkArtifact::getContent(Build& build,
                                                 shared_ptr<Command> c,

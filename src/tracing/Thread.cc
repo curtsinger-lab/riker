@@ -660,24 +660,31 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 void Thread::_read(int fd) noexcept {
   LOGF(trace, "{}: read({})", this, fd);
 
+  // Get a reference to the artifact being read
+  auto ref = _process->getFD(fd).getRef();
+
+  // Inform the artifact that we are about to read
+  ref->getArtifact()->beforeRead(_build, getCommand(), ref);
+
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
-    // Create a dependency on the artifact's contents
-    const auto& descriptor = _process->getFD(fd);
-    _build.traceMatchContent(getCommand(), descriptor.getRef());
+    if (rc >= 0) {
+      // Inform the artifact that the read succeeded
+      ref->getArtifact()->afterRead(_build, getCommand(), ref);
+    }
   });
 }
 
 void Thread::_write(int fd) noexcept {
   LOGF(trace, "{}: write({})", this, fd);
 
-  // Get the descriptor
-  const auto& descriptor = _process->getFD(fd);
+  // Get a reference to the artifact being written
+  auto ref = _process->getFD(fd).getRef();
 
-  // Record our dependency on the old contents of the artifact
-  _build.traceMatchContent(getCommand(), descriptor.getRef());
+  // Inform the artifact that we are about to write
+  ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
 
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
@@ -686,8 +693,8 @@ void Thread::_write(int fd) noexcept {
     // If the write syscall failed, there's no need to log a write
     if (rc < 0) return;
 
-    // Record the update to the artifact contents
-    _build.traceUpdateContent(getCommand(), descriptor.getRef());
+    // Inform the artifact that it was written
+    ref->getArtifact()->afterWrite(_build, getCommand(), ref);
   });
 }
 
@@ -702,8 +709,21 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
     return;
   }
 
+  // Get the file descriptor being mapped
+  auto& descriptor = _process->getFD(fd);
+  bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
+
+  // Get a reference to the artifact being mapped
+  auto ref = descriptor.getRef();
+
+  // Inform the mapped artifact that it will by read and possibly written
+  ref->getArtifact()->beforeRead(_build, getCommand(), ref);
+  if (writable) ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
+
   // Run the syscall to find out if the mmap succeeded
   finishSyscall([=](long rc) {
+    resume();
+
     LOGF(trace, "{}: finished mmap({})", this, fd);
     void* result = (void*)rc;
 
@@ -713,19 +733,9 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
       return;
     }
 
-    // Get the descriptor from the fd number
-    const auto& descriptor = _process->getFD(fd);
-
-    // By mmapping a file, the command implicitly depends on its contents at the time of
-    // mapping.
-    _build.traceMatchContent(getCommand(), descriptor.getRef());
-
-    // If the mapping is writable, and the file was opened in write mode, the command
-    // is also effectively setting the contents of the file.
-    bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
-    if (writable) {
-      _build.traceUpdateContent(getCommand(), descriptor.getRef());
-    }
+    // Inform the artifact that it has been read and possibly written
+    ref->getArtifact()->afterRead(_build, getCommand(), ref);
+    if (writable) ref->getArtifact()->afterWrite(_build, getCommand(), ref);
 
     // TODO: we need to track which commands have a given artifact mapped.
     // Any time that artifact is modified, all commands that have it mapped will get an
@@ -734,11 +744,6 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
     // of the file at any time.
     // Any artifact with multiple mappers, at least one of whom has a writable mapping,
     // creates a cycle. All commands involved in that cycle must be collapsed.
-
-    // Resume the process here, because the command *could* immediately write to the file.
-    // We may have needed to take a fingerprint of the old, unwritten version, so we can't
-    // resume immediately after a writable mapping.
-    resume();
   });
 }
 
@@ -748,39 +753,55 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
   // Make an access to the reference that will be truncated
   auto ref = makePathRef(pathname, AccessFlags{.w = true});
 
-  // If length is non-zero, we depend on the previous contents
-  // This only applies if the artifact exists
-  if (length > 0 && ref->isResolved()) {
-    _build.traceMatchContent(getCommand(), ref);
-  }
+  // Did the reference resolve to an artifact?
+  if (!ref->isResolved()) {
+    finishSyscall([=](long rc) {
+      resume();
+      ASSERT(rc != 0) << "Call to truncate() succeeded, but the reference did not resolve";
 
-  // Finish the syscall and resume the process
-  finishSyscall([=](long rc) {
-    resume();
+      // Record the outcome of the reference
+      _build.traceExpectResult(getCommand(), ref, -rc);
+    });
 
-    // Record the outcome of the reference
-    _build.traceExpectResult(getCommand(), ref, -rc);
+  } else {
+    // Is the file being truncated to size zero?
+    if (length > 0) {
+      // No. Treat this as an ordinary write
+      ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
 
-    // Did the call succeed?
-    if (rc == 0) {
-      // Make sure the artifact actually existed
-      ASSERT(ref->isResolved()) << "Failed to get artifact for truncated file";
-
-      // Record the update to the artifact contents
-      _build.traceUpdateContent(getCommand(), ref);
+    } else {
+      // Yes. There is no dependency on the prior contents.
+      // TODO: Track this with a beforeTruncate call
+      // ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
     }
-  });
+
+    finishSyscall([=](long rc) {
+      resume();
+
+      // We expect the reference to succeed
+      _build.traceExpectResult(getCommand(), ref, SUCCESS);
+
+      // If the syscall succeeded, finish the write
+      if (rc == 0) {
+        // TODO: call afterTruncate if this is a complete truncation
+        ref->getArtifact()->afterWrite(_build, getCommand(), ref);
+      }
+    });
+  }
 }
 
 void Thread::_ftruncate(int fd, long length) noexcept {
   LOGF(trace, "{}: ftruncate({}, {})", this, fd, length);
 
-  // Get the descriptor
-  const auto& descriptor = _process->getFD(fd);
+  // Get the reference to the artifact being written
+  auto ref = _process->getFD(fd).getRef();
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    _build.traceMatchContent(getCommand(), descriptor.getRef());
+    ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
+  } else {
+    // TODO: call beforeTruncate once it exists
+    // ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
   }
 
   // Finish the syscall and resume the process
@@ -789,7 +810,8 @@ void Thread::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      _build.traceUpdateContent(getCommand(), descriptor.getRef());
+      ref->getArtifact()->afterWrite(_build, getCommand(), ref);
+      // TODO: call afterTruncate
     }
   });
 }
@@ -798,22 +820,22 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
   LOGF(trace, "{}: tee({}, {})", this, fd_in, fd_out);
 
   // Get the descriptors
-  const auto& in_desc = _process->getFD(fd_in);
-  const auto& out_desc = _process->getFD(fd_out);
+  const auto& in_ref = _process->getFD(fd_in).getRef();
+  const auto& out_ref = _process->getFD(fd_out).getRef();
 
-  // The command depends on the contents of the output file, unless it is totally overwritten (not
-  // checked yet)
-  _build.traceMatchContent(getCommand(), out_desc.getRef());
+  // We are abou to read from in_ref and write to out_ref
+  in_ref->getArtifact()->beforeRead(_build, getCommand(), in_ref);
+  out_ref->getArtifact()->beforeWrite(_build, getCommand(), out_ref);
 
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
-    // The command has now read the input file, so it depends on the contents there
-    _build.traceMatchContent(getCommand(), in_desc.getRef());
-
-    // The command has now set the contents of the output file
-    _build.traceUpdateContent(getCommand(), out_desc.getRef());
+    // If the call succeeds, record the read and write
+    if (rc >= 0) {
+      in_ref->getArtifact()->afterRead(_build, getCommand(), in_ref);
+      out_ref->getArtifact()->afterWrite(_build, getCommand(), out_ref);
+    }
   });
 }
 
@@ -958,14 +980,18 @@ void Thread::_renameat2(at_fd old_dfd,
 void Thread::_getdents(int fd) noexcept {
   LOGF(trace, "{}: getdents({})", this, fd);
 
+  // Get a reference to the artifact being read
+  auto ref = _process->getFD(fd).getRef();
+
+  ref->getArtifact()->beforeRead(_build, getCommand(), ref);
+
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
 
     if (rc == 0) {
       // Create a dependency on the artifact's directory list
-      const auto& descriptor = _process->getFD(fd);
-      _build.traceMatchContent(getCommand(), descriptor.getRef());
+      ref->getArtifact()->afterRead(_build, getCommand(), ref);
     }
   });
 }
@@ -1079,13 +1105,17 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
     return;
   }
 
+  // We're making a reference to a symlink, so don't follow links
+  auto ref = makePathRef(pathname, AccessFlags{.nofollow = true, .type = AccessType::Symlink}, dfd);
+
+  // If the reference resolves, record a pre-read dependency
+  if (ref->isResolved()) {
+    ref->getArtifact()->beforeRead(_build, getCommand(), ref);
+  }
+
   // Finish the syscall and then resume the process
   finishSyscall([=](long rc) {
     resume();
-
-    // We're making a reference to a symlink, so don't follow links
-    auto ref =
-        makePathRef(pathname, AccessFlags{.nofollow = true, .type = AccessType::Symlink}, dfd);
 
     // Did the call succeed?
     if (rc >= 0) {
@@ -1095,7 +1125,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      _build.traceMatchContent(getCommand(), ref);
+      ref->getArtifact()->afterRead(_build, getCommand(), ref);
 
     } else {
       // No. Record the failure
@@ -1118,17 +1148,13 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
   auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
 
   // Get a reference to the entry itself
-  auto entry_ref =
-      makePathRef(pathname,
-                  AccessFlags{.nofollow = true,
-                              .type = flags.removedir() ? AccessType::Dir : AccessType::NotDir},
-                  dfd);
+  auto access_type = flags.removedir() ? AccessType::Dir : AccessType::NotDir;
+  auto entry_ref = makePathRef(pathname, AccessFlags{.nofollow = true, .type = access_type}, dfd);
 
   // If this call is removing a directory, depend on the directory contents
-  if (entry_ref->isResolved()) {
-    if (auto dir = entry_ref->getArtifact()->as<DirArtifact>()) {
-      _build.traceMatchContent(getCommand(), entry_ref);
-    }
+  if (entry_ref->isResolved() && flags.removedir()) {
+    entry_ref->getArtifact()->beforeRead(_build, getCommand(), entry_ref);
+    entry_ref->getArtifact()->afterRead(_build, getCommand(), entry_ref);
   }
 
   finishSyscall([=](long rc) {
@@ -1312,7 +1338,8 @@ void Thread::_execveat(at_fd dfd,
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
     // The child command depends on the contents of the executable
-    _build.traceMatchContent(getCommand(), child_exe_ref);
+    child_exe_ref->getArtifact()->beforeRead(_build, getCommand(), child_exe_ref);
+    child_exe_ref->getArtifact()->afterRead(_build, getCommand(), child_exe_ref);
   });
 }
 

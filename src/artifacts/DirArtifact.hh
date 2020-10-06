@@ -52,12 +52,34 @@ class DirArtifact final : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(Build& build, fs::path path) noexcept override;
 
-  /************ Directory Operations ************/
+  /************ Content Operations ************/
+
+  /// A traced command is about to (possibly) read from this artifact
+  virtual void beforeRead(Build& build,
+                          shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref) noexcept override;
+
+  /// A traced command just read from this artifact
+  virtual void afterRead(Build& build,
+                         shared_ptr<Command> c,
+                         shared_ptr<RefResult> ref) noexcept override;
+
+  /// A traced command is about to (possibly) write to this artifact
+  virtual void beforeWrite(Build& build,
+                           shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref) noexcept override;
+
+  /// A trace command just wrote to this artifact
+  virtual void afterWrite(Build& build,
+                          shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref) noexcept override;
 
   /// Get a version that lists all the entries in this directory
   virtual shared_ptr<Version> getContent(Build& build,
                                          shared_ptr<Command> c,
                                          InputType t) noexcept override;
+
+  /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
   virtual shared_ptr<DirVersion> addEntry(Build& build,
