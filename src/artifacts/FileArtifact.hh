@@ -49,7 +49,7 @@ class FileArtifact : public Artifact {
   /// Mark all versions of this artifact as committed
   virtual void setCommitted() noexcept override;
 
-  /************ Content Operations ************/
+  /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
@@ -71,13 +71,22 @@ class FileArtifact : public Artifact {
                           shared_ptr<Command> c,
                           shared_ptr<RefResult> ref) noexcept override;
 
+  /// A traced command is about to (possibly) truncate this artifact to length zero
+  virtual void beforeTruncate(Build& build,
+                              shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref) noexcept override;
+
+  /// A trace command just truncated this artifact to length zero
+  virtual void afterTruncate(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref) noexcept override;
+
+  /************ Content Operations ************/
+
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
                             shared_ptr<Version> expected) noexcept override;
-
-  /// Create a new version to track updated contents for this artifact
-  virtual shared_ptr<Version> createContentVersion() noexcept override;
 
   /// Apply a new content version to this artifact
   virtual void updateContent(Build& build,

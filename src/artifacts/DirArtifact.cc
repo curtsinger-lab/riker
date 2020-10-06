@@ -175,20 +175,6 @@ void DirArtifact::afterRead(Build& build,
   build.traceMatchContent(c, ref, getList(build, c));
 }
 
-/// A traced command is about to (possibly) write to this artifact
-void DirArtifact::beforeWrite(Build& build,
-                              shared_ptr<Command> c,
-                              shared_ptr<RefResult> ref) noexcept {
-  FAIL << "A traced command is attempting to write to a directory.";
-}
-
-/// A trace command just wrote to this artifact
-void DirArtifact::afterWrite(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref) noexcept {
-  FAIL << "A traced command attempted to write to a directory.";
-}
-
 /// Check to see if this artifact's content matches a known version
 void DirArtifact::matchContent(Build& build,
                                shared_ptr<Command> c,

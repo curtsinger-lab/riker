@@ -52,7 +52,7 @@ class DirArtifact final : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(Build& build, fs::path path) noexcept override;
 
-  /************ Content Operations ************/
+  /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
@@ -63,16 +63,6 @@ class DirArtifact final : public Artifact {
   virtual void afterRead(Build& build,
                          shared_ptr<Command> c,
                          shared_ptr<RefResult> ref) noexcept override;
-
-  /// A traced command is about to (possibly) write to this artifact
-  virtual void beforeWrite(Build& build,
-                           shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept override;
-
-  /// A trace command just wrote to this artifact
-  virtual void afterWrite(Build& build,
-                          shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,

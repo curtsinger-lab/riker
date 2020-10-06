@@ -169,7 +169,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
       shared_ptr<Command> c,
       shared_ptr<MetadataVersion> writing = nullptr) noexcept;
 
-  /************ Content Operations ************/
+  /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
@@ -184,27 +184,35 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
                            shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept = 0;
+                           shared_ptr<RefResult> ref) noexcept {
+    FAIL << c << " attempted to write " << this;
+  }
 
   /// A trace command just wrote to this artifact
-  virtual void afterWrite(Build& build,
-                          shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept = 0;
+  virtual void afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+    FAIL << c << " attempted to write " << this;
+  }
+
+  /// A traced command is about to (possibly) truncate this artifact to length zero
+  virtual void beforeTruncate(Build& build,
+                              shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref) noexcept {
+    FAIL << c << " attempted to truncate " << this;
+  }
+
+  /// A trace command just truncated this artifact to length zero
+  virtual void afterTruncate(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<RefResult> ref) noexcept {
+    FAIL << c << " attempted to truncate " << this;
+  }
+
+  /************ Content Operations ************/
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
                             shared_ptr<Version> expected) noexcept = 0;
-
-  /**
-   * Create a new version to track updated content for this artifact
-   * This method does NOT apply the new version to this artifact; it just creates a version that
-   * can be used to track updated content.
-   */
-  virtual shared_ptr<Version> createContentVersion() noexcept {
-    FAIL << "Attempted to create default content version for unsupported artifact " << this;
-    return nullptr;
-  }
 
   /// Update this artifact's content with a file version
   virtual void updateContent(Build& build,

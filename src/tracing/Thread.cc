@@ -235,6 +235,11 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
   auto ref_flags = AccessFlags::fromOpen(flags, mode);
   auto ref = makePathRef(filename, ref_flags, dfd);
 
+  // If this call might truncate the file, call the pre-truncate method on the artifact
+  if (ref->isResolved() && ref_flags.truncate) {
+    ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
+  }
+
   // Allow the syscall to finish
   finishSyscall([=](long fd) {
     // Let the process continue
@@ -258,8 +263,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
         if (ref_flags.truncate) {
-          auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
-          _build.traceUpdateContent(getCommand(), ref, written);
+          ref->getArtifact()->afterTruncate(_build, getCommand(), ref);
         }
 
         // Record the reference in the correct location in this process' file descriptor table
@@ -771,8 +775,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
 
     } else {
       // Yes. There is no dependency on the prior contents.
-      // TODO: Track this with a beforeTruncate call
-      // ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
+      ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
     }
 
     finishSyscall([=](long rc) {
@@ -783,8 +786,11 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
 
       // If the syscall succeeded, finish the write
       if (rc == 0) {
-        // TODO: call afterTruncate if this is a complete truncation
-        ref->getArtifact()->afterWrite(_build, getCommand(), ref);
+        if (length > 0) {
+          ref->getArtifact()->afterWrite(_build, getCommand(), ref);
+        } else {
+          ref->getArtifact()->afterTruncate(_build, getCommand(), ref);
+        }
       }
     });
   }
@@ -800,8 +806,7 @@ void Thread::_ftruncate(int fd, long length) noexcept {
   if (length > 0) {
     ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
   } else {
-    // TODO: call beforeTruncate once it exists
-    // ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
+    ref->getArtifact()->beforeTruncate(_build, getCommand(), ref);
   }
 
   // Finish the syscall and resume the process
@@ -810,8 +815,11 @@ void Thread::_ftruncate(int fd, long length) noexcept {
 
     if (rc == 0) {
       // Record the update to the artifact contents
-      ref->getArtifact()->afterWrite(_build, getCommand(), ref);
-      // TODO: call afterTruncate
+      if (length > 0) {
+        ref->getArtifact()->afterWrite(_build, getCommand(), ref);
+      } else {
+        ref->getArtifact()->afterTruncate(_build, getCommand(), ref);
+      }
     }
   });
 }

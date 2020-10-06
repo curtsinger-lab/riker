@@ -140,12 +140,32 @@ void FileArtifact::beforeWrite(Build& build,
   build.traceMatchContent(c, ref, _content_version);
 }
 
-/// A trace command just wrote to this artifact
+/// A traced command just wrote to this artifact
 void FileArtifact::afterWrite(Build& build,
                               shared_ptr<Command> c,
                               shared_ptr<RefResult> ref) noexcept {
+  // Create a new version
+  auto writing = make_shared<FileVersion>();
+
   // The command wrote to this file
-  build.traceUpdateContent(c, ref);
+  build.traceUpdateContent(c, ref, writing);
+}
+
+/// A traced command is about to truncate this artifact to length 0
+void FileArtifact::beforeTruncate(Build& build,
+                                  shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref) noexcept {
+  // Do nothing before a truncate
+}
+
+/// A trace command just truncated this artifact to length 0
+void FileArtifact::afterTruncate(Build& build,
+                                 shared_ptr<Command> c,
+                                 shared_ptr<RefResult> ref) noexcept {
+  // The command wrote an empty content version to this artifact
+  auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
+
+  build.traceUpdateContent(c, ref, written);
 }
 
 /// Check to see if this artifact's content matches a known version
@@ -160,11 +180,6 @@ void FileArtifact::matchContent(Build& build,
     // Report the mismatch
     build.observeMismatch(c, shared_from_this(), _content_version, expected);
   }
-}
-
-/// Create a new version to hold contents for this artifact
-shared_ptr<Version> FileArtifact::createContentVersion() noexcept {
-  return make_shared<FileVersion>();
 }
 
 /// Apply a new content version to this artifact

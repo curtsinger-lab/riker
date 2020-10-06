@@ -32,20 +32,6 @@ void SymlinkArtifact::afterRead(Build& build,
   build.traceMatchContent(c, ref, _symlink_version);
 }
 
-/// A traced command is about to (possibly) write to this artifact
-void SymlinkArtifact::beforeWrite(Build& build,
-                                  shared_ptr<Command> c,
-                                  shared_ptr<RefResult> ref) noexcept {
-  FAIL << "A traced command tried to write to a symlink";
-}
-
-/// A trace command just wrote to this artifact
-void SymlinkArtifact::afterWrite(Build& build,
-                                 shared_ptr<Command> c,
-                                 shared_ptr<RefResult> ref) noexcept {
-  FAIL << "A traced command tried to write to a symlink";
-}
-
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(Build& build,
                                    shared_ptr<Command> c,

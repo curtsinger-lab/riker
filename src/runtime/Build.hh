@@ -229,7 +229,7 @@ class Build : public TraceHandler {
   /// A command writes a new version to an artifact
   void traceUpdateContent(shared_ptr<Command> c,
                           shared_ptr<RefResult> ref,
-                          shared_ptr<Version> written = nullptr) noexcept;
+                          shared_ptr<Version> written) noexcept;
 
   /// Handle an AddEntry IR step
   void traceAddEntry(shared_ptr<Command> command,

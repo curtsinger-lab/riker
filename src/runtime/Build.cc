@@ -862,9 +862,8 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
     return;
   }
 
-  // If a written version was not provided, ask the artifact for one
-  if (!written) written = artifact->createContentVersion();
-  ASSERT(written) << "Failed to get written version for " << artifact;
+  // Make sure we were given a version to write
+  ASSERT(written) << "Attempted to write null version to " << artifact;
 
   // Create an IR step and add it to the output trace
   _output_trace.updateContent(c, ref, written);
