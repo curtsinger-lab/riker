@@ -1,6 +1,6 @@
 CC  = clang
 CXX = clang++
-MAKEFLAGS += -j
+MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
 COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O3
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
@@ -32,7 +32,7 @@ dodo-launch: launch/launch.c
 test: dodo dodo-launch
 	@echo "Running test cases"
 	@rm -f tests/*/*.t.err
-	@DODO="$(PWD)/dodo" time -f"Tests ran in %e seconds" cram --quiet tests/*/*.t || ( \
+	@DODO="$(PWD)/dodo" MAKEFLAGS="" time -f"Tests ran in %e seconds" cram --quiet tests/*/*.t || ( \
 		echo "\nFailed tests:" && \
 		for fail in `find tests | grep .t.err | xargs -L 1 dirname | xargs -L 1 basename | uniq`; do \
 		  echo -n "  $$fail ("; \
