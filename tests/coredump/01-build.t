@@ -17,3 +17,6 @@ Run the abort program; dodo should eventually print 'core exists' and not die be
 
 Clean up
   $ rm -rf .dodo core abort
+
+SKIP! This test doesn't work yet
+  $ exit 80
