@@ -71,10 +71,10 @@ class FileArtifact : public Artifact {
                           shared_ptr<Command> c,
                           shared_ptr<RefResult> ref) noexcept override;
 
-  /// Get the current content version for this artifact
-  virtual shared_ptr<Version> getContent(Build& build,
-                                         shared_ptr<Command> c,
-                                         InputType t) noexcept override;
+  /// Check to see if this artifact's content matches a known version
+  virtual void matchContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<Version> expected) noexcept override;
 
   /// Create a new version to track updated contents for this artifact
   virtual shared_ptr<Version> createContentVersion() noexcept override;

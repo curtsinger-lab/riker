@@ -250,20 +250,6 @@ void Artifact::matchMetadata(Build& build,
   }
 }
 
-/// Check to see if this artifact's content matches a known version
-void Artifact::matchContent(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<Version> expected) noexcept {
-  // Get the current metadata
-  auto observed = getContent(build, c, InputType::Accessed);
-
-  // Compare versions
-  if (!observed->matches(expected)) {
-    // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), observed, expected);
-  }
-}
-
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
                                                      shared_ptr<Command> c,

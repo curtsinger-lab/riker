@@ -191,15 +191,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                           shared_ptr<Command> c,
                           shared_ptr<RefResult> ref) noexcept = 0;
 
-  /// Get the current content version for this artifact
-  virtual shared_ptr<Version> getContent(Build& build,
-                                         shared_ptr<Command> c,
-                                         InputType t) noexcept = 0;
-
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
-                            shared_ptr<Version> expected) noexcept;
+                            shared_ptr<Version> expected) noexcept = 0;
 
   /**
    * Create a new version to track updated content for this artifact

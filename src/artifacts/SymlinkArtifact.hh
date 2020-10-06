@@ -69,10 +69,10 @@ class SymlinkArtifact : public Artifact {
                           shared_ptr<Command> c,
                           shared_ptr<RefResult> ref) noexcept override;
 
-  /// Get the current symlink version of this artifact
-  virtual shared_ptr<Version> getContent(Build& build,
-                                         shared_ptr<Command> c,
-                                         InputType t) noexcept override;
+  /// Check to see if this artifact's content matches a known version
+  virtual void matchContent(Build& build,
+                            shared_ptr<Command> c,
+                            shared_ptr<Version> expected) noexcept override;
 
   /************ Symlink Operations ************/
 

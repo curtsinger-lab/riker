@@ -219,7 +219,9 @@ class Build : public TraceHandler {
   void traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
-  void traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  void traceMatchContent(shared_ptr<Command> c,
+                         shared_ptr<RefResult> ref,
+                         shared_ptr<Version> expected) noexcept;
 
   /// A command modifies the metadata for an artifact
   void traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult>) noexcept;

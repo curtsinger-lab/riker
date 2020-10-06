@@ -785,7 +785,9 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
 }
 
 // Command c accesses an artifact's content
-void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::traceMatchContent(shared_ptr<Command> c,
+                              shared_ptr<RefResult> ref,
+                              shared_ptr<Version> expected) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -793,9 +795,7 @@ void Build::traceMatchContent(shared_ptr<Command> c, shared_ptr<RefResult> ref) 
   auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to access content through an unresolved reference " << ref;
 
-  // Get the current content of the artifact
-  auto expected = artifact->getContent(*this, c, InputType::Accessed);
-  ASSERT(expected) << "Unable to get content from " << artifact;
+  ASSERT(expected) << "Attempted to match contenet of " << artifact << " against a null version";
 
   // If this access is from the same command and reference as the last write, and the versions are
   // the same, skip the trace step

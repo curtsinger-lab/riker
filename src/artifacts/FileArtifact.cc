@@ -122,16 +122,22 @@ void FileArtifact::beforeRead(Build& build,
 void FileArtifact::afterRead(Build& build,
                              shared_ptr<Command> c,
                              shared_ptr<RefResult> ref) noexcept {
+  // The current content version is an input to command c
+  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref);
+  build.traceMatchContent(c, ref, _content_version);
 }
 
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build,
                                shared_ptr<Command> c,
                                shared_ptr<RefResult> ref) noexcept {
+  // The content version is an input to command c
+  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref);
+  build.traceMatchContent(c, ref, _content_version);
 }
 
 /// A trace command just wrote to this artifact
@@ -142,15 +148,18 @@ void FileArtifact::afterWrite(Build& build,
   build.traceUpdateContent(c, ref);
 }
 
-/// Get the current content version for this artifact
-shared_ptr<Version> FileArtifact::getContent(Build& build,
-                                             shared_ptr<Command> c,
-                                             InputType t) noexcept {
-  // Notify the build of the input
-  build.observeInput(c, shared_from_this(), _content_version, t);
+/// Check to see if this artifact's content matches a known version
+void FileArtifact::matchContent(Build& build,
+                                shared_ptr<Command> c,
+                                shared_ptr<Version> expected) noexcept {
+  // The content version is an input to command c
+  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
 
-  // Return the metadata version
-  return _content_version;
+  // Compare the current content version to the expected version
+  if (!_content_version->matches(expected)) {
+    // Report the mismatch
+    build.observeMismatch(c, shared_from_this(), _content_version, expected);
+  }
 }
 
 /// Create a new version to hold contents for this artifact

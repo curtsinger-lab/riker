@@ -172,7 +172,7 @@ void DirArtifact::afterRead(Build& build,
                             shared_ptr<Command> c,
                             shared_ptr<RefResult> ref) noexcept {
   // The command now depends on the content of this directory
-  build.traceMatchContent(c, ref);
+  build.traceMatchContent(c, ref, getList(build, c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
@@ -189,10 +189,22 @@ void DirArtifact::afterWrite(Build& build,
   FAIL << "A traced command attempted to write to a directory.";
 }
 
+/// Check to see if this artifact's content matches a known version
+void DirArtifact::matchContent(Build& build,
+                               shared_ptr<Command> c,
+                               shared_ptr<Version> expected) noexcept {
+  // Get a list of entries in this directory
+  auto observed = getList(build, c);
+
+  // Compare the observed and expected versions
+  if (!observed->matches(expected)) {
+    // Report the mismatch
+    build.observeMismatch(c, shared_from_this(), observed, expected);
+  }
+}
+
 // Get a version that lists all the entries in this directory
-shared_ptr<Version> DirArtifact::getContent(Build& build,
-                                            shared_ptr<Command> c,
-                                            InputType t) noexcept {
+shared_ptr<DirListVersion> DirArtifact::getList(Build& build, shared_ptr<Command> c) noexcept {
   // Create a DirListVersion to hold the list of directory entries
   auto result = make_shared<DirListVersion>();
 
@@ -211,7 +223,7 @@ shared_ptr<Version> DirArtifact::getContent(Build& build,
   }
 
   // The command listing this directory depends on its base version
-  build.observeInput(c, shared_from_this(), _base_dir_version, t);
+  build.observeInput(c, shared_from_this(), _base_dir_version, InputType::Accessed);
 
   for (auto [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -228,7 +240,7 @@ shared_ptr<Version> DirArtifact::getContent(Build& build,
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    build.observeInput(c, shared_from_this(), version, t);
+    build.observeInput(c, shared_from_this(), version, InputType::Accessed);
   }
 
   return result;

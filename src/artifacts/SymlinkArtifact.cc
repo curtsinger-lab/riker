@@ -29,7 +29,7 @@ void SymlinkArtifact::afterRead(Build& build,
                                 shared_ptr<Command> c,
                                 shared_ptr<RefResult> ref) noexcept {
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref);
+  build.traceMatchContent(c, ref, _symlink_version);
 }
 
 /// A traced command is about to (possibly) write to this artifact
@@ -46,15 +46,18 @@ void SymlinkArtifact::afterWrite(Build& build,
   FAIL << "A traced command tried to write to a symlink";
 }
 
-// Get the current symlink version of this artifact
-shared_ptr<Version> SymlinkArtifact::getContent(Build& build,
-                                                shared_ptr<Command> c,
-                                                InputType t) noexcept {
-  // Notify the build of the input
-  build.observeInput(c, shared_from_this(), _symlink_version, t);
+/// Check to see if this artifact's content matches a known version
+void SymlinkArtifact::matchContent(Build& build,
+                                   shared_ptr<Command> c,
+                                   shared_ptr<Version> expected) noexcept {
+  // The symlink version is an input to command c
+  build.observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
 
-  // Return the metadata version
-  return _symlink_version;
+  // Compare the symlink version to the expected version
+  if (!_symlink_version->matches(expected)) {
+    // Report the mismatch
+    build.observeMismatch(c, shared_from_this(), _symlink_version, expected);
+  }
 }
 
 bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
