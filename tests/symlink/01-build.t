@@ -5,6 +5,9 @@ Clean up any leftover state
   $ rm -rf .dodo
   $ rm -f dir1/output dir2/output
 
+Setup
+  $ mkdir -p dir1 dir2
+
 Make sure link is a symlink to dir1
   $ rm -f link
   $ ln -s dir1 link
@@ -31,4 +34,4 @@ Check the output again
   Appended to dir1/output
 
 Clean up
-  $ rm -rf .dodo dir1/output dir2/output
+  $ rm -rf .dodo dir1 dir2
