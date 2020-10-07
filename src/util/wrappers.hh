@@ -64,11 +64,17 @@ inline const set<gid_t>& getgroups() noexcept {
 
 inline string getErrorName(int err) noexcept {
   // Set up a map from return codes to names
-  static map<int8_t, string> errors = {{0, "SUCCESS"},       {EACCES, "EACCES"},
-                                       {EDQUOT, "EDQUOT"},   {EEXIST, "EEXIST"},
-                                       {EINVAL, "EINVAL"},   {EISDIR, "EISDIR"},
-                                       {ELOOP, "ELOOP"},     {ENOENT, "ENOENT"},
-                                       {ENOTDIR, "ENOTDIR"}, {ENAMETOOLONG, "ENAMETOOLONG"}};
+  static map<int8_t, string> errors = {{0, "SUCCESS"},
+                                       {EACCES, "EACCES"},
+                                       {EDQUOT, "EDQUOT"},
+                                       {EEXIST, "EEXIST"},
+                                       {EINVAL, "EINVAL"},
+                                       {EISDIR, "EISDIR"},
+                                       {ELOOP, "ELOOP"},
+                                       {ENOENT, "ENOENT"},
+                                       {ENOEXEC, "ENOEXEC"},
+                                       {ENOTDIR, "ENOTDIR"},
+                                       {ENAMETOOLONG, "ENAMETOOLONG"}};
 
   auto iter = errors.find(err);
   if (iter == errors.end()) {

@@ -4,6 +4,9 @@ Move to test directory
 Clean up any leftover state
   $ rm -rf .dodo hello
 
+Copy in the original version of hello.c
+  $ cp file_versions/hello-original.c hello.c
+
 Touch the hello file for now, since make will stat it
   $ touch hello
 

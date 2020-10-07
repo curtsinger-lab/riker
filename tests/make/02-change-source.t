@@ -4,6 +4,9 @@ Move to test directory
 Clean up any leftover state
   $ rm -rf .dodo hello
 
+Copy in the original version of hello.c
+  $ cp file_versions/hello-original.c hello.c
+
 Touch the hello file, since make will stat it
   $ touch hello
 
@@ -23,8 +26,7 @@ Run the hello executable
   Hello world
 
 Edit the hello.c file
-  $ cp hello.c saved-hello.c
-  $ cp goodbye.c hello.c
+  $ cp file_versions/hello-modified.c hello.c
 
 Run a rebuild
   $ $DODO --show
@@ -45,8 +47,8 @@ Make sure the output is still there
   Goodbye world
 
 Clean up
-  $ mv saved-hello.c hello.c
+  $ cp file_versions/hello-original.c hello.c
   $ rm -rf .dodo hello
 
-SKIP! This test does not work yet. The post-edit build reruns make.
+SKIP! The make command will stat the final output file, so rebuilds that run ld will always rerun make.
   $ exit 80
