@@ -42,6 +42,9 @@ fs::path Thread::getPath(at_fd fd) const noexcept {
 shared_ptr<RefResult> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
+    // HACK: Remove the O_EXCL flag when creating files in /tmp
+    if (p.string().find("/tmp/") == 0) flags.exclusive = false;
+
     return _build.tracePathRef(getCommand(), _process->getRoot(), p.relative_path(), flags);
   }
 
@@ -509,12 +512,12 @@ void Thread::_fstatat(at_fd dirfd,
     return;
 
   } else {
+    // Make the reference
+    auto ref = makePathRef(pathname, AccessFlags::fromStat(flags), dirfd);
+
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
       resume();
-
-      // Make the reference
-      auto ref = makePathRef(pathname, AccessFlags::fromStat(flags), dirfd);
 
       if (rc == 0) {
         // The stat succeeded

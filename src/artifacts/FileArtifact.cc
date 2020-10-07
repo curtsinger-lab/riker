@@ -55,6 +55,8 @@ bool FileArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
+  LOG(artifact) << "Committing " << this;
+
   // we may have already committed this artifact
   if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
 

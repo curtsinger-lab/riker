@@ -245,7 +245,6 @@ Resolution DirArtifact::resolve(Build& build,
 
   // If this is the last entry on the path, resolution reaches this artifact
   if (current == end) {
-    LOG(artifact) << "End of resolution in " << this;
     // If the requested access is not allowed, return EACCES
     if (!checkAccess(build, c, flags)) return EACCES;
 
