@@ -11,12 +11,36 @@ using std::shared_ptr;
 class Command;
 class Env;
 
-PipeArtifact::PipeArtifact(shared_ptr<Env> env,
-                           shared_ptr<MetadataVersion> mv,
-                           shared_ptr<FileVersion> cv) noexcept :
-    Artifact(env, mv) {
-  appendVersion(cv);
-  _content_version = cv;
+// Check if a written pipe version matches another version
+bool PipeWriteVersion::matches(shared_ptr<Version> other) const noexcept {
+  return other->as<PipeWriteVersion>().get() == this;
+}
+
+// Check if a read pipe version matches another version
+bool PipeReadVersion::matches(shared_ptr<Version> other) const noexcept {
+  // Cast the other version to a PipeReadVersion
+  auto r = other->as<PipeReadVersion>();
+  if (!r) return false;
+
+  // Are the two versions the same instance?
+  if (r.get() == this) return true;
+
+  // Do the two sets of reads observe the same number of writes?
+  if (_observed.size() != r->_observed.size()) return false;
+
+  // Walk through and compare all the observed writes
+  auto self_iter = _observed.begin();
+  auto other_iter = r->_observed.begin();
+
+  while (self_iter != _observed.end()) {
+    auto self_write = *self_iter;
+    auto other_write = *other_iter;
+    if (!self_write->matches(other_write)) return false;
+    self_iter++;
+    other_iter++;
+  }
+
+  return true;
 }
 
 // Can a specific version of this artifact be committed?
@@ -26,18 +50,33 @@ bool PipeArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 
 // Can this artifact be fully committed?
 bool PipeArtifact::canCommitAll() const noexcept {
-  return _metadata_version->isCommitted() && _content_version->isCommitted();
+  if (!_metadata_version->isCommitted()) return false;
+  if (_last_read && !_last_read->isCommitted()) return false;
+  for (auto write : _writes) {
+    if (!write->isCommitted()) return false;
+  }
+  return true;
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
 void PipeArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
+
+  // If there is a last read version, it must exist
+  if (_last_read) build.observeInput(c, shared_from_this(), _last_read, InputType::Exists);
+
+  for (auto write : _writes) {
+    build.observeInput(c, shared_from_this(), write, InputType::Exists);
+  }
 }
 
 // Mark all versions of this artifact as committed
 void PipeArtifact::setCommitted() noexcept {
-  _content_version->setCommitted(true);
+  if (_last_read) _last_read->setCommitted(true);
+  for (auto& write : _writes) {
+    write->setCommitted(true);
+  }
+
   Artifact::setCommitted();
 }
 
@@ -45,22 +84,19 @@ void PipeArtifact::setCommitted() noexcept {
 void PipeArtifact::afterRead(Build& build,
                              shared_ptr<Command> c,
                              shared_ptr<RefResult> ref) noexcept {
-  // The current content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  // The reading command depends on the last read
+  if (_last_read) build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
 
-  // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, _content_version);
-}
+  // Create a new version to track this read
+  auto read_version = make_shared<PipeReadVersion>(_writes);
 
-// A traced command is about to (possibly) write to this artifact
-void PipeArtifact::beforeWrite(Build& build,
-                               shared_ptr<Command> c,
-                               shared_ptr<RefResult> ref) noexcept {
-  // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  LOG(artifact) << "Creating pipe read version " << read_version;
 
-  // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, _content_version);
+  // The reader updates this pipe with the read version
+  build.traceUpdateContent(c, ref, read_version);
+
+  // The command should expect to read an equivalent version on future builds
+  build.traceMatchContent(c, ref, read_version);
 }
 
 // A trace command just wrote to this artifact
@@ -68,9 +104,9 @@ void PipeArtifact::afterWrite(Build& build,
                               shared_ptr<Command> c,
                               shared_ptr<RefResult> ref) noexcept {
   // Create a new version
-  auto writing = make_shared<FileVersion>();
+  auto writing = make_shared<PipeWriteVersion>();
 
-  // The command wrote to this file
+  // The command writes this version to the pipe
   build.traceUpdateContent(c, ref, writing);
 }
 
@@ -78,13 +114,16 @@ void PipeArtifact::afterWrite(Build& build,
 void PipeArtifact::matchContent(Build& build,
                                 shared_ptr<Command> c,
                                 shared_ptr<Version> expected) noexcept {
-  // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  // If nothing has been read from this pipe, there can be no match
+  if (!_last_read) build.observeMismatch(c, shared_from_this(), nullptr, expected);
+
+  // The command depends on the last read version
+  build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
 
   // Compare the current content version to the expected version
-  if (!_content_version->matches(expected)) {
+  if (!_last_read->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), _content_version, expected);
+    build.observeMismatch(c, shared_from_this(), _last_read, expected);
   }
 }
 
@@ -92,13 +131,30 @@ void PipeArtifact::matchContent(Build& build,
 void PipeArtifact::updateContent(Build& build,
                                  shared_ptr<Command> c,
                                  shared_ptr<Version> writing) noexcept {
-  // Add the new version to this artifact
+  // Append the new version to the list of versions
   appendVersion(writing);
-  _content_version = writing->as<FileVersion>();
-
-  FAIL_IF(!_content_version) << "Attempted to apply version " << writing << " to file artifact "
-                             << this;
 
   // Report the output to the build
   build.observeOutput(c, shared_from_this(), writing);
+
+  // Is the written version a pipe write or pipe read?
+  if (auto read = writing->as<PipeReadVersion>()) {
+    // Set the last read version and clear the list of writes
+    _last_read = read;
+
+    // The reading command depends on all writes since the last read
+    for (auto write : _writes) {
+      build.observeInput(c, shared_from_this(), write, InputType::Accessed);
+    }
+
+    // Clear the list of unread writes
+    _writes.clear();
+
+  } else if (auto write = writing->as<PipeWriteVersion>()) {
+    // Add this write to the list of un-read writes
+    _writes.push_back(write);
+
+  } else {
+    FAIL << "Unsupported pipe version type " << writing;
+  }
 }

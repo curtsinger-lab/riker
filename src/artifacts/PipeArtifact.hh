@@ -1,15 +1,69 @@
 #pragma once
 
+#include <list>
+#include <memory>
+#include <string>
+
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
-#include "versions/FileVersion.hh"
+#include "util/serializer.hh"
+#include "versions/Version.hh"
+
+using std::list;
+using std::shared_ptr;
+using std::string;
+
+class Build;
+class Command;
+class RefResult;
+
+class PipeWriteVersion : public Version {
+ public:
+  /// Create a new version to track a write to a pipe
+  PipeWriteVersion() noexcept : Version() {}
+
+  /// Get a short name for this version type
+  virtual string getTypeName() const noexcept override { return "pipe write"; }
+
+  /// Check if a written pipe version matches another
+  virtual bool matches(shared_ptr<Version> other) const noexcept override;
+
+  /// Print this version
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe write]"; }
+
+ private:
+  SERIALIZE(BASE(Version));
+};
+
+class PipeReadVersion : public Version {
+ public:
+  /// Create a new version that tracks a read from a pipe. The read observes some number of writes.
+  PipeReadVersion(list<shared_ptr<PipeWriteVersion>> observed) noexcept : _observed(observed) {}
+
+  /// Get a short name for this version type
+  virtual string getTypeName() const noexcept override { return "pipe read"; }
+
+  /// Check if a read pipe version matches another
+  virtual bool matches(shared_ptr<Version> other) const noexcept override;
+
+  /// Print this version
+  virtual ostream& print(ostream& o) const noexcept override {
+    return o << "[pipe read " << _observed.size() << "]";
+  }
+
+ private:
+  /// The list of writes this read version observes
+  list<shared_ptr<PipeWriteVersion>> _observed;
+
+  // Create default constructor and declare fields for serialization
+  PipeReadVersion() noexcept = default;
+  SERIALIZE(BASE(Version), _observed);
+};
 
 class PipeArtifact : public Artifact {
  public:
-  PipeArtifact(shared_ptr<Env> env,
-               shared_ptr<MetadataVersion> mv,
-               shared_ptr<FileVersion> cv) noexcept;
+  PipeArtifact(shared_ptr<Env> env, shared_ptr<MetadataVersion> mv) noexcept : Artifact(env, mv) {}
 
   /************ Core Artifact Operations ************/
 
@@ -55,7 +109,7 @@ class PipeArtifact : public Artifact {
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
                            shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept override;
+                           shared_ptr<RefResult> ref) noexcept override {}
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
@@ -102,8 +156,11 @@ class PipeArtifact : public Artifact {
   }
 
  private:
-  // The current version of the pipe's content
-  shared_ptr<FileVersion> _content_version;
+  /// The version that tracks the most recent read from this pipe
+  shared_ptr<PipeReadVersion> _last_read = nullptr;
+
+  /// The versions that have been written to this pipe since the last read
+  list<shared_ptr<PipeWriteVersion>> _writes;
 
   // File descriptors for an actual opened pipe
   int _read_fd = -1;

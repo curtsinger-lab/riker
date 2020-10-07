@@ -156,18 +156,12 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, shared_ptr<Command> c) noexc
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
   mv->setCommitted();
 
-  auto cv = make_shared<FileVersion>(FileFingerprint::makeEmpty());
-  cv->setCommitted();
-
-  auto pipe = make_shared<PipeArtifact>(shared_from_this(), mv, cv);
+  auto pipe = make_shared<PipeArtifact>(shared_from_this(), mv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c);
     build.observeOutput(c, pipe, mv);
-
-    cv->createdBy(c);
-    build.observeOutput(c, pipe, cv);
   }
 
   _artifacts.insert(pipe);

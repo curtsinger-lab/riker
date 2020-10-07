@@ -1,5 +1,6 @@
 #include "Record.hh"
 
+#include "artifacts/PipeArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/InputTrace.hh"
 #include "interfaces/TraceHandler.hh"
@@ -35,6 +36,8 @@ CEREAL_REGISTER_TYPE(MetadataVersion);
 CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 CEREAL_REGISTER_TYPE(DirListVersion);
+CEREAL_REGISTER_TYPE(PipeWriteVersion);
+CEREAL_REGISTER_TYPE(PipeReadVersion);
 
 // Read a command from an input trace
 void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {

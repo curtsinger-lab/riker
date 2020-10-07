@@ -54,11 +54,11 @@ void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
   // Is this input accessing the last write we observed? We care specifically about
-  auto& [write_command, write_ref, write_version] = _last_write;
+  /*auto& [write_command, write_ref, write_version] = _last_write;
   if (v == write_version && c != write_command) {
     // Yes. The version is now accessed, so clear the last write
     _last_write = {nullptr, nullptr, nullptr};
-  }
+  }*/
 
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
@@ -435,7 +435,7 @@ void Build::updateContent(shared_ptr<Command> c,
   ref->getArtifact()->updateContent(*this, c, written);
 
   // Save the last write
-  _last_write = {c, ref, written};
+  //_last_write = {c, ref, written};
 }
 
 /// Handle an AddEntry IR step
@@ -799,7 +799,7 @@ void Build::traceMatchContent(shared_ptr<Command> c,
 
   // If this access is from the same command and reference as the last write, and the versions are
   // the same, skip the trace step
-  if (_last_write == tuple{c, ref, expected}) return;
+  // if (_last_write == tuple{c, ref, expected}) return;
 
   // Create an IR step and add it to the output trace
   _output_trace.matchContent(c, ref, expected);
@@ -856,11 +856,11 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   ASSERT(artifact) << "Tried to write content through an unresolved reference " << ref;
 
   // Was the last write from the same command and reference?
-  auto [last_write_command, last_write_ref, last_write_version] = _last_write;
+  /*auto [last_write_command, last_write_ref, last_write_version] = _last_write;
   if (c == last_write_command && ref == last_write_ref && !last_write_version->hasFingerprint()) {
     // Yes. We can skip the trace step.
     return;
-  }
+  }*/
 
   // Make sure we were given a version to write
   ASSERT(written) << "Attempted to write null version to " << artifact;
@@ -881,7 +881,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref, written};
 
   // Update the last write record
-  _last_write = {c, ref, written};
+  //_last_write = {c, ref, written};
 }
 
 // A traced command is adding an entry to a directory
