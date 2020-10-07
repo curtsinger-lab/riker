@@ -85,11 +85,6 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-    FAIL << "Version " << this << " cannot be applied to an artifact";
-  }
-
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept = 0;
 

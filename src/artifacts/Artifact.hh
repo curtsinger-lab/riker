@@ -188,7 +188,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     FAIL << c << " attempted to write " << this;
   }
 
-  /// A trace command just wrote to this artifact
+  /// A traced command just wrote to this artifact
   virtual void afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
@@ -217,7 +217,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Update this artifact's content with a file version
   virtual void updateContent(Build& build,
                              shared_ptr<Command> c,
-                             shared_ptr<FileVersion> writing) noexcept {
+                             shared_ptr<Version> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 

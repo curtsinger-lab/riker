@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "artifacts/FileArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"

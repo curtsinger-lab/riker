@@ -91,7 +91,7 @@ class FileArtifact : public Artifact {
   /// Apply a new content version to this artifact
   virtual void updateContent(Build& build,
                              shared_ptr<Command> c,
-                             shared_ptr<FileVersion> writing) noexcept override;
+                             shared_ptr<Version> writing) noexcept override;
 
  private:
   /// The latest content version

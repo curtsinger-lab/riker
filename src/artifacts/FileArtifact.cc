@@ -185,11 +185,14 @@ void FileArtifact::matchContent(Build& build,
 /// Apply a new content version to this artifact
 void FileArtifact::updateContent(Build& build,
                                  shared_ptr<Command> c,
-                                 shared_ptr<FileVersion> writing) noexcept {
+                                 shared_ptr<Version> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
-  _content_version = writing;
+  _content_version = writing->as<FileVersion>();
+
+  FAIL_IF(!_content_version) << "Attempted to apply version " << writing << " to file artifact "
+                             << this;
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), _content_version);
+  build.observeOutput(c, shared_from_this(), writing);
 }

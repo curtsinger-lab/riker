@@ -432,7 +432,7 @@ void Build::updateContent(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Apply the write
-  written->applyTo(*this, c, ref->getArtifact());
+  ref->getArtifact()->updateContent(*this, c, written);
 
   // Save the last write
   _last_write = {c, ref, written};
@@ -875,7 +875,7 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   written->createdBy(c);
 
   // Update the artifact's content
-  written->applyTo(*this, c, artifact);
+  artifact->updateContent(*this, c, written);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref, written};

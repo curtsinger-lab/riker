@@ -86,9 +86,6 @@ class FileVersion final : public Version {
     return _fingerprint == other_file->_fingerprint;
   }
 
-  /// Apply this version to an artifact
-  virtual void applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept override;
-
   virtual ostream& print(ostream& o) const noexcept override {
     if (_fingerprint.has_value()) {
       return o << "[file content: " << _fingerprint.value() << "]";

@@ -44,8 +44,3 @@ void FileVersion::fingerprint(TraceHandler& handler, fs::path path) noexcept {
 
   if (rc == 0) _fingerprint = statbuf;
 }
-
-// Apply a FileVersion version to an artifact
-void FileVersion::applyTo(Build& b, shared_ptr<Command> c, shared_ptr<Artifact> a) noexcept {
-  a->updateContent(b, c, this->as<FileVersion>());
-}
