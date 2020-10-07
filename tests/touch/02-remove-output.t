@@ -8,7 +8,7 @@ Prepare for a clean run
 
 Run the first build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   touch f
 

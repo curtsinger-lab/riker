@@ -14,7 +14,7 @@ Make sure link is a symlink to dir1
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   cat input1
   cat input2

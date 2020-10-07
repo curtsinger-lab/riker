@@ -18,7 +18,7 @@ Touch the output file
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)

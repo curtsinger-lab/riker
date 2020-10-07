@@ -9,7 +9,7 @@ Setup
 
 Run dodo
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   File created with fd = 3
 

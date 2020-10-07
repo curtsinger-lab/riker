@@ -12,7 +12,7 @@ Touch the hello file, since make will stat it
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   make --always-make --quiet -j1
   gcc -o hello hello.c

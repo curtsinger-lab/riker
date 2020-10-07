@@ -35,7 +35,8 @@ namespace fs = std::filesystem;
 class InputTrace {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(fs::path filename) noexcept : _filename(filename) {}
+  InputTrace(fs::path buildfile, fs::path filename) noexcept :
+      _buildfile(buildfile), _filename(filename) {}
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -81,6 +82,9 @@ class InputTrace {
   void sendDefault(TraceHandler& handler) noexcept;
 
  private:
+  /// The path to the file that should be executed at the root of the build
+  fs::path _buildfile;
+
   /// The path to the loaded trace
   fs::path _filename;
 

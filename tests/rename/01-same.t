@@ -15,7 +15,7 @@ Set up the file1 and file2 links
 
 Run the first build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   sh Dodofile
   ./test
   rename("file2", "file2") failed

@@ -3,7 +3,7 @@ Move to test directory
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   ./A
   cat inputA

@@ -14,7 +14,7 @@ Create file1 and file2
 
 Run the first build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   sh Dodofile
   ./test
   rename("file1", "file1") failed

@@ -7,7 +7,7 @@ Clean up any leftover state
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   ((sort)|(uniq)) (re)
   ((sort)|(uniq)) (re)

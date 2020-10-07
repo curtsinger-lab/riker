@@ -16,7 +16,7 @@ Make sure link is a symlink to "HELLO"
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   readlink link
   cat link

@@ -37,13 +37,24 @@ const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 const fs::path NewDatabaseFilename = ".dodo/newdb";
 
-/// Run the `build` subcommand.
-void do_build() noexcept {
+/**
+ * Import build steps from another build system
+ * \returns The path to the generated build file
+ */
+fs::path do_import() {
+  return RootBuildCommand;
+}
+
+/**
+ * Run the `build` subcommand.
+ * \param buildfile The path to the file that should be executed at the root of the build
+ */
+void do_build(fs::path buildfile) noexcept {
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
   // Load a trace, or set up a default build if necessary
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(buildfile, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto planner = make_shared<RebuildPlanner>();
@@ -60,10 +71,11 @@ void do_build() noexcept {
 
 /**
  * Run the `check` subcommand
+ * \param buildfile The path to the file that should be executed at the root of the build
  */
-void do_check() noexcept {
+void do_check(fs::path buildfile) noexcept {
   // Load a build, or set up a default build if necessary
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(buildfile, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   auto planner = make_shared<RebuildPlanner>();
@@ -95,26 +107,31 @@ void do_check() noexcept {
 
 /**
  * Run the `trace` subcommand
- * \param output  The name of the output file, or "-" for stdout
+ * \param buildfile The path to the file that should be executed at the root of the build
+ * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(string output) noexcept {
+void do_trace(fs::path buildfile, string output) noexcept {
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace(DatabaseFilename).sendTo(TracePrinter(cout));
+    InputTrace(buildfile, DatabaseFilename).sendTo(TracePrinter(cout));
   } else {
-    InputTrace(DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
+    InputTrace(buildfile, DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
   }
 }
 
 /**
  * Run the `graph` subcommand
- * \param fingerprint The configuration the build should use for fingerprinting artifacts
+ * \param buildfile   The path to the file that should be executed at the root of the build
  * \param output      The name of the output file, or "-" for stdout
  * \param type        The type of output to produce
  * \param show_all    If true, include system files in the graph
  * \param no_render   If set, generate graphviz source instead of a rendered graph
  */
-void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
+void do_graph(fs::path buildfile,
+              string output,
+              string type,
+              bool show_all,
+              bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -123,7 +140,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(buildfile, DatabaseFilename);
 
   // Create a graph observer and emulate the build
   auto graph = make_shared<Graph>(show_all);
@@ -153,12 +170,12 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
 
 /**
  * Run the `stats` subcommand
- * \param fingerprint     The configuration the build should use for fingerprinting artifacts
+ * \param buildfile       The path to the file that should be executed at the root of the build
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(bool list_artifacts) noexcept {
+void do_stats(fs::path buildfile, bool list_artifacts) noexcept {
   // Load the serialized build trace
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(buildfile, DatabaseFilename);
 
   // Emulate the trace
   auto build = Build::emulate();
@@ -211,6 +228,12 @@ static bool stderr_supports_colors() noexcept {
 int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)
   if (!stderr_supports_colors()) logger_options::disable_color = true;
+
+  // Look for a build file. If there isn't one, try to import a build from an existing build system
+  fs::path buildfile = RootBuildCommand;
+  if (!fs::exists(buildfile)) {
+    buildfile = do_import();
+  }
 
   // Set up a CLI app for command line parsing
   CLI::App app;
@@ -280,12 +303,12 @@ int main(int argc, char* argv[]) noexcept {
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(); });
+  build->final_callback([&] { do_build(buildfile); });
 
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
-  check->final_callback([&] { do_check(); });
+  check->final_callback([&] { do_check(buildfile); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
@@ -294,7 +317,7 @@ int main(int argc, char* argv[]) noexcept {
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
 
   // Set the callback fo the trace subcommand
-  trace->final_callback([&] { do_trace(trace_output); });
+  trace->final_callback([&] { do_trace(buildfile, trace_output); });
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -310,7 +333,8 @@ int main(int argc, char* argv[]) noexcept {
   graph->add_flag("-a,--all", show_all, "Include all files in the graph");
 
   // Set the callback fo the trace subcommand
-  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
+  graph->final_callback(
+      [&] { do_graph(buildfile, graph_output, graph_type, show_all, no_render); });
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
@@ -318,7 +342,7 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  stats->final_callback([&] { do_stats(list_artifacts); });
+  stats->final_callback([&] { do_stats(buildfile, list_artifacts); });
 
   /************* Argument Parsing *************/
 

@@ -10,7 +10,7 @@ Prepare for a the build
 
 Run the first build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
 
 Check the output
@@ -25,7 +25,7 @@ Make the build file non-executable
 
 Run a build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   sh Dodofile
 
 Check the output
@@ -40,16 +40,17 @@ Now make the build file unreadable as well
 
 Run a build, which should fail
   $ $DODO --show
-  dodo-launch
-  Unable to find either Dodofile or Makefile.
-    A Dodofile file should be present and be either directly executable or runnable with /bin/sh.
+  dodo-launch Dodofile
+  Unable to launch build file Dodofile.
+    Write build steps in a file named `Dodofile`.
+    This file must be either directly executable, or runnable with `/bin/sh`.
 
 Make the Dodofile readable and executable again
   $ chmod u+rx Dodofile
 
 Run a build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
 
 Check the output

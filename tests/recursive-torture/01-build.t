@@ -10,7 +10,7 @@ Clean up any leftover state
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   python3 Dodofile
   python3 build 3

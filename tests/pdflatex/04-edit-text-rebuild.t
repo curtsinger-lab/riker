@@ -8,7 +8,7 @@ Clean up any leftover state
 
 Run the build
   $ $DODO --show
-  dodo-launch
+  dodo-launch Dodofile
   Dodofile
   pdflatex main.tex
   pdflatex main.tex
