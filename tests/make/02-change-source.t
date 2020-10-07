@@ -12,9 +12,8 @@ Touch the hello file, since make will stat it
 
 Run the build
   $ $DODO --show
-  dodo-launch Dodofile
-  Dodofile
-  make --always-make --quiet -j1
+  dodo-launch .dodo/Makefile-steps
+  sh .dodo/Makefile-steps
   gcc -o hello hello.c
   cc1 * (glob)
   as * (glob)
@@ -32,7 +31,6 @@ Run a rebuild
   $ $DODO --show
   cc1 * (glob)
   as * (glob)
-  collect2 * (glob)
   ld * (glob)
 
 Make sure the build worked
@@ -50,5 +48,3 @@ Clean up
   $ cp file_versions/hello-original.c hello.c
   $ rm -rf .dodo hello
 
-SKIP! The make command will stat the final output file, so rebuilds that run ld will always rerun make.
-  $ exit 80

@@ -3,10 +3,13 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <CLI/CLI.hpp>
@@ -24,6 +27,7 @@ using std::cout;
 using std::endl;
 using std::make_shared;
 using std::ofstream;
+using std::optional;
 using std::string;
 using std::stringstream;
 using std::vector;
@@ -36,14 +40,6 @@ const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 const fs::path NewDatabaseFilename = ".dodo/newdb";
-
-/**
- * Import build steps from another build system
- * \returns The path to the generated build file
- */
-fs::path do_import() {
-  return RootBuildCommand;
-}
 
 /**
  * Run the `build` subcommand.
@@ -216,6 +212,87 @@ void do_stats(fs::path buildfile, bool list_artifacts) noexcept {
 }
 
 /**
+ * Import build steps from another build system
+ * \returns The path to the generated build file
+ */
+fs::path import_build() {
+  // Create a directory to store the imported build steps
+  fs::create_directories(OutputDir);
+
+  // Look for a Makefile
+  optional<fs::path> makefile_path;
+  if (fs::exists("GNUmakefile")) {
+    makefile_path = "GNUmakefile";
+  } else if (fs::exists("makefile")) {
+    makefile_path = "makefile";
+  } else if (fs::exists("Makefile")) {
+    makefile_path = "Makefile";
+  }
+
+  // Did we find a makefile?
+  if (makefile_path.has_value()) {
+    // Make a path to the imported makefile steps
+    fs::path output = fs::path(OutputDir) / "Makefile-steps";
+
+    // If the imported list of steps does not exist, or if it's older than the makefile, import
+    if (!fs::exists(output) ||
+        fs::last_write_time(makefile_path.value()) > fs::last_write_time(output)) {
+      LOG(exec) << "Importing build steps from " << makefile_path.value();
+
+      int output_fd = open(output.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0640);
+      FAIL_IF(output_fd < 0) << "Failed to create file " << output << ": " << ERR;
+
+      // Fork a child to run `make`
+      auto child_pid = fork();
+      FAIL_IF(child_pid == -1) << "Fork failed: " << ERR;
+
+      if (child_pid == 0) {
+        // In the child
+
+        // Remap the output file to stdout
+        int rc = dup2(output_fd, STDOUT_FILENO);
+        FAIL_IF(rc != STDOUT_FILENO) << "Failed to direct make output to " << output << ": " << ERR;
+
+        // Remap stdin and stderr to /dev/null
+        int null_fd = open("/dev/null", O_RDWR);
+        FAIL_IF(rc < 0) << "Failed to open /dev/null: " << ERR;
+
+        rc = dup2(null_fd, STDIN_FILENO);
+        FAIL_IF(rc != STDIN_FILENO) << "Failed to redirect make stdin to /dev/null: " << ERR;
+
+        rc = dup2(null_fd, STDERR_FILENO);
+        FAIL_IF(rc != STDERR_FILENO) << "Failed to redirect make stderr to /dev/null: " << ERR;
+
+        // Launch make
+        execlp("make", "make", "--always-make", "-n", "--quiet", NULL);
+
+        FAIL << "Failed to execute make: " << ERR;
+
+      } else {
+        // In the parent
+        int status;
+        auto rc = waitpid(child_pid, &status, 0);
+        FAIL_IF(rc != child_pid) << "Failed to wait for make: " << ERR;
+
+        if (WIFSIGNALED(status) || WEXITSTATUS(status) != 0) {
+          FAIL << "Import from make failed";
+        }
+
+        // Close the output file
+        close(output_fd);
+      }
+
+      // The output file now holds the steps we're going to run. Return it
+      return output;
+    }
+  }
+
+  // Fall back to the root build command. This file probably does not exist (that's why import_build
+  // was called) but will cause dodo-launch to generate a reasonable error message.
+  return RootBuildCommand;
+}
+
+/**
  * Check if the current terminal supports color output.
  */
 static bool stderr_supports_colors() noexcept {
@@ -232,7 +309,7 @@ int main(int argc, char* argv[]) noexcept {
   // Look for a build file. If there isn't one, try to import a build from an existing build system
   fs::path buildfile = RootBuildCommand;
   if (!fs::exists(buildfile)) {
-    buildfile = do_import();
+    buildfile = import_build();
   }
 
   // Set up a CLI app for command line parsing

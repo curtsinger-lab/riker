@@ -12,9 +12,8 @@ Touch the hello file for now, since make will stat it
 
 Run the build
   $ $DODO --show
-  dodo-launch Dodofile
-  Dodofile
-  make --always-make --quiet -j1
+  dodo-launch .dodo/Makefile-steps
+  sh .dodo/Makefile-steps
   gcc -o hello hello.c
   cc1 * (glob)
   as * (glob)
