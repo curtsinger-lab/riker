@@ -22,6 +22,8 @@ enum class RefComparison { SameInstance, DifferentInstances };
 
 class TraceHandler {
  public:
+  virtual ~TraceHandler() noexcept {}
+
   /// Called when the trace is finished
   virtual void finish() noexcept {}
 
