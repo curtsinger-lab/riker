@@ -66,8 +66,8 @@ class Graph final : public BuildObserver {
       o << "<tr><td border=\"0\"><sub>" << artifact->getTypeName() << "</sub></td></tr>";
 
       // Add a row with the artifact name, unless the artifact is unnamed
-      if (!artifact->getName().empty()) {
-        o << "<tr><td>" + artifact->getName() + "</td></tr>";
+      if (auto iter = _artifact_names.find(artifact_id); iter != _artifact_names.end()) {
+        o << "<tr><td>" + iter->second + "</td></tr>";
       }
 
       // Add a row for each version
@@ -140,7 +140,18 @@ class Graph final : public BuildObserver {
       _artifact_ids.emplace_hint(iter, a, "a" + to_string(_artifact_ids.size()));
     }
 
-    return _artifact_ids[a];
+    // Get the ID for this artifact
+    auto id = _artifact_ids[a];
+
+    // If this artifact has a non-empty name and we don't have one saved yet, save it
+    auto name = a->getName();
+    if (!name.empty()) {
+      if (auto iter = _artifact_names.find(id); iter == _artifact_names.end()) {
+        _artifact_names.emplace_hint(iter, id, name);
+      }
+    }
+
+    return id;
   }
 
   string getVersionID(shared_ptr<Version> v) noexcept {
@@ -223,6 +234,9 @@ class Graph final : public BuildObserver {
 
   /// A map from artifacts to the ID used to represent the entire artifact in the build graph
   map<shared_ptr<Artifact>, string> _artifact_ids;
+
+  /// A map from artifact IDs to names
+  map<string, string> _artifact_names;
 
   /// A map from versions to their ID (not prefixed by artifact ID)
   map<shared_ptr<Version>, string> _version_ids;

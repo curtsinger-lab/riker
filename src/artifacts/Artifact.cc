@@ -178,7 +178,7 @@ fs::path Artifact::assignTemporaryPath() noexcept {
   ASSERT(!_temp_path.has_value())
       << "Cannot assign a temporary path to an artifact that already has one";
 
-  auto path = _env->getTempPath();
+  auto path = getEnv()->getTempPath();
   _temp_path = path;
   return path;
 }

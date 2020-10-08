@@ -465,19 +465,13 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
       << "Failed to set ptrace options: " << ERR;
 
-  // Let the child restart to reach its exec.
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+  // Resume and handle some number of seccomp stops
+  do {
+    FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
+    waitpid(child_pid, &wstatus, 0);
+  } while (WIFSTOPPED(wstatus) && (wstatus >> 8) == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)));
 
-  // Handle a stop on entry to the exec
-  waitpid(child_pid, &wstatus, 0);
-  FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)))
-      << "Unexpected stop from child. Expected SECCOMP";
-
-  // Let the child continue with its exec
-  FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
-
-  // Handle a stop from inside the exec
-  waitpid(child_pid, &wstatus, 0);
+  // Make sure we left the loop on an exec event
   FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
       << "Unexpected stop from child. Expected EXEC";
 

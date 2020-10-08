@@ -153,6 +153,6 @@ Resolution SymlinkArtifact::resolve(Build& build,
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return _env->getRootDir()->resolve(build, c, dest, flags, symlink_limit - 1);
+    return getEnv()->getRootDir()->resolve(build, c, dest, flags, symlink_limit - 1);
   }
 }

@@ -312,7 +312,7 @@ Resolution DirArtifact::resolve(Build& build,
       auto entry_path = dir_path.value() / entry;
 
       // Try to get the artifact from the filesystem
-      auto artifact = _env->getFilesystemArtifact(entry_path);
+      auto artifact = getEnv()->getFilesystemArtifact(entry_path);
 
       // Did we get an artifact?
       if (artifact) {
@@ -347,7 +347,7 @@ Resolution DirArtifact::resolve(Build& build,
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
       // Create a new file
-      auto newfile = _env->createFile(build, c, flags.mode, false);
+      auto newfile = getEnv()->createFile(build, c, flags.mode, false);
 
       // Link the new file into this directory
       auto link_version = addEntry(build, c, entry, newfile);

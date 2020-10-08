@@ -23,6 +23,7 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -83,7 +84,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   const list<shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
 
   /// Get the environment this artifact is part of
-  shared_ptr<Env> getEnv() const noexcept { return _env; }
+  shared_ptr<Env> getEnv() const noexcept { return _env.lock(); }
 
   /**
    * Check if an access to this artifact with the provided flags is allowed.
@@ -301,7 +302,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
  protected:
   /// The environment this artifact is managed by
-  shared_ptr<Env> _env;
+  weak_ptr<Env> _env;
 
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
