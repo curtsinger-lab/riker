@@ -53,8 +53,6 @@ struct AccessFlags {
 
     if (flags.directory()) {
       f.type = AccessType::Dir;
-    } else if (flags.nofollow()) {
-      f.type = AccessType::File;
     } else if (flags.writable() || flags.creat() || flags.trunc()) {
       f.type = AccessType::NotDir;
     }

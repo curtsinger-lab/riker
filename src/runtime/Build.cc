@@ -732,7 +732,7 @@ void Build::traceCompareRefs(shared_ptr<Command> c,
   LOG(ir) << "trace " << TracePrinter::CompareRefsPrinter{c, ref1, ref2, type};
 }
 
-// Command c expects a reference to resolve with a specific result
+// Command c expects a reference to resolve with a specific result as observed from the trace
 void Build::traceExpectResult(shared_ptr<Command> c,
                               shared_ptr<RefResult> ref,
                               int expected) noexcept {
@@ -745,7 +745,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->expectResult(c, ref, expected);
 
-  // Check the expect result against our filesystem model
+  // Check the expected (i.e., observed) result against our filesystem model
   WARN_IF(ref->getResultCode() != expected)
       << "Reference resolved to " << ref->getResolution()
       << ", which does not match syscall result " << getErrorName(expected);
