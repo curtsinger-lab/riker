@@ -1,0 +1,3 @@
+#!/bin/sh
+
+touch `ls -1 | wc -l`.num
