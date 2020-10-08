@@ -38,29 +38,22 @@ class Version;
 class Build : public TraceHandler {
  private:
   /// Create a build runner
-  Build(bool commit, RebuildPlan plan, TraceHandler& output_trace) noexcept :
+  Build(bool commit,
+        RebuildPlan plan,
+        unique_ptr<TraceHandler>&& output_trace = make_unique<TraceHandler>()) noexcept :
       _commit(commit),
       _plan(plan),
-      _output_trace(output_trace),
+      _output_trace(std::move(output_trace)),
       _env(make_shared<Env>()),
       _tracer(make_unique<Tracer>(*this)) {}
-
-  /// Create a build runner
-  Build(bool commit, RebuildPlan plan, TraceHandler&& output_trace = TraceHandler()) noexcept :
-      Build(commit, plan, output_trace) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
   static Build emulate() noexcept { return Build(false, RebuildPlan()); }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(RebuildPlan plan, TraceHandler& output_trace) noexcept {
-    return Build(true, plan, output_trace);
-  }
-
-  /// Create a build runner that executes a rebuild plan
-  static Build rebuild(RebuildPlan plan, TraceHandler&& output_trace) noexcept {
-    return Build(true, plan, output_trace);
+  static Build rebuild(RebuildPlan plan, unique_ptr<TraceHandler>&& output_trace) noexcept {
+    return Build(true, plan, std::move(output_trace));
   }
 
   // Disallow Copy
@@ -319,7 +312,7 @@ class Build : public TraceHandler {
   RebuildPlan _plan;
 
   /// Trace steps are sent to this trace handler, typically an OutputTrace
-  TraceHandler& _output_trace;
+  unique_ptr<TraceHandler> _output_trace;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;

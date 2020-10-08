@@ -59,7 +59,7 @@ void do_build(fs::path buildfile) noexcept {
   trace.sendTo(Build::emulate().addObserver(planner));
 
   // Now run the trace again with the planned rebuild steps
-  trace.sendTo(Build::rebuild(planner->planBuild(), OutputTrace(NewDatabaseFilename)));
+  trace.sendTo(Build::rebuild(planner->planBuild(), make_unique<OutputTrace>(NewDatabaseFilename)));
 
   // Move the new trace into place
   fs::rename(NewDatabaseFilename, DatabaseFilename);
