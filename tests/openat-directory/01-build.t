@@ -12,6 +12,7 @@ Run the first build
   $ $DODO --show
   dodo-launch Dodofile
   Dodofile
+  ./openat-directory
   Trying openat(-100, "mydir", 655360, 0)
   Got fd = 3
 
