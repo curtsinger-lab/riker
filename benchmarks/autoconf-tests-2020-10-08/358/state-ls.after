@@ -1,0 +1,7 @@
+aclocal.m4
+autom4te.cache
+confdefs.h
+configure
+configure.ac
+install-sh
+testsuite.log

@@ -1,0 +1,18 @@
+#                             -*- compilation -*-
+30. tools.at:1036: testing autoupdating with AC_REQUIRE ...
+./tools.at:1052: autoupdate 
+stderr:
+./tools.at:1053: autoconf --force 
+--- /dev/null	2020-10-01 19:28:26.687999826 +0000
++++ /home/dbarowy/Documents/Code/autoconf-2.69/tests/testsuite.dir/at-groups/30/stderr	2020-10-08 21:45:30.898399630 +0000
+@@ -0,0 +1,9 @@
++configure.ac:13: warning: AC_CHECK_DECLS([sys_siglist],[],[],[#include <signal.h>
++configure.ac:13: /* NetBSD declares sys_siglist in unistd.h.  */
++configure.ac:13: #ifdef HAVE_UNISTD_H
++configure.ac:13: # include <unistd.h>
++configure.ac:13: #endif
++configure.ac:13: ])
++configure.ac:13:  is m4_require'd but not m4_defun'd
++configure.ac:1: MACRO is expanded from...
++configure.ac:13: the top level
+30. tools.at:1036: 30. autoupdating with AC_REQUIRE (tools.at:1036): expected failure (tools.at:1053)

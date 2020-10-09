@@ -1,0 +1,57 @@
+/* config.hin.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 if you have the declaration of `basenam (char *)', and to 0 if
+   you don't. */
+#undef HAVE_DECL_BASENAM
+
+/* Define to 1 if you have the declaration of `dirnam(char *)', and to 0 if
+   you don't. */
+#undef HAVE_DECL_DIRNAM
+
+/* Define to 1 if you have the declaration of `moreargs (char, short, int,
+   long, void *, char [], float, double)', and to 0 if you don't. */
+#undef HAVE_DECL_MOREARGS
+
+/* Define to 1 if you have the declaration of `myenum', and to 0 if you don't.
+   */
+#undef HAVE_DECL_MYENUM
+
+/* Define to 1 if you have the declaration of `myfunc', and to 0 if you don't.
+   */
+#undef HAVE_DECL_MYFUNC
+
+/* Define to 1 if you have the declaration of `mymacro1', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MYMACRO1
+
+/* Define to 1 if you have the declaration of `mymacro2', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MYMACRO2
+
+/* Define to 1 if you have the declaration of `mystruct', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MYSTRUCT
+
+/* Define to 1 if you have the declaration of `no', and to 0 if you don't. */
+#undef HAVE_DECL_NO
+
+/* Define to 1 if you have the declaration of `yes', and to 0 if you don't. */
+#undef HAVE_DECL_YES
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION

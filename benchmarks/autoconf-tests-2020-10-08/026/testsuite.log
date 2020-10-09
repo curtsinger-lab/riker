@@ -1,0 +1,10 @@
+#                             -*- compilation -*-
+26. tools.at:931: testing autoupdating macros recursively ...
+./tools.at:944: autoupdate 
+./tools.at:945: grep changequote configure.ac
+--- /dev/null	2020-10-01 19:28:26.687999826 +0000
++++ /home/dbarowy/Documents/Code/autoconf-2.69/tests/testsuite.dir/at-groups/26/stdout	2020-10-08 21:45:27.314371302 +0000
+@@ -0,0 +1 @@
++AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[choke me]])],[echo bogus1],[_au_m4_changequote([,])AC_TRY_COMPILE([], [return 0;], [echo good], [echo bogus2])])
+./tools.at:945: exit code was 0, expected 1
+26. tools.at:931: 26. autoupdating macros recursively (tools.at:931): expected failure (tools.at:945)
