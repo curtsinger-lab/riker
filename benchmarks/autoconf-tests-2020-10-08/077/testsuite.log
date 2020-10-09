@@ -1,0 +1,16 @@
+#                             -*- compilation -*-
+77. m4sh.at:210: testing LINENO ...
+./m4sh.at:217: test -n "${ZSH_VERSION+set}" && exit 77
+./m4sh.at:257: autom4te -l m4sh reference.as -o reference
+./m4sh.at:258: ./reference
+stdout:
+Line: 375
+./m4sh.at:265: mkdir test || exit 77
+./m4sh.at:267: autom4te -l m4sh test/test-1.as -o test/test-1
+./m4sh.at:268: ./test/test-1
+--- expout	2020-10-08 21:45:55.230591663 +0000
++++ /home/dbarowy/Documents/Code/autoconf-2.69/tests/testsuite.dir/at-groups/77/stdout	2020-10-08 21:45:55.426593207 +0000
+@@ -1 +1 @@
+-Line: 375
++Line: 371
+77. m4sh.at:210: 77. LINENO (m4sh.at:210): FAILED (m4sh.at:268)

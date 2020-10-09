@@ -1,0 +1,5 @@
+AC_INIT(x,0)
+m4_include([foo.m4])
+AC_CONFIG_HEADERS([config.h:config.hin])
+AC_MACRO
+AC_OUTPUT

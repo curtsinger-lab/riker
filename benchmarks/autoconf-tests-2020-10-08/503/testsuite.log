@@ -1,0 +1,8 @@
+#                             -*- compilation -*-
+503. autoscan.at:20: testing autoscan ...
+./autoscan.at:44: autoscan
+--- /dev/null	2020-10-01 19:28:26.687999826 +0000
++++ /home/dbarowy/Documents/Code/autoconf-2.69/tests/testsuite.dir/at-groups/503/stderr	2020-10-08 21:57:40.104010867 +0000
+@@ -0,0 +1 @@
++Unescaped left brace in regex is passed through in regex; marked by <-- HERE in m/\${ <-- HERE [^\}]*}/ at /home/dbarowy/Documents/Code/autoconf-2.69/bin/autoscan line 361.
+503. autoscan.at:20: 503. autoscan (autoscan.at:20): FAILED (autoscan.at:44)

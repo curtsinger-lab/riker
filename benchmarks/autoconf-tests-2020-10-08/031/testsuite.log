@@ -1,0 +1,12 @@
+#                             -*- compilation -*-
+31. tools.at:1061: testing autoupdating with complex quoting ...
+./tools.at:1078: autoupdate 
+stderr:
+./tools.at:1079: autoconf --force 
+./tools.at:1080: grep MACRO configure
+--- /dev/null	2020-10-01 19:28:26.687999826 +0000
++++ /home/dbarowy/Documents/Code/autoconf-2.69/tests/testsuite.dir/at-groups/31/stdout	2020-10-08 21:45:31.734406236 +0000
+@@ -0,0 +1 @@
++	       MACRO
+./tools.at:1080: exit code was 0, expected 1
+31. tools.at:1061: 31. autoupdating with complex quoting (tools.at:1061): expected failure (tools.at:1080)

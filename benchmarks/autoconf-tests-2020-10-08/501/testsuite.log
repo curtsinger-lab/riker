@@ -1,0 +1,49 @@
+#                             -*- compilation -*-
+501. foreign.at:25: testing Libtool ...
+./foreign.at:28: libtoolize --version || exit 77
+stderr:
+stdout:
+libtoolize (GNU libtool) 2.4.6
+Written by Gary V. Vaughan <gary@gnu.org>, 2003
+
+Copyright (C) 2015 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+./foreign.at:32:
+case `libtoolize --version |
+      sed -n '/^.* \([0-9][0-9.a-z]*\)$/{
+		s//\1/
+		p
+		q
+	}'` in
+  0.*    ) exit 77;;
+  1.*    ) exit 77;;
+esac
+stderr:
+stdout:
+./foreign.at:52: libtoolize -i
+stderr:
+stdout:
+libtoolize: putting auxiliary files in AC_CONFIG_AUX_DIR, '.'.
+libtoolize: linking file './config.guess'
+libtoolize: linking file './config.sub'
+libtoolize: linking file './install-sh'
+libtoolize: linking file './ltmain.sh'
+libtoolize: You should add the contents of the following files to 'aclocal.m4':
+libtoolize:   '/home/dbarowy/pkg/share/aclocal/libtool.m4'
+libtoolize:   '/home/dbarowy/pkg/share/aclocal/ltoptions.m4'
+libtoolize:   '/home/dbarowy/pkg/share/aclocal/ltsugar.m4'
+libtoolize:   '/home/dbarowy/pkg/share/aclocal/ltversion.m4'
+libtoolize:   '/home/dbarowy/pkg/share/aclocal/lt~obsolete.m4'
+libtoolize: Consider adding 'AC_CONFIG_MACRO_DIRS([m4])' to configure.ac,
+libtoolize: and rerunning libtoolize and aclocal.
+libtoolize: Consider adding '-I m4' to ACLOCAL_AMFLAGS in Makefile.am.
+./foreign.at:55: ./config.guess || exit 77
+stderr:
+stdout:
+x86_64-pc-linux-gnu
+./foreign.at:60: sed -n "s,^.*\`\\(/[^']*\\)'.*,\\1,p" stdout
+stdout:
+./foreign.at:61: test -f "`sed -n 1p stdout`"
+./foreign.at:61: exit code was 1, expected 0
+501. foreign.at:25: 501. Libtool (foreign.at:25): FAILED (foreign.at:61)
