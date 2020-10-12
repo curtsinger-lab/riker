@@ -277,14 +277,28 @@ class Build : public TraceHandler {
                        shared_ptr<Version> observed,
                        shared_ptr<Version> expected) const noexcept;
 
-  /// Inform observers that a given command's IR action would detect a change in the build env
-  void observeCommandChange(shared_ptr<Command> c) const noexcept;
-
-  /// Inform observers that the version of an artifact produced during the build does not match the
-  /// on-disk version.
+  /// Inform observers that the version of an artifact produced during the build does not match
+  /// the on-disk version.
   void observeFinalMismatch(shared_ptr<Artifact> a,
                             shared_ptr<Version> produced,
                             shared_ptr<Version> ondisk) const noexcept;
+
+  /// Inform observers that a reference did not resolve as expected
+  void observeResolutionChange(shared_ptr<Command> c,
+                               shared_ptr<RefResult> ref,
+                               int expected) const noexcept;
+
+  /// Inform observers that two references did not compare as expected
+  void observeRefMismatch(shared_ptr<Command> c,
+                          shared_ptr<RefResult> ref1,
+                          shared_ptr<RefResult> ref2,
+                          RefComparison type) const noexcept;
+
+  /// Inform observers that a command's exit code changed
+  void observeExitCodeChange(shared_ptr<Command> parent,
+                             shared_ptr<Command> child,
+                             int expected,
+                             int observed) const noexcept;
 
  private:
   /// Is a particular command running?

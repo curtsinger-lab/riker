@@ -2,12 +2,15 @@
 
 #include <memory>
 
+#include "interfaces/TraceHandler.hh"
+
 using std::shared_ptr;
 using std::unique_ptr;
 
 class Artifact;
 class Command;
 class Predicate;
+class RefResult;
 class Step;
 class Version;
 
@@ -45,18 +48,32 @@ class BuildObserver {
                         shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept {}
 
-  /// A command has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
-
-  /// The outcome of an IR step has changed since the build trace was collected
-  virtual void commandChanged(shared_ptr<Command> c) noexcept {}
-
-  /// A command is being launched. The parent will be null if this is the root command.
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
-
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced version `produced`, which does not match the `ondisk` version.
   virtual void finalMismatch(shared_ptr<Artifact> a,
                              shared_ptr<Version> produced,
                              shared_ptr<Version> ondisk) noexcept {}
+
+  /// A command is being launched. The parent will be null if this is the root command.
+  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
+
+  /// A command has never been run
+  virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
+
+  /// A command's reference did not resolve as expected
+  virtual void resolutionChange(shared_ptr<Command> c,
+                                shared_ptr<RefResult> ref,
+                                int expected) noexcept {}
+
+  /// Two references did not compare as expected
+  virtual void refMismatch(shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept {}
+
+  /// A child command did not exit with the expected status
+  virtual void exitCodeChange(shared_ptr<Command> parent,
+                              shared_ptr<Command> child,
+                              int expected,
+                              int observed) noexcept {}
 };

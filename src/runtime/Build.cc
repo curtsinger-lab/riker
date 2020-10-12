@@ -76,17 +76,35 @@ void Build::observeMismatch(shared_ptr<Command> c,
   for (const auto& o : _observers) o->mismatch(c, a, observed, expected);
 }
 
-// Inform observers that a given command's IR action would detect a change in the build env
-void Build::observeCommandChange(shared_ptr<Command> c) const noexcept {
-  for (const auto& o : _observers) o->commandChanged(c);
-}
-
 // Inform observers that the version of an artifact produced during the build does not match the
 // on-disk version.
 void Build::observeFinalMismatch(shared_ptr<Artifact> a,
                                  shared_ptr<Version> produced,
                                  shared_ptr<Version> ondisk) const noexcept {
   for (const auto& o : _observers) o->finalMismatch(a, produced, ondisk);
+}
+
+// Inform observers that a reference did not resolve as expected
+void Build::observeResolutionChange(shared_ptr<Command> c,
+                                    shared_ptr<RefResult> ref,
+                                    int expected) const noexcept {
+  for (const auto& o : _observers) o->resolutionChange(c, ref, expected);
+}
+
+// Inform observers that two references did not compare as expected
+void Build::observeRefMismatch(shared_ptr<Command> c,
+                               shared_ptr<RefResult> ref1,
+                               shared_ptr<RefResult> ref2,
+                               RefComparison type) const noexcept {
+  for (const auto& o : _observers) o->refMismatch(c, ref1, ref2, type);
+}
+
+// Inform observers that a reference did not resolve as expected
+void Build::observeExitCodeChange(shared_ptr<Command> parent,
+                                  shared_ptr<Command> child,
+                                  int expected,
+                                  int observed) const noexcept {
+  for (const auto& o : _observers) o->exitCodeChange(parent, child, expected, observed);
 }
 
 /************************ Handle IR steps from a loaded trace ************************/
@@ -275,11 +293,11 @@ void Build::compareRefs(shared_ptr<Command> c,
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
     if (ref1->getArtifact() != ref2->getArtifact()) {
-      observeCommandChange(c);
+      observeRefMismatch(c, ref1, ref2, type);
     }
   } else if (type == RefComparison::DifferentInstances) {
     if (ref1->getArtifact() == ref2->getArtifact()) {
-      observeCommandChange(c);
+      observeRefMismatch(c, ref1, ref2, type);
     }
   } else {
     FAIL << "Unknown reference comparison type";
@@ -302,7 +320,7 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
 
   // Does the resolved reference match the expected result?
   if (ref->getResultCode() != expected) {
-    observeCommandChange(c);
+    observeResolutionChange(c, ref, expected);
   }
 }
 
@@ -545,7 +563,7 @@ void Build::join(shared_ptr<Command> c, shared_ptr<Command> child, int exit_stat
 
   // Did the child command's exit status match the expected result?
   if (child->getExitStatus() != exit_status) {
-    observeCommandChange(c);
+    observeExitCodeChange(c, child, exit_status, child->getExitStatus());
   }
 }
 

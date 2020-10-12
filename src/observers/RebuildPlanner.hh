@@ -86,23 +86,42 @@ class RebuildPlanner final : public BuildObserver {
                         shared_ptr<Version> observed,
                         shared_ptr<Version> expected) noexcept override final {
     // Record the change
-    LOG(rebuild) << c << " observed change in " << a << " version " << observed << ", expected "
-                 << expected;
+    LOGF(rebuild, "{} changed: change in {} (expected {}, observed {})", c, a, expected, observed);
     _changed.insert(c);
   }
 
   /// Command c has never been run
   virtual void commandNeverRun(shared_ptr<Command> c) noexcept override final {
-    // Record the change
-    LOG(rebuild) << c << " has never run";
+    LOGF(rebuild, "{} changed: never run", c);
     _changed.insert(c);
   }
 
-  /// IR step s in command c observed a change
-  virtual void commandChanged(shared_ptr<Command> c) noexcept override final {
-    // Record the change
-    LOG(rebuild) << c << " observed change in emulated step";
+  /// A command's reference did not resolve as expected
+  virtual void resolutionChange(shared_ptr<Command> c,
+                                shared_ptr<RefResult> ref,
+                                int expected) noexcept override {
+    LOGF(rebuild, "{} changed: {} did not resolve as expected (expected {}, observed {})", c, ref,
+         expected, ref->getResolution());
     _changed.insert(c);
+  }
+
+  /// Two references did not compare as expected
+  virtual void refMismatch(shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept override {
+    LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
+    _changed.insert(c);
+  }
+
+  /// A child command did not exit with the expected status
+  virtual void exitCodeChange(shared_ptr<Command> parent,
+                              shared_ptr<Command> child,
+                              int expected,
+                              int observed) noexcept override {
+    LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
+         parent, child, expected, observed);
+    _changed.insert(parent);
   }
 
   /// An artifact's final version does not match what is on the filesystem
@@ -117,6 +136,9 @@ class RebuildPlanner final : public BuildObserver {
 
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(produced->getCreator());
+
+    LOGF(rebuild, "{} must run: on-disk state of {} has changed (expected {}, observed {})",
+         produced->getCreator(), produced, ondisk);
   }
 
   /// A command is being launched. The parent will be null if this is the root command.
@@ -135,21 +157,19 @@ class RebuildPlanner final : public BuildObserver {
     if (!plan.mark(c, reason)) return;
 
     if (reason == Reason::Changed) {
-      LOG(rebuild) << c << " must rerun because it directly observed a change";
+      // The change has already been logged
 
     } else if (reason == Reason::Child) {
       ASSERT(prev) << "Invalid call to mark without previous command";
-      LOG(rebuild) << c << " must rerun because its parent, " << prev << ", is rerunning";
+      LOGF(rebuild, "{} must run: parent command {} is rerunning", c, prev);
 
     } else if (reason == Reason::InputMayChange) {
       ASSERT(prev) << "Invalid call to mark without previous command";
-      LOG(rebuild) << c << " must rerun because its input may be changed by " << prev;
+      LOGF(rebuild, "{} must rerun: input may be changed by {}", c, prev);
 
     } else if (reason == Reason::OutputNeeded) {
       if (prev) {
-        LOG(rebuild) << c << " must rerun because its unsaved output is needed by " << prev;
-      } else {
-        LOG(rebuild) << c << " must rerun because its unsaved output is changed or missing";
+        LOGF(rebuild, "{} must rerun: unsaved output is needed by {}", c, prev);
       }
     }
 

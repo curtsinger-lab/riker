@@ -199,9 +199,27 @@ class Graph final : public BuildObserver {
     _changed_versions.emplace(observed);
   }
 
-  /// Command c observes a change when executing an IR step
-  virtual void commandChanged(shared_ptr<Command> c) noexcept override final {
+  /// A command's reference did not resolve as expected
+  virtual void resolutionChange(shared_ptr<Command> c,
+                                shared_ptr<RefResult> ref,
+                                int expected) noexcept override {
     _changed_commands.insert(c);
+  }
+
+  /// Two references did not compare as expected
+  virtual void refMismatch(shared_ptr<Command> c,
+                           shared_ptr<RefResult> ref1,
+                           shared_ptr<RefResult> ref2,
+                           RefComparison type) noexcept override {
+    _changed_commands.insert(c);
+  }
+
+  /// A child command did not exit with the expected status
+  virtual void exitCodeChange(shared_ptr<Command> parent,
+                              shared_ptr<Command> child,
+                              int expected,
+                              int observed) noexcept override {
+    _changed_commands.insert(parent);
   }
 
   /// A command is starting
