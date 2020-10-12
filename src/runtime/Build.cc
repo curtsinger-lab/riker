@@ -53,13 +53,6 @@ void Build::observeInput(shared_ptr<Command> c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
-  // Is this input accessing the last write we observed? We care specifically about
-  /*auto& [write_command, write_ref, write_version] = _last_write;
-  if (v == write_version && c != write_command) {
-    // Yes. The version is now accessed, so clear the last write
-    _last_write = {nullptr, nullptr, nullptr};
-  }*/
-
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
   // output will eventually be marked as committed.
@@ -105,7 +98,7 @@ void Build::finish() noexcept {
   // Compare the final state of all artifacts to the actual filesystem
   _env->getRootDir()->checkFinalState(*this, "/");
 
-  /// Commit the final environment state to the filesystem
+  // Commit the final environment state to the filesystem
   if (_commit) _env->getRootDir()->applyFinalState(*this, "/");
 
   // Inform the output trace that it is finished
@@ -329,12 +322,8 @@ void Build::matchMetadata(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->matchMetadata(c, ref, expected);
 
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    // Report the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with an unresolved reference. A change should already have been reported.
+  if (!ref->isResolved()) return;
 
   // Perform the comparison
   ref->getArtifact()->matchMetadata(*this, c, expected);
@@ -356,12 +345,8 @@ void Build::matchContent(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->matchContent(c, ref, expected);
 
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    // Report the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with an unresolved reference. A change should already have been reported.
+  if (!ref->isResolved()) return;
 
   // Perform the comparison
   ref->getArtifact()->matchContent(*this, c, expected);
@@ -383,12 +368,8 @@ void Build::updateMetadata(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->updateMetadata(c, ref, written);
 
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    // Record the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with an unresolved reference. A change should already have been reported.
+  if (!ref->isResolved()) return;
 
   // Make sure this version is NOT marked as committed
   written->setCommitted(false);
@@ -417,12 +398,8 @@ void Build::updateContent(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->updateContent(c, ref, written);
 
-  // If the reference is not resolved, a change must have occurred
-  if (!ref->isResolved()) {
-    // Record the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with an unresolved reference. A change should already have been reported.
+  if (!ref->isResolved()) return;
 
   // Make sure this version is NOT marked as committed
   written->setCommitted(false);
@@ -433,9 +410,6 @@ void Build::updateContent(shared_ptr<Command> c,
 
   // Apply the write
   ref->getArtifact()->updateContent(*this, c, written);
-
-  // Save the last write
-  //_last_write = {c, ref, written};
 }
 
 /// Handle an AddEntry IR step
@@ -455,12 +429,8 @@ void Build::addEntry(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->addEntry(c, dir, name, target);
 
-  // If the directory reference or target references did not resolve, a change must have occurred
-  if (!dir->isResolved() || !target->isResolved()) {
-    // Record the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with unresolved references. A change should already have been reported.
+  if (!dir->isResolved() || !target->isResolved()) return;
 
   // Add the entry to the directory
   dir->getArtifact()->addEntry(*this, c, name, target->getArtifact());
@@ -483,12 +453,8 @@ void Build::removeEntry(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output_trace->removeEntry(c, dir, name, target);
 
-  // If the directory reference or target references did not resolve, a change must have occurred
-  if (!dir->isResolved() || !target->isResolved()) {
-    // Record the change and return
-    observeCommandChange(c);
-    return;
-  }
+  // We can't do anything with unresolved references. A change should already have been reported.
+  if (!dir->isResolved() || !target->isResolved()) return;
 
   // Remove the entry from the directory
   dir->getArtifact()->removeEntry(*this, c, name, target->getArtifact());
@@ -797,10 +763,6 @@ void Build::traceMatchContent(shared_ptr<Command> c,
 
   ASSERT(expected) << "Attempted to match contenet of " << artifact << " against a null version";
 
-  // If this access is from the same command and reference as the last write, and the versions are
-  // the same, skip the trace step
-  // if (_last_write == tuple{c, ref, expected}) return;
-
   // Create an IR step and add it to the output trace
   _output_trace->matchContent(c, ref, expected);
 
@@ -855,13 +817,6 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
   auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to write content through an unresolved reference " << ref;
 
-  // Was the last write from the same command and reference?
-  /*auto [last_write_command, last_write_ref, last_write_version] = _last_write;
-  if (c == last_write_command && ref == last_write_ref && !last_write_version->hasFingerprint()) {
-    // Yes. We can skip the trace step.
-    return;
-  }*/
-
   // Make sure we were given a version to write
   ASSERT(written) << "Attempted to write null version to " << artifact;
 
@@ -879,9 +834,6 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref, written};
-
-  // Update the last write record
-  //_last_write = {c, ref, written};
 }
 
 // A traced command is adding an entry to a directory

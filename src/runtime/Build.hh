@@ -329,7 +329,4 @@ class Build : public TraceHandler {
 
   /// The observers that should be notified of dependency and change information during the build
   vector<shared_ptr<BuildObserver>> _observers;
-
-  /// The last write performed by any command
-  tuple<shared_ptr<Command>, shared_ptr<RefResult>, shared_ptr<Version>> _last_write;
 };
