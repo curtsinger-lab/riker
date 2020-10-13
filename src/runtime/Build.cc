@@ -111,7 +111,7 @@ void Build::observeExitCodeChange(shared_ptr<Command> parent,
 
 void Build::finish() noexcept {
   // Wait for all remaining processes to exit
-  _tracer->wait();
+  _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
   _env->getRootDir()->checkFinalState(*this, "/");
@@ -534,7 +534,7 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
     }
 
     // Start the child command in the tracer
-    _running[child] = _tracer->start(child);
+    _running[child] = _tracer.start(child);
   } else {
     // Count this as an emulated command
     _emulated_command_count++;
@@ -559,7 +559,7 @@ void Build::join(shared_ptr<Command> c, shared_ptr<Command> child, int exit_stat
   _output.join(c, child, exit_status);
 
   // If the child command is running in the tracer, wait for it
-  if (isRunning(child)) _tracer->wait(_running[child]);
+  if (isRunning(child)) _tracer.wait(_running[child]);
 
   // Did the child command's exit status match the expected result?
   if (child->getExitStatus() != exit_status) {

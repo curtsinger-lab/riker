@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <set>
 #include <tuple>
@@ -19,13 +18,10 @@
 #include "tracing/Tracer.hh"
 
 using std::make_shared;
-using std::make_unique;
-using std::optional;
 using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
-using std::unique_ptr;
 using std::vector;
 
 class Version;
@@ -44,7 +40,7 @@ class Build : public TraceHandler {
       _observer(observer),
       _output(output),
       _env(make_shared<Env>()),
-      _tracer(make_unique<Tracer>(*this)) {}
+      _tracer(*this) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
@@ -331,7 +327,7 @@ class Build : public TraceHandler {
   shared_ptr<Env> _env;
 
   /// The tracer that will be used to execute any commands that must rerun
-  unique_ptr<Tracer> _tracer;
+  Tracer _tracer;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is only
   /// being emulated
