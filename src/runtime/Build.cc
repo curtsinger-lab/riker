@@ -32,20 +32,20 @@ using std::shared_ptr;
 /************************ Observer Implementation ************************/
 
 // Inform observers that a command has never run
-void Build::observeCommandNeverRun(shared_ptr<Command> c) const noexcept {
-  _observer.commandNeverRun(c);
+void Build::observeCommandNeverRun(shared_ptr<Command> c) noexcept {
+  _observer.observeCommandNeverRun(c);
 }
 
 // Inform observers that a parent command launched a child command
-void Build::observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept {
-  _observer.launch(parent, child);
+void Build::observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {
+  _observer.observeLaunch(parent, child);
 }
 
 // Inform observers that command c modified artifact a, creating version v
 void Build::observeOutput(shared_ptr<Command> c,
                           shared_ptr<Artifact> a,
-                          shared_ptr<Version> v) const noexcept {
-  _observer.output(c, a, v);
+                          shared_ptr<Version> v) noexcept {
+  _observer.observeOutput(c, a, v);
 }
 
 // Inform observers that command c  accessed version v of artifact a
@@ -64,7 +64,7 @@ void Build::observeInput(shared_ptr<Command> c,
     a->commit(v);
   }
 
-  _observer.input(c, a, v, t);
+  _observer.observeInput(c, a, v, t);
 }
 
 // Inform observers that command c did not find the expected version in artifact a
@@ -72,39 +72,39 @@ void Build::observeInput(shared_ptr<Command> c,
 void Build::observeMismatch(shared_ptr<Command> c,
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> observed,
-                            shared_ptr<Version> expected) const noexcept {
-  _observer.mismatch(c, a, observed, expected);
+                            shared_ptr<Version> expected) noexcept {
+  _observer.observeMismatch(c, a, observed, expected);
 }
 
 // Inform observers that the version of an artifact produced during the build does not match the
 // on-disk version.
 void Build::observeFinalMismatch(shared_ptr<Artifact> a,
                                  shared_ptr<Version> produced,
-                                 shared_ptr<Version> ondisk) const noexcept {
-  _observer.finalMismatch(a, produced, ondisk);
+                                 shared_ptr<Version> ondisk) noexcept {
+  _observer.observeFinalMismatch(a, produced, ondisk);
 }
 
 // Inform observers that a reference did not resolve as expected
 void Build::observeResolutionChange(shared_ptr<Command> c,
                                     shared_ptr<RefResult> ref,
-                                    int expected) const noexcept {
-  _observer.resolutionChange(c, ref, expected);
+                                    int expected) noexcept {
+  _observer.observeResolutionChange(c, ref, expected);
 }
 
 // Inform observers that two references did not compare as expected
 void Build::observeRefMismatch(shared_ptr<Command> c,
                                shared_ptr<RefResult> ref1,
                                shared_ptr<RefResult> ref2,
-                               RefComparison type) const noexcept {
-  _observer.refMismatch(c, ref1, ref2, type);
+                               RefComparison type) noexcept {
+  _observer.observeRefMismatch(c, ref1, ref2, type);
 }
 
 // Inform observers that a reference did not resolve as expected
 void Build::observeExitCodeChange(shared_ptr<Command> parent,
                                   shared_ptr<Command> child,
                                   int expected,
-                                  int observed) const noexcept {
-  _observer.exitCodeChange(parent, child, expected, observed);
+                                  int observed) noexcept {
+  _observer.observeExitCodeChange(parent, child, expected, observed);
 }
 
 /************************ Handle IR steps from a loaded trace ************************/

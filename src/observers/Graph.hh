@@ -166,10 +166,10 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c reads version v from artifact a
-  virtual void input(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v,
-                     InputType t) noexcept override final {
+  virtual void observeInput(shared_ptr<Command> c,
+                            shared_ptr<Artifact> a,
+                            shared_ptr<Version> v,
+                            InputType t) noexcept override final {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !v->getCreator()) return;
 
@@ -179,19 +179,19 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c appends version v to artifact a
-  virtual void output(shared_ptr<Command> c,
-                      shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) noexcept override final {
+  virtual void observeOutput(shared_ptr<Command> c,
+                             shared_ptr<Artifact> a,
+                             shared_ptr<Version> v) noexcept override final {
     if (fs::path(a->getName()).is_absolute() && !_show_all) return;
 
     _io_edges.emplace(getCommandID(c), getVersionID(a, v));
   }
 
   /// Command c observes a change in version v of artifact a
-  virtual void mismatch(shared_ptr<Command> c,
-                        shared_ptr<Artifact> a,
-                        shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) noexcept override final {
+  virtual void observeMismatch(shared_ptr<Command> c,
+                               shared_ptr<Artifact> a,
+                               shared_ptr<Version> observed,
+                               shared_ptr<Version> expected) noexcept override final {
     _changed_commands.insert(c);
 
     // The observed version is what the emulated build produced, and will appear in the graph.
@@ -200,31 +200,31 @@ class Graph final : public BuildObserver {
   }
 
   /// A command's reference did not resolve as expected
-  virtual void resolutionChange(shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref,
-                                int expected) noexcept override {
+  virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> ref,
+                                       int expected) noexcept override {
     _changed_commands.insert(c);
   }
 
   /// Two references did not compare as expected
-  virtual void refMismatch(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref1,
-                           shared_ptr<RefResult> ref2,
-                           RefComparison type) noexcept override {
+  virtual void observeRefMismatch(shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref1,
+                                  shared_ptr<RefResult> ref2,
+                                  RefComparison type) noexcept override {
     _changed_commands.insert(c);
   }
 
   /// A child command did not exit with the expected status
-  virtual void exitCodeChange(shared_ptr<Command> parent,
-                              shared_ptr<Command> child,
-                              int expected,
-                              int observed) noexcept override {
+  virtual void observeExitCodeChange(shared_ptr<Command> parent,
+                                     shared_ptr<Command> child,
+                                     int expected,
+                                     int observed) noexcept override {
     _changed_commands.insert(parent);
   }
 
   /// A command is starting
-  virtual void launch(shared_ptr<Command> parent,
-                      shared_ptr<Command> child) noexcept override final {
+  virtual void observeLaunch(shared_ptr<Command> parent,
+                             shared_ptr<Command> child) noexcept override final {
     // Is there a parent command?
     if (parent) {
       // Yes. Add the edge from parent to child
@@ -236,9 +236,9 @@ class Graph final : public BuildObserver {
   }
 
   /// A version of artifact a produced by the build does not match what was found on disk
-  virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> produced,
-                             shared_ptr<Version> ondisk) noexcept override final {
+  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
+                                    shared_ptr<Version> produced,
+                                    shared_ptr<Version> ondisk) noexcept override final {
     // Record the changed version
     _changed_versions.emplace(produced);
   }

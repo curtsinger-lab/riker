@@ -56,10 +56,10 @@ class RebuildPlanner final : public BuildObserver {
   /******** BuildObserver Interface ********/
 
   /// Command c depends on version v of artifact a
-  virtual void input(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v,
-                     InputType t) noexcept override final {
+  virtual void observeInput(shared_ptr<Command> c,
+                            shared_ptr<Artifact> a,
+                            shared_ptr<Version> v,
+                            InputType t) noexcept override final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
       // Output from creator is used by c. If creator reruns, c may have to rerun.
@@ -81,53 +81,53 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Command c did not find the expected version in artifact a
-  virtual void mismatch(shared_ptr<Command> c,
-                        shared_ptr<Artifact> a,
-                        shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) noexcept override final {
+  virtual void observeMismatch(shared_ptr<Command> c,
+                               shared_ptr<Artifact> a,
+                               shared_ptr<Version> observed,
+                               shared_ptr<Version> expected) noexcept override final {
     // Record the change
     LOGF(rebuild, "{} changed: change in {} (expected {}, observed {})", c, a, expected, observed);
     _changed.insert(c);
   }
 
   /// Command c has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) noexcept override final {
+  virtual void observeCommandNeverRun(shared_ptr<Command> c) noexcept override final {
     LOGF(rebuild, "{} changed: never run", c);
     _changed.insert(c);
   }
 
   /// A command's reference did not resolve as expected
-  virtual void resolutionChange(shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref,
-                                int expected) noexcept override {
+  virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> ref,
+                                       int expected) noexcept override {
     LOGF(rebuild, "{} changed: {} did not resolve as expected (expected {}, observed {})", c, ref,
          expected, ref->getResolution());
     _changed.insert(c);
   }
 
   /// Two references did not compare as expected
-  virtual void refMismatch(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref1,
-                           shared_ptr<RefResult> ref2,
-                           RefComparison type) noexcept override {
+  virtual void observeRefMismatch(shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref1,
+                                  shared_ptr<RefResult> ref2,
+                                  RefComparison type) noexcept override {
     LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
     _changed.insert(c);
   }
 
   /// A child command did not exit with the expected status
-  virtual void exitCodeChange(shared_ptr<Command> parent,
-                              shared_ptr<Command> child,
-                              int expected,
-                              int observed) noexcept override {
+  virtual void observeExitCodeChange(shared_ptr<Command> parent,
+                                     shared_ptr<Command> child,
+                                     int expected,
+                                     int observed) noexcept override {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
          parent, child, expected, observed);
     _changed.insert(parent);
   }
 
   /// An artifact's final version does not match what is on the filesystem
-  virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> produced,
-                             shared_ptr<Version> ondisk) noexcept override final {
+  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
+                                    shared_ptr<Version> produced,
+                                    shared_ptr<Version> ondisk) noexcept override final {
     // If this artifact was not created by any command, there's nothing we can do about it
     if (!produced->getCreator()) return;
 
@@ -142,8 +142,8 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// A command is being launched. The parent will be null if this is the root command.
-  virtual void launch(shared_ptr<Command> parent,
-                      shared_ptr<Command> child) noexcept override final {
+  virtual void observeLaunch(shared_ptr<Command> parent,
+                             shared_ptr<Command> child) noexcept override final {
     if (parent) _children[parent].insert(child);
   }
 

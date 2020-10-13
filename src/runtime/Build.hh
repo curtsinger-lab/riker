@@ -31,7 +31,7 @@ class Version;
  * the build environment, emulating or running each of the commands, and notifying any observers of
  * dependencies and changes detected during the build.
  */
-class Build : public TraceHandler {
+class Build : public TraceHandler, public BuildObserver {
  private:
   /// Create a build runner
   Build(bool commit, RebuildPlan plan, BuildObserver& observer, TraceHandler& output) noexcept :
@@ -246,51 +246,52 @@ class Build : public TraceHandler {
   /********** Observer Interface **********/
 
   /// Inform observers that a command has never run
-  void observeCommandNeverRun(shared_ptr<Command> c) const noexcept;
+  virtual void observeCommandNeverRun(shared_ptr<Command> c) noexcept override;
 
   /// Inform observers that a parent command launched a child command
-  void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) const noexcept;
+  virtual void observeLaunch(shared_ptr<Command> parent,
+                             shared_ptr<Command> child) noexcept override;
 
   /// Inform observers that command c modified artifact a, creating version v
-  void observeOutput(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v) const noexcept;
+  virtual void observeOutput(shared_ptr<Command> c,
+                             shared_ptr<Artifact> a,
+                             shared_ptr<Version> v) noexcept override;
 
   /// Inform observers that command c accessed version v of artifact a
-  void observeInput(shared_ptr<Command> c,
-                    shared_ptr<Artifact> a,
-                    shared_ptr<Version> v,
-                    InputType t) noexcept;
+  virtual void observeInput(shared_ptr<Command> c,
+                            shared_ptr<Artifact> a,
+                            shared_ptr<Version> v,
+                            InputType t) noexcept override;
 
   /// Inform observers that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
-  void observeMismatch(shared_ptr<Command> c,
-                       shared_ptr<Artifact> a,
-                       shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) const noexcept;
+  virtual void observeMismatch(shared_ptr<Command> c,
+                               shared_ptr<Artifact> a,
+                               shared_ptr<Version> observed,
+                               shared_ptr<Version> expected) noexcept override;
 
   /// Inform observers that the version of an artifact produced during the build does not match
   /// the on-disk version.
-  void observeFinalMismatch(shared_ptr<Artifact> a,
-                            shared_ptr<Version> produced,
-                            shared_ptr<Version> ondisk) const noexcept;
+  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
+                                    shared_ptr<Version> produced,
+                                    shared_ptr<Version> ondisk) noexcept override;
 
   /// Inform observers that a reference did not resolve as expected
-  void observeResolutionChange(shared_ptr<Command> c,
-                               shared_ptr<RefResult> ref,
-                               int expected) const noexcept;
+  virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> ref,
+                                       int expected) noexcept override;
 
   /// Inform observers that two references did not compare as expected
-  void observeRefMismatch(shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref1,
-                          shared_ptr<RefResult> ref2,
-                          RefComparison type) const noexcept;
+  virtual void observeRefMismatch(shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref1,
+                                  shared_ptr<RefResult> ref2,
+                                  RefComparison type) noexcept override;
 
   /// Inform observers that a command's exit code changed
-  void observeExitCodeChange(shared_ptr<Command> parent,
-                             shared_ptr<Command> child,
-                             int expected,
-                             int observed) const noexcept;
+  virtual void observeExitCodeChange(shared_ptr<Command> parent,
+                                     shared_ptr<Command> child,
+                                     int expected,
+                                     int observed) noexcept override;
 
  private:
   /// Is a particular command running?

@@ -32,48 +32,48 @@ class BuildObserver {
   virtual ~BuildObserver() noexcept = default;
 
   /// Command c modifies artifact a, creating version v
-  virtual void output(shared_ptr<Command> c,
-                      shared_ptr<Artifact> a,
-                      shared_ptr<Version> v) noexcept {}
+  virtual void observeOutput(shared_ptr<Command> c,
+                             shared_ptr<Artifact> a,
+                             shared_ptr<Version> v) noexcept {}
 
   /// Command c depends on artifact a, accessing version v
-  virtual void input(shared_ptr<Command> c,
-                     shared_ptr<Artifact> a,
-                     shared_ptr<Version> v,
-                     InputType t) noexcept {}
+  virtual void observeInput(shared_ptr<Command> c,
+                            shared_ptr<Artifact> a,
+                            shared_ptr<Version> v,
+                            InputType t) noexcept {}
 
   /// Command c did not find the expect version of artifact a
-  virtual void mismatch(shared_ptr<Command> c,
-                        shared_ptr<Artifact> a,
-                        shared_ptr<Version> observed,
-                        shared_ptr<Version> expected) noexcept {}
+  virtual void observeMismatch(shared_ptr<Command> c,
+                               shared_ptr<Artifact> a,
+                               shared_ptr<Version> observed,
+                               shared_ptr<Version> expected) noexcept {}
 
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced version `produced`, which does not match the `ondisk` version.
-  virtual void finalMismatch(shared_ptr<Artifact> a,
-                             shared_ptr<Version> produced,
-                             shared_ptr<Version> ondisk) noexcept {}
+  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
+                                    shared_ptr<Version> produced,
+                                    shared_ptr<Version> ondisk) noexcept {}
 
   /// A command is being launched. The parent will be null if this is the root command.
-  virtual void launch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
+  virtual void observeLaunch(shared_ptr<Command> parent, shared_ptr<Command> child) noexcept {}
 
   /// A command has never been run
-  virtual void commandNeverRun(shared_ptr<Command> c) noexcept {}
+  virtual void observeCommandNeverRun(shared_ptr<Command> c) noexcept {}
 
   /// A command's reference did not resolve as expected
-  virtual void resolutionChange(shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref,
-                                int expected) noexcept {}
+  virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> ref,
+                                       int expected) noexcept {}
 
   /// Two references did not compare as expected
-  virtual void refMismatch(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref1,
-                           shared_ptr<RefResult> ref2,
-                           RefComparison type) noexcept {}
+  virtual void observeRefMismatch(shared_ptr<Command> c,
+                                  shared_ptr<RefResult> ref1,
+                                  shared_ptr<RefResult> ref2,
+                                  RefComparison type) noexcept {}
 
   /// A child command did not exit with the expected status
-  virtual void exitCodeChange(shared_ptr<Command> parent,
-                              shared_ptr<Command> child,
-                              int expected,
-                              int observed) noexcept {}
+  virtual void observeExitCodeChange(shared_ptr<Command> parent,
+                                     shared_ptr<Command> child,
+                                     int expected,
+                                     int observed) noexcept {}
 };
