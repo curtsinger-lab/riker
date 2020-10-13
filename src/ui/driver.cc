@@ -2,13 +2,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -25,7 +23,6 @@
 
 using std::cout;
 using std::endl;
-using std::make_shared;
 using std::ofstream;
 using std::optional;
 using std::string;
