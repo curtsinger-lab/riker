@@ -17,6 +17,7 @@
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"
+#include "runtime/PredicateUpdater.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -65,6 +66,20 @@ void do_build(fs::path buildfile) noexcept {
 
   // Move the new trace into place
   fs::rename(NewDatabaseFilename, DatabaseFilename);
+
+  {
+    // Load the newly generated input trace
+    InputTrace new_trace(buildfile, DatabaseFilename);
+
+    // Set up an output trace for the post-build check
+    OutputTrace output(".dodo/postdb");
+
+    // Set up a filter to update predicates to their post-build state
+    PredicateUpdater filter(output);
+
+    // Emulate the new trace
+    new_trace.sendTo(Build::emulate(filter));
+  }
 }
 
 /**

@@ -49,6 +49,10 @@ class Build : public TraceHandler, public BuildObserver {
     return Build(false, RebuildPlan(), observer, output);
   }
 
+  static Build emulate(TraceHandler& output) noexcept {
+    return Build(false, RebuildPlan(), _default_observer, output);
+  }
+
   /// Create a build runner that executes a rebuild plan
   static Build rebuild(RebuildPlan plan, TraceHandler& output = _default_output) noexcept {
     return Build(true, plan, _default_observer, output);
@@ -330,8 +334,8 @@ class Build : public TraceHandler, public BuildObserver {
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
 
-  /// A map of launched commands to the root process running that command, or nullptr if it is only
-  /// being emulated
+  /// A map of launched commands to the root process running that command, or nullptr if it is
+  /// only being emulated
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
 
   /// A set of commands that have exited

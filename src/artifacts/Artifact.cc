@@ -226,11 +226,11 @@ void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(Build& build,
+shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
                                                   shared_ptr<Command> c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  build.observeInput(c, shared_from_this(), _metadata_version, t);
+  o.observeInput(c, shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;

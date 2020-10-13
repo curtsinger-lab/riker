@@ -155,7 +155,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(Build& build,
+  shared_ptr<MetadataVersion> getMetadata(BuildObserver& o,
                                           shared_ptr<Command> c,
                                           InputType t) noexcept;
 

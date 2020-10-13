@@ -137,8 +137,8 @@ class RebuildPlanner final : public BuildObserver {
     // Otherwise we have to run the command that created this artifact
     _output_needed.insert(produced->getCreator());
 
-    LOGF(rebuild, "{} must run: on-disk state of {} has changed (expected {}, observed {})",
-         produced->getCreator(), produced, ondisk);
+    LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
+         produced->getCreator(), a, produced, ondisk);
   }
 
   /// A command is being launched. The parent will be null if this is the root command.
