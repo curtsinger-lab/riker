@@ -53,13 +53,18 @@ void do_build(fs::path buildfile) noexcept {
   InputTrace trace(buildfile, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
-  auto planner = make_shared<RebuildPlanner>();
+  RebuildPlanner planner;
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate().addObserver(planner));
+  trace.sendTo(Build::emulate(planner));
 
-  // Now run the trace again with the planned rebuild steps
-  trace.sendTo(Build::rebuild(planner->planBuild(), make_unique<OutputTrace>(NewDatabaseFilename)));
+  {
+    // Set up an output trace
+    OutputTrace output(NewDatabaseFilename);
+
+    // Now run the trace again with the planned rebuild steps
+    trace.sendTo(Build::rebuild(planner.planBuild(), output));
+  }
 
   // Move the new trace into place
   fs::rename(NewDatabaseFilename, DatabaseFilename);
@@ -74,31 +79,31 @@ void do_check(fs::path buildfile) noexcept {
   InputTrace trace(buildfile, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
-  auto planner = make_shared<RebuildPlanner>();
+  RebuildPlanner planner;
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate().addObserver(planner));
+  trace.sendTo(Build::emulate(planner));
 
   // Print commands whose inputs have changed
-  if (planner->getChanged().size() > 0) {
+  if (planner.getChanged().size() > 0) {
     cout << "Commands with changed inputs:" << endl;
-    for (const auto& c : planner->getChanged()) {
+    for (const auto& c : planner.getChanged()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
   }
 
   // Print commands whose output is needed
-  if (planner->getOutputNeeded().size() > 0) {
+  if (planner.getOutputNeeded().size() > 0) {
     cout << "Commands whose output is missing or modified:" << endl;
-    for (const auto& c : planner->getOutputNeeded()) {
+    for (const auto& c : planner.getOutputNeeded()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
   }
 
   // Print the rebuild plan
-  cout << planner->planBuild();
+  cout << planner.planBuild();
 }
 
 /**
@@ -139,8 +144,8 @@ void do_graph(fs::path buildfile,
   InputTrace trace(buildfile, DatabaseFilename);
 
   // Create a graph observer and emulate the build
-  auto graph = make_shared<Graph>(show_all);
-  trace.sendTo(Build::emulate().addObserver(graph));
+  Graph graph(show_all);
+  trace.sendTo(Build::emulate(graph));
 
   if (no_render) {
     ofstream f(output);

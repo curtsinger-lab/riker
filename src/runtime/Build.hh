@@ -38,22 +38,24 @@ class Version;
 class Build : public TraceHandler {
  private:
   /// Create a build runner
-  Build(bool commit,
-        RebuildPlan plan,
-        unique_ptr<TraceHandler>&& output_trace = make_unique<TraceHandler>()) noexcept :
+  Build(bool commit, RebuildPlan plan, BuildObserver& observer, TraceHandler& output) noexcept :
       _commit(commit),
       _plan(plan),
-      _output_trace(std::move(output_trace)),
+      _observer(observer),
+      _output(output),
       _env(make_shared<Env>()),
       _tracer(make_unique<Tracer>(*this)) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate() noexcept { return Build(false, RebuildPlan()); }
+  static Build emulate(BuildObserver& observer = _default_observer,
+                       TraceHandler& output = _default_output) noexcept {
+    return Build(false, RebuildPlan(), observer, output);
+  }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(RebuildPlan plan, unique_ptr<TraceHandler>&& output_trace) noexcept {
-    return Build(true, plan, std::move(output_trace));
+  static Build rebuild(RebuildPlan plan, TraceHandler& output = _default_output) noexcept {
+    return Build(true, plan, _default_observer, output);
   }
 
   // Disallow Copy
@@ -247,12 +249,6 @@ class Build : public TraceHandler {
 
   /********** Observer Interface **********/
 
-  /// Add an observer to this build
-  Build& addObserver(shared_ptr<BuildObserver> o) noexcept {
-    _observers.push_back(o);
-    return *this;
-  }
-
   /// Inform observers that a command has never run
   void observeCommandNeverRun(shared_ptr<Command> c) const noexcept;
 
@@ -325,8 +321,11 @@ class Build : public TraceHandler {
   /// The rebuild plan
   RebuildPlan _plan;
 
+  /// The observers that should be notified of dependency and change information during the build
+  BuildObserver& _observer;
+
   /// Trace steps are sent to this trace handler, typically an OutputTrace
-  unique_ptr<TraceHandler> _output_trace;
+  TraceHandler& _output;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;
@@ -341,6 +340,9 @@ class Build : public TraceHandler {
   /// A set of commands that have exited
   set<shared_ptr<Command>> _exited;
 
-  /// The observers that should be notified of dependency and change information during the build
-  vector<shared_ptr<BuildObserver>> _observers;
+  /// The default observer is used if an observer is not provided during setup
+  inline static BuildObserver _default_observer;
+
+  /// The default output is used if a trace handler is not provided during setup
+  inline static TraceHandler _default_output;
 };
