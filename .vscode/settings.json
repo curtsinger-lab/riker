@@ -4,7 +4,8 @@
     "memory": "cpp",
     "vector": "cpp",
     "filesystem": "cpp",
-    "iosfwd": "cpp"
+    "iosfwd": "cpp",
+    "complex": "cpp"
   },
   "C_Cpp.default.cppStandard": "c++17",
   "editor.formatOnSave": true,
