@@ -86,9 +86,10 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
 
 // Inform observers that a reference did not resolve as expected
 void Build::observeResolutionChange(shared_ptr<Command> c,
+                                    Scenario scenario,
                                     shared_ptr<RefResult> ref,
                                     int expected) noexcept {
-  _observer.observeResolutionChange(c, ref, expected);
+  _observer.observeResolutionChange(c, scenario, ref, expected);
 }
 
 // Inform observers that two references did not compare as expected
@@ -312,9 +313,6 @@ void Build::expectResult(shared_ptr<Command> c,
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
-  // If this predicate is not from the original build, skip it (for now!)
-  if (scenario != Scenario::Build) return;
-
   // Count an emulated step
   _emulated_step_count++;
 
@@ -326,7 +324,7 @@ void Build::expectResult(shared_ptr<Command> c,
 
   // Does the resolved reference match the expected result?
   if (ref->getResultCode() != expected) {
-    observeResolutionChange(c, ref, expected);
+    observeResolutionChange(c, scenario, ref, expected);
   }
 }
 

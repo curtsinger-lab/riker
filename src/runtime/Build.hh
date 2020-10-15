@@ -285,6 +285,7 @@ class Build : public TraceHandler, public BuildObserver {
 
   /// Inform observers that a reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       Scenario scenario,
                                        shared_ptr<RefResult> ref,
                                        int expected) noexcept override;
 

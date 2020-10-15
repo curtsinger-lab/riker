@@ -35,7 +35,7 @@ class RebuildPlanner final : public BuildObserver {
     RebuildPlan plan;
 
     // Mark all the commands with changed inputs
-    for (const auto& c : _changed) {
+    for (auto c : getChanged()) {
       mark(plan, c, Reason::Changed);
     }
 
@@ -48,7 +48,12 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Get the set of commands that directly observe a change
-  const set<shared_ptr<Command>>& getChanged() const noexcept { return _changed; }
+  set<shared_ptr<Command>> getChanged() const noexcept {
+    set<shared_ptr<Command>> changed;
+    std::set_intersection(_changed_build.begin(), _changed_build.end(), _changed_post_build.begin(),
+                          _changed_post_build.end(), std::inserter(changed, changed.begin()));
+    return changed;
+  }
 
   /// Get the set of commands whose output is needed
   const set<shared_ptr<Command>>& getOutputNeeded() const noexcept { return _output_needed; }
@@ -87,22 +92,33 @@ class RebuildPlanner final : public BuildObserver {
                                shared_ptr<Version> expected) noexcept override final {
     // Record the change
     LOGF(rebuild, "{} changed: change in {} (expected {}, observed {})", c, a, expected, observed);
-    _changed.insert(c);
+    _changed_build.insert(c);
+    _changed_post_build.insert(c);
   }
 
   /// Command c has never been run
   virtual void observeCommandNeverRun(shared_ptr<Command> c) noexcept override final {
     LOGF(rebuild, "{} changed: never run", c);
-    _changed.insert(c);
+    _changed_build.insert(c);
+    _changed_post_build.insert(c);
   }
 
   /// A command's reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       Scenario scenario,
                                        shared_ptr<RefResult> ref,
                                        int expected) noexcept override {
-    LOGF(rebuild, "{} changed: {} did not resolve as expected (expected {}, observed {})", c, ref,
-         expected, ref->getResolution());
-    _changed.insert(c);
+    LOGF(rebuild,
+         "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
+         scenario, ref, expected, ref->getResolution());
+    if (scenario == Scenario::Build) {
+      _changed_build.insert(c);
+    } else if (scenario == Scenario::PostBuild) {
+      _changed_post_build.insert(c);
+    } else {
+      _changed_build.insert(c);
+      _changed_post_build.insert(c);
+    }
   }
 
   /// Two references did not compare as expected
@@ -111,7 +127,8 @@ class RebuildPlanner final : public BuildObserver {
                                   shared_ptr<RefResult> ref2,
                                   RefComparison type) noexcept override {
     LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
-    _changed.insert(c);
+    _changed_build.insert(c);
+    _changed_post_build.insert(c);
   }
 
   /// A child command did not exit with the expected status
@@ -121,7 +138,8 @@ class RebuildPlanner final : public BuildObserver {
                                      int observed) noexcept override {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
          parent, child, expected, observed);
-    _changed.insert(parent);
+    _changed_build.insert(parent);
+    _changed_post_build.insert(parent);
   }
 
   /// An artifact's final version does not match what is on the filesystem
@@ -199,8 +217,11 @@ class RebuildPlanner final : public BuildObserver {
   /// Track each command's children
   map<shared_ptr<Command>, set<shared_ptr<Command>>> _children;
 
-  /// Track commands with changed inputs
-  set<shared_ptr<Command>> _changed;
+  /// Commands that have changed since the last build
+  set<shared_ptr<Command>> _changed_build;
+
+  /// Commands that have changed since their post-build state
+  set<shared_ptr<Command>> _changed_post_build;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
