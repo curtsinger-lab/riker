@@ -305,7 +305,10 @@ void Build::compareRefs(shared_ptr<Command> c,
 }
 
 // Command c expects a reference to resolve with a specific result
-void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int expected) noexcept {
+void Build::expectResult(shared_ptr<Command> c,
+                         Scenario scenario,
+                         shared_ptr<RefResult> ref,
+                         int expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -313,10 +316,10 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, ref, expected};
+  LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, scenario, ref, expected};
 
   // Create an IR step and add it to the output trace
-  _output.expectResult(c, ref, expected);
+  _output.expectResult(c, scenario, ref, expected);
 
   // Does the resolved reference match the expected result?
   if (ref->getResultCode() != expected) {
@@ -326,6 +329,7 @@ void Build::expectResult(shared_ptr<Command> c, shared_ptr<RefResult> ref, int e
 
 // Command c accesses an artifact's metadata
 void Build::matchMetadata(shared_ptr<Command> c,
+                          Scenario scenario,
                           shared_ptr<RefResult> ref,
                           shared_ptr<MetadataVersion> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
@@ -335,10 +339,10 @@ void Build::matchMetadata(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, ref, expected};
+  LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, scenario, ref, expected};
 
   // Create an IR step and add it to the output trace
-  _output.matchMetadata(c, ref, expected);
+  _output.matchMetadata(c, scenario, ref, expected);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -349,6 +353,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
 
 // Command c accesses an artifact's content
 void Build::matchContent(shared_ptr<Command> c,
+                         Scenario scenario,
                          shared_ptr<RefResult> ref,
                          shared_ptr<Version> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
@@ -358,10 +363,10 @@ void Build::matchContent(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, ref, expected};
+  LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref, expected};
 
   // Create an IR step and add it to the output trace
-  _output.matchContent(c, ref, expected);
+  _output.matchContent(c, scenario, ref, expected);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -727,7 +732,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
   if (expected == -1) expected = ref->getResultCode();
 
   // Create an IR step and add it to the output trace
-  _output.expectResult(c, ref, expected);
+  _output.expectResult(c, Scenario::Build, ref, expected);
 
   // Check the expected (i.e., observed) result against our filesystem model
   WARN_IF(ref->getResultCode() != expected)
@@ -735,7 +740,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
       << ", which does not match syscall result " << getErrorName(expected);
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, ref, expected};
+  LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, Scenario::Build, ref, expected};
 }
 
 // Command c accesses an artifact's metadata
@@ -752,7 +757,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace
-  _output.matchMetadata(c, ref, expected);
+  _output.matchMetadata(c, Scenario::Build, ref, expected);
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -765,7 +770,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
   }
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, ref, expected};
+  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref, expected};
 }
 
 // Command c accesses an artifact's content
@@ -782,7 +787,7 @@ void Build::traceMatchContent(shared_ptr<Command> c,
   ASSERT(expected) << "Attempted to match contenet of " << artifact << " against a null version";
 
   // Create an IR step and add it to the output trace
-  _output.matchContent(c, ref, expected);
+  _output.matchContent(c, Scenario::Build, ref, expected);
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
@@ -795,7 +800,7 @@ void Build::traceMatchContent(shared_ptr<Command> c,
   }
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, ref, expected};
+  LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref, expected};
 }
 
 // Command c modifies an artifact

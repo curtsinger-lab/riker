@@ -223,25 +223,27 @@ struct CompareRefsRecord : public Record {
 
 struct ExpectResultRecord : public Record {
   Command::ID _cmd;
+  Scenario _scenario;
   RefResult::ID _ref;
   int _expected;
 
   /// Default constructor for serialization
   ExpectResultRecord() noexcept = default;
 
-  ExpectResultRecord(Command::ID cmd, RefResult::ID ref, int expected) noexcept :
-      _cmd(cmd), _ref(ref), _expected(expected) {}
+  ExpectResultRecord(Command::ID cmd, Scenario scenario, RefResult::ID ref, int expected) noexcept :
+      _cmd(cmd), _scenario(scenario), _ref(ref), _expected(expected) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _cmd, _ref, _expected);
+    archive(cereal::base_class<Record>(this), _cmd, _scenario, _ref, _expected);
   }
 };
 
 struct MatchMetadataRecord : public Record {
   Command::ID _cmd;
+  Scenario _scenario;
   RefResult::ID _ref;
   shared_ptr<MetadataVersion> _version;
 
@@ -249,34 +251,39 @@ struct MatchMetadataRecord : public Record {
   MatchMetadataRecord() noexcept = default;
 
   MatchMetadataRecord(Command::ID cmd,
+                      Scenario scenario,
                       RefResult::ID ref,
                       shared_ptr<MetadataVersion> version) noexcept :
-      _cmd(cmd), _ref(ref), _version(version) {}
+      _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _cmd, _ref, _version);
+    archive(cereal::base_class<Record>(this), _cmd, _scenario, _ref, _version);
   }
 };
 
 struct MatchContentRecord : public Record {
   Command::ID _cmd;
+  Scenario _scenario;
   RefResult::ID _ref;
   shared_ptr<Version> _version;
 
   /// Default constructor for serialization
   MatchContentRecord() noexcept = default;
 
-  MatchContentRecord(Command::ID cmd, RefResult::ID ref, shared_ptr<Version> version) noexcept :
-      _cmd(cmd), _ref(ref), _version(version) {}
+  MatchContentRecord(Command::ID cmd,
+                     Scenario scenario,
+                     RefResult::ID ref,
+                     shared_ptr<Version> version) noexcept :
+      _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _cmd, _ref, _version);
+    archive(cereal::base_class<Record>(this), _cmd, _scenario, _ref, _version);
   }
 };
 

@@ -73,23 +73,29 @@ void OutputTrace::compareRefs(shared_ptr<Command> cmd,
 
 /// Add a ExpectResult IR step to the output trace
 void OutputTrace::expectResult(shared_ptr<Command> cmd,
+                               Scenario scenario,
                                shared_ptr<RefResult> ref,
                                int expected) noexcept {
-  _records.emplace_back(new ExpectResultRecord(getCommandID(cmd), getRefResultID(ref), expected));
+  _records.emplace_back(
+      new ExpectResultRecord(getCommandID(cmd), scenario, getRefResultID(ref), expected));
 }
 
 /// Add a MatchMetadata IR step to the output trace
 void OutputTrace::matchMetadata(shared_ptr<Command> cmd,
+                                Scenario scenario,
                                 shared_ptr<RefResult> ref,
                                 shared_ptr<MetadataVersion> version) noexcept {
-  _records.emplace_back(new MatchMetadataRecord(getCommandID(cmd), getRefResultID(ref), version));
+  _records.emplace_back(
+      new MatchMetadataRecord(getCommandID(cmd), scenario, getRefResultID(ref), version));
 }
 
 /// Add a MatchContent IR step to the output trace
 void OutputTrace::matchContent(shared_ptr<Command> cmd,
+                               Scenario scenario,
                                shared_ptr<RefResult> ref,
                                shared_ptr<Version> version) noexcept {
-  _records.emplace_back(new MatchContentRecord(getCommandID(cmd), getRefResultID(ref), version));
+  _records.emplace_back(
+      new MatchContentRecord(getCommandID(cmd), scenario, getRefResultID(ref), version));
 }
 
 /// Add a UpdateMetadata IR step to the output trace
