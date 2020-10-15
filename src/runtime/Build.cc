@@ -70,10 +70,11 @@ void Build::observeInput(shared_ptr<Command> c,
 // Inform observers that command c did not find the expected version in artifact a
 // Instead of version `expected`, the command found version `observed`
 void Build::observeMismatch(shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> observed,
                             shared_ptr<Version> expected) noexcept {
-  _observer.observeMismatch(c, a, observed, expected);
+  _observer.observeMismatch(c, scenario, a, observed, expected);
 }
 
 // Inform observers that the version of an artifact produced during the build does not match the
@@ -336,9 +337,6 @@ void Build::matchMetadata(shared_ptr<Command> c,
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
-  // If this predicate is not from the original build, skip it (for now!)
-  if (scenario != Scenario::Build) return;
-
   // Count an emulated step
   _emulated_step_count++;
 
@@ -352,7 +350,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
   if (!ref->isResolved()) return;
 
   // Perform the comparison
-  ref->getArtifact()->matchMetadata(*this, c, expected);
+  ref->getArtifact()->matchMetadata(*this, c, scenario, expected);
 }
 
 // Command c accesses an artifact's content
@@ -362,9 +360,6 @@ void Build::matchContent(shared_ptr<Command> c,
                          shared_ptr<Version> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
-
-  // If this predicate is not from the original build, skip it (for now!)
-  if (scenario != Scenario::Build) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -379,7 +374,7 @@ void Build::matchContent(shared_ptr<Command> c,
   if (!ref->isResolved()) return;
 
   // Perform the comparison
-  ref->getArtifact()->matchContent(*this, c, expected);
+  ref->getArtifact()->matchContent(*this, c, scenario, expected);
 }
 
 // Command c modifies an artifact

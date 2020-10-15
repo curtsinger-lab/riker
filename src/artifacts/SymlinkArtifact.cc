@@ -32,9 +32,15 @@ void SymlinkArtifact::afterRead(Build& build,
   build.traceMatchContent(c, ref, _symlink_version);
 }
 
+// Get this artifact's content without creating dependencies
+shared_ptr<Version> SymlinkArtifact::peekContent() noexcept {
+  return _symlink_version;
+}
+
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(Build& build,
                                    shared_ptr<Command> c,
+                                   Scenario scenario,
                                    shared_ptr<Version> expected) noexcept {
   // The symlink version is an input to command c
   build.observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
@@ -42,7 +48,7 @@ void SymlinkArtifact::matchContent(Build& build,
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), _symlink_version, expected);
+    build.observeMismatch(c, scenario, shared_from_this(), _symlink_version, expected);
   }
 }
 

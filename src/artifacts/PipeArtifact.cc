@@ -110,12 +110,18 @@ void PipeArtifact::afterWrite(Build& build,
   build.traceUpdateContent(c, ref, writing);
 }
 
+// Get this pipe's content without creating any dependencies
+shared_ptr<Version> PipeArtifact::peekContent() noexcept {
+  return make_shared<PipeReadVersion>(_writes);
+}
+
 // Check to see if this artifact's content matches a known version
 void PipeArtifact::matchContent(Build& build,
                                 shared_ptr<Command> c,
+                                Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // If nothing has been read from this pipe, there can be no match
-  if (!_last_read) build.observeMismatch(c, shared_from_this(), nullptr, expected);
+  if (!_last_read) build.observeMismatch(c, scenario, shared_from_this(), nullptr, expected);
 
   // The command depends on the last read version
   build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
@@ -123,7 +129,7 @@ void PipeArtifact::matchContent(Build& build,
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), _last_read, expected);
+    build.observeMismatch(c, scenario, shared_from_this(), _last_read, expected);
   }
 }
 

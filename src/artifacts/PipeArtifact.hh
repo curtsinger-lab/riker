@@ -118,9 +118,13 @@ class PipeArtifact : public Artifact {
 
   /************ Content Operations ************/
 
+  /// Get this artifact's current content without creating any dependencies
+  virtual shared_ptr<Version> peekContent() noexcept override;
+
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /// Apply a new content version to this artifact

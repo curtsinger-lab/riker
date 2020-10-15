@@ -159,9 +159,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                                           shared_ptr<Command> c,
                                           InputType t) noexcept;
 
+  /// Get the current metadata without recording any dependencies
+  shared_ptr<MetadataVersion> peekMetadata() noexcept;
+
   /// Check to see if this artifact's metadata matches a known version
   void matchMetadata(Build& build,
                      shared_ptr<Command> c,
+                     Scenario scenario,
                      shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
@@ -210,9 +214,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Content Operations ************/
 
+  /// Get this artifact's current content without creating any dependencies
+  virtual shared_ptr<Version> peekContent() noexcept = 0;
+
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<Version> expected) noexcept = 0;
 
   /// Update this artifact's content with a file version

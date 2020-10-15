@@ -64,13 +64,19 @@ class DirArtifact final : public Artifact {
                          shared_ptr<Command> c,
                          shared_ptr<RefResult> ref) noexcept override;
 
+  /************ Content Operations ************/
+
+  /// Get this artifact's current content without creating any dependencies
+  virtual shared_ptr<Version> peekContent() noexcept override;
+
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
                             shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /// Get a version that lists all the entries in this directory
-  shared_ptr<DirListVersion> getList(Build& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<DirListVersion> getList(BuildObserver& build, shared_ptr<Command> c) noexcept;
 
   /************ Directory Operations ************/
 

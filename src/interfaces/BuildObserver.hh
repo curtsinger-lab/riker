@@ -44,6 +44,7 @@ class BuildObserver {
 
   /// Command c did not find the expect version of artifact a
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept {}

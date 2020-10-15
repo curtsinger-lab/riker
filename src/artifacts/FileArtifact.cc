@@ -170,9 +170,15 @@ void FileArtifact::afterTruncate(Build& build,
   build.traceUpdateContent(c, ref, written);
 }
 
+// Get this artifact's content without creating dependencies
+shared_ptr<Version> FileArtifact::peekContent() noexcept {
+  return _content_version;
+}
+
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::matchContent(Build& build,
                                 shared_ptr<Command> c,
+                                Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // The content version is an input to command c
   build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
@@ -180,7 +186,7 @@ void FileArtifact::matchContent(Build& build,
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), _content_version, expected);
+    build.observeMismatch(c, scenario, shared_from_this(), _content_version, expected);
   }
 }
 

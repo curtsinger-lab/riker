@@ -19,17 +19,7 @@ Check the output
   hello
   world
 
-Run a rebuild, which should now detect the new output file
-  $ $DODO --show
-  Dodofile
-  cat hello.txt world.txt
-
-Check the output again
-  $ cat output
-  hello
-  world
-
-Run an additional rebuild, which now sees no change
+Run a rebuild, which shoudl do nothing
   $ $DODO --show
 
 Check the output

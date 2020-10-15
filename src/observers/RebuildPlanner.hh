@@ -87,13 +87,22 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Command c did not find the expected version in artifact a
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept override final {
     // Record the change
-    LOGF(rebuild, "{} changed: change in {} (expected {}, observed {})", c, a, expected, observed);
-    _changed_build.insert(c);
-    _changed_post_build.insert(c);
+    LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", c, scenario,
+         a, expected, observed);
+
+    if (scenario == Scenario::Build) {
+      _changed_build.insert(c);
+    } else if (scenario == Scenario::PostBuild) {
+      _changed_post_build.insert(c);
+    } else {
+      _changed_build.insert(c);
+      _changed_post_build.insert(c);
+    }
   }
 
   /// Command c has never been run

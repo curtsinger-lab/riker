@@ -273,6 +273,7 @@ class Build : public TraceHandler, public BuildObserver {
   /// Inform observers that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept override;

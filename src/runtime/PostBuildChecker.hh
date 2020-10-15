@@ -86,11 +86,13 @@ class PostBuildChecker : public TraceHandler {
                              shared_ptr<RefResult> ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
     if (scenario == Scenario::Build) {
+      // Emit the predicate from the original build phase
       _output.matchMetadata(command, Scenario::Build, ref, expected);
+
+      // Now also emit a predicate to check for the post-build state
       if (ref->isResolved()) {
-        BuildObserver o;
-        auto mv = ref->getArtifact()->getMetadata(o, command, InputType::Accessed);
-        _output.matchMetadata(command, Scenario::PostBuild, ref, mv);
+        _output.matchMetadata(command, Scenario::PostBuild, ref,
+                              ref->getArtifact()->peekMetadata());
       } else {
         // Do we need to make sure the reference is not resolved? Hasn't that already been done?
       }
@@ -103,10 +105,15 @@ class PostBuildChecker : public TraceHandler {
                             shared_ptr<RefResult> ref,
                             shared_ptr<Version> expected) noexcept override {
     if (scenario == Scenario::Build) {
+      // Emit the predicate from the original build phase
       _output.matchContent(command, Scenario::Build, ref, expected);
-      // TODO: Emit a post-build check against the current content of the artifact, not the version
-      // from the actual build (that's what `expected` holds)
-      _output.matchContent(command, Scenario::PostBuild, ref, expected);
+
+      // Now also emit a predicate to check for the post-build state
+      if (ref->isResolved()) {
+        _output.matchContent(command, Scenario::PostBuild, ref, ref->getArtifact()->peekContent());
+      } else {
+        // Do we need to make sure the reference is not resolved? Hasn't that already been done?
+      }
     }
   }
 
