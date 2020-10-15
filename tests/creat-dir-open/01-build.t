@@ -27,5 +27,11 @@ Check the contents of a_file
   Change:.* (re)
    Birth:.* (re)
 
+Remove outcome
+  $ rm outcome
+
+Run the second build
+  $ $DODO --show
+
 Clean up
   $ rm -rf .dodo creat-dir-open outcome
