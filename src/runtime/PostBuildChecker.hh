@@ -5,9 +5,13 @@
 
 using std::shared_ptr;
 
-class PredicateUpdater : public TraceHandler {
+/**
+ * This class processes a build trace that has already been completed, and adds new predicates to
+ * check against the state left at the end of a build.
+ */
+class PostBuildChecker : public TraceHandler {
  public:
-  PredicateUpdater(TraceHandler& output) : _output(output) {}
+  PostBuildChecker(TraceHandler& output) : _output(output) {}
 
   /// Called when the trace is finished
   virtual void finish() noexcept override { _output.finish(); }

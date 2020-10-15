@@ -312,6 +312,9 @@ void Build::expectResult(shared_ptr<Command> c,
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
+  // If this predicate is not from the original build, skip it (for now!)
+  if (scenario != Scenario::Build) return;
+
   // Count an emulated step
   _emulated_step_count++;
 
@@ -334,6 +337,9 @@ void Build::matchMetadata(shared_ptr<Command> c,
                           shared_ptr<MetadataVersion> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
+
+  // If this predicate is not from the original build, skip it (for now!)
+  if (scenario != Scenario::Build) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -358,6 +364,9 @@ void Build::matchContent(shared_ptr<Command> c,
                          shared_ptr<Version> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
+
+  // If this predicate is not from the original build, skip it (for now!)
+  if (scenario != Scenario::Build) return;
 
   // Count an emulated step
   _emulated_step_count++;
