@@ -100,9 +100,9 @@ void PipeArtifact::afterRead(Build& build,
 }
 
 // A trace command just wrote to this artifact
-void PipeArtifact::afterWrite(Build& build,
-                              shared_ptr<Command> c,
-                              shared_ptr<RefResult> ref) noexcept {
+void PipeArtifact::beforeWrite(Build& build,
+                               shared_ptr<Command> c,
+                               shared_ptr<RefResult> ref) noexcept {
   // Create a new version
   auto writing = make_shared<PipeWriteVersion>();
 

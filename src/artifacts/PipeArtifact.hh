@@ -109,12 +109,12 @@ class PipeArtifact : public Artifact {
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
                            shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept override {}
+                           shared_ptr<RefResult> ref) noexcept override;
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
                           shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept override;
+                          shared_ptr<RefResult> ref) noexcept override {}
 
   /************ Content Operations ************/
 
