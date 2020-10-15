@@ -6,7 +6,6 @@ Move to test directory
 Prepare for a clean run. Create an empty output file for now, so rebuilding works
   $ rm -rf .dodo output
   $ echo "Hello" > input
-  $ touch output
 
 Run the first build
   $ $DODO --show

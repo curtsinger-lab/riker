@@ -7,9 +7,6 @@ Clean up any leftover state
 Copy in the original version of hello.c
   $ cp file_versions/hello-original.c hello.c
 
-Touch the hello file, since make will stat it
-  $ touch hello
-
 Run the build
   $ $DODO --show
   dodo-launch .dodo/Makefile-steps
