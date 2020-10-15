@@ -32,6 +32,3 @@ Clean up
   $ rm -rf .dodo
   $ rm -f main.aux main.log main.pdf
   $ cp main-original.tex main.tex
-
-SKIP! This test will not work until we have fingerprinting. Without that, the rebuild sees a changed main.aux file.
-  $ exit 80
