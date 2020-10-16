@@ -9,7 +9,7 @@ Prepare for a the build
 
 Run the first build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
 
 Check the output
@@ -24,7 +24,7 @@ Now make the build file unreadable as well
 
 Run a build, which should fail
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Unable to launch build file Dodofile.
     Write build steps in a file named `Dodofile`.
     This file must be either directly executable, or runnable with `/bin/sh`.
@@ -34,7 +34,7 @@ Make the Dodofile readable and executable again
 
 Run a build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
 
 Check the output

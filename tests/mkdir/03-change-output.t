@@ -9,7 +9,7 @@ Prepare for a clean run. Create an empty output file for now, so rebuilding work
 
 Run the first build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   mkdir foo
   cat input

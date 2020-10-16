@@ -10,7 +10,7 @@ Prepare for a clean run
 
 Run the first build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   ./openat-directory
   Trying openat(-100, "mydir", 655360, 0)

@@ -68,7 +68,7 @@ You will see test output printed directly in the console:
 @@ -41,8 +41,8 @@
  Run a build, which should fail
    $ $DODO --show
-   dodo-launch Dodofile
+   dodo-launch
 -  Unable to access Dodofile.
 -    This file must be directly executable or runnable with /bin/sh.
 +  Unable to find either Dodofile or Makefile.

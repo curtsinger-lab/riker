@@ -17,6 +17,7 @@ longest = max(map(len, testdirs))
 # Set up an environment map to run the tests
 testenv = os.environ.copy()
 testenv['DODO'] = os.path.join('..', '..', 'dodo')
+del testenv['MAKEFLAGS']
 
 # If any test run exits with a non-zero code, remember it here
 exitcode = 0
@@ -44,6 +45,9 @@ for d in testdirs:
   # If there are no tests, skip this iteration
   if len(tests) == 0:
     continue
+
+  # Sort the list of tests
+  tests.sort()
 
   # Run the tests
   start_time = time.time()
