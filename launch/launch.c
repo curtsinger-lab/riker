@@ -10,17 +10,23 @@
 
 int main(int argc, char** argv) {
   // First, try to execute the root build file
-  char* argv2[argc];
-  argv2[0] = Buildfile;
-  for (int i = 1; i <= argc; i++) {
-    argv2[i + 1] = argv[i];
-  }
-  execv(Buildfile, argv2);
+  argv[0] = Buildfile;
+  execv(Buildfile, argv);
 
   // If we reach this point, the buildfile was not executable. Is it readable?
   if (faccessat(AT_FDCWD, Buildfile, R_OK, AT_EACCESS) == 0) {
     // The buildfile is not executable, but we have read access. Run it with /bin/sh
-    execl(ShellCommand, ShellCommand, Buildfile, NULL);
+
+    // First, build a new argv array that starts with /bin/sh
+    char* new_argv[argc + 2];
+    new_argv[0] = ShellCommand;
+
+    // Copy the original arguments, including the NULL terminator at argv[argc]
+    for (int i = 0; i <= argc; i++) {
+      new_argv[i + 1] = argv[i];
+    }
+
+    execv(ShellCommand, new_argv);
     perror("Failed to run " Buildfile " with shell " ShellCommand);
     exit(2);
   }
