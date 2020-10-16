@@ -65,6 +65,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the full name for this command
   string getFullName() const noexcept;
 
+  /// Is this command the make build tool?
+  bool isMake() const noexcept;
+
   /// Get the reference to the executable file this command runs
   shared_ptr<RefResult> getExecutable() const noexcept { return _exe; }
 

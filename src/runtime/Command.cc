@@ -53,3 +53,8 @@ string Command::getFullName() const noexcept {
   }
   return result;
 }
+
+bool Command::isMake() const noexcept {
+  fs::path exe_path = _args.front();
+  return exe_path.filename().string() == "make";
+}
