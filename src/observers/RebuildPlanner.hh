@@ -67,6 +67,19 @@ class RebuildPlanner final : public BuildObserver {
                             InputType t) noexcept override final {
     // During the planning phase, record this dependency
     if (v->getCreator()) {
+      // Special case: make will stat files at the end of the build. We'll skip recording these
+      // inputs for now. If we don't do that, any build that updates a target will force a full
+      // rebuild with make.
+      if (auto metadata = v->as<MetadataVersion>(); metadata && c->isMake()) {
+        // TODO: Revisit this special case once we have command skipping. We could defer running
+        // make but then launch is later (and skip its children) if the stat data changes.
+
+        // make needs the output from the creator if we need to rerun it, but don't add make to the
+        // creator's set of commands that it will mark for rerun
+        _needs_output_from[c].insert(v->getCreator());
+        return;
+      }
+
       // Output from creator is used by c. If creator reruns, c may have to rerun.
       // This is not true for inputs that just require the version to exist
       if (t != InputType::Exists) {

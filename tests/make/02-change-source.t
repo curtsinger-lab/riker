@@ -26,11 +26,8 @@ Edit the hello.c file
 
 Run a rebuild
   $ $DODO --show
-  make --always-make --quiet
-  gcc -o hello hello.c
   cc1 * (glob)
   as * (glob)
-  collect2 * (glob)
   ld * (glob)
 
 Make sure the build worked
