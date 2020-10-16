@@ -96,16 +96,19 @@ class OutputTrace : public TraceHandler {
 
   /// Add a ExpectResult IR step to the output trace
   virtual void expectResult(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override;
 
   /// Add a MatchMetadata IR step to the output trace
   virtual void matchMetadata(shared_ptr<Command> command,
+                             Scenario scenario,
                              shared_ptr<RefResult> ref,
                              shared_ptr<MetadataVersion> version) noexcept override;
 
   /// Add a MatchContent IR step to the output trace
   virtual void matchContent(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             shared_ptr<Version> version) noexcept override;
 

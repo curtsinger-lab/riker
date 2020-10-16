@@ -6,7 +6,6 @@ Move to test directory
 Prepare for a clean run. Create an empty output file for now, so rebuilding works
   $ rm -rf .dodo output
   $ echo "Hello" > input
-  $ touch output
 
 Run the first build
   $ $DODO --show
@@ -27,24 +26,12 @@ Remove the output file
 Run a rebuild
   $ $DODO --show
   cat input
-  mv foo/f output
-  rmdir foo
 
 Check the output
   $ cat output
   Hello
 
-Run an additional rebuild. The mv command observes the presence of output, so it must rerun
-  $ $DODO --show
-  cat input
-  mv foo/f output
-  rmdir foo
-
-Check the output again
-  $ cat output
-  Hello
-
-And run a final rebuild. This should do nothing
+Run a final rebuild. This should do nothing
   $ $DODO --show
 
 Check the output again

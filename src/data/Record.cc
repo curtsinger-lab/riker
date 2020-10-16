@@ -95,17 +95,17 @@ void CompareRefsRecord::handle(InputTrace& input, TraceHandler& handler) noexcep
 
 // Send an ExpectResult IR step from an input trace to a trace handler
 void ExpectResultRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.expectResult(input.getCommand(_cmd), input.getRefResult(_ref), _expected);
+  handler.expectResult(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _expected);
 }
 
 // Send a MatchMetadata IR step from an input trace to a trace handler
 void MatchMetadataRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.matchMetadata(input.getCommand(_cmd), input.getRefResult(_ref), _version);
+  handler.matchMetadata(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _version);
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
 void MatchContentRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.matchContent(input.getCommand(_cmd), input.getRefResult(_ref), _version);
+  handler.matchContent(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _version);
 }
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler

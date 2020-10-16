@@ -23,6 +23,3 @@ Run a rebuild (should do nothing)
 Clean up
   $ rm -rf .dodo
   $ rm -f main.aux main.log main.pdf
-
-SKIP! This test does not work because pdflatex overwrites main.aux. Once we have fingerprinting it should pass.
-  $ exit 80

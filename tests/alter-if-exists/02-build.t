@@ -35,5 +35,3 @@ Check the contents of the file
 Clean up
   $ rm -rf .dodo conditional-maker a_file
 
-SKIP! This test requires post-build state checking
-  $ exit 80

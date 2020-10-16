@@ -5,9 +5,13 @@
 
 using std::shared_ptr;
 
-class PredicateUpdater : public TraceHandler {
+/**
+ * This class processes a build trace that has already been completed, and adds new predicates to
+ * check against the state left at the end of a build.
+ */
+class PostBuildChecker : public TraceHandler {
  public:
-  PredicateUpdater(TraceHandler& output) : _output(output) {}
+  PostBuildChecker(TraceHandler& output) : _output(output) {}
 
   /// Called when the trace is finished
   virtual void finish() noexcept override { _output.finish(); }
@@ -67,34 +71,56 @@ class PredicateUpdater : public TraceHandler {
 
   /// Handle an ExpectResult IR step
   virtual void expectResult(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override {
-    _output.expectResult(command, ref, ref->getResultCode());
+    if (scenario == Scenario::Build) {
+      _output.expectResult(command, Scenario::Build, ref, expected);
+      _output.expectResult(command, Scenario::PostBuild, ref, ref->getResultCode());
+    }
   }
 
   /// Handle a MatchMetadata IR step
   virtual void matchMetadata(shared_ptr<Command> command,
+                             Scenario scenario,
                              shared_ptr<RefResult> ref,
-                             shared_ptr<MetadataVersion> version) noexcept override {
-    if (!ref->isResolved()) return;
-    BuildObserver o;
-    auto mv = ref->getArtifact()->getMetadata(o, command, InputType::Accessed);
-    _output.matchMetadata(command, ref, mv);
+                             shared_ptr<MetadataVersion> expected) noexcept override {
+    if (scenario == Scenario::Build) {
+      // Emit the predicate from the original build phase
+      _output.matchMetadata(command, Scenario::Build, ref, expected);
+
+      // Now also emit a predicate to check for the post-build state
+      if (ref->isResolved()) {
+        _output.matchMetadata(command, Scenario::PostBuild, ref,
+                              ref->getArtifact()->peekMetadata());
+      } else {
+        // Do we need to make sure the reference is not resolved? Hasn't that already been done?
+      }
+    }
   }
 
   /// Handle a MatchContent IR step
   virtual void matchContent(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
-                            shared_ptr<Version> version) noexcept override {
-    if (!ref->isResolved()) return;
-    _output.matchContent(command, ref, version);
+                            shared_ptr<Version> expected) noexcept override {
+    if (scenario == Scenario::Build) {
+      // Emit the predicate from the original build phase
+      _output.matchContent(command, Scenario::Build, ref, expected);
+
+      // Now also emit a predicate to check for the post-build state
+      if (ref->isResolved()) {
+        _output.matchContent(command, Scenario::PostBuild, ref, ref->getArtifact()->peekContent());
+      } else {
+        // Do we need to make sure the reference is not resolved? Hasn't that already been done?
+      }
+    }
   }
 
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(shared_ptr<Command> command,
                               shared_ptr<RefResult> ref,
                               shared_ptr<MetadataVersion> version) noexcept override {
-    if (!ref->isResolved()) return;
     _output.updateMetadata(command, ref, version);
   }
 
@@ -102,7 +128,6 @@ class PredicateUpdater : public TraceHandler {
   virtual void updateContent(shared_ptr<Command> command,
                              shared_ptr<RefResult> ref,
                              shared_ptr<Version> version) noexcept override {
-    if (!ref->isResolved()) return;
     _output.updateContent(command, ref, version);
   }
 
@@ -111,7 +136,6 @@ class PredicateUpdater : public TraceHandler {
                         shared_ptr<RefResult> dir,
                         fs::path name,
                         shared_ptr<RefResult> target) noexcept override {
-    if (!dir->isResolved() || !target->isResolved()) return;
     _output.addEntry(command, dir, name, target);
   }
 
@@ -120,7 +144,6 @@ class PredicateUpdater : public TraceHandler {
                            shared_ptr<RefResult> dir,
                            fs::path name,
                            shared_ptr<RefResult> target) noexcept override {
-    if (!dir->isResolved() || !target->isResolved()) return;
     _output.removeEntry(command, dir, name, target);
   }
 

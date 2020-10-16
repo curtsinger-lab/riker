@@ -14,6 +14,14 @@ using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
+/**
+ * Predicates are tagged with specific scenarios where they apply.
+ *
+ * If all of a command's predicates in the Build scenario evaluate to true, the command does not
+ * directly observe any change. The same is true for the PostBuild scenario.
+ */
+enum class Scenario { Build, PostBuild };
+
 /// Unique IDs for the entities reachable via special references
 enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
 
@@ -67,16 +75,19 @@ class TraceHandler {
 
   /// Handle an ExpectResult IR step
   virtual void expectResult(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept {};
 
   /// Handle a MatchMetadata IR step
   virtual void matchMetadata(shared_ptr<Command> command,
+                             Scenario scenario,
                              shared_ptr<RefResult> ref,
                              shared_ptr<MetadataVersion> version) noexcept {};
 
   /// Handel a MatchContent IR step
   virtual void matchContent(shared_ptr<Command> command,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             shared_ptr<Version> version) noexcept {};
 

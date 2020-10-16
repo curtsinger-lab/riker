@@ -44,6 +44,7 @@ class BuildObserver {
 
   /// Command c did not find the expect version of artifact a
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept {}
@@ -62,6 +63,7 @@ class BuildObserver {
 
   /// A command's reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       Scenario scenario,
                                        shared_ptr<RefResult> ref,
                                        int expected) noexcept {}
 

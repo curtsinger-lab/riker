@@ -236,9 +236,16 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
   return _metadata_version;
 }
 
+/// Get the current metadata for this artifact without creating any dependencies
+shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
+  BuildObserver o;
+  return getMetadata(o, nullptr, InputType::Accessed);
+}
+
 /// Check to see if this artifact's metadata matches a known version
 void Artifact::matchMetadata(Build& build,
                              shared_ptr<Command> c,
+                             Scenario scenario,
                              shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
   auto observed = getMetadata(build, c, InputType::Accessed);
@@ -246,7 +253,7 @@ void Artifact::matchMetadata(Build& build,
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, shared_from_this(), observed, expected);
+    build.observeMismatch(c, scenario, shared_from_this(), observed, expected);
   }
 }
 

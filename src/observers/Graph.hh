@@ -189,6 +189,7 @@ class Graph final : public BuildObserver {
 
   /// Command c observes a change in version v of artifact a
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept override final {
@@ -201,6 +202,7 @@ class Graph final : public BuildObserver {
 
   /// A command's reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       Scenario scenario,
                                        shared_ptr<RefResult> ref,
                                        int expected) noexcept override {
     _changed_commands.insert(c);

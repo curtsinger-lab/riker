@@ -15,6 +15,16 @@ using std::string;
 class Command;
 class RefResult;
 
+inline static ostream& operator<<(ostream& o, Scenario s) {
+  if (s == Scenario::Build) {
+    return o << "<build>";
+  } else if (s == Scenario::PostBuild) {
+    return o << "<post-build>";
+  } else {
+    return o << "<unknown>";
+  }
+}
+
 class TracePrinter : public TraceHandler {
  public:
   /// Create a trace printer that writes to a provided ostream
@@ -70,21 +80,24 @@ class TracePrinter : public TraceHandler {
   }
 
   virtual void expectResult(shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override {
-    _out << ExpectResultPrinter{c, ref, expected} << endl;
+    _out << ExpectResultPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void matchMetadata(shared_ptr<Command> c,
+                             Scenario scenario,
                              shared_ptr<RefResult> ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
-    _out << MatchMetadataPrinter{c, ref, expected} << endl;
+    _out << MatchMetadataPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void matchContent(shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             shared_ptr<Version> expected) noexcept override {
-    _out << MatchContentPrinter{c, ref, expected} << endl;
+    _out << MatchContentPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void updateMetadata(shared_ptr<Command> c,
@@ -254,36 +267,40 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print ExpectResult IR steps
   struct ExpectResultPrinter {
     shared_ptr<Command> c;
+    Scenario scenario;
     shared_ptr<RefResult> ref;
     int expected;
 
     friend ostream& operator<<(ostream& o, const ExpectResultPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "ExpectResult(" << p.ref << ", " << getErrorName(p.expected) << ")";
+      return o << "ExpectResult(" << p.ref << ", " << getErrorName(p.expected) << ") "
+               << p.scenario;
     }
   };
 
   /// A wrapper struct used to print MatchMetadata IR steps
   struct MatchMetadataPrinter {
     shared_ptr<Command> c;
+    Scenario scenario;
     shared_ptr<RefResult> ref;
     shared_ptr<MetadataVersion> expected;
 
     friend ostream& operator<<(ostream& o, const MatchMetadataPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "MatchMetadata(" << p.ref << ", " << p.expected << ")";
+      return o << "MatchMetadata(" << p.ref << ", " << p.expected << ") " << p.scenario;
     }
   };
 
   /// A wrapper struct used to print MatchContent IR steps
   struct MatchContentPrinter {
     shared_ptr<Command> c;
+    Scenario scenario;
     shared_ptr<RefResult> ref;
     shared_ptr<Version> expected;
 
     friend ostream& operator<<(ostream& o, const MatchContentPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "MatchContent(" << p.ref << ", " << p.expected << ")";
+      return o << "MatchContent(" << p.ref << ", " << p.expected << ") " << p.scenario;
     }
   };
 

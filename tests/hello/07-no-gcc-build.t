@@ -13,9 +13,6 @@ Copy in the basic Dodofile and make sure it's executable
 Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
-Touch the output file
-  $ touch hello hello.i hello.o hello.s
-
 Run the build
   $ $DODO --show
   dodo-launch Dodofile

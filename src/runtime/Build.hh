@@ -130,16 +130,19 @@ class Build : public TraceHandler, public BuildObserver {
 
   /// A command expects a reference to resolve with a particular result
   virtual void expectResult(shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             int expected) noexcept override;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   virtual void matchMetadata(shared_ptr<Command> c,
+                             Scenario scenario,
                              shared_ptr<RefResult> ref,
                              shared_ptr<MetadataVersion> expected) noexcept override;
 
   /// A command accesses content for an artifact and expects to find a particular version
   virtual void matchContent(shared_ptr<Command> c,
+                            Scenario scenario,
                             shared_ptr<RefResult> ref,
                             shared_ptr<Version> expected) noexcept override;
 
@@ -270,6 +273,7 @@ class Build : public TraceHandler, public BuildObserver {
   /// Inform observers that command c did not find the expected version in artifact a
   /// Instead of version `expected`, the command found version `observed`
   virtual void observeMismatch(shared_ptr<Command> c,
+                               Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
                                shared_ptr<Version> expected) noexcept override;
@@ -282,6 +286,7 @@ class Build : public TraceHandler, public BuildObserver {
 
   /// Inform observers that a reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
+                                       Scenario scenario,
                                        shared_ptr<RefResult> ref,
                                        int expected) noexcept override;
 

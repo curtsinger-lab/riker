@@ -21,16 +21,8 @@ Run the build
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
-Rebuild without changing anything (tempfiles are missing, so basically everything should happen again)
+Rebuild without changing anything, which should do nothing
   $ $DODO --show
-  python3 Dodofile
-  python3 build 3
-  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python3 build 2 /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python3 build 1 /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
-  [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
 Clean up
   $ rm -rf .dodo rm output-*

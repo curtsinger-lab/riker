@@ -7,7 +7,6 @@ Prepare for a clean run
   $ rm -rf .dodo output *.txt
   $ echo hello > hello.txt
   $ echo world > world.txt
-  $ touch output
 
 Run the first build
   $ $DODO --show
