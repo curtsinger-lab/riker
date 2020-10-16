@@ -345,6 +345,11 @@ Resolution DirArtifact::resolve(Build& build,
   if (current == end) {
     // This is the last entry in the resolution path
 
+    // Was the artifact opened O_NOFOLLOW and is it a symlink?
+    // if (flags.nofollow && res.getArtifact()->getTypeName() == "Symlink") {
+    //   return ELOOP;
+    // }
+
     // Was the reference required to create this entry?
     if (flags.create && flags.exclusive && res.isSuccess()) return EEXIST;
 

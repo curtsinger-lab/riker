@@ -2,7 +2,7 @@ CC  = clang
 CXX = clang++
 MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
-COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O3
+COMMON_CFLAGS = -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Wall -g -Wfatal-errors -O0 -fstandalone-debug
 CXXFLAGS = $(COMMON_CFLAGS) --std=c++17
 LDFLAGS = -lstdc++fs -lfmt
 

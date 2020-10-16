@@ -338,6 +338,10 @@ int main(int argc, char* argv[]) noexcept {
 
   stats->final_callback([&] { do_stats(list_artifacts); });
 
+  /************* Dodofile Arguments ***********/
+  std::vector<string> args;
+  app.add_option("--args", args, "Arguments to pass to Dodofile");
+
   /************* Argument Parsing *************/
 
   try {
