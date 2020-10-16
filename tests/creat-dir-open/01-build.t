@@ -9,10 +9,11 @@ Move to test directory
 Prepare for a clean run
   $ rm -rf .dodo creat-dir-open outcome
   $ clang creat-dir-open.c -o creat-dir-open
+  $ umask 002
 
 Run the first build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   ./creat-dir-open
 
@@ -21,7 +22,7 @@ Check the contents of a_file
     File: outcome
   .*regular empty file.* (re)
   Device.* (re)
-  Access: \(0770\/-rwxrwx---\).* (re)
+  Access: (0770/-rwxrwx---) * (glob)
   Access:.* (re)
   Modify:.* (re)
   Change:.* (re)
