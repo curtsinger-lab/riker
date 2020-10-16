@@ -125,8 +125,10 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
 
   // Create a root command
   Command::ID root_cmd_id = 1;
-  addCommand(root_cmd_id,
-             make_shared<Command>(exe_ref, vector<string>{"dodo-launch"}, fds, cwd_ref, root_ref));
+  auto cmd_args = vector<string>{"dodo-launch"};
+  cmd_args.insert(cmd_args.end(), std::make_move_iterator(_args.begin()),
+                  std::make_move_iterator(_args.end()));
+  addCommand(root_cmd_id, make_shared<Command>(exe_ref, cmd_args, fds, cwd_ref, root_ref));
 
   // Launch the root command
   handler.launch(no_cmd, getCommand(root_cmd_id));
