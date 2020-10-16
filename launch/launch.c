@@ -10,8 +10,12 @@
 
 int main(int argc, char** argv) {
   // First, try to execute the root build file
-  execl(Buildfile, Buildfile, NULL);
-  // execv(Buildfile, argv)
+  char* argv2[argc];
+  argv2[0] = Buildfile;
+  for (int i = 1; i <= argc; i++) {
+    argv2[i + 1] = argv[i];
+  }
+  execv(Buildfile, argv2);
 
   // If we reach this point, the buildfile was not executable. Is it readable?
   if (faccessat(AT_FDCWD, Buildfile, R_OK, AT_EACCESS) == 0) {
