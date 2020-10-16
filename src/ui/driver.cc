@@ -42,12 +42,12 @@ const fs::path NewDatabaseFilename = ".dodo/newdb";
 /**
  * Run the `build` subcommand.
  */
-void do_build() noexcept {
+void do_build(vector<string> args) noexcept {
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
   // Load a trace, or set up a default build if necessary
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(args, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   RebuildPlanner planner;
@@ -65,7 +65,7 @@ void do_build() noexcept {
 
   {
     // Load the newly generated input trace
-    InputTrace new_trace(NewDatabaseFilename);
+    InputTrace new_trace(args, NewDatabaseFilename);
 
     // Set up an output trace for the post-build check
     OutputTrace output(DatabaseFilename);
@@ -81,9 +81,9 @@ void do_build() noexcept {
 /**
  * Run the `check` subcommand
  */
-void do_check() noexcept {
+void do_check(vector<string> args) noexcept {
   // Load a build, or set up a default build if necessary
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(args, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   RebuildPlanner planner;
@@ -117,12 +117,12 @@ void do_check() noexcept {
  * Run the `trace` subcommand
  * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(string output) noexcept {
+void do_trace(vector<string> args, string output) noexcept {
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace(DatabaseFilename).sendTo(TracePrinter(cout));
+    InputTrace(args, DatabaseFilename).sendTo(TracePrinter(cout));
   } else {
-    InputTrace(DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
+    InputTrace(args, DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
   }
 }
 
@@ -133,7 +133,11 @@ void do_trace(string output) noexcept {
  * \param show_all    If true, include system files in the graph
  * \param no_render   If set, generate graphviz source instead of a rendered graph
  */
-void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
+void do_graph(vector<string> args,
+              string output,
+              string type,
+              bool show_all,
+              bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -142,7 +146,7 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(args, DatabaseFilename);
 
   // Create a graph observer and emulate the build
   Graph graph(show_all);
@@ -174,9 +178,9 @@ void do_graph(string output, string type, bool show_all, bool no_render) noexcep
  * Run the `stats` subcommand
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(bool list_artifacts) noexcept {
+void do_stats(vector<string> args, bool list_artifacts) noexcept {
   // Load the serialized build trace
-  InputTrace trace(DatabaseFilename);
+  InputTrace trace(args, DatabaseFilename);
 
   // Emulate the trace
   auto build = Build::emulate();
@@ -295,24 +299,14 @@ int main(int argc, char* argv[]) noexcept {
 
   build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
 
-  // Set the callback for the build subcommand
-  // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
-  // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(); });
-
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
-
-  check->final_callback([&] { do_check(); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
 
   auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
-
-  // Set the callback fo the trace subcommand
-  trace->final_callback([&] { do_trace(trace_output); });
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -327,20 +321,32 @@ int main(int argc, char* argv[]) noexcept {
   graph->add_flag("-n,--no-render", no_render, "Generate graphiz source instead of rendering");
   graph->add_flag("-a,--all", show_all, "Include all files in the graph");
 
-  // Set the callback fo the trace subcommand
-  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
-
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
 
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  stats->final_callback([&] { do_stats(list_artifacts); });
-
   /************* Dodofile Arguments ***********/
   std::vector<string> args;
   app.add_option("--args", args, "Arguments to pass to Dodofile");
+
+  /************* Register Callbacks ***********/
+  // these are all deferred until the end since a number
+  // of them need access to the --args vector
+  // Note: using lambdas with reference capture instead of std::bind, since we'd have to wrap
+  // every argument in std::ref to pass values by reference.
+
+  // build subcommand
+  build->final_callback([&] { do_build(args); });
+  // check subcommand
+  check->final_callback([&] { do_check(args); });
+  // trace subcommand
+  trace->final_callback([&] { do_trace(args, trace_output); });
+  // graph subcommand
+  graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
+  // stats subcommand
+  stats->final_callback([&] { do_stats(args, list_artifacts); });
 
   /************* Argument Parsing *************/
 

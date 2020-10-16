@@ -35,7 +35,7 @@ namespace fs = std::filesystem;
 class InputTrace {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(fs::path filename) noexcept : _filename(filename) {}
+  InputTrace(vector<string> args, fs::path filename) noexcept : _args(args), _filename(filename) {}
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -81,6 +81,9 @@ class InputTrace {
   void sendDefault(TraceHandler& handler) noexcept;
 
  private:
+  /// Any extra arguments a user may supply to a buildfile
+  vector<string> _args;
+
   /// The path to the loaded trace
   fs::path _filename;
 
