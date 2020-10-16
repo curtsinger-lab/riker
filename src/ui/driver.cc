@@ -329,7 +329,7 @@ int main(int argc, char* argv[]) noexcept {
 
   /************* Dodofile Arguments ***********/
   std::vector<string> args;
-  app.add_option("--args", args, "Arguments to pass to Dodofile");
+  app.add_option("--args", args, "Arguments to pass to Dodofile")->group("");  // hidden from help
 
   /************* Register Callbacks ***********/
   // these are all deferred until the end since a number
