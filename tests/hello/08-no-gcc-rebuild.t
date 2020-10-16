@@ -15,7 +15,7 @@ Set up the original source file
 
 Run the build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   cpp hello.c hello.i
   cc1 -E .* (re)

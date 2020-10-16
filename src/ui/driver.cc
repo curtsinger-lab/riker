@@ -41,14 +41,13 @@ const fs::path NewDatabaseFilename = ".dodo/newdb";
 
 /**
  * Run the `build` subcommand.
- * \param buildfile The path to the file that should be executed at the root of the build
  */
-void do_build(fs::path buildfile) noexcept {
+void do_build() noexcept {
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
   // Load a trace, or set up a default build if necessary
-  InputTrace trace(buildfile, DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   RebuildPlanner planner;
@@ -66,7 +65,7 @@ void do_build(fs::path buildfile) noexcept {
 
   {
     // Load the newly generated input trace
-    InputTrace new_trace(buildfile, NewDatabaseFilename);
+    InputTrace new_trace(NewDatabaseFilename);
 
     // Set up an output trace for the post-build check
     OutputTrace output(DatabaseFilename);
@@ -81,11 +80,10 @@ void do_build(fs::path buildfile) noexcept {
 
 /**
  * Run the `check` subcommand
- * \param buildfile The path to the file that should be executed at the root of the build
  */
-void do_check(fs::path buildfile) noexcept {
+void do_check() noexcept {
   // Load a build, or set up a default build if necessary
-  InputTrace trace(buildfile, DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
   RebuildPlanner planner;
@@ -117,31 +115,25 @@ void do_check(fs::path buildfile) noexcept {
 
 /**
  * Run the `trace` subcommand
- * \param buildfile The path to the file that should be executed at the root of the build
  * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(fs::path buildfile, string output) noexcept {
+void do_trace(string output) noexcept {
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace(buildfile, DatabaseFilename).sendTo(TracePrinter(cout));
+    InputTrace(DatabaseFilename).sendTo(TracePrinter(cout));
   } else {
-    InputTrace(buildfile, DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
+    InputTrace(DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
   }
 }
 
 /**
  * Run the `graph` subcommand
- * \param buildfile   The path to the file that should be executed at the root of the build
  * \param output      The name of the output file, or "-" for stdout
  * \param type        The type of output to produce
  * \param show_all    If true, include system files in the graph
  * \param no_render   If set, generate graphviz source instead of a rendered graph
  */
-void do_graph(fs::path buildfile,
-              string output,
-              string type,
-              bool show_all,
-              bool no_render) noexcept {
+void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;
@@ -150,7 +142,7 @@ void do_graph(fs::path buildfile,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  InputTrace trace(buildfile, DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Create a graph observer and emulate the build
   Graph graph(show_all);
@@ -180,12 +172,11 @@ void do_graph(fs::path buildfile,
 
 /**
  * Run the `stats` subcommand
- * \param buildfile       The path to the file that should be executed at the root of the build
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(fs::path buildfile, bool list_artifacts) noexcept {
+void do_stats(bool list_artifacts) noexcept {
   // Load the serialized build trace
-  InputTrace trace(buildfile, DatabaseFilename);
+  InputTrace trace(DatabaseFilename);
 
   // Emulate the trace
   auto build = Build::emulate();
@@ -226,87 +217,6 @@ void do_stats(fs::path buildfile, bool list_artifacts) noexcept {
 }
 
 /**
- * Import build steps from another build system
- * \returns The path to the generated build file
- */
-fs::path import_build() {
-  // Create a directory to store the imported build steps
-  fs::create_directories(OutputDir);
-
-  // Look for a Makefile
-  optional<fs::path> makefile_path;
-  if (fs::exists("GNUmakefile")) {
-    makefile_path = "GNUmakefile";
-  } else if (fs::exists("makefile")) {
-    makefile_path = "makefile";
-  } else if (fs::exists("Makefile")) {
-    makefile_path = "Makefile";
-  }
-
-  // Did we find a makefile?
-  if (makefile_path.has_value()) {
-    // Make a path to the imported makefile steps
-    fs::path output = fs::path(OutputDir) / "Makefile-steps";
-
-    // If the imported list of steps does not exist, or if it's older than the makefile, import
-    if (!fs::exists(output) ||
-        fs::last_write_time(makefile_path.value()) > fs::last_write_time(output)) {
-      LOG(exec) << "Importing build steps from " << makefile_path.value();
-
-      int output_fd = open(output.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0640);
-      FAIL_IF(output_fd < 0) << "Failed to create file " << output << ": " << ERR;
-
-      // Fork a child to run `make`
-      auto child_pid = fork();
-      FAIL_IF(child_pid == -1) << "Fork failed: " << ERR;
-
-      if (child_pid == 0) {
-        // In the child
-
-        // Remap the output file to stdout
-        int rc = dup2(output_fd, STDOUT_FILENO);
-        FAIL_IF(rc != STDOUT_FILENO) << "Failed to direct make output to " << output << ": " << ERR;
-
-        // Remap stdin and stderr to /dev/null
-        int null_fd = open("/dev/null", O_RDWR);
-        FAIL_IF(rc < 0) << "Failed to open /dev/null: " << ERR;
-
-        rc = dup2(null_fd, STDIN_FILENO);
-        FAIL_IF(rc != STDIN_FILENO) << "Failed to redirect make stdin to /dev/null: " << ERR;
-
-        rc = dup2(null_fd, STDERR_FILENO);
-        FAIL_IF(rc != STDERR_FILENO) << "Failed to redirect make stderr to /dev/null: " << ERR;
-
-        // Launch make
-        execlp("make", "make", "--always-make", "-n", "--quiet", NULL);
-
-        FAIL << "Failed to execute make: " << ERR;
-
-      } else {
-        // In the parent
-        int status;
-        auto rc = waitpid(child_pid, &status, 0);
-        FAIL_IF(rc != child_pid) << "Failed to wait for make: " << ERR;
-
-        if (WIFSIGNALED(status) || WEXITSTATUS(status) != 0) {
-          FAIL << "Import from make failed";
-        }
-
-        // Close the output file
-        close(output_fd);
-      }
-
-      // The output file now holds the steps we're going to run. Return it
-      return output;
-    }
-  }
-
-  // Fall back to the root build command. This file probably does not exist (that's why import_build
-  // was called) but will cause dodo-launch to generate a reasonable error message.
-  return RootBuildCommand;
-}
-
-/**
  * Check if the current terminal supports color output.
  */
 static bool stderr_supports_colors() noexcept {
@@ -319,12 +229,6 @@ static bool stderr_supports_colors() noexcept {
 int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)
   if (!stderr_supports_colors()) logger_options::disable_color = true;
-
-  // Look for a build file. If there isn't one, try to import a build from an existing build system
-  fs::path buildfile = RootBuildCommand;
-  if (!fs::exists(buildfile)) {
-    buildfile = import_build();
-  }
 
   // Set up a CLI app for command line parsing
   CLI::App app;
@@ -394,12 +298,12 @@ int main(int argc, char* argv[]) noexcept {
   // Set the callback for the build subcommand
   // Note: using a lambda with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
-  build->final_callback([&] { do_build(buildfile); });
+  build->final_callback([&] { do_build(); });
 
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
-  check->final_callback([&] { do_check(buildfile); });
+  check->final_callback([&] { do_check(); });
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
@@ -408,7 +312,7 @@ int main(int argc, char* argv[]) noexcept {
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
 
   // Set the callback fo the trace subcommand
-  trace->final_callback([&] { do_trace(buildfile, trace_output); });
+  trace->final_callback([&] { do_trace(trace_output); });
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -424,8 +328,7 @@ int main(int argc, char* argv[]) noexcept {
   graph->add_flag("-a,--all", show_all, "Include all files in the graph");
 
   // Set the callback fo the trace subcommand
-  graph->final_callback(
-      [&] { do_graph(buildfile, graph_output, graph_type, show_all, no_render); });
+  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
@@ -433,7 +336,7 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  stats->final_callback([&] { do_stats(buildfile, list_artifacts); });
+  stats->final_callback([&] { do_stats(list_artifacts); });
 
   /************* Argument Parsing *************/
 

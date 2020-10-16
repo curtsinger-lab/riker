@@ -1,38 +1,39 @@
 #include <errno.h>
 #include <fcntl.h>
-#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#define Buildfile "Dodofile"
 #define ShellCommand "/bin/sh"
 
 int main(int argc, char** argv) {
-  // Make sure a build file was provided as an argument
-  if (argc != 2) {
-    fprintf(stderr, "%s was invoked without a path to the root build file.\n", argv[0]);
-    return 2;
-  }
-
-  // Get the build file argument
-  const char* buildfile = argv[1];
-
   // First, try to execute the root build file
-  execl(buildfile, buildfile, NULL);
+  execl(Buildfile, Buildfile, NULL);
 
   // If we reach this point, the buildfile was not executable. Is it readable?
-  if (faccessat(AT_FDCWD, buildfile, R_OK, AT_EACCESS) == 0) {
+  if (faccessat(AT_FDCWD, Buildfile, R_OK, AT_EACCESS) == 0) {
     // The buildfile is not executable, but we have read access. Run it with /bin/sh
-    execl(ShellCommand, ShellCommand, buildfile, NULL);
-    // fprintf(stderr, "Failed to run %s with shell " ShellCommand ": %s\n", cmd, strerror(errno));
+    execl(ShellCommand, ShellCommand, Buildfile, NULL);
+    perror("Failed to run " Buildfile " with shell " ShellCommand);
+    exit(2);
+  }
+
+  // At this point, we know there must not be a usable build file. Can we import from a make?
+  if (faccessat(AT_FDCWD, "GNUmakefile", R_OK, AT_EACCESS) == 0 ||
+      faccessat(AT_FDCWD, "makefile", R_OK, AT_EACCESS) == 0 ||
+      faccessat(AT_FDCWD, "Makefile", R_OK, AT_EACCESS) == 0) {
+    // Run make
+    execlp("make", "make", "--always-make", "--quiet", NULL);
   }
 
   // Looks like those did not work
-  fprintf(stderr, "Unable to launch build file %s.\n", buildfile);
+  fprintf(stderr, "Unable to launch build file %s.\n", Buildfile);
   fprintf(stderr,
           "  Write build steps in a file named `%s`.\n"
           "  This file must be either directly executable, or runnable with `" ShellCommand "`.\n",
-          buildfile);
+          Buildfile);
 
   return 2;
 }

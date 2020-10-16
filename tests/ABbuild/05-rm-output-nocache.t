@@ -10,7 +10,7 @@ Prepare for a clean run
 
 Run the first build
   $ $DODO --show --no-caching
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   ./A
   cat inputA

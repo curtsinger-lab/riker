@@ -9,7 +9,7 @@ Prepare for a clean run
 
 Run the first build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   mkdir working_dir
   cat ../input

@@ -10,7 +10,7 @@ Set up the inptu file
 
 Run the build
   $ $DODO --show
-  dodo-launch Dodofile
+  dodo-launch
   Dodofile
   ln -s input A
   ln -s output B

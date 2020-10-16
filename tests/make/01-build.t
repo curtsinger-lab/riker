@@ -9,8 +9,8 @@ Copy in the original version of hello.c
 
 Run the build
   $ $DODO --show
-  dodo-launch .dodo/Makefile-steps
-  sh .dodo/Makefile-steps
+  dodo-launch
+  make --always-make --quiet
   gcc -o hello hello.c
   cc1 * (glob)
   as * (glob)
