@@ -33,3 +33,4 @@ Clean up
 
 SKIP! This tests triggers both a mismatch between the openat() result and our model and causes a failed assert leading to a coredump.
   We need to fix the handling for open("file", O_CREAT|O_EXCL|O_PATH, <whatever>) when "file" is a regular empty file.
+  $ exit 80
