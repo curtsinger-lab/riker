@@ -12,9 +12,9 @@ Run the first build
   $ $DODO --show
   dodo-launch
   Dodofile
-  ls -1
-  grep .num
-  wc -l
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
   touch 1.num
 
 Run the second build-- since nothing WAS changed, nothing SHOULD change
