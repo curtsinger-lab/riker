@@ -33,6 +33,7 @@ shared_ptr<PipeArtifact> Env::getStdin(Build& build, shared_ptr<Command> c) noex
   if (!_stdin) {
     _stdin = getPipe(build, c);
     _stdin->setFDs(0, -1);
+    _stdin->setName("stdin");
   }
   return _stdin;
 }
@@ -41,6 +42,7 @@ shared_ptr<PipeArtifact> Env::getStdout(Build& build, shared_ptr<Command> c) noe
   if (!_stdout) {
     _stdout = getPipe(build, c);
     _stdout->setFDs(-1, 1);
+    _stdout->setName("stdout");
   }
   return _stdout;
 }
@@ -49,6 +51,7 @@ shared_ptr<PipeArtifact> Env::getStderr(Build& build, shared_ptr<Command> c) noe
   if (!_stderr) {
     _stderr = getPipe(build, c);
     _stderr->setFDs(-1, 2);
+    _stderr->setName("stderr");
   }
   return _stderr;
 }
