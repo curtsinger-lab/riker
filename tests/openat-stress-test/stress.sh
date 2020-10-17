@@ -1,8 +1,7 @@
-#!/bin/sh
+#!/bin/sh -x
 
 COMBOS=131072
 DODO=../../../dodo
-DODOARGS=--debug --log trace,ir
 LOGDIR=logs-`date +"%Y-%m-%d"`
 
 # ensure that initial directory is clean
@@ -21,7 +20,7 @@ do
     mkdir test
     cp Dodofile stress test/
     cd test
-    $DODO $DODOARGS --args $i > ../$LOGDIR/log-$i.txt 2>&1
+    $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i.txt 2>&1
     cd ..
     rm -rf test
     
@@ -30,7 +29,7 @@ do
     cp Dodofile stress test/
     cd test
     touch file
-    $DODO $DODOARGS --args $i > ../$LOGDIR/log-$i.txt 2>&1
+    $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i.txt 2>&1
     cd ..
     rm -rf test
 
@@ -39,7 +38,7 @@ do
     cp Dodofile stress test/
     cd test
     mkdir file
-    $DODO $DODOARGS --args $i > ../$LOGDIR/log-$i.txt 2>&1
+    $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i.txt 2>&1
     cd ..
     rm -rf test
 
@@ -49,7 +48,7 @@ do
     cd test
     touch phile
     ln -s phile file
-    $DODO $DODOARGS --args $i > ../$LOGDIR/log-$i.txt 2>&1
+    $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i.txt 2>&1
     cd ..
     rm -rf test
 done
