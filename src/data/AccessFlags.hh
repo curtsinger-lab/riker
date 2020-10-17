@@ -51,10 +51,12 @@ struct AccessFlags {
     f.exclusive = flags.excl();
     f.append = flags.append();
 
-    if (flags.directory()) {
-      f.type = AccessType::Dir;
-    } else if (flags.writable() || flags.creat() || flags.trunc()) {
-      f.type = AccessType::NotDir;
+    // NOTE:
+    // O_DIRECTORY does not imply AccessType::Dir. See `tests/openat-directory/01-build.t`.
+
+    // these flags specifically state that they only apply to regular files
+    if (flags.creat() || flags.append() || (flags.writable() && flags.trunc())) {
+      f.type = AccessType::File;
     }
 
     f.mode = mode.getMode();
