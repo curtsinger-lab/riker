@@ -8,7 +8,7 @@ Prepare for a clean run
   $ rm -rf .dodo *.num *.err
   $ touch 0.num
 
-Run the first build
+Run the first build (note that commands in (re) below race)
   $ $DODO --show
   dodo-launch
   Dodofile
