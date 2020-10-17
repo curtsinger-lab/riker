@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# 8328 -> O_CREAT|O_EXCL|O_PATH
+./stress 8328
