@@ -97,7 +97,9 @@ Tracer::~Tracer() noexcept {
 // Clean up any processes left in this tracer
 void Tracer::cleanup() noexcept {
   for (auto [tid, thread] : _threads) {
-    tgkill(thread->getProcess()->getID(), tid, SIGKILL);
+    if (tid != gettid()) {
+      tgkill(thread->getProcess()->getID(), tid, SIGKILL);
+    }
   }
 }
 
@@ -266,7 +268,7 @@ void Tracer::handleExit(shared_ptr<Thread> t) noexcept {
   auto proc = t->getProcess();
   if (t->getID() == proc->getID()) {
     LOGF(trace, "{}: exited", proc);
-    proc->setExited();
+    proc->exit();
     _exited.emplace(proc->getID(), proc);
   }
 }

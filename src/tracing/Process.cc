@@ -38,9 +38,14 @@ FileDescriptor& Process::addFD(int fd,
                                bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
+    _build.traceClose(_command, iter->second.getRef());
     _fds.erase(iter);
   }
 
+  // The command holds an additional handle to the provided RefResult
+  ref->openedBy(_command);
+
+  // Add the entry to the process' file descriptor table
   auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, flags, cloexec));
   return iter->second;
 }
@@ -51,13 +56,30 @@ void Process::closeFD(int fd) noexcept {
   if (iter == _fds.end()) {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
+    _build.traceClose(_command, iter->second.getRef());
     _fds.erase(iter);
   }
 }
 
 // Remove a file descriptor entry if it exists
 void Process::tryCloseFD(int fd) noexcept {
-  _fds.erase(fd);
+  auto iter = _fds.find(fd);
+  if (iter != _fds.end()) {
+    _build.traceClose(_command, iter->second.getRef());
+    _fds.erase(iter);
+  }
+}
+
+// The process is creating a new child
+shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
+  // The child process has a duplicate of every ref in the parent file descriptor table
+  // Report these "open"s to the ref results
+  for (auto& [index, desc] : _fds) {
+    desc.getRef()->openedBy(_command);
+  }
+
+  // Return the child process object
+  return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
 }
 
 // The process is executing a new file
@@ -72,17 +94,30 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
 
   for (const auto& [index, fd] : _fds) {
     if (fd.isCloexec()) {
+      // Report the close to the build
+      _build.traceClose(_command, fd.getRef());
+
+      // Remember this index so we can remove it later
       to_erase.push_back(index);
     } else {
       initial_fds.emplace(index, FileDescriptor(fd.getRef(), fd.getFlags()));
     }
   }
+
+  // Erase close-on-exec file descriptors from the FD map
   for (int index : to_erase) {
     _fds.erase(index);
   }
 
   // Create the child command
   auto child = make_shared<Command>(exe_ref, args, initial_fds, _cwd, _root);
+
+  // Loop over the initial FDs. These handles are shifting from the parent to child child.
+  // We implement this by "opening" the handle in the child and "closing" it in the parent
+  for (auto& [index, desc] : child->getInitialFDs()) {
+    desc.getRef()->openedBy(child);
+    desc.getRef()->closedBy(_command);
+  }
 
   // Inform the build of the launch action
   _build.traceLaunch(_command, child);
@@ -93,4 +128,15 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we
   // over-approximate the set of commands that have a file mmapped.
+}
+
+// The process is exiting
+void Process::exit() noexcept {
+  // Mark the process as exited
+  _exited = true;
+
+  // Any remaining file descriptors in this process are closed
+  for (auto& [index, desc] : _fds) {
+    _build.traceClose(_command, desc.getRef());
+  }
 }

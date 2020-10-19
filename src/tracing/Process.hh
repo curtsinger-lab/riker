@@ -73,16 +73,14 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }
 
-  /// Mark this process as exited
-  void setExited() noexcept { _exited = true; }
-
   /// This process forked off a child process
-  shared_ptr<Process> fork(pid_t child_pid) noexcept {
-    return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
-  }
+  shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
   void exec(shared_ptr<RefResult> exe_ref, vector<string> args, vector<string> env) noexcept;
+
+  /// This process is exiting
+  void exit() noexcept;
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {

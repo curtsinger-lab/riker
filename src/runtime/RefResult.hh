@@ -65,7 +65,8 @@ class RefResult final {
   /// A command is closing a handle to this RefResult. Return the number of remaining handles that
   /// command has to this RefResult
   size_t closedBy(shared_ptr<Command> c) noexcept {
-    ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c;
+    ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
+                          << " -> " << _result;
     return --_users[c];
   }
 
