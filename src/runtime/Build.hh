@@ -123,10 +123,10 @@ class Build : public TraceHandler, public BuildObserver {
                        shared_ptr<RefResult> output) noexcept override;
 
   /// A command retains a handle to a RefResult
-  virtual void openRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  virtual void open(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
 
   /// A command closes a handle to a RefResult
-  virtual void closeRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  virtual void close(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
 
   /// A command depends on the outcome of comparing two different references
   virtual void compareRefs(shared_ptr<Command> command,

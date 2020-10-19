@@ -60,14 +60,14 @@ class PostBuildChecker : public TraceHandler {
     _output.pathRef(command, base, path, flags, output);
   }
 
-  /// Handle an OpenRef IR step
-  virtual void openRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override {
-    _output.openRef(command, ref);
+  /// Handle an Open IR step
+  virtual void open(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override {
+    _output.open(command, ref);
   }
 
-  /// Handle a CloseRef IR step
-  virtual void closeRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override {
-    _output.closeRef(command, ref);
+  /// Handle a Close IR step
+  virtual void close(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override {
+    _output.close(command, ref);
   }
 
   /// Handle a CompareRefs IR step

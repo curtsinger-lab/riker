@@ -18,8 +18,8 @@ CEREAL_REGISTER_TYPE(FileRefRecord);
 CEREAL_REGISTER_TYPE(SymlinkRefRecord);
 CEREAL_REGISTER_TYPE(DirRefRecord);
 CEREAL_REGISTER_TYPE(PathRefRecord);
-CEREAL_REGISTER_TYPE(OpenRefRecord);
-CEREAL_REGISTER_TYPE(CloseRefRecord);
+CEREAL_REGISTER_TYPE(OpenRecord);
+CEREAL_REGISTER_TYPE(CloseRecord);
 CEREAL_REGISTER_TYPE(CompareRefsRecord);
 CEREAL_REGISTER_TYPE(ExpectResultRecord);
 CEREAL_REGISTER_TYPE(MatchMetadataRecord);
@@ -89,14 +89,14 @@ void PathRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
                   input.getRefResult(_output));
 }
 
-// Send an OpenRef IR step from an input trace to a trace handler
-void OpenRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.openRef(input.getCommand(_cmd), input.getRefResult(_ref));
+// Send an Open IR step from an input trace to a trace handler
+void OpenRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+  handler.open(input.getCommand(_cmd), input.getRefResult(_ref));
 }
 
-// Send a CloseRef IR step from an input trace to a trace handler
-void CloseRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.closeRef(input.getCommand(_cmd), input.getRefResult(_ref));
+// Send a Close IR step from an input trace to a trace handler
+void CloseRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+  handler.close(input.getCommand(_cmd), input.getRefResult(_ref));
 }
 
 // Send a CompareRefs IR step from an input trace to a trace handler

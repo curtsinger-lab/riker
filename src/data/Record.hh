@@ -198,14 +198,14 @@ struct PathRefRecord : public Record {
   }
 };
 
-struct OpenRefRecord : public Record {
+struct OpenRecord : public Record {
   Command::ID _cmd;
   RefResult::ID _ref;
 
   /// Default constructor for serialization
-  OpenRefRecord() noexcept = default;
+  OpenRecord() noexcept = default;
 
-  OpenRefRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
+  OpenRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
@@ -215,14 +215,14 @@ struct OpenRefRecord : public Record {
   }
 };
 
-struct CloseRefRecord : public Record {
+struct CloseRecord : public Record {
   Command::ID _cmd;
   RefResult::ID _ref;
 
   /// Default constructor for serialization
-  CloseRefRecord() noexcept = default;
+  CloseRecord() noexcept = default;
 
-  CloseRefRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
+  CloseRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 

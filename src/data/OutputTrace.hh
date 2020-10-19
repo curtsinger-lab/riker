@@ -88,11 +88,11 @@ class OutputTrace : public TraceHandler {
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept override;
 
-  /// Add an OpenRef IR step to the output trace
-  virtual void openRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override;
+  /// Add an Open IR step to the output trace
+  virtual void open(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override;
 
-  /// Add a CloseRef IR step to the output trace
-  virtual void closeRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override;
+  /// Add a Close IR step to the output trace
+  virtual void close(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override;
 
   /// Add a CompareRefs IR step to the output trace
   virtual void compareRefs(shared_ptr<Command> command,
