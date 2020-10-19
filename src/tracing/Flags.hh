@@ -98,7 +98,15 @@ class o_flags {
   o_flags() noexcept : _flags(0) {}
 
   /// Create a wrapper for O_* flags from an integer value
-  explicit o_flags(int flags) noexcept : _flags(flags) {}
+  explicit o_flags(int flags) noexcept : _flags(flags) {
+    // When O_PATH is specified in flags, flag bits other than O_CLOEXEC, O_DIRECTORY, and
+    // O_NOFOLLOW are ignored. See `man 2 openat`.
+    // Ensures we pass `tests/creat-excl-path/01-build.t`.
+    if ((flags & O_PATH) == O_PATH) {
+      int mask = O_PATH | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW;
+      _flags &= mask;
+    }
+  }
 
   /// Do the flags include a request for read access?
   bool readable() const noexcept { return has<O_RDWR>() || (has<O_RDONLY>() && !has<O_WRONLY>()); }
@@ -112,6 +120,7 @@ class o_flags {
   bool directory() const noexcept { return has<O_DIRECTORY>(); }
   bool excl() const noexcept { return has<O_EXCL>(); }
   bool nofollow() const noexcept { return has<O_NOFOLLOW>(); }
+  bool path() const noexcept { return has<O_PATH>(); }
   bool tmpfile() const noexcept { return has<O_TMPFILE>(); }
   bool trunc() const noexcept { return has<O_TRUNC>(); }
 
