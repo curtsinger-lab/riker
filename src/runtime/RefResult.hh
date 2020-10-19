@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 
+#include "data/AccessFlags.hh"
 #include "runtime/Resolution.hh"
 #include "util/UniqueID.hh"
 
@@ -57,8 +58,11 @@ class RefResult final {
   /// Get the resolution result
   Resolution getResolution() const noexcept { return _result; }
 
-  /// Save a resolution result in this RefResult
-  void resolvesTo(Resolution r) noexcept { _result = r; }
+  /// Set the artifact or error this reference resolves to
+  void resolvesTo(Resolution result, AccessFlags flags) noexcept {
+    _result = result;
+    _flags = flags;
+  }
 
   /// A command is now using this RefResult. Return true if this first use by the given command
   bool addUser(Build& b, shared_ptr<Command> c) noexcept {
@@ -93,6 +97,9 @@ class RefResult final {
 
   /// The outcome of a reference resolution saved in this RefResult
   Resolution _result;
+
+  /// Keep the flags used to establish this reference so we know what accesses are permitted
+  AccessFlags _flags;
 
   /// Keep track of which commands are using this RefResult
   map<shared_ptr<Command>, size_t> _users;

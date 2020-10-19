@@ -142,16 +142,16 @@ void Build::specialRef(shared_ptr<Command> c,
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    output->resolvesTo(_env->getStdin(*this, c));
+    output->resolvesTo(_env->getStdin(*this, c), AccessFlags{.r = true});
 
   } else if (entity == SpecialRef::stdout) {
-    output->resolvesTo(_env->getStdout(*this, c));
+    output->resolvesTo(_env->getStdout(*this, c), AccessFlags{.w = true});
 
   } else if (entity == SpecialRef::stderr) {
-    output->resolvesTo(_env->getStderr(*this, c));
+    output->resolvesTo(_env->getStderr(*this, c), AccessFlags{.x = true});
 
   } else if (entity == SpecialRef::root) {
-    output->resolvesTo(_env->getRootDir());
+    output->resolvesTo(_env->getRootDir(), AccessFlags{.r = true, .x = true});
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
@@ -159,14 +159,14 @@ void Build::specialRef(shared_ptr<Command> c,
     ASSERT(result.isSuccess()) << "Failed to resolve current working directory";
     result.getArtifact()->setName(".");
 
-    output->resolvesTo(result);
+    output->resolvesTo(result, AccessFlags{.r = true, .x = true});
 
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
     auto result = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.x = true});
 
-    output->resolvesTo(result);
+    output->resolvesTo(result, AccessFlags{.r = true, .x = true});
 
   } else {
     FAIL << "Unknown special reference";
@@ -191,8 +191,8 @@ void Build::pipeRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  read_end->resolvesTo(pipe);
-  write_end->resolvesTo(pipe);
+  read_end->resolvesTo(pipe, AccessFlags{.r = true});
+  write_end->resolvesTo(pipe, AccessFlags{.w = true});
 }
 
 // A command references a new anonymous file
@@ -210,7 +210,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> ou
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->createFile(*this, c, mode, false));
+  output->resolvesTo(_env->createFile(*this, c, mode, false), AccessFlags{.r = true, .w = true});
 }
 
 // A command references a new anonymous symlink
@@ -230,7 +230,8 @@ void Build::symlinkRef(shared_ptr<Command> c,
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getSymlink(*this, c, target, false));
+  output->resolvesTo(_env->getSymlink(*this, c, target, false),
+                     AccessFlags{.r = true, .w = true, .x = true});
 }
 
 // A command references a new anonymous directory
@@ -248,7 +249,8 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> out
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getDir(*this, c, mode, false));
+  output->resolvesTo(_env->getDir(*this, c, mode, false),
+                     AccessFlags{.r = true, .w = true, .x = true});
 }
 
 // A command makes a reference with a path
@@ -272,7 +274,7 @@ void Build::pathRef(shared_ptr<Command> c,
   // Resolve the reference and save the result in output
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
   auto result = base->getArtifact()->resolve(*this, c, path, flags);
-  output->resolvesTo(result);
+  output->resolvesTo(result, flags);
 }
 
 // A command retains a handle to a given RefResult
@@ -660,8 +662,8 @@ tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  read_end->resolvesTo(pipe);
-  write_end->resolvesTo(pipe);
+  read_end->resolvesTo(pipe, AccessFlags{.r = true});
+  write_end->resolvesTo(pipe, AccessFlags{.w = true});
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
@@ -681,7 +683,7 @@ shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) no
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->createFile(*this, c, mode, true));
+  output->resolvesTo(_env->createFile(*this, c, mode, true), AccessFlags{.r = true, .w = true});
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
@@ -701,7 +703,8 @@ shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path tar
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getSymlink(*this, c, target, true));
+  output->resolvesTo(_env->getSymlink(*this, c, target, true),
+                     AccessFlags{.r = true, .w = true, .x = true});
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
@@ -721,7 +724,8 @@ shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noe
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getDir(*this, c, mode, true));
+  output->resolvesTo(_env->getDir(*this, c, mode, true),
+                     AccessFlags{.r = true, .w = true, .x = true});
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
@@ -746,7 +750,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   // Resolve the reference and save the result in output
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
   auto result = base->getArtifact()->resolve(*this, c, path, flags);
-  output->resolvesTo(result);
+  output->resolvesTo(result, flags);
 
   // If the reference could have created a file, mark that file's versions and links as committed
   if (result.isSuccess() && flags.create) result.getArtifact()->setCommitted();
