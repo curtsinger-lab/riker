@@ -12,6 +12,7 @@ using std::map;
 using std::ostream;
 using std::string;
 
+class Build;
 class Command;
 
 /***
@@ -59,16 +60,19 @@ class RefResult final {
   /// Save a resolution result in this RefResult
   void resolvesTo(Resolution r) noexcept { _result = r; }
 
-  /// A command has opened or added a handle to this RefResult
-  /// Return the updated count of handles to this reference from the given command
-  size_t openedBy(shared_ptr<Command> c) noexcept { return ++_users[c]; }
+  /// A command is now using this RefResult. Return true if this first use by the given command
+  bool addUser(Build& b, shared_ptr<Command> c) noexcept {
+    auto count = ++_users[c];
+    return count == 1;
+  }
 
-  /// A command is closing a handle to this RefResult.
-  /// Return the updated count of handles to this reference from the given command
-  size_t closedBy(shared_ptr<Command> c) noexcept {
+  /// A command is no longer using this RefResult. Return true if that was the last use by c
+  bool removeUser(Build& b, shared_ptr<Command> c) noexcept {
     ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
                           << " -> " << _result;
-    return --_users[c];
+
+    auto count = --_users[c];
+    return count == 0;
   }
 
   /// Print a RefResult

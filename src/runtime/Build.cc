@@ -290,7 +290,7 @@ void Build::usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept 
   _output.usingRef(c, ref);
 
   // Inform the ref that it was closed by c
-  ref->openedBy(c);
+  ref->addUser(*this, c);
 }
 
 // A command closes a handle to a given RefResult
@@ -308,7 +308,7 @@ void Build::doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexce
   _output.doneWithRef(c, ref);
 
   // Inform the ref that it was closed by c
-  ref->closedBy(c);
+  ref->removeUser(*this, c);
 }
 
 // Command c depends on the outcome of comparing two different references
@@ -761,7 +761,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
 void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
-  if (ref->openedBy(c) == 1) {
+  if (ref->addUser(*this, c)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
@@ -777,7 +777,7 @@ void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noex
 void Build::traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
-  if (ref->closedBy(c) == 0) {
+  if (ref->removeUser(*this, c)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
