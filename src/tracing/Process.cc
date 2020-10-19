@@ -167,6 +167,10 @@ void Process::exit() noexcept {
   // Mark the process as exited
   _exited = true;
 
+  // References to the cwd and root directories are closed
+  _build.traceClose(_command, _cwd);
+  _build.traceClose(_command, _root);
+
   // Any remaining file descriptors in this process are closed
   for (auto& [index, desc] : _fds) {
     _build.traceClose(_command, desc.getRef());

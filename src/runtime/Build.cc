@@ -540,11 +540,6 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   // Inform observers of the launch
   observeLaunch(c, child);
 
-  // The child command is "opening" all of the inherited RefResults in its initial FDs
-  for (auto& [index, desc] : child->getInitialFDs()) {
-    desc.getRef()->openedBy(child);
-  }
-
   // Are we going to re-execute the child?
   bool launch_command = false;
 
