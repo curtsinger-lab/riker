@@ -25,6 +25,9 @@ Create a reference to a new anonymous file.
 Create a reference to a specific path, relative to some artifact reached via the `base` reference. The reference could resolve to any type of artifact. The flags encode the permissions required (read, write, execute) as well as other flags specific to the open() system call.
 
 ## Predicates
+**`CompareRefs(ref1 : Ref, ref2 : Ref, type : RefComparison)`**
+Check whether two references pass a specific comparison type. For example, RefComparison::SameInstance will pass if ref1 and ref2 refer to the same artifact. RefComparison::DifferentInstances will pass if ref1 and ref2 refer to different artifacts.
+
 **`ExpectResult(ref : Ref, expected_result : int)`**  
 Check the result of resolving a specific reference. The expected result is either SUCCESS or one of the standard POSIX error codes. Any change in the outcome of resolving a reference indicates that a command's input has changed.
 
@@ -39,11 +42,20 @@ Version types like AddEntry and RemoveEntry, which are partial versions for dire
 The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
 
 ## Actions
+**`CloseRef(ref : Ref)`**
+A command has closed its final handle to a given reference.
+
 **`UpdateMetadata(ref : Ref, v : MetadataVersion)`**
 Get the artifact reached by `ref` and set its metadata to version `v`.
 
 **`UpdateContent(ref : Ref, v : Version)`**  
-Update the content of the artifact reached by `ref` with version `v`. Not all version types can be used to update an artifact's contents. Supported types are: FileVersion, AddEntry, and RemoveEntry. Other version types like ListedDir or SymlinkVersion are used only for comparisons.
+Update the content of the artifact reached by `ref` with version `v`. Not all version types can be used to update an artifact's contents.
+
+**`AddEntry(dir : Ref, name : str, target : Ref)`**
+Add an entry called `name` to the directory referenced by `dir`. This entry points to the artifact reached via reference `target`.
+
+**`RemoveEntry(dir : Ref, name : str, target : Ref)`**
+Remove the entry called `name` from the directory referenced by `dir`. Prior to removal, the entry points to the artifact reached via `target.
 
 **`Launch(child : Command)`**  
 A command launches a child command. The child command stores the starting directory, root directory, user, group, arguments, environment variables, and initial file descriptors.
