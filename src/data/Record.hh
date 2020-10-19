@@ -198,11 +198,28 @@ struct PathRefRecord : public Record {
   }
 };
 
+struct OpenRefRecord : public Record {
+  Command::ID _cmd;
+  RefResult::ID _ref;
+
+  /// Default constructor for serialization
+  OpenRefRecord() noexcept = default;
+
+  OpenRefRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
+
+  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _cmd, _ref);
+  }
+};
+
 struct CloseRefRecord : public Record {
   Command::ID _cmd;
   RefResult::ID _ref;
 
-  /// Default constructor fo rserialization
+  /// Default constructor for serialization
   CloseRefRecord() noexcept = default;
 
   CloseRefRecord(Command::ID cmd, RefResult::ID ref) noexcept : _cmd(cmd), _ref(ref) {}

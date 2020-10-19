@@ -71,6 +71,10 @@ class TracePrinter : public TraceHandler {
     _out << PathRefPrinter{c, base, path, flags, output} << endl;
   }
 
+  virtual void openRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
+    _out << OpenRefPrinter{c, ref} << endl;
+  }
+
   virtual void closeRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
     _out << CloseRefPrinter{c, ref} << endl;
   }
@@ -243,6 +247,17 @@ class TracePrinter : public TraceHandler {
     friend ostream& operator<<(ostream& o, const PathRefPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
       return o << p.output << " = PathRef(" << p.base << ", " << p.path << ", " << p.flags << ")";
+    }
+  };
+
+  /// A wrapper struct used to print OpenRef IR steps
+  struct OpenRefPrinter {
+    shared_ptr<Command> c;
+    shared_ptr<RefResult> ref;
+
+    friend ostream& operator<<(ostream& o, const OpenRefPrinter& p) noexcept {
+      if (p.c) o << p.c << ": ";
+      return o << "OpenRef(" << p.ref << ")";
     }
   };
 

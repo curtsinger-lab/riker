@@ -60,10 +60,11 @@ class RefResult final {
   void resolvesTo(Resolution r) noexcept { _result = r; }
 
   /// A command has opened or added a handle to this RefResult
-  void openedBy(shared_ptr<Command> c) noexcept { _users[c]++; }
+  /// Return the updated count of handles to this reference from the given command
+  size_t openedBy(shared_ptr<Command> c) noexcept { return ++_users[c]; }
 
-  /// A command is closing a handle to this RefResult. Return the number of remaining handles that
-  /// command has to this RefResult
+  /// A command is closing a handle to this RefResult.
+  /// Return the updated count of handles to this reference from the given command
   size_t closedBy(shared_ptr<Command> c) noexcept {
     ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
                           << " -> " << _result;

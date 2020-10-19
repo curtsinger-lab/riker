@@ -122,6 +122,9 @@ class Build : public TraceHandler, public BuildObserver {
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept override;
 
+  /// A command retains a handle to a RefResult
+  virtual void openRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+
   /// A command closes a handle to a RefResult
   virtual void closeRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
 
@@ -204,6 +207,9 @@ class Build : public TraceHandler, public BuildObserver {
                                      shared_ptr<RefResult> base,
                                      fs::path path,
                                      AccessFlags flags) noexcept;
+
+  /// A command is retaining a handle to a RefResult (e.g. in its file descriptor table)
+  void traceOpen(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
 
   /// A command has closed a handle to a RefResult
   void traceClose(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;

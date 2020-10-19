@@ -43,7 +43,7 @@ FileDescriptor& Process::addFD(int fd,
   }
 
   // The command holds an additional handle to the provided RefResult
-  ref->openedBy(_command);
+  _build.traceOpen(_command, ref);
 
   // Add the entry to the process' file descriptor table
   auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, flags, cloexec));
@@ -75,7 +75,7 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
   // The child process has a duplicate of every ref in the parent file descriptor table
   // Report these "open"s to the ref results
   for (auto& [index, desc] : _fds) {
-    desc.getRef()->openedBy(_command);
+    _build.traceOpen(_command, desc.getRef());
   }
 
   // Return the child process object
@@ -112,15 +112,15 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
   // Create the child command
   auto child = make_shared<Command>(exe_ref, args, initial_fds, _cwd, _root);
 
-  // Loop over the initial FDs. These handles are shifting from the parent to child child.
-  // We implement this by "opening" the handle in the child and "closing" it in the parent
-  for (auto& [index, desc] : child->getInitialFDs()) {
-    desc.getRef()->openedBy(child);
-    desc.getRef()->closedBy(_command);
-  }
-
   // Inform the build of the launch action
   _build.traceLaunch(_command, child);
+
+  // Loop over the initial FDs. These handles are shifting from the parent to the child.
+  // We implement this by "opening" the handle in the child and "closing" it in the parent
+  for (auto& [index, desc] : child->getInitialFDs()) {
+    _build.traceOpen(child, desc.getRef());
+    _build.traceClose(_command, desc.getRef());
+  }
 
   // This process is now running the child
   _command = child;

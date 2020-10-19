@@ -140,9 +140,6 @@ void Build::specialRef(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output.specialRef(c, entity, output);
 
-  // Command c is now using the output RefResult
-  output->openedBy(c);
-
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
     output->resolvesTo(_env->getStdin(*this, c));
@@ -192,10 +189,6 @@ void Build::pipeRef(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output.pipeRef(c, read_end, write_end);
 
-  // Command c is now using the read_and and write_end RefResult
-  read_end->openedBy(c);
-  write_end->openedBy(c);
-
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
   read_end->resolvesTo(pipe);
@@ -215,9 +208,6 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> ou
 
   // Create an IR step and add it to the output trace
   _output.fileRef(c, mode, output);
-
-  // Command c is now using the output RefResult
-  output->openedBy(c);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->createFile(*this, c, mode, false));
@@ -239,9 +229,6 @@ void Build::symlinkRef(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output.symlinkRef(c, target, output);
 
-  // Command c is now using the output RefResult
-  output->openedBy(c);
-
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getSymlink(*this, c, target, false));
 }
@@ -259,9 +246,6 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> out
 
   // Create an IR step and add it to the output trace
   _output.dirRef(c, mode, output);
-
-  // Command c is now using the output RefResult
-  output->openedBy(c);
 
   // Resolve the reference and save the result in output
   output->resolvesTo(_env->getDir(*this, c, mode, false));
@@ -285,13 +269,28 @@ void Build::pathRef(shared_ptr<Command> c,
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
 
-  // Command c is now using the output RefResult
-  output->openedBy(c);
-
   // Resolve the reference and save the result in output
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
   auto result = base->getArtifact()->resolve(*this, c, path, flags);
   output->resolvesTo(result);
+}
+
+// A command retains a handle to a given RefResult
+void Build::openRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+  // If this step comes from a command we cannot emulate, skip it
+  if (!_plan.canEmulate(c)) return;
+
+  // Count an emulated step
+  _emulated_step_count++;
+
+  // Log the emulated step
+  LOG(ir) << "emulated " << TracePrinter::OpenRefPrinter{c, ref};
+
+  // Create an IR step and add it to the output trace
+  _output.openRef(c, ref);
+
+  // Inform the ref that it was closed by c
+  ref->openedBy(c);
 }
 
 // A command closes a handle to a given RefResult
@@ -748,6 +747,22 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   return output;
+}
+
+// A command kept a handel to a RefResult
+void Build::traceOpen(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+  // The command may be saving its first handle to a reference, or it could be a duplicate of an
+  // existing reference. Only emit the IR step for the first open.
+  if (ref->openedBy(c) == 1) {
+    // This is an actual IR step, so count it
+    _traced_step_count++;
+
+    // Create an IR step in the output trace
+    _output.openRef(c, ref);
+
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::OpenRefPrinter{c, ref};
+  }
 }
 
 // A command has closed a handle to a RefResult

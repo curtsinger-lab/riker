@@ -67,6 +67,9 @@ class TraceHandler {
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept {};
 
+  /// Handle an OpenRef IR step
+  virtual void openRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept {}
+
   /// Handle a CloseRef IR step
   virtual void closeRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept {}
 
