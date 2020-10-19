@@ -43,10 +43,10 @@ The command performing this step waits for a child command to exit. The child is
 
 ## Actions
 **`Open(ref : Ref)`**
-A command retains a handle to a given reference. Only opened references can be inherited by child commands (e.g. via file descriptors that are not opened with O_CLOEXEC).
+A command retains a handle to a given reference. By default, references are internal to commands and do not need to be opened and closed. The Open() and Close() IR steps are used to track when a command saves a reference that could be inherited by another command. Currently, this happens when the reference is used as the root directory, working directory, or to create an entry in the file descriptor table. When a child command is launched, all references inherited by the child are explicitly opened in the IR trace.
 
 **`Close(ref : Ref)`**
-A command has closed its final handle to a given reference.
+A command has closed its final handle to a given reference. This reference must have been opened by the command at an earlier point. When a command exits, any remaining references are explicitly closed in the IR trace.
 
 **`UpdateMetadata(ref : Ref, v : MetadataVersion)`**
 Get the artifact reached by `ref` and set its metadata to version `v`.
