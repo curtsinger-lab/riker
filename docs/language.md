@@ -42,10 +42,10 @@ Version types like AddEntry and RemoveEntry, which are partial versions for dire
 The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
 
 ## Actions
-**`OpenRef(ref : Ref)`**
+**`Open(ref : Ref)`**
 A command retains a handle to a given reference. Only opened references can be inherited by child commands (e.g. via file descriptors that are not opened with O_CLOEXEC).
 
-**`CloseRef(ref : Ref)`**
+**`Close(ref : Ref)`**
 A command has closed its final handle to a given reference.
 
 **`UpdateMetadata(ref : Ref, v : MetadataVersion)`**
