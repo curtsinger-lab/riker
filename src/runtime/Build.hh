@@ -123,10 +123,10 @@ class Build : public TraceHandler, public BuildObserver {
                        shared_ptr<RefResult> output) noexcept override;
 
   /// A command retains a handle to a RefResult
-  virtual void open(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  virtual void usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
 
-  /// A command closes a handle to a RefResult
-  virtual void close(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  /// A command is finished with a specific RefResult
+  virtual void doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
 
   /// A command depends on the outcome of comparing two different references
   virtual void compareRefs(shared_ptr<Command> command,
@@ -209,10 +209,10 @@ class Build : public TraceHandler, public BuildObserver {
                                      AccessFlags flags) noexcept;
 
   /// A command is retaining a handle to a RefResult (e.g. in its file descriptor table)
-  void traceOpen(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  void traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
 
   /// A command has closed a handle to a RefResult
-  void traceClose(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  void traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
 
   /// A command compares two references and expects a specific result
   void traceCompareRefs(shared_ptr<Command> c,

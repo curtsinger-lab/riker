@@ -42,11 +42,11 @@ Version types like AddEntry and RemoveEntry, which are partial versions for dire
 The command performing this step waits for a child command to exit. The child is expected to exit with the specified exit code. If this code changes, the parent command has observed a change.
 
 ## Actions
-**`Open(ref : Ref)`**
-A command retains a handle to a given reference. By default, references are internal to commands and do not need to be opened and closed. The Open() and Close() IR steps are used to track when a command saves a reference that could be inherited by another command. Currently, this happens when the reference is used as the root directory, working directory, or to create an entry in the file descriptor table. When a child command is launched, all references inherited by the child are explicitly opened in the IR trace.
+**`UsingRef(ref : Ref)`**
+A command retains a handle to a given reference. By default, references are internal to commands and do not need to be opened and closed. The UsingRef() and DoneWithRef() IR steps are used to track when a command saves a reference that could be inherited by another command. Currently, this happens when the reference is used as the root directory, working directory, or to create an entry in the file descriptor table. When a child command is launched, all references inherited by the child are explicitly opened in the IR trace.
 
-**`Close(ref : Ref)`**
-A command has closed its final handle to a given reference. This reference must have been opened by the command at an earlier point. When a command exits, any remaining references are explicitly closed in the IR trace.
+**`DoneWithRef(ref : Ref)`**
+A command has closed its final handle to a given reference. This reference must have been marked as used by the command at an earlier point. Any command exit will be preceded by a series of calls to DoneWithRef to mark references as no longer used.
 
 **`UpdateMetadata(ref : Ref, v : MetadataVersion)`**
 Get the artifact reached by `ref` and set its metadata to version `v`.

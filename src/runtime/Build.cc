@@ -276,7 +276,7 @@ void Build::pathRef(shared_ptr<Command> c,
 }
 
 // A command retains a handle to a given RefResult
-void Build::open(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -284,17 +284,17 @@ void Build::open(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::OpenPrinter{c, ref};
+  LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
 
   // Create an IR step and add it to the output trace
-  _output.open(c, ref);
+  _output.usingRef(c, ref);
 
   // Inform the ref that it was closed by c
   ref->openedBy(c);
 }
 
 // A command closes a handle to a given RefResult
-void Build::close(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -302,10 +302,10 @@ void Build::close(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::ClosePrinter{c, ref};
+  LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref};
 
   // Create an IR step and add it to the output trace
-  _output.close(c, ref);
+  _output.doneWithRef(c, ref);
 
   // Inform the ref that it was closed by c
   ref->closedBy(c);
@@ -758,7 +758,7 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
 }
 
 // A command kept a handle to a RefResult
-void Build::traceOpen(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
   if (ref->openedBy(c) == 1) {
@@ -766,15 +766,15 @@ void Build::traceOpen(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept
     _traced_step_count++;
 
     // Create an IR step in the output trace
-    _output.open(c, ref);
+    _output.usingRef(c, ref);
 
     // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::OpenPrinter{c, ref};
+    LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
   }
 }
 
-// A command has closed a handle to a RefResult
-void Build::traceClose(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+// A command is finished using a RefResult
+void Build::traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
   if (ref->closedBy(c) == 0) {
@@ -782,10 +782,10 @@ void Build::traceClose(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcep
     _traced_step_count++;
 
     // Create an IR step in the output trace
-    _output.close(c, ref);
+    _output.doneWithRef(c, ref);
 
     // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::ClosePrinter{c, ref};
+    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref};
   }
 }
 

@@ -63,13 +63,13 @@ void OutputTrace::pathRef(shared_ptr<Command> cmd,
 }
 
 /// Add an Open IR step to the output trace
-void OutputTrace::open(shared_ptr<Command> cmd, shared_ptr<RefResult> ref) noexcept {
-  _records.emplace_back(new OpenRecord(getCommandID(cmd), getRefResultID(ref)));
+void OutputTrace::usingRef(shared_ptr<Command> cmd, shared_ptr<RefResult> ref) noexcept {
+  _records.emplace_back(new UsingRefRecord(getCommandID(cmd), getRefResultID(ref)));
 }
 
 /// Add a Cloe IR step to the output trace
-void OutputTrace::close(shared_ptr<Command> cmd, shared_ptr<RefResult> ref) noexcept {
-  _records.emplace_back(new CloseRecord(getCommandID(cmd), getRefResultID(ref)));
+void OutputTrace::doneWithRef(shared_ptr<Command> cmd, shared_ptr<RefResult> ref) noexcept {
+  _records.emplace_back(new DoneWithRefRecord(getCommandID(cmd), getRefResultID(ref)));
 }
 
 /// Add a CompareRefs IR step to the output trace

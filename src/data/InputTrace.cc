@@ -94,29 +94,29 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   RefResult::ID stdin_ref_id = 0;
   auto stdin_ref = getRefResult(stdin_ref_id);
   handler.specialRef(no_cmd, SpecialRef::stdin, stdin_ref);
-  handler.open(no_cmd, stdin_ref);
+  handler.usingRef(no_cmd, stdin_ref);
 
   RefResult::ID stdout_ref_id = 1;
   auto stdout_ref = getRefResult(stdout_ref_id);
   handler.specialRef(no_cmd, SpecialRef::stdout, stdout_ref);
-  handler.open(no_cmd, stdout_ref);
+  handler.usingRef(no_cmd, stdout_ref);
 
   RefResult::ID stderr_ref_id = 2;
   auto stderr_ref = getRefResult(stderr_ref_id);
   handler.specialRef(no_cmd, SpecialRef::stderr, stderr_ref);
-  handler.open(no_cmd, stderr_ref);
+  handler.usingRef(no_cmd, stderr_ref);
 
   // Create a reference to the root directory
   RefResult::ID root_ref_id = 3;
   auto root_ref = getRefResult(root_ref_id);
   handler.specialRef(no_cmd, SpecialRef::root, root_ref);
-  handler.open(no_cmd, root_ref);
+  handler.usingRef(no_cmd, root_ref);
 
   // Create a reference to the current working directory and add it to the trace
   RefResult::ID cwd_ref_id = 4;
   auto cwd_ref = getRefResult(cwd_ref_id);
   handler.specialRef(no_cmd, SpecialRef::cwd, cwd_ref);
-  handler.open(no_cmd, cwd_ref);
+  handler.usingRef(no_cmd, cwd_ref);
 
   // Set up the reference to the dodo-launch executable and add it to the trace
   RefResult::ID exe_ref_id = 5;

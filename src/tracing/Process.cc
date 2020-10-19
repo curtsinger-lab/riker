@@ -29,13 +29,13 @@ Process::Process(Build& build,
     _fds(fds) {
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
-    _build.traceOpen(_command, desc.getRef());
+    _build.traceUsingRef(_command, desc.getRef());
   }
 
   // The child process also duplicates references to the root and working directories
   // TODO: Do we need to track _exe here as well?
-  _build.traceOpen(_command, _root);
-  _build.traceOpen(_command, _cwd);
+  _build.traceUsingRef(_command, _root);
+  _build.traceUsingRef(_command, _cwd);
 }
 
 /*******************************************/
@@ -46,8 +46,8 @@ Process::Process(Build& build,
 void Process::setWorkingDir(shared_ptr<RefResult> ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
-  _build.traceClose(_command, _cwd);
-  _build.traceOpen(_command, ref);
+  _build.traceDoneWithRef(_command, _cwd);
+  _build.traceUsingRef(_command, ref);
 
   // Update the cwd
   _cwd = ref;
@@ -67,12 +67,12 @@ FileDescriptor& Process::addFD(int fd,
                                bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
-    _build.traceClose(_command, iter->second.getRef());
+    _build.traceDoneWithRef(_command, iter->second.getRef());
     _fds.erase(iter);
   }
 
   // The command holds an additional handle to the provided RefResult
-  _build.traceOpen(_command, ref);
+  _build.traceUsingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
   auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, flags, cloexec));
@@ -85,7 +85,7 @@ void Process::closeFD(int fd) noexcept {
   if (iter == _fds.end()) {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
-    _build.traceClose(_command, iter->second.getRef());
+    _build.traceDoneWithRef(_command, iter->second.getRef());
     _fds.erase(iter);
   }
 }
@@ -94,7 +94,7 @@ void Process::closeFD(int fd) noexcept {
 void Process::tryCloseFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
-    _build.traceClose(_command, iter->second.getRef());
+    _build.traceDoneWithRef(_command, iter->second.getRef());
     _fds.erase(iter);
   }
 }
@@ -118,7 +118,7 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
   for (const auto& [index, fd] : _fds) {
     if (fd.isCloexec()) {
       // Report the close to the build
-      _build.traceClose(_command, fd.getRef());
+      _build.traceDoneWithRef(_command, fd.getRef());
 
       // Remember this index so we can remove it later
       to_erase.push_back(index);
@@ -141,16 +141,16 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
   // Loop over the initial FDs. These handles are shifting from the parent to the child.
   // We implement this by "opening" the handle in the child and "closing" it in the parent
   for (auto& [index, desc] : child->getInitialFDs()) {
-    _build.traceOpen(child, desc.getRef());
-    _build.traceClose(_command, desc.getRef());
+    _build.traceUsingRef(child, desc.getRef());
+    _build.traceDoneWithRef(_command, desc.getRef());
   }
 
   // The child gains references to root and cwd, which the parent then closes
-  _build.traceOpen(child, _cwd);
-  _build.traceClose(_command, _cwd);
+  _build.traceUsingRef(child, _cwd);
+  _build.traceDoneWithRef(_command, _cwd);
 
-  _build.traceOpen(child, _root);
-  _build.traceClose(_command, _root);
+  _build.traceUsingRef(child, _root);
+  _build.traceDoneWithRef(_command, _root);
 
   // TODO: Do we need to include a reference to the executable here?
 
@@ -168,11 +168,11 @@ void Process::exit() noexcept {
   _exited = true;
 
   // References to the cwd and root directories are closed
-  _build.traceClose(_command, _cwd);
-  _build.traceClose(_command, _root);
+  _build.traceDoneWithRef(_command, _cwd);
+  _build.traceDoneWithRef(_command, _root);
 
   // Any remaining file descriptors in this process are closed
   for (auto& [index, desc] : _fds) {
-    _build.traceClose(_command, desc.getRef());
+    _build.traceDoneWithRef(_command, desc.getRef());
   }
 }

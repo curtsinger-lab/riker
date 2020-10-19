@@ -71,12 +71,12 @@ class TracePrinter : public TraceHandler {
     _out << PathRefPrinter{c, base, path, flags, output} << endl;
   }
 
-  virtual void open(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
-    _out << OpenPrinter{c, ref} << endl;
+  virtual void usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
+    _out << UsingRefPrinter{c, ref} << endl;
   }
 
-  virtual void close(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
-    _out << ClosePrinter{c, ref} << endl;
+  virtual void doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override {
+    _out << DoneWithRefPrinter{c, ref} << endl;
   }
 
   /// A command depends on the outcome of comparing two different references
@@ -251,24 +251,24 @@ class TracePrinter : public TraceHandler {
   };
 
   /// A wrapper struct used to print Open IR steps
-  struct OpenPrinter {
+  struct UsingRefPrinter {
     shared_ptr<Command> c;
     shared_ptr<RefResult> ref;
 
-    friend ostream& operator<<(ostream& o, const OpenPrinter& p) noexcept {
+    friend ostream& operator<<(ostream& o, const UsingRefPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "Open(" << p.ref << ")";
+      return o << "UsingRef(" << p.ref << ")";
     }
   };
 
   /// A wrapper struct used to print Close IR steps
-  struct ClosePrinter {
+  struct DoneWithRefPrinter {
     shared_ptr<Command> c;
     shared_ptr<RefResult> ref;
 
-    friend ostream& operator<<(ostream& o, const ClosePrinter& p) noexcept {
+    friend ostream& operator<<(ostream& o, const DoneWithRefPrinter& p) noexcept {
       if (p.c) o << p.c << ": ";
-      return o << "Close(" << p.ref << ")";
+      return o << "DoneWithRef(" << p.ref << ")";
     }
   };
 
