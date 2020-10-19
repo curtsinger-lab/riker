@@ -148,9 +148,9 @@ void OutputTrace::launch(shared_ptr<Command> cmd, shared_ptr<Command> child) noe
   RefResult::ID cwd_id = getRefResultID(child->getInitialWorkingDir());
   RefResult::ID exe_id = getRefResultID(child->getExecutable());
 
-  map<int, tuple<RefResult::ID, AccessFlags>> fds;
+  map<int, RefResult::ID> fds;
   for (auto [fd, info] : child->getInitialFDs()) {
-    fds[fd] = {getRefResultID(info.getRef()), info.getFlags()};
+    fds[fd] = getRefResultID(info.getRef());
   }
 
   _records.emplace_back(new CommandRecord(child_id, root_id, cwd_id, exe_id, child->getArguments(),

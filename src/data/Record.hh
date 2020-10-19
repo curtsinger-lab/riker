@@ -45,7 +45,7 @@ struct CommandRecord : public Record {
   RefResult::ID _cwd_id;
   RefResult::ID _exe_id;
   vector<string> _args;
-  map<int, tuple<RefResult::ID, AccessFlags>> _initial_fds;
+  map<int, RefResult::ID> _initial_fds;
   bool _executed;
   int _exit_status;
 
@@ -57,7 +57,7 @@ struct CommandRecord : public Record {
                 RefResult::ID cwd_id,
                 RefResult::ID exe_id,
                 vector<string> args,
-                map<int, tuple<RefResult::ID, AccessFlags>> initial_fds,
+                map<int, RefResult::ID> initial_fds,
                 bool executed,
                 int exit_status) :
       _id(id),

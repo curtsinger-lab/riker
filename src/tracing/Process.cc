@@ -75,7 +75,7 @@ FileDescriptor& Process::addFD(int fd,
   _build.traceUsingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
-  auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, flags, cloexec));
+  auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, cloexec));
   return iter->second;
 }
 
@@ -123,7 +123,7 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
       // Remember this index so we can remove it later
       to_erase.push_back(index);
     } else {
-      initial_fds.emplace(index, FileDescriptor(fd.getRef(), fd.getFlags()));
+      initial_fds.emplace(index, FileDescriptor(fd.getRef()));
     }
   }
 

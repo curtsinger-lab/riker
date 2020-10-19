@@ -21,17 +21,17 @@ class FileDescriptor {
   FileDescriptor() noexcept = default;
 
   /// Create a record of an initial file descriptor
-  FileDescriptor(shared_ptr<RefResult> ref, AccessFlags flags, bool cloexec = false) noexcept :
-      _ref(ref), _flags(flags), _cloexec(cloexec) {}
+  explicit FileDescriptor(shared_ptr<RefResult> ref, bool cloexec = false) noexcept :
+      _ref(ref), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
   shared_ptr<RefResult> getRef() const noexcept { return _ref; }
 
   /// Check if the file descriptor should be writable
-  bool isWritable() const noexcept { return _flags.w; }
+  bool isWritable() const noexcept { return _ref->getFlags().w; }
 
   /// Get the access flags
-  AccessFlags getFlags() const noexcept { return _flags; }
+  AccessFlags getFlags() const noexcept { return _ref->getFlags(); }
 
   /// Check if the file descriptor should be closed on exec
   bool isCloexec() const noexcept { return _cloexec; }
@@ -48,9 +48,6 @@ class FileDescriptor {
  private:
   /// The reference used to locate an artifact that the file descriptor points to
   shared_ptr<RefResult> _ref;
-
-  /// The flags associated with this file descriptor
-  AccessFlags _flags;
 
   /// Is this file descriptor closed on exec calls?
   /// When file descriptors are serialized, it's because they appear in a command's initial file

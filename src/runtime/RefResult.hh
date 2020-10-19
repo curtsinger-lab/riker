@@ -64,6 +64,9 @@ class RefResult final {
     _flags = flags;
   }
 
+  /// Get the access flags associated with this RefResult
+  AccessFlags getFlags() const noexcept { return _flags; }
+
   /// A command is now using this RefResult. Return true if this first use by the given command
   bool addUser(Build& b, shared_ptr<Command> c) noexcept {
     auto count = ++_users[c];

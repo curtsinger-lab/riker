@@ -148,7 +148,7 @@ void Build::specialRef(shared_ptr<Command> c,
     output->resolvesTo(_env->getStdout(*this, c), AccessFlags{.w = true});
 
   } else if (entity == SpecialRef::stderr) {
-    output->resolvesTo(_env->getStderr(*this, c), AccessFlags{.x = true});
+    output->resolvesTo(_env->getStderr(*this, c), AccessFlags{.w = true});
 
   } else if (entity == SpecialRef::root) {
     output->resolvesTo(_env->getRootDir(), AccessFlags{.r = true, .x = true});
