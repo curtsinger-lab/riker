@@ -122,6 +122,9 @@ class Build : public TraceHandler, public BuildObserver {
                        AccessFlags flags,
                        shared_ptr<RefResult> output) noexcept override;
 
+  /// A command closes a handle to a RefResult
+  virtual void closeRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+
   /// A command depends on the outcome of comparing two different references
   virtual void compareRefs(shared_ptr<Command> command,
                            shared_ptr<RefResult> ref1,
@@ -201,6 +204,9 @@ class Build : public TraceHandler, public BuildObserver {
                                      shared_ptr<RefResult> base,
                                      fs::path path,
                                      AccessFlags flags) noexcept;
+
+  /// A command has closed a handle to a RefResult
+  void traceClose(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
 
   /// A command compares two references and expects a specific result
   void traceCompareRefs(shared_ptr<Command> c,

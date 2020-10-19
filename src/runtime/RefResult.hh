@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -7,8 +8,11 @@
 #include "runtime/Resolution.hh"
 #include "util/UniqueID.hh"
 
+using std::map;
 using std::ostream;
 using std::string;
+
+class Command;
 
 /***
  * A RefResult instance is a bit like a register; it is serialized as the destination where a
@@ -55,6 +59,16 @@ class RefResult final {
   /// Save a resolution result in this RefResult
   void resolvesTo(Resolution r) noexcept { _result = r; }
 
+  /// A command has opened or added a handle to this RefResult
+  void openedBy(shared_ptr<Command> c) noexcept { _users[c]++; }
+
+  /// A command is closing a handle to this RefResult. Return the number of remaining handles that
+  /// command has to this RefResult
+  size_t closedBy(shared_ptr<Command> c) noexcept {
+    ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c;
+    return --_users[c];
+  }
+
   /// Print a RefResult
   ostream& print(ostream& o) const noexcept { return o << getName(); }
 
@@ -73,4 +87,7 @@ class RefResult final {
 
   /// The outcome of a reference resolution saved in this RefResult
   Resolution _result;
+
+  /// Keep track of which commands are using this RefResult
+  map<shared_ptr<Command>, size_t> _users;
 };
