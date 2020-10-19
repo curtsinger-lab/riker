@@ -28,14 +28,7 @@ class Process : public std::enable_shared_from_this<Process> {
           pid_t pid,
           shared_ptr<RefResult> cwd,
           shared_ptr<RefResult> root,
-          map<int, FileDescriptor> fds) noexcept :
-      _build(build),
-      _tracer(tracer),
-      _command(command),
-      _pid(pid),
-      _cwd(cwd),
-      _root(root),
-      _fds(fds) {}
+          map<int, FileDescriptor> fds) noexcept;
 
   /// Get the process ID
   pid_t getID() const noexcept { return _pid; }

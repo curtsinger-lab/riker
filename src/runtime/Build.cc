@@ -545,21 +545,36 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
     desc.getRef()->openedBy(child);
   }
 
-  // Does the child command need to be executed?
+  // Are we going to re-execute the child?
+  bool launch_command = false;
+
+  // Should we print the child command?
+  bool print_command = false;
+
   if (_plan.mustRerun(child)) {
-    // Count this as a traced command
+    // Print the command if requested, or if this is a dry run
+    if (options::print_on_run || options::dry_run) print_command = true;
+
+    // Launch the command if this is not a dry run
+    if (!options::dry_run) launch_command = true;
+  }
+
+  // Print the command if requested
+  if (print_command) {
+    cout << child->getShortName(options::command_length) << endl;
+  }
+
+  // If we're going to launch the command, mark it as executed now
+  if (launch_command) child->setExecuted();
+
+  // Now emit the launch IR step. This has to happen after updating the executed state of the
+  // command (above) and before actually launching the command.
+  _output.launch(c, child);
+
+  // Launch the command if requested
+  if (launch_command) {
+    // Count the traced command
     _traced_command_count++;
-
-    // Show the command if printing is on, or if this is a dry run
-    if (options::print_on_run || options::dry_run) {
-      cout << child->getShortName(options::command_length) << endl;
-    }
-
-    // If this is a dry run, we're done emulating this step
-    if (options::dry_run) return;
-
-    // The child command will be executed by this build.
-    child->setExecuted();
 
     // The child command requires that its working directory exists
     child->getInitialWorkingDir()->getArtifact()->mustExist(*this, child);
@@ -583,13 +598,11 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
 
     // Start the child command in the tracer
     _running[child] = _tracer.start(child);
+
   } else {
-    // Count this as an emulated command
+    // Count the emulated command
     _emulated_command_count++;
   }
-
-  // Create an IR step and add it to the output trace
-  _output.launch(c, child);
 }
 
 // This command joined with a child command

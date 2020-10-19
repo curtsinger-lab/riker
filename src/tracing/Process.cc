@@ -13,14 +13,43 @@ using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
+Process::Process(Build& build,
+                 Tracer& tracer,
+                 shared_ptr<Command> command,
+                 pid_t pid,
+                 shared_ptr<RefResult> cwd,
+                 shared_ptr<RefResult> root,
+                 map<int, FileDescriptor> fds) noexcept :
+    _build(build),
+    _tracer(tracer),
+    _command(command),
+    _pid(pid),
+    _cwd(cwd),
+    _root(root),
+    _fds(fds) {
+  // The new process has an open handle to each file descriptor in the _fds table
+  for (auto& [index, desc] : _fds) {
+    _build.traceOpen(_command, desc.getRef());
+  }
+
+  // The child process also duplicates references to the root and working directories
+  // TODO: Do we need to track _exe here as well?
+  _build.traceOpen(_command, _root);
+  _build.traceOpen(_command, _cwd);
+}
+
 /*******************************************/
 /********** Utilities for tracing **********/
 /*******************************************/
 
 // Update a process' working directory
 void Process::setWorkingDir(shared_ptr<RefResult> ref) noexcept {
-  ASSERT(ref->getArtifact()->getPath(false).has_value())
-      << "Cannot set working directory to an artifact without a committed path";
+  // The process no longer saves its old cwd reference, and now saves the new working directory.
+  // Encode this with close and open steps in the IR layer
+  _build.traceClose(_command, _cwd);
+  _build.traceOpen(_command, ref);
+
+  // Update the cwd
   _cwd = ref;
 }
 
@@ -72,12 +101,6 @@ void Process::tryCloseFD(int fd) noexcept {
 
 // The process is creating a new child
 shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
-  // The child process has a duplicate of every ref in the parent file descriptor table
-  // Report these "open"s to the ref results
-  for (auto& [index, desc] : _fds) {
-    _build.traceOpen(_command, desc.getRef());
-  }
-
   // Return the child process object
   return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
 }
@@ -121,6 +144,15 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
     _build.traceOpen(child, desc.getRef());
     _build.traceClose(_command, desc.getRef());
   }
+
+  // The child gains references to root and cwd, which the parent then closes
+  _build.traceOpen(child, _cwd);
+  _build.traceClose(_command, _cwd);
+
+  _build.traceOpen(child, _root);
+  _build.traceClose(_command, _root);
+
+  // TODO: Do we need to include a reference to the executable here?
 
   // This process is now running the child
   _command = child;
