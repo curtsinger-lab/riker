@@ -87,10 +87,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   shared_ptr<Env> getEnv() const noexcept { return _env.lock(); }
 
   /// Get a file descriptor for this artifact
-  virtual int getFD(AccessFlags flags) noexcept {
-    FAIL << "Unsupported request to open file descriptor for artifact " << this;
-    return -1;
-  }
+  virtual int getFD(AccessFlags flags) noexcept;
 
   /**
    * Check if an access to this artifact with the provided flags is allowed.

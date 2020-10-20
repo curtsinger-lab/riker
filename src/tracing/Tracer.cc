@@ -314,28 +314,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
         << "Tried to launch a command with an unresolved reference in its "
            "initial file descriptor table";
 
-    // Handle reference types
-    if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
-      initial_fds.emplace_back(info.getRef()->getFD(), child_fd);
-
-    } else if (auto file = info.getRef()->getArtifact()->as<FileArtifact>()) {
-      // This is a file reference. Get a path to open.
-      auto path = file->getPath();
-      ASSERT(path.has_value()) << "File has no path: " << file;
-
-      // Get flags to pass to the open call
-      auto [open_flags, open_mode] = info.getFlags().toOpen();
-
-      // Open the file
-      int parent_fd = ::open(path.value().c_str(), open_flags, open_mode);
-      FAIL_IF(parent_fd < 0) << "Failed to open " << file;
-      initial_fds.emplace_back(parent_fd, child_fd);
-
-      LOG(exec) << "Launching child with file fd " << child_fd << ", duped from " << parent_fd;
-
-    } else {
-      WARN << "Skipping initial file descriptor " << child_fd << " for " << cmd << ": " << info;
-    }
+    // Get a file descriptor for the reference in the command's initial descriptor table, and record
+    // how it should be re-numbered in the child
+    initial_fds.emplace_back(info.getRef()->getFD(), child_fd);
   }
 
   // Launch a child process
@@ -349,10 +330,12 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     // necessary and that there are no ordering constraints on duping (e.g. if the
     // child fd for one entry matches the parent fd of another).
     for (const auto& [parent_fd, child_fd] : initial_fds) {
-      LOG(exec) << "Duping fd " << parent_fd << " to " << child_fd << " in child";
-      int rc = dup2(parent_fd, child_fd);
+      if (parent_fd != child_fd) {
+        LOG(exec) << "Duping fd " << parent_fd << " to " << child_fd << " in child";
+        int rc = dup2(parent_fd, child_fd);
 
-      FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
+        FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
+      }
     }
 
     // Change to the initial working directory

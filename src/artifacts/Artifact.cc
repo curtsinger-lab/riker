@@ -303,3 +303,18 @@ Resolution Artifact::resolve(Build& build,
 
   return ENOTDIR;
 }
+
+int Artifact::getFD(AccessFlags flags) noexcept {
+  // Get a path to this artifact
+  auto path = getPath();
+  ASSERT(path.has_value()) << "Cannot open artifact without a path";
+
+  // Get flags to pass to the open call
+  auto [open_flags, open_mode] = flags.toOpen();
+
+  // Open the artifact
+  int fd = ::open(path.value().c_str(), open_flags, open_mode);
+  FAIL_IF(fd < 0) << "Failed to open " << this;
+
+  return fd;
+}
