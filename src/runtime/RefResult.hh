@@ -2,14 +2,17 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 
+#include "artifacts/Artifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Resolution.hh"
 #include "util/UniqueID.hh"
 
 using std::map;
+using std::optional;
 using std::ostream;
 using std::string;
 
@@ -69,6 +72,10 @@ class RefResult final {
 
   /// A command is now using this RefResult. Return true if this first use by the given command
   bool addUser(Build& b, shared_ptr<Command> c) noexcept {
+    // Increment the total user count
+    _total_users++;
+
+    // Increment the command-specific user count
     auto count = ++_users[c];
     return count == 1;
   }
@@ -78,8 +85,26 @@ class RefResult final {
     ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
                           << " -> " << _result;
 
+    // Decrement the total user count
+    _total_users--;
+
+    // If this was the last user and we have a file descriptor open, close it
+    if (_total_users == 0 && _fd.has_value()) {
+      ::close(_fd.value());
+    }
+
+    // Decrement the command-specific user count
     auto count = --_users[c];
     return count == 0;
+  }
+
+  /// Get a file descriptor for this RefResult
+  int getFD() noexcept {
+    ASSERT(isResolved()) << "Cannot set up a file descriptor for an unresolved RefResult";
+    if (!_fd.has_value()) {
+      _fd = getArtifact()->getFD(_flags);
+    }
+    return _fd.value();
   }
 
   /// Print a RefResult
@@ -106,4 +131,10 @@ class RefResult final {
 
   /// Keep track of which commands are using this RefResult
   map<shared_ptr<Command>, size_t> _users;
+
+  /// Keep a running total of all users
+  size_t _total_users = 0;
+
+  /// If this RefResult has a valid file descriptor, it is saved here
+  optional<int> _fd;
 };

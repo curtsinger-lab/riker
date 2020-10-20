@@ -28,7 +28,7 @@ void FileVersion::commit(fs::path path, mode_t mode) noexcept {
 
   int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
   FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;
-  // close(fd);
+  close(fd);
 
   LOG(artifact) << "Created file at " << path;
 

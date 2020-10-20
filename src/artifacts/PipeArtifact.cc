@@ -164,3 +164,31 @@ void PipeArtifact::updateContent(Build& build,
     FAIL << "Unsupported pipe version type " << writing;
   }
 }
+
+int PipeArtifact::getFD(AccessFlags flags) noexcept {
+  ASSERT((flags.r && !flags.w) || (flags.w && !flags.r))
+      << "Invalid access flags for pipe: " << flags;
+
+  if (!_fds.has_value()) {
+    int pipefds[2];
+    int rc = pipe2(pipefds, O_CLOEXEC);
+    ASSERT(rc == 0) << "Failed to create pipe";
+    _fds = tuple{pipefds[0], pipefds[1]};
+    LOG(exec) << "Created pipe with read fd " << pipefds[0] << " and write fd " << pipefds[1];
+  }
+
+  auto [read_fd, write_fd] = _fds.value();
+
+  if (flags.r) {
+    ASSERT(read_fd >= 0) << "Attempted to return invalid pipe file descriptor from " << this;
+    // Mark the read fd as invalid so it cannot be returned a second time
+    _fds = tuple{-1, write_fd};
+    return read_fd;
+
+  } else {
+    ASSERT(write_fd >= 0) << "Attempted to return invalid pipe file descriptor from " << this;
+    // Mark teh write fd as invalid so it cannot be returned a second time
+    _fds = tuple{read_fd, -1};
+    return write_fd;
+  }
+}

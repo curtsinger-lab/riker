@@ -316,16 +316,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
     // Handle reference types
     if (auto pipe = info.getRef()->getArtifact()->as<PipeArtifact>()) {
-      // Does the descriptor refer to the writing end of the pipe?
-      if (info.isWritable()) {
-        initial_fds.emplace_back(pipe->getWriteFD(), child_fd);
-        LOG(exec) << "Launching child with pipe write fd " << child_fd << ", duped from "
-                  << pipe->getWriteFD();
-      } else {
-        initial_fds.emplace_back(pipe->getReadFD(), child_fd);
-        LOG(exec) << "Launching child with pipe read fd " << child_fd << ", duped from "
-                  << pipe->getReadFD();
-      }
+      initial_fds.emplace_back(info.getRef()->getFD(), child_fd);
 
     } else if (auto file = info.getRef()->getArtifact()->as<FileArtifact>()) {
       // This is a file reference. Get a path to open.
@@ -350,16 +341,6 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   // Launch a child process
   pid_t child_pid = fork();
   FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
-
-  // Close FDs in the parent
-  if (child_pid > 0) {
-    for (auto [parent_fd, child_fd] : initial_fds) {
-      if (parent_fd != child_fd) {
-        LOG(exec) << "Closing fd " << parent_fd << " in parent";
-        close(parent_fd);
-      }
-    }
-  }
 
   if (child_pid == 0) {
     // This is the child

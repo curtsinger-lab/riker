@@ -3,6 +3,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <tuple>
 
 #include <unistd.h>
 
@@ -13,6 +14,7 @@
 using std::list;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 
 class Build;
 class Command;
@@ -133,31 +135,11 @@ class PipeArtifact : public Artifact {
                              shared_ptr<Version> writing) noexcept override;
 
   /************ Miscellaneous ************/
-  void open() noexcept {
-    if (_read_fd == -1 && _write_fd == -1) {
-      int pipefds[2];
-      int rc = pipe2(pipefds, O_CLOEXEC);
-      ASSERT(rc == 0) << "Failed to create pipe";
-      _read_fd = pipefds[0];
-      _write_fd = pipefds[1];
-      LOG(exec) << "Created pipe with read fd " << _read_fd << " and write fd " << _write_fd;
-    }
-  }
+  /// Get a file descriptor for this artifact
+  virtual int getFD(AccessFlags flags) noexcept override;
 
-  void setFDs(int read_fd, int write_fd) {
-    _read_fd = read_fd;
-    _write_fd = write_fd;
-  }
-
-  int getWriteFD() noexcept {
-    open();
-    return _write_fd;
-  }
-
-  int getReadFD() noexcept {
-    open();
-    return _read_fd;
-  }
+  /// Set file descriptors for this pipe
+  void setFDs(int read_fd, int write_fd) noexcept { _fds = {read_fd, write_fd}; }
 
  private:
   /// The version that tracks the most recent read from this pipe
@@ -167,6 +149,5 @@ class PipeArtifact : public Artifact {
   list<shared_ptr<PipeWriteVersion>> _writes;
 
   // File descriptors for an actual opened pipe
-  int _read_fd = -1;
-  int _write_fd = -1;
+  optional<tuple<int, int>> _fds;
 };
