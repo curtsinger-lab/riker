@@ -1,2 +1,0 @@
-logs-2020-10-17.tgz filter=lfs diff=lfs merge=lfs -text
-logs-2020-10-18.tgz filter=lfs diff=lfs merge=lfs -text
