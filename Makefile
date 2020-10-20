@@ -13,7 +13,7 @@ DEPS := $(patsubst src/%.cc, .obj/%.d, $(SRCS))
 all: dodo dodo-launch
 	
 clean:
-	rm -rf dodo .obj .dodo
+	rm -rf dodo dodo-launch .obj .dodo
 
 .PHONY: all clean test selftest
 
