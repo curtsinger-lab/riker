@@ -254,7 +254,12 @@ class Build : public TraceHandler, public BuildObserver {
                         shared_ptr<RefResult> target) noexcept;
 
   /// A command is launching a child command
-  void traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept;
+  shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
+                                  shared_ptr<RefResult> exe_ref,
+                                  vector<string> args,
+                                  map<int, FileDescriptor> fds,
+                                  shared_ptr<RefResult> cwd_ref,
+                                  shared_ptr<RefResult> root_ref) noexcept;
 
   /// A command is joining with a child command
   void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;

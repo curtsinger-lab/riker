@@ -999,10 +999,18 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> exe_ref,
+                                       vector<string> args,
+                                       map<int, FileDescriptor> fds,
+                                       shared_ptr<RefResult> cwd_ref,
+                                       shared_ptr<RefResult> root_ref) noexcept {
   // Count a traced step and a traced command
   _traced_step_count++;
   _traced_command_count++;
+
+  // Create a child command
+  auto child = make_shared<Command>(exe_ref, args, fds, cwd_ref, root_ref);
 
   // The child command will be executed by this build.
   child->setExecuted();
@@ -1040,6 +1048,9 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::LaunchPrinter{c, child};
+
+  // Return the child command to the caller
+  return child;
 }
 
 // This command joined with a child command
