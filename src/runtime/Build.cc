@@ -542,6 +542,9 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   // Inform observers of the launch
   observeLaunch(c, child);
 
+  // Add the child to the parent command's set of children
+  if (c) c->addChild(child);
+
   // Are we going to re-execute the child?
   bool launch_command = false;
 
@@ -999,10 +1002,26 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
+shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
+                                       shared_ptr<RefResult> exe_ref,
+                                       vector<string> args,
+                                       map<int, FileDescriptor> fds,
+                                       shared_ptr<RefResult> cwd_ref,
+                                       shared_ptr<RefResult> root_ref) noexcept {
   // Count a traced step and a traced command
   _traced_step_count++;
   _traced_command_count++;
+
+  // Look to see if the current command has a matching child command
+  auto child = c->findChild(exe_ref, args, fds, cwd_ref, root_ref);
+
+  // Did we find a matching command?
+  if (child) {
+    LOG(exec) << "Matched command " << child;
+  } else {
+    child = make_shared<Command>(exe_ref, args, fds, cwd_ref, root_ref);
+    LOG(exec) << "No match for command " << child;
+  }
 
   // The child command will be executed by this build.
   child->setExecuted();
@@ -1040,6 +1059,9 @@ void Build::traceLaunch(shared_ptr<Command> c, shared_ptr<Command> child) noexce
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::LaunchPrinter{c, child};
+
+  // Return the child command to the caller
+  return child;
 }
 
 // This command joined with a child command

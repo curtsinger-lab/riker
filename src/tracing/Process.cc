@@ -132,11 +132,8 @@ void Process::exec(shared_ptr<RefResult> exe_ref,
     _fds.erase(index);
   }
 
-  // Create the child command
-  auto child = make_shared<Command>(exe_ref, args, initial_fds, _cwd, _root);
-
   // Inform the build of the launch action
-  _build.traceLaunch(_command, child);
+  auto child = _build.traceLaunch(_command, exe_ref, args, initial_fds, _cwd, _root);
 
   // Loop over the initial FDs. These handles are shifting from the parent to the child.
   // We implement this by "opening" the handle in the child and "closing" it in the parent
