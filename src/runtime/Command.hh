@@ -4,7 +4,9 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -13,6 +15,7 @@
 
 using std::list;
 using std::map;
+using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -95,6 +98,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, FileDescriptor>& getInitialFDs() const noexcept { return _initial_fds; }
 
+  /// When we emulate this command's launch of a child command, keep a record so we can match
+  /// against it later and possibly skip that child command.
+  void addChild(shared_ptr<Command> child) noexcept;
+
+  /// Look through this command's list of children to see if there is a matching child
+  shared_ptr<Command> findChild(shared_ptr<RefResult> exe_ref,
+                                vector<string> args,
+                                map<int, FileDescriptor> fds,
+                                shared_ptr<RefResult> cwd_ref,
+                                shared_ptr<RefResult> root_ref) noexcept;
+
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
@@ -129,4 +143,25 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The exit status recorded for this command after its last execution
   int _exit_status;
+
+  /// A record of a past command launch
+  struct ChildRecord {
+    shared_ptr<Version> _exe_content;
+    optional<fs::path> _cwd_path;
+    vector<string> _args;
+    map<int, shared_ptr<Version>> _fd_content;
+    shared_ptr<Command> _command;
+
+    ChildRecord(shared_ptr<Command> child) noexcept;
+
+    ChildRecord(shared_ptr<RefResult> exe_ref,
+                shared_ptr<RefResult> cwd_ref,
+                vector<string> args,
+                map<int, FileDescriptor> fds) noexcept;
+
+    bool operator==(const ChildRecord& other) noexcept;
+  };
+
+  /// A set of commands launched by this command
+  list<ChildRecord> _children;
 };
