@@ -16,4 +16,5 @@
   "editor.rulers": [
     100
   ],
+  "git.ignoreLimitWarning": true,
 }
