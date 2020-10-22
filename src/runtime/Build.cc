@@ -139,20 +139,20 @@ void Build::specialRef(shared_ptr<Command> c, SpecialRef entity, shared_ptr<Ref>
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    *output = Ref(AccessFlags{.r = true}, _env->getStdin(*this, c));
+    *output = Ref(ReadAccess, _env->getStdin(*this, c));
 
   } else if (entity == SpecialRef::stdout) {
-    *output = Ref(AccessFlags{.w = true}, _env->getStdout(*this, c));
+    *output = Ref(WriteAccess, _env->getStdout(*this, c));
 
   } else if (entity == SpecialRef::stderr) {
-    *output = Ref(AccessFlags{.w = true}, _env->getStderr(*this, c));
+    *output = Ref(WriteAccess, _env->getStderr(*this, c));
 
   } else if (entity == SpecialRef::root) {
-    *output = Ref(AccessFlags{.r = true, .x = true}, _env->getRootDir());
+    *output = Ref(ReadAccess + ExecAccess, _env->getRootDir());
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    *output = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.r = true, .x = true});
+    *output = _env->getRootDir()->resolve(*this, c, cwd_path, ReadAccess + ExecAccess);
 
     ASSERT(output->isSuccess()) << "Failed to resolve current working directory";
     output->getArtifact()->setName(".");
@@ -160,7 +160,7 @@ void Build::specialRef(shared_ptr<Command> c, SpecialRef entity, shared_ptr<Ref>
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-    *output = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.r = true, .x = true});
+    *output = _env->getRootDir()->resolve(*this, c, dodo_launch, ReadAccess + ExecAccess);
 
   } else {
     FAIL << "Unknown special reference";
@@ -185,8 +185,8 @@ void Build::pipeRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  *read_end = Ref(AccessFlags{.r = true}, pipe);
-  *write_end = Ref(AccessFlags{.w = true}, pipe);
+  *read_end = Ref(ReadAccess, pipe);
+  *write_end = Ref(WriteAccess, pipe);
 }
 
 // A command references a new anonymous file
@@ -204,7 +204,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) 
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  *output = Ref(AccessFlags{.r = true, .w = true}, _env->createFile(*this, c, mode, false));
+  *output = Ref(ReadAccess + WriteAccess, _env->createFile(*this, c, mode, false));
 }
 
 // A command references a new anonymous symlink
@@ -222,8 +222,7 @@ void Build::symlinkRef(shared_ptr<Command> c, fs::path target, shared_ptr<Ref> o
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  *output =
-      Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getSymlink(*this, c, target, false));
+  *output = Ref(ReadAccess + WriteAccess + ExecAccess, _env->getSymlink(*this, c, target, false));
 }
 
 // A command references a new anonymous directory
@@ -241,7 +240,7 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) n
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  *output = Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getDir(*this, c, mode, false));
+  *output = Ref(ReadAccess + WriteAccess + ExecAccess, _env->getDir(*this, c, mode, false));
 }
 
 // A command makes a reference with a path
@@ -655,8 +654,8 @@ tuple<shared_ptr<Ref>, shared_ptr<Ref>> Build::tracePipeRef(shared_ptr<Command> 
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  *read_end = Ref(AccessFlags{.r = true}, pipe);
-  *write_end = Ref(AccessFlags{.w = true}, pipe);
+  *read_end = Ref(ReadAccess, pipe);
+  *write_end = Ref(WriteAccess, pipe);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
@@ -676,7 +675,7 @@ shared_ptr<Ref> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  *output = Ref(AccessFlags{.r = true, .w = true}, _env->createFile(*this, c, mode, true));
+  *output = Ref(ReadAccess + WriteAccess, _env->createFile(*this, c, mode, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
@@ -696,8 +695,7 @@ shared_ptr<Ref> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path target) n
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  *output =
-      Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getSymlink(*this, c, target, true));
+  *output = Ref(ReadAccess + WriteAccess + ExecAccess, _env->getSymlink(*this, c, target, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
@@ -717,7 +715,7 @@ shared_ptr<Ref> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept 
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  *output = Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getDir(*this, c, mode, true));
+  *output = Ref(ReadAccess + WriteAccess + ExecAccess, _env->getDir(*this, c, mode, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};

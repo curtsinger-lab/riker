@@ -103,7 +103,7 @@ struct AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the stat syscall
-  static AccessFlags fromStat(at_flags flags) noexcept {
+  static AccessFlags fromAtFlags(at_flags flags) noexcept {
     AccessFlags f;
     f.nofollow = flags.symlink_nofollow();
     return f;
@@ -136,3 +136,21 @@ struct AccessFlags {
     return o;
   }
 };
+
+constexpr inline static AccessFlags NoAccess{};
+constexpr inline static AccessFlags ReadAccess{.r = true};
+constexpr inline static AccessFlags WriteAccess{.w = true};
+constexpr inline static AccessFlags ExecAccess{.x = true};
+constexpr inline static AccessFlags NoFollowAccess{.nofollow = true};
+
+constexpr inline static AccessFlags DirAccess{.type = AccessType::Dir};
+constexpr inline static AccessFlags NotDirAccess{.type = AccessType::NotDir};
+constexpr inline static AccessFlags SymlinkAccess{.type = AccessType::Symlink};
+
+constexpr inline static AccessFlags operator+(const AccessFlags& f1,
+                                              const AccessFlags& f2) noexcept {
+  AccessFlags result;
+  result._data = f1._data | f2._data;
+  result.type = (f1.type == AccessType::Any) ? f2.type : f1.type;
+  return result;
+}

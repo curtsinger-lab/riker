@@ -294,8 +294,8 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
     auto entry = filename.filename();
 
     // Create references to the containing directory and entry
-    auto dir_ref = makePathRef(dir, AccessFlags{.w = true}, dfd);
-    auto entry_ref = makePathRef(filename, AccessFlags{}, dfd);
+    auto dir_ref = makePathRef(dir, WriteAccess, dfd);
+    auto entry_ref = makePathRef(filename, NoAccess, dfd);
 
     finishSyscall([=](long rc) {
       // Resume the blocked thread
@@ -366,8 +366,8 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
     ASSERT(read_ref->isResolved() && write_ref->isResolved()) << "Failed to get artifact for pipe";
 
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, read_ref, AccessFlags{.r = true}, flags.cloexec());
-    _process->addFD(write_pipefd, write_ref, AccessFlags{.w = true}, flags.cloexec());
+    _process->addFD(read_pipefd, read_ref, ReadAccess, flags.cloexec());
+    _process->addFD(write_pipefd, write_ref, WriteAccess, flags.cloexec());
   });
 }
 
@@ -513,7 +513,7 @@ void Thread::_fstatat(at_fd dirfd,
 
   } else {
     // Make the reference
-    auto ref = makePathRef(pathname, AccessFlags::fromStat(flags), dirfd);
+    auto ref = makePathRef(pathname, AccessFlags::fromAtFlags(flags), dirfd);
 
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
@@ -573,7 +573,7 @@ void Thread::_fchownat(at_fd dfd,
   }
 
   // Get a reference to the artifact being chowned
-  auto ref = makePathRef(filename, AccessFlags{.nofollow = flags.symlink_nofollow()}, dfd);
+  auto ref = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -633,7 +633,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
   }
 
   // Get a reference to the artifact being chmoded
-  auto ref = makePathRef(filename, AccessFlags{.nofollow = flags.symlink_nofollow()}, dfd);
+  auto ref = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
 
   // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
   // values)
@@ -758,7 +758,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
   LOGF(trace, "{}: truncate({}, {})", this, pathname, length);
 
   // Make an access to the reference that will be truncated
-  auto ref = makePathRef(pathname, AccessFlags{.w = true});
+  auto ref = makePathRef(pathname, WriteAccess);
 
   // Did the reference resolve to an artifact?
   if (!ref->isResolved()) {
@@ -862,10 +862,10 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
   auto entry = pathname.filename();
 
   // Make a reference to the parent directory where the new directory will be added
-  auto parent_ref = makePathRef(parent_path, AccessFlags{.w = true}, dfd);
+  auto parent_ref = makePathRef(parent_path, WriteAccess, dfd);
 
   // Make a reference to the new directory entry that will be created
-  auto entry_ref = makePathRef(pathname, AccessFlags{}, dfd);
+  auto entry_ref = makePathRef(pathname, NoAccess, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -911,19 +911,19 @@ void Thread::_renameat2(at_fd old_dfd,
   auto old_entry = old_path.filename();
 
   // Make references to the old directory and entry
-  auto old_dir_ref = makePathRef(old_dir, AccessFlags{.w = true}, old_dfd);
+  auto old_dir_ref = makePathRef(old_dir, WriteAccess, old_dfd);
 
-  auto old_entry_ref = makePathRef(old_path, AccessFlags{.nofollow = true}, old_dfd);
+  auto old_entry_ref = makePathRef(old_path, NoFollowAccess, old_dfd);
 
   // Break the path to the new file into directory and entry parts
   auto new_dir = new_path.parent_path();
   auto new_entry = new_path.filename();
 
   // Make a reference to the new directory
-  auto new_dir_ref = makePathRef(new_dir, AccessFlags{.w = true}, new_dfd);
+  auto new_dir_ref = makePathRef(new_dir, WriteAccess, new_dfd);
 
   // Make a reference to the new entry
-  auto new_entry_ref = makePathRef(new_path, AccessFlags{.nofollow = true}, new_dfd);
+  auto new_entry_ref = makePathRef(new_path, NoFollowAccess, new_dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -1027,10 +1027,10 @@ void Thread::_linkat(at_fd old_dfd,
   auto entry = newpath.filename();
 
   // Get a reference to the directory, which we will be writing
-  auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, new_dfd);
+  auto dir_ref = makePathRef(dir_path, WriteAccess, new_dfd);
 
   // Get a reference to the link we are creating
-  auto entry_ref = makePathRef(newpath, AccessFlags{}, new_dfd);
+  auto entry_ref = makePathRef(newpath, NoAccess, new_dfd);
 
   // Get a reference to the artifact we are linking into the directory
   AccessFlags target_flags = {.nofollow = true};
@@ -1076,10 +1076,10 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
   auto entry = newpath.filename();
 
   // Get a reference to the directory, which we will be writing
-  auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
+  auto dir_ref = makePathRef(dir_path, WriteAccess, dfd);
 
   // Get a reference to the link we are creating
-  auto entry_ref = makePathRef(newpath, AccessFlags{}, dfd);
+  auto entry_ref = makePathRef(newpath, NoAccess, dfd);
 
   finishSyscall([=](long rc) {
     resume();
@@ -1117,7 +1117,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
   }
 
   // We're making a reference to a symlink, so don't follow links
-  auto ref = makePathRef(pathname, AccessFlags{.nofollow = true, .type = AccessType::Symlink}, dfd);
+  auto ref = makePathRef(pathname, SymlinkAccess + NoFollowAccess, dfd);
 
   // If the reference resolves, record a pre-read dependency
   if (ref->isResolved()) {
@@ -1156,11 +1156,11 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
   auto entry = pathname.filename();
 
   // Get a reference to the directory, which we will be writing
-  auto dir_ref = makePathRef(dir_path, AccessFlags{.w = true}, dfd);
+  auto dir_ref = makePathRef(dir_path, WriteAccess, dfd);
 
   // Get a reference to the entry itself
-  auto access_type = flags.removedir() ? AccessType::Dir : AccessType::NotDir;
-  auto entry_ref = makePathRef(pathname, AccessFlags{.nofollow = true, .type = access_type}, dfd);
+  auto ref_flags = NoFollowAccess + (flags.removedir() ? DirAccess : NotDirAccess);
+  auto entry_ref = makePathRef(pathname, ref_flags, dfd);
 
   // If this call is removing a directory, depend on the directory contents
   if (entry_ref->isResolved() && flags.removedir()) {
@@ -1198,8 +1198,7 @@ void Thread::_socket(int domain, int type, int protocol) noexcept {
 
     if (rc >= 0) {
       auto ref = _build.traceFileRef(getCommand(), 0600);
-      _process->addFD(rc, ref, AccessFlags{.r = true, .w = true},
-                      (type & SOCK_CLOEXEC) == SOCK_CLOEXEC);
+      _process->addFD(rc, ref, ReadAccess + WriteAccess, (type & SOCK_CLOEXEC) == SOCK_CLOEXEC);
     }
   });
 }
@@ -1228,8 +1227,8 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
         auto ref = _build.traceFileRef(getCommand(), 0600);
 
         // Add the file descriptors
-        _process->addFD(sock1_fd, ref, AccessFlags{.r = true, .w = true}, cloexec);
-        _process->addFD(sock2_fd, ref, AccessFlags{.r = true, .w = true}, cloexec);
+        _process->addFD(sock1_fd, ref, ReadAccess + WriteAccess, cloexec);
+        _process->addFD(sock2_fd, ref, ReadAccess + WriteAccess, cloexec);
       }
     });
   } else {
@@ -1242,7 +1241,7 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
 void Thread::_chdir(fs::path filename) noexcept {
   LOGF(trace, "{}: chdir({})", this, filename);
 
-  auto ref = makePathRef(filename, AccessFlags{.x = true});
+  auto ref = makePathRef(filename, ExecAccess);
 
   finishSyscall([=](long rc) {
     resume();
@@ -1316,7 +1315,7 @@ void Thread::_execveat(at_fd dfd,
        fmt::join(args, "\", \""));
 
   // The parent command needs execute access to the exec-ed path
-  auto exe_ref = makePathRef(filename, AccessFlags{.x = true}, dfd);
+  auto exe_ref = makePathRef(filename, ExecAccess, dfd);
 
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {
@@ -1343,7 +1342,7 @@ void Thread::_execveat(at_fd dfd,
     auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
 
     // Now make the reference and expect success
-    auto child_exe_ref = makePathRef(real_exe_path, AccessFlags{.r = true});
+    auto child_exe_ref = makePathRef(real_exe_path, ReadAccess);
     _build.traceExpectResult(getCommand(), child_exe_ref, SUCCESS);
 
     ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";

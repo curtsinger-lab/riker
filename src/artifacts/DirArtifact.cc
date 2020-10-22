@@ -259,7 +259,7 @@ Ref DirArtifact::resolve(Build& build,
   }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
-  if (!checkAccess(build, c, AccessFlags{.x = true})) return EACCES;
+  if (!checkAccess(build, c, ExecAccess)) return EACCES;
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
   // iterator
@@ -351,7 +351,7 @@ Ref DirArtifact::resolve(Build& build,
     // If the resolution failed, can this access create it?
     if (flags.create && res.getResultCode() == ENOENT) {
       // Can we write to this directory? If not, return an error
-      if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
+      if (!checkAccess(build, c, WriteAccess)) return EACCES;
 
       // Create a new file
       auto newfile = getEnv()->createFile(build, c, flags.mode, false);
