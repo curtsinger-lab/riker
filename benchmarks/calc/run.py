@@ -25,10 +25,10 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 HEADER = ("benchmark,"
           "user_time_sec,"
           "sys_time_sec,"
-          "max_rss,"
-          "num_commands,"
+          "max_rss_kb,"
           "num_block_iops,"
           "num_block_oops,"
+          "num_commands,"
           "num_traced_commands,"
           "sum_emulated_commands,"
           "num_steps,"
@@ -38,18 +38,18 @@ HEADER = ("benchmark,"
 # rusage fields
 UTIME = 0       # time in user mode (float seconds)
 STIME = 1       # time in system mode (float seconds)
-MAXRSS = 2      # maximum resident set size
-IXRSS = 3       # shared memory size
-IDRSS = 4       # unshared memory size
-ISRSS = 5       # unshared stack size
+MAXRSS = 2      # maximum resident set size (KB)
+IXRSS = 3       # shared memory size (unused on Linux)
+IDRSS = 4       # unshared memory size (unused on Linux)
+ISRSS = 5       # unshared stack size (unused on Linux)
 MINFLT = 6      # page faults not requiring I/O
 MAJFLT = 7      # page faults requiring I/O
-NSWAP = 8       # number of swap outs
+NSWAP = 8       # number of swap outs (unused on Linux)
 INBLOCK = 9     # block input operations
 OUTBLOCK = 10   # block output operations
-MSGSND = 11     # messages sent
-MSGRCV = 12     # messages received
-NSIGNALS = 13   # signals received
+MSGSND = 11     # messages sent (unused on Linux)
+MSGRCV = 12     # messages received (unused on Linux)
+NSIGNALS = 13   # signals received (unused on Linux)
 NVCSW = 14      # voluntary context switches
 NIVCSW = 15     # involuntary context switches
 
