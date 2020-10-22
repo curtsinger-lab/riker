@@ -5,7 +5,7 @@
 #include <ostream>
 #include <set>
 
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "runtime/Resolution.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"

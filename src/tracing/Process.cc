@@ -6,7 +6,7 @@
 #include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "util/log.hh"
 
 using std::shared_ptr;
@@ -17,8 +17,8 @@ Process::Process(Build& build,
                  Tracer& tracer,
                  shared_ptr<Command> command,
                  pid_t pid,
-                 shared_ptr<RefResult> cwd,
-                 shared_ptr<RefResult> root,
+                 shared_ptr<Ref> cwd,
+                 shared_ptr<Ref> root,
                  map<int, FileDescriptor> fds) noexcept :
     _build(build),
     _tracer(tracer),
@@ -43,7 +43,7 @@ Process::Process(Build& build,
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(shared_ptr<RefResult> ref) noexcept {
+void Process::setWorkingDir(shared_ptr<Ref> ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
   _build.traceDoneWithRef(_command, _cwd);
@@ -62,7 +62,7 @@ FileDescriptor& Process::getFD(int fd) noexcept {
 
 // Add a file descriptor entry
 FileDescriptor& Process::addFD(int fd,
-                               shared_ptr<RefResult> ref,
+                               shared_ptr<Ref> ref,
                                AccessFlags flags,
                                bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
@@ -71,7 +71,7 @@ FileDescriptor& Process::addFD(int fd,
     _fds.erase(iter);
   }
 
-  // The command holds an additional handle to the provided RefResult
+  // The command holds an additional handle to the provided Ref
   _build.traceUsingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
@@ -106,9 +106,7 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-void Process::exec(shared_ptr<RefResult> exe_ref,
-                   vector<string> args,
-                   vector<string> env) noexcept {
+void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> env) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.

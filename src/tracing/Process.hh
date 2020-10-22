@@ -17,7 +17,7 @@ using std::string;
 using std::vector;
 
 class Build;
-class RefResult;
+class Ref;
 class Tracer;
 
 class Process : public std::enable_shared_from_this<Process> {
@@ -26,8 +26,8 @@ class Process : public std::enable_shared_from_this<Process> {
           Tracer& tracer,
           shared_ptr<Command> command,
           pid_t pid,
-          shared_ptr<RefResult> cwd,
-          shared_ptr<RefResult> root,
+          shared_ptr<Ref> cwd,
+          shared_ptr<Ref> root,
           map<int, FileDescriptor> fds) noexcept;
 
   /// Get the process ID
@@ -37,13 +37,13 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Command> getCommand() const noexcept { return _command; }
 
   /// Get the root directory
-  shared_ptr<RefResult> getRoot() const noexcept { return _root; }
+  shared_ptr<Ref> getRoot() const noexcept { return _root; }
 
   /// Get the working directory
-  shared_ptr<RefResult> getWorkingDir() const noexcept { return _cwd; }
+  shared_ptr<Ref> getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
-  void setWorkingDir(shared_ptr<RefResult> ref) noexcept;
+  void setWorkingDir(shared_ptr<Ref> ref) noexcept;
 
   /// Get a file descriptor entry
   FileDescriptor& getFD(int fd) noexcept;
@@ -53,7 +53,7 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// Add a file descriptor entry
   FileDescriptor& addFD(int fd,
-                        shared_ptr<RefResult> ref,
+                        shared_ptr<Ref> ref,
                         AccessFlags flags,
                         bool cloexec = false) noexcept;
 
@@ -70,7 +70,7 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
-  void exec(shared_ptr<RefResult> exe_ref, vector<string> args, vector<string> env) noexcept;
+  void exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// This process is exiting
   void exit() noexcept;
@@ -100,10 +100,10 @@ class Process : public std::enable_shared_from_this<Process> {
   pid_t _pid;
 
   /// A reference to the process' current working directory
-  shared_ptr<RefResult> _cwd;
+  shared_ptr<Ref> _cwd;
 
   /// A reference to the process' current root directory
-  shared_ptr<RefResult> _root;
+  shared_ptr<Ref> _root;
 
   /// The process' file descriptor table
   map<int, FileDescriptor> _fds;

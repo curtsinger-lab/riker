@@ -67,8 +67,8 @@ Command::ChildRecord::ChildRecord(shared_ptr<Command> child) noexcept :
   _command = child;
 }
 
-Command::ChildRecord::ChildRecord(shared_ptr<RefResult> exe_ref,
-                                  shared_ptr<RefResult> cwd_ref,
+Command::ChildRecord::ChildRecord(shared_ptr<Ref> exe_ref,
+                                  shared_ptr<Ref> cwd_ref,
                                   vector<string> args,
                                   map<int, FileDescriptor> fds) noexcept {
   auto exe = exe_ref->getArtifact();
@@ -132,11 +132,11 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
   _children.emplace_back(child);
 }
 
-shared_ptr<Command> Command::findChild(shared_ptr<RefResult> exe_ref,
+shared_ptr<Command> Command::findChild(shared_ptr<Ref> exe_ref,
                                        vector<string> args,
                                        map<int, FileDescriptor> fds,
-                                       shared_ptr<RefResult> cwd_ref,
-                                       shared_ptr<RefResult> root_ref) noexcept {
+                                       shared_ptr<Ref> cwd_ref,
+                                       shared_ptr<Ref> root_ref) noexcept {
   ChildRecord record(exe_ref, cwd_ref, args, fds);
 
   // Loop over the records of children to see if we have a match

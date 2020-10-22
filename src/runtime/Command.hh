@@ -43,11 +43,11 @@ class Command : public std::enable_shared_from_this<Command> {
   using ID = uint32_t;
 
   /// Create a new command
-  Command(shared_ptr<RefResult> exe,
+  Command(shared_ptr<Ref> exe,
           vector<string> args,
           map<int, FileDescriptor> initial_fds,
-          shared_ptr<RefResult> initial_cwd,
-          shared_ptr<RefResult> initial_root) noexcept :
+          shared_ptr<Ref> initial_cwd,
+          shared_ptr<Ref> initial_root) noexcept :
       _exe(exe),
       _args(args),
       _initial_fds(initial_fds),
@@ -72,13 +72,13 @@ class Command : public std::enable_shared_from_this<Command> {
   bool isMake() const noexcept;
 
   /// Get the reference to the executable file this command runs
-  shared_ptr<RefResult> getExecutable() const noexcept { return _exe; }
+  shared_ptr<Ref> getExecutable() const noexcept { return _exe; }
 
   /// Get the working directory where this command is started
-  shared_ptr<RefResult> getInitialWorkingDir() const noexcept { return _initial_cwd; }
+  shared_ptr<Ref> getInitialWorkingDir() const noexcept { return _initial_cwd; }
 
   /// Get the root directory in effect when this command is started
-  shared_ptr<RefResult> getInitialRootDir() const noexcept { return _initial_root; }
+  shared_ptr<Ref> getInitialRootDir() const noexcept { return _initial_root; }
 
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
@@ -103,11 +103,11 @@ class Command : public std::enable_shared_from_this<Command> {
   void addChild(shared_ptr<Command> child) noexcept;
 
   /// Look through this command's list of children to see if there is a matching child
-  shared_ptr<Command> findChild(shared_ptr<RefResult> exe_ref,
+  shared_ptr<Command> findChild(shared_ptr<Ref> exe_ref,
                                 vector<string> args,
                                 map<int, FileDescriptor> fds,
-                                shared_ptr<RefResult> cwd_ref,
-                                shared_ptr<RefResult> root_ref) noexcept;
+                                shared_ptr<Ref> cwd_ref,
+                                shared_ptr<Ref> root_ref) noexcept;
 
   /****** Utility Methods ******/
 
@@ -124,7 +124,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// The executable file this command runs
-  shared_ptr<RefResult> _exe;
+  shared_ptr<Ref> _exe;
 
   /// The arguments passed to this command on startup
   vector<string> _args;
@@ -133,10 +133,10 @@ class Command : public std::enable_shared_from_this<Command> {
   map<int, FileDescriptor> _initial_fds;
 
   /// A reference to the directory where this command is started
-  shared_ptr<RefResult> _initial_cwd;
+  shared_ptr<Ref> _initial_cwd;
 
   /// A reference to the root directory in effect when this command is started
-  shared_ptr<RefResult> _initial_root;
+  shared_ptr<Ref> _initial_root;
 
   /// Has this command ever run?
   bool _executed = false;
@@ -154,8 +154,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
     ChildRecord(shared_ptr<Command> child) noexcept;
 
-    ChildRecord(shared_ptr<RefResult> exe_ref,
-                shared_ptr<RefResult> cwd_ref,
+    ChildRecord(shared_ptr<Ref> exe_ref,
+                shared_ptr<Ref> cwd_ref,
                 vector<string> args,
                 map<int, FileDescriptor> fds) noexcept;
 

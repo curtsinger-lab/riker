@@ -12,7 +12,7 @@
 #include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "runtime/Env.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "runtime/Resolution.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
@@ -161,16 +161,12 @@ void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void DirArtifact::beforeRead(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref) noexcept {
+void DirArtifact::beforeRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void DirArtifact::afterRead(Build& build,
-                            shared_ptr<Command> c,
-                            shared_ptr<RefResult> ref) noexcept {
+void DirArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // The command now depends on the content of this directory
   build.traceMatchContent(c, ref, getList(build, c));
 }

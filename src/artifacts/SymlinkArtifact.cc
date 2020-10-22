@@ -20,14 +20,12 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
 /// A traced command is about to (possibly) read from this artifact
 void SymlinkArtifact::beforeRead(Build& build,
                                  shared_ptr<Command> c,
-                                 shared_ptr<RefResult> ref) noexcept {
+                                 shared_ptr<Ref> ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void SymlinkArtifact::afterRead(Build& build,
-                                shared_ptr<Command> c,
-                                shared_ptr<RefResult> ref) noexcept {
+void SymlinkArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _symlink_version);
 }

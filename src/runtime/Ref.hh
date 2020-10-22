@@ -20,33 +20,33 @@ class Build;
 class Command;
 
 /***
- * A RefResult instance is a bit like a register; it is serialized as the destination where a
- * resolved reference will be saved. An IR Step that resolves a reference will also have a RefResult
- * pointer where it will store the resolution result. When serialized, RefResults hold no data; the
- * only important aspect of a RefResult in the serialized trace is its identity. One step will
- * resolve a reference and save the outcome in a RefResult, and later steps may reference that
- * RefResult to modify or compare contents of the resolved artifact.
+ * A Ref instance is a bit like a register; it is serialized as the destination where a
+ * resolved reference will be saved. An IR Step that resolves a reference will also have a Ref
+ * pointer where it will store the resolution result. When serialized, Refs hold no data; the
+ * only important aspect of a Ref in the serialized trace is its identity. One step will
+ * resolve a reference and save the outcome in a Ref, and later steps may reference that
+ * Ref to modify or compare contents of the resolved artifact.
  */
-class RefResult final {
+class Ref final {
  public:
-  /// The type for a RefResult ID
+  /// The type for a Ref ID
   using ID = uint32_t;
 
   /// Default constructor
-  RefResult() noexcept = default;
+  Ref() noexcept = default;
 
   // Disallow Copy
-  RefResult(const RefResult&) = delete;
-  RefResult& operator=(const RefResult&) = delete;
+  Ref(const Ref&) = delete;
+  Ref& operator=(const Ref&) = delete;
 
   // Allow Move
-  RefResult(RefResult&&) noexcept = default;
-  RefResult& operator=(RefResult&&) noexcept = default;
+  Ref(Ref&&) noexcept = default;
+  Ref& operator=(Ref&&) noexcept = default;
 
-  /// Get this RefResult's unique ID
+  /// Get this Ref's unique ID
   size_t getID() const noexcept { return _id; }
 
-  /// Get a short name for this RefResult
+  /// Get a short name for this Ref
   string getName() const noexcept { return "r" + std::to_string(getID()); }
 
   /// Get the artifact reached via this reference
@@ -67,10 +67,10 @@ class RefResult final {
     _flags = flags;
   }
 
-  /// Get the access flags associated with this RefResult
+  /// Get the access flags associated with this Ref
   AccessFlags getFlags() const noexcept { return _flags; }
 
-  /// A command is now using this RefResult. Return true if this first use by the given command
+  /// A command is now using this Ref. Return true if this first use by the given command
   bool addUser(Build& b, shared_ptr<Command> c) noexcept {
     // Increment the total user count
     _total_users++;
@@ -80,7 +80,7 @@ class RefResult final {
     return count == 1;
   }
 
-  /// A command is no longer using this RefResult. Return true if that was the last use by c
+  /// A command is no longer using this Ref. Return true if that was the last use by c
   bool removeUser(Build& b, shared_ptr<Command> c) noexcept {
     ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
                           << " -> " << _result;
@@ -98,43 +98,43 @@ class RefResult final {
     return count == 0;
   }
 
-  /// Get a file descriptor for this RefResult
+  /// Get a file descriptor for this Ref
   int getFD() noexcept {
-    ASSERT(isResolved()) << "Cannot set up a file descriptor for an unresolved RefResult";
+    ASSERT(isResolved()) << "Cannot set up a file descriptor for an unresolved Ref";
     if (!_fd.has_value()) {
       _fd = getArtifact()->getFD(_flags);
     }
     return _fd.value();
   }
 
-  /// Print a RefResult
+  /// Print a Ref
   ostream& print(ostream& o) const noexcept { return o << getName(); }
 
-  /// Stream print wrapper for RefResult references
-  friend ostream& operator<<(ostream& o, const RefResult& r) noexcept { return r.print(o); }
+  /// Stream print wrapper for Ref references
+  friend ostream& operator<<(ostream& o, const Ref& r) noexcept { return r.print(o); }
 
-  /// Stream print wrapper for RefResult pointers
-  friend ostream& operator<<(ostream& o, const RefResult* r) noexcept {
-    if (r == nullptr) return o << "<null RefResult>";
+  /// Stream print wrapper for Ref pointers
+  friend ostream& operator<<(ostream& o, const Ref* r) noexcept {
+    if (r == nullptr) return o << "<null Ref>";
     return o << *r;
   }
 
  private:
   /// A unique identifier for this reference result
-  UniqueID<RefResult> _id;
+  UniqueID<Ref> _id;
 
-  /// The outcome of a reference resolution saved in this RefResult
+  /// The outcome of a reference resolution saved in this Ref
   Resolution _result;
 
   /// Keep the flags used to establish this reference so we know what accesses are permitted
   AccessFlags _flags;
 
-  /// Keep track of which commands are using this RefResult
+  /// Keep track of which commands are using this Ref
   map<shared_ptr<Command>, size_t> _users;
 
   /// Keep a running total of all users
   size_t _total_users = 0;
 
-  /// If this RefResult has a valid file descriptor, it is saved here
+  /// If this Ref has a valid file descriptor, it is saved here
   optional<int> _fd;
 };

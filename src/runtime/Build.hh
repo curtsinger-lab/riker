@@ -13,7 +13,7 @@
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
 #include "runtime/RebuildPlan.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "runtime/Resolution.hh"
 #include "tracing/Tracer.hh"
 
@@ -93,86 +93,84 @@ class Build : public TraceHandler, public BuildObserver {
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
   virtual void specialRef(shared_ptr<Command> c,
                           SpecialRef entity,
-                          shared_ptr<RefResult> output) noexcept override;
+                          shared_ptr<Ref> output) noexcept override;
 
   /// A command references a new anonymous pipe
   virtual void pipeRef(shared_ptr<Command> c,
-                       shared_ptr<RefResult> read_end,
-                       shared_ptr<RefResult> write_end) noexcept override;
+                       shared_ptr<Ref> read_end,
+                       shared_ptr<Ref> write_end) noexcept override;
 
   /// A command references a new anonymous file
   virtual void fileRef(shared_ptr<Command> c,
                        mode_t mode,
-                       shared_ptr<RefResult> output) noexcept override;
+                       shared_ptr<Ref> output) noexcept override;
 
   /// A command references a new anonymous symlink
   virtual void symlinkRef(shared_ptr<Command> c,
                           fs::path target,
-                          shared_ptr<RefResult> output) noexcept override;
+                          shared_ptr<Ref> output) noexcept override;
 
   /// A command references a new anonymous directory
-  virtual void dirRef(shared_ptr<Command> c,
-                      mode_t mode,
-                      shared_ptr<RefResult> output) noexcept override;
+  virtual void dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) noexcept override;
 
   /// A command makes a reference with a path
   virtual void pathRef(shared_ptr<Command> c,
-                       shared_ptr<RefResult> base,
+                       shared_ptr<Ref> base,
                        fs::path path,
                        AccessFlags flags,
-                       shared_ptr<RefResult> output) noexcept override;
+                       shared_ptr<Ref> output) noexcept override;
 
-  /// A command retains a handle to a RefResult
-  virtual void usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  /// A command retains a handle to a Ref
+  virtual void usingRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept override;
 
-  /// A command is finished with a specific RefResult
-  virtual void doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept override;
+  /// A command is finished with a specific Ref
+  virtual void doneWithRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept override;
 
   /// A command depends on the outcome of comparing two different references
   virtual void compareRefs(shared_ptr<Command> command,
-                           shared_ptr<RefResult> ref1,
-                           shared_ptr<RefResult> ref2,
+                           shared_ptr<Ref> ref1,
+                           shared_ptr<Ref> ref2,
                            RefComparison type) noexcept override;
 
   /// A command expects a reference to resolve with a particular result
   virtual void expectResult(shared_ptr<Command> c,
                             Scenario scenario,
-                            shared_ptr<RefResult> ref,
+                            shared_ptr<Ref> ref,
                             int expected) noexcept override;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   virtual void matchMetadata(shared_ptr<Command> c,
                              Scenario scenario,
-                             shared_ptr<RefResult> ref,
+                             shared_ptr<Ref> ref,
                              shared_ptr<MetadataVersion> expected) noexcept override;
 
   /// A command accesses content for an artifact and expects to find a particular version
   virtual void matchContent(shared_ptr<Command> c,
                             Scenario scenario,
-                            shared_ptr<RefResult> ref,
+                            shared_ptr<Ref> ref,
                             shared_ptr<Version> expected) noexcept override;
 
   /// A command modifies the metadata for an artifact
   virtual void updateMetadata(shared_ptr<Command> c,
-                              shared_ptr<RefResult>,
+                              shared_ptr<Ref>,
                               shared_ptr<MetadataVersion> written) noexcept override;
 
   /// A command writes a new version to an artifact
   virtual void updateContent(shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref,
+                             shared_ptr<Ref> ref,
                              shared_ptr<Version> written) noexcept override;
 
   /// A command adds an entry to a directory
   virtual void addEntry(shared_ptr<Command> command,
-                        shared_ptr<RefResult> dir,
+                        shared_ptr<Ref> dir,
                         fs::path name,
-                        shared_ptr<RefResult> target) noexcept override;
+                        shared_ptr<Ref> target) noexcept override;
 
   /// A command removes an entry from a directory
   virtual void removeEntry(shared_ptr<Command> command,
-                           shared_ptr<RefResult> dir,
+                           shared_ptr<Ref> dir,
                            fs::path name,
-                           shared_ptr<RefResult> target) noexcept override;
+                           shared_ptr<Ref> target) noexcept override;
 
   /// A command is launching a child command
   virtual void launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept override;
@@ -191,75 +189,73 @@ class Build : public TraceHandler, public BuildObserver {
   /********** Handle IR steps delivered from the tracing layer **********/
 
   /// A traced command referenced a new anonymous pipe
-  tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> tracePipeRef(shared_ptr<Command> c) noexcept;
+  tuple<shared_ptr<Ref>, shared_ptr<Ref>> tracePipeRef(shared_ptr<Command> c) noexcept;
 
   /// A traced command referenced a new anonymous file
-  shared_ptr<RefResult> traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept;
+  shared_ptr<Ref> traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept;
 
   /// A traced command referenced a new anonymous symlink
-  shared_ptr<RefResult> traceSymlinkRef(shared_ptr<Command> c, fs::path target) noexcept;
+  shared_ptr<Ref> traceSymlinkRef(shared_ptr<Command> c, fs::path target) noexcept;
 
   /// A traced command referenced a new anonymous directory
-  shared_ptr<RefResult> traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept;
+  shared_ptr<Ref> traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept;
 
   /// A traced command referenced a path
-  shared_ptr<RefResult> tracePathRef(shared_ptr<Command> c,
-                                     shared_ptr<RefResult> base,
-                                     fs::path path,
-                                     AccessFlags flags) noexcept;
+  shared_ptr<Ref> tracePathRef(shared_ptr<Command> c,
+                               shared_ptr<Ref> base,
+                               fs::path path,
+                               AccessFlags flags) noexcept;
 
-  /// A command is retaining a handle to a RefResult (e.g. in its file descriptor table)
-  void traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  /// A command is retaining a handle to a Ref (e.g. in its file descriptor table)
+  void traceUsingRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept;
 
-  /// A command has closed a handle to a RefResult
-  void traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  /// A command has closed a handle to a Ref
+  void traceDoneWithRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept;
 
   /// A command compares two references and expects a specific result
   void traceCompareRefs(shared_ptr<Command> c,
-                        shared_ptr<RefResult> ref1,
-                        shared_ptr<RefResult> ref2,
+                        shared_ptr<Ref> ref1,
+                        shared_ptr<Ref> ref2,
                         RefComparison type) noexcept;
 
   /// A command expects a reference to resolve with a particular result
-  void traceExpectResult(shared_ptr<Command> c,
-                         shared_ptr<RefResult> ref,
-                         int expected = -1) noexcept;
+  void traceExpectResult(shared_ptr<Command> c, shared_ptr<Ref> ref, int expected = -1) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
-  void traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept;
+  void traceMatchMetadata(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
   void traceMatchContent(shared_ptr<Command> c,
-                         shared_ptr<RefResult> ref,
+                         shared_ptr<Ref> ref,
                          shared_ptr<Version> expected) noexcept;
 
   /// A command modifies the metadata for an artifact
-  void traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult>) noexcept;
+  void traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<Ref>) noexcept;
 
   /// A command writes a new version to an artifact
   void traceUpdateContent(shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref,
+                          shared_ptr<Ref> ref,
                           shared_ptr<Version> written) noexcept;
 
   /// Handle an AddEntry IR step
   void traceAddEntry(shared_ptr<Command> command,
-                     shared_ptr<RefResult> dir,
+                     shared_ptr<Ref> dir,
                      fs::path name,
-                     shared_ptr<RefResult> target) noexcept;
+                     shared_ptr<Ref> target) noexcept;
 
   /// Handle a RemoveEntry IR step
   void traceRemoveEntry(shared_ptr<Command> command,
-                        shared_ptr<RefResult> dir,
+                        shared_ptr<Ref> dir,
                         fs::path name,
-                        shared_ptr<RefResult> target) noexcept;
+                        shared_ptr<Ref> target) noexcept;
 
   /// A command is launching a child command
   shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
-                                  shared_ptr<RefResult> exe_ref,
+                                  shared_ptr<Ref> exe_ref,
                                   vector<string> args,
                                   map<int, FileDescriptor> fds,
-                                  shared_ptr<RefResult> cwd_ref,
-                                  shared_ptr<RefResult> root_ref) noexcept;
+                                  shared_ptr<Ref> cwd_ref,
+                                  shared_ptr<Ref> root_ref) noexcept;
 
   /// A command is joining with a child command
   void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;
@@ -304,13 +300,13 @@ class Build : public TraceHandler, public BuildObserver {
   /// Inform observers that a reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
                                        Scenario scenario,
-                                       shared_ptr<RefResult> ref,
+                                       shared_ptr<Ref> ref,
                                        int expected) noexcept override;
 
   /// Inform observers that two references did not compare as expected
   virtual void observeRefMismatch(shared_ptr<Command> c,
-                                  shared_ptr<RefResult> ref1,
-                                  shared_ptr<RefResult> ref2,
+                                  shared_ptr<Ref> ref1,
+                                  shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override;
 
   /// Inform observers that a command's exit code changed

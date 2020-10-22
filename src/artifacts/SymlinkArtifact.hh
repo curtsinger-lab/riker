@@ -13,7 +13,7 @@ using std::string;
 
 namespace fs = std::filesystem;
 
-class RefResult;
+class Ref;
 
 class SymlinkArtifact : public Artifact {
  public:
@@ -52,12 +52,12 @@ class SymlinkArtifact : public Artifact {
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept override;
+                          shared_ptr<Ref> ref) noexcept override;
 
   /// A traced command just read from this artifact
   virtual void afterRead(Build& build,
                          shared_ptr<Command> c,
-                         shared_ptr<RefResult> ref) noexcept override;
+                         shared_ptr<Ref> ref) noexcept override;
 
   /************ Content Operations ************/
 

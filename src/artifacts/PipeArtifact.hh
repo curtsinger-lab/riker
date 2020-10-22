@@ -18,7 +18,7 @@ using std::tuple;
 
 class Build;
 class Command;
-class RefResult;
+class Ref;
 
 class PipeWriteVersion : public Version {
  public:
@@ -101,22 +101,22 @@ class PipeArtifact : public Artifact {
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept override {}
+                          shared_ptr<Ref> ref) noexcept override {}
 
   /// A traced command just read from this artifact
   virtual void afterRead(Build& build,
                          shared_ptr<Command> c,
-                         shared_ptr<RefResult> ref) noexcept override;
+                         shared_ptr<Ref> ref) noexcept override;
 
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
                            shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept override;
+                           shared_ptr<Ref> ref) noexcept override;
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
                           shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept override {}
+                          shared_ptr<Ref> ref) noexcept override {}
 
   /************ Content Operations ************/
 

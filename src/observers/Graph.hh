@@ -203,15 +203,15 @@ class Graph final : public BuildObserver {
   /// A command's reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
                                        Scenario scenario,
-                                       shared_ptr<RefResult> ref,
+                                       shared_ptr<Ref> ref,
                                        int expected) noexcept override {
     _changed_commands.insert(c);
   }
 
   /// Two references did not compare as expected
   virtual void observeRefMismatch(shared_ptr<Command> c,
-                                  shared_ptr<RefResult> ref1,
-                                  shared_ptr<RefResult> ref2,
+                                  shared_ptr<Ref> ref1,
+                                  shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override {
     _changed_commands.insert(c);
   }

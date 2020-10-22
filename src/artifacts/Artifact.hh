@@ -37,7 +37,7 @@ class Env;
 class FileVersion;
 class MetadataVersion;
 class PathRef;
-class RefResult;
+class Ref;
 class SymlinkVersion;
 class RemoveEntry;
 class Version;
@@ -180,38 +180,28 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact
-  virtual void beforeRead(Build& build,
-                          shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref) noexcept = 0;
+  virtual void beforeRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept = 0;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build,
-                         shared_ptr<Command> c,
-                         shared_ptr<RefResult> ref) noexcept = 0;
+  virtual void afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept = 0;
 
   /// A traced command is about to (possibly) write to this artifact
-  virtual void beforeWrite(Build& build,
-                           shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref) noexcept {
+  virtual void beforeWrite(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command just wrote to this artifact
-  virtual void afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+  virtual void afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command is about to (possibly) truncate this artifact to length zero
-  virtual void beforeTruncate(Build& build,
-                              shared_ptr<Command> c,
-                              shared_ptr<RefResult> ref) noexcept {
+  virtual void beforeTruncate(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
   }
 
   /// A trace command just truncated this artifact to length zero
-  virtual void afterTruncate(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref) noexcept {
+  virtual void afterTruncate(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
   }
 

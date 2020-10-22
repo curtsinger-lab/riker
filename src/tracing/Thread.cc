@@ -14,7 +14,7 @@
 #include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
@@ -39,7 +39,7 @@ fs::path Thread::getPath(at_fd fd) const noexcept {
   return "<no path>";
 }
 
-shared_ptr<RefResult> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
+shared_ptr<Ref> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
     // HACK: Remove the O_EXCL flag when creating files in /tmp

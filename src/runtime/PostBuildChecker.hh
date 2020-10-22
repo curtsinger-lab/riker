@@ -1,7 +1,7 @@
 #include <memory>
 
 #include "interfaces/TraceHandler.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 
 using std::shared_ptr;
 
@@ -19,62 +19,61 @@ class PostBuildChecker : public TraceHandler {
   /// Handle a SpecialRef IR step
   virtual void specialRef(shared_ptr<Command> command,
                           SpecialRef entity,
-                          shared_ptr<RefResult> output) noexcept override {
+                          shared_ptr<Ref> output) noexcept override {
     _output.specialRef(command, entity, output);
   }
 
   /// Handle a PipeRef IR step
   virtual void pipeRef(shared_ptr<Command> command,
-                       shared_ptr<RefResult> read_end,
-                       shared_ptr<RefResult> write_end) noexcept override {
+                       shared_ptr<Ref> read_end,
+                       shared_ptr<Ref> write_end) noexcept override {
     _output.pipeRef(command, read_end, write_end);
   }
 
   /// Handle a FileRef IR step
   virtual void fileRef(shared_ptr<Command> command,
                        mode_t mode,
-                       shared_ptr<RefResult> output) noexcept override {
+                       shared_ptr<Ref> output) noexcept override {
     _output.fileRef(command, mode, output);
   }
 
   /// Handle a SymlinkRef IR step
   virtual void symlinkRef(shared_ptr<Command> command,
                           fs::path target,
-                          shared_ptr<RefResult> output) noexcept override {
+                          shared_ptr<Ref> output) noexcept override {
     _output.symlinkRef(command, target, output);
   }
 
   /// Handle a DirRef IR step
   virtual void dirRef(shared_ptr<Command> command,
                       mode_t mode,
-                      shared_ptr<RefResult> output) noexcept override {
+                      shared_ptr<Ref> output) noexcept override {
     _output.dirRef(command, mode, output);
   }
 
   /// Handle a PathRef IR step
   virtual void pathRef(shared_ptr<Command> command,
-                       shared_ptr<RefResult> base,
+                       shared_ptr<Ref> base,
                        fs::path path,
                        AccessFlags flags,
-                       shared_ptr<RefResult> output) noexcept override {
+                       shared_ptr<Ref> output) noexcept override {
     _output.pathRef(command, base, path, flags, output);
   }
 
   /// Handle a UsingRef IR step
-  virtual void usingRef(shared_ptr<Command> command, shared_ptr<RefResult> ref) noexcept override {
+  virtual void usingRef(shared_ptr<Command> command, shared_ptr<Ref> ref) noexcept override {
     _output.usingRef(command, ref);
   }
 
   /// Handle a DoneWithRef IR step
-  virtual void doneWithRef(shared_ptr<Command> command,
-                           shared_ptr<RefResult> ref) noexcept override {
+  virtual void doneWithRef(shared_ptr<Command> command, shared_ptr<Ref> ref) noexcept override {
     _output.doneWithRef(command, ref);
   }
 
   /// Handle a CompareRefs IR step
   virtual void compareRefs(shared_ptr<Command> command,
-                           shared_ptr<RefResult> ref1,
-                           shared_ptr<RefResult> ref2,
+                           shared_ptr<Ref> ref1,
+                           shared_ptr<Ref> ref2,
                            RefComparison type) noexcept override {
     // TODO: Update comparison predicate?
     _output.compareRefs(command, ref1, ref2, type);
@@ -83,7 +82,7 @@ class PostBuildChecker : public TraceHandler {
   /// Handle an ExpectResult IR step
   virtual void expectResult(shared_ptr<Command> command,
                             Scenario scenario,
-                            shared_ptr<RefResult> ref,
+                            shared_ptr<Ref> ref,
                             int expected) noexcept override {
     if (scenario == Scenario::Build) {
       _output.expectResult(command, Scenario::Build, ref, expected);
@@ -94,7 +93,7 @@ class PostBuildChecker : public TraceHandler {
   /// Handle a MatchMetadata IR step
   virtual void matchMetadata(shared_ptr<Command> command,
                              Scenario scenario,
-                             shared_ptr<RefResult> ref,
+                             shared_ptr<Ref> ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
     if (scenario == Scenario::Build) {
       // Emit the predicate from the original build phase
@@ -113,7 +112,7 @@ class PostBuildChecker : public TraceHandler {
   /// Handle a MatchContent IR step
   virtual void matchContent(shared_ptr<Command> command,
                             Scenario scenario,
-                            shared_ptr<RefResult> ref,
+                            shared_ptr<Ref> ref,
                             shared_ptr<Version> expected) noexcept override {
     if (scenario == Scenario::Build) {
       // Emit the predicate from the original build phase
@@ -130,31 +129,31 @@ class PostBuildChecker : public TraceHandler {
 
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(shared_ptr<Command> command,
-                              shared_ptr<RefResult> ref,
+                              shared_ptr<Ref> ref,
                               shared_ptr<MetadataVersion> version) noexcept override {
     _output.updateMetadata(command, ref, version);
   }
 
   /// Handle an UpdateContent IR step
   virtual void updateContent(shared_ptr<Command> command,
-                             shared_ptr<RefResult> ref,
+                             shared_ptr<Ref> ref,
                              shared_ptr<Version> version) noexcept override {
     _output.updateContent(command, ref, version);
   }
 
   /// Handle an AddEntry IR step
   virtual void addEntry(shared_ptr<Command> command,
-                        shared_ptr<RefResult> dir,
+                        shared_ptr<Ref> dir,
                         fs::path name,
-                        shared_ptr<RefResult> target) noexcept override {
+                        shared_ptr<Ref> target) noexcept override {
     _output.addEntry(command, dir, name, target);
   }
 
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(shared_ptr<Command> command,
-                           shared_ptr<RefResult> dir,
+                           shared_ptr<Ref> dir,
                            fs::path name,
-                           shared_ptr<RefResult> target) noexcept override {
+                           shared_ptr<Ref> target) noexcept override {
     _output.removeEntry(command, dir, name, target);
   }
 

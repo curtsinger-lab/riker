@@ -45,11 +45,11 @@ CEREAL_REGISTER_TYPE(PipeReadVersion);
 void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
   map<int, FileDescriptor> fds;
   for (auto [fd, ref_id] : _initial_fds) {
-    fds[fd] = FileDescriptor(input.getRefResult(ref_id));
+    fds[fd] = FileDescriptor(input.getRef(ref_id));
   }
 
-  auto cmd = make_shared<Command>(input.getRefResult(_exe_id), _args, fds,
-                                  input.getRefResult(_cwd_id), input.getRefResult(_root_id));
+  auto cmd = make_shared<Command>(input.getRef(_exe_id), _args, fds, input.getRef(_cwd_id),
+                                  input.getRef(_root_id));
   if (_executed) cmd->setExecuted();
   cmd->setExitStatus(_exit_status);
 
@@ -58,87 +58,83 @@ void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
 
 // Send a SpecialRef IR step from an input trace to a trace handler
 void SpecialRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.specialRef(input.getCommand(_cmd), _entity, input.getRefResult(_output));
+  handler.specialRef(input.getCommand(_cmd), _entity, input.getRef(_output));
 }
 
 // Send a PipeRef IR step from an input trace to a trace handler
 void PipeRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.pipeRef(input.getCommand(_cmd), input.getRefResult(_read_end),
-                  input.getRefResult(_write_end));
+  handler.pipeRef(input.getCommand(_cmd), input.getRef(_read_end), input.getRef(_write_end));
 }
 
 // Send a FileRef IR step from an input trace to a trace handler
 void FileRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.fileRef(input.getCommand(_cmd), _mode, input.getRefResult(_output));
+  handler.fileRef(input.getCommand(_cmd), _mode, input.getRef(_output));
 }
 
 // Send a SymlinkRef IR step from an input trace to a trace handler
 void SymlinkRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.symlinkRef(input.getCommand(_cmd), _target, input.getRefResult(_output));
+  handler.symlinkRef(input.getCommand(_cmd), _target, input.getRef(_output));
 }
 
 // Sedn a DirRef IR step from an input trace to a trace handler
 void DirRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.dirRef(input.getCommand(_cmd), _mode, input.getRefResult(_output));
+  handler.dirRef(input.getCommand(_cmd), _mode, input.getRef(_output));
 }
 
 // Send a PathRef IR step from an input trace to a trace handler
 void PathRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.pathRef(input.getCommand(_cmd), input.getRefResult(_base), _path, _flags,
-                  input.getRefResult(_output));
+  handler.pathRef(input.getCommand(_cmd), input.getRef(_base), _path, _flags,
+                  input.getRef(_output));
 }
 
 // Send an Open IR step from an input trace to a trace handler
 void UsingRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.usingRef(input.getCommand(_cmd), input.getRefResult(_ref));
+  handler.usingRef(input.getCommand(_cmd), input.getRef(_ref));
 }
 
 // Send a Close IR step from an input trace to a trace handler
 void DoneWithRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.doneWithRef(input.getCommand(_cmd), input.getRefResult(_ref));
+  handler.doneWithRef(input.getCommand(_cmd), input.getRef(_ref));
 }
 
 // Send a CompareRefs IR step from an input trace to a trace handler
 void CompareRefsRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.compareRefs(input.getCommand(_cmd), input.getRefResult(_ref1), input.getRefResult(_ref2),
-                      _type);
+  handler.compareRefs(input.getCommand(_cmd), input.getRef(_ref1), input.getRef(_ref2), _type);
 }
 
 // Send an ExpectResult IR step from an input trace to a trace handler
 void ExpectResultRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.expectResult(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _expected);
+  handler.expectResult(input.getCommand(_cmd), _scenario, input.getRef(_ref), _expected);
 }
 
 // Send a MatchMetadata IR step from an input trace to a trace handler
 void MatchMetadataRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.matchMetadata(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _version);
+  handler.matchMetadata(input.getCommand(_cmd), _scenario, input.getRef(_ref), _version);
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
 void MatchContentRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.matchContent(input.getCommand(_cmd), _scenario, input.getRefResult(_ref), _version);
+  handler.matchContent(input.getCommand(_cmd), _scenario, input.getRef(_ref), _version);
 }
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler
 void UpdateMetadataRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.updateMetadata(input.getCommand(_cmd), input.getRefResult(_ref), _version);
+  handler.updateMetadata(input.getCommand(_cmd), input.getRef(_ref), _version);
 }
 
 // Send an UpdateContent IR step from an input trace to a trace handler
 void UpdateContentRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.updateContent(input.getCommand(_cmd), input.getRefResult(_ref), _version);
+  handler.updateContent(input.getCommand(_cmd), input.getRef(_ref), _version);
 }
 
 // Send an AddEntry IR step from an input trace to a trace handler
 void AddEntryRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.addEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
-                   input.getRefResult(_target));
+  handler.addEntry(input.getCommand(_cmd), input.getRef(_dir), _name, input.getRef(_target));
 }
 
 // Send a RemoveEntry IR step from an input trace to a trace handler
 void RemoveEntryRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  handler.removeEntry(input.getCommand(_cmd), input.getRefResult(_dir), _name,
-                      input.getRefResult(_target));
+  handler.removeEntry(input.getCommand(_cmd), input.getRef(_dir), _name, input.getRef(_target));
 }
 
 // Send a Launch IR step from an input trace to a trace handler

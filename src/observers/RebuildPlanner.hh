@@ -128,7 +128,7 @@ class RebuildPlanner final : public BuildObserver {
   /// A command's reference did not resolve as expected
   virtual void observeResolutionChange(shared_ptr<Command> c,
                                        Scenario scenario,
-                                       shared_ptr<RefResult> ref,
+                                       shared_ptr<Ref> ref,
                                        int expected) noexcept override {
     LOGF(rebuild,
          "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
@@ -145,8 +145,8 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Two references did not compare as expected
   virtual void observeRefMismatch(shared_ptr<Command> c,
-                                  shared_ptr<RefResult> ref1,
-                                  shared_ptr<RefResult> ref2,
+                                  shared_ptr<Ref> ref1,
+                                  shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override {
     LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
     _changed_build.insert(c);

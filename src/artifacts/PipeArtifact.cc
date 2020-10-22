@@ -81,9 +81,7 @@ void PipeArtifact::setCommitted() noexcept {
 }
 
 // A traced command just read from this artifact
-void PipeArtifact::afterRead(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref) noexcept {
+void PipeArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // The reading command depends on the last read
   if (_last_read) build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
 
@@ -100,9 +98,7 @@ void PipeArtifact::afterRead(Build& build,
 }
 
 // A trace command just wrote to this artifact
-void PipeArtifact::beforeWrite(Build& build,
-                               shared_ptr<Command> c,
-                               shared_ptr<RefResult> ref) noexcept {
+void PipeArtifact::beforeWrite(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // Create a new version
   auto writing = make_shared<PipeWriteVersion>();
 

@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "data/AccessFlags.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "util/serializer.hh"
 
 using std::shared_ptr;
@@ -21,11 +21,11 @@ class FileDescriptor {
   FileDescriptor() noexcept = default;
 
   /// Create a record of an initial file descriptor
-  explicit FileDescriptor(shared_ptr<RefResult> ref, bool cloexec = false) noexcept :
+  explicit FileDescriptor(shared_ptr<Ref> ref, bool cloexec = false) noexcept :
       _ref(ref), _cloexec(cloexec) {}
 
   /// Get the reference used to open the file descriptor
-  shared_ptr<RefResult> getRef() const noexcept { return _ref; }
+  shared_ptr<Ref> getRef() const noexcept { return _ref; }
 
   /// Check if the file descriptor should be writable
   bool isWritable() const noexcept { return _ref->getFlags().w; }
@@ -47,7 +47,7 @@ class FileDescriptor {
 
  private:
   /// The reference used to locate an artifact that the file descriptor points to
-  shared_ptr<RefResult> _ref;
+  shared_ptr<Ref> _ref;
 
   /// Is this file descriptor closed on exec calls?
   /// When file descriptors are serialized, it's because they appear in a command's initial file

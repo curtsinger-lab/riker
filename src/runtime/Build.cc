@@ -10,7 +10,7 @@
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Env.hh"
 #include "runtime/RebuildPlan.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "runtime/Resolution.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
@@ -88,15 +88,15 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
 // Inform observers that a reference did not resolve as expected
 void Build::observeResolutionChange(shared_ptr<Command> c,
                                     Scenario scenario,
-                                    shared_ptr<RefResult> ref,
+                                    shared_ptr<Ref> ref,
                                     int expected) noexcept {
   _observer.observeResolutionChange(c, scenario, ref, expected);
 }
 
 // Inform observers that two references did not compare as expected
 void Build::observeRefMismatch(shared_ptr<Command> c,
-                               shared_ptr<RefResult> ref1,
-                               shared_ptr<RefResult> ref2,
+                               shared_ptr<Ref> ref1,
+                               shared_ptr<Ref> ref2,
                                RefComparison type) noexcept {
   _observer.observeRefMismatch(c, ref1, ref2, type);
 }
@@ -125,9 +125,7 @@ void Build::finish() noexcept {
   _output.finish();
 }
 
-void Build::specialRef(shared_ptr<Command> c,
-                       SpecialRef entity,
-                       shared_ptr<RefResult> output) noexcept {
+void Build::specialRef(shared_ptr<Command> c, SpecialRef entity, shared_ptr<Ref> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -175,8 +173,8 @@ void Build::specialRef(shared_ptr<Command> c,
 
 // A command references a new anonymous pipe
 void Build::pipeRef(shared_ptr<Command> c,
-                    shared_ptr<RefResult> read_end,
-                    shared_ptr<RefResult> write_end) noexcept {
+                    shared_ptr<Ref> read_end,
+                    shared_ptr<Ref> write_end) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -196,7 +194,7 @@ void Build::pipeRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous file
-void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> output) noexcept {
+void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -214,9 +212,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> ou
 }
 
 // A command references a new anonymous symlink
-void Build::symlinkRef(shared_ptr<Command> c,
-                       fs::path target,
-                       shared_ptr<RefResult> output) noexcept {
+void Build::symlinkRef(shared_ptr<Command> c, fs::path target, shared_ptr<Ref> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -235,7 +231,7 @@ void Build::symlinkRef(shared_ptr<Command> c,
 }
 
 // A command references a new anonymous directory
-void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> output) noexcept {
+void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -255,10 +251,10 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<RefResult> out
 
 // A command makes a reference with a path
 void Build::pathRef(shared_ptr<Command> c,
-                    shared_ptr<RefResult> base,
+                    shared_ptr<Ref> base,
                     fs::path path,
                     AccessFlags flags,
-                    shared_ptr<RefResult> output) noexcept {
+                    shared_ptr<Ref> output) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -277,8 +273,8 @@ void Build::pathRef(shared_ptr<Command> c,
   output->resolvesTo(result, flags);
 }
 
-// A command retains a handle to a given RefResult
-void Build::usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+// A command retains a handle to a given Ref
+void Build::usingRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -295,8 +291,8 @@ void Build::usingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept 
   ref->addUser(*this, c);
 }
 
-// A command closes a handle to a given RefResult
-void Build::doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+// A command closes a handle to a given Ref
+void Build::doneWithRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -315,8 +311,8 @@ void Build::doneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexce
 
 // Command c depends on the outcome of comparing two different references
 void Build::compareRefs(shared_ptr<Command> c,
-                        shared_ptr<RefResult> ref1,
-                        shared_ptr<RefResult> ref2,
+                        shared_ptr<Ref> ref1,
+                        shared_ptr<Ref> ref2,
                         RefComparison type) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -347,7 +343,7 @@ void Build::compareRefs(shared_ptr<Command> c,
 // Command c expects a reference to resolve with a specific result
 void Build::expectResult(shared_ptr<Command> c,
                          Scenario scenario,
-                         shared_ptr<RefResult> ref,
+                         shared_ptr<Ref> ref,
                          int expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -370,7 +366,7 @@ void Build::expectResult(shared_ptr<Command> c,
 // Command c accesses an artifact's metadata
 void Build::matchMetadata(shared_ptr<Command> c,
                           Scenario scenario,
-                          shared_ptr<RefResult> ref,
+                          shared_ptr<Ref> ref,
                           shared_ptr<MetadataVersion> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -394,7 +390,7 @@ void Build::matchMetadata(shared_ptr<Command> c,
 // Command c accesses an artifact's content
 void Build::matchContent(shared_ptr<Command> c,
                          Scenario scenario,
-                         shared_ptr<RefResult> ref,
+                         shared_ptr<Ref> ref,
                          shared_ptr<Version> expected) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -417,7 +413,7 @@ void Build::matchContent(shared_ptr<Command> c,
 
 // Command c modifies an artifact
 void Build::updateMetadata(shared_ptr<Command> c,
-                           shared_ptr<RefResult> ref,
+                           shared_ptr<Ref> ref,
                            shared_ptr<MetadataVersion> written) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -447,7 +443,7 @@ void Build::updateMetadata(shared_ptr<Command> c,
 
 // Command c modifies an artifact
 void Build::updateContent(shared_ptr<Command> c,
-                          shared_ptr<RefResult> ref,
+                          shared_ptr<Ref> ref,
                           shared_ptr<Version> written) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
@@ -477,9 +473,9 @@ void Build::updateContent(shared_ptr<Command> c,
 
 /// Handle an AddEntry IR step
 void Build::addEntry(shared_ptr<Command> c,
-                     shared_ptr<RefResult> dir,
+                     shared_ptr<Ref> dir,
                      fs::path name,
-                     shared_ptr<RefResult> target) noexcept {
+                     shared_ptr<Ref> target) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -501,9 +497,9 @@ void Build::addEntry(shared_ptr<Command> c,
 
 /// Handle a RemoveEntry IR step
 void Build::removeEntry(shared_ptr<Command> c,
-                        shared_ptr<RefResult> dir,
+                        shared_ptr<Ref> dir,
                         fs::path name,
-                        shared_ptr<RefResult> target) noexcept {
+                        shared_ptr<Ref> target) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
@@ -651,14 +647,13 @@ void Build::exit(shared_ptr<Command> c, int exit_status) noexcept {
 /************************ Trace IR Steps ************************/
 
 // A command references a new anonymous pipe
-tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
-    shared_ptr<Command> c) noexcept {
+tuple<shared_ptr<Ref>, shared_ptr<Ref>> Build::tracePipeRef(shared_ptr<Command> c) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  // Create RefResults to hold the two ends of the pipe
-  auto read_end = make_shared<RefResult>();
-  auto write_end = make_shared<RefResult>();
+  // Create Refs to hold the two ends of the pipe
+  auto read_end = make_shared<Ref>();
+  auto write_end = make_shared<Ref>();
 
   // Create an IR step and add it to the output trace
   _output.pipeRef(c, read_end, write_end);
@@ -675,12 +670,12 @@ tuple<shared_ptr<RefResult>, shared_ptr<RefResult>> Build::tracePipeRef(
 }
 
 // A command references a new anonymous file
-shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept {
+shared_ptr<Ref> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  // Create a RefResult to hold the result of the resolution
-  auto output = make_shared<RefResult>();
+  // Create a Ref to hold the result of the resolution
+  auto output = make_shared<Ref>();
 
   // Create an IR step and add it to the output trace
   _output.fileRef(c, mode, output);
@@ -695,12 +690,12 @@ shared_ptr<RefResult> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) no
 }
 
 // A command references a new anonymous symlink
-shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path target) noexcept {
+shared_ptr<Ref> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path target) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  // Create a RefResult to hold the result of the resolution
-  auto output = make_shared<RefResult>();
+  // Create a Ref to hold the result of the resolution
+  auto output = make_shared<Ref>();
 
   // Create an IR step and add it to the output trace
   _output.symlinkRef(c, target, output);
@@ -716,12 +711,12 @@ shared_ptr<RefResult> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path tar
 }
 
 // A command references a new anonymous directory
-shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept {
+shared_ptr<Ref> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  // Create a RefResult to hold the result of the resolution
-  auto output = make_shared<RefResult>();
+  // Create a Ref to hold the result of the resolution
+  auto output = make_shared<Ref>();
 
   // Create an IR step and add it to the output trace
   _output.dirRef(c, mode, output);
@@ -737,15 +732,15 @@ shared_ptr<RefResult> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noe
 }
 
 // A command makes a reference with a path
-shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
-                                          shared_ptr<RefResult> base,
-                                          fs::path path,
-                                          AccessFlags flags) noexcept {
+shared_ptr<Ref> Build::tracePathRef(shared_ptr<Command> c,
+                                    shared_ptr<Ref> base,
+                                    fs::path path,
+                                    AccessFlags flags) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  // Create a RefResult to hold the result of the resolution
-  auto output = make_shared<RefResult>();
+  // Create a Ref to hold the result of the resolution
+  auto output = make_shared<Ref>();
 
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
@@ -764,8 +759,8 @@ shared_ptr<RefResult> Build::tracePathRef(shared_ptr<Command> c,
   return output;
 }
 
-// A command kept a handle to a RefResult
-void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+// A command kept a handle to a Ref
+void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
   if (ref->addUser(*this, c)) {
@@ -780,8 +775,8 @@ void Build::traceUsingRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noex
   }
 }
 
-// A command is finished using a RefResult
-void Build::traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+// A command is finished using a Ref
+void Build::traceDoneWithRef(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
   if (ref->removeUser(*this, c)) {
@@ -798,8 +793,8 @@ void Build::traceDoneWithRef(shared_ptr<Command> c, shared_ptr<RefResult> ref) n
 
 // Command c expects two references to compare with a specific result
 void Build::traceCompareRefs(shared_ptr<Command> c,
-                             shared_ptr<RefResult> ref1,
-                             shared_ptr<RefResult> ref2,
+                             shared_ptr<Ref> ref1,
+                             shared_ptr<Ref> ref2,
                              RefComparison type) noexcept {
   // Count a traced step
   _traced_step_count++;
@@ -812,9 +807,7 @@ void Build::traceCompareRefs(shared_ptr<Command> c,
 }
 
 // Command c expects a reference to resolve with a specific result as observed from the trace
-void Build::traceExpectResult(shared_ptr<Command> c,
-                              shared_ptr<RefResult> ref,
-                              int expected) noexcept {
+void Build::traceExpectResult(shared_ptr<Command> c, shared_ptr<Ref> ref, int expected) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -834,7 +827,7 @@ void Build::traceExpectResult(shared_ptr<Command> c,
 }
 
 // Command c accesses an artifact's metadata
-void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -865,7 +858,7 @@ void Build::traceMatchMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref)
 
 // Command c accesses an artifact's content
 void Build::traceMatchContent(shared_ptr<Command> c,
-                              shared_ptr<RefResult> ref,
+                              shared_ptr<Ref> ref,
                               shared_ptr<Version> expected) noexcept {
   // Count a traced step
   _traced_step_count++;
@@ -894,7 +887,7 @@ void Build::traceMatchContent(shared_ptr<Command> c,
 }
 
 // Command c modifies an artifact
-void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref) noexcept {
+void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -921,7 +914,7 @@ void Build::traceUpdateMetadata(shared_ptr<Command> c, shared_ptr<RefResult> ref
 
 // Command c modifies an artifact
 void Build::traceUpdateContent(shared_ptr<Command> c,
-                               shared_ptr<RefResult> ref,
+                               shared_ptr<Ref> ref,
                                shared_ptr<Version> written) noexcept {
   // Count a traced step
   _traced_step_count++;
@@ -951,9 +944,9 @@ void Build::traceUpdateContent(shared_ptr<Command> c,
 
 // A traced command is adding an entry to a directory
 void Build::traceAddEntry(shared_ptr<Command> c,
-                          shared_ptr<RefResult> dir,
+                          shared_ptr<Ref> dir,
                           fs::path name,
-                          shared_ptr<RefResult> target) noexcept {
+                          shared_ptr<Ref> target) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -977,9 +970,9 @@ void Build::traceAddEntry(shared_ptr<Command> c,
 
 // A traced command is removing an entry from a directory
 void Build::traceRemoveEntry(shared_ptr<Command> c,
-                             shared_ptr<RefResult> dir,
+                             shared_ptr<Ref> dir,
                              fs::path name,
-                             shared_ptr<RefResult> target) noexcept {
+                             shared_ptr<Ref> target) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -1003,11 +996,11 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
 
 // This command launches a child command
 shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
-                                       shared_ptr<RefResult> exe_ref,
+                                       shared_ptr<Ref> exe_ref,
                                        vector<string> args,
                                        map<int, FileDescriptor> fds,
-                                       shared_ptr<RefResult> cwd_ref,
-                                       shared_ptr<RefResult> root_ref) noexcept {
+                                       shared_ptr<Ref> cwd_ref,
+                                       shared_ptr<Ref> root_ref) noexcept {
   // Count a traced step and a traced command
   _traced_step_count++;
   _traced_command_count++;

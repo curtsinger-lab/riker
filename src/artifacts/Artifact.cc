@@ -12,7 +12,7 @@
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 #include "ui/options.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"

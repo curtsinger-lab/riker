@@ -15,7 +15,7 @@
 #include "data/Record.hh"
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
-#include "runtime/RefResult.hh"
+#include "runtime/Ref.hh"
 
 using std::ifstream;
 using std::list;
@@ -64,13 +64,13 @@ class InputTrace {
   /// Get a command from its ID
   shared_ptr<Command> getCommand(Command::ID id) const noexcept { return _commands[id]; }
 
-  /// Get a RefResult from its ID
-  shared_ptr<RefResult> getRefResult(RefResult::ID id) noexcept {
+  /// Get a Ref from its ID
+  shared_ptr<Ref> getRef(Ref::ID id) noexcept {
     // Grow the vector if necessary
     if (_ref_results.size() <= id) _ref_results.resize(id + 1);
 
     // If the referenced entry is unset, initialize it
-    if (!_ref_results[id]) _ref_results[id] = make_shared<RefResult>();
+    if (!_ref_results[id]) _ref_results[id] = make_shared<Ref>();
 
     // Return the refresult
     return _ref_results[id];
@@ -90,6 +90,6 @@ class InputTrace {
   /// The map from command IDs to command instances. Startup steps run in command 0
   vector<shared_ptr<Command>> _commands = {nullptr};
 
-  /// The map from RefResult IDs to instances
-  vector<shared_ptr<RefResult>> _ref_results;
+  /// The map from Ref IDs to instances
+  vector<shared_ptr<Ref>> _ref_results;
 };
