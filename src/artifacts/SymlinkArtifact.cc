@@ -115,13 +115,13 @@ void SymlinkArtifact::applyFinalState(Build& build, fs::path path) noexcept {
   Artifact::applyFinalState(build, path);
 }
 
-Resolution SymlinkArtifact::resolve(Build& build,
-                                    shared_ptr<Command> c,
-                                    shared_ptr<Artifact> prev,
-                                    fs::path::iterator current,
-                                    fs::path::iterator end,
-                                    AccessFlags flags,
-                                    size_t symlink_limit) noexcept {
+Ref SymlinkArtifact::resolve(Build& build,
+                             shared_ptr<Command> c,
+                             shared_ptr<Artifact> prev,
+                             fs::path::iterator current,
+                             fs::path::iterator end,
+                             AccessFlags flags,
+                             size_t symlink_limit) noexcept {
   if (symlink_limit == 0) return ELOOP;
 
   // If this is the end of the path and the nofollow flag is set, return this symlink
@@ -132,7 +132,7 @@ Resolution SymlinkArtifact::resolve(Build& build,
     } else if (flags.type == AccessType::File) {
       return ELOOP;
     } else {
-      return shared_from_this();
+      return Ref(flags, shared_from_this());
     }
   }
 

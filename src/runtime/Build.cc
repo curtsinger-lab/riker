@@ -11,7 +11,6 @@
 #include "runtime/Env.hh"
 #include "runtime/RebuildPlan.hh"
 #include "runtime/Ref.hh"
-#include "runtime/Resolution.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/TracePrinter.hh"
@@ -140,31 +139,28 @@ void Build::specialRef(shared_ptr<Command> c, SpecialRef entity, shared_ptr<Ref>
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    output->resolvesTo(_env->getStdin(*this, c), AccessFlags{.r = true});
+    *output = Ref(AccessFlags{.r = true}, _env->getStdin(*this, c));
 
   } else if (entity == SpecialRef::stdout) {
-    output->resolvesTo(_env->getStdout(*this, c), AccessFlags{.w = true});
+    *output = Ref(AccessFlags{.w = true}, _env->getStdout(*this, c));
 
   } else if (entity == SpecialRef::stderr) {
-    output->resolvesTo(_env->getStderr(*this, c), AccessFlags{.w = true});
+    *output = Ref(AccessFlags{.w = true}, _env->getStderr(*this, c));
 
   } else if (entity == SpecialRef::root) {
-    output->resolvesTo(_env->getRootDir(), AccessFlags{.r = true, .x = true});
+    *output = Ref(AccessFlags{.r = true, .x = true}, _env->getRootDir());
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto result = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.x = true});
-    ASSERT(result.isSuccess()) << "Failed to resolve current working directory";
-    result.getArtifact()->setName(".");
+    *output = _env->getRootDir()->resolve(*this, c, cwd_path, AccessFlags{.r = true, .x = true});
 
-    output->resolvesTo(result, AccessFlags{.r = true, .x = true});
+    ASSERT(output->isSuccess()) << "Failed to resolve current working directory";
+    output->getArtifact()->setName(".");
 
   } else if (entity == SpecialRef::launch_exe) {
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
-    auto result = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.x = true});
-
-    output->resolvesTo(result, AccessFlags{.r = true, .x = true});
+    *output = _env->getRootDir()->resolve(*this, c, dodo_launch, AccessFlags{.r = true, .x = true});
 
   } else {
     FAIL << "Unknown special reference";
@@ -189,8 +185,8 @@ void Build::pipeRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  read_end->resolvesTo(pipe, AccessFlags{.r = true});
-  write_end->resolvesTo(pipe, AccessFlags{.w = true});
+  *read_end = Ref(AccessFlags{.r = true}, pipe);
+  *write_end = Ref(AccessFlags{.w = true}, pipe);
 }
 
 // A command references a new anonymous file
@@ -208,7 +204,7 @@ void Build::fileRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) 
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->createFile(*this, c, mode, false), AccessFlags{.r = true, .w = true});
+  *output = Ref(AccessFlags{.r = true, .w = true}, _env->createFile(*this, c, mode, false));
 }
 
 // A command references a new anonymous symlink
@@ -226,8 +222,8 @@ void Build::symlinkRef(shared_ptr<Command> c, fs::path target, shared_ptr<Ref> o
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getSymlink(*this, c, target, false),
-                     AccessFlags{.r = true, .w = true, .x = true});
+  *output =
+      Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getSymlink(*this, c, target, false));
 }
 
 // A command references a new anonymous directory
@@ -245,8 +241,7 @@ void Build::dirRef(shared_ptr<Command> c, mode_t mode, shared_ptr<Ref> output) n
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getDir(*this, c, mode, false),
-                     AccessFlags{.r = true, .w = true, .x = true});
+  *output = Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getDir(*this, c, mode, false));
 }
 
 // A command makes a reference with a path
@@ -269,8 +264,8 @@ void Build::pathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getArtifact()->resolve(*this, c, path, flags);
-  output->resolvesTo(result, flags);
+
+  *output = base->getArtifact()->resolve(*this, c, path, flags);
 }
 
 // A command retains a handle to a given Ref
@@ -660,8 +655,8 @@ tuple<shared_ptr<Ref>, shared_ptr<Ref>> Build::tracePipeRef(shared_ptr<Command> 
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  read_end->resolvesTo(pipe, AccessFlags{.r = true});
-  write_end->resolvesTo(pipe, AccessFlags{.w = true});
+  *read_end = Ref(AccessFlags{.r = true}, pipe);
+  *write_end = Ref(AccessFlags{.w = true}, pipe);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
@@ -681,7 +676,7 @@ shared_ptr<Ref> Build::traceFileRef(shared_ptr<Command> c, mode_t mode) noexcept
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->createFile(*this, c, mode, true), AccessFlags{.r = true, .w = true});
+  *output = Ref(AccessFlags{.r = true, .w = true}, _env->createFile(*this, c, mode, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
@@ -701,8 +696,8 @@ shared_ptr<Ref> Build::traceSymlinkRef(shared_ptr<Command> c, fs::path target) n
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getSymlink(*this, c, target, true),
-                     AccessFlags{.r = true, .w = true, .x = true});
+  *output =
+      Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getSymlink(*this, c, target, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
@@ -722,8 +717,7 @@ shared_ptr<Ref> Build::traceDirRef(shared_ptr<Command> c, mode_t mode) noexcept 
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  output->resolvesTo(_env->getDir(*this, c, mode, true),
-                     AccessFlags{.r = true, .w = true, .x = true});
+  *output = Ref(AccessFlags{.r = true, .w = true, .x = true}, _env->getDir(*this, c, mode, true));
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
@@ -747,11 +741,11 @@ shared_ptr<Ref> Build::tracePathRef(shared_ptr<Command> c,
 
   // Resolve the reference and save the result in output
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
-  auto result = base->getArtifact()->resolve(*this, c, path, flags);
-  output->resolvesTo(result, flags);
+
+  *output = base->getArtifact()->resolve(*this, c, path, flags);
 
   // If the reference could have created a file, mark that file's versions and links as committed
-  if (result.isSuccess() && flags.create) result.getArtifact()->setCommitted();
+  if (output->isSuccess() && flags.create) output->getArtifact()->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
@@ -819,7 +813,7 @@ void Build::traceExpectResult(shared_ptr<Command> c, shared_ptr<Ref> ref, int ex
 
   // Check the expected (i.e., observed) result against our filesystem model
   WARN_IF(ref->getResultCode() != expected)
-      << "Reference resolved to " << ref->getResolution()
+      << "Reference resolved to " << ref->getResultCode()
       << ", which does not match syscall result " << getErrorName(expected);
 
   // Log the traced step

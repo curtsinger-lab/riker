@@ -4,7 +4,7 @@
 #include <ostream>
 
 #include "interfaces/TraceHandler.hh"
-#include "runtime/Resolution.hh"
+#include "runtime/Ref.hh"
 #include "util/wrappers.hh"
 
 using std::endl;

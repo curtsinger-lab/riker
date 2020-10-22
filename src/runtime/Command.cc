@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "artifacts/Artifact.hh"
 #include "versions/Version.hh"
 
 using std::cout;

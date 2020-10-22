@@ -132,7 +132,7 @@ class RebuildPlanner final : public BuildObserver {
                                        int expected) noexcept override {
     LOGF(rebuild,
          "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
-         scenario, ref, expected, ref->getResolution());
+         scenario, ref, expected, ref->getResultCode());
     if (scenario == Scenario::Build) {
       _changed_build.insert(c);
     } else if (scenario == Scenario::PostBuild) {

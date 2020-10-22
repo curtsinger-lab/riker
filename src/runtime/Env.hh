@@ -9,7 +9,6 @@
 #include <sys/types.h>
 
 #include "data/AccessFlags.hh"
-#include "runtime/Resolution.hh"
 
 using std::map;
 using std::set;

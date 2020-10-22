@@ -7,7 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "interfaces/BuildObserver.hh"
-#include "runtime/Resolution.hh"
+#include "runtime/Ref.hh"
 #include "versions/DirVersion.hh"
 
 using std::map;
@@ -95,13 +95,13 @@ class DirArtifact final : public Artifact {
   // Un-hide the shorthand version of resolve()
   using Artifact::resolve;
 
-  virtual Resolution resolve(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<Artifact> prev,
-                             fs::path::iterator current,
-                             fs::path::iterator end,
-                             AccessFlags flags,
-                             size_t symlink_limit) noexcept override;
+  virtual Ref resolve(Build& build,
+                      shared_ptr<Command> c,
+                      shared_ptr<Artifact> prev,
+                      fs::path::iterator current,
+                      fs::path::iterator end,
+                      AccessFlags flags,
+                      size_t symlink_limit) noexcept override;
 
  private:
   /// The base directory version is the backstop for all resolution queries. This is either an

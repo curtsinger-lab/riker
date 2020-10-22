@@ -14,7 +14,6 @@
 #include "runtime/Env.hh"
 #include "runtime/RebuildPlan.hh"
 #include "runtime/Ref.hh"
-#include "runtime/Resolution.hh"
 #include "tracing/Tracer.hh"
 
 using std::make_shared;

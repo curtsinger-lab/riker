@@ -279,13 +279,13 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
 }
 
-Resolution Artifact::resolve(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<Artifact> prev,
-                             fs::path::iterator current,
-                             fs::path::iterator end,
-                             AccessFlags flags,
-                             size_t symlink_limit) noexcept {
+Ref Artifact::resolve(Build& build,
+                      shared_ptr<Command> c,
+                      shared_ptr<Artifact> prev,
+                      fs::path::iterator current,
+                      fs::path::iterator end,
+                      AccessFlags flags,
+                      size_t symlink_limit) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
@@ -297,7 +297,7 @@ Resolution Artifact::resolve(Build& build,
     } else if (flags.type == AccessType::Symlink) {
       return EINVAL;
     } else {
-      return shared_from_this();
+      return Ref(flags, shared_from_this());
     }
   }
 

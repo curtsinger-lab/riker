@@ -6,18 +6,24 @@
 #include <ostream>
 #include <string>
 
-#include "artifacts/Artifact.hh"
 #include "data/AccessFlags.hh"
-#include "runtime/Resolution.hh"
 #include "util/UniqueID.hh"
+#include "util/log.hh"
+#include "util/wrappers.hh"
 
 using std::map;
 using std::optional;
 using std::ostream;
+using std::shared_ptr;
 using std::string;
+using std::weak_ptr;
 
+class Artifact;
 class Build;
 class Command;
+
+// Add a success constant so we don't have to keep returning 0 as a magic number
+enum : int8_t { SUCCESS = 0 };
 
 /***
  * A Ref instance is a bit like a register; it is serialized as the destination where a
@@ -33,7 +39,19 @@ class Ref final {
   using ID = uint32_t;
 
   /// Default constructor
-  Ref() noexcept = default;
+  Ref() noexcept {}
+
+  /// Create a Ref that resolves to an error code
+  Ref(int rc) noexcept : _rc(rc) {
+    ASSERT(rc != SUCCESS)
+        << "Attempted to create a Ref that resolved successfully without providing an artifact";
+  }
+
+  /// Create a Ref that resolves to an artifact
+  Ref(AccessFlags flags, shared_ptr<Artifact> artifact) noexcept :
+      _rc(SUCCESS), _artifact(artifact), _flags(flags) {
+    ASSERT(artifact) << "Attempted to create a Ref that resolved successfully with a null artifact";
+  }
 
   // Disallow Copy
   Ref(const Ref&) = delete;
@@ -50,62 +68,28 @@ class Ref final {
   string getName() const noexcept { return "r" + std::to_string(getID()); }
 
   /// Get the artifact reached via this reference
-  shared_ptr<Artifact> getArtifact() const noexcept { return _result.getArtifact(); }
+  shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
 
   /// Get the result code returned to this reference
-  int getResultCode() const noexcept { return _result.getResultCode(); }
+  int getResultCode() const noexcept { return _rc; }
+
+  /// Check if this Ref resolved successfully
+  bool isSuccess() const noexcept { return _rc == SUCCESS; }
 
   /// Check if this reference resolved successfully
-  bool isResolved() const noexcept { return _result.getResultCode() == SUCCESS; }
-
-  /// Get the resolution result
-  Resolution getResolution() const noexcept { return _result; }
-
-  /// Set the artifact or error this reference resolves to
-  void resolvesTo(Resolution result, AccessFlags flags) noexcept {
-    _result = result;
-    _flags = flags;
-  }
+  bool isResolved() const noexcept { return _rc == SUCCESS; }
 
   /// Get the access flags associated with this Ref
   AccessFlags getFlags() const noexcept { return _flags; }
 
   /// A command is now using this Ref. Return true if this first use by the given command
-  bool addUser(Build& b, shared_ptr<Command> c) noexcept {
-    // Increment the total user count
-    _total_users++;
-
-    // Increment the command-specific user count
-    auto count = ++_users[c];
-    return count == 1;
-  }
+  bool addUser(Build& b, shared_ptr<Command> c) noexcept;
 
   /// A command is no longer using this Ref. Return true if that was the last use by c
-  bool removeUser(Build& b, shared_ptr<Command> c) noexcept {
-    ASSERT(_users[c] > 0) << "Attempted to close unknown handle to " << this << " from " << c
-                          << " -> " << _result;
-
-    // Decrement the total user count
-    _total_users--;
-
-    // If this was the last user and we have a file descriptor open, close it
-    if (_total_users == 0 && _fd.has_value()) {
-      ::close(_fd.value());
-    }
-
-    // Decrement the command-specific user count
-    auto count = --_users[c];
-    return count == 0;
-  }
+  bool removeUser(Build& b, shared_ptr<Command> c) noexcept;
 
   /// Get a file descriptor for this Ref
-  int getFD() noexcept {
-    ASSERT(isResolved()) << "Cannot set up a file descriptor for an unresolved Ref";
-    if (!_fd.has_value()) {
-      _fd = getArtifact()->getFD(_flags);
-    }
-    return _fd.value();
-  }
+  int getFD() noexcept;
 
   /// Print a Ref
   ostream& print(ostream& o) const noexcept { return o << getName(); }
@@ -123,8 +107,11 @@ class Ref final {
   /// A unique identifier for this reference result
   UniqueID<Ref> _id;
 
-  /// The outcome of a reference resolution saved in this Ref
-  Resolution _result;
+  /// The error code (or SUCCESS) that this reference resolved to
+  int _rc;
+
+  /// The artifact this reference resolved to
+  weak_ptr<Artifact> _artifact;
 
   /// Keep the flags used to establish this reference so we know what accesses are permitted
   AccessFlags _flags;

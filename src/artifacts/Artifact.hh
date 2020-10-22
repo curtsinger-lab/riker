@@ -11,7 +11,7 @@
 
 #include "data/AccessFlags.hh"
 #include "interfaces/BuildObserver.hh"
-#include "runtime/Resolution.hh"
+#include "runtime/Ref.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 
@@ -252,11 +252,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param committed If true, an accesses or actions taken during resolution should be committed
    * \returns a resolution result, which is either an artifact or an error code
    */
-  Resolution resolve(Build& build,
-                     shared_ptr<Command> c,
-                     fs::path path,
-                     AccessFlags flags,
-                     size_t symlink_limit = 40) noexcept {
+  Ref resolve(Build& build,
+              shared_ptr<Command> c,
+              fs::path path,
+              AccessFlags flags,
+              size_t symlink_limit = 40) noexcept {
     return resolve(build, c, nullptr, path.begin(), path.end(), flags, symlink_limit);
   }
 
@@ -272,13 +272,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param committed If true, any accesses or actions taken during resolution should be committed.
    * \returns a resolution result, which is either an artifact or an error code
    */
-  virtual Resolution resolve(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<Artifact> prev,
-                             fs::path::iterator current,
-                             fs::path::iterator end,
-                             AccessFlags flags,
-                             size_t symlink_limit) noexcept;
+  virtual Ref resolve(Build& build,
+                      shared_ptr<Command> c,
+                      shared_ptr<Artifact> prev,
+                      fs::path::iterator current,
+                      fs::path::iterator end,
+                      AccessFlags flags,
+                      size_t symlink_limit) noexcept;
 
   /****** Utility Methods ******/
 

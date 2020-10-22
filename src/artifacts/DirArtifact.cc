@@ -13,7 +13,6 @@
 #include "runtime/Build.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
-#include "runtime/Resolution.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 
@@ -235,13 +234,13 @@ shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o, shared_ptr<Com
   return result;
 }
 
-Resolution DirArtifact::resolve(Build& build,
-                                shared_ptr<Command> c,
-                                shared_ptr<Artifact> prev,
-                                fs::path::iterator current,
-                                fs::path::iterator end,
-                                AccessFlags flags,
-                                size_t symlink_limit) noexcept {
+Ref DirArtifact::resolve(Build& build,
+                         shared_ptr<Command> c,
+                         shared_ptr<Artifact> prev,
+                         fs::path::iterator current,
+                         fs::path::iterator end,
+                         AccessFlags flags,
+                         size_t symlink_limit) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
   while (current != end && current->empty()) current++;
@@ -253,7 +252,7 @@ Resolution DirArtifact::resolve(Build& build,
 
     // The access was allowed. Did the access expect to reach a directory?
     if (flags.type == AccessType::Any || flags.type == AccessType::Dir) {
-      return shared_from_this();
+      return Ref(flags, shared_from_this());
     } else {
       return EISDIR;
     }
@@ -280,7 +279,7 @@ Resolution DirArtifact::resolve(Build& build,
   }
 
   // We'll track the result of the resolution here
-  Resolution res;
+  Ref res;
 
   // Check the map of known entries for a match
   auto entries_iter = _entries.find(entry);
@@ -291,7 +290,7 @@ Resolution DirArtifact::resolve(Build& build,
 
     // Is there an artifact to resolve to?
     if (a) {
-      res = a;
+      res = Ref(flags, a);
     } else {
       res = ENOENT;
     }
@@ -320,7 +319,7 @@ Resolution DirArtifact::resolve(Build& build,
       // Did we get an artifact?
       if (artifact) {
         // Yes. Hang on to the result
-        res = artifact;
+        res = Ref(flags, artifact);
 
         // Inform the artifact of its link in the current directory
         artifact->addLinkUpdate(this->as<DirArtifact>(), entry, _base_dir_version);
@@ -347,10 +346,10 @@ Resolution DirArtifact::resolve(Build& build,
     // }
 
     // Was the reference required to create this entry?
-    if (flags.create && flags.exclusive && res.isSuccess()) return EEXIST;
+    if (flags.create && flags.exclusive && res.getResultCode() == SUCCESS) return EEXIST;
 
     // If the resolution failed, can this access create it?
-    if (flags.create && res == ENOENT) {
+    if (flags.create && res.getResultCode() == ENOENT) {
       // Can we write to this directory? If not, return an error
       if (!checkAccess(build, c, AccessFlags{.w = true})) return EACCES;
 
@@ -361,11 +360,11 @@ Resolution DirArtifact::resolve(Build& build,
       auto link_version = addEntry(build, c, entry, newfile);
 
       // return the artifact we just created and stop resolution
-      return newfile;
+      return Ref(flags, newfile);
     }
 
     // If the result was an error, return it
-    if (!res.isSuccess()) return res;
+    if (res.getResultCode() != SUCCESS) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
     return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,

@@ -72,13 +72,13 @@ class SymlinkArtifact : public Artifact {
 
   /************ Symlink Operations ************/
 
-  virtual Resolution resolve(Build& build,
-                             shared_ptr<Command> c,
-                             shared_ptr<Artifact> prev,
-                             fs::path::iterator current,
-                             fs::path::iterator end,
-                             AccessFlags flags,
-                             size_t symlink_limit) noexcept override;
+  virtual Ref resolve(Build& build,
+                      shared_ptr<Command> c,
+                      shared_ptr<Artifact> prev,
+                      fs::path::iterator current,
+                      fs::path::iterator end,
+                      AccessFlags flags,
+                      size_t symlink_limit) noexcept override;
 
  private:
   /// The currrent version of this symlink
