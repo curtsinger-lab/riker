@@ -664,7 +664,7 @@ void Thread::_read(int fd) noexcept {
   LOGF(trace, "{}: read({})", this, fd);
 
   // Get a reference to the artifact being read
-  auto ref = _process->getFD(fd);
+  const auto& ref = _process->getFD(fd);
 
   // Inform the artifact that we are about to read
   ref->getArtifact()->beforeRead(_build, getCommand(), ref);
@@ -684,7 +684,7 @@ void Thread::_write(int fd) noexcept {
   LOGF(trace, "{}: write({})", this, fd);
 
   // Get a reference to the artifact being written
-  auto ref = _process->getFD(fd);
+  const auto& ref = _process->getFD(fd);
 
   // Inform the artifact that we are about to write
   ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
@@ -796,7 +796,7 @@ void Thread::_ftruncate(int fd, long length) noexcept {
   LOGF(trace, "{}: ftruncate({}, {})", this, fd, length);
 
   // Get the reference to the artifact being written
-  auto ref = _process->getFD(fd);
+  const auto& ref = _process->getFD(fd);
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
@@ -985,7 +985,7 @@ void Thread::_getdents(int fd) noexcept {
   LOGF(trace, "{}: getdents({})", this, fd);
 
   // Get a reference to the artifact being read
-  auto ref = _process->getFD(fd);
+  const auto& ref = _process->getFD(fd);
 
   ref->getArtifact()->beforeRead(_build, getCommand(), ref);
 
