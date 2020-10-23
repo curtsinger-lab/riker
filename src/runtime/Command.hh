@@ -36,23 +36,30 @@ class Step;
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
+ private:
   friend class RebuildPlanner;
+
+  /// Create a command with no values filled in. This is only used to create the null command
+  Command() noexcept = default;
 
  public:
   /// The type of a command ID
   using ID = uint32_t;
 
+  /// The type of a reference ID
+  using RefID = uint32_t;
+
   /// Create a new command
   Command(shared_ptr<Ref> exe,
-          vector<string> args,
-          map<int, shared_ptr<Ref>> initial_fds,
           shared_ptr<Ref> initial_cwd,
-          shared_ptr<Ref> initial_root) noexcept :
+          shared_ptr<Ref> initial_root,
+          map<int, shared_ptr<Ref>> initial_fds,
+          vector<string> args) noexcept :
       _exe(exe),
-      _args(args),
-      _initial_fds(initial_fds),
       _initial_cwd(initial_cwd),
-      _initial_root(initial_root) {}
+      _initial_root(initial_root),
+      _initial_fds(initial_fds),
+      _args(args) {}
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -61,6 +68,9 @@ class Command : public std::enable_shared_from_this<Command> {
   // Allow Move
   Command(Command&&) noexcept = default;
   Command& operator=(Command&&) noexcept = default;
+
+  /// Get a shared pointer to the special null command instance
+  static shared_ptr<Command> getNullCommand() noexcept;
 
   /// Get a short, printable name for this command
   string getShortName(size_t limit = 20) const noexcept;
@@ -113,7 +123,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Print a Command to an output stream
   friend ostream& operator<<(ostream& o, const Command& c) noexcept {
-    return o << "[Command " << c.getShortName() << "]";
+    if (!c._exe) {
+      return o << "[No Command]";
+    } else {
+      return o << "[Command " << c.getShortName() << "]";
+    }
   }
 
   /// Print a Command* to an output stream
@@ -126,17 +140,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The executable file this command runs
   shared_ptr<Ref> _exe;
 
-  /// The arguments passed to this command on startup
-  vector<string> _args;
-
-  /// The file descriptor table at the start of this command's execution
-  map<int, shared_ptr<Ref>> _initial_fds;
-
   /// A reference to the directory where this command is started
   shared_ptr<Ref> _initial_cwd;
 
   /// A reference to the root directory in effect when this command is started
   shared_ptr<Ref> _initial_root;
+
+  /// The file descriptor table at the start of this command's execution
+  map<int, shared_ptr<Ref>> _initial_fds;
+
+  /// The arguments passed to this command on startup
+  vector<string> _args;
 
   /// Has this command ever run?
   bool _executed = false;

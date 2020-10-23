@@ -1004,7 +1004,7 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
   if (child) {
     LOG(exec) << "Matched command " << child;
   } else {
-    child = make_shared<Command>(exe_ref, args, fds, cwd_ref, root_ref);
+    child = make_shared<Command>(exe_ref, cwd_ref, root_ref, fds, args);
     LOG(exec) << "No match for command " << child;
   }
 

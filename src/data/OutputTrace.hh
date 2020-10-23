@@ -25,7 +25,10 @@ namespace fs = std::filesystem;
 class OutputTrace : public TraceHandler {
  public:
   /// Create a trace at the given path
-  OutputTrace(string filename) noexcept : _filename(filename) {}
+  OutputTrace(string filename) noexcept : _filename(filename) {
+    // Add the null command to the command map with ID 0
+    _commands.emplace(Command::getNullCommand(), 0);
+  }
 
   // Disallow copy
   OutputTrace(const OutputTrace&) = delete;
@@ -159,7 +162,7 @@ class OutputTrace : public TraceHandler {
   list<unique_ptr<Record>> _records;
 
   /// The map from commands to their IDs in the output trace
-  map<shared_ptr<Command>, Command::ID> _commands = {{nullptr, 0}};
+  map<shared_ptr<Command>, Command::ID> _commands;
 
   /// The map from Refs to their IDs in the output trace
   map<shared_ptr<Ref>, Ref::ID> _ref_results;

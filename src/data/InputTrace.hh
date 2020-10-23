@@ -35,7 +35,10 @@ namespace fs = std::filesystem;
 class InputTrace {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(vector<string> args, fs::path filename) noexcept : _args(args), _filename(filename) {}
+  InputTrace(vector<string> args, fs::path filename) noexcept : _args(args), _filename(filename) {
+    // Add the null command to the command map
+    _commands.emplace_back(Command::getNullCommand());
+  }
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -87,8 +90,8 @@ class InputTrace {
   /// The path to the loaded trace
   fs::path _filename;
 
-  /// The map from command IDs to command instances. Startup steps run in command 0
-  vector<shared_ptr<Command>> _commands = {nullptr};
+  /// The map from command IDs to command instances
+  vector<shared_ptr<Command>> _commands;
 
   /// The map from Ref IDs to instances
   vector<shared_ptr<Ref>> _ref_results;

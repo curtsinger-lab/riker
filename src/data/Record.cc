@@ -48,8 +48,8 @@ void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
     fds[fd] = input.getRef(ref_id);
   }
 
-  auto cmd = make_shared<Command>(input.getRef(_exe_id), _args, fds, input.getRef(_cwd_id),
-                                  input.getRef(_root_id));
+  auto cmd = make_shared<Command>(input.getRef(_exe_id), input.getRef(_cwd_id),
+                                  input.getRef(_root_id), fds, _args);
   if (_executed) cmd->setExecuted();
   cmd->setExitStatus(_exit_status);
 
