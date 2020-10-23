@@ -22,14 +22,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "artifacts/FileArtifact.hh"
-#include "artifacts/PipeArtifact.hh"
+#include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"
 #include "util/log.hh"
+#include "util/wrappers.hh"
 #include "versions/Version.hh"
 
 using std::list;
@@ -40,26 +40,6 @@ using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
-
-string signalName(int sig) {
-  static map<int, string> signals{
-      {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},
-      {SIGILL, "SIGILL"},       {SIGTRAP, "SIGTRAP"},     {SIGABRT, "SIGABRT"},
-      {SIGIOT, "SIGIOT"},       {SIGBUS, "SIGBUS"},       {SIGFPE, "SIGFPE"},
-      {SIGKILL, "SIGKILL"},     {SIGUSR1, "SIGUSR1"},     {SIGSEGV, "SIGSEGV"},
-      {SIGUSR2, "SIGUSR2"},     {SIGPIPE, "SIGPIPE"},     {SIGALRM, "SIGALRM"},
-      {SIGTERM, "SIGTERM"},     {SIGSTKFLT, "SIGSTKFLT"}, {SIGCHLD, "SIGCHLD"},
-      {SIGCLD, "SIGCLD"},       {SIGCONT, "SIGCONT"},     {SIGSTOP, "SIGSTOP"},
-      {SIGTSTP, "SIGTSTP"},     {SIGTTIN, "SIGTTIN"},     {SIGTTOU, "SIGTTOU"},
-      {SIGURG, "SIGURG"},       {SIGXCPU, "SIGXCPU"},     {SIGXFSZ, "SIGXFSZ"},
-      {SIGVTALRM, "SIGVTALRM"}, {SIGPROF, "SIGPROF"},     {SIGWINCH, "SIGWINCH"},
-      {SIGIO, "SIGIO"},         {SIGPOLL, "SIGPOLL"},     {SIGPWR, "SIGPWR"},
-      {SIGSYS, "SIGSYS"}};
-
-  auto iter = signals.find(sig);
-  if (iter == signals.end()) return std::to_string(sig);
-  return iter->second;
-}
 
 shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
   // Launch the command with tracing
@@ -165,14 +145,14 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
           ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
 
         } else {
-          LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status))
+          LOG(trace) << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))
                      << " (status=" << status << ")";
           ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
         }
 
       } else {
         // The traced process received a signal. Just pass it along.
-        LOG(trace) << thread << ": injecting signal " << signalName(WSTOPSIG(wait_status))
+        LOG(trace) << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))
                    << " (status=" << status << ")";
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }

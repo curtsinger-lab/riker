@@ -9,6 +9,7 @@
 
 #include <grp.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -60,6 +61,29 @@ inline const set<gid_t>& getgroups() noexcept {
   }
 
   return _groups.value();
+}
+
+inline string getSignalName(int sig) {
+  static map<int, string> signals{
+      {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},
+      {SIGILL, "SIGILL"},       {SIGTRAP, "SIGTRAP"},     {SIGABRT, "SIGABRT"},
+      {SIGIOT, "SIGIOT"},       {SIGBUS, "SIGBUS"},       {SIGFPE, "SIGFPE"},
+      {SIGKILL, "SIGKILL"},     {SIGUSR1, "SIGUSR1"},     {SIGSEGV, "SIGSEGV"},
+      {SIGUSR2, "SIGUSR2"},     {SIGPIPE, "SIGPIPE"},     {SIGALRM, "SIGALRM"},
+      {SIGTERM, "SIGTERM"},     {SIGSTKFLT, "SIGSTKFLT"}, {SIGCHLD, "SIGCHLD"},
+      {SIGCLD, "SIGCLD"},       {SIGCONT, "SIGCONT"},     {SIGSTOP, "SIGSTOP"},
+      {SIGTSTP, "SIGTSTP"},     {SIGTTIN, "SIGTTIN"},     {SIGTTOU, "SIGTTOU"},
+      {SIGURG, "SIGURG"},       {SIGXCPU, "SIGXCPU"},     {SIGXFSZ, "SIGXFSZ"},
+      {SIGVTALRM, "SIGVTALRM"}, {SIGPROF, "SIGPROF"},     {SIGWINCH, "SIGWINCH"},
+      {SIGIO, "SIGIO"},         {SIGPOLL, "SIGPOLL"},     {SIGPWR, "SIGPWR"},
+      {SIGSYS, "SIGSYS"}};
+
+  auto iter = signals.find(sig);
+  if (iter == signals.end()) {
+    return "UNKNOWN (" + std::to_string(sig) + ")";
+  } else {
+    return iter->second;
+  }
 }
 
 inline string getErrorName(int err) noexcept {
