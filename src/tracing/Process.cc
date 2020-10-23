@@ -3,7 +3,6 @@
 #include <memory>
 
 #include "artifacts/Artifact.hh"
-#include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -29,7 +28,8 @@ Process::Process(Build& build,
     _fds(fds) {
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
-    _build.traceUsingRef(_command, desc.getRef());
+    auto& [ref, cloexec] = desc;
+    _build.traceUsingRef(_command, ref);
   }
 
   // The child process also duplicates references to the root and working directories
@@ -54,20 +54,19 @@ void Process::setWorkingDir(shared_ptr<Ref> ref) noexcept {
 }
 
 // Get a file descriptor entry
-FileDescriptor& Process::getFD(int fd) noexcept {
-  ASSERT(_fds.find(fd) != _fds.end())
-      << "Attempted to access an unknown fd " << fd << " in " << this;
-  return _fds.at(fd);
+const shared_ptr<Ref>& Process::getFD(int fd) noexcept {
+  auto iter = _fds.find(fd);
+  ASSERT(iter != _fds.end()) << "Attempted to access an unknown fd " << fd << " in " << this;
+
+  return std::get<0>(iter->second);
 }
 
 // Add a file descriptor entry
-FileDescriptor& Process::addFD(int fd,
-                               shared_ptr<Ref> ref,
-                               AccessFlags flags,
-                               bool cloexec) noexcept {
+void Process::addFD(int fd, shared_ptr<Ref> ref, bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
-    _build.traceDoneWithRef(_command, iter->second.getRef());
+    auto& [old_ref, old_cloexec] = iter->second;
+    _build.traceDoneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 
@@ -75,8 +74,7 @@ FileDescriptor& Process::addFD(int fd,
   _build.traceUsingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
-  auto [iter, added] = _fds.emplace(fd, FileDescriptor(ref, cloexec));
-  return iter->second;
+  _fds.emplace(fd, FileDescriptor(ref, cloexec));
 }
 
 // Close a file descriptor
@@ -85,7 +83,8 @@ void Process::closeFD(int fd) noexcept {
   if (iter == _fds.end()) {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
-    _build.traceDoneWithRef(_command, iter->second.getRef());
+    auto& [old_ref, old_cloexec] = iter->second;
+    _build.traceDoneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 }
@@ -94,9 +93,20 @@ void Process::closeFD(int fd) noexcept {
 void Process::tryCloseFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
-    _build.traceDoneWithRef(_command, iter->second.getRef());
+    auto& [old_ref, old_cloexec] = iter->second;
+    _build.traceDoneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
+}
+
+// Set a file descriptor's close-on-exec flag
+void Process::setCloexec(int fd, bool cloexec) noexcept {
+  auto iter = _fds.find(fd);
+  ASSERT(iter != _fds.end())
+      << "Attempted to set the cloexec flag for non-existent file descriptor " << fd;
+
+  const auto& [ref, old_cloexec] = iter->second;
+  iter->second = FileDescriptor{ref, cloexec};
 }
 
 // The process is creating a new child
@@ -113,15 +123,16 @@ void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> 
   map<int, shared_ptr<Ref>> initial_fds;
   list<int> to_erase;
 
-  for (const auto& [index, fd] : _fds) {
-    if (fd.isCloexec()) {
+  for (const auto& [index, desc] : _fds) {
+    const auto& [ref, cloexec] = desc;
+    if (cloexec) {
       // Report the close to the build
-      _build.traceDoneWithRef(_command, fd.getRef());
+      _build.traceDoneWithRef(_command, ref);
 
       // Remember this index so we can remove it later
       to_erase.push_back(index);
     } else {
-      initial_fds.emplace(index, fd.getRef());
+      initial_fds.emplace(index, ref);
     }
   }
 
@@ -167,7 +178,8 @@ void Process::exit() noexcept {
   _build.traceDoneWithRef(_command, _root);
 
   // Any remaining file descriptors in this process are closed
-  for (auto& [index, desc] : _fds) {
-    _build.traceDoneWithRef(_command, desc.getRef());
+  for (const auto& [index, desc] : _fds) {
+    const auto& [ref, cloexec] = desc;
+    _build.traceDoneWithRef(_command, ref);
   }
 }

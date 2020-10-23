@@ -16,7 +16,6 @@
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "data/AccessFlags.hh"
-#include "data/FileDescriptor.hh"
 #include "data/Record.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"

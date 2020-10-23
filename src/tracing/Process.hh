@@ -4,9 +4,9 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "data/FileDescriptor.hh"
 #include "runtime/Command.hh"
 
 using std::make_shared;
@@ -14,6 +14,7 @@ using std::map;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::vector;
 
 class Build;
@@ -22,6 +23,10 @@ class Tracer;
 
 class Process : public std::enable_shared_from_this<Process> {
  public:
+  /// Keep track of file descriptors with a reference, and a boolean to track whether or not the
+  /// descriptor is closed on an exec syscall
+  using FileDescriptor = tuple<shared_ptr<Ref>, bool>;
+
   Process(Build& build,
           Tracer& tracer,
           shared_ptr<Command> command,
@@ -45,23 +50,23 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Set the working directory
   void setWorkingDir(shared_ptr<Ref> ref) noexcept;
 
-  /// Get a file descriptor entry
-  FileDescriptor& getFD(int fd) noexcept;
+  /// Get the reference used for a given file descriptor entry
+  const shared_ptr<Ref>& getFD(int fd) noexcept;
 
   /// Check if this process has a particular file descriptor
   bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
 
   /// Add a file descriptor entry
-  FileDescriptor& addFD(int fd,
-                        shared_ptr<Ref> ref,
-                        AccessFlags flags,
-                        bool cloexec = false) noexcept;
+  void addFD(int fd, shared_ptr<Ref> ref, bool cloexec = false) noexcept;
 
   /// Remove a file descriptor entry
   void closeFD(int fd) noexcept;
 
   /// Remove a file descriptor entry if it exists
   void tryCloseFD(int fd) noexcept;
+
+  /// Set a file descriptor's close-on-exec flag
+  void setCloexec(int fd, bool cloexec) noexcept;
 
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }

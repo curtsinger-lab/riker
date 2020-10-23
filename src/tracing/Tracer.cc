@@ -24,7 +24,6 @@
 
 #include "artifacts/FileArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
-#include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "tracing/Process.hh"
@@ -442,9 +441,9 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  map<int, FileDescriptor> fds;
+  map<int, Process::FileDescriptor> fds;
   for (auto& [fd, ref] : cmd->getInitialFDs()) {
-    fds[fd] = FileDescriptor(ref);
+    fds[fd] = Process::FileDescriptor{ref, false};
   }
 
   auto proc = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, fds);

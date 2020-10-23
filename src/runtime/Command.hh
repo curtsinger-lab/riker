@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "data/AccessFlags.hh"
-#include "data/FileDescriptor.hh"
 #include "versions/Version.hh"
 
 using std::list;

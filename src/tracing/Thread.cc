@@ -11,7 +11,6 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
-#include "data/FileDescriptor.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -33,7 +32,7 @@ fs::path Thread::getPath(at_fd fd) const noexcept {
     auto cwd = _process->getWorkingDir()->getArtifact()->getPath();
     if (cwd.has_value()) return cwd.value();
   } else {
-    auto path = _process->getFD(fd.getFD()).getRef()->getArtifact()->getPath();
+    auto path = _process->getFD(fd.getFD())->getArtifact()->getPath();
     if (path.has_value()) return path.value();
   }
   return "<no path>";
@@ -54,8 +53,7 @@ shared_ptr<Ref> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noe
   }
 
   // The path is resolved relative to some file descriptor
-  return _build.tracePathRef(getCommand(), _process->getFD(at.getFD()).getRef(), p.relative_path(),
-                             flags);
+  return _build.tracePathRef(getCommand(), _process->getFD(at.getFD()), p.relative_path(), flags);
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
@@ -261,7 +259,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
         auto anon_ref = _build.traceFileRef(getCommand(), mode.getMode());
 
         // Record the reference in the process' file descriptor table
-        _process->addFD(fd, anon_ref, ref_flags, flags.cloexec());
+        _process->addFD(fd, anon_ref, flags.cloexec());
 
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
@@ -270,7 +268,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
         }
 
         // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(fd, ref, ref_flags, flags.cloexec());
+        _process->addFD(fd, ref, flags.cloexec());
       }
 
     } else {
@@ -366,8 +364,8 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
     ASSERT(read_ref->isResolved() && write_ref->isResolved()) << "Failed to get artifact for pipe";
 
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, read_ref, ReadAccess, flags.cloexec());
-    _process->addFD(write_pipefd, write_ref, WriteAccess, flags.cloexec());
+    _process->addFD(read_pipefd, read_ref, flags.cloexec());
+    _process->addFD(write_pipefd, write_ref, flags.cloexec());
   });
 }
 
@@ -387,8 +385,7 @@ void Thread::_dup(int fd) noexcept {
 
       // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
       // false.
-      auto& descriptor = _process->getFD(fd);
-      _process->addFD(newfd, descriptor.getRef(), descriptor.getFlags(), false);
+      _process->addFD(newfd, _process->getFD(fd), false);
     });
   } else {
     finishSyscall([=](long rc) {
@@ -422,8 +419,7 @@ void Thread::_dup3(int oldfd, int newfd, o_flags flags) noexcept {
       _process->tryCloseFD(newfd);
 
       // Duplicate the file descriptor
-      auto& descriptor = _process->getFD(oldfd);
-      _process->addFD(rc, descriptor.getRef(), descriptor.getFlags(), flags.cloexec());
+      _process->addFD(rc, _process->getFD(oldfd), flags.cloexec());
     });
   } else {
     finishSyscall([=](long rc) {
@@ -449,7 +445,7 @@ void Thread::_fcntl(int fd, int cmd, unsigned long arg) noexcept {
   } else if (cmd == F_SETFD) {
     resume();
     // Set the cloexec flag using the argument flags
-    _process->getFD(fd).setCloexec(arg & FD_CLOEXEC);
+    _process->setCloexec(fd, arg & FD_CLOEXEC);
 
   } else {
     resume();
@@ -499,7 +495,7 @@ void Thread::_fstatat(at_fd dirfd,
       if (rc == 0) {
         // This is essentially an fstat call
         // Record the dependency on metadata
-        _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()).getRef());
+        _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()));
       } else {
         WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
         // do nothing.
@@ -540,11 +536,11 @@ void Thread::_fstatat(at_fd dirfd,
 void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
   LOGF(trace, "{}: fchown({}, {}, {})", this, fd, user, group);
 
-  // Get the file descriptor
-  auto& descriptor = _process->getFD(fd);
+  // Get the reference for the given file descriptor
+  const auto& ref = _process->getFD(fd);
 
   // The command depends on the old metadata
-  _build.traceMatchMetadata(getCommand(), descriptor.getRef());
+  _build.traceMatchMetadata(getCommand(), ref);
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -554,7 +550,7 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), descriptor.getRef());
+    _build.traceUpdateMetadata(getCommand(), ref);
   });
 }
 
@@ -606,10 +602,10 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
   LOGF(trace, "{}: fchmod({}, {})", this, fd, mode);
 
   // Get the file descriptor entry
-  auto& descriptor = _process->getFD(fd);
+  const auto& ref = _process->getFD(fd);
 
   // The command depends on the old metadata
-  _build.traceMatchMetadata(getCommand(), descriptor.getRef());
+  _build.traceMatchMetadata(getCommand(), ref);
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -619,7 +615,7 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), descriptor.getRef());
+    _build.traceUpdateMetadata(getCommand(), ref);
   });
 }
 
@@ -668,7 +664,7 @@ void Thread::_read(int fd) noexcept {
   LOGF(trace, "{}: read({})", this, fd);
 
   // Get a reference to the artifact being read
-  auto ref = _process->getFD(fd).getRef();
+  auto ref = _process->getFD(fd);
 
   // Inform the artifact that we are about to read
   ref->getArtifact()->beforeRead(_build, getCommand(), ref);
@@ -688,7 +684,7 @@ void Thread::_write(int fd) noexcept {
   LOGF(trace, "{}: write({})", this, fd);
 
   // Get a reference to the artifact being written
-  auto ref = _process->getFD(fd).getRef();
+  auto ref = _process->getFD(fd);
 
   // Inform the artifact that we are about to write
   ref->getArtifact()->beforeWrite(_build, getCommand(), ref);
@@ -717,11 +713,8 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
   }
 
   // Get the file descriptor being mapped
-  auto& descriptor = _process->getFD(fd);
-  bool writable = (prot & PROT_WRITE) && descriptor.isWritable();
-
-  // Get a reference to the artifact being mapped
-  auto ref = descriptor.getRef();
+  const auto& ref = _process->getFD(fd);
+  bool writable = (prot & PROT_WRITE) && ref->getFlags().w;
 
   // Inform the mapped artifact that it will by read and possibly written
   ref->getArtifact()->beforeRead(_build, getCommand(), ref);
@@ -803,7 +796,7 @@ void Thread::_ftruncate(int fd, long length) noexcept {
   LOGF(trace, "{}: ftruncate({}, {})", this, fd, length);
 
   // Get the reference to the artifact being written
-  auto ref = _process->getFD(fd).getRef();
+  auto ref = _process->getFD(fd);
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
@@ -831,8 +824,8 @@ void Thread::_tee(int fd_in, int fd_out) noexcept {
   LOGF(trace, "{}: tee({}, {})", this, fd_in, fd_out);
 
   // Get the descriptors
-  const auto& in_ref = _process->getFD(fd_in).getRef();
-  const auto& out_ref = _process->getFD(fd_out).getRef();
+  const auto& in_ref = _process->getFD(fd_in);
+  const auto& out_ref = _process->getFD(fd_out);
 
   // We are abou to read from in_ref and write to out_ref
   in_ref->getArtifact()->beforeRead(_build, getCommand(), in_ref);
@@ -992,7 +985,7 @@ void Thread::_getdents(int fd) noexcept {
   LOGF(trace, "{}: getdents({})", this, fd);
 
   // Get a reference to the artifact being read
-  auto ref = _process->getFD(fd).getRef();
+  auto ref = _process->getFD(fd);
 
   ref->getArtifact()->beforeRead(_build, getCommand(), ref);
 
@@ -1198,7 +1191,8 @@ void Thread::_socket(int domain, int type, int protocol) noexcept {
 
     if (rc >= 0) {
       auto ref = _build.traceFileRef(getCommand(), 0600);
-      _process->addFD(rc, ref, ReadAccess + WriteAccess, (type & SOCK_CLOEXEC) == SOCK_CLOEXEC);
+      bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
+      _process->addFD(rc, ref, cloexec);
     }
   });
 }
@@ -1227,8 +1221,8 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
         auto ref = _build.traceFileRef(getCommand(), 0600);
 
         // Add the file descriptors
-        _process->addFD(sock1_fd, ref, ReadAccess + WriteAccess, cloexec);
-        _process->addFD(sock2_fd, ref, ReadAccess + WriteAccess, cloexec);
+        _process->addFD(sock1_fd, ref, cloexec);
+        _process->addFD(sock2_fd, ref, cloexec);
       }
     });
   } else {
@@ -1273,7 +1267,7 @@ void Thread::_fchdir(int fd) noexcept {
 
     if (rc == 0) {
       // Update the working directory
-      _process->setWorkingDir(_process->getFD(fd).getRef());
+      _process->setWorkingDir(_process->getFD(fd));
     }
   });
 }
