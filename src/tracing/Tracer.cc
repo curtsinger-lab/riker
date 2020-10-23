@@ -61,47 +61,6 @@ string signalName(int sig) {
   return iter->second;
 }
 
-/// A single global instance of this class is used to clean up tracers when there is a fatal error
-class TracerCleanup {
- public:
-  /// Run cleanup actions for all known tracers
-  ~TracerCleanup() {
-    for (auto t : _tracers) {
-      t->cleanup();
-    }
-  }
-
-  /// Add a tracer to the set of tracers to clean up on exit
-  void add(Tracer* t) { _tracers.emplace(t); }
-
-  /// Remove a tracer from the set of tracers to clean up on exit
-  void remove(Tracer* t) { _tracers.erase(t); }
-
- private:
-  set<Tracer*> _tracers;
-};
-
-TracerCleanup cleaner;
-
-// Create a tracer and keep a record of it in the cleanup object
-Tracer::Tracer(Build& build) noexcept : _build(build) {
-  cleaner.add(this);
-}
-
-// Remove this tracers from the cleanup object when it is destroyed
-Tracer::~Tracer() noexcept {
-  cleaner.remove(this);
-}
-
-// Clean up any processes left in this tracer
-void Tracer::cleanup() noexcept {
-  for (auto [tid, thread] : _threads) {
-    if (tid != gettid()) {
-      tgkill(thread->getProcess()->getID(), tid, SIGKILL);
-    }
-  }
-}
-
 shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
   // Launch the command with tracing
   return launchTraced(cmd);

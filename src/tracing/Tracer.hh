@@ -1,20 +1,20 @@
 #pragma once
 
 #include <list>
-#include <map>
 #include <memory>
 #include <optional>
 #include <tuple>
+#include <unordered_map>
 
 #include <sys/types.h>
 
 #include "util/log.hh"
 
 using std::list;
-using std::map;
 using std::optional;
 using std::shared_ptr;
 using std::tuple;
+using std::unordered_map;
 
 class Build;
 class Command;
@@ -26,10 +26,7 @@ class Tracer {
 
  public:
   /// Create a tracer linked to a specific rebuild environment
-  Tracer(Build& build) noexcept;
-
-  /// Destroy this tracer
-  ~Tracer() noexcept;
+  Tracer(Build& build) noexcept : _build(build) {}
 
   // Disallow copy
   Tracer(const Tracer&) = delete;
@@ -43,9 +40,6 @@ class Tracer {
 
   /// Claim a process from the set of exited processes
   shared_ptr<Process> getExited(pid_t pid) noexcept;
-
-  /// Try to clean up any remaining processes managed by this tracer
-  void cleanup() noexcept;
 
  private:
   /// Get the next available traced event
@@ -71,10 +65,10 @@ class Tracer {
   Build& _build;
 
   /// A map from thread IDs to threads
-  map<pid_t, shared_ptr<Thread>> _threads;
+  unordered_map<pid_t, shared_ptr<Thread>> _threads;
 
   /// The map of processes that have exited
-  map<pid_t, shared_ptr<Process>> _exited;
+  unordered_map<pid_t, shared_ptr<Process>> _exited;
 
   /// Some tracing events appear before we can process them (e.g. in a child process before we've
   /// seen its creation. Store them here.
