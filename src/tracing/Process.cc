@@ -13,19 +13,12 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 Process::Process(Build& build,
-                 Tracer& tracer,
                  shared_ptr<Command> command,
                  pid_t pid,
                  shared_ptr<Ref> cwd,
                  shared_ptr<Ref> root,
                  map<int, FileDescriptor> fds) noexcept :
-    _build(build),
-    _tracer(tracer),
-    _command(command),
-    _pid(pid),
-    _cwd(cwd),
-    _root(root),
-    _fds(fds) {
+    _build(build), _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
@@ -112,7 +105,7 @@ void Process::setCloexec(int fd, bool cloexec) noexcept {
 // The process is creating a new child
 shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
   // Return the child process object
-  return make_shared<Process>(_build, _tracer, _command, child_pid, _cwd, _root, _fds);
+  return make_shared<Process>(_build, _command, child_pid, _cwd, _root, _fds);
 }
 
 // The process is executing a new file

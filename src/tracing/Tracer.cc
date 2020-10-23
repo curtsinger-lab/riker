@@ -446,7 +446,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     fds[fd] = Process::FileDescriptor{ref, false};
   }
 
-  auto proc = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, fds);
+  auto proc = make_shared<Process>(_build, cmd, child_pid, cwd, root, fds);
   _threads[child_pid] = make_shared<Thread>(_build, *this, proc, child_pid);
 
   return proc;

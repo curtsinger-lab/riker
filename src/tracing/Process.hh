@@ -28,7 +28,6 @@ class Process : public std::enable_shared_from_this<Process> {
   using FileDescriptor = tuple<shared_ptr<Ref>, bool>;
 
   Process(Build& build,
-          Tracer& tracer,
           shared_ptr<Command> command,
           pid_t pid,
           shared_ptr<Ref> cwd,
@@ -94,9 +93,6 @@ class Process : public std::enable_shared_from_this<Process> {
  private:
   /// This process is running as part of a build
   Build& _build;
-
-  /// This process was launched under a specific tracer
-  Tracer& _tracer;
 
   /// The command this process is running
   shared_ptr<Command> _command;
