@@ -308,15 +308,14 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   vector<pair<int, int>> initial_fds;
 
   // Loop over the initial fds for the command we are launching
-  for (const auto& [child_fd, info] : cmd->getInitialFDs()) {
+  for (const auto& [child_fd, ref] : cmd->getInitialFDs()) {
     // Make sure the reference has already been resolved
-    ASSERT(info.getRef()->isResolved())
-        << "Tried to launch a command with an unresolved reference in its "
-           "initial file descriptor table";
+    ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
+                                 "initial file descriptor table";
 
     // Get a file descriptor for the reference in the command's initial descriptor table, and record
     // how it should be re-numbered in the child
-    initial_fds.emplace_back(info.getRef()->getFD(), child_fd);
+    initial_fds.emplace_back(ref->getFD(), child_fd);
   }
 
   // Launch a child process
@@ -443,7 +442,12 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
 
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
-  auto proc = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, cmd->getInitialFDs());
+  map<int, FileDescriptor> fds;
+  for (auto& [fd, ref] : cmd->getInitialFDs()) {
+    fds[fd] = FileDescriptor(ref);
+  }
+
+  auto proc = make_shared<Process>(_build, *this, cmd, child_pid, cwd, root, fds);
   _threads[child_pid] = make_shared<Thread>(_build, *this, proc, child_pid);
 
   return proc;

@@ -573,8 +573,8 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
     child->getExecutable()->getArtifact()->commitAll();
 
     // The child command also depends on the artifacts reachable through its initial FDs
-    for (auto& [index, desc] : child->getInitialFDs()) {
-      auto artifact = desc.getRef()->getArtifact();
+    for (auto& [index, ref] : child->getInitialFDs()) {
+      auto artifact = ref->getArtifact();
 
       // TODO: Handle pipes eventually. Just skip them for now
       if (artifact->as<PipeArtifact>()) continue;
@@ -990,7 +990,7 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
 shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
                                        shared_ptr<Ref> exe_ref,
                                        vector<string> args,
-                                       map<int, FileDescriptor> fds,
+                                       map<int, shared_ptr<Ref>> fds,
                                        shared_ptr<Ref> cwd_ref,
                                        shared_ptr<Ref> root_ref) noexcept {
   // Count a traced step and a traced command
@@ -1029,8 +1029,8 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
   child->getExecutable()->getArtifact()->commitAll();
 
   // The child command also depends on the artifacts reachable through its initial FDs
-  for (auto& [index, desc] : child->getInitialFDs()) {
-    auto artifact = desc.getRef()->getArtifact();
+  for (auto& [index, ref] : child->getInitialFDs()) {
+    auto artifact = ref->getArtifact();
 
     // TODO: Handle pipes eventually. Just skip them for now
     if (artifact->as<PipeArtifact>()) continue;

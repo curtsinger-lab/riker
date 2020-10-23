@@ -71,7 +71,7 @@ Command::ChildRecord::ChildRecord(shared_ptr<Command> child) noexcept :
 Command::ChildRecord::ChildRecord(shared_ptr<Ref> exe_ref,
                                   shared_ptr<Ref> cwd_ref,
                                   vector<string> args,
-                                  map<int, FileDescriptor> fds) noexcept {
+                                  map<int, shared_ptr<Ref>> fds) noexcept {
   auto exe = exe_ref->getArtifact();
   _exe_content = exe ? exe->peekContent() : nullptr;
 
@@ -79,8 +79,8 @@ Command::ChildRecord::ChildRecord(shared_ptr<Ref> exe_ref,
   _cwd_path = cwd ? cwd->getPath() : nullopt;
 
   _args = args;
-  for (auto& [fd, desc] : fds) {
-    auto a = desc.getRef()->getArtifact();
+  for (auto& [fd, ref] : fds) {
+    auto a = ref->getArtifact();
     _fd_content[fd] = a ? a->peekContent() : nullptr;
   }
 }
@@ -135,7 +135,7 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
 
 shared_ptr<Command> Command::findChild(shared_ptr<Ref> exe_ref,
                                        vector<string> args,
-                                       map<int, FileDescriptor> fds,
+                                       map<int, shared_ptr<Ref>> fds,
                                        shared_ptr<Ref> cwd_ref,
                                        shared_ptr<Ref> root_ref) noexcept {
   ChildRecord record(exe_ref, cwd_ref, args, fds);

@@ -252,7 +252,7 @@ class Build : public TraceHandler, public BuildObserver {
   shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
                                   shared_ptr<Ref> exe_ref,
                                   vector<string> args,
-                                  map<int, FileDescriptor> fds,
+                                  map<int, shared_ptr<Ref>> fds,
                                   shared_ptr<Ref> cwd_ref,
                                   shared_ptr<Ref> root_ref) noexcept;
 

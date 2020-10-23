@@ -43,9 +43,9 @@ CEREAL_REGISTER_TYPE(PipeReadVersion);
 
 // Read a command from an input trace
 void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  map<int, FileDescriptor> fds;
+  map<int, shared_ptr<Ref>> fds;
   for (auto [fd, ref_id] : _initial_fds) {
-    fds[fd] = FileDescriptor(input.getRef(ref_id));
+    fds[fd] = input.getRef(ref_id);
   }
 
   auto cmd = make_shared<Command>(input.getRef(_exe_id), _args, fds, input.getRef(_cwd_id),

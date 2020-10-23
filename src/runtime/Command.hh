@@ -46,7 +46,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Create a new command
   Command(shared_ptr<Ref> exe,
           vector<string> args,
-          map<int, FileDescriptor> initial_fds,
+          map<int, shared_ptr<Ref>> initial_fds,
           shared_ptr<Ref> initial_cwd,
           shared_ptr<Ref> initial_root) noexcept :
       _exe(exe),
@@ -97,7 +97,7 @@ class Command : public std::enable_shared_from_this<Command> {
   const vector<string>& getArguments() const noexcept { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, FileDescriptor>& getInitialFDs() const noexcept { return _initial_fds; }
+  const map<int, shared_ptr<Ref>>& getInitialFDs() const noexcept { return _initial_fds; }
 
   /// When we emulate this command's launch of a child command, keep a record so we can match
   /// against it later and possibly skip that child command.
@@ -106,7 +106,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Look through this command's list of children to see if there is a matching child
   shared_ptr<Command> findChild(shared_ptr<Ref> exe_ref,
                                 vector<string> args,
-                                map<int, FileDescriptor> fds,
+                                map<int, shared_ptr<Ref>> fds,
                                 shared_ptr<Ref> cwd_ref,
                                 shared_ptr<Ref> root_ref) noexcept;
 
@@ -131,7 +131,7 @@ class Command : public std::enable_shared_from_this<Command> {
   vector<string> _args;
 
   /// The file descriptor table at the start of this command's execution
-  map<int, FileDescriptor> _initial_fds;
+  map<int, shared_ptr<Ref>> _initial_fds;
 
   /// A reference to the directory where this command is started
   shared_ptr<Ref> _initial_cwd;
@@ -158,7 +158,7 @@ class Command : public std::enable_shared_from_this<Command> {
     ChildRecord(shared_ptr<Ref> exe_ref,
                 shared_ptr<Ref> cwd_ref,
                 vector<string> args,
-                map<int, FileDescriptor> fds) noexcept;
+                map<int, shared_ptr<Ref>> fds) noexcept;
 
     bool operator==(const ChildRecord& other) noexcept;
   };

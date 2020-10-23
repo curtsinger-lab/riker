@@ -124,9 +124,7 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   handler.specialRef(no_cmd, SpecialRef::launch_exe, exe_ref);
 
   // Create a map of initial file descriptors
-  map<int, FileDescriptor> fds = {{0, FileDescriptor(stdin_ref)},
-                                  {1, FileDescriptor(stdout_ref)},
-                                  {2, FileDescriptor(stderr_ref)}};
+  map<int, shared_ptr<Ref>> fds = {{0, stdin_ref}, {1, stdout_ref}, {2, stderr_ref}};
 
   // Create a root command
   Command::ID root_cmd_id = 1;

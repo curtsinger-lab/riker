@@ -110,7 +110,7 @@ void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> 
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
-  map<int, FileDescriptor> initial_fds;
+  map<int, shared_ptr<Ref>> initial_fds;
   list<int> to_erase;
 
   for (const auto& [index, fd] : _fds) {
@@ -121,7 +121,7 @@ void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> 
       // Remember this index so we can remove it later
       to_erase.push_back(index);
     } else {
-      initial_fds.emplace(index, FileDescriptor(fd.getRef()));
+      initial_fds.emplace(index, fd.getRef());
     }
   }
 
@@ -135,9 +135,9 @@ void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> 
 
   // Loop over the initial FDs. These handles are shifting from the parent to the child.
   // We implement this by "opening" the handle in the child and "closing" it in the parent
-  for (auto& [index, desc] : child->getInitialFDs()) {
-    _build.traceUsingRef(child, desc.getRef());
-    _build.traceDoneWithRef(_command, desc.getRef());
+  for (auto& [index, ref] : child->getInitialFDs()) {
+    _build.traceUsingRef(child, ref);
+    _build.traceDoneWithRef(_command, ref);
   }
 
   // The child gains references to root and cwd, which the parent then closes
