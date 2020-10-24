@@ -160,12 +160,12 @@ void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void DirArtifact::beforeRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void DirArtifact::beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void DirArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void DirArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The command now depends on the content of this directory
   build.traceMatchContent(c, ref, getList(build, c));
 }

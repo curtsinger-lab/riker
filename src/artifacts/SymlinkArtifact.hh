@@ -52,12 +52,10 @@ class SymlinkArtifact : public Artifact {
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           shared_ptr<Command> c,
-                          shared_ptr<Ref> ref) noexcept override;
+                          Command::RefID ref) noexcept override;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build,
-                         shared_ptr<Command> c,
-                         shared_ptr<Ref> ref) noexcept override;
+  virtual void afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept override;
 
   /************ Content Operations ************/
 

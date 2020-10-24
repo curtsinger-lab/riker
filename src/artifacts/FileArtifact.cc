@@ -114,12 +114,12 @@ void FileArtifact::setCommitted() noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void FileArtifact::beforeRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void FileArtifact::beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void FileArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void FileArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The current content version is an input to command c
   build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
 
@@ -128,7 +128,7 @@ void FileArtifact::afterRead(Build& build, shared_ptr<Command> c, shared_ptr<Ref
 }
 
 /// A traced command is about to (possibly) write to this artifact
-void FileArtifact::beforeWrite(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void FileArtifact::beforeWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The content version is an input to command c
   build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
 
@@ -137,7 +137,7 @@ void FileArtifact::beforeWrite(Build& build, shared_ptr<Command> c, shared_ptr<R
 }
 
 /// A traced command just wrote to this artifact
-void FileArtifact::afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<Ref> ref) noexcept {
+void FileArtifact::afterWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // Create a new version
   auto writing = make_shared<FileVersion>();
 
@@ -148,14 +148,12 @@ void FileArtifact::afterWrite(Build& build, shared_ptr<Command> c, shared_ptr<Re
 /// A traced command is about to truncate this artifact to length 0
 void FileArtifact::beforeTruncate(Build& build,
                                   shared_ptr<Command> c,
-                                  shared_ptr<Ref> ref) noexcept {
+                                  Command::RefID ref) noexcept {
   // Do nothing before a truncate
 }
 
 /// A trace command just truncated this artifact to length 0
-void FileArtifact::afterTruncate(Build& build,
-                                 shared_ptr<Command> c,
-                                 shared_ptr<Ref> ref) noexcept {
+void FileArtifact::afterTruncate(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The command wrote an empty content version to this artifact
   auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
 

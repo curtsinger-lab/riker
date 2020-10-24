@@ -235,18 +235,14 @@ void Tracer::handleSyscall(shared_ptr<Thread> t) noexcept {
 shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
   LOG(exec) << "Executing " << cmd;
 
-  // Get a reference to the directory where the command will be started
-  auto cwd = cmd->getInitialWorkingDir();
-
-  // Get a reference to the root directory in effect when the command is started
-  auto root = cmd->getInitialRootDir();
-
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
   vector<pair<int, int>> initial_fds;
 
   // Loop over the initial fds for the command we are launching
-  for (const auto& [child_fd, ref] : cmd->getInitialFDs()) {
+  for (const auto& [child_fd, ref_id] : cmd->getInitialFDs()) {
+    auto& ref = cmd->getRef(ref_id);
+
     // Make sure the reference has already been resolved
     ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
                                  "initial file descriptor table";
@@ -276,7 +272,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     }
 
     // Change to the initial working directory
-    auto cwd = cmd->getInitialWorkingDir()->getArtifact();
+    auto cwd = cmd->getRef(Command::CwdRef)->getArtifact();
     auto cwd_path = cwd->getPath(false);
     ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
@@ -339,7 +335,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    auto exe = cmd->getExecutable()->getArtifact();
+    auto exe = cmd->getRef(Command::ExeRef)->getArtifact();
     auto exe_path = exe->getPath(false);
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
     execv(exe_path.value().c_str(), (char* const*)args.data());
@@ -385,7 +381,7 @@ shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
     fds[fd] = Process::FileDescriptor{ref, false};
   }
 
-  auto proc = make_shared<Process>(_build, cmd, child_pid, cwd, root, fds);
+  auto proc = make_shared<Process>(_build, cmd, child_pid, Command::CwdRef, Command::RootRef, fds);
   _threads[child_pid] = make_shared<Thread>(_build, *this, proc, child_pid);
 
   return proc;
