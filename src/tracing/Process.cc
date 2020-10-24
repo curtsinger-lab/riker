@@ -145,6 +145,10 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
     _fds.emplace(fd, FileDescriptor{ref, false});
   }
 
+  // Update the cwd and root references for the process to use refs from the new command
+  _cwd = Command::CwdRef;
+  _root = Command::RootRef;
+
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we
   // over-approximate the set of commands that have a file mmapped.
