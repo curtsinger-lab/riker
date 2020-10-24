@@ -533,7 +533,7 @@ void Build::launch(shared_ptr<Command> c, shared_ptr<Command> child) noexcept {
   observeLaunch(c, child);
 
   // Add the child to the parent command's set of children
-  if (c) c->addChild(child);
+  // if (c) c->addChild(child);
 
   // Are we going to re-execute the child?
   bool launch_command = false;
@@ -998,7 +998,8 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
   _traced_command_count++;
 
   // Look to see if the current command has a matching child command
-  auto child = c->findChild(exe_ref, args, fds, cwd_ref, root_ref);
+  // auto child = c->findChild(exe_ref, args, fds, cwd_ref, root_ref);
+  shared_ptr<Command> child;
 
   // Did we find a matching command?
   if (child) {

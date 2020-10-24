@@ -69,6 +69,8 @@ bool Command::isMake() const noexcept {
   return exe_path.filename().string() == "make";
 }
 
+/*
+
 Command::ChildRecord::ChildRecord(shared_ptr<Command> child) noexcept :
     ChildRecord(child->_exe, child->_initial_cwd, child->_args, child->_initial_fds) {
   _command = child;
@@ -161,3 +163,5 @@ shared_ptr<Command> Command::findChild(shared_ptr<Ref> exe_ref,
 
   return nullptr;
 }
+
+*/

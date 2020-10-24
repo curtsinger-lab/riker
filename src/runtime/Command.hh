@@ -108,6 +108,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, shared_ptr<Ref>>& getInitialFDs() const noexcept { return _initial_fds; }
 
+  /*
   /// When we emulate this command's launch of a child command, keep a record so we can match
   /// against it later and possibly skip that child command.
   void addChild(shared_ptr<Command> child) noexcept;
@@ -118,6 +119,7 @@ class Command : public std::enable_shared_from_this<Command> {
                                 map<int, shared_ptr<Ref>> fds,
                                 shared_ptr<Ref> cwd_ref,
                                 shared_ptr<Ref> root_ref) noexcept;
+  */
 
   /****** Utility Methods ******/
 
@@ -158,6 +160,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The exit status recorded for this command after its last execution
   int _exit_status;
 
+  /*
   /// A record of a past command launch
   struct ChildRecord {
     shared_ptr<Version> _exe_content;
@@ -178,4 +181,5 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// A set of commands launched by this command
   list<ChildRecord> _children;
+  */
 };
