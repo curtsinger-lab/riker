@@ -61,12 +61,6 @@ class Ref final {
   Ref(Ref&&) noexcept = default;
   Ref& operator=(Ref&&) noexcept = default;
 
-  /// Get this Ref's unique ID
-  size_t getID() const noexcept { return _id; }
-
-  /// Get a short name for this Ref
-  string getName() const noexcept { return "r" + std::to_string(getID()); }
-
   /// Get the artifact reached via this reference
   shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
 
@@ -92,7 +86,13 @@ class Ref final {
   int getFD() noexcept;
 
   /// Print a Ref
-  ostream& print(ostream& o) const noexcept { return o << getName(); }
+  ostream& print(ostream& o) const noexcept {
+    if (_rc == SUCCESS) {
+      return o << getArtifact();
+    } else {
+      return o << getErrorName(_rc);
+    }
+  }
 
   /// Stream print wrapper for Ref references
   friend ostream& operator<<(ostream& o, const Ref& r) noexcept { return r.print(o); }
@@ -104,9 +104,6 @@ class Ref final {
   }
 
  private:
-  /// A unique identifier for this reference result
-  UniqueID<Ref> _id;
-
   /// The error code (or SUCCESS) that this reference resolved to
   int _rc;
 

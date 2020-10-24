@@ -146,7 +146,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// This command's local references
-  map<RefID, shared_ptr<Ref>> _refs;
+  vector<shared_ptr<Ref>> _refs;
 
   /// The file descriptor entries populated at the start of this command's execution
   map<int, RefID> _initial_fds;

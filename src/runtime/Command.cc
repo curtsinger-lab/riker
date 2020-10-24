@@ -91,7 +91,12 @@ void Command::reset() noexcept {
 
 // Prepare this command to execute by creating dependencies and committing state
 void Command::prepareToExecute(Build& build) noexcept {
-  for (const auto& [id, ref] : _refs) {
+  for (Command::RefID id = 0; id < _refs.size(); id++) {
+    const auto& ref = _refs[id];
+
+    // Is the ref assigned? If not, skip ahead
+    if (!ref) continue;
+
     if (id == Command::CwdRef) {
       // The current directory has to exist to launch the command
       ref->getArtifact()->mustExist(build, shared_from_this());
@@ -118,27 +123,30 @@ void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
 
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Command::RefID id) const noexcept {
-  auto iter = _refs.find(id);
-  ASSERT(iter != _refs.end()) << "Invalid reference ID " << id << " in " << this;
-  ASSERT(iter->second) << "Access to null reference ID " << id << " in " << this;
-  return iter->second;
+  ASSERT(id >= 0 && id < _refs.size()) << "Invalid reference ID " << id << " in " << this;
+  ASSERT(_refs[id]) << "Access to null reference ID " << id << " in " << this;
+  return _refs[id];
 }
 
 // Store a reference at a known index of this command's local reference table
 void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
 
-  auto iter = _refs.find(id);
-  ASSERT(iter == _refs.end()) << "Attempted to overwrite reference ID " << id << " in " << this;
+  // Are we adding this ref onto the end of the refs list? If so, grow as needed
+  if (id >= _refs.size()) _refs.resize(id + 1);
 
-  _refs.emplace_hint(iter, id, ref);
+  // Make sure the ref we're assigning to is null
+  ASSERT(!_refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
+
+  // Save the ref
+  _refs[id] = ref;
 }
 
 // Store a reference at the next available index of this command's local reference table
 Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
   RefID id = _refs.size();
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
-  _refs.emplace(id, ref);
+  _refs.push_back(ref);
   return id;
 }
 

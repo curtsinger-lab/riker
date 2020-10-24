@@ -107,7 +107,7 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   handler.usingRef(no_cmd, Command::StderrRef);
 
   // Set up the reference to the root directory
-  handler.specialRef(no_cmd, SpecialRef::cwd, Command::RootRef);
+  handler.specialRef(no_cmd, SpecialRef::root, Command::RootRef);
   handler.usingRef(no_cmd, Command::RootRef);
 
   // Set up the reference to the working directory

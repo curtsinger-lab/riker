@@ -553,9 +553,7 @@ void Build::launch(shared_ptr<Command> c,
   _emulated_step_count++;
 
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{c, child};
-
-  LOG(exec) << c << " launching " << child;
+  LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{c, child, refs};
 
   // Assign references in the child command
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
@@ -604,6 +602,8 @@ void Build::launch(shared_ptr<Command> c,
 
     // Prepare the child command to execute by committing the necessary state from its references
     child->prepareToExecute(*this);
+
+    LOG(exec) << c << " launching " << child;
 
     // Start the child command in the tracer
     _running[child] = _tracer.start(child);
@@ -765,7 +765,8 @@ Command::RefID Build::tracePathRef(shared_ptr<Command> c,
   _output.pathRef(c, base_id, path, flags, output);
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base_id, path, flags, output};
+  LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base_id, path, flags, output} << " -> "
+          << c->getRef(output);
 
   return output;
 }
@@ -1066,6 +1067,9 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> parent,
     auto child_ref = child->setRef(parent->getRef(parent_ref));
     child->addInitialFD(fd, child_ref);
     refs.emplace_back(parent_ref, child_ref);
+
+    LOG(exec) << child << " inherits fd " << fd << " from parent ref " << parent_ref
+              << ", now using child ref " << child_ref;
   }
 
   // Prepare the child command to execute by committing the necessary state from its references

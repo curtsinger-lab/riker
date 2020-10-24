@@ -126,12 +126,13 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
   auto child = _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds);
 
   // The parent command is no longer using any references in this process
-  _build.traceDoneWithRef(_command, exe_ref);
+  //_build.traceDoneWithRef(_command, exe_ref);
   _build.traceDoneWithRef(_command, _cwd);
   _build.traceDoneWithRef(_command, _root);
 
   for (const auto& [fd, desc] : _fds) {
-    _build.traceDoneWithRef(_command, fd);
+    auto [ref, cloexec] = desc;
+    _build.traceDoneWithRef(_command, ref);
   }
 
   // This process is now running the child
@@ -141,7 +142,7 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
   _fds.clear();
 
   for (auto& [fd, ref] : child->getInitialFDs()) {
-    _fds.emplace(fd, FileDescriptor{fd, false});
+    _fds.emplace(fd, FileDescriptor{ref, false});
   }
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
