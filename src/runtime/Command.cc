@@ -113,8 +113,6 @@ void Command::prepareToExecute(Build& build) noexcept {
 // Add an initial file descriptor to this command
 void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
   ASSERT(fd >= 0) << "Invalid file descriptor number " << fd << " in " << this;
-  ASSERT(_refs.find(ref) != _refs.end())
-      << "Initial fd " << fd << " uses invalid ref " << ref << " in " << this;
   _initial_fds.emplace(fd, ref);
 }
 

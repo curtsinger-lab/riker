@@ -43,15 +43,18 @@ CEREAL_REGISTER_TYPE(PipeReadVersion);
 
 // Read a command from an input trace
 void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
-  auto cmd = make_shared<Command>(_args);
-  if (_executed) cmd->setExecuted();
-  cmd->setExitStatus(_exit_status);
+  // Has this input trace already created a command from this record?
+  if (!input.hasCommand(_id)) {
+    // No. Create a command and add it to the trace
+    auto cmd = make_shared<Command>(_args);
+    if (_executed) cmd->setExecuted();
+    cmd->setExitStatus(_exit_status);
 
-  for (auto [fd, ref_id] : _initial_fds) {
-    cmd->addInitialFD(fd, ref_id);
+    for (auto [fd, ref_id] : _initial_fds) {
+      cmd->addInitialFD(fd, ref_id);
+    }
+    input.addCommand(_id, cmd);
   }
-
-  input.addCommand(_id, cmd);
 }
 
 // Send a SpecialRef IR step from an input trace to a trace handler
