@@ -89,48 +89,50 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   Command::ID no_cmd_id = 0;
   auto no_cmd = getCommand(no_cmd_id);
 
-  // Create the initial pipe references
-  Ref::ID stdin_ref_id = 0;
-  auto stdin_ref = getRef(stdin_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::stdin, stdin_ref);
-  handler.usingRef(no_cmd, stdin_ref);
+  // Create a reference to stdin
+  handler.specialRef(no_cmd, SpecialRef::stdin, Command::StdinRef);
+  handler.usingRef(no_cmd, Command::StdinRef);
 
-  Ref::ID stdout_ref_id = 1;
-  auto stdout_ref = getRef(stdout_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::stdout, stdout_ref);
-  handler.usingRef(no_cmd, stdout_ref);
+  // Create a reference to stdout
+  handler.specialRef(no_cmd, SpecialRef::stdout, Command::StdoutRef);
+  handler.usingRef(no_cmd, Command::StdoutRef);
 
-  Ref::ID stderr_ref_id = 2;
-  auto stderr_ref = getRef(stderr_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::stderr, stderr_ref);
-  handler.usingRef(no_cmd, stderr_ref);
+  // Create a reference to stderr
+  handler.specialRef(no_cmd, SpecialRef::stderr, Command::StderrRef);
+  handler.usingRef(no_cmd, Command::StderrRef);
 
-  // Create a reference to the root directory
-  Ref::ID root_ref_id = 3;
-  auto root_ref = getRef(root_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::root, root_ref);
-  handler.usingRef(no_cmd, root_ref);
+  // Set up the reference to the root directory
+  handler.specialRef(no_cmd, SpecialRef::cwd, Command::RootRef);
+  handler.usingRef(no_cmd, Command::RootRef);
 
-  // Create a reference to the current working directory and add it to the trace
-  Ref::ID cwd_ref_id = 4;
-  auto cwd_ref = getRef(cwd_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::cwd, cwd_ref);
-  handler.usingRef(no_cmd, cwd_ref);
+  // Set up the reference to the working directory
+  handler.specialRef(no_cmd, SpecialRef::cwd, Command::CwdRef);
+  handler.usingRef(no_cmd, Command::CwdRef);
 
-  // Set up the reference to the dodo-launch executable and add it to the trace
-  Ref::ID exe_ref_id = 5;
-  auto exe_ref = getRef(exe_ref_id);
-  handler.specialRef(no_cmd, SpecialRef::launch_exe, exe_ref);
-
-  // Create a map of initial file descriptors
-  map<int, shared_ptr<Ref>> fds = {{0, stdin_ref}, {1, stdout_ref}, {2, stderr_ref}};
+  // Set up the reference to the launch executable
+  handler.specialRef(no_cmd, SpecialRef::launch_exe, Command::ExeRef);
+  handler.usingRef(no_cmd, Command::ExeRef);
 
   // Create a root command
   Command::ID root_cmd_id = 1;
   auto cmd_args = vector<string>{"dodo-launch"};
   cmd_args.insert(cmd_args.end(), _args.begin(), _args.end());
-  addCommand(root_cmd_id, make_shared<Command>(exe_ref, cwd_ref, root_ref, fds, cmd_args));
+  auto root_command = make_shared<Command>(cmd_args);
+
+  // Add initial FDs to the root command
+  root_command->addInitialFD(STDIN_FILENO, Command::StdinRef);
+  root_command->addInitialFD(STDOUT_FILENO, Command::StdoutRef);
+  root_command->addInitialFD(STDERR_FILENO, Command::StderrRef);
+
+  // Record the root command in the input trace
+  addCommand(root_cmd_id, root_command);
+
+  // Create a mapping for references inherited by the root command
+  list<tuple<Command::RefID, Command::RefID>> refs = {
+      {Command::StdinRef, Command::StdinRef},   {Command::StdoutRef, Command::StdoutRef},
+      {Command::StderrRef, Command::StderrRef}, {Command::RootRef, Command::RootRef},
+      {Command::CwdRef, Command::CwdRef},       {Command::ExeRef, Command::ExeRef}};
 
   // Launch the root command
-  handler.launch(no_cmd, getCommand(root_cmd_id));
+  handler.launch(no_cmd, getCommand(root_cmd_id), refs);
 }

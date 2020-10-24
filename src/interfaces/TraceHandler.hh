@@ -1,16 +1,21 @@
 #pragma once
 
 #include <filesystem>
+#include <list>
 #include <memory>
+#include <tuple>
 
 #include "data/AccessFlags.hh"
+#include "runtime/Command.hh"
 
 class Command;
 class MetadataVersion;
 class Ref;
 class Version;
 
+using std::list;
 using std::shared_ptr;
+using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -38,87 +43,87 @@ class TraceHandler {
   /// Handle a SpecialRef IR step
   virtual void specialRef(shared_ptr<Command> command,
                           SpecialRef entity,
-                          shared_ptr<Ref> output) noexcept {};
+                          Command::RefID output) noexcept {};
 
   /// Handle a PipeRef IR step
   virtual void pipeRef(shared_ptr<Command> command,
-                       shared_ptr<Ref> read_end,
-                       shared_ptr<Ref> write_end) noexcept {};
+                       Command::RefID read_end,
+                       Command::RefID write_end) noexcept {};
 
   /// Handle a FileRef IR step
-  virtual void fileRef(shared_ptr<Command> command,
-                       mode_t mode,
-                       shared_ptr<Ref> output) noexcept {};
+  virtual void fileRef(shared_ptr<Command> command, mode_t mode, Command::RefID output) noexcept {};
 
   /// Handle a SymlinkRef IR step
   virtual void symlinkRef(shared_ptr<Command> command,
                           fs::path target,
-                          shared_ptr<Ref> output) noexcept {};
+                          Command::RefID output) noexcept {};
 
   /// Handle a DirRef IR step
-  virtual void dirRef(shared_ptr<Command> command, mode_t mode, shared_ptr<Ref> output) noexcept {};
+  virtual void dirRef(shared_ptr<Command> command, mode_t mode, Command::RefID output) noexcept {};
 
   /// Handle a PathRef IR step
   virtual void pathRef(shared_ptr<Command> command,
-                       shared_ptr<Ref> base,
+                       Command::RefID base,
                        fs::path path,
                        AccessFlags flags,
-                       shared_ptr<Ref> output) noexcept {};
+                       Command::RefID output) noexcept {};
 
   /// Handle a UsingRef IR step
-  virtual void usingRef(shared_ptr<Command> command, shared_ptr<Ref> ref) noexcept {}
+  virtual void usingRef(shared_ptr<Command> command, Command::RefID ref) noexcept {}
 
   /// Handle a DoneWithRef IR step
-  virtual void doneWithRef(shared_ptr<Command> command, shared_ptr<Ref> ref) noexcept {}
+  virtual void doneWithRef(shared_ptr<Command> command, Command::RefID ref) noexcept {}
 
   /// Handle a CompareRefs IR step
   virtual void compareRefs(shared_ptr<Command> command,
-                           shared_ptr<Ref> ref1,
-                           shared_ptr<Ref> ref2,
+                           Command::RefID ref1,
+                           Command::RefID ref2,
                            RefComparison type) noexcept {};
 
   /// Handle an ExpectResult IR step
   virtual void expectResult(shared_ptr<Command> command,
                             Scenario scenario,
-                            shared_ptr<Ref> ref,
+                            Command::RefID ref,
                             int expected) noexcept {};
 
   /// Handle a MatchMetadata IR step
   virtual void matchMetadata(shared_ptr<Command> command,
                              Scenario scenario,
-                             shared_ptr<Ref> ref,
+                             Command::RefID ref,
                              shared_ptr<MetadataVersion> version) noexcept {};
 
   /// Handel a MatchContent IR step
   virtual void matchContent(shared_ptr<Command> command,
                             Scenario scenario,
-                            shared_ptr<Ref> ref,
+                            Command::RefID ref,
                             shared_ptr<Version> version) noexcept {};
 
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(shared_ptr<Command> command,
-                              shared_ptr<Ref> ref,
+                              Command::RefID ref,
                               shared_ptr<MetadataVersion> version) noexcept {};
 
   /// Handle an UpdateContent IR step
   virtual void updateContent(shared_ptr<Command> command,
-                             shared_ptr<Ref> ref,
+                             Command::RefID ref,
                              shared_ptr<Version> version) noexcept {};
 
   /// Handle an AddEntry IR step
   virtual void addEntry(shared_ptr<Command> command,
-                        shared_ptr<Ref> dir,
+                        Command::RefID dir,
                         fs::path name,
-                        shared_ptr<Ref> target) noexcept {};
+                        Command::RefID target) noexcept {};
 
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(shared_ptr<Command> command,
-                           shared_ptr<Ref> dir,
+                           Command::RefID dir,
                            fs::path name,
-                           shared_ptr<Ref> target) noexcept {};
+                           Command::RefID target) noexcept {};
 
   /// Handle a Launch IR step
-  virtual void launch(shared_ptr<Command> command, shared_ptr<Command> child) noexcept {};
+  virtual void launch(shared_ptr<Command> command,
+                      shared_ptr<Command> child,
+                      list<tuple<Command::RefID, Command::RefID>> refs) noexcept {};
 
   /// Handle a Join IR step
   virtual void join(shared_ptr<Command> command,

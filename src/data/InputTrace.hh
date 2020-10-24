@@ -67,18 +67,6 @@ class InputTrace {
   /// Get a command from its ID
   shared_ptr<Command> getCommand(Command::ID id) const noexcept { return _commands[id]; }
 
-  /// Get a Ref from its ID
-  shared_ptr<Ref> getRef(Ref::ID id) noexcept {
-    // Grow the vector if necessary
-    if (_ref_results.size() <= id) _ref_results.resize(id + 1);
-
-    // If the referenced entry is unset, initialize it
-    if (!_ref_results[id]) _ref_results[id] = make_shared<Ref>();
-
-    // Return the refresult
-    return _ref_results[id];
-  }
-
  private:
   /// Send a default trace to a trace handler
   void sendDefault(TraceHandler& handler) noexcept;
@@ -92,7 +80,4 @@ class InputTrace {
 
   /// The map from command IDs to command instances
   vector<shared_ptr<Command>> _commands;
-
-  /// The map from Ref IDs to instances
-  vector<shared_ptr<Ref>> _ref_results;
 };

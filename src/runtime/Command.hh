@@ -39,7 +39,7 @@ class Command : public std::enable_shared_from_this<Command> {
  private:
   friend class RebuildPlanner;
 
-  /// Create a command with no values filled in. This is only used to create the null command
+  /// Default constructor used to create the null command instance
   Command() noexcept = default;
 
  public:
@@ -49,17 +49,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The type of a reference ID
   using RefID = uint32_t;
 
+  /// Default RefIDs
+  enum : RefID { StdinRef = 0, StdoutRef = 1, StderrRef = 2, RootRef = 3, CwdRef = 4, ExeRef = 5 };
+
   /// Create a new command
-  Command(shared_ptr<Ref> exe,
-          shared_ptr<Ref> initial_cwd,
-          shared_ptr<Ref> initial_root,
-          map<int, shared_ptr<Ref>> initial_fds,
-          vector<string> args) noexcept :
-      _exe(exe),
-      _initial_cwd(initial_cwd),
-      _initial_root(initial_root),
-      _initial_fds(initial_fds),
-      _args(args) {}
+  Command(vector<string> args) noexcept;
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -78,17 +72,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the full name for this command
   string getFullName() const noexcept;
 
+  /// Is this command the null command?
+  bool isNullCommand() const noexcept;
+
   /// Is this command the make build tool?
   bool isMake() const noexcept;
-
-  /// Get the reference to the executable file this command runs
-  shared_ptr<Ref> getExecutable() const noexcept { return _exe; }
-
-  /// Get the working directory where this command is started
-  shared_ptr<Ref> getInitialWorkingDir() const noexcept { return _initial_cwd; }
-
-  /// Get the root directory in effect when this command is started
-  shared_ptr<Ref> getInitialRootDir() const noexcept { return _initial_root; }
 
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
@@ -106,7 +94,25 @@ class Command : public std::enable_shared_from_this<Command> {
   const vector<string>& getArguments() const noexcept { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, shared_ptr<Ref>>& getInitialFDs() const noexcept { return _initial_fds; }
+  const map<int, RefID>& getInitialFDs() const noexcept { return _initial_fds; }
+
+  /// Reset the transient state in this command to prepare for a new emulation/execution
+  void reset() noexcept;
+
+  /// Add an initial file descriptor to this command
+  void addInitialFD(int fd, RefID ref) noexcept;
+
+  /// Get a reference from this command's reference table
+  const shared_ptr<Ref>& getRef(RefID id) const noexcept;
+
+  /// Store a reference at a known index of this command's local reference table
+  void setRef(RefID id, shared_ptr<Ref> ref) noexcept;
+
+  /// Store a reference at the next available index of this command's local reference table
+  RefID setRef(shared_ptr<Ref> ref) noexcept;
+
+  /// Create dependencies to prepare this command for execution
+  void prepareToExecute(Build& build) noexcept;
 
   /*
   /// When we emulate this command's launch of a child command, keep a record so we can match
@@ -125,7 +131,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Print a Command to an output stream
   friend ostream& operator<<(ostream& o, const Command& c) noexcept {
-    if (!c._exe) {
+    if (c.isNullCommand()) {
       return o << "[No Command]";
     } else {
       return o << "[Command " << c.getShortName() << "]";
@@ -139,17 +145,11 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
  private:
-  /// The executable file this command runs
-  shared_ptr<Ref> _exe;
+  /// This command's local references
+  map<RefID, shared_ptr<Ref>> _refs;
 
-  /// A reference to the directory where this command is started
-  shared_ptr<Ref> _initial_cwd;
-
-  /// A reference to the root directory in effect when this command is started
-  shared_ptr<Ref> _initial_root;
-
-  /// The file descriptor table at the start of this command's execution
-  map<int, shared_ptr<Ref>> _initial_fds;
+  /// The file descriptor entries populated at the start of this command's execution
+  map<int, RefID> _initial_fds;
 
   /// The arguments passed to this command on startup
   vector<string> _args;

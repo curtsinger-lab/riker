@@ -9,6 +9,7 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/PipeArtifact.hh"
 #include "versions/Version.hh"
 
 using std::cout;
@@ -28,6 +29,12 @@ shared_ptr<Command> Command::getNullCommand() noexcept {
   return _null_command;
 }
 
+// Create a command
+Command::Command(vector<string> args) noexcept : _args(args) {
+  ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
+}
+
+// Get a short, length-limited name for this command
 string Command::getShortName(size_t limit) const noexcept {
   // A command with no arguments is anonymous. This shouldn't happen, but better to be safe.
   if (_args.size() == 0) return "<anon>";
@@ -53,6 +60,7 @@ string Command::getShortName(size_t limit) const noexcept {
   return result;
 }
 
+// Get a full name for this command
 string Command::getFullName() const noexcept {
   string result;
   bool first = true;
@@ -64,9 +72,76 @@ string Command::getFullName() const noexcept {
   return result;
 }
 
+// Is this command the null command?
+bool Command::isNullCommand() const noexcept {
+  return _args.size() == 0;
+}
+
+// Is this command a make command?
 bool Command::isMake() const noexcept {
   fs::path exe_path = _args.front();
   return exe_path.filename().string() == "make";
+}
+
+// Reset the transient state in this command to prepare for a new emulation/execution
+void Command::reset() noexcept {
+  // Clear the vector of references. They will be filled in again during emulation/execution.
+  _refs.clear();
+}
+
+// Prepare this command to execute by creating dependencies and committing state
+void Command::prepareToExecute(Build& build) noexcept {
+  for (const auto& [id, ref] : _refs) {
+    if (id == Command::CwdRef) {
+      // The current directory has to exist to launch the command
+      ref->mustExist(build, shared_from_this());
+
+    } else {
+      // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
+      if (ref->getArtifact()->as<PipeArtifact>()) continue;
+
+      if (ref->getArtifact()->canCommitAll()) {
+        ref->getArtifact()->commitAll();
+      } else {
+        WARN << "Launching " << this << " without committing referenced artifact "
+             << ref->getArtifact();
+      }
+    }
+  }
+}
+
+// Add an initial file descriptor to this command
+void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
+  ASSERT(fd >= 0) << "Invalid file descriptor number " << fd << " in " << this;
+  ASSERT(_refs.find(ref) != _refs.end())
+      << "Initial fd " << fd << " uses invalid ref " << ref << " in " << this;
+  _initial_fds.emplace(fd, ref);
+}
+
+// Get a reference from this command's reference table
+const shared_ptr<Ref>& Command::getRef(Command::RefID id) const noexcept {
+  auto iter = _refs.find(id);
+  ASSERT(iter != _refs.end()) << "Invalid reference ID " << id << " in " << this;
+  ASSERT(iter->second) << "Access to null reference ID " << id << " in " << this;
+  return iter->second;
+}
+
+// Store a reference at a known index of this command's local reference table
+void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
+  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
+
+  auto iter = _refs.find(id);
+  ASSERT(iter == _refs.end()) << "Attempted to overwrite reference ID " << id << " in " << this;
+
+  _refs.emplace_hint(iter, id, ref);
+}
+
+// Store a reference at the next available index of this command's local reference table
+Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
+  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
+  RefID id = _refs.size();
+  _refs.emplace(id, ref);
+  return id;
 }
 
 /*
