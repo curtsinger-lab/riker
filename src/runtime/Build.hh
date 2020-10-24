@@ -260,15 +260,20 @@ class Build : public TraceHandler, public BuildObserver {
   /**
    * A traced command is launching a child command.
    *
-   * \param c     The parent command
-   * \param args  The command line arguments passed to the child command
-   * \param refs  A list of reference mappings. The first entry is a reference ID in the parent
-   *              command, and the second is the ID where this reference is assigned the child.
+   * \param c         The parent command
+   * \param args      The command line arguments passed to the child command
+   * \param exe_ref   The parent command's reference to the launched executable
+   * \param cwd_ref   The parent command's reference to the working directory
+   * \param root_ref  The parent command's reference to the root directory
+   * \param fds       A mapping from child file descriptor numbers to the parent's reference
    * \returns The child command that has been launched
    */
   shared_ptr<Command> traceLaunch(shared_ptr<Command> c,
                                   vector<string> args,
-                                  list<tuple<Command::RefID, Command::RefID>> refs) noexcept;
+                                  Command::RefID exe_ref,
+                                  Command::RefID cwd_ref,
+                                  Command::RefID root_ref,
+                                  map<int, Command::RefID> fds) noexcept;
 
   /// A command is joining with a child command
   void traceJoin(shared_ptr<Command> c, shared_ptr<Command> child, int exit_status) noexcept;

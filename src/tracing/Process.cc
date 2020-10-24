@@ -15,8 +15,8 @@ namespace fs = std::filesystem;
 Process::Process(Build& build,
                  shared_ptr<Command> command,
                  pid_t pid,
-                 shared_ptr<Ref> cwd,
-                 shared_ptr<Ref> root,
+                 Command::RefID cwd,
+                 Command::RefID root,
                  map<int, FileDescriptor> fds) noexcept :
     _build(build), _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
   // The new process has an open handle to each file descriptor in the _fds table
@@ -36,7 +36,7 @@ Process::Process(Build& build,
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(shared_ptr<Ref> ref) noexcept {
+void Process::setWorkingDir(Command::RefID ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
   _build.traceDoneWithRef(_command, _cwd);
@@ -47,7 +47,7 @@ void Process::setWorkingDir(shared_ptr<Ref> ref) noexcept {
 }
 
 // Get a file descriptor entry
-const shared_ptr<Ref>& Process::getFD(int fd) noexcept {
+Command::RefID Process::getFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   ASSERT(iter != _fds.end()) << "Attempted to access an unknown fd " << fd << " in " << this;
 
@@ -55,7 +55,7 @@ const shared_ptr<Ref>& Process::getFD(int fd) noexcept {
 }
 
 // Add a file descriptor entry
-void Process::addFD(int fd, shared_ptr<Ref> ref, bool cloexec) noexcept {
+void Process::addFD(int fd, Command::RefID ref, bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
@@ -109,52 +109,40 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-void Process::exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> env) noexcept {
+void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> env) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
-  map<int, shared_ptr<Ref>> initial_fds;
-  list<int> to_erase;
+  map<int, Command::RefID> inherited_fds;
 
-  for (const auto& [index, desc] : _fds) {
+  for (const auto& [fd, desc] : _fds) {
     const auto& [ref, cloexec] = desc;
-    if (cloexec) {
-      // Report the close to the build
-      _build.traceDoneWithRef(_command, ref);
 
-      // Remember this index so we can remove it later
-      to_erase.push_back(index);
-    } else {
-      initial_fds.emplace(index, ref);
-    }
-  }
-
-  // Erase close-on-exec file descriptors from the FD map
-  for (int index : to_erase) {
-    _fds.erase(index);
+    // If this fd is inherited by the child, record it
+    if (!cloexec) inherited_fds.emplace(fd, ref);
   }
 
   // Inform the build of the launch action
-  auto child = _build.traceLaunch(_command, exe_ref, args, initial_fds, _cwd, _root);
+  auto child = _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds);
 
-  // Loop over the initial FDs. These handles are shifting from the parent to the child.
-  // We implement this by "opening" the handle in the child and "closing" it in the parent
-  for (auto& [index, ref] : child->getInitialFDs()) {
-    _build.traceUsingRef(child, ref);
-    _build.traceDoneWithRef(_command, ref);
-  }
-
-  // The child gains references to root and cwd, which the parent then closes
-  _build.traceUsingRef(child, _cwd);
+  // The parent command is no longer using any references in this process
+  _build.traceDoneWithRef(_command, exe_ref);
   _build.traceDoneWithRef(_command, _cwd);
-
-  _build.traceUsingRef(child, _root);
   _build.traceDoneWithRef(_command, _root);
 
-  // TODO: Do we need to include a reference to the executable here?
+  for (const auto& [fd, desc] : _fds) {
+    _build.traceDoneWithRef(_command, fd);
+  }
 
   // This process is now running the child
   _command = child;
+
+  // Clear the file descriptor map and fill it in with the child command's reference IDs
+  _fds.clear();
+
+  for (auto& [fd, ref] : child->getInitialFDs()) {
+    _fds.emplace(fd, FileDescriptor{fd, false});
+  }
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we

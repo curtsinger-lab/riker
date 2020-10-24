@@ -1026,15 +1026,18 @@ void Build::traceRemoveEntry(shared_ptr<Command> c,
 }
 
 // This command launches a child command
-shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
+shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> parent,
                                        vector<string> args,
-                                       list<tuple<Command::RefID, Command::RefID>> refs) noexcept {
+                                       Command::RefID exe_ref,
+                                       Command::RefID cwd_ref,
+                                       Command::RefID root_ref,
+                                       map<int, Command::RefID> fds) noexcept {
   // Count a traced step and a traced command
   _traced_step_count++;
   _traced_command_count++;
 
   // Look to see if the current command has a matching child command
-  // auto child = c->findChild(exe_ref, args, fds, cwd_ref, root_ref);
+  // auto child = parent->findChild(exe_ref, args, fds, cwd_ref, root_ref);
   shared_ptr<Command> child;
 
   // Did we find a matching command?
@@ -1045,9 +1048,24 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
     LOG(exec) << "No match for command " << child;
   }
 
-  // Pass the refs into the child command
-  for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    child->setRef(child_ref_id, c->getRef(parent_ref_id));
+  // Build a mapping from parent refs to child refs to emit to the IR layer
+  list<tuple<Command::RefID, Command::RefID>> refs;
+
+  // Add standard references to the child and record them in the refs list
+  child->setRef(Command::RootRef, parent->getRef(root_ref));
+  refs.emplace_back(root_ref, Command::RootRef);
+
+  child->setRef(Command::CwdRef, parent->getRef(cwd_ref));
+  refs.emplace_back(cwd_ref, Command::CwdRef);
+
+  child->setRef(Command::ExeRef, parent->getRef(exe_ref));
+  refs.emplace_back(exe_ref, Command::ExeRef);
+
+  // Add references for initial file descriptors
+  for (const auto& [fd, parent_ref] : fds) {
+    auto child_ref = child->setRef(parent->getRef(parent_ref));
+    child->addInitialFD(fd, child_ref);
+    refs.emplace_back(parent_ref, child_ref);
   }
 
   // Prepare the child command to execute by committing the necessary state from its references
@@ -1057,10 +1075,10 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
   child->setExecuted();
 
   // Create an IR step and add it to the output trace
-  _output.launch(c, child, refs);
+  _output.launch(parent, child, refs);
 
   // Inform observers of the launch
-  observeLaunch(c, child);
+  observeLaunch(parent, child);
 
   // Show the command if printing is on, or if this is a dry run
   if (options::print_on_run) {
@@ -1068,7 +1086,12 @@ shared_ptr<Command> Build::traceLaunch(shared_ptr<Command> c,
   }
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::LaunchPrinter{c, child, refs};
+  LOG(ir) << "traced " << TracePrinter::LaunchPrinter{parent, child, refs};
+
+  // Now that the child has been launched, record that it is using all of its inherited refs
+  for (const auto& [parent_ref_id, child_ref_id] : refs) {
+    traceUsingRef(child, child_ref_id);
+  }
 
   // Return the child command to the caller
   return child;

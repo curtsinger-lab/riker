@@ -25,13 +25,13 @@ class Process : public std::enable_shared_from_this<Process> {
  public:
   /// Keep track of file descriptors with a reference, and a boolean to track whether or not the
   /// descriptor is closed on an exec syscall
-  using FileDescriptor = tuple<shared_ptr<Ref>, bool>;
+  using FileDescriptor = tuple<Command::RefID, bool>;
 
   Process(Build& build,
           shared_ptr<Command> command,
           pid_t pid,
-          shared_ptr<Ref> cwd,
-          shared_ptr<Ref> root,
+          Command::RefID cwd,
+          Command::RefID root,
           map<int, FileDescriptor> fds) noexcept;
 
   /// Get the process ID
@@ -41,22 +41,22 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Command> getCommand() const noexcept { return _command; }
 
   /// Get the root directory
-  shared_ptr<Ref> getRoot() const noexcept { return _root; }
+  Command::RefID getRoot() const noexcept { return _root; }
 
   /// Get the working directory
-  shared_ptr<Ref> getWorkingDir() const noexcept { return _cwd; }
+  Command::RefID getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
-  void setWorkingDir(shared_ptr<Ref> ref) noexcept;
+  void setWorkingDir(Command::RefID ref) noexcept;
 
   /// Get the reference used for a given file descriptor entry
-  const shared_ptr<Ref>& getFD(int fd) noexcept;
+  Command::RefID getFD(int fd) noexcept;
 
   /// Check if this process has a particular file descriptor
   bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
 
   /// Add a file descriptor entry
-  void addFD(int fd, shared_ptr<Ref> ref, bool cloexec = false) noexcept;
+  void addFD(int fd, Command::RefID ref, bool cloexec = false) noexcept;
 
   /// Remove a file descriptor entry
   void closeFD(int fd) noexcept;
@@ -74,7 +74,7 @@ class Process : public std::enable_shared_from_this<Process> {
   shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
-  void exec(shared_ptr<Ref> exe_ref, vector<string> args, vector<string> env) noexcept;
+  void exec(Command::RefID exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// This process is exiting
   void exit() noexcept;
@@ -101,10 +101,10 @@ class Process : public std::enable_shared_from_this<Process> {
   pid_t _pid;
 
   /// A reference to the process' current working directory
-  shared_ptr<Ref> _cwd;
+  Command::RefID _cwd;
 
   /// A reference to the process' current root directory
-  shared_ptr<Ref> _root;
+  Command::RefID _root;
 
   /// The process' file descriptor table
   map<int, FileDescriptor> _fds;

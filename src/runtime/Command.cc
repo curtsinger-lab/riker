@@ -94,7 +94,7 @@ void Command::prepareToExecute(Build& build) noexcept {
   for (const auto& [id, ref] : _refs) {
     if (id == Command::CwdRef) {
       // The current directory has to exist to launch the command
-      ref->mustExist(build, shared_from_this());
+      ref->getArtifact()->mustExist(build, shared_from_this());
 
     } else {
       // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
@@ -138,8 +138,8 @@ void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
 
 // Store a reference at the next available index of this command's local reference table
 Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
-  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
   RefID id = _refs.size();
+  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
   _refs.emplace(id, ref);
   return id;
 }

@@ -10,6 +10,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include "runtime/Command.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
 
@@ -79,7 +80,7 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  shared_ptr<Ref> makePathRef(fs::path p, AccessFlags flags, at_fd at = at_fd::cwd()) noexcept;
+  Command::RefID makePathRef(fs::path p, AccessFlags flags, at_fd at = at_fd::cwd()) noexcept;
 
   /*** Handling for specific system calls ***/
 

@@ -38,7 +38,7 @@ fs::path Thread::getPath(at_fd fd) const noexcept {
   return "<no path>";
 }
 
-shared_ptr<Ref> Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
+Command::RefID Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
     // HACK: Remove the O_EXCL flag when creating files in /tmp
