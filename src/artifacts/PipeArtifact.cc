@@ -172,7 +172,7 @@ int PipeArtifact::getFD(AccessFlags flags) noexcept {
   if (!_fds.has_value()) {
     int pipefds[2];
     int rc = pipe2(pipefds, O_CLOEXEC);
-    ASSERT(rc == 0) << "Failed to create pipe";
+    FAIL_IF(rc != 0) << "Failed to create pipe";
     _fds = tuple{pipefds[0], pipefds[1]};
     LOG(exec) << "Created pipe with read fd " << pipefds[0] << " and write fd " << pipefds[1];
   }

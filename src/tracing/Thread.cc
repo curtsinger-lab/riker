@@ -1328,7 +1328,6 @@ void Thread::_execveat(at_fd dfd,
 
   // The parent command needs execute access to the exec-ed path
   auto exe_ref_id = makePathRef(filename, ExecAccess, dfd);
-  const auto& exe_ref = getCommand()->getRef(exe_ref_id);
 
   // Finish the exec syscall and resume
   finishSyscall([=](long rc) {
@@ -1345,7 +1344,7 @@ void Thread::_execveat(at_fd dfd,
     // If we reached this point, the executable reference was okay
     _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
 
-    ASSERT(exe_ref->isResolved()) << "Executable file failed to resolve";
+    ASSERT(getCommand()->getRef(exe_ref_id)->isResolved()) << "Executable file failed to resolve";
 
     // Update the process state with the new executable
     _process->exec(exe_ref_id, args, env);

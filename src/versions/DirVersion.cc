@@ -28,7 +28,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
   ASSERT(_created) << "An on-disk directory is somehow not committed";
 
   int rc = ::mkdir(path.c_str(), 0755);
-  ASSERT(rc == 0) << "Failed to create directory " << path << ": " << ERR;
+  FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();
@@ -46,7 +46,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), (dir_path / _entry).c_str());
-    ASSERT(rc == 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
+    FAIL_IF(rc != 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
@@ -120,7 +120,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
 
     // Move the artifact
     int rc = ::rename((dir_path / _entry).c_str(), temp_path.c_str());
-    ASSERT(rc == 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
+    FAIL_IF(rc != 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
@@ -134,7 +134,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     // versions that will remove the directory's entries
     artifact_dir->commitAll();
     int rc = ::rmdir((dir_path / _entry).c_str());
-    ASSERT(rc == 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
+    FAIL_IF(rc != 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
@@ -143,8 +143,8 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
   } else {
     // The artifact is a file, symlink etc. that can be hard linked. Just unlink it.
     int rc = ::unlink((dir_path / _entry).c_str());
-    ASSERT(rc == 0) << "Failed to unlink " << _target << " from " << dir_path / _entry << ": "
-                    << ERR;
+    FAIL_IF(rc != 0) << "Failed to unlink " << _target << " from " << dir_path / _entry << ": "
+                     << ERR;
 
     // Mark this version as committed and return
     Version::setCommitted();
