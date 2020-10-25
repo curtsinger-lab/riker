@@ -116,8 +116,6 @@ void Command::newRun() noexcept {
 
 // Prepare this command to execute by creating dependencies and committing state
 void Command::createLaunchDependencies(Build& build) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
-
   for (Command::RefID id = 0; id < _run->refs.size(); id++) {
     const auto& ref = _run->refs[id];
 
@@ -150,7 +148,6 @@ void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
 
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Command::RefID id) const noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid reference ID " << id << " in " << this;
   ASSERT(_run->refs[id]) << "Access to null reference ID " << id << " in " << this;
   return _run->refs[id];
@@ -158,7 +155,6 @@ const shared_ptr<Ref>& Command::getRef(Command::RefID id) const noexcept {
 
 // Store a reference at a known index of this command's local reference table
 void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
 
   // Are we adding this ref onto the end of the refs list? If so, grow as needed
@@ -173,8 +169,6 @@ void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
 
 // Store a reference at the next available index of this command's local reference table
 Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
-
   RefID id = _run->refs.size();
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
   _run->refs.push_back(ref);
@@ -185,7 +179,6 @@ Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
 // Increment this command's use counter for a Ref.
 // Return true if this is the first use by this command.
 bool Command::usingRef(Command::RefID id) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid ref ID " << id << " in " << this;
 
   // Expand the use count vector if necessary
@@ -204,7 +197,6 @@ bool Command::usingRef(Command::RefID id) noexcept {
 // Decrement this command's use counter for a Ref.
 // Return true if that was the last use by this command.
 bool Command::doneWithRef(Command::RefID id) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid ref ID " << id << " in " << this;
   ASSERT(id < _run->refs_use_count.size() && _run->refs_use_count[id] > 0)
       << "Attempted to end an unknown use of ref r" << id << " in " << this;
@@ -221,7 +213,6 @@ bool Command::doneWithRef(Command::RefID id) noexcept {
 
 // Record that this command launched a child command
 void Command::addChild(shared_ptr<Command> child) noexcept {
-  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   _run->children.push_back(child);
 }
 
