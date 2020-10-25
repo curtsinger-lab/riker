@@ -572,7 +572,7 @@ void Build::launch(const shared_ptr<Command>& c,
   observeLaunch(c, child);
 
   // Add the child to the parent command's set of children
-  // if (c) c->addChild(child);
+  c->addChild(child);
 
   // Are we going to re-execute the child?
   bool launch_command = false;
@@ -1043,8 +1043,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   _traced_command_count++;
 
   // Look to see if the current command has a matching child command
-  // auto child = parent->findChild(exe_ref, args, fds, cwd_ref, root_ref);
-  shared_ptr<Command> child;
+  auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
 
   // Did we find a matching command?
   if (child) {
@@ -1053,6 +1052,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     child = make_shared<Command>(args);
     LOG(exec) << "No match for command " << child;
   }
+
+  // Add the child to the parent's list of children
+  parent->addChild(child);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
   list<tuple<Command::RefID, Command::RefID>> refs;

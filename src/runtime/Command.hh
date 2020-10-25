@@ -120,18 +120,29 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Create dependencies to prepare this command for execution
   void prepareToExecute(Build& build) noexcept;
 
-  /*
-  /// When we emulate this command's launch of a child command, keep a record so we can match
-  /// against it later and possibly skip that child command.
+  /**
+   * Remember that this command launched a child command. This is used on the next run to match
+   * launched children against commands fromn the previous run.
+   */
   void addChild(shared_ptr<Command> child) noexcept;
 
-  /// Look through this command's list of children to see if there is a matching child
-  shared_ptr<Command> findChild(shared_ptr<Ref> exe_ref,
-                                vector<string> args,
-                                map<int, shared_ptr<Ref>> fds,
-                                shared_ptr<Ref> cwd_ref,
-                                shared_ptr<Ref> root_ref) noexcept;
-  */
+  /**
+   * Look through this command's children from the last run to see if there is a child that matches
+   * the given command launch information. Once a child has been matched, it will not match again.
+   *
+   * \param args      The arguments to the child command
+   * \param exe_ref   This command's reference to the child command's executable
+   * \param cwd_ref   This command's reference to the child command's working directory
+   * \param root_ref  This command's reference to the child command's root directory
+   * \param fds       The child command's initial file descriptors, and the reference (in this
+   *                  command) they are initialized with.
+   * \returns A pointer to the matched command, or nullptr if no child matches.
+   */
+  shared_ptr<Command> findChild(vector<string> args,
+                                Command::RefID exe_ref,
+                                Command::RefID cwd_ref,
+                                Command::RefID root_ref,
+                                map<int, Command::RefID> fds) noexcept;
 
   /****** Utility Methods ******/
 
@@ -169,26 +180,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The exit status recorded for this command after its last execution
   int _exit_status;
 
-  /*
-  /// A record of a past command launch
-  struct ChildRecord {
-    shared_ptr<Version> _exe_content;
-    optional<fs::path> _cwd_path;
-    vector<string> _args;
-    map<int, shared_ptr<Version>> _fd_content;
-    shared_ptr<Command> _command;
+  /// The children this command has launched (so far) on the current execution
+  list<shared_ptr<Command>> _children;
 
-    ChildRecord(shared_ptr<Command> child) noexcept;
-
-    ChildRecord(shared_ptr<Ref> exe_ref,
-                shared_ptr<Ref> cwd_ref,
-                vector<string> args,
-                map<int, shared_ptr<Ref>> fds) noexcept;
-
-    bool operator==(const ChildRecord& other) noexcept;
-  };
-
-  /// A set of commands launched by this command
-  list<ChildRecord> _children;
-  */
+  /// The children this command launched on the previous execution
+  list<shared_ptr<Command>> _last_run_children;
 };

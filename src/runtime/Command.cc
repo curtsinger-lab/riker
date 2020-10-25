@@ -88,6 +88,10 @@ void Command::reset() noexcept {
   // Clear the vector of references. They will be filled in again during emulation/execution.
   _refs.clear();
   _refs_use_count.clear();
+
+  // Move the list of children to the last run list
+  _last_run_children.clear();
+  std::swap(_children, _last_run_children);
 }
 
 // Prepare this command to execute by creating dependencies and committing state
@@ -186,99 +190,30 @@ bool Command::doneWithRef(Command::RefID id) noexcept {
   return false;
 }
 
-/*
-
-Command::ChildRecord::ChildRecord(shared_ptr<Command> child) noexcept :
-    ChildRecord(child->_exe, child->_initial_cwd, child->_args, child->_initial_fds) {
-  _command = child;
-}
-
-Command::ChildRecord::ChildRecord(shared_ptr<Ref> exe_ref,
-                                  shared_ptr<Ref> cwd_ref,
-                                  vector<string> args,
-                                  map<int, shared_ptr<Ref>> fds) noexcept {
-  auto exe = exe_ref->getArtifact();
-  _exe_content = exe ? exe->peekContent() : nullptr;
-
-  auto cwd = cwd_ref->getArtifact();
-  _cwd_path = cwd ? cwd->getPath() : nullopt;
-
-  _args = args;
-  for (auto& [fd, ref] : fds) {
-    auto a = ref->getArtifact();
-    _fd_content[fd] = a ? a->peekContent() : nullptr;
-  }
-}
-
-bool Command::ChildRecord::operator==(const ChildRecord& other) noexcept {
-  // Does this record have an executable content version?
-  if (!_exe_content) return false;
-
-  // Does the other record have an executable content version?
-  if (!other._exe_content) return false;
-
-  // Do the executables match?
-  if (!_exe_content->matches(other._exe_content)) return false;
-
-  // Do this record have a cwd path?
-  if (!_cwd_path.has_value()) return false;
-
-  // Does the other record have a cwd path?
-  if (!other._cwd_path.has_value()) return false;
-
-  // Do the cwd paths match?
-  if (_cwd_path.value() != other._cwd_path.value()) return false;
-
-  // Do the arguments match?
-  if (_args != other._args) return false;
-
-  // Do the records have the same number of file descriptors?
-  if (_fd_content.size() != other._fd_content.size()) return false;
-
-  // Do all the file descriptors match?
-  for (auto& [fd, v] : _fd_content) {
-    // Do we have a version for this record?
-    if (!v) return false;
-
-    // Does the other record have the same fd?
-    auto iter = other._fd_content.find(fd);
-    if (iter == other._fd_content.end()) return false;
-
-    // Does the other record have a version for the corresponding fd?
-    if (!iter->second) return false;
-
-    // Do the versions at the two file descriptors match?
-    if (!v->matches(iter->second)) return false;
-  }
-
-  return true;
-}
-
+// Record that this command launched a child command
 void Command::addChild(shared_ptr<Command> child) noexcept {
-  _children.emplace_back(child);
+  _children.push_back(child);
 }
 
-shared_ptr<Command> Command::findChild(shared_ptr<Ref> exe_ref,
-                                       vector<string> args,
-                                       map<int, shared_ptr<Ref>> fds,
-                                       shared_ptr<Ref> cwd_ref,
-                                       shared_ptr<Ref> root_ref) noexcept {
-  ChildRecord record(exe_ref, cwd_ref, args, fds);
+// Look for a command that matches one of this command's children from the last run
+shared_ptr<Command> Command::findChild(vector<string> args,
+                                       Command::RefID exe_ref,
+                                       Command::RefID cwd_ref,
+                                       Command::RefID root_ref,
+                                       map<int, Command::RefID> fds) noexcept {
+  // Loop over this command's children from the last run
+  for (auto iter = _last_run_children.begin(); iter != _last_run_children.end(); iter++) {
+    const auto& child = *iter;
 
-  // Loop over the records of children to see if we have a match
-  for (auto c : _children) {
-    // If the record matches, update the child command to use the new references
-    if (c == record) {
-      c._command->_exe = exe_ref;
-      c._command->_initial_cwd = cwd_ref;
-      c._command->_initial_root = root_ref;
-      c._command->_initial_fds = fds;
-
-      return c._command;
+    // Does the child match the given launch parameters?
+    // TODO: Check more than just arguments
+    if (child->getArguments() == args) {
+      // Removed the child from the list so it cannot be matched again
+      _last_run_children.erase(iter);
+      return child;
     }
   }
 
+  // No match found
   return nullptr;
 }
-
-*/
