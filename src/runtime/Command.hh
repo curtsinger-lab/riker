@@ -88,12 +88,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Record that this command has now been executed
   void setExecuted() noexcept { _executed = true; }
 
-  /// Get this command's exit status
-  int getExitStatus() const noexcept { return _exit_status; }
-
-  /// Set this command's exit status, and record that it has exited
-  void setExitStatus(int status) noexcept { _exit_status = status; }
-
   /// Get the list of arguments this command was started with
   const vector<string>& getArguments() const noexcept { return _args; }
 
@@ -101,7 +95,10 @@ class Command : public std::enable_shared_from_this<Command> {
   const map<int, RefID>& getInitialFDs() const noexcept { return _initial_fds; }
 
   /// Add an initial file descriptor to this command
-  void addInitialFD(int fd, RefID ref) noexcept;
+  void addInitialFD(int fd, Command::RefID ref) noexcept {
+    ASSERT(fd >= 0) << "Invalid file descriptor number " << fd << " in " << this;
+    _initial_fds.emplace(fd, ref);
+  }
 
   /// Prepare to begin a new run (emulated or traced) of this command
   void newRun() noexcept;
@@ -120,6 +117,12 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Decrement a use count for a Ref. Return true if this was the last use of the ref.
   bool doneWithRef(RefID id) noexcept;
+
+  /// Get this command's exit status
+  int getExitStatus() const noexcept;
+
+  /// Set this command's exit status, and record that it has exited
+  void setExitStatus(int status) noexcept;
 
   /// Create dependencies to prepare this command for execution
   void createLaunchDependencies(Build& build) noexcept;
@@ -174,9 +177,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Has this command ever run?
   bool _executed = false;
-
-  /// The exit status recorded for this command after its last execution
-  int _exit_status;
 
   // Forward-declare the RunData struct, implemented in Command.cc
   struct RunData;

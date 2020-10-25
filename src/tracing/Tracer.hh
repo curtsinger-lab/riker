@@ -35,8 +35,9 @@ class Tracer {
   /// Start a command in this tracer
   shared_ptr<Process> start(const shared_ptr<Command>& cmd) noexcept;
 
-  /// Wait for a specific process to exit, or all processes if unspecified
-  void wait(shared_ptr<Process> p = nullptr) noexcept;
+  /// Wait for a specific process to exit, or all processes if unspecified. Return the process' exit
+  /// status if p was specified
+  int wait(shared_ptr<Process> p = nullptr) noexcept;
 
   /// Claim a process from the set of exited processes
   shared_ptr<Process> getExited(pid_t pid) noexcept;
@@ -58,7 +59,7 @@ class Tracer {
   void handleFork(shared_ptr<Thread> t) noexcept;
 
   /// Called when a traced process exits
-  void handleExit(shared_ptr<Thread> t) noexcept;
+  void handleExit(shared_ptr<Thread> t, int exit_status) noexcept;
 
  private:
   /// This tracer is executing commands on behalf of this build

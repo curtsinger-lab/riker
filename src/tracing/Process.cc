@@ -155,9 +155,10 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
 }
 
 // The process is exiting
-void Process::exit() noexcept {
+void Process::exit(int exit_status) noexcept {
   // Mark the process as exited
   _exited = true;
+  _exit_status = exit_status;
 
   // References to the cwd and root directories are closed
   _build.traceDoneWithRef(_command, _cwd);

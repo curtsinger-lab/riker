@@ -70,6 +70,9 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }
 
+  /// Get this process' exit status
+  int getExitStatus() const noexcept { return _exit_status; }
+
   /// This process forked off a child process
   shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
@@ -77,7 +80,7 @@ class Process : public std::enable_shared_from_this<Process> {
   void exec(Command::RefID exe_ref, vector<string> args, vector<string> env) noexcept;
 
   /// This process is exiting
-  void exit() noexcept;
+  void exit(int exit_status) noexcept;
 
   /// Print a process to an output stream
   friend ostream& operator<<(ostream& o, const Process& p) noexcept {
@@ -111,4 +114,7 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// Has this process exited?
   bool _exited = false;
+
+  /// What status did this process exit with?
+  int _exit_status = -1;
 };

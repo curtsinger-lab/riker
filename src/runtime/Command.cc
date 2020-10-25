@@ -103,6 +103,9 @@ struct Command::RunData {
 
   /// The children launched by this command
   list<shared_ptr<Command>> children;
+
+  /// The exit status for this command
+  int exit_status = -1;
 };
 
 // Reset the transient state in this command to prepare for a new emulation/execution
@@ -138,12 +141,6 @@ void Command::createLaunchDependencies(Build& build) noexcept {
       }
     }
   }
-}
-
-// Add an initial file descriptor to this command
-void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
-  ASSERT(fd >= 0) << "Invalid file descriptor number " << fd << " in " << this;
-  _initial_fds.emplace(fd, ref);
 }
 
 // Get a reference from this command's reference table
@@ -209,6 +206,16 @@ bool Command::doneWithRef(Command::RefID id) noexcept {
   }
 
   return false;
+}
+
+// Get this command's exit status
+int Command::getExitStatus() const noexcept {
+  return _run->exit_status;
+}
+
+// Set this command's exit status, and record that it has exited
+void Command::setExitStatus(int status) noexcept {
+  _run->exit_status = status;
 }
 
 // Record that this command launched a child command

@@ -48,7 +48,6 @@ void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
     // No. Create a command and add it to the trace
     auto cmd = make_shared<Command>(_args);
     if (_executed) cmd->setExecuted();
-    cmd->setExitStatus(_exit_status);
 
     for (auto [fd, ref_id] : _initial_fds) {
       cmd->addInitialFD(fd, ref_id);

@@ -89,7 +89,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
   }
 }
 
-void Tracer::wait(shared_ptr<Process> p) noexcept {
+int Tracer::wait(shared_ptr<Process> p) noexcept {
   if (p) {
     LOG(exec) << "Waiting for " << p;
   } else {
@@ -99,10 +99,12 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
   // Process tracaing events
   while (true) {
     // If we're waiting for a specific process, and that process has exited, return now
-    if (p && p->hasExited()) return;
+    if (p && p->hasExited()) {
+      return p->getExitStatus();
+    }
 
     auto e = getEvent();
-    if (!e.has_value()) return;
+    if (!e.has_value()) return -1;
 
     auto [child, wait_status] = e.value();
 
@@ -159,7 +161,7 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
     } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
       // Stopped on exit
-      handleExit(thread);
+      handleExit(thread, WEXITSTATUS(wait_status));
     }
   }
 }
@@ -197,7 +199,7 @@ void Tracer::handleFork(shared_ptr<Thread> t) noexcept {
   _threads[new_pid] = make_shared<Thread>(_build, *this, new_proc, new_pid);
 }
 
-void Tracer::handleExit(shared_ptr<Thread> t) noexcept {
+void Tracer::handleExit(shared_ptr<Thread> t, int exit_status) noexcept {
   LOGF(trace, "{}: exited", t);
 
   _threads.erase(t->getID());
@@ -206,7 +208,7 @@ void Tracer::handleExit(shared_ptr<Thread> t) noexcept {
   auto proc = t->getProcess();
   if (t->getID() == proc->getID()) {
     LOGF(trace, "{}: exited", proc);
-    proc->exit();
+    proc->exit(exit_status);
     _exited.emplace(proc->getID(), proc);
   }
 }

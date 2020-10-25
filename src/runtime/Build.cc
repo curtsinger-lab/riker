@@ -629,14 +629,18 @@ void Build::join(const shared_ptr<Command>& c,
   // Count an emulated step
   _emulated_step_count++;
 
+  // If the child command is running in the tracer, wait for it
+  if (isRunning(child)) {
+    int traced_exit_status = _tracer.wait(_running[child]);
+    // TODO: Drop this line once exit tracking is fully working
+    _output.exit(child, traced_exit_status);
+  }
+
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   // Create an IR step and add it to the output trace
   _output.join(c, child, exit_status);
-
-  // If the child command is running in the tracer, wait for it
-  if (isRunning(child)) _tracer.wait(_running[child]);
 
   // Did the child command's exit status match the expected result?
   if (child->getExitStatus() != exit_status) {
@@ -1119,7 +1123,7 @@ void Build::traceJoin(const shared_ptr<Command>& c,
   _output.join(c, child, exit_status);
 
   // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
-  child->setExitStatus(exit_status);
+  // child->setExitStatus(exit_status);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};

@@ -44,7 +44,6 @@ struct CommandRecord : public Record {
   vector<string> _args;
   map<int, Command::RefID> _initial_fds;
   bool _executed;
-  int _exit_status;
 
   /// Default constructor for serialization
   CommandRecord() noexcept = default;
@@ -54,17 +53,13 @@ struct CommandRecord : public Record {
                 map<int, Command::RefID> initial_fds,
                 bool executed,
                 int exit_status) :
-      _id(id),
-      _args(args),
-      _initial_fds(initial_fds),
-      _executed(executed),
-      _exit_status(exit_status) {}
+      _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _id, _args, _initial_fds, _executed, _exit_status);
+    archive(cereal::base_class<Record>(this), _id, _args, _initial_fds, _executed);
   }
 };
 

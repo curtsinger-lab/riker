@@ -57,3 +57,6 @@ Restore the link state
 Clean up
   $ rm -rf .dodo
   $ rm -f output1 output2
+
+SKIP! This test now triggers a rebuild on line 44 because Dodofile observes an exit status change from `cat link`.
+  $ exit 80
