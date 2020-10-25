@@ -87,6 +87,7 @@ bool Command::isMake() const noexcept {
 void Command::reset() noexcept {
   // Clear the vector of references. They will be filled in again during emulation/execution.
   _refs.clear();
+  _refs_use_count.clear();
 }
 
 // Prepare this command to execute by creating dependencies and committing state
@@ -148,6 +149,41 @@ Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
   _refs.push_back(ref);
   return id;
+}
+
+// Increment this command's use counter for a Ref.
+// Return true if this is the first use by this command.
+bool Command::usingRef(Command::RefID id) noexcept {
+  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << this;
+
+  // Expand the use count vector if necessary
+  if (_refs_use_count.size() <= id) _refs_use_count.resize(id + 1);
+
+  // Increment the ref count. Is this the first use of the ref?
+  if (_refs_use_count[id]++ == 0) {
+    // This was the first use. Increment the user count in the ref, and return true
+    _refs[id]->addUser();
+    return true;
+  }
+
+  return false;
+}
+
+// Decrement this command's use counter for a Ref.
+// Return true if that was the last use by this command.
+bool Command::doneWithRef(Command::RefID id) noexcept {
+  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << this;
+  ASSERT(id < _refs_use_count.size() && _refs_use_count[id] > 0)
+      << "Attempted to end an unknown use of ref r" << id << " in " << this;
+
+  // Decrement the ref count. Was this the last use of the ref?
+  if (--_refs_use_count[id] == 0) {
+    // This was the last use. Decrement the user count in the ref and return true
+    _refs[id]->removeUser();
+    return true;
+  }
+
+  return false;
 }
 
 /*

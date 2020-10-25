@@ -292,8 +292,8 @@ void Build::usingRef(shared_ptr<Command> c, Command::RefID ref) noexcept {
   // Create an IR step and add it to the output trace
   _output.usingRef(c, ref);
 
-  // Inform the ref that it was closed by c
-  c->getRef(ref)->addUser(*this, c);
+  // Command c is now using ref
+  c->usingRef(ref);
 }
 
 // A command closes a handle to a given Ref
@@ -310,8 +310,8 @@ void Build::doneWithRef(shared_ptr<Command> c, Command::RefID ref) noexcept {
   // Create an IR step and add it to the output trace
   _output.doneWithRef(c, ref);
 
-  // Inform the ref that it was closed by c
-  c->getRef(ref)->removeUser(*this, c);
+  // Command c is no longer using ref
+  c->doneWithRef(ref);
 }
 
 // Command c depends on the outcome of comparing two different references
@@ -772,38 +772,34 @@ Command::RefID Build::tracePathRef(shared_ptr<Command> c,
 }
 
 // A command kept a handle to a Ref
-void Build::traceUsingRef(shared_ptr<Command> c, Command::RefID ref_id) noexcept {
-  auto ref = c->getRef(ref_id);
-
+void Build::traceUsingRef(shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
-  if (ref->addUser(*this, c)) {
+  if (c->usingRef(ref)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
     // Create an IR step in the output trace
-    _output.usingRef(c, ref_id);
+    _output.usingRef(c, ref);
 
     // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref_id};
+    LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
   }
 }
 
 // A command is finished using a Ref
-void Build::traceDoneWithRef(shared_ptr<Command> c, Command::RefID ref_id) noexcept {
-  auto ref = c->getRef(ref_id);
-
+void Build::traceDoneWithRef(shared_ptr<Command> c, Command::RefID ref) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
-  if (ref->removeUser(*this, c)) {
+  if (c->doneWithRef(ref)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
     // Create an IR step in the output trace
-    _output.doneWithRef(c, ref_id);
+    _output.doneWithRef(c, ref);
 
     // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
+    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref};
   }
 }
 

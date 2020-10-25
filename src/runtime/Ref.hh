@@ -77,10 +77,10 @@ class Ref final {
   AccessFlags getFlags() const noexcept { return _flags; }
 
   /// A command is now using this Ref. Return true if this first use by the given command
-  bool addUser(Build& b, shared_ptr<Command> c) noexcept;
+  void addUser() noexcept;
 
   /// A command is no longer using this Ref. Return true if that was the last use by c
-  bool removeUser(Build& b, shared_ptr<Command> c) noexcept;
+  void removeUser() noexcept;
 
   /// Get a file descriptor for this Ref
   int getFD() noexcept;
@@ -113,11 +113,8 @@ class Ref final {
   /// Keep the flags used to establish this reference so we know what accesses are permitted
   AccessFlags _flags;
 
-  /// Keep track of which commands are using this Ref
-  map<shared_ptr<Command>, size_t> _users;
-
-  /// Keep a running total of all users
-  size_t _total_users = 0;
+  /// Keep track of how many commands are using this Ref
+  size_t _users = 0;
 
   /// If this Ref has a valid file descriptor, it is saved here
   optional<int> _fd;
