@@ -53,6 +53,7 @@ void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
     for (auto [fd, ref_id] : _initial_fds) {
       cmd->addInitialFD(fd, ref_id);
     }
+
     input.addCommand(_id, cmd);
   }
 }

@@ -606,7 +606,7 @@ void Build::launch(const shared_ptr<Command>& c,
     _traced_command_count++;
 
     // Prepare the child command to execute by committing the necessary state from its references
-    child->prepareToExecute(*this);
+    child->createLaunchDependencies(*this);
 
     LOG(exec) << c << " launching " << child;
 
@@ -1080,7 +1080,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   }
 
   // Prepare the child command to execute by committing the necessary state from its references
-  child->prepareToExecute(*this);
+  child->createLaunchDependencies(*this);
 
   // The child command will be executed by this build.
   child->setExecuted();

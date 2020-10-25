@@ -15,6 +15,7 @@
 using std::cout;
 using std::endl;
 using std::make_shared;
+using std::make_unique;
 using std::map;
 using std::nullopt;
 using std::set;
@@ -30,9 +31,13 @@ const shared_ptr<Command>& Command::getNullCommand() noexcept {
 }
 
 // Create a command
-Command::Command(vector<string> args) noexcept : _args(args) {
+Command::Command(vector<string> args) noexcept : _args(args), _run(make_unique<RunData>()) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
 }
+
+// Destroy a command. The destructor has to be declared in the .cc file where we have a complete
+// definition of Command::RunData
+Command::~Command() noexcept = default;
 
 // Get a short, length-limited name for this command
 string Command::getShortName(size_t limit) const noexcept {
@@ -83,21 +88,38 @@ bool Command::isMake() const noexcept {
   return exe_path.filename().string() == "make";
 }
 
-// Reset the transient state in this command to prepare for a new emulation/execution
-void Command::reset() noexcept {
-  // Clear the vector of references. They will be filled in again during emulation/execution.
-  _refs.clear();
-  _refs_use_count.clear();
+/**
+ * The RunData struct tracks transient data associated with a specific run of a command. That run
+ * can be either an emulation or traced execution. Data from the previous run is used to match a
+ * traced command's behavior against its previous emulated run, e.g. when matching children
+ * launched by a traced command against its old children from the previous trace.
+ */
+struct Command::RunData {
+  /// The command's local references
+  vector<shared_ptr<Ref>> refs;
 
-  // Move the list of children to the last run list
-  _last_run_children.clear();
-  std::swap(_children, _last_run_children);
+  /// This command's use countn for each of its references
+  vector<size_t> refs_use_count;
+
+  /// The children launched by this command
+  list<shared_ptr<Command>> children;
+};
+
+// Reset the transient state in this command to prepare for a new emulation/execution
+void Command::newRun() noexcept {
+  // Move current run data over to the last run
+  _last_run = std::move(_run);
+
+  // Create a new RunData struct to track current run state
+  _run = make_unique<RunData>();
 }
 
 // Prepare this command to execute by creating dependencies and committing state
-void Command::prepareToExecute(Build& build) noexcept {
-  for (Command::RefID id = 0; id < _refs.size(); id++) {
-    const auto& ref = _refs[id];
+void Command::createLaunchDependencies(Build& build) noexcept {
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+
+  for (Command::RefID id = 0; id < _run->refs.size(); id++) {
+    const auto& ref = _run->refs[id];
 
     // Is the ref assigned? If not, skip ahead
     if (!ref) continue;
@@ -128,45 +150,51 @@ void Command::addInitialFD(int fd, Command::RefID ref) noexcept {
 
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Command::RefID id) const noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid reference ID " << id << " in " << this;
-  ASSERT(_refs[id]) << "Access to null reference ID " << id << " in " << this;
-  return _refs[id];
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+  ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid reference ID " << id << " in " << this;
+  ASSERT(_run->refs[id]) << "Access to null reference ID " << id << " in " << this;
+  return _run->refs[id];
 }
 
 // Store a reference at a known index of this command's local reference table
 void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
 
   // Are we adding this ref onto the end of the refs list? If so, grow as needed
-  if (id >= _refs.size()) _refs.resize(id + 1);
+  if (id >= _run->refs.size()) _run->refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  ASSERT(!_refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
+  ASSERT(!_run->refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
 
   // Save the ref
-  _refs[id] = ref;
+  _run->refs[id] = ref;
 }
 
 // Store a reference at the next available index of this command's local reference table
 Command::RefID Command::setRef(shared_ptr<Ref> ref) noexcept {
-  RefID id = _refs.size();
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+
+  RefID id = _run->refs.size();
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
-  _refs.push_back(ref);
+  _run->refs.push_back(ref);
+
   return id;
 }
 
 // Increment this command's use counter for a Ref.
 // Return true if this is the first use by this command.
 bool Command::usingRef(Command::RefID id) noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << this;
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+  ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid ref ID " << id << " in " << this;
 
   // Expand the use count vector if necessary
-  if (_refs_use_count.size() <= id) _refs_use_count.resize(id + 1);
+  if (_run->refs_use_count.size() <= id) _run->refs_use_count.resize(id + 1);
 
   // Increment the ref count. Is this the first use of the ref?
-  if (_refs_use_count[id]++ == 0) {
+  if (_run->refs_use_count[id]++ == 0) {
     // This was the first use. Increment the user count in the ref, and return true
-    _refs[id]->addUser();
+    _run->refs[id]->addUser();
     return true;
   }
 
@@ -176,14 +204,15 @@ bool Command::usingRef(Command::RefID id) noexcept {
 // Decrement this command's use counter for a Ref.
 // Return true if that was the last use by this command.
 bool Command::doneWithRef(Command::RefID id) noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << this;
-  ASSERT(id < _refs_use_count.size() && _refs_use_count[id] > 0)
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+  ASSERT(id >= 0 && id < _run->refs.size()) << "Invalid ref ID " << id << " in " << this;
+  ASSERT(id < _run->refs_use_count.size() && _run->refs_use_count[id] > 0)
       << "Attempted to end an unknown use of ref r" << id << " in " << this;
 
   // Decrement the ref count. Was this the last use of the ref?
-  if (--_refs_use_count[id] == 0) {
+  if (--_run->refs_use_count[id] == 0) {
     // This was the last use. Decrement the user count in the ref and return true
-    _refs[id]->removeUser();
+    _run->refs[id]->removeUser();
     return true;
   }
 
@@ -192,7 +221,8 @@ bool Command::doneWithRef(Command::RefID id) noexcept {
 
 // Record that this command launched a child command
 void Command::addChild(shared_ptr<Command> child) noexcept {
-  _children.push_back(child);
+  ASSERT(_run) << "Missing run data for " << this << ": call Command::newRun() first.";
+  _run->children.push_back(child);
 }
 
 // Look for a command that matches one of this command's children from the last run
@@ -201,15 +231,18 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        Command::RefID cwd_ref,
                                        Command::RefID root_ref,
                                        map<int, Command::RefID> fds) noexcept {
+  // If there is no data from the last run, there are no children to match against
+  if (!_last_run) return nullptr;
+
   // Loop over this command's children from the last run
-  for (auto iter = _last_run_children.begin(); iter != _last_run_children.end(); iter++) {
+  for (auto iter = _last_run->children.begin(); iter != _last_run->children.end(); iter++) {
     const auto& child = *iter;
 
     // Does the child match the given launch parameters?
     // TODO: Check more than just arguments
     if (child->getArguments() == args) {
       // Removed the child from the list so it cannot be matched again
-      _last_run_children.erase(iter);
+      _last_run->children.erase(iter);
       return child;
     }
   }

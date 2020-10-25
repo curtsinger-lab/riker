@@ -19,6 +19,7 @@ using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace fs = std::filesystem;
@@ -54,6 +55,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Create a new command
   Command(vector<string> args) noexcept;
+
+  /// Declare a destructor
+  ~Command() noexcept;
 
   // Disallow Copy
   Command(const Command&) = delete;
@@ -96,11 +100,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of file descriptors set up at the start of this command's run
   const map<int, RefID>& getInitialFDs() const noexcept { return _initial_fds; }
 
-  /// Reset the transient state in this command to prepare for a new emulation/execution
-  void reset() noexcept;
-
   /// Add an initial file descriptor to this command
   void addInitialFD(int fd, RefID ref) noexcept;
+
+  /// Prepare to begin a new run (emulated or traced) of this command
+  void newRun() noexcept;
 
   /// Get a reference from this command's reference table
   const shared_ptr<Ref>& getRef(RefID id) const noexcept;
@@ -118,7 +122,7 @@ class Command : public std::enable_shared_from_this<Command> {
   bool doneWithRef(RefID id) noexcept;
 
   /// Create dependencies to prepare this command for execution
-  void prepareToExecute(Build& build) noexcept;
+  void createLaunchDependencies(Build& build) noexcept;
 
   /**
    * Remember that this command launched a child command. This is used on the next run to match
@@ -162,17 +166,11 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
  private:
-  /// This command's local references
-  vector<shared_ptr<Ref>> _refs;
-
-  /// The use count for each of this command's references
-  vector<size_t> _refs_use_count;
+  /// The arguments passed to this command on startup
+  vector<string> _args;
 
   /// The file descriptor entries populated at the start of this command's execution
   map<int, RefID> _initial_fds;
-
-  /// The arguments passed to this command on startup
-  vector<string> _args;
 
   /// Has this command ever run?
   bool _executed = false;
@@ -180,9 +178,12 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The exit status recorded for this command after its last execution
   int _exit_status;
 
-  /// The children this command has launched (so far) on the current execution
-  list<shared_ptr<Command>> _children;
+  // Forward-declare the RunData struct, implemented in Command.cc
+  struct RunData;
 
-  /// The children this command launched on the previous execution
-  list<shared_ptr<Command>> _last_run_children;
+  /// Transient data for the current run
+  unique_ptr<RunData> _run;
+
+  /// Transient data for the last run
+  unique_ptr<RunData> _last_run;
 };
