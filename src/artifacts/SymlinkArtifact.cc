@@ -18,12 +18,16 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void SymlinkArtifact::beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void SymlinkArtifact::beforeRead(Build& build,
+                                 const shared_ptr<Command>& c,
+                                 Command::RefID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void SymlinkArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void SymlinkArtifact::afterRead(Build& build,
+                                const shared_ptr<Command>& c,
+                                Command::RefID ref) noexcept {
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _symlink_version);
 }
@@ -35,7 +39,7 @@ shared_ptr<Version> SymlinkArtifact::peekContent() noexcept {
 
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(Build& build,
-                                   shared_ptr<Command> c,
+                                   const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<Version> expected) noexcept {
   // The symlink version is an input to command c
@@ -87,7 +91,7 @@ void SymlinkArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void SymlinkArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+void SymlinkArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
   build.observeInput(c, shared_from_this(), _symlink_version, InputType::Exists);
 }
@@ -114,7 +118,7 @@ void SymlinkArtifact::applyFinalState(Build& build, fs::path path) noexcept {
 }
 
 Ref SymlinkArtifact::resolve(Build& build,
-                             shared_ptr<Command> c,
+                             const shared_ptr<Command>& c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,

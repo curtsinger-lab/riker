@@ -95,7 +95,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param flags The flags that encode whether this is a read, write, and/or execute access
    * \returns true if the access is allowed, or false otherwise
    */
-  bool checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flags) noexcept;
+  bool checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -115,7 +115,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void commitAll() noexcept = 0;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept = 0;
+  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path) noexcept;
@@ -159,7 +159,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Get the current metadata version for this artifact
   shared_ptr<MetadataVersion> getMetadata(BuildObserver& o,
-                                          shared_ptr<Command> c,
+                                          const shared_ptr<Command>& c,
                                           InputType t) noexcept;
 
   /// Get the current metadata without recording any dependencies
@@ -167,41 +167,51 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Check to see if this artifact's metadata matches a known version
   void matchMetadata(Build& build,
-                     shared_ptr<Command> c,
+                     const shared_ptr<Command>& c,
                      Scenario scenario,
                      shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
   shared_ptr<MetadataVersion> updateMetadata(
       Build& build,
-      shared_ptr<Command> c,
+      const shared_ptr<Command>& c,
       shared_ptr<MetadataVersion> writing = nullptr) noexcept;
 
   /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact
-  virtual void beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept = 0;
+  virtual void beforeRead(Build& build,
+                          const shared_ptr<Command>& c,
+                          Command::RefID ref) noexcept = 0;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept = 0;
+  virtual void afterRead(Build& build,
+                         const shared_ptr<Command>& c,
+                         Command::RefID ref) noexcept = 0;
 
   /// A traced command is about to (possibly) write to this artifact
-  virtual void beforeWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+  virtual void beforeWrite(Build& build,
+                           const shared_ptr<Command>& c,
+                           Command::RefID ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command just wrote to this artifact
-  virtual void afterWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+  virtual void afterWrite(Build& build, const shared_ptr<Command>& c, Command::RefID ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command is about to (possibly) truncate this artifact to length zero
-  virtual void beforeTruncate(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+  virtual void beforeTruncate(Build& build,
+                              const shared_ptr<Command>& c,
+                              Command::RefID ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
   }
 
   /// A trace command just truncated this artifact to length zero
-  virtual void afterTruncate(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+  virtual void afterTruncate(Build& build,
+                             const shared_ptr<Command>& c,
+                             Command::RefID ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
   }
 
@@ -212,13 +222,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
-                            shared_ptr<Command> c,
+                            const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept = 0;
 
   /// Update this artifact's content with a file version
   virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
+                             const shared_ptr<Command>& c,
                              shared_ptr<Version> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
@@ -227,7 +237,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Add a directory entry to this artifact
   virtual shared_ptr<DirVersion> addEntry(Build& build,
-                                          shared_ptr<Command> c,
+                                          const shared_ptr<Command>& c,
                                           fs::path entry,
                                           shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to add an entry to non-directory artifact " << this;
@@ -236,7 +246,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Remove a directory entry from this artifact
   virtual shared_ptr<DirVersion> removeEntry(Build& build,
-                                             shared_ptr<Command> c,
+                                             const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to remove an entry from non-directory artifact " << this;
@@ -253,7 +263,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns a resolution result, which is either an artifact or an error code
    */
   Ref resolve(Build& build,
-              shared_ptr<Command> c,
+              const shared_ptr<Command>& c,
               fs::path path,
               AccessFlags flags,
               size_t symlink_limit = 40) noexcept {
@@ -273,7 +283,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns a resolution result, which is either an artifact or an error code
    */
   virtual Ref resolve(Build& build,
-                      shared_ptr<Command> c,
+                      const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

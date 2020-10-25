@@ -126,7 +126,7 @@ class Graph final : public BuildObserver {
       return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
   }
 
-  string getCommandID(shared_ptr<Command> c) noexcept {
+  string getCommandID(const shared_ptr<Command>& c) noexcept {
     // Add this command to the map of command IDs if necessary
     if (auto iter = _command_ids.find(c); iter == _command_ids.end()) {
       _command_ids.emplace_hint(iter, c, "c" + to_string(_command_ids.size()));
@@ -166,7 +166,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c reads version v from artifact a
-  virtual void observeInput(shared_ptr<Command> c,
+  virtual void observeInput(const shared_ptr<Command>& c,
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> v,
                             InputType t) noexcept override final {
@@ -179,7 +179,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c appends version v to artifact a
-  virtual void observeOutput(shared_ptr<Command> c,
+  virtual void observeOutput(const shared_ptr<Command>& c,
                              shared_ptr<Artifact> a,
                              shared_ptr<Version> v) noexcept override final {
     if (fs::path(a->getName()).is_absolute() && !_show_all) return;
@@ -188,7 +188,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Command c observes a change in version v of artifact a
-  virtual void observeMismatch(shared_ptr<Command> c,
+  virtual void observeMismatch(const shared_ptr<Command>& c,
                                Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
@@ -201,7 +201,7 @@ class Graph final : public BuildObserver {
   }
 
   /// A command's reference did not resolve as expected
-  virtual void observeResolutionChange(shared_ptr<Command> c,
+  virtual void observeResolutionChange(const shared_ptr<Command>& c,
                                        Scenario scenario,
                                        shared_ptr<Ref> ref,
                                        int expected) noexcept override {
@@ -209,7 +209,7 @@ class Graph final : public BuildObserver {
   }
 
   /// Two references did not compare as expected
-  virtual void observeRefMismatch(shared_ptr<Command> c,
+  virtual void observeRefMismatch(const shared_ptr<Command>& c,
                                   shared_ptr<Ref> ref1,
                                   shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override {
@@ -217,16 +217,16 @@ class Graph final : public BuildObserver {
   }
 
   /// A child command did not exit with the expected status
-  virtual void observeExitCodeChange(shared_ptr<Command> parent,
-                                     shared_ptr<Command> child,
+  virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
+                                     const shared_ptr<Command>& child,
                                      int expected,
                                      int observed) noexcept override {
     _changed_commands.insert(parent);
   }
 
   /// A command is starting
-  virtual void observeLaunch(shared_ptr<Command> parent,
-                             shared_ptr<Command> child) noexcept override final {
+  virtual void observeLaunch(const shared_ptr<Command>& parent,
+                             const shared_ptr<Command>& child) noexcept override final {
     // Is there a parent command?
     if (parent) {
       // Yes. Add the edge from parent to child

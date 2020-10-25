@@ -111,7 +111,7 @@ void DirArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void DirArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+void DirArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
   build.observeInput(c, shared_from_this(), _base_dir_version, InputType::Exists);
 
@@ -160,12 +160,16 @@ void DirArtifact::applyFinalState(Build& build, fs::path path) noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void DirArtifact::beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void DirArtifact::beforeRead(Build& build,
+                             const shared_ptr<Command>& c,
+                             Command::RefID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void DirArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void DirArtifact::afterRead(Build& build,
+                            const shared_ptr<Command>& c,
+                            Command::RefID ref) noexcept {
   // The command now depends on the content of this directory
   build.traceMatchContent(c, ref, getList(build, c));
 }
@@ -178,7 +182,7 @@ shared_ptr<Version> DirArtifact::peekContent() noexcept {
 
 /// Check to see if this artifact's content matches a known version
 void DirArtifact::matchContent(Build& build,
-                               shared_ptr<Command> c,
+                               const shared_ptr<Command>& c,
                                Scenario scenario,
                                shared_ptr<Version> expected) noexcept {
   // Get a list of entries in this directory
@@ -192,7 +196,8 @@ void DirArtifact::matchContent(Build& build,
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o, shared_ptr<Command> c) noexcept {
+shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o,
+                                                const shared_ptr<Command>& c) noexcept {
   // Create a DirListVersion to hold the list of directory entries
   auto result = make_shared<DirListVersion>();
 
@@ -235,7 +240,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o, shared_ptr<Com
 }
 
 Ref DirArtifact::resolve(Build& build,
-                         shared_ptr<Command> c,
+                         const shared_ptr<Command>& c,
                          shared_ptr<Artifact> prev,
                          fs::path::iterator current,
                          fs::path::iterator end,
@@ -384,7 +389,7 @@ Ref DirArtifact::resolve(Build& build,
 
 // Add a directory entry to this artifact
 shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
-                                             shared_ptr<Command> c,
+                                             const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept {
   // Check for an existing entry with the same name
@@ -417,7 +422,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
 
 // Remove a directory entry from this artifact
 shared_ptr<DirVersion> DirArtifact::removeEntry(Build& build,
-                                                shared_ptr<Command> c,
+                                                const shared_ptr<Command>& c,
                                                 fs::path entry,
                                                 shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update

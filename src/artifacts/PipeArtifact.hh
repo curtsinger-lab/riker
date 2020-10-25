@@ -85,7 +85,7 @@ class PipeArtifact : public Artifact {
   virtual void commitAll() noexcept override {}
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept override;
+  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path) noexcept override {}
@@ -100,20 +100,22 @@ class PipeArtifact : public Artifact {
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
-                          shared_ptr<Command> c,
+                          const shared_ptr<Command>& c,
                           Command::RefID ref) noexcept override {}
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept override;
+  virtual void afterRead(Build& build,
+                         const shared_ptr<Command>& c,
+                         Command::RefID ref) noexcept override;
 
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
-                           shared_ptr<Command> c,
+                           const shared_ptr<Command>& c,
                            Command::RefID ref) noexcept override;
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
-                          shared_ptr<Command> c,
+                          const shared_ptr<Command>& c,
                           Command::RefID ref) noexcept override {}
 
   /************ Content Operations ************/
@@ -123,13 +125,13 @@ class PipeArtifact : public Artifact {
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
-                            shared_ptr<Command> c,
+                            const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /// Apply a new content version to this artifact
   virtual void updateContent(Build& build,
-                             shared_ptr<Command> c,
+                             const shared_ptr<Command>& c,
                              shared_ptr<Version> writing) noexcept override;
 
   /************ Miscellaneous ************/

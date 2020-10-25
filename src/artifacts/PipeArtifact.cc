@@ -59,7 +59,7 @@ bool PipeArtifact::canCommitAll() const noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void PipeArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+void PipeArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
 
   // If there is a last read version, it must exist
@@ -81,7 +81,9 @@ void PipeArtifact::setCommitted() noexcept {
 }
 
 // A traced command just read from this artifact
-void PipeArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void PipeArtifact::afterRead(Build& build,
+                             const shared_ptr<Command>& c,
+                             Command::RefID ref) noexcept {
   // The reading command depends on the last read
   if (_last_read) build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
 
@@ -98,7 +100,9 @@ void PipeArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID
 }
 
 // A trace command just wrote to this artifact
-void PipeArtifact::beforeWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void PipeArtifact::beforeWrite(Build& build,
+                               const shared_ptr<Command>& c,
+                               Command::RefID ref) noexcept {
   // Create a new version
   auto writing = make_shared<PipeWriteVersion>();
 
@@ -113,7 +117,7 @@ shared_ptr<Version> PipeArtifact::peekContent() noexcept {
 
 // Check to see if this artifact's content matches a known version
 void PipeArtifact::matchContent(Build& build,
-                                shared_ptr<Command> c,
+                                const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // If nothing has been read from this pipe, there can be no match
@@ -131,7 +135,7 @@ void PipeArtifact::matchContent(Build& build,
 
 // Apply a new content version to this artifact
 void PipeArtifact::updateContent(Build& build,
-                                 shared_ptr<Command> c,
+                                 const shared_ptr<Command>& c,
                                  shared_ptr<Version> writing) noexcept {
   // Append the new version to the list of versions
   appendVersion(writing);

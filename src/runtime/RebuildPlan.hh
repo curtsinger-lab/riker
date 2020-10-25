@@ -26,13 +26,13 @@ class RebuildPlan {
   RebuildPlan() noexcept = default;
 
   /// Check if a command can be emulated
-  bool canEmulate(shared_ptr<Command> c) const noexcept {
+  bool canEmulate(const shared_ptr<Command>& c) const noexcept {
     // Look for the provided command. If it is not marked, it can be emulated
     return _plan.find(c) == _plan.end();
   }
 
   /// Check if a command can be skipped
-  bool canSkip(shared_ptr<Command> c) const noexcept {
+  bool canSkip(const shared_ptr<Command>& c) const noexcept {
     // Look for the provided command. If it is not found, or is marked only as a child, it can be
     // skipped
     auto iter = _plan.find(c);
@@ -40,7 +40,9 @@ class RebuildPlan {
   }
 
   /// Check if a command must be rerun
-  bool mustRerun(shared_ptr<Command> c) const noexcept { return !canEmulate(c) && !canSkip(c); }
+  bool mustRerun(const shared_ptr<Command>& c) const noexcept {
+    return !canEmulate(c) && !canSkip(c);
+  }
 
   /**
    * Mark a command in the rebuild plan. The command will always retain its highest-level marking
@@ -48,7 +50,7 @@ class RebuildPlan {
    * \param reason  The reason the command is being marked
    * \returns true if the marking is new, meaning the command was previously unmarked
    */
-  bool mark(shared_ptr<Command> c, Reason reason) noexcept {
+  bool mark(const shared_ptr<Command>& c, Reason reason) noexcept {
     // Try to add the marking to the plan
     auto [iter, added] = _plan.emplace(c, reason);
 

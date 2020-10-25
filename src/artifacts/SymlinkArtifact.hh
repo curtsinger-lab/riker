@@ -39,7 +39,7 @@ class SymlinkArtifact : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept override;
+  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path) noexcept override;
@@ -51,11 +51,13 @@ class SymlinkArtifact : public Artifact {
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
-                          shared_ptr<Command> c,
+                          const shared_ptr<Command>& c,
                           Command::RefID ref) noexcept override;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept override;
+  virtual void afterRead(Build& build,
+                         const shared_ptr<Command>& c,
+                         Command::RefID ref) noexcept override;
 
   /************ Content Operations ************/
 
@@ -64,14 +66,14 @@ class SymlinkArtifact : public Artifact {
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
-                            shared_ptr<Command> c,
+                            const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /************ Symlink Operations ************/
 
   virtual Ref resolve(Build& build,
-                      shared_ptr<Command> c,
+                      const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

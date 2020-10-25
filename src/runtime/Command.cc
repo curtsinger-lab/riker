@@ -24,7 +24,7 @@ using std::string;
 namespace fs = std::filesystem;
 
 /// Get a shared pointer to the special null command instance
-shared_ptr<Command> Command::getNullCommand() noexcept {
+const shared_ptr<Command>& Command::getNullCommand() noexcept {
   static shared_ptr<Command> _null_command(new Command());
   return _null_command;
 }

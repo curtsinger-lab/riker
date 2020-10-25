@@ -33,35 +33,37 @@ class TracePrinter : public TraceHandler {
   /// Create a trace printer that writes to a provided ostream (rvalue reference form)
   TracePrinter(ostream&& out) : _out(out) {}
 
-  virtual void specialRef(shared_ptr<Command> c,
+  virtual void specialRef(const shared_ptr<Command>& c,
                           SpecialRef entity,
                           Command::RefID output) noexcept override {
     _out << SpecialRefPrinter{c, entity, output} << endl;
   }
 
-  virtual void pipeRef(shared_ptr<Command> c,
+  virtual void pipeRef(const shared_ptr<Command>& c,
                        Command::RefID read_end,
                        Command::RefID write_end) noexcept override {
     _out << PipeRefPrinter{c, read_end, write_end} << endl;
   }
 
-  virtual void fileRef(shared_ptr<Command> c,
+  virtual void fileRef(const shared_ptr<Command>& c,
                        mode_t mode,
                        Command::RefID output) noexcept override {
     _out << FileRefPrinter{c, mode, output} << endl;
   }
 
-  virtual void symlinkRef(shared_ptr<Command> c,
+  virtual void symlinkRef(const shared_ptr<Command>& c,
                           fs::path target,
                           Command::RefID output) noexcept override {
     _out << SymlinkRefPrinter{c, target, output} << endl;
   }
 
-  virtual void dirRef(shared_ptr<Command> c, mode_t mode, Command::RefID output) noexcept override {
+  virtual void dirRef(const shared_ptr<Command>& c,
+                      mode_t mode,
+                      Command::RefID output) noexcept override {
     _out << DirRefPrinter{c, mode, output} << endl;
   }
 
-  virtual void pathRef(shared_ptr<Command> c,
+  virtual void pathRef(const shared_ptr<Command>& c,
                        Command::RefID base,
                        fs::path path,
                        AccessFlags flags,
@@ -69,57 +71,57 @@ class TracePrinter : public TraceHandler {
     _out << PathRefPrinter{c, base, path, flags, output} << endl;
   }
 
-  virtual void usingRef(shared_ptr<Command> c, Command::RefID ref) noexcept override {
+  virtual void usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept override {
     _out << UsingRefPrinter{c, ref} << endl;
   }
 
-  virtual void doneWithRef(shared_ptr<Command> c, Command::RefID ref) noexcept override {
+  virtual void doneWithRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept override {
     _out << DoneWithRefPrinter{c, ref} << endl;
   }
 
   /// A command depends on the outcome of comparing two different references
-  virtual void compareRefs(shared_ptr<Command> c,
+  virtual void compareRefs(const shared_ptr<Command>& c,
                            Command::RefID ref1,
                            Command::RefID ref2,
                            RefComparison type) noexcept override {
     _out << CompareRefsPrinter{c, ref1, ref2, type} << endl;
   }
 
-  virtual void expectResult(shared_ptr<Command> c,
+  virtual void expectResult(const shared_ptr<Command>& c,
                             Scenario scenario,
                             Command::RefID ref,
                             int expected) noexcept override {
     _out << ExpectResultPrinter{c, scenario, ref, expected} << endl;
   }
 
-  virtual void matchMetadata(shared_ptr<Command> c,
+  virtual void matchMetadata(const shared_ptr<Command>& c,
                              Scenario scenario,
                              Command::RefID ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
     _out << MatchMetadataPrinter{c, scenario, ref, expected} << endl;
   }
 
-  virtual void matchContent(shared_ptr<Command> c,
+  virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
                             Command::RefID ref,
                             shared_ptr<Version> expected) noexcept override {
     _out << MatchContentPrinter{c, scenario, ref, expected} << endl;
   }
 
-  virtual void updateMetadata(shared_ptr<Command> c,
+  virtual void updateMetadata(const shared_ptr<Command>& c,
                               Command::RefID ref,
                               shared_ptr<MetadataVersion> written) noexcept override {
     _out << UpdateMetadataPrinter{c, ref, written} << endl;
   }
 
-  virtual void updateContent(shared_ptr<Command> c,
+  virtual void updateContent(const shared_ptr<Command>& c,
                              Command::RefID ref,
                              shared_ptr<Version> written) noexcept override {
     _out << UpdateContentPrinter{c, ref, written} << endl;
   }
 
   /// Handle an AddEntry IR step
-  virtual void addEntry(shared_ptr<Command> c,
+  virtual void addEntry(const shared_ptr<Command>& c,
                         Command::RefID dir,
                         fs::path name,
                         Command::RefID target) noexcept override {
@@ -127,26 +129,26 @@ class TracePrinter : public TraceHandler {
   }
 
   /// Handle a RemoveEntry IR step
-  virtual void removeEntry(shared_ptr<Command> c,
+  virtual void removeEntry(const shared_ptr<Command>& c,
                            Command::RefID dir,
                            fs::path name,
                            Command::RefID target) noexcept override {
     _out << RemoveEntryPrinter{c, dir, name, target} << endl;
   }
 
-  virtual void launch(shared_ptr<Command> c,
-                      shared_ptr<Command> child,
+  virtual void launch(const shared_ptr<Command>& c,
+                      const shared_ptr<Command>& child,
                       list<tuple<Command::RefID, Command::RefID>> refs) noexcept override {
     _out << LaunchPrinter{c, child, refs} << endl;
   }
 
-  virtual void join(shared_ptr<Command> c,
-                    shared_ptr<Command> child,
+  virtual void join(const shared_ptr<Command>& c,
+                    const shared_ptr<Command>& child,
                     int exit_status) noexcept override {
     _out << JoinPrinter{c, child, exit_status} << endl;
   }
 
-  virtual void exit(shared_ptr<Command> c, int exit_status) noexcept override {
+  virtual void exit(const shared_ptr<Command>& c, int exit_status) noexcept override {
     _out << ExitPrinter{c, exit_status} << endl;
   }
 

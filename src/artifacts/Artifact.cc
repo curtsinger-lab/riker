@@ -191,7 +191,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(Build& build, shared_ptr<Command> c, AccessFlags flags) noexcept {
+bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
   return _metadata_version->checkAccess(build, shared_from_this(), flags);
 }
@@ -227,7 +227,7 @@ void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
 
 /// Get the current metadata version for this artifact
 shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
-                                                  shared_ptr<Command> c,
+                                                  const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
   o.observeInput(c, shared_from_this(), _metadata_version, t);
@@ -244,7 +244,7 @@ shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
 
 /// Check to see if this artifact's metadata matches a known version
 void Artifact::matchMetadata(Build& build,
-                             shared_ptr<Command> c,
+                             const shared_ptr<Command>& c,
                              Scenario scenario,
                              shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
@@ -259,7 +259,7 @@ void Artifact::matchMetadata(Build& build,
 
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
-                                                     shared_ptr<Command> c,
+                                                     const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
   // If a written version was not provided, create one. It will represent the current state, and its
   // fingerprint/saved data will be filled in later if necessary.
@@ -280,7 +280,7 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
 }
 
 Ref Artifact::resolve(Build& build,
-                      shared_ptr<Command> c,
+                      const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

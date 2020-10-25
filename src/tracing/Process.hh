@@ -38,7 +38,7 @@ class Process : public std::enable_shared_from_this<Process> {
   pid_t getID() const noexcept { return _pid; }
 
   /// Get the command this process is running
-  shared_ptr<Command> getCommand() const noexcept { return _command; }
+  const shared_ptr<Command>& getCommand() const noexcept { return _command; }
 
   /// Get the root directory
   Command::RefID getRoot() const noexcept { return _root; }

@@ -45,7 +45,7 @@ class Version : public std::enable_shared_from_this<Version> {
   shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
+  void createdBy(const shared_ptr<Command>& c) noexcept { _creator = c; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }

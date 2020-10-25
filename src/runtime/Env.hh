@@ -44,13 +44,13 @@ class Env : public std::enable_shared_from_this<Env> {
   Env& operator=(const Env&) = delete;
 
   /// Get the standard input pipe
-  shared_ptr<PipeArtifact> getStdin(Build& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<PipeArtifact> getStdin(Build& build, const shared_ptr<Command>& c) noexcept;
 
   /// Get the standard output pipe
-  shared_ptr<PipeArtifact> getStdout(Build& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<PipeArtifact> getStdout(Build& build, const shared_ptr<Command>& c) noexcept;
 
   /// Get the standard error pipe
-  shared_ptr<PipeArtifact> getStderr(Build& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<PipeArtifact> getStderr(Build& build, const shared_ptr<Command>& c) noexcept;
 
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir() noexcept;
@@ -74,7 +74,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param c The command that creates the pipe
    * \returns a pipe artifact
    */
-  shared_ptr<PipeArtifact> getPipe(Build& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<PipeArtifact> getPipe(Build& build, const shared_ptr<Command>& c) noexcept;
 
   /**
    * Create a symlink artifact
@@ -84,7 +84,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \returns a symlink artifact
    */
   shared_ptr<SymlinkArtifact> getSymlink(Build& build,
-                                         shared_ptr<Command> c,
+                                         const shared_ptr<Command>& c,
                                          fs::path target,
                                          bool committed) noexcept;
 
@@ -96,7 +96,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \returns a directory artifact
    */
   shared_ptr<DirArtifact> getDir(Build& build,
-                                 shared_ptr<Command> c,
+                                 const shared_ptr<Command>& c,
                                  mode_t mode,
                                  bool committed) noexcept;
 
@@ -107,7 +107,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \returns a file artifact
    */
   shared_ptr<Artifact> createFile(Build& build,
-                                  shared_ptr<Command> creator,
+                                  const shared_ptr<Command>& creator,
                                   mode_t mode,
                                   bool committed) noexcept;
 

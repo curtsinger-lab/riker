@@ -33,7 +33,7 @@ class Tracer {
   Tracer& operator=(const Tracer&) = delete;
 
   /// Start a command in this tracer
-  shared_ptr<Process> start(shared_ptr<Command> cmd) noexcept;
+  shared_ptr<Process> start(const shared_ptr<Command>& cmd) noexcept;
 
   /// Wait for a specific process to exit, or all processes if unspecified
   void wait(shared_ptr<Process> p = nullptr) noexcept;
@@ -46,7 +46,7 @@ class Tracer {
   optional<tuple<pid_t, int>> getEvent(bool block = true) noexcept;
 
   /// Launch a command with tracing enabled
-  shared_ptr<Process> launchTraced(shared_ptr<Command> cmd) noexcept;
+  shared_ptr<Process> launchTraced(const shared_ptr<Command>& cmd) noexcept;
 
   /// Called when we catch a system call in the traced process
   void handleSyscall(shared_ptr<Thread> t) noexcept;

@@ -64,7 +64,7 @@ class Command : public std::enable_shared_from_this<Command> {
   Command& operator=(Command&&) noexcept = default;
 
   /// Get a shared pointer to the special null command instance
-  static shared_ptr<Command> getNullCommand() noexcept;
+  static const shared_ptr<Command>& getNullCommand() noexcept;
 
   /// Get a short, printable name for this command
   string getShortName(size_t limit = 20) const noexcept;

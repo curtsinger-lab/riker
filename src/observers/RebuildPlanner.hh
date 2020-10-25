@@ -61,7 +61,7 @@ class RebuildPlanner final : public BuildObserver {
   /******** BuildObserver Interface ********/
 
   /// Command c depends on version v of artifact a
-  virtual void observeInput(shared_ptr<Command> c,
+  virtual void observeInput(const shared_ptr<Command>& c,
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> v,
                             InputType t) noexcept override final {
@@ -99,7 +99,7 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Command c did not find the expected version in artifact a
-  virtual void observeMismatch(shared_ptr<Command> c,
+  virtual void observeMismatch(const shared_ptr<Command>& c,
                                Scenario scenario,
                                shared_ptr<Artifact> a,
                                shared_ptr<Version> observed,
@@ -119,14 +119,14 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Command c has never been run
-  virtual void observeCommandNeverRun(shared_ptr<Command> c) noexcept override final {
+  virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept override final {
     LOGF(rebuild, "{} changed: never run", c);
     _changed_build.insert(c);
     _changed_post_build.insert(c);
   }
 
   /// A command's reference did not resolve as expected
-  virtual void observeResolutionChange(shared_ptr<Command> c,
+  virtual void observeResolutionChange(const shared_ptr<Command>& c,
                                        Scenario scenario,
                                        shared_ptr<Ref> ref,
                                        int expected) noexcept override {
@@ -144,7 +144,7 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// Two references did not compare as expected
-  virtual void observeRefMismatch(shared_ptr<Command> c,
+  virtual void observeRefMismatch(const shared_ptr<Command>& c,
                                   shared_ptr<Ref> ref1,
                                   shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override {
@@ -154,8 +154,8 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// A child command did not exit with the expected status
-  virtual void observeExitCodeChange(shared_ptr<Command> parent,
-                                     shared_ptr<Command> child,
+  virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
+                                     const shared_ptr<Command>& child,
                                      int expected,
                                      int observed) noexcept override {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
@@ -182,17 +182,17 @@ class RebuildPlanner final : public BuildObserver {
   }
 
   /// A command is being launched. The parent will be null if this is the root command.
-  virtual void observeLaunch(shared_ptr<Command> parent,
-                             shared_ptr<Command> child) noexcept override final {
+  virtual void observeLaunch(const shared_ptr<Command>& parent,
+                             const shared_ptr<Command>& child) noexcept override final {
     if (parent) _children[parent].insert(child);
   }
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
   void mark(RebuildPlan& plan,
-            shared_ptr<Command> c,
+            const shared_ptr<Command>& c,
             Reason reason,
-            shared_ptr<Command> prev = nullptr) const noexcept {
+            const shared_ptr<Command>& prev = nullptr) const noexcept {
     // Mark the command for the given reason. If it was already marked, return
     if (!plan.mark(c, reason)) return;
 

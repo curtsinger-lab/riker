@@ -44,7 +44,7 @@ class DirArtifact final : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, shared_ptr<Command> c) noexcept override;
+  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path) noexcept override;
@@ -56,11 +56,13 @@ class DirArtifact final : public Artifact {
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
-                          shared_ptr<Command> c,
+                          const shared_ptr<Command>& c,
                           Command::RefID ref) noexcept override;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept override;
+  virtual void afterRead(Build& build,
+                         const shared_ptr<Command>& c,
+                         Command::RefID ref) noexcept override;
 
   /************ Content Operations ************/
 
@@ -69,24 +71,24 @@ class DirArtifact final : public Artifact {
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(Build& build,
-                            shared_ptr<Command> c,
+                            const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /// Get a version that lists all the entries in this directory
-  shared_ptr<DirListVersion> getList(BuildObserver& build, shared_ptr<Command> c) noexcept;
+  shared_ptr<DirListVersion> getList(BuildObserver& build, const shared_ptr<Command>& c) noexcept;
 
   /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
   virtual shared_ptr<DirVersion> addEntry(Build& build,
-                                          shared_ptr<Command> c,
+                                          const shared_ptr<Command>& c,
                                           fs::path entry,
                                           shared_ptr<Artifact> target) noexcept override;
 
   /// Remove a directory entry from this artifact
   virtual shared_ptr<DirVersion> removeEntry(Build& build,
-                                             shared_ptr<Command> c,
+                                             const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept override;
 
@@ -94,7 +96,7 @@ class DirArtifact final : public Artifact {
   using Artifact::resolve;
 
   virtual Ref resolve(Build& build,
-                      shared_ptr<Command> c,
+                      const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

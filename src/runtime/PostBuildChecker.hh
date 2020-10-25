@@ -18,42 +18,42 @@ class PostBuildChecker : public TraceHandler {
   virtual void finish() noexcept override { _output.finish(); }
 
   /// Handle a SpecialRef IR step
-  virtual void specialRef(shared_ptr<Command> command,
+  virtual void specialRef(const shared_ptr<Command>& command,
                           SpecialRef entity,
                           Command::RefID output) noexcept override {
     _output.specialRef(command, entity, output);
   }
 
   /// Handle a PipeRef IR step
-  virtual void pipeRef(shared_ptr<Command> command,
+  virtual void pipeRef(const shared_ptr<Command>& command,
                        Command::RefID read_end,
                        Command::RefID write_end) noexcept override {
     _output.pipeRef(command, read_end, write_end);
   }
 
   /// Handle a FileRef IR step
-  virtual void fileRef(shared_ptr<Command> command,
+  virtual void fileRef(const shared_ptr<Command>& command,
                        mode_t mode,
                        Command::RefID output) noexcept override {
     _output.fileRef(command, mode, output);
   }
 
   /// Handle a SymlinkRef IR step
-  virtual void symlinkRef(shared_ptr<Command> command,
+  virtual void symlinkRef(const shared_ptr<Command>& command,
                           fs::path target,
                           Command::RefID output) noexcept override {
     _output.symlinkRef(command, target, output);
   }
 
   /// Handle a DirRef IR step
-  virtual void dirRef(shared_ptr<Command> command,
+  virtual void dirRef(const shared_ptr<Command>& command,
                       mode_t mode,
                       Command::RefID output) noexcept override {
     _output.dirRef(command, mode, output);
   }
 
   /// Handle a PathRef IR step
-  virtual void pathRef(shared_ptr<Command> command,
+  virtual void pathRef(const shared_ptr<Command>& command,
                        Command::RefID base,
                        fs::path path,
                        AccessFlags flags,
@@ -62,17 +62,18 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle a UsingRef IR step
-  virtual void usingRef(shared_ptr<Command> command, Command::RefID ref) noexcept override {
+  virtual void usingRef(const shared_ptr<Command>& command, Command::RefID ref) noexcept override {
     _output.usingRef(command, ref);
   }
 
   /// Handle a DoneWithRef IR step
-  virtual void doneWithRef(shared_ptr<Command> command, Command::RefID ref) noexcept override {
+  virtual void doneWithRef(const shared_ptr<Command>& command,
+                           Command::RefID ref) noexcept override {
     _output.doneWithRef(command, ref);
   }
 
   /// Handle a CompareRefs IR step
-  virtual void compareRefs(shared_ptr<Command> command,
+  virtual void compareRefs(const shared_ptr<Command>& command,
                            Command::RefID ref1,
                            Command::RefID ref2,
                            RefComparison type) noexcept override {
@@ -81,7 +82,7 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle an ExpectResult IR step
-  virtual void expectResult(shared_ptr<Command> command,
+  virtual void expectResult(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Command::RefID ref,
                             int expected) noexcept override {
@@ -93,7 +94,7 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle a MatchMetadata IR step
-  virtual void matchMetadata(shared_ptr<Command> command,
+  virtual void matchMetadata(const shared_ptr<Command>& command,
                              Scenario scenario,
                              Command::RefID ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
@@ -112,7 +113,7 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle a MatchContent IR step
-  virtual void matchContent(shared_ptr<Command> command,
+  virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Command::RefID ref,
                             shared_ptr<Version> expected) noexcept override {
@@ -131,21 +132,21 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle an UpdateMetadata IR step
-  virtual void updateMetadata(shared_ptr<Command> command,
+  virtual void updateMetadata(const shared_ptr<Command>& command,
                               Command::RefID ref,
                               shared_ptr<MetadataVersion> version) noexcept override {
     _output.updateMetadata(command, ref, version);
   }
 
   /// Handle an UpdateContent IR step
-  virtual void updateContent(shared_ptr<Command> command,
+  virtual void updateContent(const shared_ptr<Command>& command,
                              Command::RefID ref,
                              shared_ptr<Version> version) noexcept override {
     _output.updateContent(command, ref, version);
   }
 
   /// Handle an AddEntry IR step
-  virtual void addEntry(shared_ptr<Command> command,
+  virtual void addEntry(const shared_ptr<Command>& command,
                         Command::RefID dir,
                         fs::path name,
                         Command::RefID target) noexcept override {
@@ -153,7 +154,7 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle a RemoveEntry IR step
-  virtual void removeEntry(shared_ptr<Command> command,
+  virtual void removeEntry(const shared_ptr<Command>& command,
                            Command::RefID dir,
                            fs::path name,
                            Command::RefID target) noexcept override {
@@ -161,21 +162,21 @@ class PostBuildChecker : public TraceHandler {
   }
 
   /// Handle a Launch IR step
-  virtual void launch(shared_ptr<Command> command,
-                      shared_ptr<Command> child,
+  virtual void launch(const shared_ptr<Command>& command,
+                      const shared_ptr<Command>& child,
                       list<tuple<Command::RefID, Command::RefID>> refs) noexcept override {
     _output.launch(command, child, refs);
   }
 
   /// Handle a Join IR step
-  virtual void join(shared_ptr<Command> command,
-                    shared_ptr<Command> child,
+  virtual void join(const shared_ptr<Command>& command,
+                    const shared_ptr<Command>& child,
                     int exit_status) noexcept override {
     _output.join(command, child, exit_status);
   }
 
   /// Handle an Exit IR step
-  virtual void exit(shared_ptr<Command> command, int exit_status) noexcept override {
+  virtual void exit(const shared_ptr<Command>& command, int exit_status) noexcept override {
     _output.exit(command, exit_status);
   }
 

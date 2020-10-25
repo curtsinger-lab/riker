@@ -68,7 +68,7 @@ void FileArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(Build& build, shared_ptr<Command> c) noexcept {
+void FileArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
   build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
 }
@@ -114,12 +114,16 @@ void FileArtifact::setCommitted() noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void FileArtifact::beforeRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void FileArtifact::beforeRead(Build& build,
+                              const shared_ptr<Command>& c,
+                              Command::RefID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void FileArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void FileArtifact::afterRead(Build& build,
+                             const shared_ptr<Command>& c,
+                             Command::RefID ref) noexcept {
   // The current content version is an input to command c
   build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
 
@@ -128,7 +132,9 @@ void FileArtifact::afterRead(Build& build, shared_ptr<Command> c, Command::RefID
 }
 
 /// A traced command is about to (possibly) write to this artifact
-void FileArtifact::beforeWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void FileArtifact::beforeWrite(Build& build,
+                               const shared_ptr<Command>& c,
+                               Command::RefID ref) noexcept {
   // The content version is an input to command c
   build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
 
@@ -137,7 +143,9 @@ void FileArtifact::beforeWrite(Build& build, shared_ptr<Command> c, Command::Ref
 }
 
 /// A traced command just wrote to this artifact
-void FileArtifact::afterWrite(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void FileArtifact::afterWrite(Build& build,
+                              const shared_ptr<Command>& c,
+                              Command::RefID ref) noexcept {
   // Create a new version
   auto writing = make_shared<FileVersion>();
 
@@ -147,13 +155,15 @@ void FileArtifact::afterWrite(Build& build, shared_ptr<Command> c, Command::RefI
 
 /// A traced command is about to truncate this artifact to length 0
 void FileArtifact::beforeTruncate(Build& build,
-                                  shared_ptr<Command> c,
+                                  const shared_ptr<Command>& c,
                                   Command::RefID ref) noexcept {
   // Do nothing before a truncate
 }
 
 /// A trace command just truncated this artifact to length 0
-void FileArtifact::afterTruncate(Build& build, shared_ptr<Command> c, Command::RefID ref) noexcept {
+void FileArtifact::afterTruncate(Build& build,
+                                 const shared_ptr<Command>& c,
+                                 Command::RefID ref) noexcept {
   // The command wrote an empty content version to this artifact
   auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
 
@@ -167,7 +177,7 @@ shared_ptr<Version> FileArtifact::peekContent() noexcept {
 
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::matchContent(Build& build,
-                                shared_ptr<Command> c,
+                                const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // The content version is an input to command c
@@ -182,7 +192,7 @@ void FileArtifact::matchContent(Build& build,
 
 /// Apply a new content version to this artifact
 void FileArtifact::updateContent(Build& build,
-                                 shared_ptr<Command> c,
+                                 const shared_ptr<Command>& c,
                                  shared_ptr<Version> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);

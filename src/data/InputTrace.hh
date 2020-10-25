@@ -65,7 +65,7 @@ class InputTrace {
   }
 
   /// Get a command from its ID
-  shared_ptr<Command> getCommand(Command::ID id) const noexcept { return _commands[id]; }
+  const shared_ptr<Command>& getCommand(Command::ID id) const noexcept { return _commands[id]; }
 
   /// Check if this input trace has a command with a given ID
   bool hasCommand(Command::ID id) const noexcept { return id >= 0 && _commands.size() > id; }

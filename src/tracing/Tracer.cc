@@ -41,7 +41,7 @@ using std::set;
 using std::shared_ptr;
 using std::tuple;
 
-shared_ptr<Process> Tracer::start(shared_ptr<Command> cmd) noexcept {
+shared_ptr<Process> Tracer::start(const shared_ptr<Command>& cmd) noexcept {
   // Launch the command with tracing
   return launchTraced(cmd);
 }
@@ -232,7 +232,7 @@ void Tracer::handleSyscall(shared_ptr<Thread> t) noexcept {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-shared_ptr<Process> Tracer::launchTraced(shared_ptr<Command> cmd) noexcept {
+shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcept {
   LOG(exec) << "Executing " << cmd;
 
   // Fill this vector in with {parent_fd, child_fd} pairs

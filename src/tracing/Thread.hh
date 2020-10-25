@@ -28,7 +28,7 @@ class Thread {
   shared_ptr<Process> getProcess() const noexcept { return _process; }
 
   /// Get the command this thread's process is running
-  shared_ptr<Command> getCommand() const noexcept { return _process->getCommand(); }
+  const shared_ptr<Command>& getCommand() const noexcept { return _process->getCommand(); }
 
   /// Get the thread ID
   pid_t getID() const noexcept { return _tid; }
