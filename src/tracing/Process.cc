@@ -138,6 +138,9 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
   // This process is now running the child
   _command = child;
 
+  // This process is the primary process for its command
+  _primary = true;
+
   // Clear the file descriptor map and fill it in with the child command's reference IDs
   _fds.clear();
 
@@ -158,7 +161,6 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
 void Process::exit(int exit_status) noexcept {
   // Mark the process as exited
   _exited = true;
-  _exit_status = exit_status;
 
   // References to the cwd and root directories are closed
   _build.traceDoneWithRef(_command, _cwd);
@@ -169,4 +171,7 @@ void Process::exit(int exit_status) noexcept {
     const auto& [ref, cloexec] = desc;
     _build.traceDoneWithRef(_command, ref);
   }
+
+  // If this process was the primary for its command, trace the exit
+  if (_primary) _build.traceExit(_command, exit_status);
 }

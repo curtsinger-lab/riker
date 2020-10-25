@@ -67,11 +67,11 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Set a file descriptor's close-on-exec flag
   void setCloexec(int fd, bool cloexec) noexcept;
 
+  /// Mark this process as the primary process for its command
+  void setPrimary() noexcept { _primary = true; }
+
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }
-
-  /// Get this process' exit status
-  int getExitStatus() const noexcept { return _exit_status; }
 
   /// This process forked off a child process
   shared_ptr<Process> fork(pid_t child_pid) noexcept;
@@ -100,6 +100,9 @@ class Process : public std::enable_shared_from_this<Process> {
   /// The command this process is running
   shared_ptr<Command> _command;
 
+  /// Is this process the primary process running its command?
+  bool _primary = false;
+
   /// The process' pid
   pid_t _pid;
 
@@ -114,7 +117,4 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// Has this process exited?
   bool _exited = false;
-
-  /// What status did this process exit with?
-  int _exit_status = -1;
 };

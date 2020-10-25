@@ -89,7 +89,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
   }
 }
 
-int Tracer::wait(shared_ptr<Process> p) noexcept {
+void Tracer::wait(shared_ptr<Process> p) noexcept {
   if (p) {
     LOG(exec) << "Waiting for " << p;
   } else {
@@ -99,12 +99,10 @@ int Tracer::wait(shared_ptr<Process> p) noexcept {
   // Process tracaing events
   while (true) {
     // If we're waiting for a specific process, and that process has exited, return now
-    if (p && p->hasExited()) {
-      return p->getExitStatus();
-    }
+    if (p && p->hasExited()) return;
 
     auto e = getEvent();
-    if (!e.has_value()) return -1;
+    if (!e.has_value()) return;
 
     auto [child, wait_status] = e.value();
 
@@ -385,6 +383,9 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
   auto proc = make_shared<Process>(_build, cmd, child_pid, Command::CwdRef, Command::RootRef, fds);
   _threads[child_pid] = make_shared<Thread>(_build, *this, proc, child_pid);
+
+  // The process is the primary process for its command
+  proc->setPrimary();
 
   return proc;
 }

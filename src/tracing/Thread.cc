@@ -1384,7 +1384,7 @@ void Thread::_wait4(pid_t pid, int* wstatus, int options) noexcept {
     ASSERT(exited) << "wait4 syscall returned an untracked PID " << rc;
 
     if (exited->getCommand() != getCommand()) {
-      _build.traceExit(exited->getCommand(), WEXITSTATUS(status));
+      //_build.traceExit(exited->getCommand(), WEXITSTATUS(status));
       if (WIFEXITED(status)) {
         _build.traceJoin(getCommand(), exited->getCommand(), WEXITSTATUS(status));
       } else if (WIFSIGNALED(status)) {

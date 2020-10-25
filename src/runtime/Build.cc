@@ -630,11 +630,7 @@ void Build::join(const shared_ptr<Command>& c,
   _emulated_step_count++;
 
   // If the child command is running in the tracer, wait for it
-  if (isRunning(child)) {
-    int traced_exit_status = _tracer.wait(_running[child]);
-    // TODO: Drop this line once exit tracking is fully working
-    _output.exit(child, traced_exit_status);
-  }
+  if (isRunning(child)) _tracer.wait(_running[child]);
 
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
@@ -664,7 +660,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // Record that the command has exited
   _exited.insert(c);
 
-  // Save the exit status for this command (TODO: remove once EXIT changes are supported for real)
+  // Save the exit status for this command
   c->setExitStatus(exit_status);
 }
 
@@ -1122,9 +1118,6 @@ void Build::traceJoin(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.join(c, child, exit_status);
 
-  // Save the exit status in the child (TODO: Remove this once we know Build::exit works)
-  // child->setExitStatus(exit_status);
-
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 }
@@ -1139,7 +1132,7 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // Record that the command has exited
   _exited.insert(c);
 
-  // Save the exit status for this command (TODO: remove once EXIT changes are supported for real)
+  // Save the exit status for this command
   c->setExitStatus(exit_status);
 
   // Log the traced step
