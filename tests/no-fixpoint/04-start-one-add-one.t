@@ -5,7 +5,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo *.num *.err
+  $ rm -rf .dodo *.num
   $ touch 0.num
 
 Run the first build (note that commands in (re) below race)

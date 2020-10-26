@@ -5,7 +5,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo *.num *.err
+  $ rm -rf .dodo *.num
 
 Run the first build
   $ $DODO --show
@@ -31,6 +31,3 @@ Run an additional rebuild, which should do nothing
 
 Clean up
   $ rm -rf .dodo *.num
-
-SKIP! This test fails because `grep` never writes to the pipe that `wc` reads. When we plan a rebuild, we never mark `wc` for rerun.
-  $ exit 80
