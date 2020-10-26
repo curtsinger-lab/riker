@@ -291,32 +291,42 @@ void Build::usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept 
   // Count an emulated step
   _emulated_step_count++;
 
+  // Command c is now using ref
+  c->usingRef(ref);
+
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
 
   // Create an IR step and add it to the output trace
   _output.usingRef(c, ref);
-
-  // Command c is now using ref
-  c->usingRef(ref);
 }
 
 // A command closes a handle to a given Ref
-void Build::doneWithRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept {
+void Build::doneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
   // If this step comes from a command we cannot emulate, skip it
   if (!_plan.canEmulate(c)) return;
 
   // Count an emulated step
   _emulated_step_count++;
 
+  // Command c is no longer using ref
+  c->doneWithRef(ref_id);
+
+  // If this is the final use of the ref, inform the referenced artifact of the close
+  auto ref = c->getRef(ref_id);
+  if (ref->getUserCount() == 0) {
+    auto a = ref->getArtifact();
+    if (a) {
+      LOG(exec) << c << " closing final ref to " << a << " with flags " << ref->getFlags();
+      a->beforeClose(*this, c, ref_id);
+    }
+  }
+
   // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref};
+  LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
   // Create an IR step and add it to the output trace
-  _output.doneWithRef(c, ref);
-
-  // Command c is no longer using ref
-  c->doneWithRef(ref);
+  _output.doneWithRef(c, ref_id);
 }
 
 // Command c depends on the outcome of comparing two different references
@@ -795,18 +805,28 @@ void Build::traceUsingRef(const shared_ptr<Command>& c, Command::RefID ref) noex
 }
 
 // A command is finished using a Ref
-void Build::traceDoneWithRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept {
+void Build::traceDoneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
-  if (c->doneWithRef(ref)) {
+  if (c->doneWithRef(ref_id)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
+    // If this is the final use of the ref, inform the referenced artifact of the close
+    auto ref = c->getRef(ref_id);
+    if (ref->getUserCount() == 0) {
+      auto a = ref->getArtifact();
+      if (a) {
+        LOG(exec) << c << " closing final ref to " << a << " with flags " << ref->getFlags();
+        a->beforeClose(*this, c, ref_id);
+      }
+    }
+
     // Create an IR step in the output trace
-    _output.doneWithRef(c, ref);
+    _output.doneWithRef(c, ref_id);
 
     // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref};
+    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
   }
 }
 

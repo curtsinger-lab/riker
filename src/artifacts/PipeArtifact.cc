@@ -86,7 +86,10 @@ void PipeArtifact::beforeClose(Build& build,
                                Command::RefID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?
   if (c->getRef(ref)->getFlags().w) {
-    build.traceUpdateContent(c, ref, make_shared<PipeCloseVersion>());
+    auto final_write = make_shared<PipeCloseVersion>();
+    final_write->createdBy(c);
+    _writes.push_back(final_write);
+    appendVersion(final_write);
   }
 }
 
@@ -122,7 +125,11 @@ void PipeArtifact::beforeWrite(Build& build,
 
 // Get this pipe's content without creating any dependencies
 shared_ptr<Version> PipeArtifact::peekContent() noexcept {
-  return make_shared<PipeReadVersion>(_writes);
+  if (_last_read) {
+    return _last_read;
+  } else {
+    return make_shared<PipeReadVersion>(_writes);
+  }
 }
 
 // Check to see if this artifact's content matches a known version

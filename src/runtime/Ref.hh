@@ -82,6 +82,9 @@ class Ref final {
   /// A command is no longer using this Ref. Return true if that was the last use by c
   void removeUser() noexcept;
 
+  /// Get the number of users of this Ref
+  size_t getUserCount() const noexcept { return _users; }
+
   /// Get a file descriptor for this Ref
   int getFD() noexcept;
 

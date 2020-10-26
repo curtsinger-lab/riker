@@ -329,14 +329,16 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
 void Thread::_close(int fd) noexcept {
   LOGF(trace, "{}: close({})", this, fd);
 
+  _process->tryCloseFD(fd);
+
   finishSyscall([=](long rc) {
     // Resume the blocked thread
     resume();
 
     // If the syscall succeeded, remove the file descriptor
     if (rc == 0) {
-      LOGF(trace, "{}: closing FD {}", this, fd);
-      _process->closeFD(fd);
+      LOGF(trace, "{}: closed FD {}", this, fd);
+      //_process->closeFD(fd);
     } else {
       LOGF(trace, "{}: close({}) returned error {}", this, rc, getErrorName(-rc));
     }

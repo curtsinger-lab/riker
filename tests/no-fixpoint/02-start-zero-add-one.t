@@ -11,9 +11,9 @@ Run the first build
   $ $DODO --show
   dodo-launch
   Dodofile
-  ls -1
-  grep .num
-  wc -l
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
   touch 0.num
 
 Now create an additional file, which changes an input to the build
@@ -21,9 +21,10 @@ Now create an additional file, which changes an input to the build
 
 Run a rebuild
   $ $DODO --show
-  ls -1
-  grep .num
-  wc -l
+  Dodofile
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
+  ((ls -1)|(grep \.num)|(wc -l)) (re)
   touch 2.num
 
 Run an additional rebuild, which should do nothing
