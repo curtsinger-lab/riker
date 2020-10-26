@@ -38,6 +38,26 @@ class PipeWriteVersion : public Version {
   SERIALIZE(BASE(Version));
 };
 
+class PipeCloseVersion : public PipeWriteVersion {
+ public:
+  /// Get a short name for thsi version type
+  virtual string getTypeName() const noexcept override { return "pipe close"; }
+
+  /// Check if a this version matches another
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    return static_cast<bool>(other->as<PipeCloseVersion>());
+  }
+
+  /// Pipe closes can always be committed
+  virtual bool isSaved() const noexcept override { return true; }
+
+  /// Print this version
+  virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe close]"; }
+
+ private:
+  SERIALIZE(BASE(PipeWriteVersion));
+};
+
 class PipeReadVersion : public Version {
  public:
   /// Create a new version that tracks a read from a pipe. The read observes some number of writes.
@@ -97,6 +117,11 @@ class PipeArtifact : public Artifact {
   virtual void setCommitted() noexcept override;
 
   /************ Traced Operations ************/
+
+  /// A traced command is about to close a reference to this artifact
+  virtual void beforeClose(Build& build,
+                           const shared_ptr<Command>& c,
+                           Command::RefID ref) noexcept override;
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,

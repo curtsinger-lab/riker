@@ -45,7 +45,7 @@ bool PipeReadVersion::matches(shared_ptr<Version> other) const noexcept {
 
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  return v->isCommitted();
+  return v->isCommitted() || v->isSaved();
 }
 
 // Can this artifact be fully committed?
@@ -78,6 +78,16 @@ void PipeArtifact::setCommitted() noexcept {
   }
 
   Artifact::setCommitted();
+}
+
+// A traced command is about to close a reference to this artifact
+void PipeArtifact::beforeClose(Build& build,
+                               const shared_ptr<Command>& c,
+                               Command::RefID ref) noexcept {
+  // Is the command closing the last writable reference to this pipe?
+  if (c->getRef(ref)->getFlags().w) {
+    build.traceUpdateContent(c, ref, make_shared<PipeCloseVersion>());
+  }
 }
 
 // A traced command just read from this artifact
@@ -159,6 +169,10 @@ void PipeArtifact::updateContent(Build& build,
   } else if (auto write = writing->as<PipeWriteVersion>()) {
     // Add this write to the list of un-read writes
     _writes.push_back(write);
+
+  } else if (auto close = writing->as<PipeCloseVersion>()) {
+    // Add the close operation to the list of un-read writes
+    _writes.push_back(close);
 
   } else {
     FAIL << "Unsupported pipe version type " << writing;

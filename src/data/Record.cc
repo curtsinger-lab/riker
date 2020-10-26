@@ -39,6 +39,7 @@ CEREAL_REGISTER_TYPE(FileVersion);
 CEREAL_REGISTER_TYPE(SymlinkVersion);
 CEREAL_REGISTER_TYPE(DirListVersion);
 CEREAL_REGISTER_TYPE(PipeWriteVersion);
+CEREAL_REGISTER_TYPE(PipeCloseVersion);
 CEREAL_REGISTER_TYPE(PipeReadVersion);
 
 // Read a command from an input trace

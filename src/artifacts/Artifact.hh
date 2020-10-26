@@ -179,6 +179,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Traced Operations ************/
 
+  /// A traced command is about to close a reference to this artifact
+  virtual void beforeClose(Build& build,
+                           const shared_ptr<Command>& c,
+                           Command::RefID ref) noexcept {}
+
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           const shared_ptr<Command>& c,
