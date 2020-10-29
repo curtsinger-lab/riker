@@ -48,7 +48,8 @@ RUN mkdir /code \
     && cmake . \
     && cmake --build . \
     && rm -f /usr/bin/lldb-mi \
-    && mv src/lldb-mi /usr/bin/lldb-mi
+    && mv src/lldb-mi /usr/bin/lldb-mi \
+    && ln -s /usr/bin/lldb-server-10 /usr/bin/lldb-server-10.0.0
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog

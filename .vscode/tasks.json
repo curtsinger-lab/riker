@@ -20,6 +20,24 @@
       }
     },
     {
+      "label": "make for gdb",
+      "type": "shell",
+      "command": "make OPT=-O0",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true,
+        "clear": true
+      }
+    },
+    {
       "label": "make test",
       "type": "shell",
       "command": "make test",
