@@ -40,9 +40,57 @@ const fs::path DatabaseFilename = ".dodo/db";
 const fs::path NewDatabaseFilename = ".dodo/newdb";
 
 /**
+ * Write stats to CSV.
+ */
+void write_stats(optional<fs::path> p, optional<string> stats) {
+  if (p) {
+    std::ofstream output(*p);
+    output << *stats << endl;
+    output.close();
+  }
+}
+
+/**
+ * Prefix string with phase and quote.
+ */
+string q(string phase, string s) {
+  return "\"" + phase + "_" + s + "\"";
+}
+
+/**
+ * Generate a stats row fragment in CSV format
+ */
+void gather_stats(optional<fs::path> p, Build& build, optional<string>& stats_opt, string phase) {
+  if (p) {
+    // if the stats string is already defined, start with a comma
+    string prefix = "";
+    if (stats_opt.has_value()) {
+      prefix = ",";
+    }
+
+    // load the environment to count some things
+    auto final_env = build.getEnvironment();
+
+    // Count the number of artifact versions
+    size_t version_count = 0;
+    for (const auto& artifact : final_env->getArtifacts()) {
+      version_count += artifact->getVersionCount();
+    }
+
+    *stats_opt += prefix + q(phase, std::to_string(build.getCommandCount())) + "," +
+                  q(phase, std::to_string(build.getTracedCommandCount())) + "," +
+                  q(phase, std::to_string(build.getEmulatedCommandCount())) + "," +
+                  q(phase, std::to_string(build.getStepCount())) + "," +
+                  q(phase, std::to_string(build.getEmulatedStepCount())) + "," +
+                  q(phase, std::to_string(final_env->getArtifacts().size())) + "," +
+                  q(phase, std::to_string(version_count));
+  }
+}
+
+/**
  * Run the `build` subcommand.
  */
-void do_build(vector<string> args) noexcept {
+void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
@@ -52,15 +100,28 @@ void do_build(vector<string> args) noexcept {
   // Set up a rebuild planner to observe the emulated build
   RebuildPlanner planner;
 
-  // Emulate the loaded trace
-  trace.sendTo(Build::emulate(planner));
+  // Build stats
+  optional<string> stats;
+
+  {
+    // Emulate the loaded trace
+    auto build = Build::emulate(planner);
+    trace.sendTo(build);
+
+    // Save rebuild stats
+    gather_stats(stats_log_path, build, stats, "pre");
+  }
 
   {
     // Set up an output trace
     OutputTrace output(NewDatabaseFilename);
 
     // Now run the trace again with the planned rebuild steps
-    trace.sendTo(Build::rebuild(planner.planBuild(), output));
+    auto build = Build::rebuild(planner.planBuild(), output);
+    trace.sendTo(build);
+
+    // Save rebuild stats
+    gather_stats(stats_log_path, build, stats, "rebuild");
   }
 
   {
@@ -74,8 +135,15 @@ void do_build(vector<string> args) noexcept {
     PostBuildChecker filter(output);
 
     // Emulate the new trace
-    new_trace.sendTo(Build::emulate(filter));
+    auto build = Build::emulate(filter);
+    new_trace.sendTo(build);
+
+    // Save rebuild stats
+    gather_stats(stats_log_path, build, stats, "post");
   }
+
+  // write stats
+  write_stats(stats_log_path, stats);
 }
 
 /**
@@ -178,12 +246,7 @@ void do_graph(vector<string> args,
  * Run the `stats` subcommand
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(vector<string> args, bool list_artifacts, bool is_csv) noexcept {
-  if (is_csv && list_artifacts) {
-    cerr << "--artifacts is not valid when used with --csv" << endl;
-    exit(1);
-  }
-
+void do_stats(vector<string> args, bool list_artifacts) noexcept {
   // Load the serialized build trace
   InputTrace trace(args, DatabaseFilename);
 
@@ -198,39 +261,29 @@ void do_stats(vector<string> args, bool list_artifacts, bool is_csv) noexcept {
     version_count += artifact->getVersionCount();
   }
 
-  if (is_csv) {
-    // Print statistics in CSV format
-    // format:
-    // total_commands,traced_commands,emulated_commands,steps,emulated_steps,num_artifacts,num_artifact_versions
-    cout << "\"" << build.getCommandCount() << "\",\"" << build.getTracedCommandCount() << "\",\""
-         << build.getEmulatedCommandCount() << "\",\"" << build.getStepCount() << "\",\""
-         << build.getEmulatedStepCount() << "\",\"" << final_env->getArtifacts().size() << "\",\""
-         << version_count << "\"" << endl;
-  } else {
-    // Print statistics
-    cout << "Build Statistics:" << endl;
-    cout << "  Commands: " << build.getCommandCount() << endl;
-    cout << "  Steps: " << build.getStepCount() << endl;
-    cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
-    cout << "  Artifact Versions: " << version_count << endl;
+  // Print statistics
+  cout << "Build Statistics:" << endl;
+  cout << "  Commands: " << build.getCommandCount() << endl;
+  cout << "  Steps: " << build.getStepCount() << endl;
+  cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
+  cout << "  Artifact Versions: " << version_count << endl;
 
-    if (list_artifacts) {
-      cout << endl;
-      cout << "Artifacts:" << endl;
-      for (const auto& a : final_env->getArtifacts()) {
-        if (a->getName().empty()) {
-          cout << "  " << a->getTypeName() << ": <anonymous>" << endl;
-        } else {
-          cout << "  " << a->getTypeName() << ": " << a->getName() << endl;
-        }
-
-        size_t index = 0;
-        for (const auto& v : a->getVersions()) {
-          cout << "    v" << index << ": " << v << endl;
-          index++;
-        }
-        cout << endl;
+  if (list_artifacts) {
+    cout << endl;
+    cout << "Artifacts:" << endl;
+    for (const auto& a : final_env->getArtifacts()) {
+      if (a->getName().empty()) {
+        cout << "  " << a->getTypeName() << ": <anonymous>" << endl;
+      } else {
+        cout << "  " << a->getTypeName() << ": " << a->getName() << endl;
       }
+
+      size_t index = 0;
+      for (const auto& v : a->getVersions()) {
+        cout << "    v" << index << ": " << v << endl;
+        index++;
+      }
+      cout << endl;
     }
   }
 }
@@ -292,7 +345,6 @@ int main(int argc, char* argv[]) noexcept {
                                 CLI::ignore_case)
                       .description("{warning, trace, ir, artifact, rebuild, exec, all}"))
       ->delimiter(',');
-
   app.add_option("--fingerprint", options::fingerprint_level,
                  "Set the fingerprint level (default=local)")
       ->type_name("LEVEL")
@@ -302,6 +354,16 @@ int main(int argc, char* argv[]) noexcept {
                                                                 {"none", FingerprintLevel::None}},
                                   CLI::ignore_case)
               .description("{all, local, none}"));
+
+  optional<fs::path> stats_log;
+  app.add_option_function<string>(
+         "--stats",
+         [&](string file) {
+           fs::path p(file);
+           stats_log = std::make_optional(p);
+         },
+         "Specify a path to (over-)write statistics to a CSV file")
+      ->type_name("FILE");
 
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
       ->description("Disable the build cache")
@@ -338,11 +400,9 @@ int main(int argc, char* argv[]) noexcept {
 
   /************* Stats Subcommand *************/
   bool list_artifacts = false;
-  bool is_csv = false;
 
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
-  stats->add_flag("-c,--csv", is_csv, "Display build statistics in CSV format");
 
   /************* Dodofile Arguments ***********/
   std::vector<string> args;
@@ -355,7 +415,7 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] { do_build(args); });
+  build->final_callback([&] { do_build(args, stats_log); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand
@@ -363,7 +423,7 @@ int main(int argc, char* argv[]) noexcept {
   // graph subcommand
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand
-  stats->final_callback([&] { do_stats(args, list_artifacts, is_csv); });
+  stats->final_callback([&] { do_stats(args, list_artifacts); });
 
   /************* Argument Parsing *************/
 
