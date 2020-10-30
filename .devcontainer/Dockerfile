@@ -34,6 +34,8 @@ RUN apt-get update \
     && apt-get install -y sudo \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME\
     && chmod 0440 /etc/sudoers.d/$USERNAME \
+    ## cram is called cram3 in 20.04
+    && update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100 \
     #
     # Clean up
     && apt-get autoremove -y \
