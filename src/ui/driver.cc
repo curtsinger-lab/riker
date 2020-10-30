@@ -20,6 +20,7 @@
 #include "runtime/PostBuildChecker.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
+#include "ui/stats.hh"
 #include "util/log.hh"
 
 using std::cout;
@@ -38,54 +39,6 @@ const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
 const fs::path DatabaseFilename = ".dodo/db";
 const fs::path NewDatabaseFilename = ".dodo/newdb";
-
-/**
- * Write stats to CSV.
- */
-void write_stats(optional<fs::path> p, optional<string> stats) {
-  if (p) {
-    std::ofstream output(*p);
-    output << *stats << endl;
-    output.close();
-  }
-}
-
-/**
- * Prefix string with phase and quote.
- */
-string q(string phase, string s) {
-  return "\"" + phase + "_" + s + "\"";
-}
-
-/**
- * Generate a stats row fragment in CSV format
- */
-void gather_stats(optional<fs::path> p, Build& build, optional<string>& stats_opt, string phase) {
-  if (p) {
-    // if the stats string is already defined, start with a comma
-    string prefix = "";
-    if (stats_opt.has_value()) {
-      prefix = ",";
-    }
-
-    // load the environment to count some things
-    auto final_env = build.getEnvironment();
-
-    // Count the number of artifact versions
-    size_t version_count = 0;
-    for (const auto& artifact : final_env->getArtifacts()) {
-      version_count += artifact->getVersionCount();
-    }
-
-    *stats_opt += prefix + q(phase, std::to_string(build.getCommandCount())) + "," +
-                  q(phase, std::to_string(build.getTracedCommandCount())) + "," +
-                  q(phase, std::to_string(build.getEmulatedCommandCount())) + "," +
-                  q(phase, std::to_string(build.getStepCount())) + "," +
-                  q(phase, std::to_string(build.getEmulatedStepCount())) + "," +
-                  q(phase, std::to_string(final_env->getArtifacts().size())) + "," +
-                  q(phase, std::to_string(version_count));
-  }
-}
 
 /**
  * Run the `build` subcommand.
@@ -355,14 +308,8 @@ int main(int argc, char* argv[]) noexcept {
                                   CLI::ignore_case)
               .description("{all, local, none}"));
 
-  optional<fs::path> stats_log;
-  app.add_option_function<string>(
-         "--stats",
-         [&](string file) {
-           fs::path p(file);
-           stats_log = std::make_optional(p);
-         },
-         "Specify a path to (over-)write statistics to a CSV file")
+  std::optional<std::filesystem::path> stats_log;
+  app.add_option("--stats", stats_log, "Specify a path to (over-)write statistics to a CSV file")
       ->type_name("FILE");
 
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
