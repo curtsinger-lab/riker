@@ -17,6 +17,14 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 
 class Config:
     def __init__(self, confpath, outputpath, data):
+        # validation
+        required_keys = ["name", "clean", "docker_runner", "tmp_csv", "image_version"]
+        for key in required_keys:
+            if not key in data:
+                "'{}' must contain key '{}'".format(confpath, key)
+                sys.exit(1)
+
+        # read values
         self.benchmark_name = data["name"]
         self.benchmark_path = os.path.dirname(os.path.realpath(confpath))
         self.runner_path    = os.path.dirname(os.path.realpath(__file__))
@@ -30,6 +38,7 @@ class Config:
         self.docker_exe     = check_output(["which", "docker"]).decode('utf-8').strip()
         self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
+        self.docker_runner  = data["docker_runner"]
 
     def __str__(self):
         return ("Configuration: \n"
@@ -45,7 +54,8 @@ class Config:
                 "\toutput csv:\t{}\n"
                 "\tdocker exe:\t{}\n"
                 "\timage version:\t{}\n"
-                "\tDockerfile:\t{}").format(
+                "\tDockerfile:\t{}\n"
+                "\tdocker runner:\t{}").format(
                     self.benchmark_name,
                     self.benchmark_path,
                     self.runner_path,
@@ -58,7 +68,8 @@ class Config:
                     self.output_csv,
                     self.docker_exe,
                     self.image_version,
-                    self.dockerfile
+                    self.dockerfile,
+                    self.docker_runner
                     )
 
     def build_cmd(self):
@@ -66,9 +77,6 @@ class Config:
     
     def clean_cmd(self):
         return [self.clean_exe]
-
-    def docker_images_cmd(self):
-        return [self.docker_exe, "images"]
 
     def username(self):
         return pwd.getpwuid(os.getuid())[0]
@@ -82,31 +90,74 @@ class Config:
     def docker_image_fullname(self):
         return self.docker_image_name() + ":" + self.docker_image_version()
 
+    def docker_images_cmd(self):
+        return [self.docker_exe, "images"]
+
+    def docker_containers_cmd(self):
+        return [self.docker_exe,
+                "ps",
+                "--format={{.ID}}:{{.Image}}:{{.Names}}"
+                ]
+
     def docker_initialize_cmd(self):
         return [self.docker_exe,                                # docker
                 "build",                                        # build an image
                 "-f={}".format(self.dockerfile),                # location of dockerfile
-                "-t={}".format(self.docker_image_fullname()),     # name of the image
+                "-t={}".format(self.docker_image_fullname()),   # name of the image
                 "../"                                           # working directory for build
+                ]
+            
+    def docker_run_container_cmd(self):
+        return [self.docker_exe,
+                "run",                                                      # run an image
+                "--security-opt seccomp=unconfined",                        # allow ptrace
+                "-name={}".format("benchmark-" + self.benchmark_name()),    # container name
+                "-dit={}".format(self.docker_image_fullname())              # image name
+                ]
+
+    def docker_exec_benchmark_cmd(self):
+        return [self.docker_exe,
+                "exec",
+                "-name={}".format("benchmark-" + self.benchmark_name()),
+                "{}".format(self.docker_runner)
                 ]
 
     # returns true if image already set up
     def image_is_initialized(self):
         (rc, rv) = run_command_capture(self.docker_images_cmd())
-        if (rc == 0):
+        if rc == 0:
             first = True
             for line in rv.splitlines():
                 if first:
                     first = False
                     continue
-                rx = rf"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
+                rx = r"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
                 p = re.compile(rx, re.IGNORECASE)
                 m = p.search(line)
                 if (m.group("repository") == self.docker_image_name()) and (m.group("tag") == self.docker_image_version()):
                     return True
             return False
         else:
-            print("Unable to query docker ({}) for image data.".format(self.docker_exe))
+            print("Unable to query docker ({}) for image data (return code: {}).".format(self.docker_exe, rc))
+            sys.exit(1)
+
+    # returns true if container is running
+    def container_is_running(self):
+        if not self.image_is_initialized():
+            print("Docker image '{}' is not initialized".format(self.docker_image_fullname()))
+            sys.exit(1)
+        (rc, rv) = run_command_capture(self.docker_containers_cmd())
+        if rc == 0:
+            first = True
+            for line in rv.splitlines():
+                rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+)"
+                p = re.compile(rx, re.IGNORECASE)
+                m = p.search(line)
+                if (m.group("container_name") == self.docker_image_name()):
+                    return True
+            return False
+        else:
+            print("Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
             sys.exit(1)
 
     # initializes a docker image
@@ -115,6 +166,26 @@ class Config:
         if rc != 0:
             print("Something went wrong.")
             sys.exit(1)
+
+    # start docker image
+    def start_container(self):
+        rc = run_command(self.docker_run_container_cmd())
+        if rc != 0:
+            print("Something went wrong.")
+            sys.exit(1)
+
+    # run benchmark
+    def exec_benchmark(self):
+        if not self.image_is_running():
+            print("Cannot run benchmark without a running docker image.")
+            sys.exit(1)
+
+        # run benchmark script
+        rc = run_command(self.docker_exec_benchmark())
+        if rc != 0:
+            print("Something went wrong.")
+            sys.exit(1)
+        
 
 # read configuration
 def init_config(args):
@@ -159,7 +230,7 @@ def run_command(command, env={}):
 # runs a command, with optional updated environment
 # variables, saving output to a string as it runs.
 # returns a return code and the output string
-def run_command_capture(command, env={}):
+def run_command_capture(command, env={}, suppress_printing=True):
     # obtain a copy of the current environment
     cur_env = os.environ.copy()
 
@@ -167,17 +238,21 @@ def run_command_capture(command, env={}):
     cur_env.update(env)
 
     # initialize empty stdout string
-    s = ""
+    output = ""
 
     # call the process, with modified environment
     process = Popen(command, stdout=PIPE)
+    cap = ""
     while True:
         output = process.stdout.readline()
         if not output:
             break
-        s += output.decode('utf-8')
+        s = output.decode('utf-8')
+        cap += s
+        if not suppress_printing:
+            print(s.strip())
     rc = process.poll()
-    return (rc, s)
+    return (rc, cap)
 
 # if csv does not exist, create file and write header;
 # otherwise append
@@ -220,10 +295,18 @@ if not conf.image_is_initialized():
 else:
     print("Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
+# start docker image, if necessary
+if not conf.container_is_running():
+    print("Docker container '{}' is not running.  Starting...".format(conf.docker_image_name()))
+else:
+    print("Docker container '{}' is already running.  Skipping startup.".format(conf.docker_image_name()))
+
+# run benchmark
+
 sys.exit(0)
 
 # cd to benchmark
-os.chdir(conf.benchmark_path)
+# os.chdir(conf.benchmark_path)
 
 
 
