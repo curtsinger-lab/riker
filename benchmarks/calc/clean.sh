@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 MAKE=/usr/bin/make
 
