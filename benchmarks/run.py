@@ -28,6 +28,7 @@ class Config:
         self.tmpfile        = os.path.join(self.benchmark_path, data["tmp_csv"])
         self.output_csv     = os.path.realpath(outputpath)
         self.docker_exe     = check_output(["which", "docker"]).decode('utf-8').strip()
+        self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
 
     def __str__(self):
@@ -43,7 +44,8 @@ class Config:
                 "\ttemporary csv:\t{}\n"
                 "\toutput csv:\t{}\n"
                 "\tdocker exe:\t{}\n"
-                "\timage version:\t{}").format(
+                "\timage version:\t{}\n"
+                "\tDockerfile:\t{}").format(
                     self.benchmark_name,
                     self.benchmark_path,
                     self.runner_path,
@@ -55,7 +57,8 @@ class Config:
                     self.tmpfile,
                     self.output_csv,
                     self.docker_exe,
-                    self.image_version
+                    self.image_version,
+                    self.dockerfile
                     )
 
     def build_cmd(self):
@@ -76,6 +79,17 @@ class Config:
     def docker_image_version(self):
         return "v" + str(self.image_version)
 
+    def docker_image_fullname(self):
+        return self.docker_image_name() + ":" + self.docker_image_version()
+
+    def docker_initialize_cmd(self):
+        return [self.docker_exe,                                # docker
+                "build",                                        # build an image
+                "-f={}".format(self.dockerfile),                # location of dockerfile
+                "-t={}".format(self.docker_image_fullname()),     # name of the image
+                "../"                                           # working directory for build
+                ]
+
     # returns true if image already set up
     def image_is_initialized(self):
         (rc, rv) = run_command_capture(self.docker_images_cmd())
@@ -93,7 +107,14 @@ class Config:
             return False
         else:
             print("Unable to query docker ({}) for image data.".format(self.docker_exe))
+            sys.exit(1)
 
+    # initializes a docker image
+    def initialize_docker_image(self):
+        rc = run_command(self.docker_initialize_cmd())
+        if rc != 0:
+            print("Something went wrong.")
+            sys.exit(1)
 
 # read configuration
 def init_config(args):
@@ -192,12 +213,14 @@ def dodo_csv_read(file):
 conf = init_config(sys.argv)
 print(conf)
 
-print(conf.image_is_initialized())
+# initialize docker container, if necessary
+if not conf.image_is_initialized():
+    print("Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
+    conf.initialize_docker_image()
+else:
+    print("Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
 sys.exit(0)
-
-# initialize docker container, if necessary
-
 
 # cd to benchmark
 os.chdir(conf.benchmark_path)
