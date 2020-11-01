@@ -309,7 +309,8 @@ int main(int argc, char* argv[]) noexcept {
               .description("{all, local, none}"));
 
   std::optional<std::filesystem::path> stats_log;
-  app.add_option("--stats", stats_log, "Specify a path to (over-)write statistics to a CSV file")
+  app.add_option("--stats", stats_log,
+                 "Path to write statistics to a CSV file; appends if file already exists.")
       ->type_name("FILE");
 
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
