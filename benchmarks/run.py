@@ -81,8 +81,11 @@ class Config:
     def username(self):
         return pwd.getpwuid(os.getuid())[0]
 
+    def docker_container_name(self):
+        return "benchmark-" + self.benchmark_name
+
     def docker_image_name(self):
-        return self.username() + "/benchmark-" + self.benchmark_name
+        return self.username() + "/" + self.docker_container_name()
 
     def docker_image_version(self):
         return "v" + str(self.image_version)
@@ -109,10 +112,11 @@ class Config:
             
     def docker_run_container_cmd(self):
         return [self.docker_exe,
-                "run",                                                      # run an image
-                "--security-opt seccomp=unconfined",                        # allow ptrace
-                "-name={}".format("benchmark-" + self.benchmark_name()),    # container name
-                "-dit={}".format(self.docker_image_fullname())              # image name
+        # docker run --security-opt seccomp=unconfined --name benchmark-calc -dit dbarowy/benchmark-calc:v1
+                'run',                                                      # run an image
+                '--security-opt seccomp=unconfined',                        # enable ptrace 
+                '--name {}'.format("benchmark-" + self.benchmark_name),      # container name
+                '-dit {}'.format(self.docker_image_fullname())              # image name
                 ]
 
     def docker_exec_benchmark_cmd(self):
@@ -153,7 +157,7 @@ class Config:
                 rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+)"
                 p = re.compile(rx, re.IGNORECASE)
                 m = p.search(line)
-                if (m.group("container_name") == self.docker_image_name()):
+                if (m.group("container_name") == self.docker_container_name()):
                     return True
             return False
         else:
@@ -169,6 +173,8 @@ class Config:
 
     # start docker image
     def start_container(self):
+        print("DEBUG: " + str(self.docker_run_container_cmd()))
+        # sys.exit(0)
         rc = run_command(self.docker_run_container_cmd())
         if rc != 0:
             print("Something went wrong.")
@@ -297,9 +303,10 @@ else:
 
 # start docker image, if necessary
 if not conf.container_is_running():
-    print("Docker container '{}' is not running.  Starting...".format(conf.docker_image_name()))
+    print("Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
+    conf.start_container()
 else:
-    print("Docker container '{}' is already running.  Skipping startup.".format(conf.docker_image_name()))
+    print("Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
 # run benchmark
 
