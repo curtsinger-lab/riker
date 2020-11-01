@@ -2,11 +2,13 @@
 
 import os
 import sys
+import pwd
 from subprocess import Popen, PIPE, check_output
 from threading import Thread
 from resource import *
 import shutil
 import json
+import re
 
 # constants
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -25,19 +27,23 @@ class Config:
         self.clean_exe      = os.path.join(self.benchmark_path, data["clean"])
         self.tmpfile        = os.path.join(self.benchmark_path, data["tmp_csv"])
         self.output_csv     = os.path.realpath(outputpath)
+        self.docker_exe     = check_output(["which", "docker"]).decode('utf-8').strip()
+        self.image_version  = int(data["image_version"])
 
     def __str__(self):
         return ("Configuration: \n"
-                "\tbenchmark name:\t{}\n" +
-                "\tbenchmark path:\t{}\n" +
-                "\trunner path:\t{}\n" +
-                "\tdodo path:\t{}\n" +
-                "\tdodo exe:\t{}\n" +
-                "\tdodo database:\t{}\n" +
-                "\tmake exe:\t{}\n" +
-                "\tclean exe:\t{}\n" +
-                "\ttemporary csv:\t{}\n" +
-                "\toutput csv:\t{}").format(
+                "\tbenchmark name:\t{}\n"
+                "\tbenchmark path:\t{}\n"
+                "\trunner path:\t{}\n"
+                "\tdodo path:\t{}\n"
+                "\tdodo exe:\t{}\n"
+                "\tdodo database:\t{}\n"
+                "\tmake exe:\t{}\n"
+                "\tclean exe:\t{}\n"
+                "\ttemporary csv:\t{}\n"
+                "\toutput csv:\t{}\n"
+                "\tdocker exe:\t{}\n"
+                "\timage version:\t{}").format(
                     self.benchmark_name,
                     self.benchmark_path,
                     self.runner_path,
@@ -47,13 +53,47 @@ class Config:
                     self.make_exe,
                     self.clean_exe,
                     self.tmpfile,
-                    self.output_csv)
+                    self.output_csv,
+                    self.docker_exe,
+                    self.image_version
+                    )
 
     def build_cmd(self):
         return [self.dodo_exe, "build", "--stats=" + self.tmpfile]
     
     def clean_cmd(self):
         return [self.clean_exe]
+
+    def docker_images_cmd(self):
+        return [self.docker_exe, "images"]
+
+    def username(self):
+        return pwd.getpwuid(os.getuid())[0]
+
+    def docker_image_name(self):
+        return self.username() + "/benchmark-" + self.benchmark_name
+
+    def docker_image_version(self):
+        return "v" + str(self.image_version)
+
+    # returns true if image already set up
+    def image_is_initialized(self):
+        (rc, rv) = run_command_capture(self.docker_images_cmd())
+        if (rc == 0):
+            first = True
+            for line in rv.splitlines():
+                if first:
+                    first = False
+                    continue
+                rx = rf"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
+                p = re.compile(rx, re.IGNORECASE)
+                m = p.search(line)
+                if (m.group("repository") == self.docker_image_name()) and (m.group("tag") == self.docker_image_version()):
+                    return True
+            return False
+        else:
+            print("Unable to query docker ({}) for image data.".format(self.docker_exe))
+
 
 # read configuration
 def init_config(args):
@@ -77,6 +117,7 @@ def rm_silently(file):
 
 # runs a command, with optional updated environment
 # variables, printing output as it runs.
+# returns a return code.
 def run_command(command, env={}):
     # obtain a copy of the current environment
     cur_env = os.environ.copy()
@@ -93,6 +134,29 @@ def run_command(command, env={}):
         print(output.decode('utf-8').strip())
     rc = process.poll()
     return rc
+
+# runs a command, with optional updated environment
+# variables, saving output to a string as it runs.
+# returns a return code and the output string
+def run_command_capture(command, env={}):
+    # obtain a copy of the current environment
+    cur_env = os.environ.copy()
+
+    # override using supplied variables
+    cur_env.update(env)
+
+    # initialize empty stdout string
+    s = ""
+
+    # call the process, with modified environment
+    process = Popen(command, stdout=PIPE)
+    while True:
+        output = process.stdout.readline()
+        if not output:
+            break
+        s += output.decode('utf-8')
+    rc = process.poll()
+    return (rc, s)
 
 # if csv does not exist, create file and write header;
 # otherwise append
@@ -126,9 +190,19 @@ def dodo_csv_read(file):
 
 # init config
 conf = init_config(sys.argv)
+print(conf)
+
+print(conf.image_is_initialized())
+
+sys.exit(0)
+
+# initialize docker container, if necessary
+
 
 # cd to benchmark
 os.chdir(conf.benchmark_path)
+
+
 
 # ensure a clean dodo build
 print(">>> CLEANING BUILD ...")
@@ -140,10 +214,10 @@ if rc != 0:
     sys.exit(1)
 
 # run dodo --stats build & redirect stderr to stdout
-print(">>> RUNNING BENCHMARK '" + conf.name + "' ...")
+print(">>> RUNNING BENCHMARK '" + conf.benchmark_name + "' ...")
 rc = run_command(conf.build_cmd())
 if rc != 0:
-    print(">>> ERROR: Unable to run benchmark '" + conf.name + "'.")
+    print(">>> ERROR: Unable to run benchmark '" + conf.benchmark_name + "'.")
     sys.exit(1)
 
 # read temporary CSV
@@ -153,4 +227,4 @@ if rc != 0:
 csv_append(conf.output_csv, header, rows)
 
 # tell the user that we are finished
-print(">>> DONE: " + dodo.name)
+print(">>> DONE: " + dodo.benchmark_name)
