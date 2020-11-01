@@ -1,0 +1,6 @@
+{
+    "name": "calc",
+    "clean": "clean.sh",
+    "tmp_csv": "tmp.csv",
+    "image_version": "1"
+}
