@@ -4,11 +4,11 @@ import os
 import sys
 import pwd
 from subprocess import Popen, PIPE, check_output
-from threading import Thread
 from resource import *
 import shutil
 import json
 import re
+import argparse
 
 # constants
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -27,6 +27,7 @@ class Config:
         # read values
         self.benchmark_name = data["name"]
         self.benchmark_path = os.path.dirname(os.path.realpath(confpath))
+        self.benchmark_root = data["benchmark_root"]
         self.runner_path    = os.path.dirname(os.path.realpath(__file__))
         self.dodo_path      = os.path.dirname(self.runner_path)
         self.dodo_exe       = os.path.join(self.dodo_path, "dodo")
@@ -39,11 +40,13 @@ class Config:
         self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
         self.docker_runner  = data["docker_runner"]
+        self.time_data_path = data["time_data_path"]
 
     def __str__(self):
         return ("Configuration: \n"
                 "\tbenchmark name:\t{}\n"
                 "\tbenchmark path:\t{}\n"
+                "\tbenchmark root:\t{}\n"
                 "\trunner path:\t{}\n"
                 "\tdodo path:\t{}\n"
                 "\tdodo exe:\t{}\n"
@@ -55,9 +58,11 @@ class Config:
                 "\tdocker exe:\t{}\n"
                 "\timage version:\t{}\n"
                 "\tDockerfile:\t{}\n"
-                "\tdocker runner:\t{}").format(
+                "\tdocker runner:\t{}\n"
+                "\ttime data path:\t{}").format(
                     self.benchmark_name,
                     self.benchmark_path,
+                    self.benchmark_root,
                     self.runner_path,
                     self.dodo_path,
                     self.dodo_exe,
@@ -69,7 +74,8 @@ class Config:
                     self.docker_exe,
                     self.image_version,
                     self.dockerfile,
-                    self.docker_runner
+                    self.docker_runner,
+                    self.time_data_path
                     )
 
     def build_cmd(self):
@@ -111,20 +117,34 @@ class Config:
                 ]
             
     def docker_run_container_cmd(self):
-        return [self.docker_exe,
         # docker run --security-opt seccomp=unconfined --name benchmark-calc -dit dbarowy/benchmark-calc:v1
+        return [self.docker_exe,                                            # docker
                 'run',                                                      # run an image
                 '--security-opt seccomp=unconfined',                        # enable ptrace 
-                '--name {}'.format("benchmark-" + self.benchmark_name),      # container name
+                '--name {}'.format("benchmark-" + self.benchmark_name),     # container name
                 '-dit {}'.format(self.docker_image_fullname())              # image name
                 ]
 
-    def docker_exec_benchmark_cmd(self):
-        return [self.docker_exe,
-                "exec",
-                "--name={}".format("benchmark-" + self.benchmark_name()),
-                "{}".format(self.docker_runner)
-                ]
+    def docker_exec_benchmark_cmd(self, env={}):
+        # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
+        if len(env) > 0:
+            env_strings = []
+            for key in env:
+                env_strings += ["-e {}='{}'".format(key, env[key])]
+
+            arr = []
+            arr += [self.docker_exe, "exec"]
+            arr += env_strings                                                  # environment variables
+            arr += ["{}".format("benchmark-" + self.benchmark_name),            # the name of the running container
+                    "{}".format(self.docker_runner)                             # the path to the program in the container
+                    ]
+            return arr
+        else:
+            return [self.docker_exe,                                            # docker
+                    "exec",                                                     # run a program inside a container
+                    "{}".format("benchmark-" + self.benchmark_name),            # the name of the running container
+                    "{}".format(self.docker_runner)                             # the path to the program in the container
+                    ]
 
     # returns true if image already set up
     def image_is_initialized(self):
@@ -180,28 +200,35 @@ class Config:
 
     # run benchmark
     def exec_benchmark(self):
-        if not self.image_is_running():
+        if not self.container_is_running():
             print("Cannot run benchmark without a running docker image.")
             sys.exit(1)
 
         # run benchmark script
-        rc = run_command(self.docker_exec_benchmark())
+        my_env = {
+            "BENCHMARK_NAME": self.benchmark_name,
+            "BENCHMARK_ROOT": self.benchmark_root,
+            "TIME_FILE": self.time_data_path,
+            "TMP_CSV": self.tmpfile
+        }
+        rc = run_command(self.docker_exec_benchmark_cmd(my_env))
         if rc != 0:
             print("Something went wrong.")
             sys.exit(1)
-        
 
 # read configuration
 def init_config(args):
-    if len(args) != 3:
-        print("Usage:")
-        print("\t" + args[0] + " <config file> <output.csv>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config", help="path to a JSON benchmark configuration file")
+    parser.add_argument("output", help="path to a CSV for benchmark output")
+    parser.add_argument("-c", "--clean", help="shut down and remove Docker image after running", action="store_true")
+    pargs = parser.parse_args()
+
     try:
-        with open(args[1], 'r') as conf:
-            return Config(args[1], args[2], json.load(conf))
+        with open(pargs.config, 'r') as conf:
+            return Config(pargs.config, pargs.output, json.load(conf))
     except OSError:
-        print("Cannot read config file '" + args[1] + "'")
+        print("Cannot read config file '" + pargs.config + "'")
         sys.exit(1)
 
 # removes a file, and doesn't complain if it doesn't exist
@@ -215,25 +242,7 @@ def rm_silently(file):
 # variables, printing output as it runs.
 # returns a return code.
 def run_command(command, env={}):
-    # mash args into a string, and use shell=True
-    # because Python does not correctly process arguments
-    # containing equals signs.
-    args = " ".join(command)
-
-    # obtain a copy of the current environment
-    cur_env = os.environ.copy()
-
-    # override using supplied variables
-    cur_env.update(env)
-
-    # call the process, with modified environment
-    process = Popen(args, stdout=PIPE, shell=True)
-    while True:
-        output = process.stdout.readline()
-        if not output:
-            break
-        print(output.decode('utf-8').strip())
-    rc = process.poll()
+    (rc, _) = run_command_capture(command, env, suppress_printing=False)
     return rc
 
 # runs a command, with optional updated environment
@@ -255,7 +264,7 @@ def run_command_capture(command, env={}, suppress_printing=True):
     output = ""
 
     # call the process, with modified environment
-    process = Popen(args, stdout=PIPE, shell=True)
+    process = Popen(args, stdout=PIPE, shell=True, env=cur_env)
     cap = ""
     while True:
         output = process.stdout.readline()
@@ -317,6 +326,7 @@ else:
     print("Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
 # run benchmark
+conf.exec_benchmark()
 
 sys.exit(0)
 

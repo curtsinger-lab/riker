@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
-cd /benchmark/calc
-/usr/bin/time ../../dodo/dodo
+cd $BENCHMARK_ROOT/$BENCHMARK_NAME
+/usr/bin/time --output=$TIME_FILE ../../dodo/dodo --stats $TMP_CSV
