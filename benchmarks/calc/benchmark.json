@@ -5,5 +5,5 @@
     "docker_runner": "/benchmark/run.sh",
     "tmp_csv": "/benchmark/tmp.csv",
     "image_version": "1",
-    "time_data_path": "/benchmark/time.txt"
+    "time_data_csv": "/benchmark/time.csv"
 }

@@ -40,7 +40,7 @@ class Config:
         self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
         self.docker_runner  = data["docker_runner"]
-        self.time_data_path = data["time_data_path"]
+        self.time_data_csv = data["time_data_csv"]
 
     def __str__(self):
         return ("Configuration: \n"
@@ -59,7 +59,7 @@ class Config:
                 "\timage version:\t{}\n"
                 "\tDockerfile:\t{}\n"
                 "\tdocker runner:\t{}\n"
-                "\ttime data path:\t{}").format(
+                "\ttime data csv:\t{}").format(
                     self.benchmark_name,
                     self.benchmark_path,
                     self.benchmark_root,
@@ -75,7 +75,7 @@ class Config:
                     self.image_version,
                     self.dockerfile,
                     self.docker_runner,
-                    self.time_data_path
+                    self.time_data_csv
                     )
 
     def build_cmd(self):
@@ -208,7 +208,7 @@ class Config:
         my_env = {
             "BENCHMARK_NAME": self.benchmark_name,
             "BENCHMARK_ROOT": self.benchmark_root,
-            "TIME_FILE": self.time_data_path,
+            "TIME_CSV": self.time_data_csv,
             "TMP_CSV": self.tmpfile
         }
         rc = run_command(self.docker_exec_benchmark_cmd(my_env))
