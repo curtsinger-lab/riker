@@ -122,7 +122,7 @@ class Config:
     def docker_exec_benchmark_cmd(self):
         return [self.docker_exe,
                 "exec",
-                "-name={}".format("benchmark-" + self.benchmark_name()),
+                "--name={}".format("benchmark-" + self.benchmark_name()),
                 "{}".format(self.docker_runner)
                 ]
 
@@ -173,8 +173,6 @@ class Config:
 
     # start docker image
     def start_container(self):
-        print("DEBUG: " + str(self.docker_run_container_cmd()))
-        # sys.exit(0)
         rc = run_command(self.docker_run_container_cmd())
         if rc != 0:
             print("Something went wrong.")
@@ -217,6 +215,11 @@ def rm_silently(file):
 # variables, printing output as it runs.
 # returns a return code.
 def run_command(command, env={}):
+    # mash args into a string, and use shell=True
+    # because Python does not correctly process arguments
+    # containing equals signs.
+    args = " ".join(command)
+
     # obtain a copy of the current environment
     cur_env = os.environ.copy()
 
@@ -224,7 +227,7 @@ def run_command(command, env={}):
     cur_env.update(env)
 
     # call the process, with modified environment
-    process = Popen(command, stdout=PIPE)
+    process = Popen(args, stdout=PIPE, shell=True)
     while True:
         output = process.stdout.readline()
         if not output:
@@ -237,6 +240,11 @@ def run_command(command, env={}):
 # variables, saving output to a string as it runs.
 # returns a return code and the output string
 def run_command_capture(command, env={}, suppress_printing=True):
+    # mash args into a string, and use shell=True
+    # because Python does not correctly process arguments
+    # containing equals signs.
+    args = " ".join(command)
+
     # obtain a copy of the current environment
     cur_env = os.environ.copy()
 
@@ -247,7 +255,7 @@ def run_command_capture(command, env={}, suppress_printing=True):
     output = ""
 
     # call the process, with modified environment
-    process = Popen(command, stdout=PIPE)
+    process = Popen(args, stdout=PIPE, shell=True)
     cap = ""
     while True:
         output = process.stdout.readline()
