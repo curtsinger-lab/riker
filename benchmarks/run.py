@@ -9,6 +9,7 @@ import shutil
 import json
 import re
 import argparse
+import tempfile
 
 # constants
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -135,16 +136,24 @@ class Config:
             arr = []
             arr += [self.docker_exe, "exec"]
             arr += env_strings                                                  # environment variables
-            arr += ["{}".format("benchmark-" + self.benchmark_name),            # the name of the running container
+            arr += ["{}".format(self.docker_container_name()),                  # the name of the running container
                     "{}".format(self.docker_runner)                             # the path to the program in the container
                     ]
             return arr
         else:
             return [self.docker_exe,                                            # docker
                     "exec",                                                     # run a program inside a container
-                    "{}".format("benchmark-" + self.benchmark_name),            # the name of the running container
+                    "{}".format(self.docker_container_name()),                  # the name of the running container
                     "{}".format(self.docker_runner)                             # the path to the program in the container
                     ]
+
+    # copy a file in a docker container to a local file
+    def docker_cp_file_cmd(self, docker_file, local_file):
+        return [self.docker_exe,
+                "cp",
+                "{}:{}".format(self.docker_container_name(), docker_file),
+                local_file
+                ]
 
     # returns true if image already set up
     def image_is_initialized(self):
@@ -216,12 +225,23 @@ class Config:
             print("Something went wrong.")
             sys.exit(1)
 
+    # copies the given file from the running docker container
+    # to a new tempfile and returns the name of that tempfile
+    def copy_docker_file(self, file):
+        (_, t) = tempfile.mkstemp()
+        args = self.docker_cp_file_cmd(file, t)
+        print("DEBUG args: {}".format(args))
+        rc = run_command(args)
+        if rc != 0:
+            print("Unable to copy file '{}' from docker.".format(file))
+        return t
+
 # read configuration
 def init_config(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("config", help="path to a JSON benchmark configuration file")
     parser.add_argument("output", help="path to a CSV for benchmark output")
-    parser.add_argument("-c", "--clean", help="shut down and remove Docker image after running", action="store_true")
+    # parser.add_argument("-c", "--clean", help="shut down and remove Docker image after running", action="store_true")
     pargs = parser.parse_args()
 
     try:
@@ -292,18 +312,33 @@ def csv_append(file, header, rows):
             for row in rows:
                 csv_log.write(row)
 
-# read a dodo --stats CSV file
-def dodo_csv_read(file):
+# read a CSV file, returning
+# a tuple containing the header and an array of rows
+def csv_read(file):
+    print("DOES THIS HAPPEN? 1")
     with open(file, 'r') as fh:
         i = 0
         header = ""
         rows = []
+        print("DOES THIS HAPPEN? 2")
         for line in fh.readlines():
+            print("DOES THIS HAPPEN? 3")
             if i == 0:
                 header = line
             else:
                 rows[i-1] = line
         (header, rows)
+
+# reads two csv files and returns the result
+# merged in the form of a (header, rows)
+def merge_csvs(file1, file2):
+    print("DEBUG file1: {}".format(file1))
+    print("DEBUG file2: {}".format(file2))
+    (h1, rs1) = csv_read(file1)
+    (h2, rs2) = csv_read(file2)
+    header = h1 + "," + h2
+    rows = rs1 + rs2
+    return (header, rows)
 
 ## MAIN METHOD
 
@@ -328,33 +363,18 @@ else:
 # run benchmark
 conf.exec_benchmark()
 
-sys.exit(0)
+# copy outputs to 'local' machine
+dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
+dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
-# cd to benchmark
-# os.chdir(conf.benchmark_path)
+print("DOES THIS HAPPEN? 4")
 
+# merge csvs and return as (header, rows)
+rows = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
 
+print("DOES THIS HAPPEN? 5")
 
-# ensure a clean dodo build
-print(">>> CLEANING BUILD ...")
-rm_silently(conf.tmpfile)
-shutil.rmtree(conf.dodo_database, ignore_errors=True)
-rc = run_command(conf.clean_cmd())
-if rc != 0:
-    print(">>> ERROR: Unable to clean build.")
-    sys.exit(1)
-
-# run dodo --stats build & redirect stderr to stdout
-print(">>> RUNNING BENCHMARK '" + conf.benchmark_name + "' ...")
-rc = run_command(conf.build_cmd())
-if rc != 0:
-    print(">>> ERROR: Unable to run benchmark '" + conf.benchmark_name + "'.")
-    sys.exit(1)
-
-# read temporary CSV
-(header, rows) = dodo_csv_read(conf.tmpfile)
-
-# write stats to CSV output; prepend benchmark name
+# write out results
 csv_append(conf.output_csv, header, rows)
 
 # tell the user that we are finished
