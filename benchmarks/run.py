@@ -303,7 +303,7 @@ def csv_append(file, header, rows):
     # case: file does not exist (needs header)
     try:
         with open(file, "x") as csv_log:
-            csv_log.write(header)
+            csv_log.write(header + "\n")
             for row in rows:
                 csv_log.write(row)
     # case: file exists (no header)
@@ -315,29 +315,28 @@ def csv_append(file, header, rows):
 # read a CSV file, returning
 # a tuple containing the header and an array of rows
 def csv_read(file):
-    print("DOES THIS HAPPEN? 1")
     with open(file, 'r') as fh:
-        i = 0
         header = ""
+        first = True
         rows = []
-        print("DOES THIS HAPPEN? 2")
         for line in fh.readlines():
-            print("DOES THIS HAPPEN? 3")
-            if i == 0:
-                header = line
+            if first:
+                header = line.strip()
+                first = False
             else:
-                rows[i-1] = line
-        (header, rows)
+                rows += [line.strip()]
+        return (header, rows)
 
 # reads two csv files and returns the result
 # merged in the form of a (header, rows)
 def merge_csvs(file1, file2):
-    print("DEBUG file1: {}".format(file1))
-    print("DEBUG file2: {}".format(file2))
     (h1, rs1) = csv_read(file1)
     (h2, rs2) = csv_read(file2)
     header = h1 + "," + h2
-    rows = rs1 + rs2
+    assert len(rs1) == len(rs2)
+    rows = []
+    for i, _ in enumerate(rs1):
+        rows += rs1[i] + "," + rs2[i]
     return (header, rows)
 
 ## MAIN METHOD
@@ -367,15 +366,12 @@ conf.exec_benchmark()
 dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
 dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
-print("DOES THIS HAPPEN? 4")
-
 # merge csvs and return as (header, rows)
-rows = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
-
-print("DOES THIS HAPPEN? 5")
+(header, rows) = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
 
 # write out results
 csv_append(conf.output_csv, header, rows)
 
 # tell the user that we are finished
-print(">>> DONE: " + dodo.benchmark_name)
+print(">>> DONE: " + conf.benchmark_name)
+print(">>> RESULTS APPENDED TO: " + conf.output_csv)
