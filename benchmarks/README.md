@@ -1,19 +1,73 @@
 # Riker Benchmarks HOWTO
 
-Riker benchmarks are distributed as a set of `Dockerfile`s.  When run on Linux, Docker overhead is relatively low, so we use it as a convenient way of running benchmarks without having to install any software locally.  Note that we strongly recommend running these containers on a Linux machine, as Docker overhead for I/O is unacceptably high on the MacOS and Windows.
+This repository contains a number of benchmarks to observe Riker's performance on real-world builds.  To aid in reproducibility and in performance measurement, benchmarks are run in Docker containers.  Although there is a small performance penalty being paid by running in a container, all benchmarks are equally affected, and Docker is now a common deployment target, so we think the disadvantages of such a configuration are small.
 
-Each benchmark is installed in its own separate Docker container, and all of the benchmarks follow the same general format.
+We have only tested these benchmarks on Linux.  Although Docker is available on other platforms, we provide no guarantees about these benchmarks on those other platforms.
 
-## Initial Setup
+## Required software:
 
-To setup all of the benchmarks, run the `setup_benchmarks.sh` script found in the `benchmarks` folder.
+You will need to have the following software installed.  The version we used for our tests is in parentheses.  Note that we performed all tests using Ubuntu 20.04.
 
-## Running an Individual Benchmark
+* Python 3 (3.8.6)
+* Docker (9.03.13, build 4484c46)
 
-To run a selected benchmark, first ensure that the benchmark container has been setup (see above) and then run:
+## Running the benchmarks
+
+A benchmark can be run by running the `run.py` program on your machine.  Online help is available by running:
 
 ```
-TODO
+$ ./run.py --help
+usage: run.py [-h] config output
+
+positional arguments:
+  config      path to a JSON benchmark configuration file
+  output      path to a CSV for benchmark output
+
+optional arguments:
+  -h, --help  show this help message and exit
 ```
 
-## Running All Benchmarks
+For example, to run the `calc` benchmark, outputting statistics to a file called `out.csv`, we would run:
+
+```
+$ ./run.py calc/benchmark.json out.csv
+```
+
+If `out.csv` does not exist, `run.py` will create it, with headers, for easy analysis.  If it already exists, it will append data-only rows.  This setup makes it easy to run several benchmarks, storing benchmark statistics in the same file.
+
+## Adding a benchmark
+
+Each benchmark is collected in a subdirectory in this directory, and each is defined by a `Dockerfile` and a `benchmark.json` file.  The `Dockerfile` specifies all of the setup actions (e.g., running `apt install`) for a given benchmark, including copying any helper scripts needed inside the container.  The `benchmark.json` file tells the `run.py` script where to find the benchmark and its helper scripts.
+
+#### Helper scripts
+
+Each benchmark should have two helper scripts:
+
+* A _runner script_, which starts a Riker build wrapped in a call to `time`.  This script should log the output of `time` to a CSV with the header `"\"wall_s\",\"system_s\",\"user_s\",\"pct_cpu\",\"avg_rss\""` and using the following format string: `"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\""`
+* A _cleaner script_, which says how to restore a benchmark to a pristine state.
+
+#### `benchmark.json`
+
+This file should have the following fields set:
+
+* `name`: The name of the benchmark.
+* `benchmark_root`: The folder the benchmark is stored in, conventionally, `/benchmark`.
+* `tmpcsv`: The location that Riker will write its `--stats` output.
+* `time_data_csv`: The location of the CSV written to by the `time` command called in `run.sh` (see above).
+* `docker_runner`: The location of the runner script (see above).
+* `clean`: The location of the cleaner script (see above).
+* `image_version`: Just leave this as `1` unless you have a reason to change it (Docker needs a version for containers).
+
+Here is a sample `benchmark.json` file for `calc`.  Refer to each benchmark for more examples.  Note that the order of the fields does not matter.
+
+```
+{
+    "name": "calc",
+    "benchmark_root": "/benchmark",
+    "tmp_csv": "/benchmark/tmp.csv",
+    "time_data_csv": "/benchmark/time.csv",
+    "docker_runner": "/benchmark/run.sh",
+    "clean": "clean.sh",
+    "image_version": "1"
+}
+```
