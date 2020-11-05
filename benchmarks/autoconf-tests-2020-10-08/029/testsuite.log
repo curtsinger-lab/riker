@@ -1,9 +1,0 @@
-#                             -*- compilation -*-
-29. tools.at:1009: testing autoupdating with m4_pushdef ...
-./tools.at:1025: autoupdate 
-stderr:
-./tools.at:1026: grep changequote configure.ac
-./tools.at:1027: grep pushdef.*AC_MSG_RESULT_UNQUOTED configure.ac
-stdout:
-./tools.at:1027: exit code was 1, expected 0
-29. tools.at:1009: 29. autoupdating with m4_pushdef (tools.at:1009): expected failure (tools.at:1027)

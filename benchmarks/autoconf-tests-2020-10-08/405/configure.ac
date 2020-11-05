@@ -1,6 +1,0 @@
-AC_INIT
-AC_CONFIG_HEADERS(config.h:config.hin)
-AC_STATE_SAVE(before)
-AC_SYS_LARGEFILE
-AC_OUTPUT
-AC_STATE_SAVE(after)
