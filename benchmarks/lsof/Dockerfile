@@ -54,7 +54,7 @@ RUN mkdir -p benchmark \
 COPY benchmarks/lsof/Dodofile /benchmark/lsof/
 
 # add benchmarking script
-COPY benchmarks/lsof/run.sh /benchmark/
+COPY benchmarks/scripts/run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog

@@ -47,10 +47,6 @@ RUN cd dodo \
 RUN apt-get update \
     && apt-get install wget
 
-# install coreutils dependencies
-#RUN apt-get update \
-#    && apt-get -y install libreadline-dev groff-base bsdmainutils
-
 # download and install the latest tagged release of coreutils (8.32)
 RUN mkdir -p benchmark \
     && cd benchmark \
@@ -63,7 +59,7 @@ RUN mkdir -p benchmark \
 COPY benchmarks/coreutils/Dodofile /benchmark/coreutils/
 
 # add benchmarking script
-COPY benchmarks/coreutils/run.sh /benchmark/
+COPY benchmarks/scripts/run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog

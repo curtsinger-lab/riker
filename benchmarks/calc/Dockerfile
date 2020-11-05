@@ -56,14 +56,14 @@ RUN mkdir -p benchmark \
     && git checkout 2.12.7.2
 
 # import local patches
-ADD benchmarks/calc/Werror.patch /benchmark/calc
+COPY benchmarks/calc/Werror.patch /benchmark/calc
 
 # apply local patches
 RUN cd /benchmark/calc \
     && git apply Werror.patch
 
 # add benchmarking script
-ADD benchmarks/calc/run.sh /benchmark/
+COPY benchmarks/scripts/run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
