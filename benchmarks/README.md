@@ -39,12 +39,11 @@ If `out.csv` does not exist, `run.py` will create it, with headers, for easy ana
 
 Each benchmark is collected in a subdirectory in this directory, and each is defined by a `Dockerfile` and a `benchmark.json` file.  The `Dockerfile` specifies all of the setup actions (e.g., running `apt install`) for a given benchmark, including copying any helper scripts needed inside the container.  The `benchmark.json` file tells the `run.py` script where to find the benchmark and its helper scripts.
 
-#### Helper scripts
+#### Helper script
 
-Each benchmark should have two helper scripts:
+Each benchmark should have the following helper script.  You should generally not need to change this script from benchmark to benchmark, as each benchmark's `Dodofile` describes precisely what to do during a build.
 
 * A _runner script_, which starts a Riker build wrapped in a call to `time`.  This script should log the output of `time` to a CSV with the header `"\"wall_s\",\"system_s\",\"user_s\",\"pct_cpu\",\"avg_rss\""` and using the following format string: `"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\""`
-* A _cleaner script_, which says how to restore a benchmark to a pristine state.
 
 #### `benchmark.json`
 
@@ -52,10 +51,9 @@ This file should have the following fields set:
 
 * `name`: The name of the benchmark.
 * `benchmark_root`: The folder the benchmark is stored in, conventionally, `/benchmark`.
-* `tmpcsv`: The location that Riker will write its `--stats` output.
+* `tmp_csv`: The location that Riker will write its `--stats` output.
 * `time_data_csv`: The location of the CSV written to by the `time` command called in `run.sh` (see above).
 * `docker_runner`: The location of the runner script (see above).
-* `clean`: The location of the cleaner script (see above).
 * `image_version`: Just leave this as `1` unless you have a reason to change it (Docker needs a version for containers).
 
 Here is a sample `benchmark.json` file for `calc`.  Refer to each benchmark for more examples.  Note that the order of the fields does not matter.
@@ -67,7 +65,6 @@ Here is a sample `benchmark.json` file for `calc`.  Refer to each benchmark for 
     "tmp_csv": "/benchmark/tmp.csv",
     "time_data_csv": "/benchmark/time.csv",
     "docker_runner": "/benchmark/run.sh",
-    "clean": "clean.sh",
     "image_version": "1"
 }
 ```

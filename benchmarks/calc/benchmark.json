@@ -1,7 +1,6 @@
 {
     "name": "calc",
     "benchmark_root": "/benchmark",
-    "clean": "clean.sh",
     "docker_runner": "/benchmark/run.sh",
     "tmp_csv": "/benchmark/tmp.csv",
     "image_version": "1",

@@ -17,9 +17,9 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 ## FUNCTION DEFINITIONS
 
 class Config:
-    def __init__(self, confpath, outputpath, data):
+    def __init__(self, confpath, outputpath, cleanup, data):
         # validation
-        required_keys = ["name", "clean", "docker_runner", "tmp_csv", "image_version"]
+        required_keys = ["name", "docker_runner", "tmp_csv", "image_version"]
         for key in required_keys:
             if not key in data:
                 "'{}' must contain key '{}'".format(confpath, key)
@@ -41,10 +41,12 @@ class Config:
         self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
         self.docker_runner  = data["docker_runner"]
-        self.time_data_csv = data["time_data_csv"]
+        self.time_data_csv  = data["time_data_csv"]
+        self.do_cleanup     = cleanup
 
     def __str__(self):
         return ("Configuration: \n"
+                "\tremove image after running:\t{}\n"
                 "\tbenchmark name:\t{}\n"
                 "\tbenchmark path:\t{}\n"
                 "\tbenchmark root:\t{}\n"
@@ -61,6 +63,7 @@ class Config:
                 "\tDockerfile:\t{}\n"
                 "\tdocker runner:\t{}\n"
                 "\ttime data csv:\t{}").format(
+                    "yes" if self.do_cleanup else "no",
                     self.benchmark_name,
                     self.benchmark_path,
                     self.benchmark_root,
@@ -122,7 +125,7 @@ class Config:
         return [self.docker_exe,                                            # docker
                 'run',                                                      # run an image
                 '--security-opt seccomp=unconfined',                        # enable ptrace 
-                '--name {}'.format("benchmark-" + self.benchmark_name),     # container name
+                '--name {}'.format(self.docker_container_name()),           # container name
                 '-dit {}'.format(self.docker_image_fullname())              # image name
                 ]
 
@@ -146,6 +149,24 @@ class Config:
                     "{}".format(self.docker_container_name()),                  # the name of the running container
                     "{}".format(self.docker_runner)                             # the path to the program in the container
                     ]
+
+    def docker_stop_container_cmd(self):
+        return [self.docker_exe,                                            # docker
+                'stop',                                                     # stop container
+                '{}'.format(self.docker_container_name()),                  # container name
+                ]
+
+    def docker_rm_container_cmd(self):
+        return [self.docker_exe,                                            # docker
+                'rm',                                                       # remove container
+                '{}'.format(self.docker_container_name()),                  # container name
+                ]
+
+    def docker_rm_image_cmd(self):
+        return [self.docker_exe,                                            # docker
+                'rmi',                                                      # remove image
+                '{}'.format(conf.docker_image_fullname()),                  # image name
+                ]
 
     # copy a file in a docker container to a local file
     def docker_cp_file_cmd(self, docker_file, local_file):
@@ -235,17 +256,44 @@ class Config:
             print("Unable to copy file '{}' from docker.".format(file))
         return t
 
+    # stop container and remove it
+    # note that this does not remove the image, so that
+    # if you decide to run the benchmark again, it will
+    # already have a built image and be able to run again
+    # quickly.
+    # To delete the image too, supply the --cleanup flag
+    def rm(self, rm_image):
+        rc = run_command(conf.docker_stop_container_cmd())
+        if rc != 0:
+            print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
+            # don't die, just return so that results can be
+            # written out later
+            return
+        rc = run_command(conf.docker_rm_container_cmd())
+        if rc != 0:
+            print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
+            # don't die; see above
+            return
+        if rm_image:
+            rc = run_command(conf.docker_rm_image_cmd())
+            if rc != 0:
+                print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
+                # again, don't die
+        return
+
 # read configuration
 def init_config(args):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Runs a benchmark given a JSON configuration file "
+                                                 "and a CSV for output.  If the CSV already exists, "
+                                                 "this program appends output to it.")
     parser.add_argument("config", help="path to a JSON benchmark configuration file")
     parser.add_argument("output", help="path to a CSV for benchmark output")
-    # parser.add_argument("-c", "--clean", help="shut down and remove Docker image after running", action="store_true")
+    parser.add_argument("-c", "--cleanup", help="shut down and remove Docker image after running", action="store_true")
     pargs = parser.parse_args()
 
     try:
         with open(pargs.config, 'r') as conf:
-            return Config(pargs.config, pargs.output, json.load(conf))
+            return Config(pargs.config, pargs.output, pargs.cleanup, json.load(conf))
     except OSError:
         print("Cannot read config file '" + pargs.config + "'")
         sys.exit(1)
@@ -389,6 +437,9 @@ dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
 # write out results
 csv_append(conf.output_csv, header, rows)
+
+# teardown docker containers
+conf.rm(conf.do_cleanup)
 
 # tell the user that we are finished
 print(">>> DONE: " + conf.benchmark_name)
