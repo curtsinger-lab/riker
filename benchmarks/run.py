@@ -230,7 +230,6 @@ class Config:
     def copy_docker_file(self, file):
         (_, t) = tempfile.mkstemp()
         args = self.docker_cp_file_cmd(file, t)
-        print("DEBUG args: {}".format(args))
         rc = run_command(args)
         if rc != 0:
             print("Unable to copy file '{}' from docker.".format(file))
@@ -336,8 +335,24 @@ def merge_csvs(file1, file2):
     assert len(rs1) == len(rs2)
     rows = []
     for i, _ in enumerate(rs1):
-        rows += rs1[i] + "," + rs2[i]
+        rows += [rs1[i] + "," + rs2[i]]
     return (header, rows)
+
+# prepend the column with the given header
+# and data to the CSV represented as a (header, rows)
+def prepend_column(header, column, csv_header, csv_rows):
+    # add the new column to the header
+    h2 = "\"" + header + "\"," + csv_header
+
+    # add the data to the rows
+    print("column: " + str(column))
+    print("rows: " + str(csv_rows))
+    assert len(column) == len(csv_rows)
+    rows = []
+    for i, _ in enumerate(csv_rows):
+        rows += "\"" + column[i] + "\"," + csv_rows[i]
+    return (h2, rows)
+
 
 ## MAIN METHOD
 
@@ -368,6 +383,9 @@ dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
 # merge csvs and return as (header, rows)
 (header, rows) = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
+
+# add benchmark name
+(header, rows) = prepend_column("benchmark_name", [conf.benchmark_name], header, rows)
 
 # write out results
 csv_append(conf.output_csv, header, rows)
