@@ -45,7 +45,10 @@ RUN cd dodo \
 
 # download wget
 RUN apt-get update \
-    && apt-get install wget
+    && apt-get -y install wget
+
+# install autoconf dependencies
+RUN apt-get -y install m4
 
 # download and install the latest tagged release of autoconf (2.69)
 RUN mkdir -p benchmark \

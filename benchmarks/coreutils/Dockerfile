@@ -50,7 +50,7 @@ RUN apt-get update \
 # download and install the latest tagged release of coreutils (8.32)
 RUN mkdir -p benchmark \
     && cd benchmark \
-    && wget --no-clobber https://ftp.gnu.org/gnu/coreutils/coreutils-8.32.tar.gz \
+    && wget https://ftp.gnu.org/gnu/coreutils/coreutils-8.32.tar.gz \
     && tar xzvf coreutils-8.32.tar.gz \
     && mv coreutils-8.32 coreutils \
     && cd coreutils

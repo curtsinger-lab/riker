@@ -34,7 +34,6 @@ class Config:
         self.dodo_exe       = os.path.join(self.dodo_path, "dodo")
         self.dodo_database  = os.path.join(self.benchmark_path, ".dodo")
         self.make_exe       = check_output(["which", "make"]).decode('utf-8').strip()
-        self.clean_exe      = os.path.join(self.benchmark_path, data["clean"])
         self.tmpfile        = os.path.join(self.benchmark_path, data["tmp_csv"])
         self.output_csv     = os.path.realpath(outputpath)
         self.docker_exe     = check_output(["which", "docker"]).decode('utf-8').strip()
@@ -55,7 +54,6 @@ class Config:
                 "\tdodo exe:\t{}\n"
                 "\tdodo database:\t{}\n"
                 "\tmake exe:\t{}\n"
-                "\tclean exe:\t{}\n"
                 "\ttemporary csv:\t{}\n"
                 "\toutput csv:\t{}\n"
                 "\tdocker exe:\t{}\n"
@@ -72,7 +70,6 @@ class Config:
                     self.dodo_exe,
                     self.dodo_database,
                     self.make_exe,
-                    self.clean_exe,
                     self.tmpfile,
                     self.output_csv,
                     self.docker_exe,
@@ -192,13 +189,13 @@ class Config:
                     return True
             return False
         else:
-            print("Unable to query docker ({}) for image data (return code: {}).".format(self.docker_exe, rc))
+            print("ERROR: Unable to query docker ({}) for image data (return code: {}).".format(self.docker_exe, rc))
             sys.exit(1)
 
     # returns true if container is running
     def container_is_running(self):
         if not self.image_is_initialized():
-            print("Docker image '{}' is not initialized".format(self.docker_image_fullname()))
+            print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
             sys.exit(1)
         (rc, rv) = run_command_capture(self.docker_containers_cmd())
         if rc == 0:
@@ -211,27 +208,27 @@ class Config:
                     return True
             return False
         else:
-            print("Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
+            print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
             sys.exit(1)
 
     # initializes a docker image
     def initialize_docker_image(self):
         rc = run_command(self.docker_initialize_cmd())
         if rc != 0:
-            print("Something went wrong.")
+            print("ERROR: Something went wrong.")
             sys.exit(1)
 
     # start docker image
     def start_container(self):
         rc = run_command(self.docker_run_container_cmd())
         if rc != 0:
-            print("Something went wrong.")
+            print("ERROR: Something went wrong.")
             sys.exit(1)
 
     # run benchmark
     def exec_benchmark(self):
         if not self.container_is_running():
-            print("Cannot run benchmark without a running docker image.")
+            print("ERROR: Cannot run benchmark without a running docker image.")
             sys.exit(1)
 
         # run benchmark script
@@ -243,7 +240,7 @@ class Config:
         }
         rc = run_command(self.docker_exec_benchmark_cmd(my_env))
         if rc != 0:
-            print("Something went wrong.")
+            print("ERROR: Something went wrong.")
             sys.exit(1)
 
     # copies the given file from the running docker container
@@ -253,7 +250,7 @@ class Config:
         args = self.docker_cp_file_cmd(file, t)
         rc = run_command(args)
         if rc != 0:
-            print("Unable to copy file '{}' from docker.".format(file))
+            print("ERROR: Unable to copy file '{}' from docker.".format(file))
         return t
 
     # stop container and remove it
@@ -295,7 +292,7 @@ def init_config(args):
         with open(pargs.config, 'r') as conf:
             return Config(pargs.config, pargs.output, pargs.cleanup, json.load(conf))
     except OSError:
-        print("Cannot read config file '" + pargs.config + "'")
+        print("ERROR: Cannot read config file '" + pargs.config + "'")
         sys.exit(1)
 
 # removes a file, and doesn't complain if it doesn't exist
@@ -393,8 +390,6 @@ def prepend_column(header, column, csv_header, csv_rows):
     h2 = "\"" + header + "\"," + csv_header
 
     # add the data to the rows
-    print("column: " + str(column))
-    print("rows: " + str(csv_rows))
     assert len(column) == len(csv_rows)
     rows = []
     for i, _ in enumerate(csv_rows):
@@ -410,17 +405,17 @@ print(conf)
 
 # initialize docker container, if necessary
 if not conf.image_is_initialized():
-    print("Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
+    print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
     conf.initialize_docker_image()
 else:
-    print("Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
+    print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
 # start docker image, if necessary
 if not conf.container_is_running():
-    print("Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
+    print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
     conf.start_container()
 else:
-    print("Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
+    print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
 # run benchmark
 conf.exec_benchmark()
@@ -442,5 +437,5 @@ csv_append(conf.output_csv, header, rows)
 conf.rm(conf.do_cleanup)
 
 # tell the user that we are finished
-print(">>> DONE: " + conf.benchmark_name)
-print(">>> RESULTS APPENDED TO: " + conf.output_csv)
+print("INFO: DONE: " + conf.benchmark_name)
+print("INFO: RESULTS APPENDED TO: " + conf.output_csv)
