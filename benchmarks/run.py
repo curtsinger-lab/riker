@@ -349,12 +349,12 @@ def csv_append(file, header, rows):
         with open(file, "x") as csv_log:
             csv_log.write(header + "\n")
             for row in rows:
-                csv_log.write(row)
+                csv_log.write(row + "\n")
     # case: file exists (no header)
     except IOError:
         with open(file, "a") as csv_log:
             for row in rows:
-                csv_log.write(row)
+                csv_log.write(row + "\n")
 
 # read a CSV file, returning
 # a tuple containing the header and an array of rows
@@ -393,7 +393,7 @@ def prepend_column(header, column, csv_header, csv_rows):
     assert len(column) == len(csv_rows)
     rows = []
     for i, _ in enumerate(csv_rows):
-        rows += "\"" + column[i] + "\"," + csv_rows[i]
+        rows += ["\"" + column[i] + "\"," + csv_rows[i]]
     return (h2, rows)
 
 
