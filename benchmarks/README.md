@@ -68,3 +68,23 @@ Here is a sample `benchmark.json` file for `calc`.  Refer to each benchmark for 
     "image_version": "1"
 }
 ```
+
+## Notes
+
+This program creates a Docker image using the following command:
+
+```
+$ docker build -f <Dockerfile> -t <username>/benchmark-<benchmark name>:v1 ../
+```
+
+It starts a container using:
+
+```
+$ docker run --security-opt seccomp=unconfined --name benchmark-<benchmark name> -dit <username>/benchmark-<benchmark name>:v1
+```
+
+It executes a benchmark using the runner script with:
+
+```
+$ docker exec benchmark-<benchmark name> <benchmark root>/<runner script>
+```
