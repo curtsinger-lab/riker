@@ -48,7 +48,7 @@ RUN apt-get update \
     && apt-get -y install wget
 
 # install kernel build dependencies
-RUN apt-get -y install flex bison bc rsync kmod cpio libssl-dev:native
+RUN apt-get -y install flex bison bc rsync kmod cpio openssl libssl-dev dkms libelf-dev libudev-dev libpci-dev libiberty-dev autoconf
 
 # download and install the latest stable release of the linux kernel (5.9.6)
 RUN mkdir -p benchmark \
