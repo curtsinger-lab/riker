@@ -233,7 +233,6 @@ class Config:
                 rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
                 p = re.compile(rx, re.IGNORECASE)
                 m = p.search(line)
-                print("DEBUG: checking '{}'".format(line))
                 if (m.group("container_name") == self.docker_container_name()):
                     return True
             return False
