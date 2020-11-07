@@ -68,19 +68,19 @@ class Config:
 
     def __str__(self):
         return ("\tremove image after running:\t{}\n"
-                "\tbenchmark path:\t{}\n"
-                "\tbenchmark root:\t{}\n"
-                "\trunner path:\t{}\n"
-                "\tdodo path:\t{}\n"
-                "\tdodo exe:\t{}\n"
-                "\tdodo database:\t{}\n"
-                "\tmake exe:\t{}\n"
-                "\ttemporary csv:\t{}\n"
-                "\tdocker exe:\t{}\n"
-                "\timage version:\t{}\n"
-                "\tDockerfile:\t{}\n"
-                "\tdocker runner:\t{}\n"
-                "\ttime data csv:\t{}\n").format(
+                "\tbenchmark path:\t\t\t{}\n"
+                "\tbenchmark root:\t\t\t{}\n"
+                "\trunner path:\t\t\t{}\n"
+                "\tdodo path:\t\t\t{}\n"
+                "\tdodo exe:\t\t\t{}\n"
+                "\tdodo database:\t\t\t{}\n"
+                "\tmake exe:\t\t\t{}\n"
+                "\ttemporary csv:\t\t\t{}\n"
+                "\tdocker exe:\t\t\t{}\n"
+                "\timage version:\t\t\t{}\n"
+                "\tDockerfile:\t\t\t{}\n"
+                "\tdocker runner:\t\t\t{}\n"
+                "\ttime data csv:\t\t\t{}\n").format(
                     "yes" if self.do_cleanup else "no",
                     self.benchmark_name,
                     self.benchmark_root,
