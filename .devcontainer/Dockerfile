@@ -13,19 +13,20 @@ RUN apt-get update \
     # 
     # Install git, compilers, and other dev tools
     && apt-get -y install \
-      git \
-      gcc \
-      clang \
-      gdb \
-      lldb \
-      liblldb-dev \
-      llvm-dev \
-      libfmt-dev \
-      time \
-      build-essential \
-      python3-cram \
-      graphviz \
-      cmake \
+    git \
+    gcc \
+    clang \
+    gdb \
+    lldb \
+    liblldb-dev \
+    llvm-dev \
+    libfmt-dev \
+    time \
+    build-essential \
+    python3-cram \
+    python3-pip \
+    graphviz \
+    cmake \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \

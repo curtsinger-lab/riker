@@ -16,6 +16,28 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 
 ## FUNCTION DEFINITIONS
 
+class Configs:
+    def __init__(self, confpaths, outputpath, cleanup, dontask):
+        self.configs = []
+        self.output_csv = outputpath
+        self.dont_ask = dontask
+        
+        # process each config
+        for confpath in confpaths:
+            # read config JSON and add to list
+            with open(confpath, 'r') as conf:
+                self.configs += [Config(confpath, outputpath, cleanup, json.load(conf))]
+
+    def __str__(self):
+        s = ""
+        
+        for conf in self.configs:
+            s += "======= CONFIGURATION: {} ==========================\n".format(conf.benchmark_name)
+            s += str(conf)
+        
+        s += "All output will be written to: {}\n".format(os.path.realpath(self.output_csv))
+        return s
+
 class Config:
     def __init__(self, confpath, outputpath, cleanup, data):
         # validation
@@ -26,7 +48,7 @@ class Config:
                 sys.exit(1)
 
         # read values
-        self.benchmark_name = data["name"]
+        self.benchmark_name  = data["name"]
         self.benchmark_path = os.path.dirname(os.path.realpath(confpath))
         self.benchmark_root = data["benchmark_root"]
         self.runner_path    = os.path.dirname(os.path.realpath(__file__))
@@ -44,9 +66,7 @@ class Config:
         self.do_cleanup     = cleanup
 
     def __str__(self):
-        return ("Configuration: \n"
-                "\tremove image after running:\t{}\n"
-                "\tbenchmark name:\t{}\n"
+        return ("\tremove image after running:\t{}\n"
                 "\tbenchmark path:\t{}\n"
                 "\tbenchmark root:\t{}\n"
                 "\trunner path:\t{}\n"
@@ -55,15 +75,13 @@ class Config:
                 "\tdodo database:\t{}\n"
                 "\tmake exe:\t{}\n"
                 "\ttemporary csv:\t{}\n"
-                "\toutput csv:\t{}\n"
                 "\tdocker exe:\t{}\n"
                 "\timage version:\t{}\n"
                 "\tDockerfile:\t{}\n"
                 "\tdocker runner:\t{}\n"
-                "\ttime data csv:\t{}").format(
+                "\ttime data csv:\t{}\n").format(
                     "yes" if self.do_cleanup else "no",
                     self.benchmark_name,
-                    self.benchmark_path,
                     self.benchmark_root,
                     self.runner_path,
                     self.dodo_path,
@@ -71,7 +89,6 @@ class Config:
                     self.dodo_database,
                     self.make_exe,
                     self.tmpfile,
-                    self.output_csv,
                     self.docker_exe,
                     self.image_version,
                     self.dockerfile,
@@ -279,18 +296,31 @@ class Config:
         return
 
 # read configuration
-def init_config(args):
-    parser = argparse.ArgumentParser(description="Runs a benchmark given a JSON configuration file "
-                                                 "and a CSV for output.  If the CSV already exists, "
-                                                 "this program appends output to it.")
-    parser.add_argument("config", help="path to a JSON benchmark configuration file")
+def init_configs(args):
+    parser = argparse.ArgumentParser(description="Runs a benchmark given at least one JSON "
+                                                 "configuration file and a CSV for output.  If the "
+                                                 "CSV already exists, this program appends output "
+                                                 "to it. If more than one config is supplied, by "
+                                                 "default, this program will wait for the user to "
+                                                 "confirm that they actually want to run all of "
+                                                 "given benchmarks.")
     parser.add_argument("output", help="path to a CSV for benchmark output")
-    parser.add_argument("-c", "--cleanup", help="shut down and remove Docker image after running", action="store_true")
+    parser.add_argument("configs",
+                        metavar="config",
+                        nargs="+",
+                        help="path to a JSON benchmark configuration file")
+    parser.add_argument("-c",
+                        "--cleanup",
+                        help="shut down and remove Docker image after running",
+                        action="store_true")
+    parser.add_argument("-y",
+                        "--dont-ask",
+                        help="don't ask for user confirmation, just run",
+                        action="store_true")
     pargs = parser.parse_args()
 
     try:
-        with open(pargs.config, 'r') as conf:
-            return Config(pargs.config, pargs.output, pargs.cleanup, json.load(conf))
+        return Configs(pargs.configs, pargs.output, pargs.cleanup, pargs.dont_ask)
     except OSError:
         print("ERROR: Cannot read config file '" + pargs.config + "'")
         sys.exit(1)
@@ -400,42 +430,47 @@ def prepend_column(header, column, csv_header, csv_rows):
 ## MAIN METHOD
 
 # init config
-conf = init_config(sys.argv)
-print(conf)
+c = init_configs(sys.argv)
+print(c)
+if len(c.configs) > 1 and not c.dont_ask:
+    yn = input("DO YOU WANT TO CONTINUE? [Y/n] ")
+    if yn != "" and yn != "Y" and yn != "y":
+        sys.exit(0)
 
-# initialize docker container, if necessary
-if not conf.image_is_initialized():
-    print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
-    conf.initialize_docker_image()
-else:
-    print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
+for conf in c.configs:
+    # initialize docker container, if necessary
+    if not conf.image_is_initialized():
+        print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
+        conf.initialize_docker_image()
+    else:
+        print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
-# start docker image, if necessary
-if not conf.container_is_running():
-    print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
-    conf.start_container()
-else:
-    print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
+    # start docker image, if necessary
+    if not conf.container_is_running():
+        print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
+        conf.start_container()
+    else:
+        print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
-# run benchmark
-conf.exec_benchmark()
+    # run benchmark
+    conf.exec_benchmark()
 
-# copy outputs to 'local' machine
-dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
-dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
+    # copy outputs to 'local' machine
+    dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
+    dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
-# merge csvs and return as (header, rows)
-(header, rows) = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
+    # merge csvs and return as (header, rows)
+    (header, rows) = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
 
-# add benchmark name
-(header, rows) = prepend_column("benchmark_name", [conf.benchmark_name], header, rows)
+    # add benchmark name
+    (header, rows) = prepend_column("benchmark_name", [conf.benchmark_name], header, rows)
 
-# write out results
-csv_append(conf.output_csv, header, rows)
+    # write out results
+    csv_append(conf.output_csv, header, rows)
 
-# teardown docker containers
-conf.rm(conf.do_cleanup)
+    # teardown docker containers
+    conf.rm(conf.do_cleanup)
 
-# tell the user that we are finished
-print("INFO: DONE: " + conf.benchmark_name)
-print("INFO: RESULTS APPENDED TO: " + conf.output_csv)
+    # tell the user that we are finished
+    print("INFO: DONE: " + conf.benchmark_name)
+    print("INFO: RESULTS APPENDED TO: " + conf.output_csv)
