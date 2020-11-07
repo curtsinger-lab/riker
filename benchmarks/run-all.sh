@@ -6,6 +6,4 @@
 
 BENCHMARKS=`find . -iname "benchmark.json" -print`
 
-NOW=`date +"%Y-%m-%d_%H-%M"`
-
-./run.py --dont-ask output-${NOW}.csv ${BENCHMARKS}
+./run.py --dont-ask $1 $BENCHMARKS
