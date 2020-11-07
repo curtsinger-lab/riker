@@ -10,6 +10,7 @@ import json
 import re
 import argparse
 import tempfile
+import time
 
 # constants
 ON_POSIX = 'posix' in sys.builtin_module_names
@@ -120,10 +121,21 @@ class Config:
     def docker_images_cmd(self):
         return [self.docker_exe, "images"]
 
-    def docker_containers_cmd(self):
+    def docker_containers_cmd(self, filters=[]):
+        flts = ""
+        if len(filters) > 0:
+            fs = map(lambda x: "--filter {}".format(x), filters)
+            flts = " ".join(fs)
+            return [self.docker_exe,
+                "ps",                                                   # show running containers
+                "-a",                                                   # even non-running ones
+                flts,                                                   # add in some filters
+                "--format={{.ID}}:{{.Image}}:{{.Names}}:{{.Status}}"    # in this format
+                ]
         return [self.docker_exe,
-                "ps",
-                "--format={{.ID}}:{{.Image}}:{{.Names}}"
+                "ps",                                                   # show running containers
+                "-a",                                                   # even non-running ones
+                "--format={{.ID}}:{{.Image}}:{{.Names}}:{{.Status}}"    # in this format
                 ]
 
     def docker_initialize_cmd(self):
@@ -214,13 +226,34 @@ class Config:
         if not self.image_is_initialized():
             print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
             sys.exit(1)
-        (rc, rv) = run_command_capture(self.docker_containers_cmd())
+        (rc, rv) = run_command_capture(self.docker_containers_cmd(["status=running"]))
         if rc == 0:
             first = True
             for line in rv.splitlines():
-                rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+)"
+                rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
                 p = re.compile(rx, re.IGNORECASE)
                 m = p.search(line)
+                print("DEBUG: checking '{}'".format(line))
+                if (m.group("container_name") == self.docker_container_name()):
+                    return True
+            return False
+        else:
+            print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
+            sys.exit(1)
+
+    # returns true if container is dead
+    def container_is_dead(self):
+        if not self.image_is_initialized():
+            print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
+            sys.exit(1)
+        (rc, rv) = run_command_capture(self.docker_containers_cmd(["status=dead", "status=exited"]))
+        if rc == 0:
+            first = True
+            for line in rv.splitlines():
+                rx = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
+                p = re.compile(rx, re.IGNORECASE)
+                m = p.search(line)
+                status = m.group("status")
                 if (m.group("container_name") == self.docker_container_name()):
                     return True
             return False
@@ -446,7 +479,12 @@ for conf in c.configs:
         print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
     # start docker image, if necessary
-    if not conf.container_is_running():
+    if conf.container_is_dead():
+        print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
+        conf.rm(False)
+        time.sleep(2)    # wait a little bit for the container to go away
+        conf.start_container()
+    elif not conf.container_is_running():
         print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
         conf.start_container()
     else:
