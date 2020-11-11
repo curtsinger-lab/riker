@@ -23,7 +23,7 @@ will run all of the benchmarks, appending data for each run to `out.csv`.
 
 ## Running benchmarks individually
 
-A benchmark can be run by running the `run.py` program on your machine.  Online help is available by running:
+An individual benchmark can be run by running the `run.py` program, found in the `benchmarks` directory.  Online help is available by running:
 
 ```
 $ ./run.py --help
