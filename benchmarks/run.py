@@ -208,6 +208,23 @@ class Config:
                 local_file
                 ]
 
+    # remove a file in a docker container
+    def docker_rm_file_cmd(self, docker_file, ignore_failure, recursive):
+        flags = ""
+        if ignore_failure or recursive:
+            flags = "-"
+            if ignore_failure:
+                flags += "f"
+            if recursive:
+                flags += "r"
+        return [self.docker_exe,
+                "exec",                                                     # run a program inside a container
+                "{}".format(self.docker_container_name()),                  # the name of the running container
+                "rm",                                                       # the path to rm
+                "{}".format(flags),                                         # flags for rm
+                docker_file                                                 # path to file to be deleted
+                ]
+
     # returns true if image already set up
     def image_is_initialized(self):
         (rc, rv) = run_command_capture(self.docker_images_cmd())
@@ -313,24 +330,31 @@ class Config:
     # deletes the image too when rm_image is true
     # when ignore_failure is true, just keep chugging along even
     # if commands fail
-    def rm(self, rm_image, ignore_failure = False):
-        rc = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
+    def docker_remove(self, rm_image, ignore_failure = False):
+        (rc, _) = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
             print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
             # don't die, just return so that results can be
             # written out later
             return
-        rc = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
+        (rc, _) = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
             print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
             # don't die; see above
             return
-        if rm_image and not ignore_failure:
-            rc = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
-            if rc != 0:
+        if rm_image:
+            (rc, _) = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
+            if rc != 0 and not ignore_failure:
                 print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
                 # again, don't die
         return
+
+    def docker_rm_file(self, path, ignore_failure, recursive):
+        cmd = conf.docker_rm_file_cmd(path, ignore_failure, recursive)
+        rc = run_command_capture(cmd, suppress_printing=ignore_failure)
+        if rc != 0:
+            print("ERROR: Unable to remove file '{}' in docker container '{}'.".format(path, conf.docker_container_name()))
+        return rc
 
 # read configuration
 def init_configs(args):
@@ -508,7 +532,7 @@ for conf in c.configs:
     # if the user asked us to start with a clean slate, do so
     if conf.start_clean:
         print("INFO: Pre-cleaning docker images...".format(conf.start_clean))
-        conf.rm(True, True)
+        conf.docker_remove(True, True)
 
     # initialize docker container, if necessary
     if not conf.image_is_initialized():
@@ -520,7 +544,7 @@ for conf in c.configs:
     # start docker image, if necessary
     if conf.container_is_dead():
         print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
-        conf.rm(False)
+        conf.docker_remove(False)
         time.sleep(2)    # wait a little bit for the container to go away
         conf.start_container()
     elif not conf.container_is_running():
@@ -537,6 +561,11 @@ for conf in c.configs:
 
     # rebuild with no changes?
     if conf.no_changes_rb:
+        # remove tmp CSV-- this script is dumb and doesn't know how to handle
+        # CSVs with multiple rows; dodo will create a new file with one row
+        # of output (not counting the header)
+        conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
+
         # run benchmark and obtain CSV result
         (header, rows) = run_benchmark(conf, "-rebuild_no_changes")
 
@@ -544,7 +573,7 @@ for conf in c.configs:
         csv_append(conf.output_csv, header, rows)
 
     # tear down docker containers
-    conf.rm(conf.do_cleanup)
+    conf.docker_remove(conf.do_cleanup)
 
     # tell the user that we are finished
     print("INFO: DONE: " + conf.benchmark_name)
