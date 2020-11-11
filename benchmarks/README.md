@@ -11,26 +11,43 @@ You will need to have the following software installed.  The version we used for
 * Python 3 (3.8.6)
 * Docker (9.03.13, build 4484c46)
 
-## Running the benchmarks
+## Running all benchmarks
+
+For your convenience, a script called `run-all.sh` is available in the `benchmarks` directory.  It will run all of the current benchmarks, outputting to the CSV you specify.  For example,
+
+```
+$ ./run-all.sh out.csv
+```
+
+will run all of the benchmarks, appending data for each run to `out.csv`.
+
+## Running benchmarks individually
 
 A benchmark can be run by running the `run.py` program on your machine.  Online help is available by running:
 
 ```
 $ ./run.py --help
-usage: run.py [-h] config output
+usage: run.py [-h] [--cleanup-before] [--cleanup-after] [--dont-ask] [--incr-none] output config [config ...]
+
+Runs a benchmark given at least one JSON configuration file and a CSV for output. If the CSV already exists, this program appends output to it. If more
+than one config is supplied, by default, this program will wait for the user to confirm that they actually want to run all of given benchmarks.
 
 positional arguments:
-  config      path to a JSON benchmark configuration file
-  output      path to a CSV for benchmark output
+  output            path to a CSV for benchmark output
+  config            path to a JSON benchmark configuration file
 
 optional arguments:
-  -h, --help  show this help message and exit
+  -h, --help        show this help message and exit
+  --cleanup-before  remove conflicting container and image before running
+  --cleanup-after   shut down and remove Docker image after running
+  --dont-ask        don't ask for user confirmation, just run
+  --incr-none       measure incremental rebuild time for no changes
 ```
 
 For example, to run the `calc` benchmark, outputting statistics to a file called `out.csv`, we would run:
 
 ```
-$ ./run.py calc/benchmark.json out.csv
+$ ./run.py out.csv calc/benchmark.json
 ```
 
 If `out.csv` does not exist, `run.py` will create it, with headers, for easy analysis.  If it already exists, it will append data-only rows.  This setup makes it easy to run several benchmarks, storing benchmark statistics in the same file.
