@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# make a file
+touch a_file
+
+# symlink that file
+ln -s a_file a_link
+
+# it is important that a_link never be used again;
+# do nothing
