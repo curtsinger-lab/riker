@@ -18,7 +18,7 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 ## FUNCTION DEFINITIONS
 
 class Configs:
-    def __init__(self, confpaths, outputpath, start_clean, cleanup, dontask, no_changes_rb):
+    def __init__(self, confpaths, outputpath, cleanup_before, cleanup_after, dontask, no_changes_rb):
         self.configs = []
         self.output_csv = outputpath
         self.dont_ask = dontask
@@ -27,7 +27,7 @@ class Configs:
         for confpath in confpaths:
             # read config JSON and add to list
             with open(confpath, 'r') as conf:
-                self.configs += [Config(confpath, outputpath, start_clean, cleanup, no_changes_rb, json.load(conf))]
+                self.configs += [Config(confpath, outputpath, cleanup_before, cleanup_after, no_changes_rb, json.load(conf))]
 
     def __str__(self):
         s = ""
@@ -40,7 +40,7 @@ class Configs:
         return s
 
 class Config:
-    def __init__(self, confpath, outputpath, start_clean, cleanup, no_changes_rb, data):
+    def __init__(self, confpath, outputpath, cleanup_before, cleanup_after, no_changes_rb, data):
         # validation
         required_keys = ["name", "docker_runner", "tmp_csv", "image_version"]
         for key in required_keys:
@@ -64,8 +64,8 @@ class Config:
         self.image_version  = int(data["image_version"])
         self.docker_runner  = data["docker_runner"]
         self.time_data_csv  = data["time_data_csv"]
-        self.start_clean    = start_clean
-        self.do_cleanup     = cleanup
+        self.cleanup_before = cleanup_before
+        self.cleanup_after  = cleanup_after
         self.no_changes_rb  = no_changes_rb
 
     def __str__(self):
@@ -85,8 +85,8 @@ class Config:
                 "\tdocker runner:\t\t{}\n"
                 "\ttime data csv:\t\t{}\n"
                 "\trebuild (no changes)\t{}\n").format(
-                    "yes" if self.start_clean else "no",
-                    "yes" if self.do_cleanup else "no",
+                    "yes" if self.cleanup_before else "no",
+                    "yes" if self.cleanup_after else "no",
                     self.benchmark_name,
                     self.benchmark_root,
                     self.runner_path,
@@ -530,8 +530,8 @@ if len(c.configs) > 1 and not c.dont_ask:
 
 for conf in c.configs:
     # if the user asked us to start with a clean slate, do so
-    if conf.start_clean:
-        print("INFO: Pre-cleaning docker images...".format(conf.start_clean))
+    if conf.cleanup_before:
+        print("INFO: Pre-cleaning docker images...")
         conf.docker_remove(True, True)
 
     # initialize docker container, if necessary
@@ -573,7 +573,8 @@ for conf in c.configs:
         csv_append(conf.output_csv, header, rows)
 
     # tear down docker containers
-    conf.docker_remove(conf.do_cleanup)
+    if conf.cleanup_after:
+        conf.docker_remove(True)
 
     # tell the user that we are finished
     print("INFO: DONE: " + conf.benchmark_name)
