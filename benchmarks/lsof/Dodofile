@@ -1,4 +1,3 @@
 #!/bin/sh
 
-./Configure -n linux
-make
+./Configure -n linux && make
