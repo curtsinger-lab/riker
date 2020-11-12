@@ -54,6 +54,7 @@ class mode_flags {
   bool isBlockDevice() const noexcept { return (_mode & S_IFMT) == S_IFBLK; }
   bool isCharDevice() const noexcept { return (_mode & S_IFMT) == S_IFCHR; }
   bool isFIFO() const noexcept { return (_mode & S_IFMT) == S_IFIFO; }
+  bool isDirectory() const noexcept { return (_mode & S_IFMT) == S_IFDIR; }
 
   bool userRead() const noexcept { return has<S_IRUSR>(); }
   bool userWrite() const noexcept { return has<S_IWUSR>(); }
@@ -85,6 +86,28 @@ class mode_flags {
 
     o << fmt::format(" ({:o})", p._mode);
     return o;
+  }
+
+  // decodes file type from mode into human-readable string
+  std::string filetype_str() const noexcept {
+    switch (_mode & S_IFMT) {
+      case S_IFBLK:
+        return "block device";
+      case S_IFCHR:
+        return "character device";
+      case S_IFDIR:
+        return "directory";
+      case S_IFIFO:
+        return "FIFO/pipe";
+      case S_IFLNK:
+        return "symbolic link";
+      case S_IFREG:
+        return "regular file";
+      case S_IFSOCK:
+        return "socket";
+      default:
+        return "unknown file type";
+    }
   }
 
  private:
