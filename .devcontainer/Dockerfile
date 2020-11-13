@@ -13,22 +13,21 @@ RUN apt-get update \
     # 
     # Install git, compilers, and other dev tools
     && apt-get -y install \
-    git \
-    gcc \
-    gcc-9 \
-    clang \
-    gdb \
-    lldb \
-    liblldb-dev \
-    llvm-dev \
-    libfmt-dev \
-    time \
-    build-essential \
-    python3-cram \
-    python3-pip \
-    graphviz \
-    cmake \
-    graphviz \
+    git=1:2.25.1-1ubuntu3 \
+    gcc=4:9.3.0-1ubuntu2 \
+    clang=1:10.0-50~exp1 \
+    gdb=9.1-0ubuntu1 \
+    lldb=1:10.0-50~exp1 \
+    liblldb-dev=1:10.0-50~exp1 \
+    llvm-dev=1:10.0-50~exp1 \
+    libfmt-dev=6.1.2+ds-2 \
+    time=1.7-25.1build1 \
+    build-essential=12.8ubuntu1 \
+    python3-cram=0.7-4 \
+    python3-pip=20.0.2-5ubuntu1.1 \
+    graphviz=2.42.2-3build2 \
+    cmake=3.16.3-1ubuntu1 \
+    texlive-latex-base=2019.20200218-1 \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
@@ -50,6 +49,7 @@ RUN mkdir /code \
     && cd /code \
     && git clone https://github.com/lldb-tools/lldb-mi.git \
     && cd lldb-mi \
+    && git checkout 6257b475e30b50764e2dc98e51b3f1a217c13914 \
     && cmake . \
     && cmake --build . \
     && rm -f /usr/bin/lldb-mi \
