@@ -35,11 +35,11 @@ Check the output
 
 Make sure the A and B links do not exist
   $ stat A
-  stat: cannot stat 'A': No such file or directory
+  stat: cannot statx? 'A': No such file or directory (re)
   [1]
 
   $ stat B
-  stat: cannot stat 'B': No such file or directory
+  stat: cannot statx? 'B': No such file or directory (re)
   [1]
 
 Clean up
