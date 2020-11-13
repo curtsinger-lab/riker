@@ -27,9 +27,31 @@ void BaseDirVersion::commit(fs::path path) noexcept {
   // This directory better be one we've created, otherwise it should have been committed already
   ASSERT(_created) << "An on-disk directory is somehow not committed";
 
-  int rc = ::mkdir(path.c_str(), 0755);
-  FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
+  struct stat statbuf;
 
+  // does the directory already exist?
+  int rc = ::lstat(path.c_str(), &statbuf);
+  if (rc == -1) {
+    if (errno == ENOENT) {
+      // dir doesn't exist-- go ahead and create it
+      rc = ::mkdir(path.c_str(), 0755);
+
+      FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
+    } else {
+      // some error we're not expecting
+      FAIL_IF(rc != 0) << "Unable to stat " << path << " (" << strerror(errno) << ")";
+    }
+  } else {  // it exists
+    // decode
+    mode_flags flags(statbuf.st_mode);
+
+    // file exists-- but is it a directory?
+    FAIL_IF(!flags.isDirectory()) << "File at " << path
+                                  << " exists but is not a directory as expected.  File is "
+                                  << flags.filetype_str() << " (" << (statbuf.st_mode & S_IFMT)
+                                  << ").";
+  }
+  
   // Mark this version as committed
   Version::setCommitted();
 }
