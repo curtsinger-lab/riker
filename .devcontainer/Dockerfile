@@ -28,6 +28,7 @@ RUN apt-get update \
     graphviz=2.42.2-3build2 \
     cmake=3.16.3-1ubuntu1 \
     texlive-latex-base=2019.20200218-1 \
+    lsb-release=11.1.0ubuntu2 \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
