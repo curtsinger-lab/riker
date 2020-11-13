@@ -331,21 +331,22 @@ class Config:
     # when ignore_failure is true, just keep chugging along even
     # if commands fail
     def docker_remove(self, rm_image, ignore_failure = False):
+        error_type = "WARNING" if ignore_failure else "ERROR"
         (rc, _) = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
-            print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
+            print("{}: Unable to stop container '{}'.".format(error_type, conf.docker_container_name()))
             # don't die, just return so that results can be
             # written out later
             return
         (rc, _) = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
-            print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
+            print("{}}: Unable to remove stopped container '{}'".format(error_type, conf.docker_container_name()))
             # don't die; see above
             return
         if rm_image:
             (rc, _) = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
             if rc != 0 and not ignore_failure:
-                print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
+                print("{}}: Unable to remove image '{}'".format(error_type, conf.docker_image_fullname()))
                 # again, don't die
         return
 
