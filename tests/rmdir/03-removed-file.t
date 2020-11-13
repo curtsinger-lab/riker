@@ -28,7 +28,7 @@ Run a rebuild
 
 Make sure the foo directory does not exist
   $ stat foo
-  stat: cannot stat 'foo': No such file or directory
+  stat: cannot statx? 'foo': No such file or directory (re)
   [1]
 
 Clean up
