@@ -22,7 +22,7 @@ Check the output
   Access:.* (re)
   Modify:.* (re)
   Change:.* (re)
-   Birth: -
+   Birth:.* (re)
 
 Run a rebuild, which should do nothing, and more importantly, not die
   $ $DODO --show
