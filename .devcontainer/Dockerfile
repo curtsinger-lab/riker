@@ -15,6 +15,7 @@ RUN apt-get update \
     && apt-get -y install \
     git \
     gcc \
+    gcc-9 \
     clang \
     gdb \
     lldb \
@@ -27,6 +28,7 @@ RUN apt-get update \
     python3-pip \
     graphviz \
     cmake \
+    graphviz \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
