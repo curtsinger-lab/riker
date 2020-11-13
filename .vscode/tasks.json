@@ -25,7 +25,7 @@
       "command": "make OPT=-O0",
       "group": {
         "kind": "build",
-        "isDefault": true
+        "isDefault": false
       },
       "problemMatcher": [
         "$gcc"
