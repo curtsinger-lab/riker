@@ -6,4 +6,4 @@
 
 BENCHMARKS=`find . -iname "benchmark.json" -print`
 
-./run.py --cleanup-before --cleanup-after --incr-none --dont-ask $1 $BENCHMARKS
+./run.py --cleanup-before --cleanup-after --incr-none-dodo --incr-none-make --dont-ask $1 $BENCHMARKS

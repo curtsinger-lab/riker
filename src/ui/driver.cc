@@ -43,7 +43,13 @@ const fs::path NewDatabaseFilename = ".dodo/newdb";
 /**
  * Run the `build` subcommand.
  */
-void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
+void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print_header) noexcept {
+  // If the user asked for a header, just print it out and quit
+  if (print_header) {
+    write_empty_stats(stats_log_path);
+    exit(EXIT_SUCCESS);
+  }
+
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
@@ -312,6 +318,10 @@ int main(int argc, char* argv[]) noexcept {
   app.add_option("--stats", stats_log,
                  "Path to write statistics to a CSV file; appends if file already exists.")
       ->type_name("FILE");
+  bool print_header;
+  app.add_flag(
+      "--empty-stats", print_header,
+      "Write an empty stats CSV and quit; requires --stats but all other options are ignored.");
 
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
       ->description("Disable the build cache")
@@ -363,7 +373,7 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] { do_build(args, stats_log); });
+  build->final_callback([&] { do_build(args, stats_log, print_header); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand

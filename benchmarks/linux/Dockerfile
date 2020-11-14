@@ -63,8 +63,8 @@ COPY benchmarks/linux/linux-kernel.config /benchmark/linux/.config
 # copy Dodofile
 COPY benchmarks/linux/Dodofile /benchmark/linux/
 
-# add benchmarking script
-COPY benchmarks/scripts/run.sh /benchmark/
+# add benchmarking scripts
+COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog

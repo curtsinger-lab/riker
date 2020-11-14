@@ -11,23 +11,28 @@ import re
 import argparse
 import tempfile
 import time
+from enum import Enum
 
 # constants
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-## FUNCTION DEFINITIONS
+## CLASS DEFINITIONS
+
+class Benchmark(Enum):
+    DODO = 1
+    MAKE = 2
 
 class Configs:
-    def __init__(self, confpaths, outputpath, cleanup_before, cleanup_after, dontask, no_changes_rb):
+    def __init__(self, pargs):
         self.configs = []
-        self.output_csv = outputpath
-        self.dont_ask = dontask
+        self.output_csv = pargs.output
+        self.dont_ask = pargs.dont_ask
         
         # process each config
-        for confpath in confpaths:
+        for confpath in pargs.configs:
             # read config JSON and add to list
             with open(confpath, 'r') as conf:
-                self.configs += [Config(confpath, outputpath, cleanup_before, cleanup_after, no_changes_rb, json.load(conf))]
+                self.configs += [Config(pargs, confpath, json.load(conf))]
 
     def __str__(self):
         s = ""
@@ -40,56 +45,63 @@ class Configs:
         return s
 
 class Config:
-    def __init__(self, confpath, outputpath, cleanup_before, cleanup_after, no_changes_rb, data):
+    def __init__(self, pargs, confpath, data):
+
         # validation
-        required_keys = ["name", "docker_runner", "tmp_csv", "image_version"]
+        required_keys = ["name", "docker_dodo_runner", "docker_make_runner", "tmp_csv", "image_version"]
         for key in required_keys:
             if not key in data:
-                "'{}' must contain key '{}'".format(confpath, key)
+                print("'{}' must contain key '{}'".format(confpath, key))
                 sys.exit(1)
 
         # read values
-        self.benchmark_name  = data["name"]
+        self.benchmark_name = data["name"]
         self.benchmark_path = os.path.dirname(os.path.realpath(confpath))
         self.benchmark_root = data["benchmark_root"]
-        self.runner_path    = os.path.dirname(os.path.realpath(__file__))
-        self.dodo_path      = os.path.dirname(self.runner_path)
+        self.my_path        = os.path.dirname(os.path.realpath(__file__))
+        self.dodo_path      = os.path.dirname(self.my_path)
         self.dodo_exe       = os.path.join(self.dodo_path, "dodo")
         self.dodo_database  = os.path.join(self.benchmark_path, ".dodo")
         self.make_exe       = check_output(["which", "make"]).decode('utf-8').strip()
         self.tmpfile        = os.path.join(self.benchmark_path, data["tmp_csv"])
-        self.output_csv     = os.path.realpath(outputpath)
+        self.output_csv     = os.path.realpath(pargs.output)
         self.docker_exe     = check_output(["which", "docker"]).decode('utf-8').strip()
         self.dockerfile     = os.path.join(self.benchmark_path, "Dockerfile")
         self.image_version  = int(data["image_version"])
-        self.docker_runner  = data["docker_runner"]
+        self.docker_dodo_runner  = data["docker_dodo_runner"]
+        self.docker_make_runner  = data["docker_make_runner"]
         self.time_data_csv  = data["time_data_csv"]
-        self.cleanup_before = cleanup_before
-        self.cleanup_after  = cleanup_after
-        self.no_changes_rb  = no_changes_rb
+        self.cleanup_before = pargs.cleanup_before
+        self.cleanup_after  = pargs.cleanup_after
+        self.incr_none_dodo = pargs.incr_none_dodo
+        self.incr_none_make = pargs.incr_none_make
+        self.make           = True if pargs.incr_none_make else pargs.make
 
     def __str__(self):
-        return ("\tcleanup before running:\t{}\n"
-                "\tcleanup after running:\t{}\n"
-                "\tbenchmark path:\t\t{}\n"
-                "\tbenchmark root:\t\t{}\n"
-                "\trunner path:\t\t{}\n"
-                "\tdodo path:\t\t{}\n"
-                "\tdodo exe:\t\t{}\n"
-                "\tdodo database:\t\t{}\n"
-                "\tmake exe:\t\t{}\n"
-                "\ttemporary csv:\t\t{}\n"
-                "\tdocker exe:\t\t{}\n"
-                "\timage version:\t\t{}\n"
-                "\tDockerfile:\t\t{}\n"
-                "\tdocker runner:\t\t{}\n"
-                "\ttime data csv:\t\t{}\n"
-                "\trebuild (no changes)\t{}\n").format(
+        return ("\tcleanup before running:\t\t{}\n"
+                "\tcleanup after running:\t\t{}\n"
+                "\tbenchmark path:\t\t\t{}\n"
+                "\tbenchmark root:\t\t\t{}\n"
+                "\trun.py path:\t\t\t{}\n"
+                "\tdodo path:\t\t\t{}\n"
+                "\tdodo exe:\t\t\t{}\n"
+                "\tdodo database:\t\t\t{}\n"
+                "\tmake exe:\t\t\t{}\n"
+                "\ttemporary csv:\t\t\t{}\n"
+                "\tdocker exe:\t\t\t{}\n"
+                "\timage version:\t\t\t{}\n"
+                "\tDockerfile:\t\t\t{}\n"
+                "\tdocker dodo runner:\t\t{}\n"
+                "\tdocker make runner:\t\t{}\n"
+                "\ttime data csv:\t\t\t{}\n"
+                "\tbaseline (with make):\t\t{}\n"
+                "\trebuild (no changes w/dodo)\t{}\n"
+                "\trebuild (no changes w/make)\t{}\n").format(
                     "yes" if self.cleanup_before else "no",
                     "yes" if self.cleanup_after else "no",
                     self.benchmark_name,
                     self.benchmark_root,
-                    self.runner_path,
+                    self.my_path,
                     self.dodo_path,
                     self.dodo_exe,
                     self.dodo_database,
@@ -98,9 +110,12 @@ class Config:
                     self.docker_exe,
                     self.image_version,
                     self.dockerfile,
-                    self.docker_runner,
+                    self.docker_dodo_runner,
+                    self.docker_make_runner,
                     self.time_data_csv,
-                    self.no_changes_rb
+                    "yes" if self.make else "no",
+                    "yes" if self.incr_none_dodo else "no",
+                    "yes" if self.incr_none_make else "no"
                     )
 
     def build_cmd(self):
@@ -161,7 +176,7 @@ class Config:
                 '-dit {}'.format(self.docker_image_fullname())              # image name
                 ]
 
-    def docker_exec_benchmark_cmd(self, env={}):
+    def docker_exec_dodo_cmd(self, env={}):
         # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
         if len(env) > 0:
             env_strings = []
@@ -172,14 +187,35 @@ class Config:
             arr += [self.docker_exe, "exec"]
             arr += env_strings                                                  # environment variables
             arr += ["{}".format(self.docker_container_name()),                  # the name of the running container
-                    "{}".format(self.docker_runner)                             # the path to the program in the container
+                    "{}".format(self.docker_dodo_runner)                        # the path to the program in the container
                     ]
             return arr
         else:
             return [self.docker_exe,                                            # docker
                     "exec",                                                     # run a program inside a container
                     "{}".format(self.docker_container_name()),                  # the name of the running container
-                    "{}".format(self.docker_runner)                             # the path to the program in the container
+                    "{}".format(self.docker_dodo_runner)                        # the path to the program in the container
+                    ]
+
+    def docker_exec_make_cmd(self, env={}):
+        # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
+        if len(env) > 0:
+            env_strings = []
+            for key in env:
+                env_strings += ["-e {}='{}'".format(key, env[key])]
+
+            arr = []
+            arr += [self.docker_exe, "exec"]
+            arr += env_strings                                                  # environment variables
+            arr += ["{}".format(self.docker_container_name()),                  # the name of the running container
+                    "{}".format(self.docker_make_runner)                        # the path to the program in the container
+                    ]
+            return arr
+        else:
+            return [self.docker_exe,                                            # docker
+                    "exec",                                                     # run a program inside a container
+                    "{}".format(self.docker_container_name()),                  # the name of the running container
+                    "{}".format(self.docker_make_runner)                        # the path to the program in the container
                     ]
 
     def docker_stop_container_cmd(self):
@@ -297,9 +333,9 @@ class Config:
             print("ERROR: Unable to start docker container.")
             sys.exit(1)
 
-    # run benchmark
+    # run dodo benchmark
     # returns whatever return code was returned by the benchmark
-    def exec_benchmark(self):
+    def exec(self, benchmark):
         if not self.container_is_running():
             print("ERROR: Cannot run benchmark without a running docker image.")
             sys.exit(1)
@@ -311,7 +347,13 @@ class Config:
             "TIME_CSV": self.time_data_csv,
             "TMP_CSV": self.tmpfile
         }
-        rc = run_command(self.docker_exec_benchmark_cmd(my_env))
+
+        # choose appropriate benchmark command
+        cmd = self.docker_exec_dodo_cmd(my_env)
+        if benchmark == Benchmark.MAKE:
+            cmd = self.docker_exec_make_cmd(my_env)
+
+        rc = run_command(cmd)
         if rc != 0:
             print("ERROR: Benchmark returned {}.".format(rc))
         return rc
@@ -331,24 +373,29 @@ class Config:
     # when ignore_failure is true, just keep chugging along even
     # if commands fail
     def docker_remove(self, rm_image, ignore_failure = False):
-        error_type = "WARNING" if ignore_failure else "ERROR"
+        rc = 0
         (rc, _) = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
-            print("{}: Unable to stop container '{}'.".format(error_type, conf.docker_container_name()))
+            print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
             # don't die, just return so that results can be
             # written out later
-            return
+            return rc
+        time.sleep(1)    # wait a little bit for the container to stop
+
         (rc, _) = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
         if rc != 0 and not ignore_failure:
-            print("{}}: Unable to remove stopped container '{}'".format(error_type, conf.docker_container_name()))
+            print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
             # don't die; see above
-            return
+            return rc
+        time.sleep(1)    # wait a little bit for the container to go away
+        
         if rm_image:
             (rc, _) = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
             if rc != 0 and not ignore_failure:
-                print("{}}: Unable to remove image '{}'".format(error_type, conf.docker_image_fullname()))
+                print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
                 # again, don't die
-        return
+        time.sleep(1)    # wait a little bit for the image to go away
+        return rc
 
     def docker_rm_file(self, path, ignore_failure, recursive):
         cmd = conf.docker_rm_file_cmd(path, ignore_failure, recursive)
@@ -356,6 +403,8 @@ class Config:
         if rc != 0:
             print("ERROR: Unable to remove file '{}' in docker container '{}'.".format(path, conf.docker_container_name()))
         return rc
+
+## FUNCTION DEFINITIONS
 
 # read configuration
 def init_configs(args):
@@ -380,13 +429,19 @@ def init_configs(args):
     parser.add_argument("--dont-ask",
                         help="don't ask for user confirmation, just run",
                         action="store_true")
-    parser.add_argument("--incr-none",
-                        help="measure incremental rebuild time for no changes",
+    parser.add_argument("--incr-none-make",
+                        help="measure incremental rebuild time for no changes using make (implies --make)",
+                        action="store_true")
+    parser.add_argument("--incr-none-dodo",
+                        help="measure incremental rebuild time for no changes using dodo",
+                        action="store_true")
+    parser.add_argument("--make",
+                        help="measure clean build baseline using make",
                         action="store_true")
     pargs = parser.parse_args()
 
     try:
-        return Configs(pargs.configs, pargs.output, pargs.cleanup_before, pargs.cleanup_after, pargs.dont_ask, pargs.incr_none)
+        return Configs(pargs)
     except OSError:
         print("ERROR: Cannot read config file '" + pargs.config + "'")
         sys.exit(1)
@@ -495,9 +550,9 @@ def prepend_column(header, column, csv_header, csv_rows):
 # runs the configured benchmark, and depending on whether
 # additional runs are required (e.g., rebuild), appends
 # a note to the outputted benchmark name in the CSV
-def run_benchmark(conf, header_note=""):
+def run_benchmark(conf, benchmark, header_note=""):
      # run benchmark
-    rc = conf.exec_benchmark()
+    rc = conf.exec(benchmark)
 
     header = "" # we don't know what the header is yet
     rows = [""] # nor the rows
@@ -546,7 +601,6 @@ for conf in c.configs:
     if conf.container_is_dead():
         print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
         conf.docker_remove(False)
-        time.sleep(2)    # wait a little bit for the container to go away
         conf.start_container()
     elif not conf.container_is_running():
         print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
@@ -555,23 +609,50 @@ for conf in c.configs:
         print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
     # run benchmark and obtain CSV result
-    (header, rows) = run_benchmark(conf)
+    (header, rows) = run_benchmark(conf, Benchmark.DODO)
 
     # write out results
     csv_append(conf.output_csv, header, rows)
 
     # rebuild with no changes?
-    if conf.no_changes_rb:
+    if conf.incr_none_dodo:
         # remove tmp CSV-- this script is dumb and doesn't know how to handle
         # CSVs with multiple rows; dodo will create a new file with one row
         # of output (not counting the header)
         conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
 
         # run benchmark and obtain CSV result
-        (header, rows) = run_benchmark(conf, "-rebuild_no_changes")
+        (header, rows) = run_benchmark(conf, Benchmark.DODO, "-rebuild_no_changes")
 
         # write out results
         csv_append(conf.output_csv, header, rows)
+
+    # rebuild with make?
+    if conf.make:
+        # stop and delete container
+        rc = conf.docker_remove(rm_image = False, ignore_failure = False)
+        if (rc != 0):
+            print("Unable to reset docker configuration to run make benchmark.")
+            sys.exit(1)
+
+        # start container up again
+        conf.start_container()
+
+        # run make
+        (header, rows) = run_benchmark(conf, Benchmark.MAKE, "-make-full")
+
+        # write out results
+        csv_append(conf.output_csv, header, rows)
+
+        if conf.incr_none_make:
+            # as above, remove temp CSV on rebuild
+            conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
+
+            # run make
+            (header, rows) = run_benchmark(conf, Benchmark.MAKE, "-make-rebuild_no_changes")
+
+            # write out results
+            csv_append(conf.output_csv, header, rows)
 
     # tear down docker containers
     if conf.cleanup_after:

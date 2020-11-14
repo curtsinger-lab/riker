@@ -62,8 +62,8 @@ COPY benchmarks/calc/Werror.patch /benchmark/calc
 RUN cd /benchmark/calc \
     && git apply Werror.patch
 
-# add benchmarking script
-COPY benchmarks/scripts/run.sh /benchmark/
+# add benchmarking scripts
+COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog

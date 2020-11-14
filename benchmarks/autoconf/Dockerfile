@@ -61,8 +61,8 @@ RUN mkdir -p benchmark \
 # copy Dodofile
 COPY benchmarks/autoconf/Dodofile /benchmark/autoconf/
 
-# add benchmarking script
-COPY benchmarks/scripts/run.sh /benchmark/
+# add benchmarking scripts
+COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
