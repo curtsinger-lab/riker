@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# make a file
+mkdir a_dir
+
+# it is important that a_dir never be used again;
+# do nothing
