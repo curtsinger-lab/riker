@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -54,6 +55,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   fs::create_directories(OutputDir);
 
   // Load a trace, or set up a default build if necessary
+  // Trace is lazy-loaded, so work is not done here
   InputTrace trace(args, DatabaseFilename);
 
   // Set up a rebuild planner to observe the emulated build
@@ -63,15 +65,24 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   optional<string> stats;
 
   {
+    // start timer
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Emulate the loaded trace
     auto build = Build::emulate(planner);
     trace.sendTo(build);
 
+    // end timer
+    auto finish = std::chrono::high_resolution_clock::now();
+
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "pre");
+    gather_stats(stats_log_path, build, stats, "pre", (finish - start).count());
   }
 
   {
+    // start timer
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Set up an output trace
     OutputTrace output(NewDatabaseFilename);
 
@@ -79,11 +90,17 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto build = Build::rebuild(planner.planBuild(), output);
     trace.sendTo(build);
 
+    // end timer
+    auto finish = std::chrono::high_resolution_clock::now();
+
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "rebuild");
+    gather_stats(stats_log_path, build, stats, "rebuild", (finish - start).count());
   }
 
   {
+    // start timer
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Load the newly generated input trace
     InputTrace new_trace(args, NewDatabaseFilename);
 
@@ -97,8 +114,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto build = Build::emulate(filter);
     new_trace.sendTo(build);
 
+    // end timer
+    auto finish = std::chrono::high_resolution_clock::now();
+
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "post");
+    gather_stats(stats_log_path, build, stats, "post", (finish - start).count());
   }
 
   // write stats

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #include "runtime/Build.hh"
@@ -10,7 +11,7 @@
 #define STATISTICS                                                                \
   {                                                                               \
     "num_commands", "num_traced_commmands", "num_emulated_commands", "num_steps", \
-        "num_emulated_steps", "num_artifacts", " num_versions"                    \
+        "num_emulated_steps", "num_artifacts", "num_versions", "elapsed_ns"       \
   }
 
 /**
@@ -112,7 +113,11 @@ void write_stats(optional<fs::path> p, optional<string> stats) {
 /**
  * Generate a stats row fragment in CSV format
  */
-void gather_stats(optional<fs::path> p, Build& build, optional<string>& stats_opt, string phase) {
+void gather_stats(optional<fs::path> p,
+                  Build& build,
+                  optional<string>& stats_opt,
+                  string phase,
+                  int64_t elapsed_ns) {
   if (p.has_value()) {
     // if the stats string is already defined, start with a comma
     string prefix = "";
@@ -139,6 +144,6 @@ void gather_stats(optional<fs::path> p, Build& build, optional<string>& stats_op
                          q(std::to_string(build.getStepCount())) + "," +
                          q(std::to_string(build.getEmulatedStepCount())) + "," +
                          q(std::to_string(final_env->getArtifacts().size())) + "," +
-                         q(std::to_string(version_count));
+                         q(std::to_string(version_count)) + "," + q(std::to_string(elapsed_ns));
   }
 }
