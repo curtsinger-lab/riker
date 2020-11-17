@@ -22,6 +22,12 @@ class Benchmark(Enum):
     DODO = 1
     MAKE = 2
 
+    def name(self):
+        if self.value == 1:
+            return "dodo"
+        if self.value == 2:
+            return "make"
+
 class Configs:
     def __init__(self, pargs):
         self.configs = []
@@ -76,6 +82,7 @@ class Config:
         self.incr_none_dodo = pargs.incr_none_dodo
         self.incr_none_make = pargs.incr_none_make
         self.make           = True if pargs.incr_none_make else pargs.make
+        self.dodo           = True if pargs.incr_none_dodo else pargs.dodo
 
     def __str__(self):
         return ("\tcleanup before running:\t\t{}\n"
@@ -94,7 +101,8 @@ class Config:
                 "\tdocker dodo runner:\t\t{}\n"
                 "\tdocker make runner:\t\t{}\n"
                 "\ttime data csv:\t\t\t{}\n"
-                "\tbaseline (with make):\t\t{}\n"
+                "\tclean build (with dodo):\t{}\n"
+                "\tclean build (with make):\t{}\n"
                 "\trebuild (no changes w/dodo)\t{}\n"
                 "\trebuild (no changes w/make)\t{}\n").format(
                     "yes" if self.cleanup_before else "no",
@@ -113,6 +121,7 @@ class Config:
                     self.docker_dodo_runner,
                     self.docker_make_runner,
                     self.time_data_csv,
+                    "yes" if self.dodo else "no",
                     "yes" if self.make else "no",
                     "yes" if self.incr_none_dodo else "no",
                     "yes" if self.incr_none_make else "no"
@@ -263,7 +272,7 @@ class Config:
 
     # returns true if image already set up
     def image_is_initialized(self):
-        (rc, rv) = run_command_capture(self.docker_images_cmd())
+        (rc, rv) = run_command_capture(self.docker_images_cmd(), suppress_printing = False)
         if rc == 0:
             first = True
             for line in rv.splitlines():
@@ -411,10 +420,9 @@ def init_configs(args):
     parser = argparse.ArgumentParser(description="Runs a benchmark given at least one JSON "
                                                  "configuration file and a CSV for output.  If the "
                                                  "CSV already exists, this program appends output "
-                                                 "to it. If more than one config is supplied, by "
-                                                 "default, this program will wait for the user to "
-                                                 "confirm that they actually want to run all of "
-                                                 "given benchmarks.")
+                                                 "to it. By default, this program will display the "
+                                                 "configuration and then wait for the user to "
+                                                 "confirm before running the given benchmarks.")
     parser.add_argument("output", help="path to a CSV for benchmark output")
     parser.add_argument("configs",
                         metavar="config",
@@ -426,6 +434,9 @@ def init_configs(args):
     parser.add_argument("--cleanup-after",
                         help="shut down and remove Docker image after running",
                         action="store_true")
+    parser.add_argument("--dodo",
+                        help="measure clean build baseline using make",
+                        action="store_true")   
     parser.add_argument("--dont-ask",
                         help="don't ask for user confirmation, just run",
                         action="store_true")
@@ -433,7 +444,7 @@ def init_configs(args):
                         help="measure incremental rebuild time for no changes using make (implies --make)",
                         action="store_true")
     parser.add_argument("--incr-none-dodo",
-                        help="measure incremental rebuild time for no changes using dodo",
+                        help="measure incremental rebuild time for no changes using dodo (implies --dodo)",
                         action="store_true")
     parser.add_argument("--make",
                         help="measure clean build baseline using make",
@@ -570,32 +581,18 @@ def run_benchmark(conf, benchmark, header_note=""):
     (header, rows) = prepend_column("return_code", [str(rc)], header, rows)
 
     # add benchmark name
-    (header, rows) = prepend_column("benchmark_name", [conf.benchmark_name + header_note], header, rows)
+    (header, rows) = prepend_column("benchmark_name", [header_note], header, rows)
 
     return (header, rows)
 
-## MAIN METHOD
-
-# init config
-c = init_configs(sys.argv)
-print(c)
-if len(c.configs) > 1 and not c.dont_ask:
-    yn = input("DO YOU WANT TO CONTINUE? [Y/n] ")
-    if yn != "" and yn != "Y" and yn != "y":
-        sys.exit(0)
-
-for conf in c.configs:
-    # if the user asked us to start with a clean slate, do so
-    if conf.cleanup_before:
-        print("INFO: Pre-cleaning docker images...")
-        conf.docker_remove(True, True)
-
-    # initialize docker container, if necessary
-    if not conf.image_is_initialized():
-        print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
-        conf.initialize_docker_image()
-    else:
-        print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
+# run a suite of benchmarks for a given configuation
+def run_suite(conf, benchmark, rebuild, needs_cleanup):
+    # stop and delete container if something ran before
+    if needs_cleanup:
+        rc = conf.docker_remove(rm_image = False, ignore_failure = False)
+        if (rc != 0):
+            print("Unable to reset docker configuration to run '{}' benchmark.".format(benchmark.name()))
+            sys.exit(1)
 
     # start docker image, if necessary
     if conf.container_is_dead():
@@ -609,52 +606,59 @@ for conf in c.configs:
         print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
     # run benchmark and obtain CSV result
-    (header, rows) = run_benchmark(conf, Benchmark.DODO)
+    (header, rows) = run_benchmark(conf, benchmark, "{}-full".format(benchmark.name()))
 
     # write out results
     csv_append(conf.output_csv, header, rows)
 
-    # rebuild with no changes?
-    if conf.incr_none_dodo:
+    # rebuild with dodo?
+    if rebuild:
         # remove tmp CSV-- this script is dumb and doesn't know how to handle
         # CSVs with multiple rows; dodo will create a new file with one row
         # of output (not counting the header)
         conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
 
         # run benchmark and obtain CSV result
-        (header, rows) = run_benchmark(conf, Benchmark.DODO, "-rebuild_no_changes")
+        (header, rows) = run_benchmark(conf, benchmark, "{}-rebuild_no_changes".format(benchmark.name()))
 
         # write out results
         csv_append(conf.output_csv, header, rows)
 
-    # rebuild with make?
+## MAIN METHOD
+
+# init config
+c = init_configs(sys.argv)
+print(c)
+if not c.dont_ask:
+    yn = input("DO YOU WANT TO CONTINUE? [Y/n] ")
+    if yn != "" and yn != "Y" and yn != "y":
+        sys.exit(0)
+
+for conf in c.configs:
+    needs_cleanup = False
+
+    # if the user asked us to start with a clean slate, do so
+    if conf.cleanup_before:
+        print("INFO: Pre-cleaning docker images...")
+        conf.docker_remove(True, True)
+
+    # initialize docker container, if necessary
+    if not conf.image_is_initialized():
+        print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
+        conf.initialize_docker_image()
+    else:
+        print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
+
+    # build with dodo?
+    if conf.dodo:
+        run_suite(conf, Benchmark.DODO, conf.incr_none_dodo, needs_cleanup)
+        needs_cleanup = True
+
+    # build with make?
     if conf.make:
-        # stop and delete container
-        rc = conf.docker_remove(rm_image = False, ignore_failure = False)
-        if (rc != 0):
-            print("Unable to reset docker configuration to run make benchmark.")
-            sys.exit(1)
+        run_suite(conf, Benchmark.MAKE, conf.incr_none_make, needs_cleanup)
 
-        # start container up again
-        conf.start_container()
-
-        # run make
-        (header, rows) = run_benchmark(conf, Benchmark.MAKE, "-make-full")
-
-        # write out results
-        csv_append(conf.output_csv, header, rows)
-
-        if conf.incr_none_make:
-            # as above, remove temp CSV on rebuild
-            conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
-
-            # run make
-            (header, rows) = run_benchmark(conf, Benchmark.MAKE, "-make-rebuild_no_changes")
-
-            # write out results
-            csv_append(conf.output_csv, header, rows)
-
-    # tear down docker containers
+    # tear down docker containers & optionally delete image
     if conf.cleanup_after:
         conf.docker_remove(True)
 
