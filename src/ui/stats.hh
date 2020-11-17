@@ -8,10 +8,11 @@
 #define PHASES \
   { "pre", "rebuild", "post" }
 
-#define STATISTICS                                                                \
-  {                                                                               \
-    "num_commands", "num_traced_commmands", "num_emulated_commands", "num_steps", \
-        "num_emulated_steps", "num_artifacts", "num_versions", "elapsed_ns"       \
+#define STATISTICS                                                                                 \
+  {                                                                                                \
+    "num_commands", "num_traced_commmands", "num_emulated_commands", "num_steps",                  \
+        "num_emulated_steps", "num_artifacts", "num_versions", "num_ptrace_stops", "num_syscalls", \
+        "elapsed_ns"                                                                               \
   }
 
 /**
@@ -138,12 +139,14 @@ void gather_stats(optional<fs::path> p,
       stats_opt = "";
     }
 
-    stats_opt.value() += prefix + q(std::to_string(build.getCommandCount())) + "," +
-                         q(std::to_string(build.getTracedCommandCount())) + "," +
-                         q(std::to_string(build.getEmulatedCommandCount())) + "," +
-                         q(std::to_string(build.getStepCount())) + "," +
-                         q(std::to_string(build.getEmulatedStepCount())) + "," +
-                         q(std::to_string(final_env->getArtifacts().size())) + "," +
-                         q(std::to_string(version_count)) + "," + q(std::to_string(elapsed_ns));
+    stats_opt.value() +=
+        prefix + q(std::to_string(build.getCommandCount())) + "," +
+        q(std::to_string(build.getTracedCommandCount())) + "," +
+        q(std::to_string(build.getEmulatedCommandCount())) + "," +
+        q(std::to_string(build.getStepCount())) + "," +
+        q(std::to_string(build.getEmulatedStepCount())) + "," +
+        q(std::to_string(final_env->getArtifacts().size())) + "," +
+        q(std::to_string(version_count)) + "," + q(std::to_string(build.getPTraceStopCount())) +
+        "," + q(std::to_string(build.getSyscallCount())) + "," + q(std::to_string(elapsed_ns));
   }
 }

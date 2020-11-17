@@ -70,6 +70,7 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
 }
 
 void Thread::resume() noexcept {
+  _build.countPTraceStop();  // count this ptrace stop
   int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
   FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
 }
@@ -1402,4 +1403,12 @@ void Thread::_waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) no
   LOGF(trace, "{}: waitid(...)", this);
   FAIL << "waitid syscall is not handled yet";
   resume();
+}
+
+void Thread::countSyscall() const noexcept {
+  _build.countSyscall();
+}
+
+void Thread::countPTraceStop() const noexcept {
+  _build.countPTraceStop();
 }

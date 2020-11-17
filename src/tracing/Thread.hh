@@ -24,6 +24,12 @@ class Thread {
   Thread(Build& build, Tracer& tracer, shared_ptr<Process> process, pid_t tid) noexcept :
       _build(build), _tracer(tracer), _process(process), _tid(tid) {}
 
+  /// Increments a syscall count
+  void countSyscall() const noexcept;
+
+  /// Increments a syscall count
+  void countPTraceStop() const noexcept;
+
   /// Get the process this thread runs in
   shared_ptr<Process> getProcess() const noexcept { return _process; }
 
