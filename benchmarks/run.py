@@ -322,7 +322,7 @@ class Config:
                     first = False
                     continue
                 rx: str = r"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
-                p: Pattern = re.compile(rx, re.IGNORECASE)
+                p: Pattern[str] = re.compile(rx, re.IGNORECASE)
                 m: Optional[Match[str]] = p.search(line)
                 if m and (m.group("repository") == self.docker_image_name()) and (m.group("tag") == self.docker_image_version()):
                     return True
@@ -342,7 +342,7 @@ class Config:
             first: bool = True
             for line in rv.splitlines():
                 rx: str = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
-                p: Pattern = re.compile(rx, re.IGNORECASE)
+                p: Pattern[str] = re.compile(rx, re.IGNORECASE)
                 m: Optional[Match[str]] = p.search(line)
                 if m and (m.group("container_name") == self.docker_container_name()):
                     return True
@@ -362,7 +362,7 @@ class Config:
             first: bool = True
             for line in rv.splitlines():
                     rx: str = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
-                    p: Pattern = re.compile(rx, re.IGNORECASE)
+                    p: Pattern[str] = re.compile(rx, re.IGNORECASE)
                     m: Optional[Match[str]] = p.search(line)
                     if m:
                         status = m.group("status")
@@ -551,7 +551,7 @@ def run_command_capture(command: List[str],
     cur_env.update(env)
 
     # call the process, with modified environment
-    process: Popen = Popen(args, stdout=PIPE, shell=True, env=cur_env)
+    process: Popen[bytes] = Popen(args, stdout=PIPE, shell=True, env=cur_env)
     cap: str = ""
     while True:
         if process.stdout:
