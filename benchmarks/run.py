@@ -44,6 +44,28 @@ class Task(Enum):
             return "rebuild-no-changes"
         raise Exception("Unknown task type.")
 
+class DockerStats:
+    def __init__(self, input_bytes: int, output_bytes: int):
+        self.input_bytes: int = input_bytes
+        self.output_bytes: int = output_bytes
+
+    def __str__(self):
+        return ("Block input bytes: {}\n".format(self.input_bytes) +
+                "Block output bytes: {}".format(self.output_bytes))
+
+    @staticmethod
+    def toBytes(count: str, unit: str) -> int:
+        if unit == "B":
+            return float(count)
+        elif unit == "kB":
+            return float(count) * 1024
+        elif unit == "MB":
+            return float(count) * 1024**2
+        elif unit == "GB":
+            return float(count) * 1024**3
+        else:
+            raise Exception("Unknown unit '{}'".format(unit))
+
 class Configs:
     def __init__(self, pargs: argparse.Namespace):
         self.configs: List[Config]  = []
@@ -460,19 +482,29 @@ class Config:
             print("ERROR: Unable to remove file '{}' in docker container '{}'.".format(path, conf.docker_container_name()))
         return rc
 
-    # def docker_stats(self):
-    #     cmd = conf.docker_stats_cmd()
-    #     (rc, rv) = run_command_capture(cmd)
-    #     if rc != 0:
-    #         print("ERROR: Unable to remove file '{}' in docker container '{}'.".format(path, conf.docker_container_name()))
-    #         rx = r"(?P<input>[^\s]+)(?P<input_unit>kB|MB|GB) / (?P<output>[^\s]+)(?P<output_unit>kB|MB|GB)"
-    #         p = re.compile(rx, re.IGNORECASE)
-    #         m = p.search(line)
-    #         input_count = m.group("input")
-    #         output_count = m.group("output")
-    #         if (m.group("container_name") == self.docker_container_name()):
-    #             return True
-    #     return rc
+    def docker_stats(self) -> DockerStats:
+        cmd: List[str] = conf.docker_stats_cmd()
+        rc: int; rv: str
+        rc, rv = run_command_capture(cmd)
+        if rc != 0:
+            print("ERROR: Unable to obtain docker stats for docker container '{}'.".format(conf.docker_container_name()))
+            sys.exit(1)
+
+        rx: str = r"(?P<input_count>[0-9]+(.[0-9])?)(?P<input_unit>B|kB|MB|GB) / (?P<output_count>[0-9]+(.[0-9])?)(?P<output_unit>B|kB|MB|GB)"
+        p: Pattern[str] = re.compile(rx, re.IGNORECASE)
+        line: str = rv.strip()
+        print("DEBUG: Parsing stats in line: '{}'".format(line))
+        m: Optional[Match[str]] = p.search(line)
+        if m:
+            input_count = m.group("input_count")
+            input_unit = m.group("input_unit")
+            output_count = m.group("output_count")
+            output_unit = m.group("output_unit")
+            input_bytes = DockerStats.toBytes(input_count, input_unit)
+            output_bytes = DockerStats.toBytes(output_count, output_unit)
+            ds: DockerStats = DockerStats(input_bytes, output_bytes)
+            return ds
+        raise Exception("Unable to parse Docker stats output:\n'{}'".format(line))
 
 ## FUNCTION DEFINITIONS
 
@@ -611,8 +643,7 @@ def merge_csvs(file1: str, file2: str) -> CSV:
         rows += [rs1[i] + "," + rs2[i]]
     return (header, rows)
 
-# prepend the column with the given header
-# and data to the CSV represented as a (header, rows)
+# prepend the CSV with the given header and column data
 def prepend_column(header: str, column: List[str], csv_header: str, csv_rows: List[str]) -> CSV:
     # add the new column to the header
     h2: str = "\"" + header + "\"," + csv_header
@@ -622,6 +653,18 @@ def prepend_column(header: str, column: List[str], csv_header: str, csv_rows: Li
     rows: List[str] = []
     for i, _ in enumerate(csv_rows):
         rows += ["\"" + column[i] + "\"," + csv_rows[i]]
+    return h2, rows
+
+# append the CSV with the given header and column data
+def append_column(header: str, column: List[str], csv_header: str, csv_rows: List[str]) -> CSV:
+    # add the new column to the header
+    h2: str = csv_header + ",\"" + header + "\""
+
+    # add the data to the rows
+    assert len(column) == len(csv_rows)
+    rows: List[str] = []
+    for i, _ in enumerate(csv_rows):
+        rows += [csv_rows[i] + ",\"" + column[i] + "\""]
     return h2, rows
 
 # runs the configured benchmark, and depending on whether
@@ -642,6 +685,11 @@ def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
 
         # merge csvs and return as (header, rows)
         header, rows = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
+
+    # grab docker stats
+    ds: DockerStats = conf.docker_stats()
+    header, rows = append_column("block_in_bytes", [str(ds.input_bytes)], header, rows)
+    header, rows = append_column("block_out_bytes", [str(ds.output_bytes)], header, rows)
     
     # record the return code-- is nonzero in case of error
     header, rows = prepend_column("return_code", [str(rc)], header, rows)
