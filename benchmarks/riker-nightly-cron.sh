@@ -1,7 +1,7 @@
 #!/bin/sh
 
-This script requires two email addresses on the command line.  E.g.,
-$ riker-nightly-cron.sh dan@example.com charlie@example.com
+# This script requires two email addresses on the command line.  E.g.,
+# $ riker-nightly-cron.sh dan@example.com charlie@example.com
 
 SCRIPTPATH=/riker-nightly
 LOGPATH=${SCRIPTPATH}/logs
