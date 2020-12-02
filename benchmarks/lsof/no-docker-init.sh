@@ -1,6 +1,6 @@
 #!/bin/sh -x
 
-BENCHMARK_ROOT = ${1}.local
+BENCHMARK_ROOT = $1
 BENCHMARK_NAME = $2
 
 # make benchmark directory

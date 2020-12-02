@@ -102,21 +102,19 @@ class Config:
         # benchmark name
         self.benchmark_name: str      = data["name"]
         # benchmark path
-        self.benchmark_path: str      = os.path.dirname(os.path.realpath(confpath))
+        self.benchmark_path: str      = os.path.abspath(os.path.dirname(os.path.realpath(confpath)))
+        # run outside of docker?
+        self.no_docker                = pargs.no_docker
         # location of benchmark dir in Docker
-        self.benchmark_root: str      = data["benchmark_root"]
+        self.benchmark_root: str      = os.path.abspath(data["no_docker_root"]) if self.no_docker else data["benchmark_root"]
         # parent directory of this script
         self.my_path: str             = os.path.dirname(os.path.realpath(__file__))
         # location of dodo executable parent dir
         self.dodo_path: str           = os.path.dirname(self.my_path)
         # location of dodo executable
         self.dodo_exe: str            = os.path.join(self.dodo_path, "dodo")
-        # location of dodo database in Docker
-        self.dodo_database: str       = os.path.join(self.benchmark_path, ".dodo")
         # location of make executable
         self.make_exe: str            = check_output(["which", "make"]).decode('utf-8').strip()
-        # temporary output file for CSV in Docker
-        self.tmpfile: str             = os.path.join(self.benchmark_path, data["tmp_csv"])
         # final output CSV file outside of Docker
         self.output_csv: str          = os.path.realpath(pargs.output)
         # location of Docker exectable
@@ -129,8 +127,6 @@ class Config:
         self.docker_dodo_runner: str  = data["docker_dodo_runner"]
         # location of script in Docker used to run make
         self.docker_make_runner: str  = data["docker_make_runner"]
-        # location for CSV output of time data
-        self.time_data_csv: str       = data["time_data_csv"]
         # remove container and image before running?
         self.cleanup_before: bool     = pargs.cleanup_before
         # remove container and image after running?
@@ -143,39 +139,41 @@ class Config:
         self.make: bool               = True if pargs.incr_none_make else pargs.make
         # run dodo?
         self.dodo: bool               = True if pargs.incr_none_dodo else pargs.dodo
-        # run outside of docker?
-        self.no_docker                = pargs.no_docker
         # optional no-docker init script
         if "no_docker_init_script" in data:
-            self.no_docker_init_script = data["no_docker_init_script"]
+            self.no_docker_init_script = os.path.join(self.benchmark_path, data["no_docker_init_script"])
         elif self.no_docker:
             raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_init_script'.")
+        # optional path to create no-docker benchmark
+        if "no_docker_root" in data:
+            self.no_docker_path = os.path.join(self.benchmark_root, self.benchmark_name)
+        elif self.no_docker:
+            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_root'.")
         # optional no-docker dodo script
         if "no_docker_dodo_runner" in data:
-            self.no_docker_dodo_runner = data["no_docker_dodo_runner"]
+            self.no_docker_dodo_runner = os.path.abspath(os.path.join(self.my_path, data["no_docker_dodo_runner"]))
         elif self.no_docker:
             raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_dodo_runner'.")
         # optional no-docker make script
         if "no_docker_make_runner" in data:
-            self.no_docker_make_runner = data["no_docker_make_runner"]
+            self.no_docker_make_runner = os.path.abspath(os.path.join(self.my_path, data["no_docker_make_runner"]))
         elif self.no_docker:
             raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_make_runner'.")
-        # optional path to create no-docker benchmark
-        if "no_docker_path" in data:
-            self.no_docker_path = data["no_docker_path"]
-        elif self.no_docker:
-            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_path'.")
+        # temporary output file for CSV in Docker
+        self.tmpfile: str = os.path.abspath(os.path.join(self.benchmark_root, data["tmp_csv"]))
+        # location for CSV output of time data
+        self.time_data_csv: str = os.path.abspath(os.path.join(self.benchmark_root, data["tmp_csv"]))
+
 
     def __str__(self) -> str:
         return ("\trun inside Docker:\t\t{}\n"
                 "\tcleanup before running:\t\t{}\n"
                 "\tcleanup after running:\t\t{}\n"
-                "\tbenchmark path:\t\t\t{}\n"
+                "\tbenchmark name:\t\t\t{}\n"
                 "\tbenchmark root:\t\t\t{}\n"
                 "\trun.py path:\t\t\t{}\n"
                 "\tdodo path:\t\t\t{}\n"
                 "\tdodo exe:\t\t\t{}\n"
-                "\tdodo database:\t\t\t{}\n"
                 "\tmake exe:\t\t\t{}\n"
                 "\ttemporary csv:\t\t\t{}\n"
                 "\tdocker exe:\t\t\t{}\n"
@@ -191,7 +189,7 @@ class Config:
                 "\trebuild (no changes w/dodo)\t{}\n"
                 "\trebuild (no changes w/make)\t{}\n"
                 "\tno-docker init script\t\t{}\n"
-                "\tno-docker path\t\t{}\n"
+                "\tno-docker path\t\t\t{}\n"
                 ).format(
                     "yes" if not self.no_docker else "no",
                     "yes" if self.cleanup_before else "no",
@@ -201,7 +199,6 @@ class Config:
                     self.my_path,
                     self.dodo_path,
                     self.dodo_exe,
-                    self.dodo_database,
                     self.make_exe,
                     self.tmpfile,
                     self.docker_exe,
@@ -478,7 +475,7 @@ class Config:
         # setup environment
         my_env: Dict[str,str] = {
             "BENCHMARK_NAME": self.benchmark_name,
-            "BENCHMARK_ROOT": self.benchmark_root + ".local" if self.no_docker else self.benchmark_root,
+            "BENCHMARK_ROOT": self.benchmark_root,
             "TIME_CSV": self.time_data_csv,
             "TMP_CSV": self.tmpfile
         }
