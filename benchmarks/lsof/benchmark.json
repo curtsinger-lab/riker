@@ -2,8 +2,11 @@
     "name": "lsof",
     "benchmark_root": "/benchmark",
     "docker_dodo_runner": "/benchmark/dodo-run.sh",
+    "no_docker_dodo_runner": "../dodo-run.sh",
     "docker_make_runner": "/benchmark/make-run.sh",
-    "tmp_csv": "/benchmark/tmp.csv",
+    "no_docker_make_runner": "../make-run.sh",
+    "tmp_csv": "../tmp.csv",
     "image_version": "1",
-    "time_data_csv": "/benchmark/time.csv"
+    "time_data_csv": "../time.csv",
+    "no_docker_init_script": "no-docker-init.sh"
 }

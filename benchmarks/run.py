@@ -13,6 +13,7 @@ import argparse
 import tempfile
 import time
 from enum import Enum
+import shutil
 
 ## TYPES
 CSV = Tuple[str, List[str]]
@@ -45,16 +46,16 @@ class Task(Enum):
         raise Exception("Unknown task type.")
 
 class DockerStats:
-    def __init__(self, input_bytes: int, output_bytes: int):
-        self.input_bytes: int = input_bytes
-        self.output_bytes: int = output_bytes
+    def __init__(self, input_bytes: float, output_bytes: float):
+        self.input_bytes: float = input_bytes
+        self.output_bytes: float = output_bytes
 
     def __str__(self):
         return ("Block input bytes: {}\n".format(self.input_bytes) +
                 "Block output bytes: {}".format(self.output_bytes))
 
     @staticmethod
-    def toBytes(count: str, unit: str) -> int:
+    def toBytes(count: str, unit: str) -> float:
         if unit == "B":
             return float(count)
         elif unit == "kB":
@@ -142,9 +143,32 @@ class Config:
         self.make: bool               = True if pargs.incr_none_make else pargs.make
         # run dodo?
         self.dodo: bool               = True if pargs.incr_none_dodo else pargs.dodo
+        # run outside of docker?
+        self.no_docker                = pargs.no_docker
+        # optional no-docker init script
+        if "no_docker_init_script" in data:
+            self.no_docker_init_script = data["no_docker_init_script"]
+        elif self.no_docker:
+            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_init_script'.")
+        # optional no-docker dodo script
+        if "no_docker_dodo_runner" in data:
+            self.no_docker_dodo_runner = data["no_docker_dodo_runner"]
+        elif self.no_docker:
+            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_dodo_runner'.")
+        # optional no-docker make script
+        if "no_docker_make_runner" in data:
+            self.no_docker_make_runner = data["no_docker_make_runner"]
+        elif self.no_docker:
+            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_make_runner'.")
+        # optional path to create no-docker benchmark
+        if "no_docker_path" in data:
+            self.no_docker_path = data["no_docker_path"]
+        elif self.no_docker:
+            raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_path'.")
 
     def __str__(self) -> str:
-        return ("\tcleanup before running:\t\t{}\n"
+        return ("\trun inside Docker:\t\t{}\n"
+                "\tcleanup before running:\t\t{}\n"
                 "\tcleanup after running:\t\t{}\n"
                 "\tbenchmark path:\t\t\t{}\n"
                 "\tbenchmark root:\t\t\t{}\n"
@@ -159,11 +183,17 @@ class Config:
                 "\tDockerfile:\t\t\t{}\n"
                 "\tdocker dodo runner:\t\t{}\n"
                 "\tdocker make runner:\t\t{}\n"
+                "\tno-docker dodo runner:\t\t{}\n"
+                "\tno-docker make runner:\t\t{}\n"
                 "\ttime data csv:\t\t\t{}\n"
                 "\tclean build (with dodo):\t{}\n"
                 "\tclean build (with make):\t{}\n"
                 "\trebuild (no changes w/dodo)\t{}\n"
-                "\trebuild (no changes w/make)\t{}\n").format(
+                "\trebuild (no changes w/make)\t{}\n"
+                "\tno-docker init script\t\t{}\n"
+                "\tno-docker path\t\t{}\n"
+                ).format(
+                    "yes" if not self.no_docker else "no",
                     "yes" if self.cleanup_before else "no",
                     "yes" if self.cleanup_after else "no",
                     self.benchmark_name,
@@ -179,15 +209,16 @@ class Config:
                     self.dockerfile,
                     self.docker_dodo_runner,
                     self.docker_make_runner,
+                    self.no_docker_dodo_runner,
+                    self.no_docker_make_runner,
                     self.time_data_csv,
                     "yes" if self.dodo else "no",
                     "yes" if self.make else "no",
                     "yes" if self.incr_none_dodo else "no",
-                    "yes" if self.incr_none_make else "no"
+                    "yes" if self.incr_none_make else "no",
+                    self.no_docker_init_script,
+                    self.no_docker_path
                     )
-
-    def build_cmd(self) -> List[str]:
-        return [self.dodo_exe, "build", "--stats=" + self.tmpfile]
 
     def username(self) -> str:
         return pwd.getpwuid(os.getuid())[0]
@@ -261,6 +292,9 @@ class Config:
                     "{}".format(self.docker_dodo_runner)                        # the path to the program in the container
                     ]
 
+    def no_docker_exec_dodo_cmd(self) -> List[str]:
+        return [self.no_docker_dodo_runner]
+
     def docker_exec_make_cmd(self, env: Dict[str,str] = {}) -> List[str]:
         # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
         if len(env) > 0:
@@ -281,6 +315,9 @@ class Config:
                     "{}".format(self.docker_container_name()),                  # the name of the running container
                     "{}".format(self.docker_make_runner)                        # the path to the program in the container
                     ]
+
+    def no_docker_exec_make_cmd(self) -> List[str]:
+        return [self.no_docker_make_runner]
 
     def docker_stop_container_cmd(self) -> List[str]:
         return [self.docker_exe,                                            # docker
@@ -325,6 +362,7 @@ class Config:
                 docker_file                                                 # path to file to be deleted
                 ]
 
+    # query running container for Docker stats
     def docker_stats_cmd(self) -> List[str]:
         return [self.docker_exe,
                 "stats",                        # get container stats
@@ -333,105 +371,144 @@ class Config:
                 conf.docker_container_name()    # for this container
         ]
 
+    # initialize the no-Docker benchmark
+    def no_docker_init_cmd(self) -> List[str]:
+        return [self.no_docker_init_script,     # path to init script
+                self.no_docker_path             # location to initialize benchmark
+        ]
+
     # returns true if image already set up
     def image_is_initialized(self) -> bool:
-        rc: int; rv: str
-        rc, rv = run_command_capture(self.docker_images_cmd(), suppress_printing = False)
-        if rc == 0:
-            first: bool = True
-            for line in rv.splitlines():
-                if first:
-                    first = False
-                    continue
-                rx: str = r"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
-                p: Pattern[str] = re.compile(rx, re.IGNORECASE)
-                m: Optional[Match[str]] = p.search(line)
-                if m and (m.group("repository") == self.docker_image_name()) and (m.group("tag") == self.docker_image_version()):
-                    return True
-            return False
+        if self.no_docker:
+            # if the path exists, good enough
+            return os.path.isdir(self.no_docker_path)
         else:
-            print("ERROR: Unable to query docker ({}) for image data (return code: {}).".format(self.docker_exe, rc))
-            sys.exit(1)
+            rc: int; rv: str
+            rc, rv = run_command_capture(self.docker_images_cmd(), suppress_printing = False)
+            if rc == 0:
+                first: bool = True
+                for line in rv.splitlines():
+                    if first:
+                        first = False
+                        continue
+                    rx: str = r"(?P<repository>[^\s]+)\s+(?P<tag>[^\s]+)\s+(?P<image_id>[0-9a-z]+)\s+(?P<created>.+)\s+(?P<size>[0-9.]+.B)"
+                    p: Pattern[str] = re.compile(rx, re.IGNORECASE)
+                    m: Optional[Match[str]] = p.search(line)
+                    if m and (m.group("repository") == self.docker_image_name()) and (m.group("tag") == self.docker_image_version()):
+                        return True
+                return False
+            else:
+                print("ERROR: Unable to query docker ({}) for image data (return code: {}).".format(self.docker_exe, rc))
+                sys.exit(1)
 
     # returns true if container is running
     def container_is_running(self) -> bool:
-        if not self.image_is_initialized():
-            print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
-            sys.exit(1)
-        rc: int; rv: str
-        rc, rv = run_command_capture(self.docker_containers_cmd(["status=running"]))
-        if rc == 0:
-            first: bool = True
-            for line in rv.splitlines():
-                rx: str = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
-                p: Pattern[str] = re.compile(rx, re.IGNORECASE)
-                m: Optional[Match[str]] = p.search(line)
-                if m and (m.group("container_name") == self.docker_container_name()):
-                    return True
-            return False
+        if self.no_docker:
+            # if the path exists, "the container is running"
+            return os.path.isdir(self.no_docker_path)
         else:
-            print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
-            sys.exit(1)
-
-    # returns true if container is dead
-    def container_is_dead(self) -> bool:
-        if not self.image_is_initialized():
-            print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
-            sys.exit(1)
-        rc: int; rv: str
-        rc, rv = run_command_capture(self.docker_containers_cmd(["status=dead", "status=exited"]))
-        if rc == 0:
-            first: bool = True
-            for line in rv.splitlines():
+            if not self.image_is_initialized():
+                print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
+                sys.exit(1)
+            rc: int; rv: str
+            rc, rv = run_command_capture(self.docker_containers_cmd(["status=running"]))
+            if rc == 0:
+                first: bool = True
+                for line in rv.splitlines():
                     rx: str = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
                     p: Pattern[str] = re.compile(rx, re.IGNORECASE)
                     m: Optional[Match[str]] = p.search(line)
-                    if m:
-                        status = m.group("status")
-                        if m.group("container_name") == self.docker_container_name():
-                            return True
-            return False
+                    if m and (m.group("container_name") == self.docker_container_name()):
+                        return True
+                return False
+            else:
+                print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
+                sys.exit(1)
+
+    # returns true if container is dead
+    def container_is_dead(self) -> bool:
+        if self.no_docker:
+            # if the path exists, "the container is not dead"
+            return not os.path.isdir(self.no_docker_path)
         else:
-            print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
-            sys.exit(1)
+            if not self.image_is_initialized():
+                print("ERROR: Docker image '{}' is not initialized".format(self.docker_image_fullname()))
+                sys.exit(1)
+            rc: int; rv: str
+            rc, rv = run_command_capture(self.docker_containers_cmd(["status=dead", "status=exited"]))
+            if rc == 0:
+                first: bool = True
+                for line in rv.splitlines():
+                        rx: str = r"(?P<container_id>[^\s]+):(?P<image_id>[^\s]+):(?P<container_name>[^\s]+):(?P<status>.+)"
+                        p: Pattern[str] = re.compile(rx, re.IGNORECASE)
+                        m: Optional[Match[str]] = p.search(line)
+                        if m:
+                            status = m.group("status")
+                            if m.group("container_name") == self.docker_container_name():
+                                return True
+                return False
+            else:
+                print("ERROR: Unable to query docker ({}) for container data (return code: {}).".format(self.docker_exe, rc))
+                sys.exit(1)
 
     # initializes a docker image
     def initialize_docker_image(self) -> None:
-        rc = run_command(self.docker_initialize_cmd())
-        if rc != 0:
-            print("ERROR: Unable to create docker image.")
-            sys.exit(1)
+        if self.no_docker:
+            rc = run_command(self.no_docker_init_cmd())
+            if (rc != 0):
+                print("ERROR: Unable to initialize no-Docker benchmark.")
+                sys.exit(1)
+        else:
+            rc = run_command(self.docker_initialize_cmd())
+            if rc != 0:
+                print("ERROR: Unable to create docker image.")
+                sys.exit(1)
 
     # start docker image
     def start_container(self) -> None:
-        rc = run_command(self.docker_run_container_cmd())
-        if rc != 0:
-            print("ERROR: Unable to start docker container.")
-            sys.exit(1)
+        if not self.no_docker:
+            rc = run_command(self.docker_run_container_cmd())
+            if rc != 0:
+                print("ERROR: Unable to start docker container.")
+                sys.exit(1)
 
     # run dodo benchmark
     # returns whatever return code was returned by the benchmark
-    def exec(self, tool: Tool) -> int:
-        if not self.container_is_running():
-            print("ERROR: Cannot run benchmark without a running docker image.")
-            sys.exit(1)
-
-        # run benchmark script
+    def benchmark_exec(self, tool: Tool) -> int:
+        # setup environment
         my_env: Dict[str,str] = {
             "BENCHMARK_NAME": self.benchmark_name,
-            "BENCHMARK_ROOT": self.benchmark_root,
+            "BENCHMARK_ROOT": self.benchmark_root + ".local" if self.no_docker else self.benchmark_root,
             "TIME_CSV": self.time_data_csv,
             "TMP_CSV": self.tmpfile
         }
 
         # choose appropriate benchmark command
-        cmd: List[str] = self.docker_exec_dodo_cmd(my_env)
-        if tool == Tool.MAKE:
-            cmd = self.docker_exec_make_cmd(my_env)
+        cmd: List[str]
+        if self.no_docker:
+            if tool == Tool.DODO:
+                cmd = self.no_docker_exec_dodo_cmd()
+            elif tool == Tool.MAKE:
+                cmd = self.no_docker_exec_make_cmd()
+            else:
+                raise Exception("Unknown tool.")
+        else:
+            if tool == Tool.DODO:
+                cmd = self.docker_exec_dodo_cmd(my_env)
+            elif tool == Tool.MAKE:
+                cmd = self.docker_exec_make_cmd(my_env)
+            else:
+                raise Exception("Unknown tool.")
 
-        rc: int = run_command(cmd)
+        # sanity check if running in Docker mode
+        if not self.no_docker and not self.container_is_running():
+                print("ERROR: Cannot run benchmark without a running docker image.")
+                sys.exit(1)
+
+        # run benchmark script
+        rc: int = run_command(cmd, my_env) if self.no_docker else run_command(cmd)
         if rc != 0:
-            print("ERROR: Benchmark returned {}.".format(rc))
+            print("ERROR: Benchmark returned code {}.".format(rc))
         return rc
 
     # copies the given file from the running docker container
@@ -449,30 +526,34 @@ class Config:
     # deletes the image too when rm_image is true
     # when ignore_failure is true, just keep chugging along even
     # if commands fail
-    def docker_remove(self, rm_image: bool, ignore_failure: bool = False) -> int:
-        rc: int
-        rc, _ = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
-        if rc != 0 and not ignore_failure:
-            print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
-            # don't die, just return so that results can be
-            # written out later
-            return rc
-        time.sleep(1)    # wait a little bit for the container to stop
-
-        rc, _ = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
-        if rc != 0 and not ignore_failure:
-            print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
-            # don't die; see above
-            return rc
-        time.sleep(1)    # wait a little bit for the container to go away
-        
-        if rm_image:
-            rc, _ = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
+    def benchmark_remove(self, rm_image: bool, ignore_failure: bool = False) -> int:
+        if self.no_docker:
+            # we just remove the folder at no_docker_path
+            return rmdir(self.no_docker_path, ignore_errors = ignore_failure)
+        else:
+            rc: int
+            rc, _ = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
             if rc != 0 and not ignore_failure:
-                print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
-                # again, don't die
-        time.sleep(1)    # wait a little bit for the image to go away
-        return rc
+                print("ERROR: Unable to stop container '{}'.".format(conf.docker_container_name()))
+                # don't die, just return so that results can be
+                # written out later
+                return rc
+            time.sleep(1)    # wait a little bit for the container to stop
+
+            rc, _ = run_command_capture(conf.docker_rm_container_cmd(), suppress_printing=ignore_failure)
+            if rc != 0 and not ignore_failure:
+                print("ERROR: Unable to remove stopped container '{}'".format(conf.docker_container_name()))
+                # don't die; see above
+                return rc
+            time.sleep(1)    # wait a little bit for the container to go away
+            
+            if rm_image:
+                rc, _ = run_command_capture(conf.docker_rm_image_cmd(), suppress_printing=ignore_failure)
+                if rc != 0 and not ignore_failure:
+                    print("ERROR: Unable to remove image '{}'".format(conf.docker_image_fullname()))
+                    # again, don't die
+            time.sleep(1)    # wait a little bit for the image to go away
+            return rc
 
     def docker_rm_file(self, path: str, ignore_failure: bool, recursive: bool) -> int:
         cmd: List[str] = conf.docker_rm_file_cmd(path, ignore_failure, recursive)
@@ -542,6 +623,9 @@ def init_configs(args: List[str]) -> Configs:
     parser.add_argument("--make",
                         help="measure clean build baseline using make",
                         action="store_true")
+    parser.add_argument("--no-docker",
+                        help="run outside of docker (assumes prerequisites are installed!)",
+                        action="store_true")
     pargs = parser.parse_args()
 
     try:
@@ -556,6 +640,16 @@ def rm_silently(file: str) -> None:
         os.remove(file)
     except OSError:
         pass
+
+# removes a directory, optional complaining
+def rmdir(path: str, ignore_errors = False) -> int:
+    # rmtree doesn't appear to return anything; simulate success/failure using try
+    try:
+        shutil.rmtree(path, ignore_errors)
+    except Exception:
+        print("ERROR: Unable to remove path '{}'.".format(path))
+        return 1
+    return 0
 
 # runs a command, with optional updated environment
 # variables, printing output as it runs.
@@ -671,25 +765,34 @@ def append_column(header: str, column: List[str], csv_header: str, csv_rows: Lis
 # additional runs are required (e.g., rebuild), appends
 # a note to the outputted benchmark name in the CSV
 def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
-     # run benchmark
-    rc: int = conf.exec(tool)
+    # run benchmark
+    rc: int = conf.benchmark_exec(tool)
 
     header: str     # we don't know what the header is yet
     rows: List[str] # nor the rows
 
     # if there was no error, copy CSV data
     if rc == 0:
-        # copy outputs to 'local' machine
-        dodo_stats_tmpfile: str = conf.copy_docker_file(conf.tmpfile)
-        dodo_time_tmpfile: str = conf.copy_docker_file(conf.time_data_csv)
+        dodo_stats_tmpfile: str = conf.tmpfile
+        dodo_time_tmpfile: str = conf.time_data_csv
+
+        # if running outside Docker, stats are already in the right place
+        if not conf.no_docker:
+            # copy outputs to 'local' machine
+            dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
+            dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
         # merge csvs and return as (header, rows)
         header, rows = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
 
     # grab docker stats
-    ds: DockerStats = conf.docker_stats()
-    header, rows = append_column("block_in_bytes", [str(ds.input_bytes)], header, rows)
-    header, rows = append_column("block_out_bytes", [str(ds.output_bytes)], header, rows)
+    if conf.no_docker:
+        header, rows = append_column("block_in_bytes", [str(0)], header, rows)
+        header, rows = append_column("block_out_bytes", [str(0)], header, rows)
+    else:
+        ds: DockerStats = conf.docker_stats()
+        header, rows = append_column("block_in_bytes", [str(ds.input_bytes)], header, rows)
+        header, rows = append_column("block_out_bytes", [str(ds.output_bytes)], header, rows)
     
     # record the return code-- is nonzero in case of error
     header, rows = prepend_column("return_code", [str(rc)], header, rows)
@@ -703,27 +806,37 @@ def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
     # add benchmark name
     header, rows = prepend_column("benchmark_name", [conf.benchmark_name], header, rows)
 
+    # add docker mode
+    header, rows = prepend_column("docker_mode", ["TRUE" if not conf.no_docker else "FALSE"], header, rows)
+
     return header, rows
 
 # run a suite of benchmarks for a given configuation
 def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> None:
     # stop and delete container if something ran before
     if needs_cleanup:
-        rc: int = conf.docker_remove(rm_image = False, ignore_failure = False)
+        rc: int = conf.benchmark_remove(rm_image = False, ignore_failure = False)
         if (rc != 0):
             print("Unable to reset docker configuration to run '{}' benchmark.".format(conf.benchmark_name))
             sys.exit(1)
 
+        # if this is no-Docker, then we need to put the benchmark folder back
+        if conf.no_docker:
+            conf.initialize_docker_image()
+
     # start docker image, if necessary
     if conf.container_is_dead():
-        print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
-        conf.docker_remove(False)
+        if not conf.no_docker:
+            print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
+        conf.benchmark_remove(False)
         conf.start_container()
     elif not conf.container_is_running():
-        print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
+        if not conf.no_docker:
+            print("INFO: Docker container '{}' is not running.  Starting...".format(conf.docker_container_name()))
         conf.start_container()
     else:
-        print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
+        if not conf.no_docker:
+            print("INFO: Docker container '{}' is already running.  Skipping startup.".format(conf.docker_container_name()))
 
     # run benchmark and obtain CSV result
     header, rows = run_benchmark(conf, tool, Task.FULL)
@@ -736,7 +849,10 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
         # remove tmp CSV-- this script is dumb and doesn't know how to handle
         # CSVs with multiple rows; dodo will create a new file with one row
         # of output (not counting the header)
-        conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
+        if not conf.no_docker:
+            rm_silently(conf.tmpfile)
+        else:
+            conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
 
         # run benchmark and obtain CSV result
         header, rows = run_benchmark(conf, tool, Task.REBUILD_NO_CHANGES)
@@ -756,33 +872,36 @@ if not c.dont_ask:
         sys.exit(0)
 
 for conf in c.configs:
-    needs_cleanup: bool = False
+        needs_cleanup: bool = False
 
-    # if the user asked us to start with a clean slate, do so
-    if conf.cleanup_before:
-        print("INFO: Pre-cleaning docker images...")
-        conf.docker_remove(True, True)
+        # if the user asked us to start with a clean slate, do so
+        if conf.cleanup_before:
+            print("INFO: Pre-cleaning docker images...")
+            conf.benchmark_remove(True, True)
 
-    # initialize docker container, if necessary
-    if not conf.image_is_initialized():
-        print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
-        conf.initialize_docker_image()
-    else:
-        print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
+        # initialize docker container, if necessary
+        if not conf.image_is_initialized():
+            if conf.no_docker:
+                print("INFO: No-docker benchmark '{}' is not initialized.  Initializing...".format(conf.benchmark_name))
+            else:
+                print("INFO: Docker image '{}' is not initialized.  Initializing...".format(conf.docker_image_fullname()))
+            conf.initialize_docker_image()
+        else:
+            print("INFO: Docker image '{}' is already initialized.  Skipping initialization.".format(conf.docker_image_fullname()))
 
-    # build with dodo?
-    if conf.dodo:
-        run_suite(conf, Tool.DODO, conf.incr_none_dodo, needs_cleanup)
-        needs_cleanup = True
+        # build with dodo?
+        if conf.dodo:
+            run_suite(conf, Tool.DODO, conf.incr_none_dodo, needs_cleanup)
+            needs_cleanup = True
 
-    # build with make?
-    if conf.make:
-        run_suite(conf, Tool.MAKE, conf.incr_none_make, needs_cleanup)
+        # build with make?
+        if conf.make:
+            run_suite(conf, Tool.MAKE, conf.incr_none_make, needs_cleanup)
 
-    # tear down docker containers & optionally delete image
-    if conf.cleanup_after:
-        conf.docker_remove(True)
+        # tear down docker containers & optionally delete image
+        if conf.cleanup_after:
+            conf.benchmark_remove(True)
 
-    # tell the user that we are finished
-    print("INFO: DONE: " + conf.benchmark_name)
-    print("INFO: RESULTS APPENDED TO: " + conf.output_csv)
+        # tell the user that we are finished
+        print("INFO: DONE: " + conf.benchmark_name)
+        print("INFO: RESULTS APPENDED TO: " + conf.output_csv)
