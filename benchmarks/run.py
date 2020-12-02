@@ -112,7 +112,7 @@ class Config:
         # location of dodo executable parent dir
         self.dodo_path: str           = os.path.dirname(self.my_path)
         # location of dodo executable
-        self.dodo_exe: str            = os.path.join(self.dodo_path, "dodo")
+        self.dodo_exe: str            = os.path.join(self.dodo_path, "dodo") if self.no_docker else "/dodo/dodo"
         # location of make executable
         self.make_exe: str            = check_output(["which", "make"]).decode('utf-8').strip()
         # final output CSV file outside of Docker
@@ -162,7 +162,7 @@ class Config:
         # temporary output file for CSV in Docker
         self.tmpfile: str = os.path.abspath(os.path.join(self.benchmark_root, data["tmp_csv"]))
         # location for CSV output of time data
-        self.time_data_csv: str = os.path.abspath(os.path.join(self.benchmark_root, data["tmp_csv"]))
+        self.time_data_csv: str = os.path.abspath(os.path.join(self.benchmark_root, data["time_data_csv"]))
 
 
     def __str__(self) -> str:
@@ -371,7 +371,8 @@ class Config:
     # initialize the no-Docker benchmark
     def no_docker_init_cmd(self) -> List[str]:
         return [self.no_docker_init_script,     # path to init script
-                self.no_docker_path             # location to initialize benchmark
+                self.benchmark_root,            # location to initialize benchmark
+                self.benchmark_name             # name of the benchmark
         ]
 
     # returns true if image already set up
@@ -477,7 +478,8 @@ class Config:
             "BENCHMARK_NAME": self.benchmark_name,
             "BENCHMARK_ROOT": self.benchmark_root,
             "TIME_CSV": self.time_data_csv,
-            "TMP_CSV": self.tmpfile
+            "TMP_CSV": self.tmpfile,
+            "DODO_EXE": self.dodo_exe
         }
 
         # choose appropriate benchmark command
@@ -526,7 +528,7 @@ class Config:
     def benchmark_remove(self, rm_image: bool, ignore_failure: bool = False) -> int:
         if self.no_docker:
             # we just remove the folder at no_docker_path
-            return rmdir(self.no_docker_path, ignore_errors = ignore_failure)
+            return rmdir(self.benchmark_root, ignore_errors = ignore_failure)
         else:
             rc: int
             rc, _ = run_command_capture(conf.docker_stop_container_cmd(), suppress_printing=ignore_failure)
@@ -846,7 +848,7 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
         # remove tmp CSV-- this script is dumb and doesn't know how to handle
         # CSVs with multiple rows; dodo will create a new file with one row
         # of output (not counting the header)
-        if not conf.no_docker:
+        if conf.no_docker:
             rm_silently(conf.tmpfile)
         else:
             conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
@@ -856,6 +858,10 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
 
         # write out results
         csv_append(conf.output_csv, header, rows)
+
+        # cleanup again if running outside docker
+        if conf.no_docker:
+            rm_silently(conf.tmpfile)
 
 ## MAIN METHOD
 

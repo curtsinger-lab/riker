@@ -10,4 +10,4 @@ cd $BENCHMARK_ROOT/$BENCHMARK_NAME
 # t     average resident set size in kb
 
 echo "\"wall_s\",\"system_s\",\"user_s\",\"pct_cpu\",\"avg_rss\"" > $TIME_CSV
-/usr/bin/time -f"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\"" --output=$TIME_CSV --append ../../dodo/dodo --stats $TMP_CSV
+/usr/bin/time -f"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\"" --output=$TIME_CSV --append $DODO_EXE --stats $TMP_CSV
