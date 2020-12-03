@@ -13,14 +13,12 @@ cd $BENCHMARK_ROOT
 cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh .
 
 # obtain benchmark
-git clone https://github.com/lcn2/calc.git $BENCHMARK_NAME
-cp ../benchmarks/calc/Werror.patch $BENCHMARK_NAME
-cd $BENCHMARK_NAME
-git apply Werror.patch
+wget --no-clobber https://ftp.gnu.org/gnu/coreutils/coreutils-8.32.tar.gz
+tar xzvf coreutils-8.32.tar.gz
+mv coreutils-8.32 $BENCHMARK_NAME
 
 # copy Dodofile
-cd ..
-cp ../benchmarks/calc/Dodofile 
+cp ../benchmarks/coreutils/Dodofile $BENCHMARK_NAME
 
 # go back
 cd ..

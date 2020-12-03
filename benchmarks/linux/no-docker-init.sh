@@ -13,14 +13,14 @@ cd $BENCHMARK_ROOT
 cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh .
 
 # obtain benchmark
-git clone https://github.com/lcn2/calc.git $BENCHMARK_NAME
-cp ../benchmarks/calc/Werror.patch $BENCHMARK_NAME
-cd $BENCHMARK_NAME
-git apply Werror.patch
+wget --no-clobber https://riker-benchmarks.s3.amazonaws.com/linux-5.9.1.tar.xz
+tar xf linux-5.9.1.tar.xz
+rm linux-5.9.1.tar.xz
+mv linux-5.9.1 $BENCHMARK_NAME
+cp ../benchmarks/linux/linux-kernel.config $BENCHMARK_NAME/.config
 
 # copy Dodofile
-cd ..
-cp ../benchmarks/calc/Dodofile 
+cp ../benchmarks/linux/Dodofile $BENCHMARK_NAME
 
 # go back
 cd ..
