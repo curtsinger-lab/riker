@@ -18,6 +18,7 @@
 #include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"
+#include "runtime/Command.hh"
 #include "runtime/PostBuildChecker.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
@@ -139,6 +140,9 @@ void do_check(vector<string> args) noexcept {
   // Emulate the loaded trace
   trace.sendTo(Build::emulate(planner));
 
+  // Plan the rebuild
+  planner.planBuild();
+
   // Print commands whose inputs have changed
   if (planner.getChanged().size() > 0) {
     cout << "Commands with changed inputs:" << endl;
@@ -158,7 +162,25 @@ void do_check(vector<string> args) noexcept {
   }
 
   // Print the rebuild plan
-  // cout << planner.planBuild();
+  bool header_printed = false;
+  for (const auto& c : trace.getCommands()) {
+    // We have to start a new run for the mustRerun function to work
+    c->newRun();
+
+    // Check if this command has to rerun
+    if (c->mustRerun()) {
+      if (!header_printed) {
+        cout << "The following commands will be rerun:" << endl;
+        header_printed = true;
+      }
+      cout << "  " << c->getShortName(options::command_length) << endl;
+    }
+  }
+
+  // If we never printed the header, there were no commands to rerun
+  if (!header_printed) {
+    cout << "No commands to rerun" << endl;
+  }
 }
 
 /**
