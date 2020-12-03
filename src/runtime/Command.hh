@@ -30,6 +30,15 @@ class BuildObserver;
 class Ref;
 class Step;
 
+/// Record the reason why a command has been marked for rerun. Reasons are ordered; any command
+/// marked with both Child and Changed will retain the Changed marking.
+enum class RerunReason : int {
+  Child = 0,           // The marked command is a child of another command marked for rerun
+  InputMayChange = 1,  // The marked command consumes output from another command marked for rerun
+  OutputNeeded = 2,    // The marked command produces output needed by another marked command
+  Changed = 3          // The marked command directly observed a change
+};
+
 /**
  * Representation of a command that runs as part of the build.
  * Commands correspond to exec() calls during the build process; these are commands we can directly
@@ -150,6 +159,14 @@ class Command : public std::enable_shared_from_this<Command> {
                                 Command::RefID cwd_ref,
                                 Command::RefID root_ref,
                                 map<int, Command::RefID> fds) noexcept;
+
+  /****** Dependency Tracking and Rebuild Planning ******/
+
+  /// Mark this command for rerun. Returns true if this is a new marking.
+  bool markForRerun(RerunReason reason) noexcept;
+
+  /// Check to see if this command was marked for re-execution after its previous run
+  bool mustRerun() const noexcept;
 
   /****** Utility Methods ******/
 

@@ -106,6 +106,9 @@ struct Command::RunData {
 
   /// The exit status for this command
   int exit_status = -1;
+
+  /// If this command is marked for re-execution, the optional will have a value
+  optional<RerunReason> rerun_reason;
 };
 
 // Reset the transient state in this command to prepare for a new emulation/execution
@@ -247,4 +250,29 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 
   // No match found
   return nullptr;
+}
+
+// Mark this command for re-execution
+bool Command::markForRerun(RerunReason reason) noexcept {
+  // Is this command already marked?
+  bool already_marked = _run->rerun_reason.has_value();
+
+  // If not, or if the given reason is "higher" than the previous marking, update it
+  if (!already_marked || reason > _run->rerun_reason.value()) {
+    _run->rerun_reason = reason;
+  }
+
+  LOG(rebuild) << "Marked " << this;
+
+  // Return true if this was a new marking
+  return !already_marked;
+}
+
+// Check to see if this command was marked for re-execution after the last run
+bool Command::mustRerun() const noexcept {
+  // If there is no previous run, all commands should be emulated
+  if (!_last_run) return false;
+
+  // Otherwise check the last run state
+  return _last_run->rerun_reason.has_value();
 }
