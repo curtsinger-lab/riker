@@ -7,7 +7,6 @@
 #include "artifacts/Artifact.hh"
 #include "interfaces/BuildObserver.hh"
 #include "runtime/Command.hh"
-#include "runtime/RebuildPlan.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
@@ -31,20 +30,16 @@ class RebuildPlanner final : public BuildObserver {
   RebuildPlanner& operator=(RebuildPlanner&&) noexcept = default;
 
   /// Create a rebuild plan
-  RebuildPlan planBuild() const noexcept {
-    RebuildPlan plan;
-
+  void planBuild() const noexcept {
     // Mark all the commands with changed inputs
     for (auto c : getChanged()) {
-      mark(plan, c, RerunReason::Changed);
+      mark(c, RerunReason::Changed);
     }
 
     // Mark all the commands whose output is required
     for (const auto& c : _output_needed) {
-      mark(plan, c, RerunReason::OutputNeeded);
+      mark(c, RerunReason::OutputNeeded);
     }
-
-    return plan;
   }
 
   /// Get the set of commands that directly observe a change
@@ -189,12 +184,11 @@ class RebuildPlanner final : public BuildObserver {
 
  private:
   /// Mark a command for rerun, and propagate that marking to its dependencies/dependents
-  void mark(RebuildPlan& plan,
-            const shared_ptr<Command>& c,
+  void mark(const shared_ptr<Command>& c,
             RerunReason reason,
             const shared_ptr<Command>& prev = nullptr) const noexcept {
     // Mark the command for the given reason. If it was already marked, return
-    if (!plan.mark(c, reason)) return;
+    if (!c->markForRerun(reason)) return;
 
     if (reason == RerunReason::Changed) {
       // The change has already been logged
@@ -216,21 +210,21 @@ class RebuildPlanner final : public BuildObserver {
     // Mark this command's children
     if (auto iter = _children.find(c); iter != _children.end()) {
       for (const auto& child : iter->second) {
-        mark(plan, child, RerunReason::Child, c);
+        mark(child, RerunReason::Child, c);
       }
     }
 
     // Mark any commands that produce output that this command needs
     if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
       for (const auto& other : iter->second) {
-        mark(plan, other, RerunReason::OutputNeeded, c);
+        mark(other, RerunReason::OutputNeeded, c);
       }
     }
 
     // Mark any commands that use this command's output
     if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
       for (const auto& other : iter->second) {
-        mark(plan, other, RerunReason::InputMayChange, c);
+        mark(other, RerunReason::InputMayChange, c);
       }
     }
   }

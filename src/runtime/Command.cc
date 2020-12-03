@@ -262,8 +262,6 @@ bool Command::markForRerun(RerunReason reason) noexcept {
     _run->rerun_reason = reason;
   }
 
-  LOG(rebuild) << "Marked " << this;
-
   // Return true if this was a new marking
   return !already_marked;
 }

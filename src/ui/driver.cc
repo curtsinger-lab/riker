@@ -87,7 +87,8 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     OutputTrace output(NewDatabaseFilename);
 
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(planner.planBuild(), output);
+    planner.planBuild();
+    auto build = Build::rebuild(output);
     trace.sendTo(build);
 
     // end timer
@@ -157,7 +158,7 @@ void do_check(vector<string> args) noexcept {
   }
 
   // Print the rebuild plan
-  cout << planner.planBuild();
+  // cout << planner.planBuild();
 }
 
 /**
