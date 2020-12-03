@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "blake3.h"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
@@ -22,12 +23,17 @@ struct FileFingerprint {
  public:
   bool empty;
   struct timespec mtime;
+  std::array<uint8_t, BLAKE3_OUT_LEN> b3hash;
 
   /// Default constructor for deserialization
   FileFingerprint() noexcept = default;
 
   /// Create a fingerprint from stat data
   FileFingerprint(struct stat& s) noexcept : empty(s.st_size == 0), mtime(s.st_mtim) {}
+
+  /// Create a fingerprint from stat data and a BLAKE3 hash
+  FileFingerprint(struct stat& s, std::array<uint8_t, BLAKE3_OUT_LEN>& hash) noexcept :
+      empty(s.st_size == 0), mtime(s.st_mtim), b3hash(hash) {}
 
   /// Create a fingerprint for an empty file
   static FileFingerprint makeEmpty() noexcept {
@@ -42,14 +48,24 @@ struct FileFingerprint {
     if (empty && other.empty) return true;
 
     // Otherwise compare mtimes
-    return std::tie(mtime.tv_sec, mtime.tv_nsec) ==
-           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
+    return std::tie(mtime.tv_sec, mtime.tv_nsec, b3hash) ==
+           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec, other.b3hash);
   }
 
   friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
     if (f.empty) return o << "empty";
     return o << "mtime=" << f.mtime.tv_sec << "." << std::setfill('0') << std::setw(9)
-             << f.mtime.tv_nsec;
+             << f.mtime.tv_nsec << ", b3hash=" << f.b3hex();
+  }
+
+  string b3hex() const noexcept {
+    static const char hexchars[] = "01234567ABCDEF";
+    string s;
+    for (uint8_t byte : b3hash) {
+      s.push_back(hexchars[byte >> 4]);   // extract upper nibble & lookup char
+      s.push_back(hexchars[byte & 0xF]);  // extract lower nibble & lookup char
+    }
+    return s;
   }
 
   SERIALIZE(empty, mtime);
