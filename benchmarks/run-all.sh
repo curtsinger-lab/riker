@@ -5,5 +5,10 @@
 # programs, but the syntax is a tad fiddly
 
 BENCHMARKS=`find . -iname "benchmark.json" -print`
+FLAGS=--cleanup-before --cleanup-after --incr-none-dodo --incr-none-make --dont-ask
 
-./run.py --cleanup-before --cleanup-after --incr-none-dodo --incr-none-make --dont-ask $1 $BENCHMARKS
+# run in Docker
+./run.py $FLAGS $1 $BENCHMARKS
+
+# run outside of Docker
+./run.py $FLAGS --no-docker $1 $BENCHMARKS
