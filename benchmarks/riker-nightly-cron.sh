@@ -16,6 +16,10 @@ else
     git pull
 fi
 
+# build dodo for no-Docker benchmarks
+cd /riker-nightly/dodo
+make
+
 # get current date & time
 NOW=`date +"%Y-%m-%d_%H-%M"`
 
