@@ -28,3 +28,5 @@ cd /riker-nightly/dodo/benchmarks && ./run-all.sh ${LOGPATH}/${NOW}-output.csv 1
 # mail the output
 echo "Benchmark results attached." | /usr/bin/mail -s "Riker nightly benchmark results" -A ${LOGPATH}/${NOW}-output.csv $1,$2
 
+# update this runner
+cp /riker-nightly/dodo/benchmarks/riker-nightly-cron.sh /riker-nightly/
