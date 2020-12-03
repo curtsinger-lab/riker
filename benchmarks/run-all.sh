@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # this is just a convenient script to run all of the benchmarks;
 # the benchmark runner can already handle running multiple
