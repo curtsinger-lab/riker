@@ -109,6 +109,12 @@ struct Command::RunData {
 
   /// If this command is marked for re-execution, the optional will have a value
   optional<RerunReason> rerun_reason;
+
+  /// The set of inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> inputs;
+
+  /// The set of outputs from this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> outputs;
 };
 
 // Reset the transient state in this command to prepare for a new emulation/execution
@@ -226,6 +232,11 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
   _run->children.push_back(child);
 }
 
+// Get this command's children
+const list<shared_ptr<Command>>& Command::getChildren() const noexcept {
+  return _last_run->children;
+}
+
 // Look for a command that matches one of this command's children from the last run
 shared_ptr<Command> Command::findChild(vector<string> args,
                                        Command::RefID exe_ref,
@@ -273,4 +284,29 @@ bool Command::mustRerun() const noexcept {
 
   // Otherwise check the last run state
   return _last_run->rerun_reason.has_value();
+}
+
+// Add an input to this command
+void Command::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
+  _run->inputs.emplace(a, v, t);
+}
+
+// Get the inputs to this command
+set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> Command::getInputs()
+    const noexcept {
+  if (!_last_run) return {};
+
+  return _last_run->inputs;
+}
+
+// Add an output to this command
+void Command::addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
+  _run->outputs.emplace(a, v);
+}
+
+// Get the outputs from this command
+set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> Command::getOutputs() const noexcept {
+  if (!_last_run) return {};
+
+  return _last_run->outputs;
 }

@@ -15,11 +15,11 @@
 
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/PostBuildChecker.hh"
+#include "ui/Graph.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "ui/stats.hh"
@@ -218,9 +218,15 @@ void do_graph(vector<string> args,
   // Load the build trace
   InputTrace trace(args, DatabaseFilename);
 
-  // Create a graph observer and emulate the build
-  Graph graph(show_all);
-  trace.sendTo(Build::emulate(graph));
+  // Emulate the build
+  trace.sendTo(Build::emulate());
+
+  // Finish the run for each command in the trace
+  for (auto& c : trace.getCommands()) {
+    c->newRun();
+  }
+
+  Graph2 graph(trace, show_all);
 
   if (no_render) {
     ofstream f(output);

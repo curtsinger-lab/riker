@@ -8,6 +8,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "data/AccessFlags.hh"
@@ -17,8 +18,10 @@ using std::list;
 using std::map;
 using std::optional;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 
@@ -37,6 +40,12 @@ enum class RerunReason : int {
   InputMayChange = 1,  // The marked command consumes output from another command marked for rerun
   OutputNeeded = 2,    // The marked command produces output needed by another marked command
   Changed = 3          // The marked command directly observed a change
+};
+
+enum class InputType {
+  PathResolution,  // The input is a dependency for path resolution
+  Accessed,        // The input is accessed directly
+  Exists,          // The input must exist, but its specific contents do not matter
 };
 
 /**
@@ -142,6 +151,9 @@ class Command : public std::enable_shared_from_this<Command> {
    */
   void addChild(shared_ptr<Command> child) noexcept;
 
+  /// Get this command's list of children
+  const list<shared_ptr<Command>>& getChildren() const noexcept;
+
   /**
    * Look through this command's children from the last run to see if there is a child that matches
    * the given command launch information. Once a child has been matched, it will not match again.
@@ -167,6 +179,18 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Check to see if this command was marked for re-execution after its previous run
   bool mustRerun() const noexcept;
+
+  /// Track an input to this command
+  void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
+
+  /// Get the inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept;
+
+  /// Track an output from this command
+  void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
+
+  /// Get the outputs from this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept;
 
   /****** Utility Methods ******/
 

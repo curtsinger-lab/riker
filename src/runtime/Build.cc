@@ -44,6 +44,9 @@ void Build::observeLaunch(const shared_ptr<Command>& parent,
 void Build::observeOutput(const shared_ptr<Command>& c,
                           shared_ptr<Artifact> a,
                           shared_ptr<Version> v) noexcept {
+  // Track the output from the command
+  c->addOutput(a, v);
+
   _observer.observeOutput(c, a, v);
 }
 
@@ -52,6 +55,9 @@ void Build::observeInput(const shared_ptr<Command>& c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
+  // Track the input to the command
+  c->addInput(a, v, t);
+
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
   // output will eventually be marked as committed.

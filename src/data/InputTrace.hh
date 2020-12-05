@@ -73,6 +73,9 @@ class InputTrace {
   /// Get the commands loaded from this input trace
   const vector<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
 
+  /// Get the root command from this trace
+  const shared_ptr<Command>& getRootCommand() const noexcept { return _commands[1]; }
+
  private:
   /// Send a default trace to a trace handler
   void sendDefault(TraceHandler& handler) noexcept;
