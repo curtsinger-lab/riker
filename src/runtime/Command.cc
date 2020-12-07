@@ -30,6 +30,9 @@ const shared_ptr<Command>& Command::getNullCommand() noexcept {
   return _null_command;
 }
 
+// Create an empty command
+Command::Command() noexcept : _run(make_unique<RunData>()) {}
+
 // Create a command
 Command::Command(vector<string> args) noexcept : _args(args), _run(make_unique<RunData>()) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
@@ -117,8 +120,8 @@ struct Command::RunData {
   set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> outputs;
 };
 
-// Reset the transient state in this command to prepare for a new emulation/execution
-void Command::newRun() noexcept {
+// Finish the current run and set up for another one
+void Command::finishRun() noexcept {
   // Move current run data over to the last run
   _last_run = std::move(_run);
 
@@ -167,7 +170,7 @@ void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
   if (id >= _run->refs.size()) _run->refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  ASSERT(!_run->refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
+  // ASSERT(!_run->refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
 
   // Save the ref
   _run->refs[id] = ref;
@@ -266,11 +269,11 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 // Mark this command for re-execution
 bool Command::markForRerun(RerunReason reason) noexcept {
   // Is this command already marked?
-  bool already_marked = _run->rerun_reason.has_value();
+  bool already_marked = _last_run->rerun_reason.has_value();
 
   // If not, or if the given reason is "higher" than the previous marking, update it
-  if (!already_marked || reason > _run->rerun_reason.value()) {
-    _run->rerun_reason = reason;
+  if (!already_marked || reason > _last_run->rerun_reason.value()) {
+    _last_run->rerun_reason = reason;
   }
 
   // Return true if this was a new marking

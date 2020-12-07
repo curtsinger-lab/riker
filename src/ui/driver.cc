@@ -164,9 +164,6 @@ void do_check(vector<string> args) noexcept {
   // Print the rebuild plan
   bool header_printed = false;
   for (const auto& c : trace.getCommands()) {
-    // We have to start a new run for the mustRerun function to work
-    c->newRun();
-
     // Check if this command has to rerun
     if (c->mustRerun()) {
       if (!header_printed) {
@@ -220,11 +217,6 @@ void do_graph(vector<string> args,
 
   // Emulate the build
   trace.sendTo(Build::emulate());
-
-  // Finish the run for each command in the trace
-  for (auto& c : trace.getCommands()) {
-    c->newRun();
-  }
 
   Graph2 graph(trace, show_all);
 

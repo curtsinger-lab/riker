@@ -388,15 +388,15 @@ class Build : public TraceHandler, public BuildObserver {
   /// The environment in which this build executes
   shared_ptr<Env> _env;
 
+  /// The set of commands that were run by this build (both traced and emulated commands included)
+  set<shared_ptr<Command>> _commands;
+
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is
   /// only being emulated
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
-
-  /// A set of commands that have exited
-  set<shared_ptr<Command>> _exited;
 
   /// The default observer is used if an observer is not provided during setup
   inline static BuildObserver _default_observer;

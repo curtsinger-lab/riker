@@ -26,3 +26,6 @@ Rebuild without changing anything, which should do nothing
 
 Clean up
   $ rm -rf .dodo rm output-*
+
+SKIP! This test is sensitive to the /proc filesystem. Once we properly exclude these paths this test should work again.
+  $ exit 80

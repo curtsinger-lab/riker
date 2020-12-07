@@ -126,6 +126,12 @@ void Build::finish() noexcept {
   // Commit the final environment state to the filesystem
   if (_commit) _env->getRootDir()->applyFinalState(*this, "/");
 
+  // Mark all commands as finished
+  for (auto& c : _commands) {
+    LOG(rebuild) << "Finishing " << c;
+    c->finishRun();
+  }
+
   // Inform the output trace that it is finished
   _output.finish();
 }
@@ -586,6 +592,9 @@ void Build::launch(const shared_ptr<Command>& c,
   // Inform observers of the launch
   observeLaunch(c, child);
 
+  // Remember that this command was run by the build
+  _commands.insert(child);
+
   // Add the child to the parent command's set of children
   c->addChild(child);
 
@@ -671,9 +680,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
-
-  // Record that the command has exited
-  _exited.insert(c);
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);
@@ -1078,6 +1084,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     LOG(exec) << "No match for command " << child;
   }
 
+  // Remember that child command executed
+  _commands.insert(child);
+
   // Add the child to the parent's list of children
   parent->addChild(child);
 
@@ -1153,9 +1162,6 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
-
-  // Record that the command has exited
-  _exited.insert(c);
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);

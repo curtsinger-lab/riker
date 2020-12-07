@@ -59,7 +59,7 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class RebuildPlanner;
 
   /// Default constructor used to create the null command instance
-  Command() noexcept = default;
+  Command() noexcept;
 
  public:
   /// The type of a command ID
@@ -118,8 +118,8 @@ class Command : public std::enable_shared_from_this<Command> {
     _initial_fds.emplace(fd, ref);
   }
 
-  /// Prepare to begin a new run (emulated or traced) of this command
-  void newRun() noexcept;
+  /// Finish the current run of this command. This moves the run data to last_run.
+  void finishRun() noexcept;
 
   /// Get a reference from this command's reference table
   const shared_ptr<Ref>& getRef(RefID id) const noexcept;
