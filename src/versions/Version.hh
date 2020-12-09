@@ -69,11 +69,11 @@ class Version : public std::enable_shared_from_this<Version> {
     save(handler, path);
   }
 
-  /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept {
-    // By default, check for a saved copy
-    return isSaved();
-  }
+  // /// Check if this version has a fingerprint
+  // virtual bool hasFingerprint() const noexcept {
+  //   // By default, check for a saved copy
+  //   return isSaved();
+  // }
 
   /// Check if this version matches another
   virtual bool matches(shared_ptr<Version> other) const noexcept {

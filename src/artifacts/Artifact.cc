@@ -216,13 +216,10 @@ void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
   // If we don't have a fingerprint of the metadata, take one
-  if (!_metadata_version->hasFingerprint()) {
-    ASSERT(_metadata_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _metadata_version->fingerprint(build, path);
-  }
 
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
+  _metadata_version->fingerprint(build, path);
 }
 
 /// Get the current metadata version for this artifact

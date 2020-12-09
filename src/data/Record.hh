@@ -4,6 +4,7 @@
 #include <tuple>
 #include <vector>
 
+#include <cereal/types/array.hpp>
 #include <cereal/types/list.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>

@@ -107,7 +107,7 @@ class MetadataVersion final : public Version {
   }
 
   /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept override { return isSaved(); }
+  // virtual bool hasFingerprint() const noexcept override { return isSaved(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
@@ -116,7 +116,7 @@ class MetadataVersion final : public Version {
     if (other_metadata.get() == this) return true;
     return _metadata == other_metadata->_metadata;
   }
-  
+
   /// Print this metadata version
   virtual ostream& print(ostream& o) const noexcept override {
     if (_metadata.has_value()) {

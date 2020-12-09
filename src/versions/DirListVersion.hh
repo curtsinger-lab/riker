@@ -27,7 +27,7 @@ class DirListVersion : public Version {
   DirListVersion() noexcept = default;
 
   /// DirListVersions always have a fingerprint: the list of entries
-  virtual bool hasFingerprint() const noexcept override { return true; }
+  // virtual bool hasFingerprint() const noexcept override { return true; }
 
   /// Check if this list matches another list
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

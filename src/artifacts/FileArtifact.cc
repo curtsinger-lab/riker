@@ -45,7 +45,7 @@ void FileArtifact::commit(shared_ptr<Version> v) noexcept {
   }
 }
 
-// Do we have saved content and metadata for this artifact?
+/// Do we have saved content and metadata for this artifact?
 bool FileArtifact::canCommitAll() const noexcept {
   // Can the metadata version be committed?
   if (!_metadata_version->canCommit()) return false;
@@ -53,7 +53,7 @@ bool FileArtifact::canCommitAll() const noexcept {
   return _content_version->canCommit();
 }
 
-// Commit all final versions of this artifact to the filesystem
+/// Commit all final versions of this artifact to the filesystem
 void FileArtifact::commitAll() noexcept {
   LOG(artifact) << "Committing " << this;
 
@@ -67,13 +67,13 @@ void FileArtifact::commitAll() noexcept {
   _metadata_version->commit(path.value());
 }
 
-// Command c requires that this artifact exists in its current state. Create dependency edges.
+/// Command c requires that this artifact exists in its current state. Create dependency edges.
 void FileArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
   build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
   build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
 }
 
-// Compare all final versions of this artifact to the filesystem state
+/// Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     auto v = make_shared<FileVersion>();
@@ -93,16 +93,13 @@ void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   Artifact::checkFinalState(build, path);
 }
 
-// Commit any pending versions and save fingerprints for this artifact
+/// Commit any pending versions and save fingerprints for this artifact
 void FileArtifact::applyFinalState(Build& build, fs::path path) noexcept {
-  // If we don't already have a content fingerprint, take one
-  if (!_content_version->hasFingerprint()) {
-    ASSERT(_content_version->isCommitted()) << "Cannot fingerprint an uncommitted version";
-    _content_version->fingerprint(build, path);
-  }
-
   // Make sure the content is committed
   _content_version->commit(path);
+
+  // If we don't already have a content fingerprint, take one
+  _content_version->fingerprint(build, path);
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(build, path);

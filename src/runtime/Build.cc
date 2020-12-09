@@ -889,7 +889,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Command::RefID ref_
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (creator != c && !expected->hasFingerprint()) {
+  if (creator != c) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
@@ -921,7 +921,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (creator != c && !expected->hasFingerprint()) {
+  if (creator != c) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {

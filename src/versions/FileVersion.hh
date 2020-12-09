@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 
@@ -10,12 +11,16 @@
 #include <unistd.h>
 
 #include "blake3.h"
+#include "string.h"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
+using std::nullopt;
 using std::optional;
-using std::shared_ptr;
 using std::string;
+using std::stringstream;
+
+#define BLAKE3BUFSZ 65536 /* taken from BLAKE3 demo app without much thought! */
 
 class Ref;
 
@@ -23,17 +28,56 @@ struct FileFingerprint {
  public:
   bool empty;
   struct timespec mtime;
-  std::array<uint8_t, BLAKE3_OUT_LEN> b3hash;
+  std::optional<std::array<uint8_t, BLAKE3_OUT_LEN>> b3hash;
 
   /// Default constructor for deserialization
   FileFingerprint() noexcept = default;
 
   /// Create a fingerprint from stat data
-  FileFingerprint(struct stat& s) noexcept : empty(s.st_size == 0), mtime(s.st_mtim) {}
+  FileFingerprint(string path) noexcept {
+    // Get stat data and save it
+    struct stat statbuf;
+    int rc = ::lstat(path.c_str(), &statbuf);
 
-  /// Create a fingerprint from stat data and a BLAKE3 hash
-  FileFingerprint(struct stat& s, std::array<uint8_t, BLAKE3_OUT_LEN>& hash) noexcept :
-      empty(s.st_size == 0), mtime(s.st_mtim), b3hash(hash) {}
+    // save mtime from statbuf
+    empty = statbuf.st_size == 0;
+    mtime = statbuf.st_mtim;
+
+    // if file is readable and hashable, save hash
+    if (rc == 0) b3hash = blake3(path);
+  }
+
+  std::optional<std::array<uint8_t, BLAKE3_OUT_LEN>> blake3(fs::path path) {
+    // initialize hasher
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+
+    // buffer for file read
+    unsigned char buf[BLAKE3BUFSZ];
+
+    // read from given file
+    LOG(exec) << "Fingerprinting " << path;
+    FILE* f = fopen(path.c_str(), "r");
+    if (!f) {
+      LOG(artifact) << "Unable to fingerprint file '" << path.c_str() << "': " << ERR;
+      return nullopt;
+    }
+
+    // create output array
+    std::array<uint8_t, BLAKE3_OUT_LEN> output;
+
+    // compute hash incrementally for each chunk read
+    ssize_t n;
+    while ((n = fread(buf, sizeof(char), sizeof(buf), f)) > 0) {
+      blake3_hasher_update(&hasher, buf, n);
+    }
+    fclose(f);
+
+    // finalize the hash
+    blake3_hasher_finalize(&hasher, output.data(), BLAKE3_OUT_LEN);
+
+    return output;
+  }
 
   /// Create a fingerprint for an empty file
   static FileFingerprint makeEmpty() noexcept {
@@ -48,8 +92,14 @@ struct FileFingerprint {
     if (empty && other.empty) return true;
 
     // Otherwise compare mtimes
-    return std::tie(mtime.tv_sec, mtime.tv_nsec, b3hash) ==
-           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec, other.b3hash);
+    bool mtime_is_same =
+        std::tie(mtime.tv_sec, mtime.tv_nsec) == std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
+
+    bool hash_is_same = b3hash.has_value() && other.b3hash.has_value()
+                            ? b3hash.value() == other.b3hash.value()
+                            : true;
+
+    return mtime_is_same && hash_is_same;
   }
 
   friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
@@ -59,16 +109,17 @@ struct FileFingerprint {
   }
 
   string b3hex() const noexcept {
-    static const char hexchars[] = "01234567ABCDEF";
-    string s;
-    for (uint8_t byte : b3hash) {
-      s.push_back(hexchars[byte >> 4]);   // extract upper nibble & lookup char
-      s.push_back(hexchars[byte & 0xF]);  // extract lower nibble & lookup char
+    if (!b3hash.has_value()) {
+      return "[NO HASH]";
     }
-    return s;
+    stringstream ss;
+    for (int byte : b3hash.value()) {
+      ss << std::setfill('0') << std::setw(2) << std::hex << byte;
+    }
+    return ss.str();
   }
 
-  SERIALIZE(empty, mtime);
+  SERIALIZE(empty, mtime, b3hash);
 };
 
 class FileVersion final : public Version {
@@ -92,7 +143,7 @@ class FileVersion final : public Version {
   virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override;
 
   /// Check if this version has a fingerprint
-  virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }
+  // virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
