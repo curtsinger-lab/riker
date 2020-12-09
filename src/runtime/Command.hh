@@ -8,6 +8,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "data/AccessFlags.hh"
@@ -17,8 +18,10 @@ using std::list;
 using std::map;
 using std::optional;
 using std::ostream;
+using std::set;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 
@@ -29,6 +32,21 @@ class Build;
 class BuildObserver;
 class Ref;
 class Step;
+
+/// Record the reason why a command has been marked for rerun. Reasons are ordered; any command
+/// marked with both Child and Changed will retain the Changed marking.
+enum class RerunReason : int {
+  Child = 0,           // The marked command is a child of another command marked for rerun
+  InputMayChange = 1,  // The marked command consumes output from another command marked for rerun
+  OutputNeeded = 2,    // The marked command produces output needed by another marked command
+  Changed = 3          // The marked command directly observed a change
+};
+
+enum class InputType {
+  PathResolution,  // The input is a dependency for path resolution
+  Accessed,        // The input is accessed directly
+  Exists,          // The input must exist, but its specific contents do not matter
+};
 
 /**
  * Representation of a command that runs as part of the build.
@@ -41,7 +59,7 @@ class Command : public std::enable_shared_from_this<Command> {
   friend class RebuildPlanner;
 
   /// Default constructor used to create the null command instance
-  Command() noexcept = default;
+  Command() noexcept;
 
  public:
   /// The type of a command ID
@@ -100,8 +118,8 @@ class Command : public std::enable_shared_from_this<Command> {
     _initial_fds.emplace(fd, ref);
   }
 
-  /// Prepare to begin a new run (emulated or traced) of this command
-  void newRun() noexcept;
+  /// Finish the current run of this command. This moves the run data to last_run.
+  void finishRun() noexcept;
 
   /// Get a reference from this command's reference table
   const shared_ptr<Ref>& getRef(RefID id) const noexcept;
@@ -133,6 +151,9 @@ class Command : public std::enable_shared_from_this<Command> {
    */
   void addChild(shared_ptr<Command> child) noexcept;
 
+  /// Get this command's list of children
+  const list<shared_ptr<Command>>& getChildren() const noexcept;
+
   /**
    * Look through this command's children from the last run to see if there is a child that matches
    * the given command launch information. Once a child has been matched, it will not match again.
@@ -150,6 +171,26 @@ class Command : public std::enable_shared_from_this<Command> {
                                 Command::RefID cwd_ref,
                                 Command::RefID root_ref,
                                 map<int, Command::RefID> fds) noexcept;
+
+  /****** Dependency Tracking and Rebuild Planning ******/
+
+  /// Mark this command for rerun. Returns true if this is a new marking.
+  bool markForRerun(RerunReason reason) noexcept;
+
+  /// Check to see if this command was marked for re-execution after its previous run
+  bool mustRerun() const noexcept;
+
+  /// Track an input to this command
+  void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
+
+  /// Get the inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept;
+
+  /// Track an output from this command
+  void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
+
+  /// Get the outputs from this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept;
 
   /****** Utility Methods ******/
 

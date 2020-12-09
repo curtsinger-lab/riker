@@ -13,7 +13,6 @@
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
-#include "runtime/RebuildPlan.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Tracer.hh"
 
@@ -35,9 +34,8 @@ class Version;
 class Build : public TraceHandler, public BuildObserver {
  private:
   /// Create a build runner
-  Build(bool commit, RebuildPlan plan, BuildObserver& observer, TraceHandler& output) noexcept :
+  Build(bool commit, BuildObserver& observer, TraceHandler& output) noexcept :
       _commit(commit),
-      _plan(plan),
       _observer(observer),
       _output(output),
       _env(make_shared<Env>()),
@@ -47,16 +45,16 @@ class Build : public TraceHandler, public BuildObserver {
   /// Create a build runner that exclusively emulates trace steps
   static Build emulate(BuildObserver& observer = _default_observer,
                        TraceHandler& output = _default_output) noexcept {
-    return Build(false, RebuildPlan(), observer, output);
+    return Build(false, observer, output);
   }
 
   static Build emulate(TraceHandler& output) noexcept {
-    return Build(false, RebuildPlan(), _default_observer, output);
+    return Build(false, _default_observer, output);
   }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(RebuildPlan plan, TraceHandler& output = _default_output) noexcept {
-    return Build(true, plan, _default_observer, output);
+  static Build rebuild(TraceHandler& output = _default_output) noexcept {
+    return Build(true, _default_observer, output);
   }
 
   // Disallow Copy
@@ -381,9 +379,6 @@ class Build : public TraceHandler, public BuildObserver {
   /// Should this build commit the environment to the filesystem when it's finished?
   bool _commit;
 
-  /// The rebuild plan
-  RebuildPlan _plan;
-
   /// The observers that should be notified of dependency and change information during the build
   BuildObserver& _observer;
 
@@ -393,15 +388,15 @@ class Build : public TraceHandler, public BuildObserver {
   /// The environment in which this build executes
   shared_ptr<Env> _env;
 
+  /// The set of commands that were run by this build (both traced and emulated commands included)
+  set<shared_ptr<Command>> _commands;
+
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
 
   /// A map of launched commands to the root process running that command, or nullptr if it is
   /// only being emulated
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
-
-  /// A set of commands that have exited
-  set<shared_ptr<Command>> _exited;
 
   /// The default observer is used if an observer is not provided during setup
   inline static BuildObserver _default_observer;

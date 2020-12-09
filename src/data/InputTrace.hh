@@ -70,6 +70,12 @@ class InputTrace {
   /// Check if this input trace has a command with a given ID
   bool hasCommand(Command::ID id) const noexcept { return id >= 0 && _commands.size() > id; }
 
+  /// Get the commands loaded from this input trace
+  const vector<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
+
+  /// Get the root command from this trace
+  const shared_ptr<Command>& getRootCommand() const noexcept { return _commands[1]; }
+
  private:
   /// Send a default trace to a trace handler
   void sendDefault(TraceHandler& handler) noexcept;

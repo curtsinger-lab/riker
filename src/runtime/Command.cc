@@ -30,6 +30,9 @@ const shared_ptr<Command>& Command::getNullCommand() noexcept {
   return _null_command;
 }
 
+// Create an empty command
+Command::Command() noexcept : _run(make_unique<RunData>()) {}
+
 // Create a command
 Command::Command(vector<string> args) noexcept : _args(args), _run(make_unique<RunData>()) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
@@ -106,10 +109,19 @@ struct Command::RunData {
 
   /// The exit status for this command
   int exit_status = -1;
+
+  /// If this command is marked for re-execution, the optional will have a value
+  optional<RerunReason> rerun_reason;
+
+  /// The set of inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> inputs;
+
+  /// The set of outputs from this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> outputs;
 };
 
-// Reset the transient state in this command to prepare for a new emulation/execution
-void Command::newRun() noexcept {
+// Finish the current run and set up for another one
+void Command::finishRun() noexcept {
   // Move current run data over to the last run
   _last_run = std::move(_run);
 
@@ -158,7 +170,7 @@ void Command::setRef(Command::RefID id, shared_ptr<Ref> ref) noexcept {
   if (id >= _run->refs.size()) _run->refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  ASSERT(!_run->refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
+  // ASSERT(!_run->refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
 
   // Save the ref
   _run->refs[id] = ref;
@@ -223,6 +235,11 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
   _run->children.push_back(child);
 }
 
+// Get this command's children
+const list<shared_ptr<Command>>& Command::getChildren() const noexcept {
+  return _last_run->children;
+}
+
 // Look for a command that matches one of this command's children from the last run
 shared_ptr<Command> Command::findChild(vector<string> args,
                                        Command::RefID exe_ref,
@@ -247,4 +264,52 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 
   // No match found
   return nullptr;
+}
+
+// Mark this command for re-execution
+bool Command::markForRerun(RerunReason reason) noexcept {
+  // Is this command already marked?
+  bool already_marked = _last_run->rerun_reason.has_value();
+
+  // If not, or if the given reason is "higher" than the previous marking, update it
+  if (!already_marked || reason > _last_run->rerun_reason.value()) {
+    _last_run->rerun_reason = reason;
+  }
+
+  // Return true if this was a new marking
+  return !already_marked;
+}
+
+// Check to see if this command was marked for re-execution after the last run
+bool Command::mustRerun() const noexcept {
+  // If there is no previous run, all commands should be emulated
+  if (!_last_run) return false;
+
+  // Otherwise check the last run state
+  return _last_run->rerun_reason.has_value();
+}
+
+// Add an input to this command
+void Command::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
+  _run->inputs.emplace(a, v, t);
+}
+
+// Get the inputs to this command
+set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> Command::getInputs()
+    const noexcept {
+  if (!_last_run) return {};
+
+  return _last_run->inputs;
+}
+
+// Add an output to this command
+void Command::addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
+  _run->outputs.emplace(a, v);
+}
+
+// Get the outputs from this command
+set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> Command::getOutputs() const noexcept {
+  if (!_last_run) return {};
+
+  return _last_run->outputs;
 }

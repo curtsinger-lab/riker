@@ -15,10 +15,11 @@
 
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "observers/Graph.hh"
 #include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"
+#include "runtime/Command.hh"
 #include "runtime/PostBuildChecker.hh"
+#include "ui/Graph.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/options.hh"
 #include "ui/stats.hh"
@@ -87,7 +88,8 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     OutputTrace output(NewDatabaseFilename);
 
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(planner.planBuild(), output);
+    planner.planBuild();
+    auto build = Build::rebuild(output);
     trace.sendTo(build);
 
     // end timer
@@ -138,6 +140,9 @@ void do_check(vector<string> args) noexcept {
   // Emulate the loaded trace
   trace.sendTo(Build::emulate(planner));
 
+  // Plan the rebuild
+  planner.planBuild();
+
   // Print commands whose inputs have changed
   if (planner.getChanged().size() > 0) {
     cout << "Commands with changed inputs:" << endl;
@@ -157,7 +162,22 @@ void do_check(vector<string> args) noexcept {
   }
 
   // Print the rebuild plan
-  cout << planner.planBuild();
+  bool header_printed = false;
+  for (const auto& c : trace.getCommands()) {
+    // Check if this command has to rerun
+    if (c->mustRerun()) {
+      if (!header_printed) {
+        cout << "The following commands will be rerun:" << endl;
+        header_printed = true;
+      }
+      cout << "  " << c->getShortName(options::command_length) << endl;
+    }
+  }
+
+  // If we never printed the header, there were no commands to rerun
+  if (!header_printed) {
+    cout << "No commands to rerun" << endl;
+  }
 }
 
 /**
@@ -195,9 +215,10 @@ void do_graph(vector<string> args,
   // Load the build trace
   InputTrace trace(args, DatabaseFilename);
 
-  // Create a graph observer and emulate the build
-  Graph graph(show_all);
-  trace.sendTo(Build::emulate(graph));
+  // Emulate the build
+  trace.sendTo(Build::emulate());
+
+  Graph2 graph(trace, show_all);
 
   if (no_render) {
     ofstream f(output);

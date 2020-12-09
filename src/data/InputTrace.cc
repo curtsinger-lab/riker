@@ -40,11 +40,6 @@ using std::vector;
 
 // Run this trace
 void InputTrace::sendTo(TraceHandler& handler) noexcept {
-  // Reset all the commands in this input trace
-  for (const auto& cmd : _commands) {
-    cmd->newRun();
-  }
-
   bool use_default = false;
 
   try {

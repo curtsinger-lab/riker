@@ -9,7 +9,6 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Env.hh"
-#include "runtime/RebuildPlan.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
@@ -45,6 +44,9 @@ void Build::observeLaunch(const shared_ptr<Command>& parent,
 void Build::observeOutput(const shared_ptr<Command>& c,
                           shared_ptr<Artifact> a,
                           shared_ptr<Version> v) noexcept {
+  // Track the output from the command
+  c->addOutput(a, v);
+
   _observer.observeOutput(c, a, v);
 }
 
@@ -53,10 +55,13 @@ void Build::observeInput(const shared_ptr<Command>& c,
                          shared_ptr<Artifact> a,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
+  // Track the input to the command
+  c->addInput(a, v, t);
+
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
   // output will eventually be marked as committed.
-  if (_plan.mustRerun(c) && !v->isCommitted() && v->getCreator() != c) {
+  if (c->mustRerun() && !v->isCommitted() && v->getCreator() != c) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
@@ -121,6 +126,12 @@ void Build::finish() noexcept {
   // Commit the final environment state to the filesystem
   if (_commit) _env->getRootDir()->applyFinalState(*this, "/");
 
+  // Mark all commands as finished
+  for (auto& c : _commands) {
+    LOG(rebuild) << "Finishing " << c;
+    c->finishRun();
+  }
+
   // Inform the output trace that it is finished
   _output.finish();
 }
@@ -128,8 +139,8 @@ void Build::finish() noexcept {
 void Build::specialRef(const shared_ptr<Command>& c,
                        SpecialRef entity,
                        Command::RefID output) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -179,8 +190,8 @@ void Build::specialRef(const shared_ptr<Command>& c,
 void Build::pipeRef(const shared_ptr<Command>& c,
                     Command::RefID read_end,
                     Command::RefID write_end) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -199,8 +210,8 @@ void Build::pipeRef(const shared_ptr<Command>& c,
 
 // A command references a new anonymous file
 void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID output) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -220,8 +231,8 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID ou
 void Build::symlinkRef(const shared_ptr<Command>& c,
                        fs::path target,
                        Command::RefID output) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -239,8 +250,8 @@ void Build::symlinkRef(const shared_ptr<Command>& c,
 
 // A command references a new anonymous directory
 void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID output) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -262,8 +273,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
                     fs::path path,
                     AccessFlags flags,
                     Command::RefID output) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -285,8 +296,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
 // A command retains a handle to a given Ref
 void Build::usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -303,8 +314,8 @@ void Build::usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept 
 
 // A command closes a handle to a given Ref
 void Build::doneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -334,8 +345,8 @@ void Build::compareRefs(const shared_ptr<Command>& c,
                         Command::RefID ref1_id,
                         Command::RefID ref2_id,
                         RefComparison type) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -368,8 +379,8 @@ void Build::expectResult(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Command::RefID ref_id,
                          int expected) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -392,8 +403,8 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
                           Command::RefID ref_id,
                           shared_ptr<MetadataVersion> expected) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -418,8 +429,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Command::RefID ref_id,
                          shared_ptr<Version> expected) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -443,8 +454,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
 void Build::updateMetadata(const shared_ptr<Command>& c,
                            Command::RefID ref_id,
                            shared_ptr<MetadataVersion> written) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -475,8 +486,8 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 void Build::updateContent(const shared_ptr<Command>& c,
                           Command::RefID ref_id,
                           shared_ptr<Version> written) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -508,8 +519,8 @@ void Build::addEntry(const shared_ptr<Command>& c,
                      Command::RefID dir_id,
                      fs::path name,
                      Command::RefID target_id) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -535,8 +546,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
                         Command::RefID dir_id,
                         fs::path name,
                         Command::RefID target_id) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -561,8 +572,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 void Build::launch(const shared_ptr<Command>& c,
                    const shared_ptr<Command>& child,
                    list<tuple<Command::RefID, Command::RefID>> refs) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -581,6 +592,9 @@ void Build::launch(const shared_ptr<Command>& c,
   // Inform observers of the launch
   observeLaunch(c, child);
 
+  // Remember that this command was run by the build
+  _commands.insert(child);
+
   // Add the child to the parent command's set of children
   c->addChild(child);
 
@@ -590,7 +604,7 @@ void Build::launch(const shared_ptr<Command>& c,
   // Should we print the child command?
   bool print_command = false;
 
-  if (_plan.mustRerun(child)) {
+  if (child->mustRerun()) {
     // Print the command if requested, or if this is a dry run
     if (options::print_on_run || options::dry_run) print_command = true;
 
@@ -633,8 +647,8 @@ void Build::launch(const shared_ptr<Command>& c,
 void Build::join(const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -655,8 +669,8 @@ void Build::join(const shared_ptr<Command>& c,
 }
 
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
-  // If this step comes from a command we cannot emulate, skip it
-  if (!_plan.canEmulate(c)) return;
+  // If this step comes from a command we have to rerun, skip it
+  if (c->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -666,9 +680,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
-
-  // Record that the command has exited
-  _exited.insert(c);
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);
@@ -1073,6 +1084,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     LOG(exec) << "No match for command " << child;
   }
 
+  // Remember that child command executed
+  _commands.insert(child);
+
   // Add the child to the parent's list of children
   parent->addChild(child);
 
@@ -1148,9 +1162,6 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
-
-  // Record that the command has exited
-  _exited.insert(c);
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);

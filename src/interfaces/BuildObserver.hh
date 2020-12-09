@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "interfaces/TraceHandler.hh"
+#include "runtime/Command.hh"
 
 using std::shared_ptr;
 using std::unique_ptr;
@@ -13,12 +14,6 @@ class Predicate;
 class Ref;
 class Step;
 class Version;
-
-enum class InputType {
-  PathResolution,  // The input is a dependency for path resolution
-  Accessed,        // The input is accessed directly
-  Exists,          // The input must exist, but its specific contents do not matter
-};
 
 /**
  * This serves as a base class for any utility that needs dependency and change information
