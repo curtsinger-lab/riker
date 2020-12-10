@@ -188,7 +188,7 @@ class RebuildPlanner final : public BuildObserver {
             RerunReason reason,
             const shared_ptr<Command>& prev = nullptr) const noexcept {
     // Mark the command for the given reason. If it was already marked, return
-    if (!c->markForRerun(reason)) return;
+    if (!c->previousRun()->markForRerun(reason)) return;
 
     if (reason == RerunReason::Changed) {
       // The change has already been logged

@@ -52,92 +52,91 @@ class OutputTrace : public TraceHandler {
   /// Add a SpecialRef IR step to the output trace
   virtual void specialRef(const shared_ptr<Command>& command,
                           SpecialRef entity,
-                          Command::RefID output) noexcept override;
+                          Ref::ID output) noexcept override;
 
   /// Add a PipeRef IR step to the output trace
   virtual void pipeRef(const shared_ptr<Command>& command,
-                       Command::RefID read_end,
-                       Command::RefID write_end) noexcept override;
+                       Ref::ID read_end,
+                       Ref::ID write_end) noexcept override;
 
   /// Add a FileRef IR step to the output trace
   virtual void fileRef(const shared_ptr<Command>& command,
                        mode_t mode,
-                       Command::RefID output) noexcept override;
+                       Ref::ID output) noexcept override;
 
   /// Add a SymlinkRef IR step to the output trace
   virtual void symlinkRef(const shared_ptr<Command>& command,
                           fs::path target,
-                          Command::RefID output) noexcept override;
+                          Ref::ID output) noexcept override;
 
   /// Add a DirRef IR step to the output trace
   virtual void dirRef(const shared_ptr<Command>& command,
                       mode_t mode,
-                      Command::RefID output) noexcept override;
+                      Ref::ID output) noexcept override;
 
   /// Add a PathRef IR step to the output trace
   virtual void pathRef(const shared_ptr<Command>& command,
-                       Command::RefID base,
+                       Ref::ID base,
                        fs::path path,
                        AccessFlags flags,
-                       Command::RefID output) noexcept override;
+                       Ref::ID output) noexcept override;
 
   /// Add a UsingRef IR step to the output trace
-  virtual void usingRef(const shared_ptr<Command>& command, Command::RefID ref) noexcept override;
+  virtual void usingRef(const shared_ptr<Command>& command, Ref::ID ref) noexcept override;
 
   /// Add a DoneWithRef IR step to the output trace
-  virtual void doneWithRef(const shared_ptr<Command>& command,
-                           Command::RefID ref) noexcept override;
+  virtual void doneWithRef(const shared_ptr<Command>& command, Ref::ID ref) noexcept override;
 
   /// Add a CompareRefs IR step to the output trace
   virtual void compareRefs(const shared_ptr<Command>& command,
-                           Command::RefID ref1,
-                           Command::RefID ref2,
+                           Ref::ID ref1,
+                           Ref::ID ref2,
                            RefComparison type) noexcept override;
 
   /// Add a ExpectResult IR step to the output trace
   virtual void expectResult(const shared_ptr<Command>& command,
                             Scenario scenario,
-                            Command::RefID ref,
+                            Ref::ID ref,
                             int expected) noexcept override;
 
   /// Add a MatchMetadata IR step to the output trace
   virtual void matchMetadata(const shared_ptr<Command>& command,
                              Scenario scenario,
-                             Command::RefID ref,
+                             Ref::ID ref,
                              shared_ptr<MetadataVersion> version) noexcept override;
 
   /// Add a MatchContent IR step to the output trace
   virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
-                            Command::RefID ref,
+                            Ref::ID ref,
                             shared_ptr<Version> version) noexcept override;
 
   /// Add a UpdateMetadata IR step to the output trace
   virtual void updateMetadata(const shared_ptr<Command>& command,
-                              Command::RefID ref,
+                              Ref::ID ref,
                               shared_ptr<MetadataVersion> version) noexcept override;
 
   /// Add a UpdateContent IR step to the output trace
   virtual void updateContent(const shared_ptr<Command>& command,
-                             Command::RefID ref,
+                             Ref::ID ref,
                              shared_ptr<Version> version) noexcept override;
 
   /// Add an AddEntry IR step to the output trace
   virtual void addEntry(const shared_ptr<Command>& command,
-                        Command::RefID dir,
+                        Ref::ID dir,
                         fs::path name,
-                        Command::RefID target) noexcept override;
+                        Ref::ID target) noexcept override;
 
   /// Add a RemoveEntry IR step to the output trace
   virtual void removeEntry(const shared_ptr<Command>& command,
-                           Command::RefID dir,
+                           Ref::ID dir,
                            fs::path name,
-                           Command::RefID target) noexcept override;
+                           Ref::ID target) noexcept override;
 
   /// Add a Launch IR step to the output trace
   virtual void launch(const shared_ptr<Command>& command,
                       const shared_ptr<Command>& child,
-                      list<tuple<Command::RefID, Command::RefID>> refs) noexcept override;
+                      list<tuple<Ref::ID, Ref::ID>> refs) noexcept override;
 
   /// Add a Join IR step to the output trace
   virtual void join(const shared_ptr<Command>& command,

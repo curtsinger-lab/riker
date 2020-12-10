@@ -54,32 +54,30 @@ class FileArtifact : public Artifact {
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           const shared_ptr<Command>& c,
-                          Command::RefID ref) noexcept override;
+                          Ref::ID ref) noexcept override;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build,
-                         const shared_ptr<Command>& c,
-                         Command::RefID ref) noexcept override;
+  virtual void afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept override;
 
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
                            const shared_ptr<Command>& c,
-                           Command::RefID ref) noexcept override;
+                           Ref::ID ref) noexcept override;
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
                           const shared_ptr<Command>& c,
-                          Command::RefID ref) noexcept override;
+                          Ref::ID ref) noexcept override;
 
   /// A traced command is about to (possibly) truncate this artifact to length zero
   virtual void beforeTruncate(Build& build,
                               const shared_ptr<Command>& c,
-                              Command::RefID ref) noexcept override;
+                              Ref::ID ref) noexcept override;
 
   /// A trace command just truncated this artifact to length zero
   virtual void afterTruncate(Build& build,
                              const shared_ptr<Command>& c,
-                             Command::RefID ref) noexcept override;
+                             Ref::ID ref) noexcept override;
 
   /************ Content Operations ************/
 

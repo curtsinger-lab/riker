@@ -45,7 +45,7 @@ void Build::observeOutput(const shared_ptr<Command>& c,
                           shared_ptr<Artifact> a,
                           shared_ptr<Version> v) noexcept {
   // Track the output from the command
-  c->addOutput(a, v);
+  c->currentRun()->addOutput(a, v);
 
   _observer.observeOutput(c, a, v);
 }
@@ -56,12 +56,12 @@ void Build::observeInput(const shared_ptr<Command>& c,
                          shared_ptr<Version> v,
                          InputType t) noexcept {
   // Track the input to the command
-  c->addInput(a, v, t);
+  c->currentRun()->addInput(a, v, t);
 
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
   // output will eventually be marked as committed.
-  if (c->mustRerun() && !v->isCommitted() && v->getCreator() != c) {
+  if (c->previousRun()->mustRerun() && !v->isCommitted() && v->getCreator() != c) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
@@ -136,11 +136,9 @@ void Build::finish() noexcept {
   _output.finish();
 }
 
-void Build::specialRef(const shared_ptr<Command>& c,
-                       SpecialRef entity,
-                       Command::RefID output) noexcept {
+void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -153,22 +151,22 @@ void Build::specialRef(const shared_ptr<Command>& c,
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    c->setRef(output, make_shared<Ref>(ReadAccess, _env->getStdin(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess, _env->getStdin(*this, c)));
 
   } else if (entity == SpecialRef::stdout) {
-    c->setRef(output, make_shared<Ref>(WriteAccess, _env->getStdout(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStdout(*this, c)));
 
   } else if (entity == SpecialRef::stderr) {
-    c->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(*this, c)));
 
   } else if (entity == SpecialRef::root) {
-    c->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir()));
+    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir()));
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
     auto ref =
         make_shared<Ref>(_env->getRootDir()->resolve(*this, c, cwd_path, ReadAccess + ExecAccess));
-    c->setRef(output, ref);
+    c->currentRun()->setRef(output, ref);
 
     ASSERT(ref->isSuccess()) << "Failed to resolve current working directory";
     ref->getArtifact()->setName(".");
@@ -179,7 +177,7 @@ void Build::specialRef(const shared_ptr<Command>& c,
 
     auto ref = make_shared<Ref>(
         _env->getRootDir()->resolve(*this, c, dodo_launch, ReadAccess + ExecAccess));
-    c->setRef(output, ref);
+    c->currentRun()->setRef(output, ref);
 
   } else {
     FAIL << "Unknown special reference";
@@ -187,11 +185,9 @@ void Build::specialRef(const shared_ptr<Command>& c,
 }
 
 // A command references a new anonymous pipe
-void Build::pipeRef(const shared_ptr<Command>& c,
-                    Command::RefID read_end,
-                    Command::RefID write_end) noexcept {
+void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID write_end) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -204,14 +200,14 @@ void Build::pipeRef(const shared_ptr<Command>& c,
 
   // Resolve the reference and save the result in output
   auto pipe = _env->getPipe(*this, c);
-  c->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
-  c->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
+  c->currentRun()->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
+  c->currentRun()->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
 }
 
 // A command references a new anonymous file
-void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID output) noexcept {
+void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -223,16 +219,14 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID ou
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->setRef(output,
-            make_shared<Ref>(ReadAccess + WriteAccess, _env->createFile(*this, c, mode, false)));
+  c->currentRun()->setRef(
+      output, make_shared<Ref>(ReadAccess + WriteAccess, _env->createFile(*this, c, mode, false)));
 }
 
 // A command references a new anonymous symlink
-void Build::symlinkRef(const shared_ptr<Command>& c,
-                       fs::path target,
-                       Command::RefID output) noexcept {
+void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID output) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -244,14 +238,14 @@ void Build::symlinkRef(const shared_ptr<Command>& c,
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                     _env->getSymlink(*this, c, target, false)));
+  c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
+                                                   _env->getSymlink(*this, c, target, false)));
 }
 
 // A command references a new anonymous directory
-void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID output) noexcept {
+void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -263,18 +257,18 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Command::RefID out
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                     _env->getDir(*this, c, mode, false)));
+  c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
+                                                   _env->getDir(*this, c, mode, false)));
 }
 
 // A command makes a reference with a path
 void Build::pathRef(const shared_ptr<Command>& c,
-                    Command::RefID base,
+                    Ref::ID base,
                     fs::path path,
                     AccessFlags flags,
-                    Command::RefID output) noexcept {
+                    Ref::ID output) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -286,24 +280,24 @@ void Build::pathRef(const shared_ptr<Command>& c,
   _output.pathRef(c, base, path, flags, output);
 
   // Get the directory where resolution should begin
-  auto base_dir = c->getRef(base)->getArtifact();
+  auto base_dir = c->currentRun()->getRef(base)->getArtifact();
 
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  c->setRef(output, make_shared<Ref>(base_dir->resolve(*this, c, path, flags)));
+  c->currentRun()->setRef(output, make_shared<Ref>(base_dir->resolve(*this, c, path, flags)));
 }
 
 // A command retains a handle to a given Ref
-void Build::usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept {
+void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
 
   // Command c is now using ref
-  c->usingRef(ref);
+  c->currentRun()->usingRef(ref);
 
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
@@ -313,18 +307,18 @@ void Build::usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept 
 }
 
 // A command closes a handle to a given Ref
-void Build::doneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
+void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
 
   // Command c is no longer using ref
-  c->doneWithRef(ref_id);
+  c->currentRun()->doneWithRef(ref_id);
 
   // If this is the final use of the ref, inform the referenced artifact of the close
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
   if (ref->getUserCount() == 0) {
     auto a = ref->getArtifact();
     if (a) {
@@ -342,11 +336,11 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noe
 
 // Command c depends on the outcome of comparing two different references
 void Build::compareRefs(const shared_ptr<Command>& c,
-                        Command::RefID ref1_id,
-                        Command::RefID ref2_id,
+                        Ref::ID ref1_id,
+                        Ref::ID ref2_id,
                         RefComparison type) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -357,8 +351,8 @@ void Build::compareRefs(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.compareRefs(c, ref1_id, ref2_id, type);
 
-  auto ref1 = c->getRef(ref1_id);
-  auto ref2 = c->getRef(ref2_id);
+  auto ref1 = c->currentRun()->getRef(ref1_id);
+  auto ref2 = c->currentRun()->getRef(ref2_id);
 
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
@@ -377,10 +371,10 @@ void Build::compareRefs(const shared_ptr<Command>& c,
 // Command c expects a reference to resolve with a specific result
 void Build::expectResult(const shared_ptr<Command>& c,
                          Scenario scenario,
-                         Command::RefID ref_id,
+                         Ref::ID ref_id,
                          int expected) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -392,7 +386,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
   _output.expectResult(c, scenario, ref_id, expected);
 
   // Does the resolved reference match the expected result?
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
   if (ref->getResultCode() != expected) {
     observeResolutionChange(c, scenario, ref, expected);
   }
@@ -401,10 +395,10 @@ void Build::expectResult(const shared_ptr<Command>& c,
 // Command c accesses an artifact's metadata
 void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
-                          Command::RefID ref_id,
+                          Ref::ID ref_id,
                           shared_ptr<MetadataVersion> expected) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -415,7 +409,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, scenario, ref_id, expected);
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -427,10 +421,10 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 // Command c accesses an artifact's content
 void Build::matchContent(const shared_ptr<Command>& c,
                          Scenario scenario,
-                         Command::RefID ref_id,
+                         Ref::ID ref_id,
                          shared_ptr<Version> expected) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -441,7 +435,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchContent(c, scenario, ref_id, expected);
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -452,10 +446,10 @@ void Build::matchContent(const shared_ptr<Command>& c,
 
 // Command c modifies an artifact
 void Build::updateMetadata(const shared_ptr<Command>& c,
-                           Command::RefID ref_id,
+                           Ref::ID ref_id,
                            shared_ptr<MetadataVersion> written) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -466,7 +460,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -484,10 +478,10 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
 // Command c modifies an artifact
 void Build::updateContent(const shared_ptr<Command>& c,
-                          Command::RefID ref_id,
+                          Ref::ID ref_id,
                           shared_ptr<Version> written) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -498,7 +492,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.updateContent(c, ref_id, written);
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -516,11 +510,11 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
 /// Handle an AddEntry IR step
 void Build::addEntry(const shared_ptr<Command>& c,
-                     Command::RefID dir_id,
+                     Ref::ID dir_id,
                      fs::path name,
-                     Command::RefID target_id) noexcept {
+                     Ref::ID target_id) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -531,8 +525,8 @@ void Build::addEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.addEntry(c, dir_id, name, target_id);
 
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
+  auto dir = c->currentRun()->getRef(dir_id);
+  auto target = c->currentRun()->getRef(target_id);
 
   // We can't do anything with unresolved references. A change should already have been reported.
   if (!dir->isResolved() || !target->isResolved()) return;
@@ -543,11 +537,11 @@ void Build::addEntry(const shared_ptr<Command>& c,
 
 /// Handle a RemoveEntry IR step
 void Build::removeEntry(const shared_ptr<Command>& c,
-                        Command::RefID dir_id,
+                        Ref::ID dir_id,
                         fs::path name,
-                        Command::RefID target_id) noexcept {
+                        Ref::ID target_id) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -558,8 +552,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.removeEntry(c, dir_id, name, target_id);
 
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
+  auto dir = c->currentRun()->getRef(dir_id);
+  auto target = c->currentRun()->getRef(target_id);
 
   // We can't do anything with unresolved references. A change should already have been reported.
   if (!dir->isResolved() || !target->isResolved()) return;
@@ -571,9 +565,9 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 // This command launches a child command
 void Build::launch(const shared_ptr<Command>& c,
                    const shared_ptr<Command>& child,
-                   list<tuple<Command::RefID, Command::RefID>> refs) noexcept {
+                   list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -583,7 +577,7 @@ void Build::launch(const shared_ptr<Command>& c,
 
   // Assign references in the child command
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    child->setRef(child_ref_id, c->getRef(parent_ref_id));
+    child->currentRun()->setRef(child_ref_id, c->currentRun()->getRef(parent_ref_id));
   }
 
   // If we're emulating the launch of an unexecuted command, notify observers
@@ -596,7 +590,7 @@ void Build::launch(const shared_ptr<Command>& c,
   _commands.insert(child);
 
   // Add the child to the parent command's set of children
-  c->addChild(child);
+  c->currentRun()->addChild(child);
 
   // Are we going to re-execute the child?
   bool launch_command = false;
@@ -604,7 +598,7 @@ void Build::launch(const shared_ptr<Command>& c,
   // Should we print the child command?
   bool print_command = false;
 
-  if (child->mustRerun()) {
+  if (child->previousRun()->mustRerun()) {
     // Print the command if requested, or if this is a dry run
     if (options::print_on_run || options::dry_run) print_command = true;
 
@@ -630,7 +624,7 @@ void Build::launch(const shared_ptr<Command>& c,
     _traced_command_count++;
 
     // Prepare the child command to execute by committing the necessary state from its references
-    child->createLaunchDependencies(*this);
+    child->currentRun()->createLaunchDependencies(*this);
 
     LOG(exec) << c << " launching " << child;
 
@@ -648,7 +642,7 @@ void Build::join(const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -663,14 +657,14 @@ void Build::join(const shared_ptr<Command>& c,
   _output.join(c, child, exit_status);
 
   // Did the child command's exit status match the expected result?
-  if (child->getExitStatus() != exit_status) {
-    observeExitCodeChange(c, child, exit_status, child->getExitStatus());
+  if (child->currentRun()->getExitStatus() != exit_status) {
+    observeExitCodeChange(c, child, exit_status, child->currentRun()->getExitStatus());
   }
 }
 
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // If this step comes from a command we have to rerun, skip it
-  if (c->mustRerun()) return;
+  if (c->previousRun()->mustRerun()) return;
 
   // Count an emulated step
   _emulated_step_count++;
@@ -682,13 +676,13 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   _output.exit(c, exit_status);
 
   // Save the exit status for this command
-  c->setExitStatus(exit_status);
+  c->currentRun()->setExitStatus(exit_status);
 }
 
 /************************ Trace IR Steps ************************/
 
 // A command references a new anonymous pipe
-tuple<Command::RefID, Command::RefID> Build::tracePipeRef(const shared_ptr<Command>& c) noexcept {
+tuple<Ref::ID, Ref::ID> Build::tracePipeRef(const shared_ptr<Command>& c) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -696,8 +690,8 @@ tuple<Command::RefID, Command::RefID> Build::tracePipeRef(const shared_ptr<Comma
   auto pipe = _env->getPipe(*this, c);
 
   // Set up references for the read and write ends of the pipe
-  auto read_end = c->setRef(make_shared<Ref>(ReadAccess, pipe));
-  auto write_end = c->setRef(make_shared<Ref>(WriteAccess, pipe));
+  auto read_end = c->currentRun()->setRef(make_shared<Ref>(ReadAccess, pipe));
+  auto write_end = c->currentRun()->setRef(make_shared<Ref>(WriteAccess, pipe));
 
   // Create an IR step and add it to the output trace
   _output.pipeRef(c, read_end, write_end);
@@ -709,7 +703,7 @@ tuple<Command::RefID, Command::RefID> Build::tracePipeRef(const shared_ptr<Comma
 }
 
 // A command references a new anonymous file
-Command::RefID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
+Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -717,7 +711,7 @@ Command::RefID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) no
   auto file = _env->createFile(*this, c, mode, true);
 
   // Create a reference for the new file
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
+  auto output = c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
 
   // Create an IR step and add it to the output trace
   _output.fileRef(c, mode, output);
@@ -729,7 +723,7 @@ Command::RefID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) no
 }
 
 // A command references a new anonymous symlink
-Command::RefID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) noexcept {
+Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -737,7 +731,8 @@ Command::RefID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path tar
   auto symlink = _env->getSymlink(*this, c, target, true);
 
   // Create a reference to the new symlink
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, symlink));
+  auto output =
+      c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, symlink));
 
   // Create an IR step and add it to the output trace
   _output.symlinkRef(c, target, output);
@@ -749,7 +744,7 @@ Command::RefID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path tar
 }
 
 // A command references a new anonymous directory
-Command::RefID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
+Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   // Count a traced step
   _traced_step_count++;
 
@@ -757,7 +752,8 @@ Command::RefID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noe
   auto dir = _env->getDir(*this, c, mode, true);
 
   // Create a reference to the new directory
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, dir));
+  auto output =
+      c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, dir));
 
   // Create an IR step and add it to the output trace
   _output.dirRef(c, mode, output);
@@ -769,15 +765,15 @@ Command::RefID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noe
 }
 
 // A command makes a reference with a path
-Command::RefID Build::tracePathRef(const shared_ptr<Command>& c,
-                                   Command::RefID base_id,
-                                   fs::path path,
-                                   AccessFlags flags) noexcept {
+Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
+                            Ref::ID base_id,
+                            fs::path path,
+                            AccessFlags flags) noexcept {
   // Count a traced step
   _traced_step_count++;
 
   // Get the base directory artifact
-  auto base = c->getRef(base_id);
+  auto base = c->currentRun()->getRef(base_id);
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
 
   // Resolve the path and create a Ref
@@ -787,23 +783,23 @@ Command::RefID Build::tracePathRef(const shared_ptr<Command>& c,
   if (ref->isSuccess() && flags.create) ref->getArtifact()->setCommitted();
 
   // Add the refrence to the command
-  auto output = c->setRef(ref);
+  auto output = c->currentRun()->setRef(ref);
 
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base_id, path, flags, output);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base_id, path, flags, output} << " -> "
-          << c->getRef(output);
+          << c->currentRun()->getRef(output);
 
   return output;
 }
 
 // A command kept a handle to a Ref
-void Build::traceUsingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept {
+void Build::traceUsingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
-  if (c->usingRef(ref)) {
+  if (c->currentRun()->usingRef(ref)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
@@ -816,15 +812,15 @@ void Build::traceUsingRef(const shared_ptr<Command>& c, Command::RefID ref) noex
 }
 
 // A command is finished using a Ref
-void Build::traceDoneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
+void Build::traceDoneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
-  if (c->doneWithRef(ref_id)) {
+  if (c->currentRun()->doneWithRef(ref_id)) {
     // This is an actual IR step, so count it
     _traced_step_count++;
 
     // If this is the final use of the ref, inform the referenced artifact of the close
-    auto ref = c->getRef(ref_id);
+    auto ref = c->currentRun()->getRef(ref_id);
     if (ref->getUserCount() == 0) {
       auto a = ref->getArtifact();
       if (a) {
@@ -843,8 +839,8 @@ void Build::traceDoneWithRef(const shared_ptr<Command>& c, Command::RefID ref_id
 
 // Command c expects two references to compare with a specific result
 void Build::traceCompareRefs(const shared_ptr<Command>& c,
-                             Command::RefID ref1,
-                             Command::RefID ref2,
+                             Ref::ID ref1,
+                             Ref::ID ref2,
                              RefComparison type) noexcept {
   // Count a traced step
   _traced_step_count++;
@@ -857,13 +853,11 @@ void Build::traceCompareRefs(const shared_ptr<Command>& c,
 }
 
 // Command c expects a reference to resolve with a specific result as observed from the trace
-void Build::traceExpectResult(const shared_ptr<Command>& c,
-                              Command::RefID ref_id,
-                              int expected) noexcept {
+void Build::traceExpectResult(const shared_ptr<Command>& c, Ref::ID ref_id, int expected) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // If no expected result was provided, use the result from the reference itself
   if (expected == -1) expected = ref->getResultCode();
@@ -881,11 +875,11 @@ void Build::traceExpectResult(const shared_ptr<Command>& c,
 }
 
 // Command c accesses an artifact's metadata
-void Build::traceMatchMetadata(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
+void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // Get the artifact whose metadata is being accessed
   auto artifact = ref->getArtifact();
@@ -914,12 +908,12 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Command::RefID ref_
 
 // Command c accesses an artifact's content
 void Build::traceMatchContent(const shared_ptr<Command>& c,
-                              Command::RefID ref_id,
+                              Ref::ID ref_id,
                               shared_ptr<Version> expected) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // Get the artifact whose content is being accessed
   auto artifact = ref->getArtifact();
@@ -945,11 +939,11 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 }
 
 // Command c modifies an artifact
-void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Command::RefID ref_id) noexcept {
+void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // Get the artifact whose metadata is being written
   auto artifact = ref->getArtifact();
@@ -974,12 +968,12 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Command::RefID ref
 
 // Command c modifies an artifact
 void Build::traceUpdateContent(const shared_ptr<Command>& c,
-                               Command::RefID ref_id,
+                               Ref::ID ref_id,
                                shared_ptr<Version> written) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto ref = c->getRef(ref_id);
+  auto ref = c->currentRun()->getRef(ref_id);
 
   // Get the artifact whose content is being written
   auto artifact = ref->getArtifact();
@@ -1006,14 +1000,14 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
 
 // A traced command is adding an entry to a directory
 void Build::traceAddEntry(const shared_ptr<Command>& c,
-                          Command::RefID dir_id,
+                          Ref::ID dir_id,
                           fs::path name,
-                          Command::RefID target_id) noexcept {
+                          Ref::ID target_id) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
+  auto dir = c->currentRun()->getRef(dir_id);
+  auto target = c->currentRun()->getRef(target_id);
 
   // Get the directory artifact that is being added to
   auto dir_artifact = dir->getArtifact();
@@ -1035,14 +1029,14 @@ void Build::traceAddEntry(const shared_ptr<Command>& c,
 
 // A traced command is removing an entry from a directory
 void Build::traceRemoveEntry(const shared_ptr<Command>& c,
-                             Command::RefID dir_id,
+                             Ref::ID dir_id,
                              fs::path name,
-                             Command::RefID target_id) noexcept {
+                             Ref::ID target_id) noexcept {
   // Count a traced step
   _traced_step_count++;
 
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
+  auto dir = c->currentRun()->getRef(dir_id);
+  auto target = c->currentRun()->getRef(target_id);
 
   // Get the directory artifact that is being removed from
   auto dir_artifact = dir->getArtifact();
@@ -1065,16 +1059,16 @@ void Build::traceRemoveEntry(const shared_ptr<Command>& c,
 // This command launches a child command
 shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
                                        vector<string> args,
-                                       Command::RefID exe_ref,
-                                       Command::RefID cwd_ref,
-                                       Command::RefID root_ref,
-                                       map<int, Command::RefID> fds) noexcept {
+                                       Ref::ID exe_ref,
+                                       Ref::ID cwd_ref,
+                                       Ref::ID root_ref,
+                                       map<int, Ref::ID> fds) noexcept {
   // Count a traced step and a traced command
   _traced_step_count++;
   _traced_command_count++;
 
   // Look to see if the current command has a matching child command
-  auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
+  auto child = parent->previousRun()->findChild(args, exe_ref, cwd_ref, root_ref, fds);
 
   // Did we find a matching command?
   if (child) {
@@ -1088,24 +1082,24 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   _commands.insert(child);
 
   // Add the child to the parent's list of children
-  parent->addChild(child);
+  parent->currentRun()->addChild(child);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
-  list<tuple<Command::RefID, Command::RefID>> refs;
+  list<tuple<Ref::ID, Ref::ID>> refs;
 
   // Add standard references to the child and record them in the refs list
-  child->setRef(Command::RootRef, parent->getRef(root_ref));
-  refs.emplace_back(root_ref, Command::RootRef);
+  child->currentRun()->setRef(Ref::Root, parent->currentRun()->getRef(root_ref));
+  refs.emplace_back(root_ref, Ref::Root);
 
-  child->setRef(Command::CwdRef, parent->getRef(cwd_ref));
-  refs.emplace_back(cwd_ref, Command::CwdRef);
+  child->currentRun()->setRef(Ref::Cwd, parent->currentRun()->getRef(cwd_ref));
+  refs.emplace_back(cwd_ref, Ref::Cwd);
 
-  child->setRef(Command::ExeRef, parent->getRef(exe_ref));
-  refs.emplace_back(exe_ref, Command::ExeRef);
+  child->currentRun()->setRef(Ref::Exe, parent->currentRun()->getRef(exe_ref));
+  refs.emplace_back(exe_ref, Ref::Exe);
 
   // Add references for initial file descriptors
   for (const auto& [fd, parent_ref] : fds) {
-    auto child_ref = child->setRef(parent->getRef(parent_ref));
+    auto child_ref = child->currentRun()->setRef(parent->currentRun()->getRef(parent_ref));
     child->addInitialFD(fd, child_ref);
     refs.emplace_back(parent_ref, child_ref);
 
@@ -1114,7 +1108,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   }
 
   // Prepare the child command to execute by committing the necessary state from its references
-  child->createLaunchDependencies(*this);
+  child->currentRun()->createLaunchDependencies(*this);
 
   // The child command will be executed by this build.
   child->setExecuted();
@@ -1164,7 +1158,7 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
   _output.exit(c, exit_status);
 
   // Save the exit status for this command
-  c->setExitStatus(exit_status);
+  c->currentRun()->setExitStatus(exit_status);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};

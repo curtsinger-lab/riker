@@ -35,110 +35,108 @@ class TracePrinter : public TraceHandler {
 
   virtual void specialRef(const shared_ptr<Command>& c,
                           SpecialRef entity,
-                          Command::RefID output) noexcept override {
+                          Ref::ID output) noexcept override {
     _out << SpecialRefPrinter{c, entity, output} << endl;
   }
 
   virtual void pipeRef(const shared_ptr<Command>& c,
-                       Command::RefID read_end,
-                       Command::RefID write_end) noexcept override {
+                       Ref::ID read_end,
+                       Ref::ID write_end) noexcept override {
     _out << PipeRefPrinter{c, read_end, write_end} << endl;
   }
 
   virtual void fileRef(const shared_ptr<Command>& c,
                        mode_t mode,
-                       Command::RefID output) noexcept override {
+                       Ref::ID output) noexcept override {
     _out << FileRefPrinter{c, mode, output} << endl;
   }
 
   virtual void symlinkRef(const shared_ptr<Command>& c,
                           fs::path target,
-                          Command::RefID output) noexcept override {
+                          Ref::ID output) noexcept override {
     _out << SymlinkRefPrinter{c, target, output} << endl;
   }
 
-  virtual void dirRef(const shared_ptr<Command>& c,
-                      mode_t mode,
-                      Command::RefID output) noexcept override {
+  virtual void dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept override {
     _out << DirRefPrinter{c, mode, output} << endl;
   }
 
   virtual void pathRef(const shared_ptr<Command>& c,
-                       Command::RefID base,
+                       Ref::ID base,
                        fs::path path,
                        AccessFlags flags,
-                       Command::RefID output) noexcept override {
+                       Ref::ID output) noexcept override {
     _out << PathRefPrinter{c, base, path, flags, output} << endl;
   }
 
-  virtual void usingRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept override {
+  virtual void usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept override {
     _out << UsingRefPrinter{c, ref} << endl;
   }
 
-  virtual void doneWithRef(const shared_ptr<Command>& c, Command::RefID ref) noexcept override {
+  virtual void doneWithRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept override {
     _out << DoneWithRefPrinter{c, ref} << endl;
   }
 
   /// A command depends on the outcome of comparing two different references
   virtual void compareRefs(const shared_ptr<Command>& c,
-                           Command::RefID ref1,
-                           Command::RefID ref2,
+                           Ref::ID ref1,
+                           Ref::ID ref2,
                            RefComparison type) noexcept override {
     _out << CompareRefsPrinter{c, ref1, ref2, type} << endl;
   }
 
   virtual void expectResult(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            Command::RefID ref,
+                            Ref::ID ref,
                             int expected) noexcept override {
     _out << ExpectResultPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void matchMetadata(const shared_ptr<Command>& c,
                              Scenario scenario,
-                             Command::RefID ref,
+                             Ref::ID ref,
                              shared_ptr<MetadataVersion> expected) noexcept override {
     _out << MatchMetadataPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            Command::RefID ref,
+                            Ref::ID ref,
                             shared_ptr<Version> expected) noexcept override {
     _out << MatchContentPrinter{c, scenario, ref, expected} << endl;
   }
 
   virtual void updateMetadata(const shared_ptr<Command>& c,
-                              Command::RefID ref,
+                              Ref::ID ref,
                               shared_ptr<MetadataVersion> written) noexcept override {
     _out << UpdateMetadataPrinter{c, ref, written} << endl;
   }
 
   virtual void updateContent(const shared_ptr<Command>& c,
-                             Command::RefID ref,
+                             Ref::ID ref,
                              shared_ptr<Version> written) noexcept override {
     _out << UpdateContentPrinter{c, ref, written} << endl;
   }
 
   /// Handle an AddEntry IR step
   virtual void addEntry(const shared_ptr<Command>& c,
-                        Command::RefID dir,
+                        Ref::ID dir,
                         fs::path name,
-                        Command::RefID target) noexcept override {
+                        Ref::ID target) noexcept override {
     _out << AddEntryPrinter{c, dir, name, target} << endl;
   }
 
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(const shared_ptr<Command>& c,
-                           Command::RefID dir,
+                           Ref::ID dir,
                            fs::path name,
-                           Command::RefID target) noexcept override {
+                           Ref::ID target) noexcept override {
     _out << RemoveEntryPrinter{c, dir, name, target} << endl;
   }
 
   virtual void launch(const shared_ptr<Command>& c,
                       const shared_ptr<Command>& child,
-                      list<tuple<Command::RefID, Command::RefID>> refs) noexcept override {
+                      list<tuple<Ref::ID, Ref::ID>> refs) noexcept override {
     _out << LaunchPrinter{c, child, refs} << endl;
   }
 
@@ -156,7 +154,7 @@ class TracePrinter : public TraceHandler {
   struct SpecialRefPrinter {
     shared_ptr<Command> c;
     SpecialRef entity;
-    Command::RefID output;
+    Ref::ID output;
 
     friend ostream& operator<<(ostream& o, const SpecialRefPrinter& p) noexcept {
       o << p.c << ": r" << p.output << " = ";
@@ -192,8 +190,8 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print PipeRef IR steps
   struct PipeRefPrinter {
     shared_ptr<Command> c;
-    Command::RefID read_end;
-    Command::RefID write_end;
+    Ref::ID read_end;
+    Ref::ID write_end;
 
     friend ostream& operator<<(ostream& o, const PipeRefPrinter& p) noexcept {
       return o << p.c << ": [r" << p.read_end << ", r" << p.write_end << "] = PipeRef()";
@@ -204,7 +202,7 @@ class TracePrinter : public TraceHandler {
   struct FileRefPrinter {
     shared_ptr<Command> c;
     mode_t mode;
-    Command::RefID output;
+    Ref::ID output;
 
     friend ostream& operator<<(ostream& o, const FileRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = FileRef(" << std::oct << p.mode << std::dec
@@ -216,7 +214,7 @@ class TracePrinter : public TraceHandler {
   struct SymlinkRefPrinter {
     shared_ptr<Command> c;
     fs::path target;
-    Command::RefID output;
+    Ref::ID output;
 
     friend ostream& operator<<(ostream& o, const SymlinkRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = SymlinkRef(" << p.target << ")";
@@ -227,7 +225,7 @@ class TracePrinter : public TraceHandler {
   struct DirRefPrinter {
     shared_ptr<Command> c;
     mode_t mode;
-    Command::RefID output;
+    Ref::ID output;
 
     friend ostream& operator<<(ostream& o, const DirRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = DirRef(" << std::oct << p.mode << ")";
@@ -237,10 +235,10 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print PathRef IR steps
   struct PathRefPrinter {
     shared_ptr<Command> c;
-    Command::RefID base;
+    Ref::ID base;
     fs::path path;
     AccessFlags flags;
-    Command::RefID output;
+    Ref::ID output;
 
     friend ostream& operator<<(ostream& o, const PathRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = PathRef(r" << p.base << ", " << p.path << ", "
@@ -251,7 +249,7 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print Open IR steps
   struct UsingRefPrinter {
     shared_ptr<Command> c;
-    Command::RefID ref;
+    Ref::ID ref;
 
     friend ostream& operator<<(ostream& o, const UsingRefPrinter& p) noexcept {
       return o << p.c << ": UsingRef(r" << p.ref << ")";
@@ -261,7 +259,7 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print Close IR steps
   struct DoneWithRefPrinter {
     shared_ptr<Command> c;
-    Command::RefID ref;
+    Ref::ID ref;
 
     friend ostream& operator<<(ostream& o, const DoneWithRefPrinter& p) noexcept {
       return o << p.c << ": DoneWithRef(r" << p.ref << ")";
@@ -271,8 +269,8 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print CompareRefs IR steps
   struct CompareRefsPrinter {
     shared_ptr<Command> c;
-    Command::RefID ref1;
-    Command::RefID ref2;
+    Ref::ID ref1;
+    Ref::ID ref2;
     RefComparison type;
 
     friend ostream& operator<<(ostream& o, const CompareRefsPrinter& p) noexcept {
@@ -294,7 +292,7 @@ class TracePrinter : public TraceHandler {
   struct ExpectResultPrinter {
     shared_ptr<Command> c;
     Scenario scenario;
-    Command::RefID ref;
+    Ref::ID ref;
     int expected;
 
     friend ostream& operator<<(ostream& o, const ExpectResultPrinter& p) noexcept {
@@ -308,7 +306,7 @@ class TracePrinter : public TraceHandler {
   struct MatchMetadataPrinter {
     shared_ptr<Command> c;
     Scenario scenario;
-    Command::RefID ref;
+    Ref::ID ref;
     shared_ptr<MetadataVersion> expected;
 
     friend ostream& operator<<(ostream& o, const MatchMetadataPrinter& p) noexcept {
@@ -320,7 +318,7 @@ class TracePrinter : public TraceHandler {
   struct MatchContentPrinter {
     shared_ptr<Command> c;
     Scenario scenario;
-    Command::RefID ref;
+    Ref::ID ref;
     shared_ptr<Version> expected;
 
     friend ostream& operator<<(ostream& o, const MatchContentPrinter& p) noexcept {
@@ -331,7 +329,7 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print UpdateMetadata IR steps
   struct UpdateMetadataPrinter {
     shared_ptr<Command> c;
-    Command::RefID ref;
+    Ref::ID ref;
     shared_ptr<MetadataVersion> written;
 
     friend ostream& operator<<(ostream& o, const UpdateMetadataPrinter& p) noexcept {
@@ -342,7 +340,7 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print UpdateContent IR steps
   struct UpdateContentPrinter {
     shared_ptr<Command> c;
-    Command::RefID ref;
+    Ref::ID ref;
     shared_ptr<Version> written;
 
     friend ostream& operator<<(ostream& o, const UpdateContentPrinter& p) noexcept {
@@ -353,9 +351,9 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print AddEntry IR steps
   struct AddEntryPrinter {
     shared_ptr<Command> c;
-    Command::RefID dir;
+    Ref::ID dir;
     fs::path name;
-    Command::RefID target;
+    Ref::ID target;
 
     friend ostream& operator<<(ostream& o, const AddEntryPrinter& p) noexcept {
       return o << p.c << ": AddEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
@@ -365,9 +363,9 @@ class TracePrinter : public TraceHandler {
   /// A wrapper struct used to print RemoveEntry IR steps
   struct RemoveEntryPrinter {
     shared_ptr<Command> c;
-    Command::RefID dir;
+    Ref::ID dir;
     fs::path name;
-    Command::RefID target;
+    Ref::ID target;
 
     friend ostream& operator<<(ostream& o, const RemoveEntryPrinter& p) noexcept {
       return o << p.c << ": RemoveEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
@@ -378,7 +376,7 @@ class TracePrinter : public TraceHandler {
   struct LaunchPrinter {
     shared_ptr<Command> c;
     shared_ptr<Command> child;
-    list<tuple<Command::RefID, Command::RefID>> refs;
+    list<tuple<Ref::ID, Ref::ID>> refs;
 
     friend ostream& operator<<(ostream& o, const LaunchPrinter& p) noexcept {
       o << p.c << ": Launch(" << p.child << ", [";
