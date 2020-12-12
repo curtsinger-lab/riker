@@ -76,6 +76,7 @@ void FileArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcep
 /// Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(Build& build, fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
+    // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
     v->fingerprint(build, path);
 

@@ -39,6 +39,11 @@ void FileVersion::fingerprint(TraceHandler& handler, fs::path path) noexcept {
   // if there is already a fingerprint with a hash, move on
   if (_fingerprint.has_value() && _fingerprint.value().b3hash.has_value()) return;
 
+  // does the file actually exist?
+  struct stat statbuf;
+  int rc = ::lstat(path.c_str(), &statbuf);
+  if (rc != 0) return;  // leave fingerprint undefined
+
   // otherwise, take a fingerprint
-  _fingerprint = FileFingerprint(path);
+  _fingerprint = FileFingerprint(path, statbuf, rc);
 }

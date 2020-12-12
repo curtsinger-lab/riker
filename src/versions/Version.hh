@@ -51,7 +51,10 @@ class Version : public std::enable_shared_from_this<Version> {
   bool isCommitted() const noexcept { return _committed; }
 
   /// Mark this version as committed
-  void setCommitted(bool committed = true) noexcept { _committed = committed; }
+  void setCommitted(bool committed = true) noexcept {
+    LOG(artifact) << "Setting '" << this << "' to COMMITTED.";
+    _committed = committed;
+  }
 
   /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
   virtual void save(TraceHandler& handler, fs::path path) noexcept {}
@@ -68,12 +71,6 @@ class Version : public std::enable_shared_from_this<Version> {
     // By default, fingerprinting a version just saves it
     save(handler, path);
   }
-
-  // /// Check if this version has a fingerprint
-  // virtual bool hasFingerprint() const noexcept {
-  //   // By default, check for a saved copy
-  //   return isSaved();
-  // }
 
   /// Check if this version matches another
   virtual bool matches(shared_ptr<Version> other) const noexcept {

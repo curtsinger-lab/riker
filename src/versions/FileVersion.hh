@@ -34,10 +34,8 @@ struct FileFingerprint {
   FileFingerprint() noexcept = default;
 
   /// Create a fingerprint from stat data
-  FileFingerprint(string path) noexcept {
-    // Get stat data and save it
-    struct stat statbuf;
-    int rc = ::lstat(path.c_str(), &statbuf);
+  FileFingerprint(string path, struct stat& statbuf, int rc) noexcept {
+    ASSERT(rc == 0) << "Cannot take fingerprint for nonexistent file '" << path << "'";
 
     // save mtime from statbuf
     empty = statbuf.st_size == 0;
@@ -89,7 +87,10 @@ struct FileFingerprint {
   /// Compare to another fingerprint instance
   bool operator==(const FileFingerprint& other) const noexcept {
     // Two empty files are always equivalent
-    if (empty && other.empty) return true;
+    if (empty && other.empty) {
+      LOG(artifact) << "Checking equality for fingerprint: same because both files are empty.";
+      return true;
+    }
 
     // Otherwise compare mtimes
     bool mtime_is_same =
@@ -98,6 +99,10 @@ struct FileFingerprint {
     bool hash_is_same = b3hash.has_value() && other.b3hash.has_value()
                             ? b3hash.value() == other.b3hash.value()
                             : true;
+
+    LOG(artifact) << "Checking equality for fingerprint: mtime "
+                  << (mtime_is_same ? " is same" : "is different") << " and hash "
+                  << (hash_is_same ? " is same" : " is different");
 
     return mtime_is_same && hash_is_same;
   }
@@ -141,9 +146,6 @@ class FileVersion final : public Version {
 
   /// Save a fingerprint of this version
   virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override;
-
-  /// Check if this version has a fingerprint
-  // virtual bool hasFingerprint() const noexcept override { return _fingerprint.has_value(); }
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

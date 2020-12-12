@@ -35,9 +35,6 @@ class DirVersion : public Version {
   /// Commit this version to the filesystem
   virtual void commit(fs::path dir_path) noexcept = 0;
 
-  /// DirVersions always have a fingerprint
-  // virtual bool hasFingerprint() const noexcept override { return true; }
-
  private:
   SERIALIZE(BASE(Version));
 };
