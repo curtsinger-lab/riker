@@ -355,6 +355,8 @@ int main(int argc, char* argv[]) noexcept {
                                   CLI::ignore_case)
               .description("{all, local, none}"));
 
+  app.add_flag("--mtime-only", options::mtime_only, "When fingerprinting, only rely on mtime.");
+
   std::optional<std::filesystem::path> stats_log;
   app.add_option("--stats", stats_log,
                  "Path to write statistics to a CSV file; appends if file already exists.")

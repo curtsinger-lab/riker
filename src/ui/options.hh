@@ -16,6 +16,9 @@ namespace options {
   /// Which files, if any, should be fingerprinted?
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
+  /// When fingerprinting, do we use a hash function (i.e., BLAKE3)?
+  inline bool mtime_only = false;
+
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER

@@ -51,10 +51,7 @@ class Version : public std::enable_shared_from_this<Version> {
   bool isCommitted() const noexcept { return _committed; }
 
   /// Mark this version as committed
-  void setCommitted(bool committed = true) noexcept {
-    LOG(artifact) << "Setting '" << this << "' to COMMITTED.";
-    _committed = committed;
-  }
+  void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
   virtual void save(TraceHandler& handler, fs::path path) noexcept {}

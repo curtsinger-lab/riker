@@ -12,6 +12,7 @@
 
 #include "blake3.h"
 #include "string.h"
+#include "ui/options.hh"
 #include "util/serializer.hh"
 #include "versions/Version.hh"
 
@@ -41,8 +42,8 @@ struct FileFingerprint {
     empty = statbuf.st_size == 0;
     mtime = statbuf.st_mtim;
 
-    // if file is readable and hashable, save hash
-    if (rc == 0) b3hash = blake3(path);
+    // if file is readable and hashable and the user did not disable hashes, save hash
+    if (rc == 0 && !options::mtime_only) b3hash = blake3(path);
   }
 
   std::optional<std::array<uint8_t, BLAKE3_OUT_LEN>> blake3(fs::path path) {
@@ -88,23 +89,31 @@ struct FileFingerprint {
   bool operator==(const FileFingerprint& other) const noexcept {
     // Two empty files are always equivalent
     if (empty && other.empty) {
-      LOG(artifact) << "Checking equality for fingerprint: same because both files are empty.";
+      LOG(artifact) << "Not checking equality for fingerprint: both files are empty.";
       return true;
     }
 
-    // Otherwise compare mtimes
-    bool mtime_is_same =
-        std::tie(mtime.tv_sec, mtime.tv_nsec) == std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
+    // Did the user disable fingerprinting?
+    if (options::mtime_only) {
+      // yes, compare mtimes
+      bool mtime_is_same = std::tie(mtime.tv_sec, mtime.tv_nsec) ==
+                           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
 
-    bool hash_is_same = b3hash.has_value() && other.b3hash.has_value()
-                            ? b3hash.value() == other.b3hash.value()
-                            : true;
+      LOG(artifact) << "Checking equality for mtime-only fingerprint: mtime "
+                    << (mtime_is_same ? " is same" : "is different");
 
-    LOG(artifact) << "Checking equality for fingerprint: mtime "
-                  << (mtime_is_same ? " is same" : "is different") << " and hash "
-                  << (hash_is_same ? " is same" : " is different");
+      return mtime_is_same;
+    } else {
+      // no, compare hashes
+      bool hash_is_same = b3hash.has_value() && other.b3hash.has_value()
+                              ? b3hash.value() == other.b3hash.value()
+                              : true;
 
-    return mtime_is_same && hash_is_same;
+      LOG(artifact) << "Checking equality for BLAKE3 fingerprint: hash "
+                    << (hash_is_same ? " is same" : " is different");
+
+      return hash_is_same;
+    }
   }
 
   friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
