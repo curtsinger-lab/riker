@@ -36,13 +36,13 @@ string Graph2::addCommand(shared_ptr<Command> c) noexcept {
   _command_ids.emplace_hint(iter, c, command_id);
 
   // Add this command's children
-  for (auto& child : c->getChildren()) {
+  for (auto& child : c->previousRun()->getChildren()) {
     auto child_id = addCommand(child);
     _command_edges.emplace(command_id, child_id);
   }
 
   // Add this command's inputs
-  for (auto& [a, v, t] : c->getInputs()) {
+  for (auto& [a, v, t] : c->previousRun()->getInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !v->getCreator()) continue;
 
@@ -58,7 +58,7 @@ string Graph2::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's outputs
-  for (auto& [a, v] : c->getOutputs()) {
+  for (auto& [a, v] : c->previousRun()->getOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 

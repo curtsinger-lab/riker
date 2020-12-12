@@ -43,17 +43,13 @@ struct Record {
 struct CommandRecord : public Record {
   Command::ID _id;
   vector<string> _args;
-  map<int, Command::RefID> _initial_fds;
+  map<int, Ref::ID> _initial_fds;
   bool _executed;
 
   /// Default constructor for serialization
   CommandRecord() noexcept = default;
 
-  CommandRecord(Command::ID id,
-                vector<string> args,
-                map<int, Command::RefID> initial_fds,
-                bool executed,
-                int exit_status) :
+  CommandRecord(Command::ID id, vector<string> args, map<int, Ref::ID> initial_fds, bool executed) :
       _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -67,12 +63,12 @@ struct CommandRecord : public Record {
 struct SpecialRefRecord : public Record {
   Command::ID _cmd;
   SpecialRef _entity;
-  Command::RefID _output;
+  Ref::ID _output;
 
   /// Default constructor for serialization
   SpecialRefRecord() noexcept = default;
 
-  SpecialRefRecord(Command::ID cmd, SpecialRef entity, Command::RefID output) noexcept :
+  SpecialRefRecord(Command::ID cmd, SpecialRef entity, Ref::ID output) noexcept :
       _cmd(cmd), _entity(entity), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -85,13 +81,13 @@ struct SpecialRefRecord : public Record {
 
 struct PipeRefRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _read_end;
-  Command::RefID _write_end;
+  Ref::ID _read_end;
+  Ref::ID _write_end;
 
   /// Default constructor for serialization
   PipeRefRecord() noexcept = default;
 
-  PipeRefRecord(Command::ID cmd, Command::RefID read_end, Command::RefID write_end) noexcept :
+  PipeRefRecord(Command::ID cmd, Ref::ID read_end, Ref::ID write_end) noexcept :
       _cmd(cmd), _read_end(read_end), _write_end(write_end) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -105,12 +101,12 @@ struct PipeRefRecord : public Record {
 struct FileRefRecord : public Record {
   Command::ID _cmd;
   mode_t _mode;
-  Command::RefID _output;
+  Ref::ID _output;
 
   /// Default constructor for serialization
   FileRefRecord() noexcept = default;
 
-  FileRefRecord(Command::ID cmd, mode_t mode, Command::RefID output) noexcept :
+  FileRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -124,12 +120,12 @@ struct FileRefRecord : public Record {
 struct SymlinkRefRecord : public Record {
   Command::ID _cmd;
   fs::path _target;
-  Command::RefID _output;
+  Ref::ID _output;
 
   /// Default constructor for serialization
   SymlinkRefRecord() noexcept = default;
 
-  SymlinkRefRecord(Command::ID cmd, fs::path target, Command::RefID output) noexcept :
+  SymlinkRefRecord(Command::ID cmd, fs::path target, Ref::ID output) noexcept :
       _cmd(cmd), _target(target), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -143,12 +139,12 @@ struct SymlinkRefRecord : public Record {
 struct DirRefRecord : public Record {
   Command::ID _cmd;
   mode_t _mode;
-  Command::RefID _output;
+  Ref::ID _output;
 
   /// Default constructor for serialization
   DirRefRecord() noexcept = default;
 
-  DirRefRecord(Command::ID cmd, mode_t mode, Command::RefID output) noexcept :
+  DirRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -161,19 +157,19 @@ struct DirRefRecord : public Record {
 
 struct PathRefRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _base;
+  Ref::ID _base;
   fs::path _path;
   AccessFlags _flags;
-  Command::RefID _output;
+  Ref::ID _output;
 
   /// Default constructor for serialization
   PathRefRecord() noexcept = default;
 
   PathRefRecord(Command::ID cmd,
-                Command::RefID base,
+                Ref::ID base,
                 fs::path path,
                 AccessFlags flags,
-                Command::RefID output) noexcept :
+                Ref::ID output) noexcept :
       _cmd(cmd), _base(base), _path(path), _flags(flags), _output(output) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -186,12 +182,12 @@ struct PathRefRecord : public Record {
 
 struct UsingRefRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _ref;
+  Ref::ID _ref;
 
   /// Default constructor for serialization
   UsingRefRecord() noexcept = default;
 
-  UsingRefRecord(Command::ID cmd, Command::RefID ref) noexcept : _cmd(cmd), _ref(ref) {}
+  UsingRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
@@ -203,12 +199,12 @@ struct UsingRefRecord : public Record {
 
 struct DoneWithRefRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _ref;
+  Ref::ID _ref;
 
   /// Default constructor for serialization
   DoneWithRefRecord() noexcept = default;
 
-  DoneWithRefRecord(Command::ID cmd, Command::RefID ref) noexcept : _cmd(cmd), _ref(ref) {}
+  DoneWithRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
 
@@ -220,17 +216,14 @@ struct DoneWithRefRecord : public Record {
 
 struct CompareRefsRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _ref1;
-  Command::RefID _ref2;
+  Ref::ID _ref1;
+  Ref::ID _ref2;
   RefComparison _type;
 
   /// Default constructor for serialization
   CompareRefsRecord() noexcept = default;
 
-  CompareRefsRecord(Command::ID cmd,
-                    Command::RefID ref1,
-                    Command::RefID ref2,
-                    RefComparison type) noexcept :
+  CompareRefsRecord(Command::ID cmd, Ref::ID ref1, Ref::ID ref2, RefComparison type) noexcept :
       _cmd(cmd), _ref1(ref1), _ref2(ref2), _type(type) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -244,14 +237,13 @@ struct CompareRefsRecord : public Record {
 struct ExpectResultRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
-  Command::RefID _ref;
+  Ref::ID _ref;
   int _expected;
 
   /// Default constructor for serialization
   ExpectResultRecord() noexcept = default;
 
-  ExpectResultRecord(Command::ID cmd, Scenario scenario, Command::RefID ref, int expected) noexcept
-      :
+  ExpectResultRecord(Command::ID cmd, Scenario scenario, Ref::ID ref, int expected) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _expected(expected) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -265,7 +257,7 @@ struct ExpectResultRecord : public Record {
 struct MatchMetadataRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
-  Command::RefID _ref;
+  Ref::ID _ref;
   shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
@@ -273,7 +265,7 @@ struct MatchMetadataRecord : public Record {
 
   MatchMetadataRecord(Command::ID cmd,
                       Scenario scenario,
-                      Command::RefID ref,
+                      Ref::ID ref,
                       shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
@@ -288,7 +280,7 @@ struct MatchMetadataRecord : public Record {
 struct MatchContentRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
-  Command::RefID _ref;
+  Ref::ID _ref;
   shared_ptr<Version> _version;
 
   /// Default constructor for serialization
@@ -296,7 +288,7 @@ struct MatchContentRecord : public Record {
 
   MatchContentRecord(Command::ID cmd,
                      Scenario scenario,
-                     Command::RefID ref,
+                     Ref::ID ref,
                      shared_ptr<Version> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
@@ -310,15 +302,13 @@ struct MatchContentRecord : public Record {
 
 struct UpdateMetadataRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _ref;
+  Ref::ID _ref;
   shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(Command::ID cmd,
-                       Command::RefID ref,
-                       shared_ptr<MetadataVersion> version) noexcept :
+  UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -331,13 +321,13 @@ struct UpdateMetadataRecord : public Record {
 
 struct UpdateContentRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _ref;
+  Ref::ID _ref;
   shared_ptr<Version> _version;
 
   /// Default constructor for serialization
   UpdateContentRecord() noexcept = default;
 
-  UpdateContentRecord(Command::ID cmd, Command::RefID ref, shared_ptr<Version> version) noexcept :
+  UpdateContentRecord(Command::ID cmd, Ref::ID ref, shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -350,15 +340,14 @@ struct UpdateContentRecord : public Record {
 
 struct AddEntryRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _dir;
+  Ref::ID _dir;
   fs::path _name;
-  Command::RefID _target;
+  Ref::ID _target;
 
   /// Default constructor for serialization
   AddEntryRecord() noexcept = default;
 
-  AddEntryRecord(Command::ID cmd, Command::RefID dir, fs::path name, Command::RefID target) noexcept
-      :
+  AddEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -371,17 +360,14 @@ struct AddEntryRecord : public Record {
 
 struct RemoveEntryRecord : public Record {
   Command::ID _cmd;
-  Command::RefID _dir;
+  Ref::ID _dir;
   fs::path _name;
-  Command::RefID _target;
+  Ref::ID _target;
 
   /// Default constructor for serialization
   RemoveEntryRecord() noexcept = default;
 
-  RemoveEntryRecord(Command::ID cmd,
-                    Command::RefID dir,
-                    fs::path name,
-                    Command::RefID target) noexcept :
+  RemoveEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
@@ -395,14 +381,12 @@ struct RemoveEntryRecord : public Record {
 struct LaunchRecord : public Record {
   Command::ID _cmd;
   Command::ID _child;
-  list<tuple<Command::RefID, Command::RefID>> _refs;
+  list<tuple<Ref::ID, Ref::ID>> _refs;
 
   /// Default constructor for serialization
   LaunchRecord() noexcept = default;
 
-  LaunchRecord(Command::ID cmd,
-               Command::ID child,
-               list<tuple<Command::RefID, Command::RefID>> refs) noexcept :
+  LaunchRecord(Command::ID cmd, Command::ID child, list<tuple<Ref::ID, Ref::ID>> refs) noexcept :
       _cmd(cmd), _child(child), _refs(refs) {}
 
   virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;

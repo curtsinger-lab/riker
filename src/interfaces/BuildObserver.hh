@@ -4,6 +4,7 @@
 
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
+#include "runtime/Run.hh"
 
 using std::shared_ptr;
 using std::unique_ptr;

@@ -81,11 +81,9 @@ void PipeArtifact::setCommitted() noexcept {
 }
 
 // A traced command is about to close a reference to this artifact
-void PipeArtifact::beforeClose(Build& build,
-                               const shared_ptr<Command>& c,
-                               Command::RefID ref) noexcept {
+void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?
-  if (c->getRef(ref)->getFlags().w) {
+  if (c->currentRun()->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
     final_write->createdBy(c);
     _writes.push_back(final_write);
@@ -94,9 +92,7 @@ void PipeArtifact::beforeClose(Build& build,
 }
 
 // A traced command just read from this artifact
-void PipeArtifact::afterRead(Build& build,
-                             const shared_ptr<Command>& c,
-                             Command::RefID ref) noexcept {
+void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The reading command depends on the last read
   if (_last_read) build.observeInput(c, shared_from_this(), _last_read, InputType::Accessed);
 
@@ -113,9 +109,7 @@ void PipeArtifact::afterRead(Build& build,
 }
 
 // A trace command just wrote to this artifact
-void PipeArtifact::beforeWrite(Build& build,
-                               const shared_ptr<Command>& c,
-                               Command::RefID ref) noexcept {
+void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Create a new version
   auto writing = make_shared<PipeWriteVersion>();
 

@@ -165,7 +165,7 @@ void do_check(vector<string> args) noexcept {
   bool header_printed = false;
   for (const auto& c : trace.getCommands()) {
     // Check if this command has to rerun
-    if (c->mustRerun()) {
+    if (c->previousRun()->mustRerun()) {
       if (!header_printed) {
         cout << "The following commands will be rerun:" << endl;
         header_printed = true;

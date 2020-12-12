@@ -21,6 +21,7 @@
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/Run.hh"
 #include "util/log.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
@@ -90,28 +91,28 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   auto no_cmd = getCommand(no_cmd_id);
 
   // Create a reference to stdin
-  handler.specialRef(no_cmd, SpecialRef::stdin, Command::StdinRef);
-  handler.usingRef(no_cmd, Command::StdinRef);
+  handler.specialRef(no_cmd, SpecialRef::stdin, Ref::Stdin);
+  handler.usingRef(no_cmd, Ref::Stdin);
 
   // Create a reference to stdout
-  handler.specialRef(no_cmd, SpecialRef::stdout, Command::StdoutRef);
-  handler.usingRef(no_cmd, Command::StdoutRef);
+  handler.specialRef(no_cmd, SpecialRef::stdout, Ref::Stdout);
+  handler.usingRef(no_cmd, Ref::Stdout);
 
   // Create a reference to stderr
-  handler.specialRef(no_cmd, SpecialRef::stderr, Command::StderrRef);
-  handler.usingRef(no_cmd, Command::StderrRef);
+  handler.specialRef(no_cmd, SpecialRef::stderr, Ref::Stderr);
+  handler.usingRef(no_cmd, Ref::Stderr);
 
   // Set up the reference to the root directory
-  handler.specialRef(no_cmd, SpecialRef::root, Command::RootRef);
-  handler.usingRef(no_cmd, Command::RootRef);
+  handler.specialRef(no_cmd, SpecialRef::root, Ref::Root);
+  handler.usingRef(no_cmd, Ref::Root);
 
   // Set up the reference to the working directory
-  handler.specialRef(no_cmd, SpecialRef::cwd, Command::CwdRef);
-  handler.usingRef(no_cmd, Command::CwdRef);
+  handler.specialRef(no_cmd, SpecialRef::cwd, Ref::Cwd);
+  handler.usingRef(no_cmd, Ref::Cwd);
 
   // Set up the reference to the launch executable
-  handler.specialRef(no_cmd, SpecialRef::launch_exe, Command::ExeRef);
-  handler.usingRef(no_cmd, Command::ExeRef);
+  handler.specialRef(no_cmd, SpecialRef::launch_exe, Ref::Exe);
+  handler.usingRef(no_cmd, Ref::Exe);
 
   // Create a root command
   Command::ID root_cmd_id = 1;
@@ -120,18 +121,17 @@ void InputTrace::sendDefault(TraceHandler& handler) noexcept {
   auto root_command = make_shared<Command>(cmd_args);
 
   // Add initial FDs to the root command
-  root_command->addInitialFD(STDIN_FILENO, Command::StdinRef);
-  root_command->addInitialFD(STDOUT_FILENO, Command::StdoutRef);
-  root_command->addInitialFD(STDERR_FILENO, Command::StderrRef);
+  root_command->addInitialFD(STDIN_FILENO, Ref::Stdin);
+  root_command->addInitialFD(STDOUT_FILENO, Ref::Stdout);
+  root_command->addInitialFD(STDERR_FILENO, Ref::Stderr);
 
   // Record the root command in the input trace
   addCommand(root_cmd_id, root_command);
 
   // Create a mapping for references inherited by the root command
-  list<tuple<Command::RefID, Command::RefID>> refs = {
-      {Command::StdinRef, Command::StdinRef},   {Command::StdoutRef, Command::StdoutRef},
-      {Command::StderrRef, Command::StderrRef}, {Command::RootRef, Command::RootRef},
-      {Command::CwdRef, Command::CwdRef},       {Command::ExeRef, Command::ExeRef}};
+  list<tuple<Ref::ID, Ref::ID>> refs = {{Ref::Stdin, Ref::Stdin},   {Ref::Stdout, Ref::Stdout},
+                                        {Ref::Stderr, Ref::Stderr}, {Ref::Root, Ref::Root},
+                                        {Ref::Cwd, Ref::Cwd},       {Ref::Exe, Ref::Exe}};
 
   // Launch the root command
   handler.launch(no_cmd, getCommand(root_cmd_id), refs);

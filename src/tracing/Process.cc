@@ -15,8 +15,8 @@ namespace fs = std::filesystem;
 Process::Process(Build& build,
                  shared_ptr<Command> command,
                  pid_t pid,
-                 Command::RefID cwd,
-                 Command::RefID root,
+                 Ref::ID cwd,
+                 Ref::ID root,
                  map<int, FileDescriptor> fds) noexcept :
     _build(build), _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
   // The new process has an open handle to each file descriptor in the _fds table
@@ -36,7 +36,7 @@ Process::Process(Build& build,
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(Command::RefID ref) noexcept {
+void Process::setWorkingDir(Ref::ID ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
   _build.traceDoneWithRef(_command, _cwd);
@@ -47,7 +47,7 @@ void Process::setWorkingDir(Command::RefID ref) noexcept {
 }
 
 // Get a file descriptor entry
-Command::RefID Process::getFD(int fd) noexcept {
+Ref::ID Process::getFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   ASSERT(iter != _fds.end()) << "Attempted to access an unknown fd " << fd << " in " << this;
 
@@ -55,7 +55,7 @@ Command::RefID Process::getFD(int fd) noexcept {
 }
 
 // Add a file descriptor entry
-void Process::addFD(int fd, Command::RefID ref, bool cloexec) noexcept {
+void Process::addFD(int fd, Ref::ID ref, bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
@@ -109,11 +109,11 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> env) noexcept {
+void Process::exec(Ref::ID exe_ref, vector<string> args, vector<string> env) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
-  map<int, Command::RefID> inherited_fds;
+  map<int, Ref::ID> inherited_fds;
 
   for (const auto& [fd, desc] : _fds) {
     const auto& [ref, cloexec] = desc;
@@ -149,8 +149,8 @@ void Process::exec(Command::RefID exe_ref, vector<string> args, vector<string> e
   }
 
   // Update the cwd and root references for the process to use refs from the new command
-  _cwd = Command::CwdRef;
-  _root = Command::RootRef;
+  _cwd = Ref::Cwd;
+  _root = Ref::Root;
 
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we

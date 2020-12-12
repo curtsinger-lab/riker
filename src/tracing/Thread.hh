@@ -86,7 +86,7 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  Command::RefID makePathRef(fs::path p, AccessFlags flags, at_fd at = at_fd::cwd()) noexcept;
+  Ref::ID makePathRef(fs::path p, AccessFlags flags, at_fd at = at_fd::cwd()) noexcept;
 
   /*** Handling for specific system calls ***/
 

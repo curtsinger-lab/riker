@@ -38,6 +38,9 @@ class Ref final {
   /// The type for a Ref ID
   using ID = uint32_t;
 
+  /// Default RefIDs
+  enum : ID { Stdin = 0, Stdout = 1, Stderr = 2, Root = 3, Cwd = 4, Exe = 5 };
+
   /// Default constructor
   Ref() noexcept {}
 

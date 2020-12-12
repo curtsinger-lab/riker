@@ -19,61 +19,57 @@ namespace fs = std::filesystem;
 /// Add a SpecialRef IR step to the output trace
 void OutputTrace::specialRef(const shared_ptr<Command>& cmd,
                              SpecialRef entity,
-                             Command::RefID output) noexcept {
+                             Ref::ID output) noexcept {
   _records.emplace_back(new SpecialRefRecord(getCommandID(cmd), entity, output));
 }
 
 /// Add a PipeRef IR step to the output trace
 void OutputTrace::pipeRef(const shared_ptr<Command>& cmd,
-                          Command::RefID read_end,
-                          Command::RefID write_end) noexcept {
+                          Ref::ID read_end,
+                          Ref::ID write_end) noexcept {
   _records.emplace_back(new PipeRefRecord(getCommandID(cmd), read_end, write_end));
 }
 
 /// Add a FileRef IR step to the output trace
-void OutputTrace::fileRef(const shared_ptr<Command>& cmd,
-                          mode_t mode,
-                          Command::RefID output) noexcept {
+void OutputTrace::fileRef(const shared_ptr<Command>& cmd, mode_t mode, Ref::ID output) noexcept {
   _records.emplace_back(new FileRefRecord(getCommandID(cmd), mode, output));
 }
 
 /// Add a SymlinkRef IR step to the output trace
 void OutputTrace::symlinkRef(const shared_ptr<Command>& cmd,
                              fs::path target,
-                             Command::RefID output) noexcept {
+                             Ref::ID output) noexcept {
   _records.emplace_back(new SymlinkRefRecord(getCommandID(cmd), target, output));
 }
 
 /// Add a DirRef IR step to the output trace
-void OutputTrace::dirRef(const shared_ptr<Command>& cmd,
-                         mode_t mode,
-                         Command::RefID output) noexcept {
+void OutputTrace::dirRef(const shared_ptr<Command>& cmd, mode_t mode, Ref::ID output) noexcept {
   _records.emplace_back(new DirRefRecord(getCommandID(cmd), mode, output));
 }
 
 /// Add a PathRef IR step to the output trace
 void OutputTrace::pathRef(const shared_ptr<Command>& cmd,
-                          Command::RefID base,
+                          Ref::ID base,
                           fs::path path,
                           AccessFlags flags,
-                          Command::RefID output) noexcept {
+                          Ref::ID output) noexcept {
   _records.emplace_back(new PathRefRecord(getCommandID(cmd), base, path, flags, output));
 }
 
 /// Add an Open IR step to the output trace
-void OutputTrace::usingRef(const shared_ptr<Command>& cmd, Command::RefID ref) noexcept {
+void OutputTrace::usingRef(const shared_ptr<Command>& cmd, Ref::ID ref) noexcept {
   _records.emplace_back(new UsingRefRecord(getCommandID(cmd), ref));
 }
 
 /// Add a Cloe IR step to the output trace
-void OutputTrace::doneWithRef(const shared_ptr<Command>& cmd, Command::RefID ref) noexcept {
+void OutputTrace::doneWithRef(const shared_ptr<Command>& cmd, Ref::ID ref) noexcept {
   _records.emplace_back(new DoneWithRefRecord(getCommandID(cmd), ref));
 }
 
 /// Add a CompareRefs IR step to the output trace
 void OutputTrace::compareRefs(const shared_ptr<Command>& cmd,
-                              Command::RefID ref1,
-                              Command::RefID ref2,
+                              Ref::ID ref1,
+                              Ref::ID ref2,
                               RefComparison type) noexcept {
   _records.emplace_back(new CompareRefsRecord(getCommandID(cmd), ref1, ref2, type));
 }
@@ -81,7 +77,7 @@ void OutputTrace::compareRefs(const shared_ptr<Command>& cmd,
 /// Add a ExpectResult IR step to the output trace
 void OutputTrace::expectResult(const shared_ptr<Command>& cmd,
                                Scenario scenario,
-                               Command::RefID ref,
+                               Ref::ID ref,
                                int expected) noexcept {
   _records.emplace_back(new ExpectResultRecord(getCommandID(cmd), scenario, ref, expected));
 }
@@ -89,7 +85,7 @@ void OutputTrace::expectResult(const shared_ptr<Command>& cmd,
 /// Add a MatchMetadata IR step to the output trace
 void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
                                 Scenario scenario,
-                                Command::RefID ref,
+                                Ref::ID ref,
                                 shared_ptr<MetadataVersion> version) noexcept {
   _records.emplace_back(new MatchMetadataRecord(getCommandID(cmd), scenario, ref, version));
 }
@@ -97,50 +93,50 @@ void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
 /// Add a MatchContent IR step to the output trace
 void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
                                Scenario scenario,
-                               Command::RefID ref,
+                               Ref::ID ref,
                                shared_ptr<Version> version) noexcept {
   _records.emplace_back(new MatchContentRecord(getCommandID(cmd), scenario, ref, version));
 }
 
 /// Add a UpdateMetadata IR step to the output trace
 void OutputTrace::updateMetadata(const shared_ptr<Command>& cmd,
-                                 Command::RefID ref,
+                                 Ref::ID ref,
                                  shared_ptr<MetadataVersion> version) noexcept {
   _records.emplace_back(new UpdateMetadataRecord(getCommandID(cmd), ref, version));
 }
 
 /// Add a UpdateContent IR step to the output trace
 void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
-                                Command::RefID ref,
+                                Ref::ID ref,
                                 shared_ptr<Version> version) noexcept {
   _records.emplace_back(new UpdateContentRecord(getCommandID(cmd), ref, version));
 }
 
 /// Add an AddEntry IR step to the output trace
 void OutputTrace::addEntry(const shared_ptr<Command>& cmd,
-                           Command::RefID dir,
+                           Ref::ID dir,
                            fs::path name,
-                           Command::RefID target) noexcept {
+                           Ref::ID target) noexcept {
   _records.emplace_back(new AddEntryRecord(getCommandID(cmd), dir, name, target));
 }
 
 /// Add a RemoveEntry IR step to the output trace
 void OutputTrace::removeEntry(const shared_ptr<Command>& cmd,
-                              Command::RefID dir,
+                              Ref::ID dir,
                               fs::path name,
-                              Command::RefID target) noexcept {
+                              Ref::ID target) noexcept {
   _records.emplace_back(new RemoveEntryRecord(getCommandID(cmd), dir, name, target));
 }
 
 /// Add a Launch IR step to the output trace
 void OutputTrace::launch(const shared_ptr<Command>& cmd,
                          const shared_ptr<Command>& child,
-                         list<tuple<Command::RefID, Command::RefID>> refs) noexcept {
+                         list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   // Add the launched command to the set of commands
   Command::ID child_id = addCommand(child);
 
   _records.emplace_back(new CommandRecord(child_id, child->getArguments(), child->getInitialFDs(),
-                                          child->hasExecuted(), child->getExitStatus()));
+                                          child->hasExecuted()));
 
   // Create the record for the launch IR step
   _records.emplace_back(new LaunchRecord(getCommandID(cmd), getCommandID(child), refs));
