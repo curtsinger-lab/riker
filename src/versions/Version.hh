@@ -64,7 +64,7 @@ class Version : public std::enable_shared_from_this<Version> {
 
   /// Save a fingerprint of this version for later comparison. If a new fingerprint is saved, inform
   /// the provided TraceHandler.
-  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept {
+  virtual void fingerprint(TraceHandler& handler, fs::path path, fs::path cache_dir) noexcept {
     // By default, fingerprinting a version just saves it
     save(handler, path);
   }

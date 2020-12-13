@@ -39,8 +39,9 @@ namespace fs = std::filesystem;
 const char* RootBuildCommand = "Dodofile";
 const char* ShellCommand = "/bin/sh";
 const fs::path OutputDir = ".dodo";
-const fs::path DatabaseFilename = ".dodo/db";
-const fs::path NewDatabaseFilename = ".dodo/newdb";
+const fs::path DatabaseFilename = OutputDir / "db";
+const fs::path NewDatabaseFilename = OutputDir / "newdb";
+const fs::path CacheDir = OutputDir / "cache";
 
 /**
  * Run the `build` subcommand.
@@ -55,6 +56,9 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Make sure the output directory exists
   fs::create_directories(OutputDir);
 
+  // Also ensure that the cache directory exists
+  fs::create_directory(CacheDir);
+
   // Load a trace, or set up a default build if necessary
   // Trace is lazy-loaded, so work is not done here
   InputTrace trace(args, DatabaseFilename);
@@ -65,12 +69,12 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Build stats
   optional<string> stats;
 
-  {
+  { /* PHASE 1: PRE-BUILD EMULATION */
     // start timer
     auto start = std::chrono::high_resolution_clock::now();
 
     // Emulate the loaded trace
-    auto build = Build::emulate(planner);
+    auto build = Build::emulate(CacheDir, planner);
     trace.sendTo(build);
 
     // end timer
@@ -80,7 +84,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     gather_stats(stats_log_path, build, stats, "pre", (finish - start).count());
   }
 
-  {
+  { /* PHASE 2: REBUILD */
     // start timer
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -89,7 +93,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
     // Now run the trace again with the planned rebuild steps
     planner.planBuild();
-    auto build = Build::rebuild(output);
+    auto build = Build::rebuild(CacheDir, output);
     trace.sendTo(build);
 
     // end timer
@@ -99,7 +103,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     gather_stats(stats_log_path, build, stats, "rebuild", (finish - start).count());
   }
 
-  {
+  { /* PHASE 3: POST-BUILD EMULATION */
     // start timer
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -113,7 +117,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     PostBuildChecker filter(output);
 
     // Emulate the new trace
-    auto build = Build::emulate(filter);
+    auto build = Build::emulate(CacheDir, filter);
     new_trace.sendTo(build);
 
     // end timer
@@ -138,7 +142,7 @@ void do_check(vector<string> args) noexcept {
   RebuildPlanner planner;
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate(planner));
+  trace.sendTo(Build::emulate(CacheDir, planner));
 
   // Plan the rebuild
   planner.planBuild();
@@ -216,7 +220,7 @@ void do_graph(vector<string> args,
   InputTrace trace(args, DatabaseFilename);
 
   // Emulate the build
-  trace.sendTo(Build::emulate());
+  trace.sendTo(Build::emulate(CacheDir));
 
   Graph2 graph(trace, show_all);
 
@@ -251,7 +255,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   InputTrace trace(args, DatabaseFilename);
 
   // Emulate the trace
-  auto build = Build::emulate();
+  auto build = Build::emulate(CacheDir);
   trace.sendTo(build);
   auto final_env = build.getEnvironment();
 

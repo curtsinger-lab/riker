@@ -56,9 +56,9 @@ shared_ptr<PipeArtifact> Env::getStderr(Build& build, const shared_ptr<Command>&
   return _stderr;
 }
 
-shared_ptr<DirArtifact> Env::getRootDir() noexcept {
+shared_ptr<DirArtifact> Env::getRootDir(fs::path cache_dir) noexcept {
   if (!_root_dir) {
-    auto a = getFilesystemArtifact("/");
+    auto a = getFilesystemArtifact("/", cache_dir);
     FAIL_IF(!a) << "Failed to get an artifact for the root directory";
 
     _root_dir = a->as<DirArtifact>();
@@ -88,7 +88,7 @@ fs::path Env::getTempPath() noexcept {
 
 set<fs::path> ignored_artifacts = {"/dev/null"};
 
-shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
+shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, fs::path cache_dir) {
   // Stat the path on the filesystem to get the file type and an inode number
   struct stat info;
   int rc = ::lstat(path.c_str(), &info);
@@ -110,13 +110,13 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
   shared_ptr<Artifact> a;
   if (ignored_artifacts.find(path) != ignored_artifacts.end()) {
     // The provided path is in our set of ignored paths. For now, just track it as a file.
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc));
+    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc));
+    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
@@ -134,7 +134,7 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
   } else {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc));
+    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
   }

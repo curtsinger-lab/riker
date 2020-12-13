@@ -23,19 +23,21 @@ using std::stringstream;
 
 #define BLAKE3BUFSZ 65536 /* taken from BLAKE3 demo app without much thought! */
 
+typedef std::array<uint8_t, BLAKE3_OUT_LEN> BLAKE3Hash;
+
 class Ref;
 
 struct FileFingerprint {
  public:
   bool empty;
   struct timespec mtime;
-  std::optional<std::array<uint8_t, BLAKE3_OUT_LEN>> b3hash;
+  std::optional<BLAKE3Hash> b3hash;
 
   /// Default constructor for deserialization
   FileFingerprint() noexcept = default;
 
   /// Create a fingerprint from stat data
-  FileFingerprint(string path, struct stat& statbuf, int rc) noexcept {
+  FileFingerprint(string path, struct stat& statbuf, int rc, fs::path cache_dir) noexcept {
     ASSERT(rc == 0) << "Cannot take fingerprint for nonexistent file '" << path << "'";
 
     // save mtime from statbuf
@@ -43,10 +45,19 @@ struct FileFingerprint {
     mtime = statbuf.st_mtim;
 
     // if file is readable and hashable and the user did not disable hashes, save hash
-    if (rc == 0 && !options::mtime_only) b3hash = blake3(path);
+    if (rc == 0 && !options::mtime_only) {
+      // is this a regular file?
+      if (!(statbuf.st_mode & S_IFREG)) return;
+
+      b3hash = blake3(path);
+      // if caching is enabled, cache the file
+      if (options::enable_cache) {
+        cache(statbuf, b3hash.value(), path, cache_dir);
+      }
+    }
   }
 
-  std::optional<std::array<uint8_t, BLAKE3_OUT_LEN>> blake3(fs::path path) {
+  std::optional<BLAKE3Hash> blake3(fs::path path) {
     // initialize hasher
     blake3_hasher hasher;
     blake3_hasher_init(&hasher);
@@ -63,7 +74,7 @@ struct FileFingerprint {
     }
 
     // create output array
-    std::array<uint8_t, BLAKE3_OUT_LEN> output;
+    BLAKE3Hash output;
 
     // compute hash incrementally for each chunk read
     ssize_t n;
@@ -76,6 +87,52 @@ struct FileFingerprint {
     blake3_hasher_finalize(&hasher, output.data(), BLAKE3_OUT_LEN);
 
     return output;
+  }
+
+  void cache(struct stat& statbuf, BLAKE3Hash& hash, fs::path path, fs::path cache_dir) noexcept {
+    // We use a three-level directory prefix scheme to store cached files
+    // to avoid having too many files in a given folder.  This scheme
+    // below has 16^6 unique directory prefixes.
+    string hash_str = b3hex(hash);
+    fs::path dir_lvl_0 = hash_str.substr(0, 2);
+    fs::path dir_lvl_1 = hash_str.substr(2, 2);
+    fs::path dir_lvl_2 = hash_str.substr(4, 2);
+    fs::path hash_dir = cache_dir / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
+
+    // Path to cache file
+    fs::path hash_file = hash_dir / hash_str;
+
+    // Get the length of the input file
+    loff_t len = statbuf.st_size;
+
+    // Does the cache file already exist?  If so, skip. (reuse statbuf)
+    bool file_exists(::lstat(hash_file.c_str(), &statbuf) == 0);
+    if (file_exists) return;
+
+    // Create the directories, if needed
+    fs::create_directories(hash_dir);
+
+    // Open source and destination fds
+    int src_fd = ::open(path.c_str(), O_RDONLY);
+    FAIL_IF(src_fd == -1) << "Unable to open file '" << path << "' for caching: " << ERR;
+    int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY);
+    FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << "' for file '" << path
+                          << "': " << ERR;
+
+    // copy file to cache using non-POSIX fast copy
+    loff_t bytes_cp;
+    do {
+      bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
+      FAIL_IF(bytes_cp == -1) << "Could not copy file '" << path << "' to cache location '"
+                              << hash_file << "': " << ERR;
+
+      len -= bytes_cp;
+    } while (len > 0 && bytes_cp > 0);
+
+    LOG(artifact) << "Cached file version at path '" << path << "' in '" << hash_file << "'";
+
+    close(src_fd);
+    close(dst_fd);
   }
 
   /// Create a fingerprint for an empty file
@@ -100,7 +157,7 @@ struct FileFingerprint {
                            std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
 
       LOG(artifact) << "Checking equality for mtime-only fingerprint: mtime "
-                    << (mtime_is_same ? " is same" : "is different");
+                    << (mtime_is_same ? "is same" : "is different");
 
       return mtime_is_same;
     } else {
@@ -110,7 +167,7 @@ struct FileFingerprint {
                               : true;
 
       LOG(artifact) << "Checking equality for BLAKE3 fingerprint: hash "
-                    << (hash_is_same ? " is same" : " is different");
+                    << (hash_is_same ? "is same" : "is different");
 
       return hash_is_same;
     }
@@ -126,14 +183,19 @@ struct FileFingerprint {
     if (!b3hash.has_value()) {
       return "[NO HASH]";
     }
+    return b3hex(b3hash.value());
+  }
+
+  SERIALIZE(empty, mtime, b3hash);
+
+ private:
+  static string b3hex(BLAKE3Hash b3hash) noexcept {
     stringstream ss;
-    for (int byte : b3hash.value()) {
+    for (int byte : b3hash) {
       ss << std::setfill('0') << std::setw(2) << std::hex << byte;
     }
     return ss.str();
   }
-
-  SERIALIZE(empty, mtime, b3hash);
 };
 
 class FileVersion final : public Version {
@@ -154,7 +216,9 @@ class FileVersion final : public Version {
   void commit(fs::path path, mode_t mode = 0600) noexcept;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override;
+  virtual void fingerprint(TraceHandler& handler,
+                           fs::path path,
+                           fs::path cache_dir) noexcept override;
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

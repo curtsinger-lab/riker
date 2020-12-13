@@ -93,24 +93,24 @@ void SymlinkArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noex
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState(Build& build, fs::path path) noexcept {
+void SymlinkArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path);
+  Artifact::checkFinalState(build, path, cache_dir);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(Build& build, fs::path path) noexcept {
+void SymlinkArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(build, path);
+  Artifact::applyFinalState(build, path, cache_dir);
 }
 
 Ref SymlinkArtifact::resolve(Build& build,
@@ -119,6 +119,7 @@ Ref SymlinkArtifact::resolve(Build& build,
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
+                             fs::path cache_dir,
                              size_t symlink_limit) noexcept {
   if (symlink_limit == 0) return ELOOP;
 
@@ -148,13 +149,14 @@ Ref SymlinkArtifact::resolve(Build& build,
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(build, c, dest, flags, symlink_limit - 1);
+    return prev->resolve(build, c, dest, flags, cache_dir, symlink_limit - 1);
 
   } else {
     // Strip the leading slash from the path
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return getEnv()->getRootDir()->resolve(build, c, dest, flags, symlink_limit - 1);
+    return getEnv()->getRootDir(cache_dir)->resolve(build, c, dest, flags, cache_dir,
+                                                    symlink_limit - 1);
   }
 }

@@ -53,7 +53,7 @@ class Env : public std::enable_shared_from_this<Env> {
   shared_ptr<PipeArtifact> getStderr(Build& build, const shared_ptr<Command>& c) noexcept;
 
   /// Get the root directory
-  shared_ptr<DirArtifact> getRootDir() noexcept;
+  shared_ptr<DirArtifact> getRootDir(fs::path cache_dir) noexcept;
 
   /// Get a unique path to a temporary file in the build directory
   fs::path getTempPath() noexcept;
@@ -67,7 +67,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param path  The path to this artifact on the filesystem
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getFilesystemArtifact(fs::path path);
+  shared_ptr<Artifact> getFilesystemArtifact(fs::path path, fs::path cache_dir);
 
   /**
    * Create a pipe artifact

@@ -121,10 +121,10 @@ void Build::finish() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env->getRootDir()->checkFinalState(*this, "/");
+  _env->getRootDir(_cache_dir)->checkFinalState(*this, "/", _cache_dir);
 
   // Commit the final environment state to the filesystem
-  if (_commit) _env->getRootDir()->applyFinalState(*this, "/");
+  if (_commit) _env->getRootDir(_cache_dir)->applyFinalState(*this, "/", _cache_dir);
 
   // Mark all commands as finished
   for (auto& c : _commands) {
@@ -160,12 +160,14 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(*this, c)));
 
   } else if (entity == SpecialRef::root) {
-    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir()));
+    c->currentRun()->setRef(
+        output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir(_cache_dir)));
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
     auto ref =
-        make_shared<Ref>(_env->getRootDir()->resolve(*this, c, cwd_path, ReadAccess + ExecAccess));
+        make_shared<Ref>(_env->getRootDir(_cache_dir)
+                             ->resolve(*this, c, cwd_path, ReadAccess + ExecAccess, _cache_dir));
     c->currentRun()->setRef(output, ref);
 
     ASSERT(ref->isSuccess()) << "Failed to resolve current working directory";
@@ -175,8 +177,9 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
 
-    auto ref = make_shared<Ref>(
-        _env->getRootDir()->resolve(*this, c, dodo_launch, ReadAccess + ExecAccess));
+    auto ref =
+        make_shared<Ref>(_env->getRootDir(_cache_dir)
+                             ->resolve(*this, c, dodo_launch, ReadAccess + ExecAccess, _cache_dir));
     c->currentRun()->setRef(output, ref);
 
   } else {
@@ -285,7 +288,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  c->currentRun()->setRef(output, make_shared<Ref>(base_dir->resolve(*this, c, path, flags)));
+  c->currentRun()->setRef(output,
+                          make_shared<Ref>(base_dir->resolve(*this, c, path, flags, _cache_dir)));
 }
 
 // A command retains a handle to a given Ref
@@ -777,7 +781,7 @@ Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
 
   // Resolve the path and create a Ref
-  auto ref = make_shared<Ref>(base->getArtifact()->resolve(*this, c, path, flags));
+  auto ref = make_shared<Ref>(base->getArtifact()->resolve(*this, c, path, flags, _cache_dir));
 
   // If the reference could have created a file, mark that file's versions and links as committed
   if (ref->isSuccess() && flags.create) ref->getArtifact()->setCommitted();
@@ -898,7 +902,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(*this, path.value());
+      expected->fingerprint(*this, path.value(), _cache_dir);
     }
   }
 
@@ -930,7 +934,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(*this, path.value());
+      expected->fingerprint(*this, path.value(), _cache_dir);
     }
   }
 

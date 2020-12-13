@@ -102,7 +102,9 @@ class MetadataVersion final : public Version {
   virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(TraceHandler& handler, fs::path path) noexcept override {
+  virtual void fingerprint(TraceHandler& handler,
+                           fs::path path,
+                           fs::path cache_dir) noexcept override {
     save(handler, path);
   }
 

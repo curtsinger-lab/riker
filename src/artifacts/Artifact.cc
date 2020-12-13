@@ -197,10 +197,10 @@ bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFla
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
+void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(build, path);
+    v->fingerprint(build, path, cache_dir);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -214,12 +214,12 @@ void Artifact::checkFinalState(Build& build, fs::path path) noexcept {
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(Build& build, fs::path path) noexcept {
+void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
   // If we don't have a fingerprint of the metadata, take one
 
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
-  _metadata_version->fingerprint(build, path);
+  _metadata_version->fingerprint(build, path, cache_dir);
 }
 
 /// Get the current metadata version for this artifact
@@ -282,6 +282,7 @@ Ref Artifact::resolve(Build& build,
                       fs::path::iterator current,
                       fs::path::iterator end,
                       AccessFlags flags,
+                      fs::path cache_dir,
                       size_t symlink_limit) noexcept {
   // Are we at the end of the path to resolve?
   if (current == end) {

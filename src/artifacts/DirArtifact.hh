@@ -47,10 +47,10 @@ class DirArtifact final : public Artifact {
   virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(Build& build, fs::path path) noexcept override;
+  virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path) noexcept override;
+  virtual void applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
 
   /************ Traced Operations ************/
 
@@ -99,6 +99,7 @@ class DirArtifact final : public Artifact {
                       fs::path::iterator current,
                       fs::path::iterator end,
                       AccessFlags flags,
+                      fs::path cache_dir,
                       size_t symlink_limit) noexcept override;
 
  private:

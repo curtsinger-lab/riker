@@ -34,27 +34,29 @@ class Version;
 class Build : public TraceHandler, public BuildObserver {
  private:
   /// Create a build runner
-  Build(bool commit, BuildObserver& observer, TraceHandler& output) noexcept :
+  Build(bool commit, BuildObserver& observer, TraceHandler& output, fs::path cache_dir) noexcept :
       _commit(commit),
       _observer(observer),
       _output(output),
       _env(make_shared<Env>()),
-      _tracer(*this) {}
+      _tracer(*this),
+      _cache_dir(cache_dir) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate(BuildObserver& observer = _default_observer,
+  static Build emulate(fs::path cache_dir,
+                       BuildObserver& observer = _default_observer,
                        TraceHandler& output = _default_output) noexcept {
-    return Build(false, observer, output);
+    return Build(false, observer, output, cache_dir);
   }
 
-  static Build emulate(TraceHandler& output) noexcept {
-    return Build(false, _default_observer, output);
+  static Build emulate(fs::path cache_dir, TraceHandler& output) noexcept {
+    return Build(false, _default_observer, output, cache_dir);
   }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(TraceHandler& output = _default_output) noexcept {
-    return Build(true, _default_observer, output);
+  static Build rebuild(fs::path cache_dir, TraceHandler& output = _default_output) noexcept {
+    return Build(true, _default_observer, output, cache_dir);
   }
 
   // Disallow Copy
@@ -397,4 +399,7 @@ class Build : public TraceHandler, public BuildObserver {
 
   /// The default output is used if a trace handler is not provided during setup
   inline static TraceHandler _default_output;
+
+  /// The path to the file cache
+  fs::path _cache_dir;
 };
