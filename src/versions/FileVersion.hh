@@ -89,7 +89,7 @@ struct FileFingerprint {
     return output;
   }
 
-  void cache(struct stat& statbuf, BLAKE3Hash& hash, fs::path path, fs::path cache_dir) noexcept {
+  static fs::path cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) {
     // We use a three-level directory prefix scheme to store cached files
     // to avoid having too many files in a given folder.  This scheme
     // below has 16^6 unique directory prefixes.
@@ -100,7 +100,19 @@ struct FileFingerprint {
     fs::path hash_dir = cache_dir / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
 
     // Path to cache file
-    fs::path hash_file = hash_dir / hash_str;
+    return hash_dir / hash_str;
+  }
+
+  /// Returns the cache file path relative to the cache_dir
+  fs::path cacheFilePath(fs::path cache_dir) {
+    ASSERT(b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
+    return cacheFilePath(b3hash.value(), cache_dir);
+  }
+
+  void cache(struct stat& statbuf, BLAKE3Hash& hash, fs::path path, fs::path cache_dir) noexcept {
+    // Path to cache file
+    fs::path hash_file = cacheFilePath(hash, cache_dir);
+    fs::path hash_dir = hash_file.parent_path();
 
     // Get the length of the input file
     loff_t len = statbuf.st_size;
