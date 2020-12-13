@@ -51,7 +51,7 @@ struct FileFingerprint {
 
       b3hash = blake3(path);
       // if caching is enabled, cache the file
-      if (options::enable_cache) {
+      if (options::enable_cache && b3hash.has_value()) {
         cache(statbuf, b3hash.value(), path, cache_dir);
       }
     }
