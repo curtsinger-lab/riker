@@ -45,7 +45,7 @@ struct FileFingerprint {
     mtime = statbuf.st_mtim;
 
     // if file is readable and hashable and the user did not disable hashes, save hash
-    if (rc == 0 && !options::mtime_only) {
+    if (rc == 0 /* && !options::mtime_only*/) {
       // is this a regular file?
       if (!(statbuf.st_mode & S_IFREG)) return;
 
@@ -109,7 +109,10 @@ struct FileFingerprint {
     return cacheFilePath(b3hash.value(), cache_dir);
   }
 
-  void cache(struct stat& statbuf, BLAKE3Hash& hash, fs::path path, fs::path cache_dir) noexcept {
+  void cache(const struct stat& statbuf,
+             BLAKE3Hash& hash,
+             fs::path path,
+             fs::path cache_dir) noexcept {
     // Path to cache file
     fs::path hash_file = cacheFilePath(hash, cache_dir);
     fs::path hash_dir = hash_file.parent_path();
@@ -118,7 +121,8 @@ struct FileFingerprint {
     loff_t len = statbuf.st_size;
 
     // Does the cache file already exist?  If so, skip. (reuse statbuf)
-    bool file_exists(::lstat(hash_file.c_str(), &statbuf) == 0);
+    struct stat cache_statbuf;
+    bool file_exists(::lstat(hash_file.c_str(), &cache_statbuf) == 0);
     if (file_exists) return;
 
     // Create the directories, if needed
@@ -162,27 +166,25 @@ struct FileFingerprint {
       return true;
     }
 
-    // Did the user disable fingerprinting?
-    if (options::mtime_only) {
-      // yes, compare mtimes
-      bool mtime_is_same = std::tie(mtime.tv_sec, mtime.tv_nsec) ==
-                           std::tie(other.mtime.tv_sec, other.mtime.tv_nsec);
-
-      LOG(artifact) << "Checking equality for mtime-only fingerprint: mtime "
-                    << (mtime_is_same ? "is same" : "is different");
-
-      return mtime_is_same;
-    } else {
-      // no, compare hashes
-      bool hash_is_same = b3hash.has_value() && other.b3hash.has_value()
-                              ? b3hash.value() == other.b3hash.value()
-                              : true;
-
-      LOG(artifact) << "Checking equality for BLAKE3 fingerprint: hash "
-                    << (hash_is_same ? "is same" : "is different");
-
-      return hash_is_same;
+    // Do the mtimes match?
+    if (mtime.tv_sec == other.mtime.tv_sec && mtime.tv_nsec == other.mtime.tv_nsec) {
+      // Yes. Return a match immediately
+      LOG(artifact) << "Found matching mtimes. No need to check fingerprints.";
+      return true;
     }
+
+    // If fingerprinting is enabled, check to see if we have a hash and the hashes match
+    if (!options::mtime_only && b3hash.has_value() && b3hash == other.b3hash) {
+      LOG(artifact) << "Fingerprints match";
+      return true;
+    }
+
+    // If fingerprinting is disabled but the hashes match, print some info
+    if (options::mtime_only && b3hash.has_value() && b3hash == other.b3hash) {
+      LOG(artifact) << "Fingerprints match, but mtimes do not";
+    }
+
+    return false;
   }
 
   friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
