@@ -365,7 +365,7 @@ int main(int argc, char* argv[]) noexcept {
   app.add_option("--stats", stats_log,
                  "Path to write statistics to a CSV file; appends if file already exists.")
       ->type_name("FILE");
-  bool print_header;
+  bool print_header = false;
   app.add_flag(
       "--empty-stats", print_header,
       "Write an empty stats CSV and quit; requires --stats but all other options are ignored.");
