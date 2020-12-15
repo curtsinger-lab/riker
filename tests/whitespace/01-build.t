@@ -32,3 +32,6 @@ The two files should be the same
 
 Clean up
   $ rm -rf .dodo *.s hello.c
+
+SKIP! This test requires that we match a file version created during the build against a file that exists on disk. We will need to adjust some of the version bookkeeping to make this work.
+  $ exit 80
