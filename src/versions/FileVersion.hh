@@ -27,39 +27,122 @@ typedef std::array<uint8_t, BLAKE3_OUT_LEN> BLAKE3Hash;
 
 class Ref;
 
-struct FileFingerprint {
+class FileVersion final : public Version {
  public:
-  bool empty;
-  struct timespec mtime;
-  std::optional<BLAKE3Hash> b3hash;
+  /// Create a FileVersion with no existing fingerprint
+  FileVersion() noexcept = default;
 
-  /// Default constructor for deserialization
-  FileFingerprint() noexcept = default;
+  /// Get the name for this type of version
+  virtual string getTypeName() const noexcept override { return "content"; }
 
-  /// Create a fingerprint from stat data
-  FileFingerprint(string path, struct stat& statbuf, int rc, fs::path cache_dir) noexcept {
-    ASSERT(rc == 0) << "Cannot take fingerprint for nonexistent file '" << path << "'";
+  /// Can this version be committed to the filesystem?
+  bool canCommit() const noexcept;
 
-    // save mtime from statbuf
-    empty = statbuf.st_size == 0;
-    mtime = statbuf.st_mtim;
+  /// Commit this version to the filesystem
+  void commit(fs::path path, mode_t mode = 0600) noexcept;
 
-    // if file is readable and hashable and the user did not disable hashes, save hash
-    if (rc == 0 /* && !options::mtime_only*/) {
-      // is this a regular file?
-      if (!(statbuf.st_mode & S_IFREG)) return;
+  /// Save a fingerprint of this version
+  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
 
-      b3hash = blake3(path);
-      // if caching is enabled, cache the file
-      if (options::enable_cache && b3hash.has_value()) {
-        // std::cout << "CACHING FILE '" << path << "'" << std::endl;
+  /// Does this FileVersion have a fingerprint already?
+  bool hasHash() noexcept;
 
-        cache(statbuf, b3hash.value(), path, cache_dir);
-      }
-    }
+  /// Save an empty fingerprint of this version
+  void makeEmptyFingerprint() noexcept;
+
+  /// Compare this version to another version
+  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+    auto other_file = other->as<FileVersion>();
+    if (!other_file) return false;
+    if (other_file.get() == this) return true;
+    return fingerprints_match(other_file);
   }
 
-  std::optional<BLAKE3Hash> blake3(fs::path path) {
+  /// Compare to another fingerprint instance
+  bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept {
+    // Two empty files are always equivalent
+    if (_empty && other->_empty) {
+      LOG(artifact) << "Not checking equality for fingerprint: both files are empty.";
+      return true;
+    }
+
+    // Do the mtimes match?
+    if (_mtime.has_value() && other->_mtime.has_value()) {
+      auto m1 = _mtime.value();
+      auto m2 = other->_mtime.value();
+      if (m1.tv_sec == m2.tv_sec && m1.tv_nsec == m2.tv_nsec) {
+        // Yes. Return a match immediately
+        LOG(artifact) << "mtimes match.";
+        return true;
+      }
+    }
+
+    // If fingerprinting is enabled, check to see if we have a hash and the hashes match
+    if (!options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
+        _b3hash.value() == other->_b3hash.value()) {
+      LOG(artifact) << "Fingerprints match";
+      return true;
+    }
+
+    // If fingerprinting is disabled but the hashes match, print some info
+    if (options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
+        _b3hash.value() == other->_b3hash.value()) {
+      LOG(artifact) << "Fingerprints match, but mtimes do not";
+    }
+
+    return false;
+  }
+
+  // get a string representation of the hash
+  string b3hex() const noexcept {
+    if (!_b3hash.has_value()) {
+      return "NO HASH";
+    }
+    return b3hex(_b3hash.value());
+  }
+
+  virtual ostream& print(ostream& o) const noexcept override {
+    // is empty
+    if (_empty) return o << "[file content: empty]";
+
+    // not empty, no mtime, no hash
+    if (!_mtime.has_value() && !_b3hash.has_value()) return o << "[file content: unknown]";
+
+    // has mtime
+    o << "[file content: ";
+    if (_mtime.has_value())
+      o << "mtime=" << _mtime.value().tv_sec << "." << std::setfill('0') << std::setw(9)
+        << _mtime.value().tv_nsec << " ";
+
+    // has hash
+    if (_b3hash.has_value()) o << "b3hash=" << b3hex();
+
+    o << "]";
+
+    return o;
+  }
+
+  /// Return the path for the contents of this cached FileVersion relative to the given cache_dir
+  fs::path cacheFilePath(fs::path cache_dir) {
+    ASSERT(_b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
+    return cacheFilePath(_b3hash.value(), cache_dir);
+  }
+
+ private:
+  bool _empty;
+  std::optional<struct timespec> _mtime;
+  std::optional<BLAKE3Hash> _b3hash;
+
+  static string b3hex(BLAKE3Hash b3hash) noexcept {
+    stringstream ss;
+    for (int byte : b3hash) {
+      ss << std::setfill('0') << std::setw(2) << std::hex << byte;
+    }
+    return ss.str();
+  }
+
+  /// Return a BLAKE3 hash for the contents of the file at the given path.
+  static std::optional<BLAKE3Hash> blake3(fs::path path) {
     // initialize hasher
     blake3_hasher hasher;
     blake3_hasher_init(&hasher);
@@ -91,6 +174,7 @@ struct FileFingerprint {
     return output;
   }
 
+  /// Return the path for the contents of this cached FileVersion
   static fs::path cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) {
     // We use a three-level directory prefix scheme to store cached files
     // to avoid having too many files in a given folder.  This scheme
@@ -105,146 +189,10 @@ struct FileFingerprint {
     return hash_dir / hash_str;
   }
 
-  /// Returns the cache file path relative to the cache_dir
-  fs::path cacheFilePath(fs::path cache_dir) {
-    ASSERT(b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
-    return cacheFilePath(b3hash.value(), cache_dir);
-  }
-
   void cache(const struct stat& statbuf,
              BLAKE3Hash& hash,
              fs::path path,
-             fs::path cache_dir) noexcept {
-    // Path to cache file
-    fs::path hash_file = cacheFilePath(hash, cache_dir);
-    fs::path hash_dir = hash_file.parent_path();
+             fs::path cache_dir) noexcept;
 
-    // Get the length of the input file
-    loff_t len = statbuf.st_size;
-
-    // Does the cache file already exist?  If so, skip. (reuse statbuf)
-    struct stat cache_statbuf;
-    bool file_exists(::lstat(hash_file.c_str(), &cache_statbuf) == 0);
-    if (file_exists) return;
-
-    // Create the directories, if needed
-    fs::create_directories(hash_dir);
-
-    // Open source and destination fds
-    int src_fd = ::open(path.c_str(), O_RDONLY);
-    FAIL_IF(src_fd == -1) << "Unable to open file '" << path << "' for caching: " << ERR;
-    int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY);
-    FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << "' for file '" << path
-                          << "': " << ERR;
-
-    // copy file to cache using non-POSIX fast copy
-    loff_t bytes_cp;
-    do {
-      bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
-      FAIL_IF(bytes_cp == -1) << "Could not copy file '" << path << "' to cache location '"
-                              << hash_file << "': " << ERR;
-
-      len -= bytes_cp;
-    } while (len > 0 && bytes_cp > 0);
-
-    LOG(artifact) << "Cached file version at path '" << path << "' in '" << hash_file << "'";
-
-    close(src_fd);
-    close(dst_fd);
-  }
-
-  /// Compare to another fingerprint instance
-  bool operator==(const FileFingerprint& other) const noexcept {
-    // Two empty files are always equivalent
-    if (empty && other.empty) {
-      LOG(artifact) << "Not checking equality for fingerprint: both files are empty.";
-      return true;
-    }
-
-    // Do the mtimes match?
-    if (mtime.tv_sec == other.mtime.tv_sec && mtime.tv_nsec == other.mtime.tv_nsec) {
-      // Yes. Return a match immediately
-      LOG(artifact) << "Found matching mtimes. No need to check fingerprints.";
-      return true;
-    }
-
-    // If fingerprinting is enabled, check to see if we have a hash and the hashes match
-    if (!options::mtime_only && b3hash.has_value() && b3hash == other.b3hash) {
-      LOG(artifact) << "Fingerprints match";
-      return true;
-    }
-
-    // If fingerprinting is disabled but the hashes match, print some info
-    if (options::mtime_only && b3hash.has_value() && b3hash == other.b3hash) {
-      LOG(artifact) << "Fingerprints match, but mtimes do not";
-    }
-
-    return false;
-  }
-
-  friend ostream& operator<<(ostream& o, const FileFingerprint& f) {
-    if (f.empty) return o << "empty";
-    return o << "mtime=" << f.mtime.tv_sec << "." << std::setfill('0') << std::setw(9)
-             << f.mtime.tv_nsec << ", b3hash=" << f.b3hex();
-  }
-
-  string b3hex() const noexcept {
-    if (!b3hash.has_value()) {
-      return "[NO HASH]";
-    }
-    return b3hex(b3hash.value());
-  }
-
-  SERIALIZE(empty, mtime, b3hash);
-
- private:
-  static string b3hex(BLAKE3Hash b3hash) noexcept {
-    stringstream ss;
-    for (int byte : b3hash) {
-      ss << std::setfill('0') << std::setw(2) << std::hex << byte;
-    }
-    return ss.str();
-  }
-};
-
-class FileVersion final : public Version {
- public:
-  /// Create a FileVersion with no existing fingerprint
-  FileVersion() noexcept = default;
-
-  /// Get the name for this type of version
-  virtual string getTypeName() const noexcept override { return "content"; }
-
-  /// Can this version be committed to the filesystem?
-  bool canCommit() const noexcept;
-
-  /// Commit this version to the filesystem
-  void commit(fs::path path, mode_t mode = 0600) noexcept;
-
-  /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
-
-  /// Save an empty fingerprint of this version
-  void makeEmptyFingerprint() noexcept;
-
-  /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    auto other_file = other->as<FileVersion>();
-    if (!other_file) return false;
-    if (other_file.get() == this) return true;
-    return _fingerprint == other_file->_fingerprint;
-  }
-
-  virtual ostream& print(ostream& o) const noexcept override {
-    if (_fingerprint.has_value()) {
-      return o << "[file content: " << _fingerprint.value() << "]";
-    } else {
-      return o << "[file content: unknown]";
-    }
-  }
-
- private:
-  optional<FileFingerprint> _fingerprint;
-
-  SERIALIZE(BASE(Version), _fingerprint);
+  SERIALIZE(BASE(Version), _empty, _mtime, _b3hash);
 };
