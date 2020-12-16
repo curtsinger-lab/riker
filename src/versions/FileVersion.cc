@@ -35,7 +35,7 @@ void FileVersion::commit(fs::path path, mode_t mode) noexcept {
 }
 
 /// Save a fingerprint of this version
-void FileVersion::fingerprint(TraceHandler& handler, fs::path path, fs::path cache_dir) noexcept {
+void FileVersion::fingerprint(fs::path path, fs::path cache_dir) noexcept {
   // if there is already a fingerprint with a hash, move on
   if (_fingerprint.has_value() && _fingerprint.value().b3hash.has_value()) return;
 
@@ -46,4 +46,11 @@ void FileVersion::fingerprint(TraceHandler& handler, fs::path path, fs::path cac
 
   // otherwise, take a fingerprint
   _fingerprint = FileFingerprint(path, statbuf, rc, cache_dir);
+}
+
+void FileVersion::makeEmptyFingerprint() noexcept {
+  // it is not necessary to fingerprint or cache empty files
+  FileFingerprint f;
+  f.empty = true;
+  _fingerprint = f;
 }

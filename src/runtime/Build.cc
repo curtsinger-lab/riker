@@ -902,7 +902,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(*this, path.value(), _cache_dir);
+      expected->fingerprint(path.value(), _cache_dir);
     }
   }
 
@@ -934,7 +934,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
-      expected->fingerprint(*this, path.value(), _cache_dir);
+      expected->fingerprint(path.value(), _cache_dir);
     }
   }
 

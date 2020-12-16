@@ -96,17 +96,13 @@ class MetadataVersion final : public Version {
   void commit(fs::path path, bool commit_permissions = true) noexcept;
 
   /// Save the on-disk state to this version for later commit
-  virtual void save(TraceHandler& handler, fs::path path) noexcept override;
+  virtual void save(fs::path path) noexcept override;
 
   /// Check if this version has a saved copy
   virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(TraceHandler& handler,
-                           fs::path path,
-                           fs::path cache_dir) noexcept override {
-    save(handler, path);
-  }
+  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override { save(path); }
 
   /// Check if this version has a fingerprint
   // virtual bool hasFingerprint() const noexcept override { return isSaved(); }

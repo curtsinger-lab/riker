@@ -78,7 +78,7 @@ void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_d
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
-    v->fingerprint(build, path, cache_dir);
+    v->fingerprint(path, cache_dir);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -100,7 +100,7 @@ void FileArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_d
   _content_version->commit(path);
 
   // If we don't already have a content fingerprint, take one
-  _content_version->fingerprint(build, path, cache_dir);
+  _content_version->fingerprint(path, cache_dir);
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(build, path, cache_dir);
@@ -153,7 +153,8 @@ void FileArtifact::beforeTruncate(Build& build,
 /// A trace command just truncated this artifact to length 0
 void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command wrote an empty content version to this artifact
-  auto written = make_shared<FileVersion>(FileFingerprint::makeEmpty());
+  auto written = make_shared<FileVersion>();
+  written->makeEmptyFingerprint();
 
   build.traceUpdateContent(c, ref, written);
 }

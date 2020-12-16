@@ -110,13 +110,15 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, fs::path cache_di
   shared_ptr<Artifact> a;
   if (ignored_artifacts.find(path) != ignored_artifacts.end()) {
     // The provided path is in our set of ignored paths. For now, just track it as a file.
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
+    auto cv = make_shared<FileVersion>();
+    cv->fingerprint(path, cache_dir);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   } else if ((info.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
+    auto cv = make_shared<FileVersion>();
+    cv->fingerprint(path, cache_dir);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
@@ -134,7 +136,8 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, fs::path cache_di
   } else {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-    auto cv = make_shared<FileVersion>(FileFingerprint(path, info, rc, cache_dir));
+    auto cv = make_shared<FileVersion>();
+    cv->fingerprint(path, cache_dir);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
   }
@@ -259,7 +262,8 @@ shared_ptr<Artifact> Env::createFile(Build& build,
   if (committed) mv->setCommitted();
 
   // Create an initial content version
-  auto cv = make_shared<FileVersion>(FileFingerprint::makeEmpty());
+  auto cv = make_shared<FileVersion>();
+  cv->makeEmptyFingerprint();
   cv->createdBy(creator);
   if (committed) cv->setCommitted();
 

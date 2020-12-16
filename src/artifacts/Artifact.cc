@@ -200,7 +200,7 @@ bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFla
 void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(build, path, cache_dir);
+    v->fingerprint(path, cache_dir);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -219,7 +219,7 @@ void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) 
 
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
-  _metadata_version->fingerprint(build, path, cache_dir);
+  _metadata_version->fingerprint(path, cache_dir);
 }
 
 /// Get the current metadata version for this artifact

@@ -21,7 +21,7 @@ bool MetadataVersion::checkAccess(TraceHandler& handler,
     // Get a path to the artifact, including only committed paths
     auto path = artifact->getPath(false);
     ASSERT(path.has_value()) << "Committed artifact has no path";
-    save(handler, path.value());
+    save(path.value());
   }
 
   // Make sure we have metadata to check access against
@@ -89,7 +89,7 @@ bool MetadataVersion::checkAccess(TraceHandler& handler,
 }
 
 // Save metadata
-void MetadataVersion::save(TraceHandler& handler, fs::path path) noexcept {
+void MetadataVersion::save(fs::path path) noexcept {
   if (_metadata.has_value()) return;
 
   struct stat statbuf;

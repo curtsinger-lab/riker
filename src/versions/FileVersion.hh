@@ -52,6 +52,8 @@ struct FileFingerprint {
       b3hash = blake3(path);
       // if caching is enabled, cache the file
       if (options::enable_cache && b3hash.has_value()) {
+        // std::cout << "CACHING FILE '" << path << "'" << std::endl;
+
         cache(statbuf, b3hash.value(), path, cache_dir);
       }
     }
@@ -151,13 +153,6 @@ struct FileFingerprint {
     close(dst_fd);
   }
 
-  /// Create a fingerprint for an empty file
-  static FileFingerprint makeEmpty() noexcept {
-    FileFingerprint f;
-    f.empty = true;
-    return f;
-  }
-
   /// Compare to another fingerprint instance
   bool operator==(const FileFingerprint& other) const noexcept {
     // Two empty files are always equivalent
@@ -217,9 +212,6 @@ class FileVersion final : public Version {
   /// Create a FileVersion with no existing fingerprint
   FileVersion() noexcept = default;
 
-  /// Create a FileVersion with an existing fingerprint
-  FileVersion(FileFingerprint&& f) noexcept : _fingerprint(f) {}
-
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "content"; }
 
@@ -230,9 +222,10 @@ class FileVersion final : public Version {
   void commit(fs::path path, mode_t mode = 0600) noexcept;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(TraceHandler& handler,
-                           fs::path path,
-                           fs::path cache_dir) noexcept override;
+  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
+
+  /// Save an empty fingerprint of this version
+  void makeEmptyFingerprint() noexcept;
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {
