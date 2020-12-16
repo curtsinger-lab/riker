@@ -98,19 +98,6 @@ class RebuildPlanner final : public BuildObserver {
     }
   }
 
-  /// Command c did not find the expected version in artifact a
-  virtual void observeMismatch(const shared_ptr<Command>& c,
-                               Scenario scenario,
-                               shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed,
-                               shared_ptr<Version> expected) noexcept override final {
-    // Record the change
-    LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", c, scenario,
-         a, expected, observed);
-
-    c->currentRun()->observeChange(scenario);
-  }
-
   /// A child command did not exit with the expected status
   virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
                                      const shared_ptr<Command>& child,

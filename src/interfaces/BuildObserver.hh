@@ -38,13 +38,6 @@ class BuildObserver {
                             shared_ptr<Version> v,
                             InputType t) noexcept {}
 
-  /// Command c did not find the expect version of artifact a
-  virtual void observeMismatch(const shared_ptr<Command>& c,
-                               Scenario scenario,
-                               shared_ptr<Artifact> a,
-                               shared_ptr<Version> observed,
-                               shared_ptr<Version> expected) noexcept {}
-
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced version `produced`, which does not match the `ondisk` version.
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,

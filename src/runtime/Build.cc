@@ -74,7 +74,10 @@ void Build::observeMismatch(const shared_ptr<Command>& c,
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> observed,
                             shared_ptr<Version> expected) noexcept {
-  _observer.observeMismatch(c, scenario, a, observed, expected);
+  LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", c, scenario,
+       a, expected, observed);
+
+  c->currentRun()->observeChange(scenario);
 }
 
 // Inform observers that the version of an artifact produced during the build does not match the
