@@ -29,11 +29,6 @@ using std::shared_ptr;
 
 /************************ Observer Implementation ************************/
 
-// Inform observers that a command has never run
-void Build::observeCommandNeverRun(const shared_ptr<Command>& c) noexcept {
-  _observer.observeCommandNeverRun(c);
-}
-
 // Inform observers that a parent command launched a child command
 void Build::observeLaunch(const shared_ptr<Command>& parent,
                           const shared_ptr<Command>& child) noexcept {
@@ -88,14 +83,6 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
                                  shared_ptr<Version> produced,
                                  shared_ptr<Version> ondisk) noexcept {
   _observer.observeFinalMismatch(a, produced, ondisk);
-}
-
-// Inform observers that two references did not compare as expected
-void Build::observeRefMismatch(const shared_ptr<Command>& c,
-                               shared_ptr<Ref> ref1,
-                               shared_ptr<Ref> ref2,
-                               RefComparison type) noexcept {
-  _observer.observeRefMismatch(c, ref1, ref2, type);
 }
 
 // Inform observers that a reference did not resolve as expected
@@ -353,11 +340,18 @@ void Build::compareRefs(const shared_ptr<Command>& c,
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
     if (ref1->getArtifact() != ref2->getArtifact()) {
-      observeRefMismatch(c, ref1, ref2, type);
+      LOGF(rebuild, "{} changed: expected {} and {} to refer to the same artifact", c, ref1, ref2);
+
+      c->currentRun()->observeChange(Scenario::Build);
+      c->currentRun()->observeChange(Scenario::PostBuild);
     }
   } else if (type == RefComparison::DifferentInstances) {
     if (ref1->getArtifact() == ref2->getArtifact()) {
-      observeRefMismatch(c, ref1, ref2, type);
+      LOGF(rebuild, "{} changed: expected {} and {} to refer to different artifacts", c, ref1,
+           ref2);
+
+      c->currentRun()->observeChange(Scenario::Build);
+      c->currentRun()->observeChange(Scenario::PostBuild);
     }
   } else {
     FAIL << "Unknown reference comparison type";
@@ -580,7 +574,11 @@ void Build::launch(const shared_ptr<Command>& c,
   }
 
   // If we're emulating the launch of an unexecuted command, notify observers
-  if (!child->hasExecuted()) observeCommandNeverRun(child);
+  if (!child->hasExecuted()) {
+    LOGF(rebuild, "{} changed: never run", child);
+    child->currentRun()->observeChange(Scenario::Build);
+    child->currentRun()->observeChange(Scenario::PostBuild);
+  }
 
   // Inform observers of the launch
   observeLaunch(c, child);

@@ -297,9 +297,6 @@ class Build : public TraceHandler, public BuildObserver {
 
   /********** Observer Interface **********/
 
-  /// Inform observers that a command has never run
-  virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept override;
-
   /// Inform observers that a parent command launched a child command
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept override;
@@ -328,12 +325,6 @@ class Build : public TraceHandler, public BuildObserver {
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,
                                     shared_ptr<Version> produced,
                                     shared_ptr<Version> ondisk) noexcept override;
-
-  /// Inform observers that two references did not compare as expected
-  virtual void observeRefMismatch(const shared_ptr<Command>& c,
-                                  shared_ptr<Ref> ref1,
-                                  shared_ptr<Ref> ref2,
-                                  RefComparison type) noexcept override;
 
   /// Inform observers that a command's exit code changed
   virtual void observeExitCodeChange(const shared_ptr<Command>& parent,

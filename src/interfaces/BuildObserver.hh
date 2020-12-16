@@ -55,15 +55,6 @@ class BuildObserver {
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept {}
 
-  /// A command has never been run
-  virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept {}
-
-  /// Two references did not compare as expected
-  virtual void observeRefMismatch(const shared_ptr<Command>& c,
-                                  shared_ptr<Ref> ref1,
-                                  shared_ptr<Ref> ref2,
-                                  RefComparison type) noexcept {}
-
   /// A child command did not exit with the expected status
   virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
                                      const shared_ptr<Command>& child,

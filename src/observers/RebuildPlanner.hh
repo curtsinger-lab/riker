@@ -111,24 +111,6 @@ class RebuildPlanner final : public BuildObserver {
     c->currentRun()->observeChange(scenario);
   }
 
-  /// Command c has never been run
-  virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept override final {
-    LOGF(rebuild, "{} changed: never run", c);
-    c->currentRun()->observeChange(Scenario::Build);
-    c->currentRun()->observeChange(Scenario::PostBuild);
-  }
-
-  /// Two references did not compare as expected
-  virtual void observeRefMismatch(const shared_ptr<Command>& c,
-                                  shared_ptr<Ref> ref1,
-                                  shared_ptr<Ref> ref2,
-                                  RefComparison type) noexcept override {
-    LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
-
-    c->currentRun()->observeChange(Scenario::Build);
-    c->currentRun()->observeChange(Scenario::PostBuild);
-  }
-
   /// A child command did not exit with the expected status
   virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
                                      const shared_ptr<Command>& child,
