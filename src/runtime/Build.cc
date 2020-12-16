@@ -90,14 +90,6 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   _observer.observeFinalMismatch(a, produced, ondisk);
 }
 
-// Inform observers that a reference did not resolve as expected
-void Build::observeResolutionChange(const shared_ptr<Command>& c,
-                                    Scenario scenario,
-                                    shared_ptr<Ref> ref,
-                                    int expected) noexcept {
-  _observer.observeResolutionChange(c, scenario, ref, expected);
-}
-
 // Inform observers that two references did not compare as expected
 void Build::observeRefMismatch(const shared_ptr<Command>& c,
                                shared_ptr<Ref> ref1,
@@ -392,7 +384,10 @@ void Build::expectResult(const shared_ptr<Command>& c,
   // Does the resolved reference match the expected result?
   auto ref = c->currentRun()->getRef(ref_id);
   if (ref->getResultCode() != expected) {
-    observeResolutionChange(c, scenario, ref, expected);
+    LOGF(rebuild,
+         "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
+         scenario, ref, expected, ref->getResultCode());
+    c->currentRun()->observeChange(scenario);
   }
 }
 

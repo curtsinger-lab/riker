@@ -139,6 +139,11 @@ shared_ptr<Command> Run::findChild(vector<string> args,
   return nullptr;
 }
 
+// This command observed a change in a given scenario
+void Run::observeChange(Scenario s) noexcept {
+  _changed.insert(s);
+}
+
 // Mark this command for re-execution
 bool Run::markForRerun(RerunReason reason) noexcept {
   // Is this command already marked?

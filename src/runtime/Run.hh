@@ -44,6 +44,14 @@ enum class InputType {
 };
 
 /**
+ * Predicates are tagged with specific scenarios where they apply.
+ *
+ * If all of a command's predicates in the Build scenario evaluate to true, the command does not
+ * directly observe any change. The same is true for the PostBuild scenario.
+ */
+enum class Scenario { Build, PostBuild };
+
+/**
  * Track data for a specific run of a command. This run could be emulated or traced.
  */
 class Run {
@@ -110,6 +118,12 @@ class Run {
   /// Check to see if this command was marked for re-execution after its previous run
   bool mustRerun() const noexcept;
 
+  /// This command observes a change in a given scenario
+  void observeChange(Scenario s) noexcept;
+
+  /// Get the set of scenarios where this command has observed a change
+  const set<Scenario>& getChanged() const noexcept { return _changed; }
+
   /// Track an input to this command
   void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
 
@@ -137,6 +151,9 @@ class Run {
 
   /// The exit status for this command
   int _exit_status = -1;
+
+  /// Keep track of the scenarios where this command has observed a change
+  set<Scenario> _changed;
 
   /// If this command is marked for re-execution, the optional will have a value
   optional<RerunReason> _rerun_reason;

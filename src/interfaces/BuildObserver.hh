@@ -58,12 +58,6 @@ class BuildObserver {
   /// A command has never been run
   virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept {}
 
-  /// A command's reference did not resolve as expected
-  virtual void observeResolutionChange(const shared_ptr<Command>& c,
-                                       Scenario scenario,
-                                       shared_ptr<Ref> ref,
-                                       int expected) noexcept {}
-
   /// Two references did not compare as expected
   virtual void observeRefMismatch(const shared_ptr<Command>& c,
                                   shared_ptr<Ref> ref1,

@@ -329,12 +329,6 @@ class Build : public TraceHandler, public BuildObserver {
                                     shared_ptr<Version> produced,
                                     shared_ptr<Version> ondisk) noexcept override;
 
-  /// Inform observers that a reference did not resolve as expected
-  virtual void observeResolutionChange(const shared_ptr<Command>& c,
-                                       Scenario scenario,
-                                       shared_ptr<Ref> ref,
-                                       int expected) noexcept override;
-
   /// Inform observers that two references did not compare as expected
   virtual void observeRefMismatch(const shared_ptr<Command>& c,
                                   shared_ptr<Ref> ref1,

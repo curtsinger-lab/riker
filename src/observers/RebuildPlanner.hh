@@ -45,8 +45,13 @@ class RebuildPlanner final : public BuildObserver {
   /// Get the set of commands that directly observe a change
   set<shared_ptr<Command>> getChanged() const noexcept {
     set<shared_ptr<Command>> changed;
-    std::set_intersection(_changed_build.begin(), _changed_build.end(), _changed_post_build.begin(),
-                          _changed_post_build.end(), std::inserter(changed, changed.begin()));
+
+    for (auto c : _commands) {
+      if (c->previousRun()->getChanged().size() == 2) {
+        changed.insert(c);
+      }
+    }
+
     return changed;
   }
 
@@ -103,39 +108,14 @@ class RebuildPlanner final : public BuildObserver {
     LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", c, scenario,
          a, expected, observed);
 
-    if (scenario == Scenario::Build) {
-      _changed_build.insert(c);
-    } else if (scenario == Scenario::PostBuild) {
-      _changed_post_build.insert(c);
-    } else {
-      _changed_build.insert(c);
-      _changed_post_build.insert(c);
-    }
+    c->currentRun()->observeChange(scenario);
   }
 
   /// Command c has never been run
   virtual void observeCommandNeverRun(const shared_ptr<Command>& c) noexcept override final {
     LOGF(rebuild, "{} changed: never run", c);
-    _changed_build.insert(c);
-    _changed_post_build.insert(c);
-  }
-
-  /// A command's reference did not resolve as expected
-  virtual void observeResolutionChange(const shared_ptr<Command>& c,
-                                       Scenario scenario,
-                                       shared_ptr<Ref> ref,
-                                       int expected) noexcept override {
-    LOGF(rebuild,
-         "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
-         scenario, ref, expected, ref->getResultCode());
-    if (scenario == Scenario::Build) {
-      _changed_build.insert(c);
-    } else if (scenario == Scenario::PostBuild) {
-      _changed_post_build.insert(c);
-    } else {
-      _changed_build.insert(c);
-      _changed_post_build.insert(c);
-    }
+    c->currentRun()->observeChange(Scenario::Build);
+    c->currentRun()->observeChange(Scenario::PostBuild);
   }
 
   /// Two references did not compare as expected
@@ -144,8 +124,9 @@ class RebuildPlanner final : public BuildObserver {
                                   shared_ptr<Ref> ref2,
                                   RefComparison type) noexcept override {
     LOGF(rebuild, "{} changed: {} and {} did not compare as expected", c, ref1, ref2);
-    _changed_build.insert(c);
-    _changed_post_build.insert(c);
+
+    c->currentRun()->observeChange(Scenario::Build);
+    c->currentRun()->observeChange(Scenario::PostBuild);
   }
 
   /// A child command did not exit with the expected status
@@ -155,8 +136,9 @@ class RebuildPlanner final : public BuildObserver {
                                      int observed) noexcept override {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
          parent, child, expected, observed);
-    _changed_build.insert(parent);
-    _changed_post_build.insert(parent);
+
+    parent->currentRun()->observeChange(Scenario::Build);
+    parent->currentRun()->observeChange(Scenario::PostBuild);
   }
 
   /// An artifact's final version does not match what is on the filesystem
@@ -179,6 +161,8 @@ class RebuildPlanner final : public BuildObserver {
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept override final {
+    _commands.insert(child);
+
     if (parent) _children[parent].insert(child);
   }
 
@@ -230,14 +214,11 @@ class RebuildPlanner final : public BuildObserver {
   }
 
  private:
+  /// Track all commands
+  set<shared_ptr<Command>> _commands;
+
   /// Track each command's children
   map<shared_ptr<Command>, set<shared_ptr<Command>>> _children;
-
-  /// Commands that have changed since the last build
-  set<shared_ptr<Command>> _changed_build;
-
-  /// Commands that have changed since their post-build state
-  set<shared_ptr<Command>> _changed_post_build;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;

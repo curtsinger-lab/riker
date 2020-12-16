@@ -19,14 +19,6 @@ using std::tuple;
 
 namespace fs = std::filesystem;
 
-/**
- * Predicates are tagged with specific scenarios where they apply.
- *
- * If all of a command's predicates in the Build scenario evaluate to true, the command does not
- * directly observe any change. The same is true for the PostBuild scenario.
- */
-enum class Scenario { Build, PostBuild };
-
 /// Unique IDs for the entities reachable via special references
 enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
 
