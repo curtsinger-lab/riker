@@ -76,6 +76,9 @@ void FileVersion::cache(const struct stat& statbuf,
                         BLAKE3Hash& hash,
                         fs::path path,
                         fs::path cache_dir) noexcept {
+  // Don't cache files that weren't created by the build
+  if (!getCreator()) return;
+
   // Path to cache file
   fs::path hash_file = cacheFilePath(hash, cache_dir);
   fs::path hash_dir = hash_file.parent_path();
