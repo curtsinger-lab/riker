@@ -88,14 +88,6 @@ void Build::observeFinalMismatch(shared_ptr<Artifact> a,
   _observer.observeFinalMismatch(a, produced, ondisk);
 }
 
-// Inform observers that a reference did not resolve as expected
-void Build::observeExitCodeChange(const shared_ptr<Command>& parent,
-                                  const shared_ptr<Command>& child,
-                                  int expected,
-                                  int observed) noexcept {
-  _observer.observeExitCodeChange(parent, child, expected, observed);
-}
-
 /************************ Handle IR steps from a loaded trace ************************/
 
 void Build::finish() noexcept {
@@ -658,7 +650,11 @@ void Build::join(const shared_ptr<Command>& c,
 
   // Did the child command's exit status match the expected result?
   if (child->currentRun()->getExitStatus() != exit_status) {
-    observeExitCodeChange(c, child, exit_status, child->currentRun()->getExitStatus());
+    LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
+         child, exit_status, child->currentRun()->getExitStatus());
+
+    c->currentRun()->observeChange(Scenario::Build);
+    c->currentRun()->observeChange(Scenario::PostBuild);
   }
 }
 

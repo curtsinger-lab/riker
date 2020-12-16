@@ -47,10 +47,4 @@ class BuildObserver {
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept {}
-
-  /// A child command did not exit with the expected status
-  virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
-                                     const shared_ptr<Command>& child,
-                                     int expected,
-                                     int observed) noexcept {}
 };

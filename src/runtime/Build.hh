@@ -326,12 +326,6 @@ class Build : public TraceHandler, public BuildObserver {
                                     shared_ptr<Version> produced,
                                     shared_ptr<Version> ondisk) noexcept override;
 
-  /// Inform observers that a command's exit code changed
-  virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
-                                     const shared_ptr<Command>& child,
-                                     int expected,
-                                     int observed) noexcept override;
-
  private:
   /// Is a particular command running?
   bool isRunning(const shared_ptr<Command>& c) const noexcept {

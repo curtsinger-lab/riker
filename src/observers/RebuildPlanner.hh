@@ -98,18 +98,6 @@ class RebuildPlanner final : public BuildObserver {
     }
   }
 
-  /// A child command did not exit with the expected status
-  virtual void observeExitCodeChange(const shared_ptr<Command>& parent,
-                                     const shared_ptr<Command>& child,
-                                     int expected,
-                                     int observed) noexcept override {
-    LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})",
-         parent, child, expected, observed);
-
-    parent->currentRun()->observeChange(Scenario::Build);
-    parent->currentRun()->observeChange(Scenario::PostBuild);
-  }
-
   /// An artifact's final version does not match what is on the filesystem
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,
                                     shared_ptr<Version> produced,
