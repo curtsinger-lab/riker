@@ -119,8 +119,6 @@ class RebuildPlanner final : public BuildObserver {
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept override final {
     _commands.insert(child);
-
-    if (parent) _children[parent].insert(child);
   }
 
  private:
@@ -149,10 +147,8 @@ class RebuildPlanner final : public BuildObserver {
     }
 
     // Mark this command's children
-    if (auto iter = _children.find(c); iter != _children.end()) {
-      for (const auto& child : iter->second) {
-        mark(child, RerunReason::Child, c);
-      }
+    for (const auto& child : c->previousRun()->getChildren()) {
+      mark(child->getCommand(), RerunReason::Child, c);
     }
 
     // Mark any commands that produce output that this command needs
@@ -173,9 +169,6 @@ class RebuildPlanner final : public BuildObserver {
  private:
   /// Track all commands
   set<shared_ptr<Command>> _commands;
-
-  /// Track each command's children
-  map<shared_ptr<Command>, set<shared_ptr<Command>>> _children;
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
