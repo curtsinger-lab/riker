@@ -57,8 +57,8 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
   virtual void save(fs::path path) noexcept {}
 
-  /// Check if this version has a saved copy
-  virtual bool isSaved() const noexcept {
+  /// Check if this version can be committed
+  virtual bool canCommit() const noexcept {
     // Versions are unsaved by default
     return false;
   }
