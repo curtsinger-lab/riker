@@ -10,7 +10,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
-#include "runtime/Run.hh"
+#include "runtime/CommandRun.hh"
 #include "versions/Version.hh"
 
 using std::cout;
@@ -90,20 +90,20 @@ bool Command::isMake() const noexcept {
 }
 
 // Get the command run data for the current run
-const shared_ptr<Run>& Command::currentRun() noexcept {
-  if (!_run) _run = make_shared<Run>(shared_from_this());
+const shared_ptr<CommandRun>& Command::currentRun() noexcept {
+  if (!_run) _run = make_shared<CommandRun>(shared_from_this());
   return _run;
 }
 
 // Get the command run data for the previous run
-const shared_ptr<Run>& Command::previousRun() noexcept {
-  if (!_last_run) _last_run = make_shared<Run>(shared_from_this());
+const shared_ptr<CommandRun>& Command::previousRun() noexcept {
+  if (!_last_run) _last_run = make_shared<CommandRun>(shared_from_this());
   return _last_run;
 }
 
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
   // Create a new Run struct in _last_run, then swap them
-  _last_run = make_shared<Run>(shared_from_this());
+  _last_run = make_shared<CommandRun>(shared_from_this());
   std::swap(_run, _last_run);
 }

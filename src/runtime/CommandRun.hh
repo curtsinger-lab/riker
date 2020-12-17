@@ -54,10 +54,10 @@ enum class Scenario { Build, PostBuild };
 /**
  * Track data for a specific run of a command. This run could be emulated or traced.
  */
-class Run {
+class CommandRun {
  public:
-  /// Create a Run with a back pointer to its owning command
-  Run(weak_ptr<Command> command) noexcept : _command(command) {}
+  /// Create a CommandRun with a back pointer to its owning command
+  CommandRun(weak_ptr<Command> command) noexcept : _command(command) {}
 
   /// Get the command that produced this Run
   shared_ptr<Command> getCommand() const noexcept;

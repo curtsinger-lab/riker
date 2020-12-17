@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "data/AccessFlags.hh"
-#include "runtime/Run.hh"
+#include "runtime/Ref.hh"
 #include "versions/Version.hh"
 
 using std::list;
@@ -31,7 +31,7 @@ namespace fs = std::filesystem;
 class Artifact;
 class Build;
 class BuildObserver;
-class Run;
+class CommandRun;
 class Ref;
 class Step;
 
@@ -100,10 +100,10 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// Get the transient data for this command's current run
-  const shared_ptr<Run>& currentRun() noexcept;
+  const shared_ptr<CommandRun>& currentRun() noexcept;
 
   /// Get the transient data for this command's previous run
-  const shared_ptr<Run>& previousRun() noexcept;
+  const shared_ptr<CommandRun>& previousRun() noexcept;
 
   /// Finish the current run of this command. This moves the run data to last_run.
   void finishRun() noexcept;
@@ -136,8 +136,8 @@ class Command : public std::enable_shared_from_this<Command> {
   bool _executed = false;
 
   /// Transient data for the current run
-  shared_ptr<Run> _run;
+  shared_ptr<CommandRun> _run;
 
   /// Transient data for the last run
-  shared_ptr<Run> _last_run;
+  shared_ptr<CommandRun> _last_run;
 };

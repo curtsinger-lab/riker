@@ -16,7 +16,7 @@ using std::weak_ptr;
 class Artifact;
 class Build;
 class Command;
-class Run;
+class CommandRun;
 class TraceHandler;
 
 namespace fs = std::filesystem;
@@ -43,10 +43,10 @@ class Version : public std::enable_shared_from_this<Version> {
   }
 
   /// Get the command that created this version
-  shared_ptr<Run> getCreator() const noexcept { return _creator.lock(); }
+  shared_ptr<CommandRun> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<Run> r) noexcept { _creator = r; }
+  void createdBy(shared_ptr<CommandRun> r) noexcept { _creator = r; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
@@ -102,5 +102,5 @@ class Version : public std::enable_shared_from_this<Version> {
   bool _committed = false;
 
   /// The command run that created this version
-  weak_ptr<Run> _creator;
+  weak_ptr<CommandRun> _creator;
 };
