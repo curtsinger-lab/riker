@@ -56,7 +56,7 @@ void Build::observeInput(const shared_ptr<Command>& c,
   // If the accessing command is running, make sure this file is available.
   // One exception is when a command accesses its own output; we can skip that case because the
   // output will eventually be marked as committed.
-  if (c->previousRun()->mustRerun() && !v->isCommitted() && v->getCreator() != c) {
+  if (c->previousRun()->mustRerun() && !v->isCommitted() && v->getCreator() != c->currentRun()) {
     // The command c is running, and needs uncommitted version v. We can commit it now
     ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
                             << v << " of " << a;
@@ -458,7 +458,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c);
+  written->createdBy(c->currentRun());
 
   // Apply the write
   ref->getArtifact()->updateMetadata(*this, c, written);
@@ -490,7 +490,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c);
+  written->createdBy(c->currentRun());
 
   // Apply the write
   ref->getArtifact()->updateContent(*this, c, written);
@@ -890,7 +890,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (creator != c) {
+  if (creator != c->currentRun()) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
@@ -922,7 +922,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (creator != c) {
+  if (creator != c->currentRun()) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
@@ -953,7 +953,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
   _output.updateMetadata(c, ref_id, written);
 
   // The calling command created this version
-  written->createdBy(c);
+  written->createdBy(c->currentRun());
 
   // This apply operation was traced, so the written version is committed
   written->setCommitted();
@@ -985,7 +985,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   written->setCommitted();
 
   // The calling command created this version
-  written->createdBy(c);
+  written->createdBy(c->currentRun());
 
   // Update the artifact's content
   artifact->updateContent(*this, c, written);

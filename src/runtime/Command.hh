@@ -100,10 +100,10 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// Get the transient data for this command's current run
-  const unique_ptr<Run>& currentRun() noexcept;
+  const shared_ptr<Run>& currentRun() noexcept;
 
   /// Get the transient data for this command's previous run
-  const unique_ptr<Run>& previousRun() noexcept;
+  const shared_ptr<Run>& previousRun() noexcept;
 
   /// Finish the current run of this command. This moves the run data to last_run.
   void finishRun() noexcept;
@@ -136,8 +136,8 @@ class Command : public std::enable_shared_from_this<Command> {
   bool _executed = false;
 
   /// Transient data for the current run
-  unique_ptr<Run> _run;
+  shared_ptr<Run> _run;
 
   /// Transient data for the last run
-  unique_ptr<Run> _last_run;
+  shared_ptr<Run> _last_run;
 };

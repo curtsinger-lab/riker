@@ -76,14 +76,14 @@ class RebuildPlanner final : public BuildObserver {
 
         // make needs the output from the creator if we need to rerun it, but don't add make to the
         // creator's set of commands that it will mark for rerun
-        _needs_output_from[c].insert(v->getCreator());
+        _needs_output_from[c].insert(v->getCreator()->getCommand());
         return;
       }
 
       // Output from creator is used by c. If creator reruns, c may have to rerun.
       // This is not true for inputs that just require the version to exist
       if (t != InputType::Exists) {
-        _output_used_by[v->getCreator()].insert(c);
+        _output_used_by[v->getCreator()->getCommand()].insert(c);
       }
 
       // The dependency back edge depends on caching
@@ -93,7 +93,7 @@ class RebuildPlanner final : public BuildObserver {
 
       } else {
         // Otherwise, if c has to run then we also need to run creator to produce this input
-        _needs_output_from[c].insert(v->getCreator());
+        _needs_output_from[c].insert(v->getCreator()->getCommand());
       }
     }
   }
@@ -109,10 +109,10 @@ class RebuildPlanner final : public BuildObserver {
     if (options::enable_cache && a->canCommit(produced)) return;
 
     // Otherwise we have to run the command that created this artifact
-    _output_needed.insert(produced->getCreator());
+    _output_needed.insert(produced->getCreator()->getCommand());
 
     LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
-         produced->getCreator(), a, produced, ondisk);
+         produced->getCreator()->getCommand(), a, produced, ondisk);
   }
 
   /// A command is being launched. The parent will be null if this is the root command.

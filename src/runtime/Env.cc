@@ -166,7 +166,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c);
+    mv->createdBy(c->currentRun());
     build.observeOutput(c, pipe, mv);
   }
 
@@ -195,10 +195,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c);
+    mv->createdBy(c->currentRun());
     build.observeOutput(c, symlink, mv);
 
-    sv->createdBy(c);
+    sv->createdBy(c->currentRun());
     build.observeOutput(c, symlink, sv);
   }
 
@@ -231,10 +231,10 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c);
+    mv->createdBy(c->currentRun());
     build.observeOutput(c, dir, mv);
 
-    dv->createdBy(c);
+    dv->createdBy(c->currentRun());
     build.observeOutput(c, dir, dv);
   }
 
@@ -258,13 +258,13 @@ shared_ptr<Artifact> Env::createFile(Build& build,
 
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
-  mv->createdBy(creator);
+  mv->createdBy(creator->currentRun());
   if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<FileVersion>();
   cv->makeEmptyFingerprint();
-  cv->createdBy(creator);
+  cv->createdBy(creator->currentRun());
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it

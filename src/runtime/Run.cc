@@ -4,6 +4,11 @@
 #include "artifacts/PipeArtifact.hh"
 #include "runtime/Ref.hh"
 
+// Get the command that produced this Run
+shared_ptr<Command> Run::getCommand() const noexcept {
+  return _command.lock();
+}
+
 // Prepare this command to execute by creating dependencies and committing state
 void Run::createLaunchDependencies(Build& build) noexcept {
   for (Ref::ID id = 0; id < _refs.size(); id++) {

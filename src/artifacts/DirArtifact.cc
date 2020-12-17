@@ -397,7 +397,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
 
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
-  writing->createdBy(c);
+  writing->createdBy(c->currentRun());
 
   // For this link to be committed, we need the artifact to exist or be committable
   target->mustExist(build, c);
@@ -424,7 +424,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(Build& build,
                                                 shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
-  writing->createdBy(c);
+  writing->createdBy(c->currentRun());
 
   // Do we have a record of an entry with the given name?
   auto iter = _entries.find(entry);

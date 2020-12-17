@@ -59,6 +59,9 @@ class Run {
   /// Create a Run with a back pointer to its owning command
   Run(weak_ptr<Command> command) noexcept : _command(command) {}
 
+  /// Get the command that produced this Run
+  shared_ptr<Command> getCommand() const noexcept;
+
   /// Get a reference from this command's reference table
   const shared_ptr<Ref>& getRef(Ref::ID id) const noexcept;
 
