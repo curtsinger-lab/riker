@@ -90,10 +90,10 @@ class CommandRun {
    * Remember that this command launched a child command. This is used on the next run to match
    * launched children against commands fromn the previous run.
    */
-  void addChild(shared_ptr<Command> child) noexcept;
+  void addChild(shared_ptr<CommandRun> child) noexcept;
 
   /// Get this command's list of children
-  const list<shared_ptr<Command>>& getChildren() const noexcept;
+  const list<shared_ptr<CommandRun>>& getChildren() const noexcept;
 
   /**
    * Look through this command's children from the last run to see if there is a child that matches
@@ -150,7 +150,10 @@ class CommandRun {
   vector<size_t> _refs_use_count;
 
   /// The children launched by this command
-  list<shared_ptr<Command>> _children;
+  list<shared_ptr<CommandRun>> _children;
+
+  /// Has this command run already been matched against a new command launch?
+  bool _matched = false;
 
   /// The exit status for this command
   int _exit_status = -1;

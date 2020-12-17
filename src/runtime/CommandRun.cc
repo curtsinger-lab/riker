@@ -112,12 +112,12 @@ void CommandRun::setExitStatus(int status) noexcept {
 }
 
 // Record that this command launched a child command
-void CommandRun::addChild(shared_ptr<Command> child) noexcept {
+void CommandRun::addChild(shared_ptr<CommandRun> child) noexcept {
   _children.push_back(child);
 }
 
 // Get this command's children
-const list<shared_ptr<Command>>& CommandRun::getChildren() const noexcept {
+const list<shared_ptr<CommandRun>>& CommandRun::getChildren() const noexcept {
   return _children;
 }
 
@@ -128,15 +128,13 @@ shared_ptr<Command> CommandRun::findChild(vector<string> args,
                                           Ref::ID root_ref,
                                           map<int, Ref::ID> fds) noexcept {
   // Loop over this command's children from the last run
-  for (auto iter = _children.begin(); iter != _children.end(); iter++) {
-    const auto& child = *iter;
-
+  for (auto& child : _children) {
     // Does the child match the given launch parameters?
     // TODO: Check more than just arguments
-    if (child->getArguments() == args) {
-      // Removed the child from the list so it cannot be matched again
-      _children.erase(iter);
-      return child;
+    if (!child->_matched && child->getCommand()->getArguments() == args) {
+      // Mark the command as matched so we don't match it again
+      child->_matched = true;
+      return child->getCommand();
     }
   }
 
