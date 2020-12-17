@@ -13,7 +13,7 @@
 #include "util/log.hh"
 
 // Is this version saved in a way that can be committed?
-bool FileVersion::isSaved() const noexcept {
+bool FileVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
   return _empty;
 }
@@ -22,7 +22,7 @@ bool FileVersion::isSaved() const noexcept {
 void FileVersion::commit(fs::path path, mode_t mode) noexcept {
   if (isCommitted()) return;
 
-  ASSERT(isSaved()) << "Attempted to commit unsaved version " << this << " to " << path;
+  ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
 
   int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
   FAIL_IF(fd < 0) << "Failed to commit empty file version: " << ERR;

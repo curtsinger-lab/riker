@@ -49,7 +49,7 @@ class PipeCloseVersion : public PipeWriteVersion {
   }
 
   /// Pipe closes can always be committed
-  virtual bool isSaved() const noexcept override { return true; }
+  virtual bool canCommit() const noexcept override { return true; }
 
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe close]"; }

@@ -23,7 +23,7 @@ FileArtifact::FileArtifact(shared_ptr<Env> env,
 
 bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
   if (v == _content_version) {
-    return _content_version->isSaved();
+    return _content_version->canCommit();
   } else if (v == _metadata_version) {
     return _metadata_version->canCommit();
   } else {
@@ -50,7 +50,7 @@ bool FileArtifact::canCommitAll() const noexcept {
   // Can the metadata version be committed?
   if (!_metadata_version->canCommit()) return false;
 
-  return _content_version->isSaved();
+  return _content_version->canCommit();
 }
 
 /// Commit all final versions of this artifact to the filesystem

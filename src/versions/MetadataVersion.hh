@@ -89,23 +89,17 @@ class MetadataVersion final : public Version {
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "metadata"; }
 
-  /// Is this version saved in a way that can be committed?
-  bool canCommit() const noexcept;
-
   /// Commit this version to the filesystem
   void commit(fs::path path, bool commit_permissions = true) noexcept;
 
   /// Save the on-disk state to this version for later commit
   virtual void save(fs::path path) noexcept override;
 
-  /// Check if this version has a saved copy
-  virtual bool isSaved() const noexcept override { return _metadata.has_value(); }
-
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override { save(path); }
 
-  /// Check if this version has a fingerprint
-  // virtual bool hasFingerprint() const noexcept override { return isSaved(); }
+  /// Check if this version can be committed
+  bool canCommit() const noexcept override;
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

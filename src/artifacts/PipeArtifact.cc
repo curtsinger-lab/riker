@@ -45,7 +45,7 @@ bool PipeReadVersion::matches(shared_ptr<Version> other) const noexcept {
 
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  return v->isCommitted() || v->isSaved();
+  return v->isCommitted() || v->canCommit();
 }
 
 // Can this artifact be fully committed?

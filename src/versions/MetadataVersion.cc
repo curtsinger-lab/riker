@@ -104,7 +104,7 @@ mode_t MetadataVersion::getMode() const noexcept {
   return _metadata.value().mode;
 }
 
-// Can this version be committed?
+/// Check if this version can be committed
 bool MetadataVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
   return _metadata.has_value();
