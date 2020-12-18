@@ -54,7 +54,7 @@ enum class Scenario { Build, PostBuild };
 /**
  * Track data for a specific run of a command. This run could be emulated or traced.
  */
-class CommandRun {
+class CommandRun : public std::enable_shared_from_this<CommandRun> {
  public:
   /// Create a CommandRun with a back pointer to its owning command
   CommandRun(weak_ptr<Command> command) noexcept : _command(command) {}
@@ -90,10 +90,10 @@ class CommandRun {
    * Remember that this command launched a child command. This is used on the next run to match
    * launched children against commands fromn the previous run.
    */
-  void addChild(shared_ptr<Command> child) noexcept;
+  void addChild(shared_ptr<CommandRun> child) noexcept;
 
   /// Get this command's list of children
-  const list<shared_ptr<Command>>& getChildren() const noexcept;
+  const list<shared_ptr<CommandRun>>& getChildren() const noexcept;
 
   /**
    * Look through this command's children from the last run to see if there is a child that matches
@@ -115,14 +115,20 @@ class CommandRun {
 
   /****** Dependency Tracking and Rebuild Planning ******/
 
-  /// Mark this command for rerun. Returns true if this is a new marking.
-  bool markForRerun(RerunReason reason) noexcept;
+  /// Plan the rebuild state for this command
+  void planBuild() noexcept;
 
   /// Check to see if this command was marked for re-execution after its previous run
   bool mustRerun() const noexcept;
 
   /// This command observes a change in a given scenario
   void observeChange(Scenario s) noexcept;
+
+  /// An input to this command did not match the expected version
+  void inputChanged(shared_ptr<Artifact> artifact,
+                    shared_ptr<Version> observed,
+                    shared_ptr<Version> expected,
+                    Scenario scenario) noexcept;
 
   /// Get the set of scenarios where this command has observed a change
   const set<Scenario>& getChanged() const noexcept { return _changed; }
@@ -131,13 +137,30 @@ class CommandRun {
   void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
 
   /// Get the inputs to this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept {
+    return _inputs;
+  }
 
   /// Track an output from this command
   void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
 
   /// Get the outputs from this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept {
+    return _outputs;
+  }
+
+  /// Get the users of this command's outputs
+  const set<shared_ptr<CommandRun>>& getOutputUsers() const noexcept { return _output_used_by; }
+
+  /// An output from this command does not match the on-disk state (checked at the end of the build)
+  void outputChanged(shared_ptr<Artifact> artifact,
+                     shared_ptr<Version> ondisk,
+                     shared_ptr<Version> expected) noexcept;
+
+ private:
+  /// Mark this command for rerun. If set, the previous pointer keeps track of which command run
+  /// caused this marking.
+  void markForRerun(RerunReason reason, shared_ptr<CommandRun> prev = nullptr) noexcept;
 
  private:
   /// The command this run is associated with
@@ -150,7 +173,10 @@ class CommandRun {
   vector<size_t> _refs_use_count;
 
   /// The children launched by this command
-  list<shared_ptr<Command>> _children;
+  list<shared_ptr<CommandRun>> _children;
+
+  /// Has this command run already been matched against a new command launch?
+  bool _matched = false;
 
   /// The exit status for this command
   int _exit_status = -1;
@@ -166,4 +192,7 @@ class CommandRun {
 
   /// The set of outputs from this command
   set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> _outputs;
+
+  /// The set of command runs that use this command's outputs
+  set<shared_ptr<CommandRun>> _output_used_by;
 };

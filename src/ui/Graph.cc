@@ -37,7 +37,7 @@ string Graph2::addCommand(shared_ptr<Command> c) noexcept {
 
   // Add this command's children
   for (auto& child : c->previousRun()->getChildren()) {
-    auto child_id = addCommand(child);
+    auto child_id = addCommand(child->getCommand());
     _command_edges.emplace(command_id, child_id);
   }
 

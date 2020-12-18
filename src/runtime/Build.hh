@@ -9,8 +9,7 @@
 
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "interfaces/BuildObserver.hh"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
@@ -28,15 +27,13 @@ class Version;
 
 /**
  * A Build instance manages the execution of a build. This instance is responsible for setting up
- * the build environment, emulating or running each of the commands, and notifying any observers of
- * dependencies and changes detected during the build.
+ * the build environment, emulating or running each of the commands, and concluding the build.
  */
-class Build : public TraceHandler, public BuildObserver {
+class Build : public TraceHandler {
  private:
   /// Create a build runner
-  Build(bool commit, BuildObserver& observer, TraceHandler& output, fs::path cache_dir) noexcept :
+  Build(bool commit, TraceHandler& output, fs::path cache_dir) noexcept :
       _commit(commit),
-      _observer(observer),
       _output(output),
       _env(make_shared<Env>()),
       _tracer(*this),
@@ -44,19 +41,13 @@ class Build : public TraceHandler, public BuildObserver {
 
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate(fs::path cache_dir,
-                       BuildObserver& observer = _default_observer,
-                       TraceHandler& output = _default_output) noexcept {
-    return Build(false, observer, output, cache_dir);
-  }
-
-  static Build emulate(fs::path cache_dir, TraceHandler& output) noexcept {
-    return Build(false, _default_observer, output, cache_dir);
+  static Build emulate(fs::path cache_dir, TraceHandler& output = _default_output) noexcept {
+    return Build(false, output, cache_dir);
   }
 
   /// Create a build runner that executes a rebuild plan
   static Build rebuild(fs::path cache_dir, TraceHandler& output = _default_output) noexcept {
-    return Build(true, _default_observer, output, cache_dir);
+    return Build(true, output, cache_dir);
   }
 
   // Disallow Copy
@@ -295,37 +286,6 @@ class Build : public TraceHandler, public BuildObserver {
   /// A command has exited with an exit code
   void traceExit(const shared_ptr<Command>& c, int exit_status) noexcept;
 
-  /********** Observer Interface **********/
-
-  /// Inform observers that a parent command launched a child command
-  virtual void observeLaunch(const shared_ptr<Command>& parent,
-                             const shared_ptr<Command>& child) noexcept override;
-
-  /// Inform observers that command c modified artifact a, creating version v
-  virtual void observeOutput(const shared_ptr<Command>& c,
-                             shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) noexcept override;
-
-  /// Inform observers that command c accessed version v of artifact a
-  virtual void observeInput(const shared_ptr<Command>& c,
-                            shared_ptr<Artifact> a,
-                            shared_ptr<Version> v,
-                            InputType t) noexcept override;
-
-  /// Inform observers that command c did not find the expected version in artifact a
-  /// Instead of version `expected`, the command found version `observed`
-  void observeMismatch(const shared_ptr<Command>& c,
-                       Scenario scenario,
-                       shared_ptr<Artifact> a,
-                       shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) noexcept;
-
-  /// Inform observers that the version of an artifact produced during the build does not match
-  /// the on-disk version.
-  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
-                                    shared_ptr<Version> produced,
-                                    shared_ptr<Version> ondisk) noexcept override;
-
  private:
   /// Is a particular command running?
   bool isRunning(const shared_ptr<Command>& c) const noexcept {
@@ -354,9 +314,6 @@ class Build : public TraceHandler, public BuildObserver {
   /// Should this build commit the environment to the filesystem when it's finished?
   bool _commit;
 
-  /// The observers that should be notified of dependency and change information during the build
-  BuildObserver& _observer;
-
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   TraceHandler& _output;
 
@@ -372,9 +329,6 @@ class Build : public TraceHandler, public BuildObserver {
   /// A map of launched commands to the root process running that command, or nullptr if it is
   /// only being emulated
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
-
-  /// The default observer is used if an observer is not provided during setup
-  inline static BuildObserver _default_observer;
 
   /// The default output is used if a trace handler is not provided during setup
   inline static TraceHandler _default_output;

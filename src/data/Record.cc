@@ -3,7 +3,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/InputTrace.hh"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "versions/DirListVersion.hh"
 #include "versions/FileVersion.hh"

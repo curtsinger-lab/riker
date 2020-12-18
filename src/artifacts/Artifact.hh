@@ -10,7 +10,7 @@
 #include <tuple>
 
 #include "data/AccessFlags.hh"
-#include "interfaces/BuildObserver.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
@@ -95,7 +95,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param flags The flags that encode whether this is a read, write, and/or execute access
    * \returns true if the access is allowed, or false otherwise
    */
-  bool checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept;
+  bool checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -115,13 +115,13 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void commitAll() noexcept = 0;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept = 0;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept;
+  virtual void checkFinalState(fs::path path, fs::path cache_dir) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept;
+  virtual void applyFinalState(fs::path path, fs::path cache_dir) noexcept;
 
   /// Mark all versions and paths to this artifact as committed
   virtual void setCommitted() noexcept;
@@ -158,9 +158,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(BuildObserver& o,
-                                          const shared_ptr<Command>& c,
-                                          InputType t) noexcept;
+  shared_ptr<MetadataVersion> getMetadata(const shared_ptr<Command>& c, InputType t) noexcept;
 
   /// Get the current metadata without recording any dependencies
   shared_ptr<MetadataVersion> peekMetadata() noexcept;
@@ -173,7 +171,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Apply a new metadata version to this artifact
   shared_ptr<MetadataVersion> updateMetadata(
-      Build& build,
       const shared_ptr<Command>& c,
       shared_ptr<MetadataVersion> writing = nullptr) noexcept;
 
@@ -229,8 +226,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
-  virtual shared_ptr<DirVersion> addEntry(Build& build,
-                                          const shared_ptr<Command>& c,
+  virtual shared_ptr<DirVersion> addEntry(const shared_ptr<Command>& c,
                                           fs::path entry,
                                           shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to add an entry to non-directory artifact " << this;
@@ -238,8 +234,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Remove a directory entry from this artifact
-  virtual shared_ptr<DirVersion> removeEntry(Build& build,
-                                             const shared_ptr<Command>& c,
+  virtual shared_ptr<DirVersion> removeEntry(const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to remove an entry from non-directory artifact " << this;
@@ -248,7 +243,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /**
    * Resolve a path relative to this artifact
-   * \param build The running build that issued this request
    * \param c     The command this resolution is performed on behalf of
    * \param path  The path being resolved
    * \param flags The access mode requested
@@ -256,18 +250,16 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param symlink_limit Don't follow symlinks deeper than this number of levels
    * \returns a resolution result, which is either an artifact or an error code
    */
-  Ref resolve(Build& build,
-              const shared_ptr<Command>& c,
+  Ref resolve(const shared_ptr<Command>& c,
               fs::path path,
               AccessFlags flags,
               fs::path cache_dir,
               size_t symlink_limit = 40) noexcept {
-    return resolve(build, c, nullptr, path.begin(), path.end(), flags, cache_dir, symlink_limit);
+    return resolve(c, nullptr, path.begin(), path.end(), flags, cache_dir, symlink_limit);
   }
 
   /**
    * Resolve a path relative to this artifact.
-   * \param build     The running build that issued this request
    * \param c         The command this resolution is performed on behalf of
    * \param prev      The previously-visited artifact along this path. This won't always be the
    *                    parent directory, since paths can include ".." entries
@@ -278,8 +270,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param symlink_limit Don't follow symlinks deeper than this number of levels
    * \returns a resolution result, which is either an artifact or an error code
    */
-  virtual Ref resolve(Build& build,
-                      const shared_ptr<Command>& c,
+  virtual Ref resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

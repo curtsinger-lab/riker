@@ -15,7 +15,7 @@
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 

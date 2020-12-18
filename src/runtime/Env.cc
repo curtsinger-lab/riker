@@ -29,27 +29,27 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-shared_ptr<PipeArtifact> Env::getStdin(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStdin(const shared_ptr<Command>& c) noexcept {
   if (!_stdin) {
-    _stdin = getPipe(build, c);
+    _stdin = getPipe(c);
     _stdin->setFDs(0, -1);
     _stdin->setName("stdin");
   }
   return _stdin;
 }
 
-shared_ptr<PipeArtifact> Env::getStdout(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStdout(const shared_ptr<Command>& c) noexcept {
   if (!_stdout) {
-    _stdout = getPipe(build, c);
+    _stdout = getPipe(c);
     _stdout->setFDs(-1, 1);
     _stdout->setName("stdout");
   }
   return _stdout;
 }
 
-shared_ptr<PipeArtifact> Env::getStderr(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStderr(const shared_ptr<Command>& c) noexcept {
   if (!_stderr) {
-    _stderr = getPipe(build, c);
+    _stderr = getPipe(c);
     _stderr->setFDs(-1, 2);
     _stderr->setName("stderr");
   }
@@ -152,7 +152,7 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, fs::path cache_di
   return a;
 }
 
-shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   // Create a manufactured stat buffer for the new pipe
   uid_t uid = getuid();
   gid_t gid = getgid();
@@ -167,7 +167,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, pipe, mv);
+    c->currentRun()->addOutput(pipe, mv);
   }
 
   _artifacts.insert(pipe);
@@ -175,8 +175,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c
   return pipe;
 }
 
-shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
-                                            const shared_ptr<Command>& c,
+shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
                                             fs::path target,
                                             bool committed) noexcept {
   // Create a manufactured stat buffer for the new symlink
@@ -196,10 +195,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, symlink, mv);
+    c->currentRun()->addOutput(symlink, mv);
 
     sv->createdBy(c->currentRun());
-    build.observeOutput(c, symlink, sv);
+    c->currentRun()->addOutput(symlink, sv);
   }
 
   _artifacts.insert(symlink);
@@ -207,8 +206,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
   return symlink;
 }
 
-shared_ptr<DirArtifact> Env::getDir(Build& build,
-                                    const shared_ptr<Command>& c,
+shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
                                     mode_t mode,
                                     bool committed) noexcept {
   // Get the current umask
@@ -232,10 +230,10 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, dir, mv);
+    c->currentRun()->addOutput(dir, mv);
 
     dv->createdBy(c->currentRun());
-    build.observeOutput(c, dir, dv);
+    c->currentRun()->addOutput(dir, dv);
   }
 
   _artifacts.insert(dir);
@@ -243,8 +241,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   return dir;
 }
 
-shared_ptr<Artifact> Env::createFile(Build& build,
-                                     const shared_ptr<Command>& creator,
+shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
                                      mode_t mode,
                                      bool committed) noexcept {
   // Get the current umask
@@ -258,21 +255,21 @@ shared_ptr<Artifact> Env::createFile(Build& build,
 
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
-  mv->createdBy(creator->currentRun());
+  mv->createdBy(c->currentRun());
   if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<FileVersion>();
   cv->makeEmptyFingerprint();
-  cv->createdBy(creator->currentRun());
+  cv->createdBy(c->currentRun());
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it
   auto artifact = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   // Observe output to metadata and content for the new file
-  build.observeOutput(creator, artifact, mv);
-  build.observeOutput(creator, artifact, cv);
+  c->currentRun()->addOutput(artifact, mv);
+  c->currentRun()->addOutput(artifact, cv);
 
   _artifacts.insert(artifact);
 

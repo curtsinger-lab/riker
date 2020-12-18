@@ -4,7 +4,6 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -68,13 +67,13 @@ void FileArtifact::commitAll() noexcept {
 }
 
 /// Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
+void FileArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Exists);
 }
 
 /// Compare all final versions of this artifact to the filesystem state
-void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void FileArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
@@ -83,7 +82,9 @@ void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_d
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
       // Yes. Report the mismatch
-      build.observeFinalMismatch(shared_from_this(), _content_version, v);
+      auto creator = _content_version->getCreator();
+      if (creator) creator->outputChanged(shared_from_this(), v, _content_version);
+
     } else {
       // No. We can treat the content version as if it is committed
       _content_version->setCommitted();
@@ -91,11 +92,11 @@ void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_d
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path, cache_dir);
+  Artifact::checkFinalState(path, cache_dir);
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void FileArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // Make sure the content is committed
   _content_version->commit(path);
 
@@ -103,7 +104,7 @@ void FileArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_d
   _content_version->fingerprint(path, cache_dir);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState(build, path, cache_dir);
+  Artifact::applyFinalState(path, cache_dir);
 }
 
 void FileArtifact::setCommitted() noexcept {
@@ -119,7 +120,7 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The current content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -128,7 +129,7 @@ void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -170,12 +171,14 @@ void FileArtifact::matchContent(Build& build,
                                 Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, _content_version);
     // Report the mismatch
-    build.observeMismatch(c, scenario, shared_from_this(), _content_version, expected);
+    c->currentRun()->inputChanged(shared_from_this(), _content_version, expected, scenario);
   }
 }
 
@@ -191,5 +194,5 @@ void FileArtifact::updateContent(Build& build,
                              << this;
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), writing);
+  c->currentRun()->addOutput(shared_from_this(), writing);
 }

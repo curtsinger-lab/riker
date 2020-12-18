@@ -44,13 +44,13 @@ class Env : public std::enable_shared_from_this<Env> {
   Env& operator=(const Env&) = delete;
 
   /// Get the standard input pipe
-  shared_ptr<PipeArtifact> getStdin(Build& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<PipeArtifact> getStdin(const shared_ptr<Command>& c) noexcept;
 
   /// Get the standard output pipe
-  shared_ptr<PipeArtifact> getStdout(Build& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<PipeArtifact> getStdout(const shared_ptr<Command>& c) noexcept;
 
   /// Get the standard error pipe
-  shared_ptr<PipeArtifact> getStderr(Build& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<PipeArtifact> getStderr(const shared_ptr<Command>& c) noexcept;
 
   /// Get the root directory
   shared_ptr<DirArtifact> getRootDir(fs::path cache_dir) noexcept;
@@ -74,7 +74,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param c The command that creates the pipe
    * \returns a pipe artifact
    */
-  shared_ptr<PipeArtifact> getPipe(Build& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<PipeArtifact> getPipe(const shared_ptr<Command>& c) noexcept;
 
   /**
    * Create a symlink artifact
@@ -83,8 +83,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param committed If true, the symlink is already committed
    * \returns a symlink artifact
    */
-  shared_ptr<SymlinkArtifact> getSymlink(Build& build,
-                                         const shared_ptr<Command>& c,
+  shared_ptr<SymlinkArtifact> getSymlink(const shared_ptr<Command>& c,
                                          fs::path target,
                                          bool committed) noexcept;
 
@@ -95,8 +94,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param committed If true, the directory is already committed
    * \returns a directory artifact
    */
-  shared_ptr<DirArtifact> getDir(Build& build,
-                                 const shared_ptr<Command>& c,
+  shared_ptr<DirArtifact> getDir(const shared_ptr<Command>& c,
                                  mode_t mode,
                                  bool committed) noexcept;
 
@@ -106,8 +104,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param creator The command that creates this file
    * \returns a file artifact
    */
-  shared_ptr<Artifact> createFile(Build& build,
-                                  const shared_ptr<Command>& creator,
+  shared_ptr<Artifact> createFile(const shared_ptr<Command>& creator,
                                   mode_t mode,
                                   bool committed) noexcept;
 

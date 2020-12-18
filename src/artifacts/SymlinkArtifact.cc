@@ -39,12 +39,15 @@ void SymlinkArtifact::matchContent(Build& build,
                                    Scenario scenario,
                                    shared_ptr<Version> expected) noexcept {
   // The symlink version is an input to command c
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, _symlink_version);
+
     // Report the mismatch
-    build.observeMismatch(c, scenario, shared_from_this(), _symlink_version, expected);
+    c->currentRun()->inputChanged(shared_from_this(), _symlink_version, expected, scenario);
   }
 }
 
@@ -87,34 +90,33 @@ void SymlinkArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void SymlinkArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::Exists);
+void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Exists);
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path, cache_dir);
+  Artifact::checkFinalState(path, cache_dir);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(build, path, cache_dir);
+  Artifact::applyFinalState(path, cache_dir);
 }
 
-Ref SymlinkArtifact::resolve(Build& build,
-                             const shared_ptr<Command>& c,
+Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
@@ -136,7 +138,7 @@ Ref SymlinkArtifact::resolve(Build& build,
   }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::PathResolution);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();
@@ -149,14 +151,13 @@ Ref SymlinkArtifact::resolve(Build& build,
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(build, c, dest, flags, cache_dir, symlink_limit - 1);
+    return prev->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
 
   } else {
     // Strip the leading slash from the path
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return getEnv()->getRootDir(cache_dir)->resolve(build, c, dest, flags, cache_dir,
-                                                    symlink_limit - 1);
+    return getEnv()->getRootDir(cache_dir)->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
   }
 }

@@ -39,13 +39,13 @@ class SymlinkArtifact : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
+  virtual void checkFinalState(fs::path path, fs::path cache_dir) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
+  virtual void applyFinalState(fs::path path, fs::path cache_dir) noexcept override;
 
   /************ Traced Operations ************/
 
@@ -70,8 +70,7 @@ class SymlinkArtifact : public Artifact {
 
   /************ Symlink Operations ************/
 
-  virtual Ref resolve(Build& build,
-                      const shared_ptr<Command>& c,
+  virtual Ref resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

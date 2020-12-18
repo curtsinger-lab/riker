@@ -6,7 +6,6 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Ref.hh"
 #include "versions/DirVersion.hh"
 
@@ -44,13 +43,13 @@ class DirArtifact final : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
+  virtual void checkFinalState(fs::path path, fs::path cache_dir) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
+  virtual void applyFinalState(fs::path path, fs::path cache_dir) noexcept override;
 
   /************ Traced Operations ************/
 
@@ -74,27 +73,24 @@ class DirArtifact final : public Artifact {
                             shared_ptr<Version> expected) noexcept override;
 
   /// Get a version that lists all the entries in this directory
-  shared_ptr<DirListVersion> getList(BuildObserver& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<DirListVersion> getList(const shared_ptr<Command>& c) noexcept;
 
   /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
-  virtual shared_ptr<DirVersion> addEntry(Build& build,
-                                          const shared_ptr<Command>& c,
+  virtual shared_ptr<DirVersion> addEntry(const shared_ptr<Command>& c,
                                           fs::path entry,
                                           shared_ptr<Artifact> target) noexcept override;
 
   /// Remove a directory entry from this artifact
-  virtual shared_ptr<DirVersion> removeEntry(Build& build,
-                                             const shared_ptr<Command>& c,
+  virtual shared_ptr<DirVersion> removeEntry(const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept override;
 
   // Un-hide the shorthand version of resolve()
   using Artifact::resolve;
 
-  virtual Ref resolve(Build& build,
-                      const shared_ptr<Command>& c,
+  virtual Ref resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

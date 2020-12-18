@@ -8,7 +8,6 @@
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
@@ -191,13 +190,13 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
-  return _metadata_version->checkAccess(build, shared_from_this(), flags);
+bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::PathResolution);
+  return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void Artifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
     v->fingerprint(path, cache_dir);
@@ -205,7 +204,9 @@ void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
       // Yes. Report the mismatch
-      build.observeFinalMismatch(shared_from_this(), _metadata_version, v);
+      auto creator = _metadata_version->getCreator();
+      if (creator) creator->outputChanged(shared_from_this(), v, _metadata_version);
+
     } else {
       // No. We can treat the metadata version as if it is committed
       _metadata_version->setCommitted();
@@ -214,7 +215,7 @@ void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) 
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void Artifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // If we don't have a fingerprint of the metadata, take one
 
   // Make sure metadata for this artifact is committed
@@ -223,11 +224,10 @@ void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) 
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
-                                                  const shared_ptr<Command>& c,
+shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  o.observeInput(c, shared_from_this(), _metadata_version, t);
+  if (c) c->currentRun()->addInput(shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;
@@ -235,8 +235,7 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
 
 /// Get the current metadata for this artifact without creating any dependencies
 shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
-  BuildObserver o;
-  return getMetadata(o, nullptr, InputType::Accessed);
+  return getMetadata(nullptr, InputType::Accessed);
 }
 
 /// Check to see if this artifact's metadata matches a known version
@@ -245,18 +244,19 @@ void Artifact::matchMetadata(Build& build,
                              Scenario scenario,
                              shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getMetadata(build, c, InputType::Accessed);
+  auto observed = getMetadata(c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, scenario, shared_from_this(), observed, expected);
+    LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, observed);
+    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 
 /// Apply a new metadata version to this artifact
-shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
-                                                     const shared_ptr<Command>& c,
+shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
   // If a written version was not provided, create one. It will represent the current state, and its
   // fingerprint/saved data will be filled in later if necessary.
@@ -267,7 +267,7 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
   _metadata_version = writing;
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), _metadata_version);
+  c->currentRun()->addOutput(shared_from_this(), _metadata_version);
 
   return writing;
 }
@@ -276,8 +276,7 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
 }
 
-Ref Artifact::resolve(Build& build,
-                      const shared_ptr<Command>& c,
+Ref Artifact::resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,
@@ -287,7 +286,7 @@ Ref Artifact::resolve(Build& build,
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
-    if (!checkAccess(build, c, flags)) return EACCES;
+    if (!checkAccess(c, flags)) return EACCES;
 
     // Access is allowed. Did the access expect a specific type of artifact?
     if (flags.type == AccessType::Dir) {

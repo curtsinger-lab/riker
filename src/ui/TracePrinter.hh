@@ -3,7 +3,7 @@
 #include <memory>
 #include <ostream>
 
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Ref.hh"
 #include "util/wrappers.hh"
 

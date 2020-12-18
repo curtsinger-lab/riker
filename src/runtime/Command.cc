@@ -103,6 +103,9 @@ const shared_ptr<CommandRun>& Command::previousRun() noexcept {
 
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
+  // Plan the next build
+  _run->planBuild();
+
   // Create a new Run struct in _last_run, then swap them
   _last_run = make_shared<CommandRun>(shared_from_this());
   std::swap(_run, _last_run);
