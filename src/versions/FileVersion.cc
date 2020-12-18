@@ -9,7 +9,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "blake3.h"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "util/log.hh"
 
 // Is this version saved in a way that can be committed?

@@ -9,7 +9,7 @@
 
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"

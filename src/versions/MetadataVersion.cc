@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 #include "artifacts/Artifact.hh"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "util/wrappers.hh"
 
 using std::nullopt;

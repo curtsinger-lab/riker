@@ -13,7 +13,7 @@
 #include <cereal/archives/binary.hpp>
 
 #include "data/Record.hh"
-#include "interfaces/TraceHandler.hh"
+#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
