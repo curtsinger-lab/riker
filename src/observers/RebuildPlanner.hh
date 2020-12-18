@@ -60,26 +60,6 @@ class RebuildPlanner final : public BuildObserver {
 
   /******** BuildObserver Interface ********/
 
-  /// Command c depends on version v of artifact a
-  virtual void observeInput(const shared_ptr<Command>& c,
-                            shared_ptr<Artifact> a,
-                            shared_ptr<Version> v,
-                            InputType t) noexcept override final {
-    // If the version has no creator, we do not need to propagate any markings
-    auto creator = v->getCreator();
-    if (!creator) return;
-
-    // If this is make accessing metadata, we only need to mark in one direction;
-    // changing metadata alone does not need to trigger a re-execution of make
-    if (v->as<MetadataVersion>() && c->isMake()) return;
-
-    // If the only requirement is that the artifact exists, we don't need to create a dependency
-    if (t == InputType::Exists) return;
-
-    // Otherwise command c may have to rerun if the input's creator reruns
-    _output_used_by[v->getCreator()->getCommand()].insert(c);
-  }
-
   /// An artifact's final version does not match what is on the filesystem
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,
                                     shared_ptr<Version> produced,
@@ -147,10 +127,8 @@ class RebuildPlanner final : public BuildObserver {
     }
 
     // Mark any commands that use this command's output
-    if (auto iter = _output_used_by.find(c); iter != _output_used_by.end()) {
-      for (const auto& other : iter->second) {
-        mark(other, RerunReason::InputMayChange, c);
-      }
+    for (const auto& user : c->previousRun()->getOutputUsers()) {
+      mark(user->getCommand(), RerunReason::InputMayChange, c);
     }
   }
 
@@ -160,7 +138,4 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Track commands whose output is needed
   set<shared_ptr<Command>> _output_needed;
-
-  /// Map command that produces output(s) -> commands that consume that output
-  map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;
 };

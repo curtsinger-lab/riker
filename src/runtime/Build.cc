@@ -63,8 +63,6 @@ void Build::observeInput(const shared_ptr<Command>& c,
     LOG(exec) << "Committing " << v << " to " << a << " on demand";
     a->commit(v);
   }
-
-  _observer.observeInput(c, a, v, t);
 }
 
 // Inform observers that command c did not find the expected version in artifact a

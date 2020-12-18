@@ -3,6 +3,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "runtime/Ref.hh"
+#include "versions/MetadataVersion.hh"
 
 // Get the command that produced this Run
 shared_ptr<Command> CommandRun::getCommand() const noexcept {
@@ -170,20 +171,22 @@ bool CommandRun::mustRerun() const noexcept {
 // Add an input to this command
 void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
   _inputs.emplace(a, v, t);
-}
 
-// Get the inputs to this command
-set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> CommandRun::getInputs()
-    const noexcept {
-  return _inputs;
+  // If the version was created by another command, inform the creator that this command uses it
+  if (auto creator = v->getCreator(); creator) {
+    // If this is make accessing metadata, we only need to mark in one direction;
+    // changing metadata alone does not need to trigger a re-execution of make
+    if (v->as<MetadataVersion>() && getCommand()->isMake()) return;
+
+    // If the only requirement is that the artifact exists, we don't need to create a dependency
+    if (t == InputType::Exists) return;
+
+    // Otherwise, add this command run to the creator's set of output users
+    creator->_output_used_by.insert(shared_from_this());
+  }
 }
 
 // Add an output to this command
 void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
   _outputs.emplace(a, v);
-}
-
-// Get the outputs from this command
-set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> CommandRun::getOutputs() const noexcept {
-  return _outputs;
 }

@@ -54,7 +54,7 @@ enum class Scenario { Build, PostBuild };
 /**
  * Track data for a specific run of a command. This run could be emulated or traced.
  */
-class CommandRun {
+class CommandRun : public std::enable_shared_from_this<CommandRun> {
  public:
   /// Create a CommandRun with a back pointer to its owning command
   CommandRun(weak_ptr<Command> command) noexcept : _command(command) {}
@@ -131,13 +131,20 @@ class CommandRun {
   void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
 
   /// Get the inputs to this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept {
+    return _inputs;
+  }
 
   /// Track an output from this command
   void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
 
   /// Get the outputs from this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept {
+    return _outputs;
+  }
+
+  /// Get the users of this command's outputs
+  const set<shared_ptr<CommandRun>>& getOutputUsers() const noexcept { return _output_used_by; }
 
  private:
   /// The command this run is associated with
@@ -169,4 +176,7 @@ class CommandRun {
 
   /// The set of outputs from this command
   set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> _outputs;
+
+  /// The set of command runs that use this command's outputs
+  set<shared_ptr<CommandRun>> _output_used_by;
 };
