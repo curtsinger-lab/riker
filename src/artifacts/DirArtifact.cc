@@ -233,8 +233,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
   return result;
 }
 
-Ref DirArtifact::resolve(Build& build,
-                         const shared_ptr<Command>& c,
+Ref DirArtifact::resolve(const shared_ptr<Command>& c,
                          shared_ptr<Artifact> prev,
                          fs::path::iterator current,
                          fs::path::iterator end,
@@ -248,7 +247,7 @@ Ref DirArtifact::resolve(Build& build,
   // If this is the last entry on the path, resolution reaches this artifact
   if (current == end) {
     // If the requested access is not allowed, return EACCES
-    if (!checkAccess(build, c, flags)) return EACCES;
+    if (!checkAccess(c, flags)) return EACCES;
 
     // The access was allowed. Did the access expect to reach a directory?
     if (flags.type == AccessType::Any || flags.type == AccessType::Dir) {
@@ -259,7 +258,7 @@ Ref DirArtifact::resolve(Build& build,
   }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
-  if (!checkAccess(build, c, ExecAccess)) return EACCES;
+  if (!checkAccess(c, ExecAccess)) return EACCES;
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
   // iterator
@@ -267,14 +266,14 @@ Ref DirArtifact::resolve(Build& build,
 
   // Are we looking for the current directory?
   if (entry.string() == ".") {
-    return resolve(build, c, shared_from_this(), current, end, flags, cache_dir, symlink_limit);
+    return resolve(c, shared_from_this(), current, end, flags, cache_dir, symlink_limit);
   }
 
   // Are we looking for the parent directory?
   if (entry.string() == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(build, c, shared_from_this(), current, end, flags, cache_dir,
+    return parent.value()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
                                    symlink_limit);
   }
 
@@ -351,13 +350,13 @@ Ref DirArtifact::resolve(Build& build,
     // If the resolution failed, can this access create it?
     if (flags.create && res.getResultCode() == ENOENT) {
       // Can we write to this directory? If not, return an error
-      if (!checkAccess(build, c, WriteAccess)) return EACCES;
+      if (!checkAccess(c, WriteAccess)) return EACCES;
 
       // Create a new file
-      auto newfile = getEnv()->createFile(build, c, flags.mode, false);
+      auto newfile = getEnv()->createFile(c, flags.mode, false);
 
       // Link the new file into this directory
-      auto link_version = addEntry(build, c, entry, newfile);
+      auto link_version = addEntry(c, entry, newfile);
 
       // return the artifact we just created and stop resolution
       return Ref(flags, newfile);
@@ -367,14 +366,14 @@ Ref DirArtifact::resolve(Build& build,
     if (res.getResultCode() != SUCCESS) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags, cache_dir,
+    return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
                                       symlink_limit);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res.isSuccess()) {
-      return res.getArtifact()->resolve(build, c, shared_from_this(), current, end, flags,
-                                        cache_dir, symlink_limit);
+      return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
+                                        symlink_limit);
     }
 
     // Otherwise return the error from the resolution
@@ -383,8 +382,7 @@ Ref DirArtifact::resolve(Build& build,
 }
 
 // Add a directory entry to this artifact
-shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
-                                             const shared_ptr<Command>& c,
+shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept {
   // Check for an existing entry with the same name
@@ -416,8 +414,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
 }
 
 // Remove a directory entry from this artifact
-shared_ptr<DirVersion> DirArtifact::removeEntry(Build& build,
-                                                const shared_ptr<Command>& c,
+shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
                                                 fs::path entry,
                                                 shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update

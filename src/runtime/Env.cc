@@ -29,27 +29,27 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
-shared_ptr<PipeArtifact> Env::getStdin(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStdin(const shared_ptr<Command>& c) noexcept {
   if (!_stdin) {
-    _stdin = getPipe(build, c);
+    _stdin = getPipe(c);
     _stdin->setFDs(0, -1);
     _stdin->setName("stdin");
   }
   return _stdin;
 }
 
-shared_ptr<PipeArtifact> Env::getStdout(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStdout(const shared_ptr<Command>& c) noexcept {
   if (!_stdout) {
-    _stdout = getPipe(build, c);
+    _stdout = getPipe(c);
     _stdout->setFDs(-1, 1);
     _stdout->setName("stdout");
   }
   return _stdout;
 }
 
-shared_ptr<PipeArtifact> Env::getStderr(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getStderr(const shared_ptr<Command>& c) noexcept {
   if (!_stderr) {
-    _stderr = getPipe(build, c);
+    _stderr = getPipe(c);
     _stderr->setFDs(-1, 2);
     _stderr->setName("stderr");
   }
@@ -152,7 +152,7 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path, fs::path cache_di
   return a;
 }
 
-shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c) noexcept {
+shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   // Create a manufactured stat buffer for the new pipe
   uid_t uid = getuid();
   gid_t gid = getgid();
@@ -175,8 +175,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c
   return pipe;
 }
 
-shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
-                                            const shared_ptr<Command>& c,
+shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
                                             fs::path target,
                                             bool committed) noexcept {
   // Create a manufactured stat buffer for the new symlink
@@ -207,8 +206,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
   return symlink;
 }
 
-shared_ptr<DirArtifact> Env::getDir(Build& build,
-                                    const shared_ptr<Command>& c,
+shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
                                     mode_t mode,
                                     bool committed) noexcept {
   // Get the current umask
@@ -243,8 +241,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   return dir;
 }
 
-shared_ptr<Artifact> Env::createFile(Build& build,
-                                     const shared_ptr<Command>& c,
+shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
                                      mode_t mode,
                                      bool committed) noexcept {
   // Get the current umask

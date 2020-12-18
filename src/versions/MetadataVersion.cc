@@ -13,9 +13,7 @@
 using std::nullopt;
 using std::shared_ptr;
 
-bool MetadataVersion::checkAccess(TraceHandler& handler,
-                                  shared_ptr<Artifact> artifact,
-                                  AccessFlags flags) noexcept {
+bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept {
   // If we don't have a saved value for metadata but this version is committed, go save it now
   if (!_metadata.has_value() && isCommitted()) {
     // Get a path to the artifact, including only committed paths

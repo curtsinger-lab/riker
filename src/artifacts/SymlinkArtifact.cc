@@ -113,8 +113,7 @@ void SymlinkArtifact::applyFinalState(Build& build, fs::path path, fs::path cach
   Artifact::applyFinalState(build, path, cache_dir);
 }
 
-Ref SymlinkArtifact::resolve(Build& build,
-                             const shared_ptr<Command>& c,
+Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
                              shared_ptr<Artifact> prev,
                              fs::path::iterator current,
                              fs::path::iterator end,
@@ -149,14 +148,13 @@ Ref SymlinkArtifact::resolve(Build& build,
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(build, c, dest, flags, cache_dir, symlink_limit - 1);
+    return prev->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
 
   } else {
     // Strip the leading slash from the path
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return getEnv()->getRootDir(cache_dir)->resolve(build, c, dest, flags, cache_dir,
-                                                    symlink_limit - 1);
+    return getEnv()->getRootDir(cache_dir)->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
   }
 }

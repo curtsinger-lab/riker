@@ -70,8 +70,7 @@ class SymlinkArtifact : public Artifact {
 
   /************ Symlink Operations ************/
 
-  virtual Ref resolve(Build& build,
-                      const shared_ptr<Command>& c,
+  virtual Ref resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,

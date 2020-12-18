@@ -80,13 +80,13 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess, _env->getStdin(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess, _env->getStdin(c)));
 
   } else if (entity == SpecialRef::stdout) {
-    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStdout(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStdout(c)));
 
   } else if (entity == SpecialRef::stderr) {
-    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(*this, c)));
+    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(c)));
 
   } else if (entity == SpecialRef::root) {
     c->currentRun()->setRef(
@@ -94,9 +94,8 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto ref =
-        make_shared<Ref>(_env->getRootDir(_cache_dir)
-                             ->resolve(*this, c, cwd_path, ReadAccess + ExecAccess, _cache_dir));
+    auto ref = make_shared<Ref>(
+        _env->getRootDir(_cache_dir)->resolve(c, cwd_path, ReadAccess + ExecAccess, _cache_dir));
     c->currentRun()->setRef(output, ref);
 
     ASSERT(ref->isSuccess()) << "Failed to resolve current working directory";
@@ -106,9 +105,8 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     auto dodo = readlink("/proc/self/exe");
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
 
-    auto ref =
-        make_shared<Ref>(_env->getRootDir(_cache_dir)
-                             ->resolve(*this, c, dodo_launch, ReadAccess + ExecAccess, _cache_dir));
+    auto ref = make_shared<Ref>(
+        _env->getRootDir(_cache_dir)->resolve(c, dodo_launch, ReadAccess + ExecAccess, _cache_dir));
     c->currentRun()->setRef(output, ref);
 
   } else {
@@ -131,7 +129,7 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
   _output.pipeRef(c, read_end, write_end);
 
   // Resolve the reference and save the result in output
-  auto pipe = _env->getPipe(*this, c);
+  auto pipe = _env->getPipe(c);
   c->currentRun()->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
   c->currentRun()->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
 }
@@ -152,7 +150,7 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess, _env->createFile(*this, c, mode, false)));
+      output, make_shared<Ref>(ReadAccess + WriteAccess, _env->createFile(c, mode, false)));
 }
 
 // A command references a new anonymous symlink
@@ -171,7 +169,7 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                                   _env->getSymlink(*this, c, target, false)));
+                                                   _env->getSymlink(c, target, false)));
 }
 
 // A command references a new anonymous directory
@@ -190,7 +188,7 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                                   _env->getDir(*this, c, mode, false)));
+                                                   _env->getDir(c, mode, false)));
 }
 
 // A command makes a reference with a path
@@ -217,8 +215,7 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  c->currentRun()->setRef(output,
-                          make_shared<Ref>(base_dir->resolve(*this, c, path, flags, _cache_dir)));
+  c->currentRun()->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags, _cache_dir)));
 }
 
 // A command retains a handle to a given Ref
@@ -416,7 +413,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   written->createdBy(c->currentRun());
 
   // Apply the write
-  ref->getArtifact()->updateMetadata(*this, c, written);
+  ref->getArtifact()->updateMetadata(c, written);
 }
 
 // Command c modifies an artifact
@@ -475,7 +472,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
   if (!dir->isResolved() || !target->isResolved()) return;
 
   // Add the entry to the directory
-  dir->getArtifact()->addEntry(*this, c, name, target->getArtifact());
+  dir->getArtifact()->addEntry(c, name, target->getArtifact());
 }
 
 /// Handle a RemoveEntry IR step
@@ -502,7 +499,7 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   if (!dir->isResolved() || !target->isResolved()) return;
 
   // Remove the entry from the directory
-  dir->getArtifact()->removeEntry(*this, c, name, target->getArtifact());
+  dir->getArtifact()->removeEntry(c, name, target->getArtifact());
 }
 
 // This command launches a child command
@@ -638,7 +635,7 @@ tuple<Ref::ID, Ref::ID> Build::tracePipeRef(const shared_ptr<Command>& c) noexce
   _traced_step_count++;
 
   // Create a pipe artifact
-  auto pipe = _env->getPipe(*this, c);
+  auto pipe = _env->getPipe(c);
 
   // Set up references for the read and write ends of the pipe
   auto read_end = c->currentRun()->setRef(make_shared<Ref>(ReadAccess, pipe));
@@ -659,7 +656,7 @@ Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept 
   _traced_step_count++;
 
   // Create an anonymous file
-  auto file = _env->createFile(*this, c, mode, true);
+  auto file = _env->createFile(c, mode, true);
 
   // Create a reference for the new file
   auto output = c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
@@ -679,7 +676,7 @@ Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) no
   _traced_step_count++;
 
   // Create a symlink artifact
-  auto symlink = _env->getSymlink(*this, c, target, true);
+  auto symlink = _env->getSymlink(c, target, true);
 
   // Create a reference to the new symlink
   auto output =
@@ -700,7 +697,7 @@ Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   _traced_step_count++;
 
   // Create a directory artifact
-  auto dir = _env->getDir(*this, c, mode, true);
+  auto dir = _env->getDir(c, mode, true);
 
   // Create a reference to the new directory
   auto output =
@@ -728,7 +725,7 @@ Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
 
   // Resolve the path and create a Ref
-  auto ref = make_shared<Ref>(base->getArtifact()->resolve(*this, c, path, flags, _cache_dir));
+  auto ref = make_shared<Ref>(base->getArtifact()->resolve(c, path, flags, _cache_dir));
 
   // If the reference could have created a file, mark that file's versions and links as committed
   if (ref->isSuccess() && flags.create) ref->getArtifact()->setCommitted();
@@ -901,7 +898,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
   ASSERT(artifact) << "Tried to write metadata through an unresolved reference " << ref;
 
   // Record the update and get the written version
-  auto written = artifact->updateMetadata(*this, c);
+  auto written = artifact->updateMetadata(c);
   ASSERT(written) << "Unable to get written metadata version from " << artifact;
 
   // Create an IR step and add it to the output trace
@@ -972,7 +969,7 @@ void Build::traceAddEntry(const shared_ptr<Command>& c,
   _output.addEntry(c, dir_id, name, target_id);
 
   // Add the entry to the directory and mark the update as committed
-  dir_artifact->addEntry(*this, c, name, target->getArtifact())->setCommitted();
+  dir_artifact->addEntry(c, name, target->getArtifact())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
@@ -1001,7 +998,7 @@ void Build::traceRemoveEntry(const shared_ptr<Command>& c,
   _output.removeEntry(c, dir_id, name, target_id);
 
   // Remove the entry from the directory and mark the update as committed
-  dir_artifact->removeEntry(*this, c, name, target->getArtifact())->setCommitted();
+  dir_artifact->removeEntry(c, name, target->getArtifact())->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};

@@ -191,9 +191,9 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 }
 
 // Check if an access is allowed by the metadata for this artifact
-bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept {
+bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
   c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::PathResolution);
-  return _metadata_version->checkAccess(build, shared_from_this(), flags);
+  return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -253,8 +253,7 @@ void Artifact::matchMetadata(Build& build,
 }
 
 /// Apply a new metadata version to this artifact
-shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
-                                                     const shared_ptr<Command>& c,
+shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
   // If a written version was not provided, create one. It will represent the current state, and its
   // fingerprint/saved data will be filled in later if necessary.
@@ -274,8 +273,7 @@ void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
   _versions.push_back(v);
 }
 
-Ref Artifact::resolve(Build& build,
-                      const shared_ptr<Command>& c,
+Ref Artifact::resolve(const shared_ptr<Command>& c,
                       shared_ptr<Artifact> prev,
                       fs::path::iterator current,
                       fs::path::iterator end,
@@ -285,7 +283,7 @@ Ref Artifact::resolve(Build& build,
   // Are we at the end of the path to resolve?
   if (current == end) {
     // Check to see if the requested access mode is supported
-    if (!checkAccess(build, c, flags)) return EACCES;
+    if (!checkAccess(c, flags)) return EACCES;
 
     // Access is allowed. Did the access expect a specific type of artifact?
     if (flags.type == AccessType::Dir) {
