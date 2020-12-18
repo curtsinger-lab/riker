@@ -339,7 +339,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   if (!ref->isResolved()) return;
 
   // Perform the comparison
-  ref->getArtifact()->matchMetadata(*this, c, scenario, expected);
+  ref->getArtifact()->matchMetadata(c, scenario, expected);
 }
 
 // Command c accesses an artifact's content
@@ -365,7 +365,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
   if (!ref->isResolved()) return;
 
   // Perform the comparison
-  ref->getArtifact()->matchContent(*this, c, scenario, expected);
+  ref->getArtifact()->matchContent(c, scenario, expected);
 }
 
 // Command c modifies an artifact
@@ -429,7 +429,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
   written->createdBy(c->currentRun());
 
   // Apply the write
-  ref->getArtifact()->updateContent(*this, c, written);
+  ref->getArtifact()->updateContent(c, written);
 }
 
 /// Handle an AddEntry IR step
@@ -921,7 +921,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   written->createdBy(c->currentRun());
 
   // Update the artifact's content
-  artifact->updateContent(*this, c, written);
+  artifact->updateContent(c, written);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};

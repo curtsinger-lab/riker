@@ -166,8 +166,7 @@ shared_ptr<Version> FileArtifact::peekContent() noexcept {
 }
 
 /// Check to see if this artifact's content matches a known version
-void FileArtifact::matchContent(Build& build,
-                                const shared_ptr<Command>& c,
+void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // The content version is an input to command c
@@ -183,8 +182,7 @@ void FileArtifact::matchContent(Build& build,
 }
 
 /// Apply a new content version to this artifact
-void FileArtifact::updateContent(Build& build,
-                                 const shared_ptr<Command>& c,
+void FileArtifact::updateContent(const shared_ptr<Command>& c,
                                  shared_ptr<Version> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
