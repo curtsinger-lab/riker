@@ -115,6 +115,9 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /****** Dependency Tracking and Rebuild Planning ******/
 
+  /// Plan the rebuild state for this command
+  void planBuild() noexcept;
+
   /// Mark this command for rerun. Returns true if this is a new marking.
   bool markForRerun(RerunReason reason) noexcept;
 
