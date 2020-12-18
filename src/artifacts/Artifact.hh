@@ -164,8 +164,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   shared_ptr<MetadataVersion> peekMetadata() noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
-  void matchMetadata(Build& build,
-                     const shared_ptr<Command>& c,
+  void matchMetadata(const shared_ptr<Command>& c,
                      Scenario scenario,
                      shared_ptr<MetadataVersion> expected) noexcept;
 
@@ -211,15 +210,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual shared_ptr<Version> peekContent() noexcept = 0;
 
   /// Check to see if this artifact's content matches a known version
-  virtual void matchContent(Build& build,
-                            const shared_ptr<Command>& c,
+  virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept = 0;
 
   /// Update this artifact's content with a file version
-  virtual void updateContent(Build& build,
-                             const shared_ptr<Command>& c,
-                             shared_ptr<Version> writing) noexcept {
+  virtual void updateContent(const shared_ptr<Command>& c, shared_ptr<Version> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 

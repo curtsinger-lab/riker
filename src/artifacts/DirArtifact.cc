@@ -175,8 +175,7 @@ shared_ptr<Version> DirArtifact::peekContent() noexcept {
 }
 
 /// Check to see if this artifact's content matches a known version
-void DirArtifact::matchContent(Build& build,
-                               const shared_ptr<Command>& c,
+void DirArtifact::matchContent(const shared_ptr<Command>& c,
                                Scenario scenario,
                                shared_ptr<Version> expected) noexcept {
   // Get a list of entries in this directory

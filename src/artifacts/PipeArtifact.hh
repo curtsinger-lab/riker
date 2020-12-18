@@ -85,14 +85,12 @@ class PipeArtifact : public Artifact {
   virtual shared_ptr<Version> peekContent() noexcept override;
 
   /// Check to see if this artifact's content matches a known version
-  virtual void matchContent(Build& build,
-                            const shared_ptr<Command>& c,
+  virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
                             shared_ptr<Version> expected) noexcept override;
 
   /// Apply a new content version to this artifact
-  virtual void updateContent(Build& build,
-                             const shared_ptr<Command>& c,
+  virtual void updateContent(const shared_ptr<Command>& c,
                              shared_ptr<Version> writing) noexcept override;
 
   /************ Miscellaneous ************/

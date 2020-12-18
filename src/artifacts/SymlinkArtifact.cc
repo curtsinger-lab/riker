@@ -34,8 +34,7 @@ shared_ptr<Version> SymlinkArtifact::peekContent() noexcept {
 }
 
 /// Check to see if this artifact's content matches a known version
-void SymlinkArtifact::matchContent(Build& build,
-                                   const shared_ptr<Command>& c,
+void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<Version> expected) noexcept {
   // The symlink version is an input to command c

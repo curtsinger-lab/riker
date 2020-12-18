@@ -239,8 +239,7 @@ shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
 }
 
 /// Check to see if this artifact's metadata matches a known version
-void Artifact::matchMetadata(Build& build,
-                             const shared_ptr<Command>& c,
+void Artifact::matchMetadata(const shared_ptr<Command>& c,
                              Scenario scenario,
                              shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
