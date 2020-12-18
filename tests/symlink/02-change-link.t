@@ -32,7 +32,6 @@ Now change the link to refer to dir2
 Run a rebuild
   $ $DODO --show
   cat input1
-  cat input2
   cat input3
 
 Check the stat of dir1/output and dir2/output

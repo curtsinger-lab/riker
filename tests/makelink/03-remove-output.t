@@ -27,7 +27,6 @@ Now remove the output file
 
 Run a rebuild, which only needs to rerun cat
   $ $DODO --show
-  cat A
 
 Check the output
   $ cat output

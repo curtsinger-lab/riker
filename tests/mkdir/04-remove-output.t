@@ -25,7 +25,6 @@ Remove the output file
 
 Run a rebuild
   $ $DODO --show
-  cat input
 
 Check the output
   $ cat output

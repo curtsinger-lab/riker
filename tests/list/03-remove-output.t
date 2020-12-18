@@ -22,8 +22,19 @@ Check the output
 Now remove the output file
   $ rm output
 
-Run a rebuild, which has to regenerate the output file
+Run a rebuild, which should copy the output file from cache
   $ $DODO --show
+
+Check the output
+  $ cat output
+  hello
+  world
+
+Remove the output again
+  $ rm output
+
+Run a rebuild, this time without caching
+  $ $DODO --show --no-caching
   cat hello.txt world.txt
 
 Check the output

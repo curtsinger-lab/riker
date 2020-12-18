@@ -88,13 +88,10 @@ class MetadataVersion final : public Version {
   virtual string getTypeName() const noexcept override { return "metadata"; }
 
   /// Commit this version to the filesystem
-  void commitOwnership(fs::path path, bool commit_permissions = true) noexcept;
-
-  /// Save the on-disk state to this version for later commit
   virtual void commit(fs::path path) noexcept override;
 
-  /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override { commit(path); }
+  /// Save the on-disk state to this version for later commit
+  virtual void cache(fs::path path, fs::path cache_dir) noexcept override;
 
   /// Check if this version can be committed
   bool canCommit() const noexcept override;

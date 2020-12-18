@@ -23,8 +23,6 @@ Now remove the output file
 
 Run a rebuild
   $ $DODO --show
-  ((sort)|(uniq)) (re)
-  ((sort)|(uniq)) (re)
 
 Check the output
   $ cat output

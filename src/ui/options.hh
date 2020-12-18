@@ -1,5 +1,9 @@
 #pragma once
 
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
 enum class FingerprintLevel { None, Local, All };
 
 // Namespace to contain global flags that control build behavior
@@ -22,4 +26,7 @@ namespace options {
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER
+
+  /// Where are cached files saved?
+  inline fs::path cache_dir = ".dodo/cache";
 }

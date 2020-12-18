@@ -26,7 +26,6 @@ Change the output file. Sleep first to make sure the output file's mtime changes
 
 Run a rebuild
   $ $DODO --show
-  cat input
 
 Check the output
   $ cat output

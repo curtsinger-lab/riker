@@ -33,9 +33,7 @@ Remove the output file
 
 Run a rebuild, which should do nothing except restore the file from the cache
   $ $DODO --show --no-caching
-  ./A
   cat inputA
-  ./B
   cat inputB
 
 The output file should be back (from the cache)

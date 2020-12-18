@@ -208,7 +208,7 @@ void CommandRun::markForRerun(RerunReason reason, shared_ptr<CommandRun> prev) n
       // If the version is cached, we can commit it without running the creator
       // TODO: This check should really ask the artifact if it can commit the version at the time
       // of the input, not during rebuild planning.
-      if (options::enable_cache && v->canCommit()) continue;
+      if (v->canCommit()) continue;
 
       // Mark the creator for rerun so it will produce the necessary input
       creator->markForRerun(RerunReason::OutputNeeded, shared_from_this());
@@ -266,7 +266,7 @@ void CommandRun::outputChanged(shared_ptr<Artifact> artifact,
                                shared_ptr<Version> ondisk,
                                shared_ptr<Version> expected) noexcept {
   // If the expected output could be committed, there's no need to mark this command for rerun
-  if (options::enable_cache && artifact->canCommit(expected)) return;
+  if (artifact->canCommit(expected)) return;
 
   LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
        getCommand(), artifact, expected, ondisk);

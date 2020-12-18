@@ -24,9 +24,6 @@ Now remove the output file
 
 Run a rebuild
   $ $DODO --show
-  ((cat input)|(sort)|(uniq)) (re)
-  ((cat input)|(sort)|(uniq)) (re)
-  ((cat input)|(sort)|(uniq)) (re)
 
 Check the output
   $ cat output

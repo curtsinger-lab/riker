@@ -69,7 +69,7 @@ void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _symlink_version) {
     _symlink_version->commit(path.value());
   } else if (v == _metadata_version) {
-    _metadata_version->commitOwnership(path.value(), false);
+    _metadata_version->commit(path.value());
   } else {
     FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
@@ -86,7 +86,7 @@ void SymlinkArtifact::commitAll() noexcept {
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
-  _metadata_version->commitOwnership(path.value(), false);
+  _metadata_version->commit(path.value());
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.

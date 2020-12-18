@@ -10,12 +10,33 @@
 #include "artifacts/Artifact.hh"
 #include "blake3.h"
 #include "data/TraceHandler.hh"
+#include "ui/options.hh"
 #include "util/log.hh"
 
 // Is this version saved in a way that can be committed?
 bool FileVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
-  return _empty;
+  return _empty || (options::enable_cache && _cached);
+}
+
+/// Commit this version to the filesystem
+void FileVersion::commit(fs::path path) noexcept {
+  if (isCommitted()) return;
+
+  ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
+
+  // is this an empty file?
+  if (_empty) {
+    // stage in empty file
+    commitEmptyFile(path);
+    return;
+  }
+
+  // did we cache the file?
+  if (_cached) {
+    // stage in cached file
+    stage(path);
+  }
 }
 
 // Commit this version to the filesystem
@@ -57,7 +78,7 @@ void FileVersion::fingerprint(fs::path path, fs::path cache_dir) noexcept {
 
     // if caching is enabled, cache the file
     if (options::enable_cache && _b3hash.has_value()) {
-      cache(statbuf, _b3hash.value(), path, cache_dir);
+      cache(path, cache_dir);
     }
   }
 }
@@ -72,18 +93,63 @@ void FileVersion::makeEmptyFingerprint() noexcept {
   _empty = true;
 }
 
-void FileVersion::cache(const struct stat& statbuf,
-                        BLAKE3Hash& hash,
-                        fs::path path,
-                        fs::path cache_dir) noexcept {
+/// Restores a file to the given path from the cache
+void FileVersion::stage(fs::path path) noexcept {
+  // Does the staged file already exist?  If so, don't stage.
+  // struct stat statbuf;
+  // bool stage_exists(::lstat(path.c_str(), &statbuf) == 0);
+  // if (stage_exists) return;
+
+  // Path to cache file
+  fs::path hash_file = cacheFilePath(_cache_dir.value());
+
+  // Get the length of the cached file
+  struct stat cache_statbuf;
+  bool file_exists(::lstat(hash_file.c_str(), &cache_statbuf) == 0);
+  ASSERT(file_exists) << "Unable to stage in '" << path << "' because cache file '" << hash_file
+                      << "' does not exist: " << ERR;
+  loff_t len = cache_statbuf.st_size;
+
+  // Open source and destination fds
+  int src_fd = ::open(hash_file.c_str(), O_RDONLY);
+  FAIL_IF(src_fd == -1) << "Unable to open cache file '" << hash_file << "': " << ERR;
+  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);  // TODO: no mode makes me sad
+  FAIL_IF(dst_fd == -1) << "Unable to create stage file '" << path << "': " << ERR;
+
+  // copy file to cache using non-POSIX fast copy
+  loff_t bytes_cp;
+  do {
+    bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
+    FAIL_IF(bytes_cp == -1) << "Could not copy cache file '" << hash_file << "' to stage location '"
+                            << path << "': " << ERR;
+
+    len -= bytes_cp;
+  } while (len > 0 && bytes_cp > 0);
+
+  LOG(artifact) << "Staged in file version at path '" << path << "' from cache file '" << hash_file
+                << "'";
+
+  close(src_fd);
+  close(dst_fd);
+}
+
+void FileVersion::cache(fs::path path, fs::path cache_dir) noexcept {
+  // Don't cache if the fingerprint is missing
+  if (!_b3hash.has_value()) return;
+
   // Don't cache files that weren't created by the build
   if (!getCreator()) return;
 
   // Path to cache file
-  fs::path hash_file = cacheFilePath(hash, cache_dir);
+  fs::path hash_file = cacheFilePath(_b3hash.value(), cache_dir);
   fs::path hash_dir = hash_file.parent_path();
 
   // Get the length of the input file
+  struct stat statbuf;
+  if (::lstat(path.c_str(), &statbuf)) {
+    LOG(artifact) << "Failed to stat " << path;
+    return;
+  }
   loff_t len = statbuf.st_size;
 
   // Does the cache file already exist?  If so, skip. (reuse statbuf)
@@ -97,7 +163,7 @@ void FileVersion::cache(const struct stat& statbuf,
   // Open source and destination fds
   int src_fd = ::open(path.c_str(), O_RDONLY);
   FAIL_IF(src_fd == -1) << "Unable to open file '" << path << "' for caching: " << ERR;
-  int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY);
+  int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
   FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << "' for file '" << path
                         << "': " << ERR;
 
@@ -115,6 +181,9 @@ void FileVersion::cache(const struct stat& statbuf,
 
   close(src_fd);
   close(dst_fd);
+
+  _cache_dir = cache_dir;
+  _cached = true;
 }
 
 /// Compare to another fingerprint instance

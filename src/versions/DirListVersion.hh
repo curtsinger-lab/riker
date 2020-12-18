@@ -33,6 +33,13 @@ class DirListVersion : public Version {
     return _entries == other_list->_entries;
   }
 
+  /// Commit this dir list, which is an error
+  // PAPER-- what does it mean to commit a directory list, and what if the current directory has
+  // more files?  Badness happens.
+  virtual void commit(fs::path path) noexcept override {
+    FAIL << "Attempted to commit an un-committable directory list";
+  }
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept override { return "listed"; }
 

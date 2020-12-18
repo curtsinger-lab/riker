@@ -55,7 +55,10 @@ class Version : public std::enable_shared_from_this<Version> {
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
-  virtual void commit(fs::path path) noexcept {}
+  virtual void cache(fs::path path, fs::path cache_dir) noexcept {}
+
+  /// Commit this version to the filesystem
+  virtual void commit(fs::path path) noexcept = 0;
 
   /// Check if this version can be committed
   virtual bool canCommit() const noexcept {
@@ -67,7 +70,7 @@ class Version : public std::enable_shared_from_this<Version> {
   /// the provided TraceHandler.
   virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept {
     // By default, fingerprinting a version just saves it
-    commit(path);
+    cache(path, cache_dir);
   }
 
   /// Check if this version matches another

@@ -41,6 +41,9 @@ class FileVersion final : public Version {
   /// Commit this version to the filesystem
   void commitEmptyFile(fs::path path, mode_t mode = 0600) noexcept;
 
+  /// Commit this version to the filesystem
+  virtual void commit(fs::path path) noexcept override;
+
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
 
@@ -62,10 +65,15 @@ class FileVersion final : public Version {
   /// Return the path for the contents of this cached FileVersion relative to the given cache_dir
   fs::path cacheFilePath(fs::path cache_dir) noexcept;
 
+  /// Store a copy on disk
+  virtual void cache(fs::path path, fs::path cache_dir) noexcept override;
+
  private:
   bool _empty;
+  bool _cached;
   std::optional<struct timespec> _mtime;
   std::optional<BLAKE3Hash> _b3hash;
+  std::optional<fs::path> _cache_dir;
 
   /// Compare to another fingerprint instance
   bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
@@ -79,10 +87,8 @@ class FileVersion final : public Version {
   /// Return the path for the contents of this cached FileVersion
   static fs::path cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) noexcept;
 
-  void cache(const struct stat& statbuf,
-             BLAKE3Hash& hash,
-             fs::path path,
-             fs::path cache_dir) noexcept;
+  /// Restore a cached copy to the given path
+  void stage(fs::path path) noexcept;
 
-  SERIALIZE(BASE(Version), _empty, _mtime, _b3hash);
+  SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash, _cache_dir);
 };

@@ -48,7 +48,6 @@ Change inputB
 
 Run a rebuild
   $ $DODO --show
-  cat inputA
   cat inputB
 
 Check the output

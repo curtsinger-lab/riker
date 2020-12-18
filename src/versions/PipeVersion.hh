@@ -26,6 +26,9 @@ class PipeWriteVersion : public Version {
   /// Check if a written pipe version matches another
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
 
+  /// A pipe write cannot be committed
+  virtual void commit(fs::path path) noexcept override {}
+
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe write]"; }
 
@@ -46,6 +49,9 @@ class PipeCloseVersion : public PipeWriteVersion {
   /// Pipe closes can always be committed
   virtual bool canCommit() const noexcept override { return true; }
 
+  /// Commit does nothing for pipe closes
+  virtual void commit(fs::path path) noexcept override {}
+
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe close]"; }
 
@@ -63,6 +69,9 @@ class PipeReadVersion : public Version {
 
   /// Check if a read pipe version matches another
   virtual bool matches(shared_ptr<Version> other) const noexcept override;
+
+  /// A pipe read cannot be committed
+  virtual void commit(fs::path path) noexcept override {}
 
   /// Print this version
   virtual ostream& print(ostream& o) const noexcept override {

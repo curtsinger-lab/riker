@@ -23,8 +23,20 @@ Now overwrite the output file. Sleep first to make sure the output file's mtime 
   $ sleep 0.1
   $ echo OVERWRITE > output
 
-Run a rebuild, which should see the output file change
+Run a rebuild, which should see the output file change and restore it from cache
   $ $DODO --show
+
+Check the output
+  $ cat output
+  hello
+  world
+
+Overwrite the file again
+  $ sleep 0.1
+  $ echo OVERWRITE > output
+
+Run a rebuild, this time without caching
+  $ $DODO --show --no-caching
   cat hello.txt world.txt
 
 Check the output

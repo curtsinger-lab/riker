@@ -25,6 +25,16 @@ Remove the output file
 
 Run a rebuild
   $ $DODO --show
+
+Check the output
+  $ cat output
+  Hello
+
+Remove the output file again
+  $ rm output
+
+Run a rebuild without caching
+  $ $DODO --show --no-caching
   cat ../input
 
 Check the output

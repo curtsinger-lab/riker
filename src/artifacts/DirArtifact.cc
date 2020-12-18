@@ -60,7 +60,7 @@ void DirArtifact::commit(shared_ptr<Version> v) noexcept {
   if (auto dv = v->as<DirVersion>()) {
     dv->commit(path.value());
   } else if (v == _metadata_version) {
-    _metadata_version->commitOwnership(path.value(), true);
+    _metadata_version->commit(path.value());
   } else {
     FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
@@ -106,7 +106,7 @@ void DirArtifact::commitAll() noexcept {
   }
 
   // Commit metadata
-  _metadata_version->commitOwnership(path.value(), true);
+  _metadata_version->commit(path.value());
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
@@ -247,6 +247,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
   // If this is the last entry on the path, resolution reaches this artifact
   if (current == end) {
+    LOG(artifact) << "calling checkAccess on " << this;
     // If the requested access is not allowed, return EACCES
     if (!checkAccess(c, flags)) return EACCES;
 
@@ -259,6 +260,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   }
 
   // If the remaining path is not empty, make sure we have execute permission in this directory
+  LOG(artifact) << "calling checkAccess on " << this;
   if (!checkAccess(c, ExecAccess)) return EACCES;
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
@@ -351,6 +353,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     // If the resolution failed, can this access create it?
     if (flags.create && res.getResultCode() == ENOENT) {
       // Can we write to this directory? If not, return an error
+      LOG(artifact) << "calling checkAccess on " << this;
       if (!checkAccess(c, WriteAccess)) return EACCES;
 
       // Create a new file

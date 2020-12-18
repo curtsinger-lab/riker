@@ -19,7 +19,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
     // Get a path to the artifact, including only committed paths
     auto path = artifact->getPath(false);
     ASSERT(path.has_value()) << "Committed artifact has no path";
-    commit(path.value());
+    cache(path.value(), options::cache_dir);
   }
 
   // Make sure we have metadata to check access against
@@ -87,7 +87,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
 }
 
 // Save metadata
-void MetadataVersion::commit(fs::path path) noexcept {
+void MetadataVersion::cache(fs::path path, fs::path cache_dir) noexcept {
   if (_metadata.has_value()) return;
 
   struct stat statbuf;
@@ -109,17 +109,15 @@ bool MetadataVersion::canCommit() const noexcept {
 }
 
 // Commit this version to the filesystem
-void MetadataVersion::commitOwnership(fs::path path, bool commit_permissions) noexcept {
+void MetadataVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
   ASSERT(canCommit()) << "Attempted to commit unsaved version";
 
   int rc = ::lchown(path.c_str(), _metadata.value().uid, _metadata.value().gid);
   FAIL_IF(rc != 0) << "Failed to commit owner and group to " << path << ": " << ERR;
 
-  if (commit_permissions) {
-    rc = ::chmod(path.c_str(), _metadata.value().mode);
-    FAIL_IF(rc != 0) << "Failed to commit permissions to " << path << ": " << ERR;
-  }
+  rc = ::chmod(path.c_str(), _metadata.value().mode);
+  FAIL_IF(rc != 0) << "Failed to commit permissions to " << path << ": " << ERR;
 
   // Mark this version as committed
   Version::setCommitted();

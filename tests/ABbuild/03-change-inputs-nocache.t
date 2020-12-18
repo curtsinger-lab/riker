@@ -33,9 +33,7 @@ Change inputA
 
 Run a rebuild
   $ $DODO --show --no-caching
-  ./A
   cat inputA
-  ./B
   cat inputB
 
 Check the output
@@ -50,9 +48,7 @@ Change inputB
 
 Run a rebuild
   $ $DODO --show --no-caching
-  ./A
   cat inputA
-  ./B
   cat inputB
 
 Check the output
