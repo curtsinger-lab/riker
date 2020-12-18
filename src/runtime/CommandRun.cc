@@ -2,6 +2,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "versions/MetadataVersion.hh"
 

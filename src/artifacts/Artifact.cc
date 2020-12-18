@@ -8,7 +8,6 @@
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"

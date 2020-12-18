@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"

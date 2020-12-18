@@ -504,15 +504,12 @@ void Build::launch(const shared_ptr<Command>& c,
     child->currentRun()->setRef(child_ref_id, c->currentRun()->getRef(parent_ref_id));
   }
 
-  // If we're emulating the launch of an unexecuted command, notify observers
+  // If we're emulating the launch of an unexecuted command, report the change to the command
   if (!child->hasExecuted()) {
     LOGF(rebuild, "{} changed: never run", child);
     child->currentRun()->observeChange(Scenario::Build);
     child->currentRun()->observeChange(Scenario::PostBuild);
   }
-
-  // Inform observers of the launch
-  _observer.observeLaunch(c, child);
 
   // Remember that this command was run by the build
   _commands.insert(child);
@@ -1047,9 +1044,6 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
-
-  // Inform observers of the launch
-  _observer.observeLaunch(parent, child);
 
   // Show the command if printing is on, or if this is a dry run
   if (options::print_on_run) {

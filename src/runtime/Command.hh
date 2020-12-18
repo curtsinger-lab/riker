@@ -30,7 +30,6 @@ namespace fs = std::filesystem;
 
 class Artifact;
 class Build;
-class BuildObserver;
 class CommandRun;
 class Ref;
 class Step;

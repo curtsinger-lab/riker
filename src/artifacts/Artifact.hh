@@ -10,7 +10,7 @@
 #include <tuple>
 
 #include "data/AccessFlags.hh"
-#include "interfaces/BuildObserver.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 #include "ui/options.hh"
 #include "util/log.hh"

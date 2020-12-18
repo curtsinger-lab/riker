@@ -4,7 +4,6 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Build.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"

@@ -6,7 +6,6 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "interfaces/BuildObserver.hh"
 #include "runtime/Ref.hh"
 #include "versions/DirVersion.hh"
 
