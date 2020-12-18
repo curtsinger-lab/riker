@@ -122,7 +122,7 @@ void DirArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void DirArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void DirArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   // Recursively check the final state of all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
@@ -130,7 +130,7 @@ void DirArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_di
     // Do we expect the entry to point to an artifact?
     if (artifact) {
       // Yes. Make sure that artifact is in the expected final state
-      artifact->checkFinalState(build, path / name, cache_dir);
+      artifact->checkFinalState(path / name, cache_dir);
     }
 
     // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
@@ -140,22 +140,22 @@ void DirArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_di
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path, cache_dir);
+  Artifact::checkFinalState(path, cache_dir);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void DirArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
   commitAll();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(build, path, cache_dir);
+  Artifact::applyFinalState(path, cache_dir);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(build, path / name, cache_dir);
+    if (artifact) artifact->applyFinalState(path / name, cache_dir);
   }
 }
 

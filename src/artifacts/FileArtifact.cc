@@ -74,7 +74,7 @@ void FileArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
 }
 
 /// Compare all final versions of this artifact to the filesystem state
-void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void FileArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
@@ -93,11 +93,11 @@ void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_d
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path, cache_dir);
+  Artifact::checkFinalState(path, cache_dir);
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
-void FileArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void FileArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // Make sure the content is committed
   _content_version->commit(path);
 
@@ -105,7 +105,7 @@ void FileArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_d
   _content_version->fingerprint(path, cache_dir);
 
   // Call up to fingerprint metadata as well
-  Artifact::applyFinalState(build, path, cache_dir);
+  Artifact::applyFinalState(path, cache_dir);
 }
 
 void FileArtifact::setCommitted() noexcept {

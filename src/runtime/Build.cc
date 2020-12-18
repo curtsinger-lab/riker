@@ -34,10 +34,10 @@ void Build::finish() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env->getRootDir(_cache_dir)->checkFinalState(*this, "/", _cache_dir);
+  _env->getRootDir(_cache_dir)->checkFinalState("/", _cache_dir);
 
   // Commit the final environment state to the filesystem
-  if (_commit) _env->getRootDir(_cache_dir)->applyFinalState(*this, "/", _cache_dir);
+  if (_commit) _env->getRootDir(_cache_dir)->applyFinalState("/", _cache_dir);
 
   // Mark all commands as finished
   for (auto& c : _commands) {

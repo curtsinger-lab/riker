@@ -93,24 +93,24 @@ void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(build, path, cache_dir);
+  Artifact::checkFinalState(path, cache_dir);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(build, path, cache_dir);
+  Artifact::applyFinalState(path, cache_dir);
 }
 
 Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,

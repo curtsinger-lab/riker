@@ -197,7 +197,7 @@ bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noex
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void Artifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
     v->fingerprint(path, cache_dir);
@@ -216,7 +216,7 @@ void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) 
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept {
+void Artifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // If we don't have a fingerprint of the metadata, take one
 
   // Make sure metadata for this artifact is committed

@@ -118,10 +118,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept;
+  virtual void checkFinalState(fs::path path, fs::path cache_dir) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept;
+  virtual void applyFinalState(fs::path path, fs::path cache_dir) noexcept;
 
   /// Mark all versions and paths to this artifact as committed
   virtual void setCommitted() noexcept;
