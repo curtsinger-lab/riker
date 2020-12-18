@@ -63,7 +63,7 @@ void FileArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
-  _content_version->commitWithMode(path.value(), _metadata_version->getMode());
+  _content_version->commitEmptyFile(path.value(), _metadata_version->getMode());
   _metadata_version->commitOwnership(path.value(), true);
 }
 

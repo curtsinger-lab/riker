@@ -19,7 +19,7 @@ bool FileVersion::canCommit() const noexcept {
 }
 
 // Commit this version to the filesystem
-void FileVersion::commitWithMode(fs::path path, mode_t mode) noexcept {
+void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
   if (isCommitted()) return;
 
   ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
