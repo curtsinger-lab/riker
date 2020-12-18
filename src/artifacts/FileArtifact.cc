@@ -38,7 +38,7 @@ void FileArtifact::commit(shared_ptr<Version> v) noexcept {
   if (v == _content_version) {
     _content_version->commit(path.value());
   } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
+    _metadata_version->commitOwnership(path.value(), true);
   } else {
     FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
@@ -62,8 +62,8 @@ void FileArtifact::commitAll() noexcept {
   auto path = getPath();
   ASSERT(path.has_value()) << "File has no path: " << this;
 
-  _content_version->commit(path.value(), _metadata_version->getMode());
-  _metadata_version->commit(path.value());
+  _content_version->commitWithMode(path.value(), _metadata_version->getMode());
+  _metadata_version->commitOwnership(path.value(), true);
 }
 
 /// Command c requires that this artifact exists in its current state. Create dependency edges.

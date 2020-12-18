@@ -60,7 +60,7 @@ void DirArtifact::commit(shared_ptr<Version> v) noexcept {
   if (auto dv = v->as<DirVersion>()) {
     dv->commit(path.value());
   } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
+    _metadata_version->commitOwnership(path.value(), true);
   } else {
     FAIL << "Attempted to commit unknown version " << v << " in " << this;
   }
@@ -106,7 +106,7 @@ void DirArtifact::commitAll() noexcept {
   }
 
   // Commit metadata
-  _metadata_version->commit(path.value());
+  _metadata_version->commitOwnership(path.value(), true);
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.

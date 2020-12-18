@@ -219,7 +219,7 @@ void Artifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
   // If we don't have a fingerprint of the metadata, take one
 
   // Make sure metadata for this artifact is committed
-  _metadata_version->commit(path);
+  _metadata_version->commitOwnership(path, true);
   _metadata_version->fingerprint(path, cache_dir);
 }
 

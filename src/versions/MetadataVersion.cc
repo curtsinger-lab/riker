@@ -19,7 +19,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
     // Get a path to the artifact, including only committed paths
     auto path = artifact->getPath(false);
     ASSERT(path.has_value()) << "Committed artifact has no path";
-    save(path.value());
+    commit(path.value());
   }
 
   // Make sure we have metadata to check access against
@@ -87,7 +87,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
 }
 
 // Save metadata
-void MetadataVersion::save(fs::path path) noexcept {
+void MetadataVersion::commit(fs::path path) noexcept {
   if (_metadata.has_value()) return;
 
   struct stat statbuf;
@@ -109,7 +109,7 @@ bool MetadataVersion::canCommit() const noexcept {
 }
 
 // Commit this version to the filesystem
-void MetadataVersion::commit(fs::path path, bool commit_permissions) noexcept {
+void MetadataVersion::commitOwnership(fs::path path, bool commit_permissions) noexcept {
   if (isCommitted()) return;
   ASSERT(canCommit()) << "Attempted to commit unsaved version";
 
