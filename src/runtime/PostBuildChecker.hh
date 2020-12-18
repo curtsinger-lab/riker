@@ -1,5 +1,6 @@
 #include <memory>
 
+#include "artifacts/Artifact.hh"
 #include "interfaces/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"

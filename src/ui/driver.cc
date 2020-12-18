@@ -15,7 +15,6 @@
 
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "observers/RebuildPlanner.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/PostBuildChecker.hh"
@@ -63,9 +62,6 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Trace is lazy-loaded, so work is not done here
   InputTrace trace(args, DatabaseFilename);
 
-  // Set up a rebuild planner to observe the emulated build
-  RebuildPlanner planner;
-
   // Build stats
   optional<string> stats;
 
@@ -74,7 +70,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto start = std::chrono::high_resolution_clock::now();
 
     // Emulate the loaded trace
-    auto build = Build::emulate(CacheDir, planner);
+    auto build = Build::emulate(CacheDir);
     trace.sendTo(build);
 
     // end timer
@@ -92,7 +88,6 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     OutputTrace output(NewDatabaseFilename);
 
     // Now run the trace again with the planned rebuild steps
-    planner.planBuild();
     auto build = Build::rebuild(CacheDir, output);
     trace.sendTo(build);
 
@@ -138,23 +133,17 @@ void do_check(vector<string> args) noexcept {
   // Load a build, or set up a default build if necessary
   InputTrace trace(args, DatabaseFilename);
 
-  // Set up a rebuild planner to observe the emulated build
-  RebuildPlanner planner;
-
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate(CacheDir, planner));
-
-  // Plan the rebuild
-  planner.planBuild();
+  trace.sendTo(Build::emulate(CacheDir));
 
   // Print commands whose inputs have changed
-  if (planner.getChanged().size() > 0) {
+  /*if (planner.getChanged().size() > 0) {
     cout << "Commands with changed inputs:" << endl;
     for (const auto& c : planner.getChanged()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
-  }
+  }*/
 
   // Print commands whose output is needed
   /*if (planner.getOutputNeeded().size() > 0) {

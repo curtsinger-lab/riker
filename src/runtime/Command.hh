@@ -43,8 +43,6 @@ class Step;
  */
 class Command : public std::enable_shared_from_this<Command> {
  private:
-  friend class RebuildPlanner;
-
   /// Default constructor used to create the null command instance
   Command() noexcept = default;
 
