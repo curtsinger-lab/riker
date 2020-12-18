@@ -124,6 +124,12 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   /// This command observes a change in a given scenario
   void observeChange(Scenario s) noexcept;
 
+  /// An input to this command did not match the expected version
+  void inputChanged(shared_ptr<Artifact>,
+                    shared_ptr<Version> observed,
+                    shared_ptr<Version> expected,
+                    Scenario scenario) noexcept;
+
   /// Get the set of scenarios where this command has observed a change
   const set<Scenario>& getChanged() const noexcept { return _changed; }
 

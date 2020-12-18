@@ -250,7 +250,7 @@ void Artifact::matchMetadata(Build& build,
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, scenario, shared_from_this(), observed, expected);
+    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 

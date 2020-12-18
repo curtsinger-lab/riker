@@ -65,19 +65,6 @@ void Build::observeInput(const shared_ptr<Command>& c,
   }
 }
 
-// Inform observers that command c did not find the expected version in artifact a
-// Instead of version `expected`, the command found version `observed`
-void Build::observeMismatch(const shared_ptr<Command>& c,
-                            Scenario scenario,
-                            shared_ptr<Artifact> a,
-                            shared_ptr<Version> observed,
-                            shared_ptr<Version> expected) noexcept {
-  LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", c, scenario,
-       a, expected, observed);
-
-  c->currentRun()->observeChange(scenario);
-}
-
 // Inform observers that the version of an artifact produced during the build does not match the
 // on-disk version.
 void Build::observeFinalMismatch(shared_ptr<Artifact> a,

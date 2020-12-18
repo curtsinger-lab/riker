@@ -312,14 +312,6 @@ class Build : public TraceHandler, public BuildObserver {
                             shared_ptr<Version> v,
                             InputType t) noexcept override;
 
-  /// Inform observers that command c did not find the expected version in artifact a
-  /// Instead of version `expected`, the command found version `observed`
-  void observeMismatch(const shared_ptr<Command>& c,
-                       Scenario scenario,
-                       shared_ptr<Artifact> a,
-                       shared_ptr<Version> observed,
-                       shared_ptr<Version> expected) noexcept;
-
   /// Inform observers that the version of an artifact produced during the build does not match
   /// the on-disk version.
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,

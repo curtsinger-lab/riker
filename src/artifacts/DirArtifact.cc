@@ -187,7 +187,7 @@ void DirArtifact::matchContent(Build& build,
   // Compare the observed and expected versions
   if (!observed->matches(expected)) {
     // Report the mismatch
-    build.observeMismatch(c, scenario, shared_from_this(), observed, expected);
+    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 

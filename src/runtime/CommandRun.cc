@@ -148,6 +148,16 @@ void CommandRun::observeChange(Scenario s) noexcept {
   _changed.insert(s);
 }
 
+// An input to this command did not match the expected version
+void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
+                              shared_ptr<Version> observed,
+                              shared_ptr<Version> expected,
+                              Scenario scenario) noexcept {
+  LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", getCommand(),
+       scenario, artifact, expected, observed);
+  _changed.insert(scenario);
+}
+
 // Mark this command for re-execution
 bool CommandRun::markForRerun(RerunReason reason) noexcept {
   // Is this command already marked?
