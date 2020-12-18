@@ -39,7 +39,7 @@ class SymlinkArtifact : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;

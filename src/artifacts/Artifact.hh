@@ -115,7 +115,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void commitAll() noexcept = 0;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept = 0;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept;
@@ -158,9 +158,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  shared_ptr<MetadataVersion> getMetadata(BuildObserver& o,
-                                          const shared_ptr<Command>& c,
-                                          InputType t) noexcept;
+  shared_ptr<MetadataVersion> getMetadata(const shared_ptr<Command>& c, InputType t) noexcept;
 
   /// Get the current metadata without recording any dependencies
   shared_ptr<MetadataVersion> peekMetadata() noexcept;

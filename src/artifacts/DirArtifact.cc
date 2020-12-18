@@ -111,13 +111,13 @@ void DirArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void DirArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _base_dir_version, InputType::Exists);
+void DirArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
+  c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::Exists);
 
   for (auto [entry, info] : _entries) {
     auto [version, artifact] = info;
-    build.observeInput(c, shared_from_this(), version, InputType::Exists);
+    c->currentRun()->addInput(shared_from_this(), version, InputType::Exists);
   }
 }
 
@@ -167,13 +167,12 @@ void DirArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command just read from this artifact
 void DirArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this directory
-  build.traceMatchContent(c, ref, getList(build, c));
+  build.traceMatchContent(c, ref, getList(c));
 }
 
 // Get this artifact's content without creating dependencies
 shared_ptr<Version> DirArtifact::peekContent() noexcept {
-  BuildObserver o;
-  return getList(o, nullptr);
+  return getList(nullptr);
 }
 
 /// Check to see if this artifact's content matches a known version
@@ -182,7 +181,7 @@ void DirArtifact::matchContent(Build& build,
                                Scenario scenario,
                                shared_ptr<Version> expected) noexcept {
   // Get a list of entries in this directory
-  auto observed = getList(build, c);
+  auto observed = getList(c);
 
   // Compare the observed and expected versions
   if (!observed->matches(expected)) {
@@ -192,8 +191,7 @@ void DirArtifact::matchContent(Build& build,
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o,
-                                                const shared_ptr<Command>& c) noexcept {
+shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) noexcept {
   // Create a DirListVersion to hold the list of directory entries
   auto result = make_shared<DirListVersion>();
 
@@ -212,7 +210,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o,
   }
 
   // The command listing this directory depends on its base version
-  o.observeInput(c, shared_from_this(), _base_dir_version, InputType::Accessed);
+  if (c) c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::Accessed);
 
   for (auto [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -229,7 +227,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(BuildObserver& o,
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    o.observeInput(c, shared_from_this(), version, InputType::Accessed);
+    if (c) c->currentRun()->addInput(shared_from_this(), version, InputType::Accessed);
   }
 
   return result;
@@ -298,11 +296,11 @@ Ref DirArtifact::resolve(Build& build,
     }
 
     // Add a path resolution input from the version that matched
-    build.observeInput(c, shared_from_this(), v, InputType::PathResolution);
+    c->currentRun()->addInput(shared_from_this(), v, InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
-    build.observeInput(c, shared_from_this(), _base_dir_version, InputType::PathResolution);
+    c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (_base_dir_version->getCreated()) {
@@ -400,7 +398,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
   writing->createdBy(c->currentRun());
 
   // For this link to be committed, we need the artifact to exist or be committable
-  target->mustExist(build, c);
+  target->mustExist(c);
 
   // Inform the artifact of its new link
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);

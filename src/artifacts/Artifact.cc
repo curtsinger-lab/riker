@@ -192,7 +192,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(Build& build, const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::PathResolution);
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::PathResolution);
   return _metadata_version->checkAccess(build, shared_from_this(), flags);
 }
 
@@ -223,11 +223,10 @@ void Artifact::applyFinalState(Build& build, fs::path path, fs::path cache_dir) 
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
-                                                  const shared_ptr<Command>& c,
+shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  o.observeInput(c, shared_from_this(), _metadata_version, t);
+  if (c) c->currentRun()->addInput(shared_from_this(), _metadata_version, t);
 
   // Return the metadata version
   return _metadata_version;
@@ -235,8 +234,7 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(BuildObserver& o,
 
 /// Get the current metadata for this artifact without creating any dependencies
 shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
-  BuildObserver o;
-  return getMetadata(o, nullptr, InputType::Accessed);
+  return getMetadata(nullptr, InputType::Accessed);
 }
 
 /// Check to see if this artifact's metadata matches a known version
@@ -245,7 +243,7 @@ void Artifact::matchMetadata(Build& build,
                              Scenario scenario,
                              shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
-  auto observed = getMetadata(build, c, InputType::Accessed);
+  auto observed = getMetadata(c, InputType::Accessed);
 
   // Compare versions
   if (!observed->matches(expected)) {

@@ -20,7 +20,7 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
 
     if (id == Ref::Cwd) {
       // The current directory has to exist to launch the command
-      ref->getArtifact()->mustExist(build, _command.lock());
+      ref->getArtifact()->mustExist(_command.lock());
 
     } else {
       // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
@@ -181,6 +181,17 @@ bool CommandRun::mustRerun() const noexcept {
 // Add an input to this command
 void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
   _inputs.emplace(a, v, t);
+
+  // If this command is running, make sure the file is available
+  // We can skip committing a version if this same command also created the version
+  if (getCommand()->previousRun()->mustRerun() && !v->isCommitted() &&
+      v->getCreator() != shared_from_this()) {
+    // Commit the version now
+    ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
+                            << " cannot be committed";
+
+    a->commit(v);
+  }
 
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {

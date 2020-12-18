@@ -306,12 +306,6 @@ class Build : public TraceHandler, public BuildObserver {
                              shared_ptr<Artifact> a,
                              shared_ptr<Version> v) noexcept override;
 
-  /// Inform observers that command c accessed version v of artifact a
-  virtual void observeInput(const shared_ptr<Command>& c,
-                            shared_ptr<Artifact> a,
-                            shared_ptr<Version> v,
-                            InputType t) noexcept override;
-
   /// Inform observers that the version of an artifact produced during the build does not match
   /// the on-disk version.
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,

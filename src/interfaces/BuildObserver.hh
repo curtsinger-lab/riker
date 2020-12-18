@@ -32,12 +32,6 @@ class BuildObserver {
                              shared_ptr<Artifact> a,
                              shared_ptr<Version> v) noexcept {}
 
-  /// Command c depends on artifact a, accessing version v
-  virtual void observeInput(const shared_ptr<Command>& c,
-                            shared_ptr<Artifact> a,
-                            shared_ptr<Version> v,
-                            InputType t) noexcept {}
-
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced version `produced`, which does not match the `ondisk` version.
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,

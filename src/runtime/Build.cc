@@ -45,26 +45,6 @@ void Build::observeOutput(const shared_ptr<Command>& c,
   _observer.observeOutput(c, a, v);
 }
 
-// Inform observers that command c  accessed version v of artifact a
-void Build::observeInput(const shared_ptr<Command>& c,
-                         shared_ptr<Artifact> a,
-                         shared_ptr<Version> v,
-                         InputType t) noexcept {
-  // Track the input to the command
-  c->currentRun()->addInput(a, v, t);
-
-  // If the accessing command is running, make sure this file is available.
-  // One exception is when a command accesses its own output; we can skip that case because the
-  // output will eventually be marked as committed.
-  if (c->previousRun()->mustRerun() && !v->isCommitted() && v->getCreator() != c->currentRun()) {
-    // The command c is running, and needs uncommitted version v. We can commit it now
-    ASSERT(a->canCommit(v)) << "Running command " << c << " depends on an uncommittable version "
-                            << v << " of " << a;
-    LOG(exec) << "Committing " << v << " to " << a << " on demand";
-    a->commit(v);
-  }
-}
-
 // Inform observers that the version of an artifact produced during the build does not match the
 // on-disk version.
 void Build::observeFinalMismatch(shared_ptr<Artifact> a,
@@ -867,7 +847,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
   ASSERT(artifact) << "Tried to access metadata through unresolved reference " << ref;
 
   // Get the current metadata from the artifact
-  auto expected = artifact->getMetadata(*this, c, InputType::Accessed);
+  auto expected = artifact->getMetadata(c, InputType::Accessed);
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace

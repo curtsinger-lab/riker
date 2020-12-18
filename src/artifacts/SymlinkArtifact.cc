@@ -39,7 +39,7 @@ void SymlinkArtifact::matchContent(Build& build,
                                    Scenario scenario,
                                    shared_ptr<Version> expected) noexcept {
   // The symlink version is an input to command c
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
@@ -87,9 +87,9 @@ void SymlinkArtifact::commitAll() noexcept {
 }
 
 // Command c requires that this artifact exists in its current state. Create dependency edges.
-void SymlinkArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::Exists);
+void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Exists);
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -136,7 +136,7 @@ Ref SymlinkArtifact::resolve(Build& build,
   }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  build.observeInput(c, shared_from_this(), _symlink_version, InputType::PathResolution);
+  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();

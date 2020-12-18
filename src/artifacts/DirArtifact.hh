@@ -44,7 +44,7 @@ class DirArtifact final : public Artifact {
   virtual void commitAll() noexcept override;
 
   /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(Build& build, const shared_ptr<Command>& c) noexcept override;
+  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(Build& build, fs::path path, fs::path cache_dir) noexcept override;
@@ -74,7 +74,7 @@ class DirArtifact final : public Artifact {
                             shared_ptr<Version> expected) noexcept override;
 
   /// Get a version that lists all the entries in this directory
-  shared_ptr<DirListVersion> getList(BuildObserver& build, const shared_ptr<Command>& c) noexcept;
+  shared_ptr<DirListVersion> getList(const shared_ptr<Command>& c) noexcept;
 
   /************ Directory Operations ************/
 

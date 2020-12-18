@@ -68,9 +68,9 @@ void FileArtifact::commitAll() noexcept {
 }
 
 /// Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(Build& build, const shared_ptr<Command>& c) noexcept {
-  build.observeInput(c, shared_from_this(), _metadata_version, InputType::Exists);
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Exists);
+void FileArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
+  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Exists);
 }
 
 /// Compare all final versions of this artifact to the filesystem state
@@ -119,7 +119,7 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The current content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -128,7 +128,7 @@ void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -170,7 +170,7 @@ void FileArtifact::matchContent(Build& build,
                                 Scenario scenario,
                                 shared_ptr<Version> expected) noexcept {
   // The content version is an input to command c
-  build.observeInput(c, shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
