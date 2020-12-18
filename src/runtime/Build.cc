@@ -27,22 +27,6 @@ using std::make_unique;
 using std::ostream;
 using std::shared_ptr;
 
-/************************ Observer Implementation ************************/
-
-// Inform observers that a parent command launched a child command
-void Build::observeLaunch(const shared_ptr<Command>& parent,
-                          const shared_ptr<Command>& child) noexcept {
-  _observer.observeLaunch(parent, child);
-}
-
-// Inform observers that the version of an artifact produced during the build does not match the
-// on-disk version.
-void Build::observeFinalMismatch(shared_ptr<Artifact> a,
-                                 shared_ptr<Version> produced,
-                                 shared_ptr<Version> ondisk) noexcept {
-  _observer.observeFinalMismatch(a, produced, ondisk);
-}
-
 /************************ Handle IR steps from a loaded trace ************************/
 
 void Build::finish() noexcept {
@@ -528,7 +512,7 @@ void Build::launch(const shared_ptr<Command>& c,
   }
 
   // Inform observers of the launch
-  observeLaunch(c, child);
+  _observer.observeLaunch(c, child);
 
   // Remember that this command was run by the build
   _commands.insert(child);
@@ -1065,7 +1049,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   _output.launch(parent, child, refs);
 
   // Inform observers of the launch
-  observeLaunch(parent, child);
+  _observer.observeLaunch(parent, child);
 
   // Show the command if printing is on, or if this is a dry run
   if (options::print_on_run) {

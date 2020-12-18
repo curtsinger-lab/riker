@@ -211,3 +211,17 @@ void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputTy
 void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
   _outputs.emplace(a, v);
 }
+
+// An output from this command does not match the on-disk state (checked at the end of the build)
+void CommandRun::outputChanged(shared_ptr<Artifact> artifact,
+                               shared_ptr<Version> ondisk,
+                               shared_ptr<Version> expected) noexcept {
+  // If the expected output could be committed, there's no need to mark this command for rerun
+  if (options::enable_cache && artifact->canCommit(expected)) return;
+
+  LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
+       getCommand(), artifact, expected, ondisk);
+
+  _changed.insert(Scenario::Build);
+  _changed.insert(Scenario::PostBuild);
+}

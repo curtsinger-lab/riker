@@ -295,18 +295,6 @@ class Build : public TraceHandler, public BuildObserver {
   /// A command has exited with an exit code
   void traceExit(const shared_ptr<Command>& c, int exit_status) noexcept;
 
-  /********** Observer Interface **********/
-
-  /// Inform observers that a parent command launched a child command
-  virtual void observeLaunch(const shared_ptr<Command>& parent,
-                             const shared_ptr<Command>& child) noexcept override;
-
-  /// Inform observers that the version of an artifact produced during the build does not match
-  /// the on-disk version.
-  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
-                                    shared_ptr<Version> produced,
-                                    shared_ptr<Version> ondisk) noexcept override;
-
  private:
   /// Is a particular command running?
   bool isRunning(const shared_ptr<Command>& c) const noexcept {

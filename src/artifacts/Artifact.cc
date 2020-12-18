@@ -205,7 +205,9 @@ void Artifact::checkFinalState(Build& build, fs::path path, fs::path cache_dir) 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
       // Yes. Report the mismatch
-      build.observeFinalMismatch(shared_from_this(), _metadata_version, v);
+      auto creator = _metadata_version->getCreator();
+      if (creator) creator->outputChanged(shared_from_this(), v, _metadata_version);
+
     } else {
       // No. We can treat the metadata version as if it is committed
       _metadata_version->setCommitted();

@@ -35,11 +35,6 @@ class RebuildPlanner final : public BuildObserver {
     for (auto c : getChanged()) {
       mark(c, RerunReason::Changed);
     }
-
-    // Mark all the commands whose output is required
-    for (const auto& c : _output_needed) {
-      mark(c, RerunReason::OutputNeeded);
-    }
   }
 
   /// Get the set of commands that directly observe a change
@@ -55,27 +50,7 @@ class RebuildPlanner final : public BuildObserver {
     return changed;
   }
 
-  /// Get the set of commands whose output is needed
-  const set<shared_ptr<Command>>& getOutputNeeded() const noexcept { return _output_needed; }
-
   /******** BuildObserver Interface ********/
-
-  /// An artifact's final version does not match what is on the filesystem
-  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
-                                    shared_ptr<Version> produced,
-                                    shared_ptr<Version> ondisk) noexcept override final {
-    // If this artifact was not created by any command, there's nothing we can do about it
-    if (!produced->getCreator()) return;
-
-    // If this artifact is cached, we can just stage it in
-    if (options::enable_cache && a->canCommit(produced)) return;
-
-    // Otherwise we have to run the command that created this artifact
-    _output_needed.insert(produced->getCreator()->getCommand());
-
-    LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
-         produced->getCreator()->getCommand(), a, produced, ondisk);
-  }
 
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void observeLaunch(const shared_ptr<Command>& parent,
@@ -135,7 +110,4 @@ class RebuildPlanner final : public BuildObserver {
  private:
   /// Track all commands
   set<shared_ptr<Command>> _commands;
-
-  /// Track commands whose output is needed
-  set<shared_ptr<Command>> _output_needed;
 };

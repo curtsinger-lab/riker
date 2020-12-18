@@ -125,7 +125,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   void observeChange(Scenario s) noexcept;
 
   /// An input to this command did not match the expected version
-  void inputChanged(shared_ptr<Artifact>,
+  void inputChanged(shared_ptr<Artifact> artifact,
                     shared_ptr<Version> observed,
                     shared_ptr<Version> expected,
                     Scenario scenario) noexcept;
@@ -151,6 +151,11 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// Get the users of this command's outputs
   const set<shared_ptr<CommandRun>>& getOutputUsers() const noexcept { return _output_used_by; }
+
+  /// An output from this command does not match the on-disk state (checked at the end of the build)
+  void outputChanged(shared_ptr<Artifact> artifact,
+                     shared_ptr<Version> ondisk,
+                     shared_ptr<Version> expected) noexcept;
 
  private:
   /// The command this run is associated with

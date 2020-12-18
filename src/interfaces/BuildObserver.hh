@@ -27,12 +27,6 @@ class BuildObserver {
   /// Virtual destructor
   virtual ~BuildObserver() noexcept = default;
 
-  /// The stat of an artifact on the filesystem does not match its state at the end of the build.
-  /// The build produced version `produced`, which does not match the `ondisk` version.
-  virtual void observeFinalMismatch(shared_ptr<Artifact> a,
-                                    shared_ptr<Version> produced,
-                                    shared_ptr<Version> ondisk) noexcept {}
-
   /// A command is being launched. The parent will be null if this is the root command.
   virtual void observeLaunch(const shared_ptr<Command>& parent,
                              const shared_ptr<Command>& child) noexcept {}

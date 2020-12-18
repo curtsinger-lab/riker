@@ -83,7 +83,9 @@ void FileArtifact::checkFinalState(Build& build, fs::path path, fs::path cache_d
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
       // Yes. Report the mismatch
-      build.observeFinalMismatch(shared_from_this(), _content_version, v);
+      auto creator = _content_version->getCreator();
+      if (creator) creator->outputChanged(shared_from_this(), v, _content_version);
+
     } else {
       // No. We can treat the content version as if it is committed
       _content_version->setCommitted();

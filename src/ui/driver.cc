@@ -157,13 +157,13 @@ void do_check(vector<string> args) noexcept {
   }
 
   // Print commands whose output is needed
-  if (planner.getOutputNeeded().size() > 0) {
+  /*if (planner.getOutputNeeded().size() > 0) {
     cout << "Commands whose output is missing or modified:" << endl;
     for (const auto& c : planner.getOutputNeeded()) {
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
     cout << endl;
-  }
+  }*/
 
   // Print the rebuild plan
   bool header_printed = false;
