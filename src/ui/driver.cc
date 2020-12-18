@@ -137,25 +137,26 @@ void do_check(vector<string> args) noexcept {
   trace.sendTo(Build::emulate(CacheDir));
 
   // Print commands whose inputs have changed
-  /*if (planner.getChanged().size() > 0) {
-    cout << "Commands with changed inputs:" << endl;
-    for (const auto& c : planner.getChanged()) {
-      cout << "  " << c->getShortName(options::command_length) << endl;
-    }
-    cout << endl;
-  }*/
+  // This currently includes commands with missing outputs as well
+  // outputs)
+  bool header_printed = false;
+  for (const auto& c : trace.getCommands()) {
+    // Did the command change in both scenarios, build and post-build?
+    if (c->previousRun()->getChanged().size() == 2) {
+      // Print the header if necessary
+      if (!header_printed) cout << "Commands with changed inputs or missing outputs:" << endl;
+      header_printed = true;
 
-  // Print commands whose output is needed
-  /*if (planner.getOutputNeeded().size() > 0) {
-    cout << "Commands whose output is missing or modified:" << endl;
-    for (const auto& c : planner.getOutputNeeded()) {
+      // Print the command
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
-    cout << endl;
-  }*/
+  }
+
+  // If we printed anything, add a newline
+  if (header_printed) cout << endl;
 
   // Print the rebuild plan
-  bool header_printed = false;
+  header_printed = false;
   for (const auto& c : trace.getCommands()) {
     // Check if this command has to rerun
     if (c->previousRun()->mustRerun()) {
