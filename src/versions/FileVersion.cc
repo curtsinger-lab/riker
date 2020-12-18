@@ -131,7 +131,6 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
     auto m2 = other->_mtime.value();
     if (m1.tv_sec == m2.tv_sec && m1.tv_nsec == m2.tv_nsec) {
       // Yes. Return a match immediately
-      LOG(artifact) << "mtimes match.";
       return true;
     }
   }
@@ -139,14 +138,12 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
   // If fingerprinting is enabled, check to see if we have a hash and the hashes match
   if (!options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
       _b3hash.value() == other->_b3hash.value()) {
-    LOG(artifact) << "Fingerprints match";
     return true;
   }
 
   // If fingerprinting is disabled but the hashes match, print some info
   if (options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
       _b3hash.value() == other->_b3hash.value()) {
-    LOG(artifact) << "Fingerprints match, but mtimes do not";
   }
 
   return false;

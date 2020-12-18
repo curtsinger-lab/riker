@@ -175,6 +175,8 @@ void FileArtifact::matchContent(Build& build,
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, _content_version);
     // Report the mismatch
     c->currentRun()->inputChanged(shared_from_this(), _content_version, expected, scenario);
   }

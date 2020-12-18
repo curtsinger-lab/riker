@@ -184,6 +184,8 @@ void DirArtifact::matchContent(Build& build,
 
   // Compare the observed and expected versions
   if (!observed->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, observed);
     // Report the mismatch
     c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
   }

@@ -41,7 +41,7 @@ void Build::finish() noexcept {
 
   // Mark all commands as finished
   for (auto& c : _commands) {
-    LOG(rebuild) << "Finishing " << c;
+    LOG(exec) << "Finishing " << c;
     c->finishRun();
   }
 

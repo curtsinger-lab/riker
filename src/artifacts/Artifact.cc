@@ -249,6 +249,8 @@ void Artifact::matchMetadata(Build& build,
   // Compare versions
   if (!observed->matches(expected)) {
     // Report the mismatch
+    LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, observed);
     c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }

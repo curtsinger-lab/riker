@@ -118,9 +118,6 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   /// Plan the rebuild state for this command
   void planBuild() noexcept;
 
-  /// Mark this command for rerun. Returns true if this is a new marking.
-  bool markForRerun(RerunReason reason) noexcept;
-
   /// Check to see if this command was marked for re-execution after its previous run
   bool mustRerun() const noexcept;
 
@@ -159,6 +156,11 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   void outputChanged(shared_ptr<Artifact> artifact,
                      shared_ptr<Version> ondisk,
                      shared_ptr<Version> expected) noexcept;
+
+ private:
+  /// Mark this command for rerun. If set, the previous pointer keeps track of which command run
+  /// caused this marking.
+  void markForRerun(RerunReason reason, shared_ptr<CommandRun> prev = nullptr) noexcept;
 
  private:
   /// The command this run is associated with

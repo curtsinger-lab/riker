@@ -154,8 +154,6 @@ void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
                               shared_ptr<Version> observed,
                               shared_ptr<Version> expected,
                               Scenario scenario) noexcept {
-  LOGF(rebuild, "{} changed in scenario {}: change in {} (expected {}, observed {})", getCommand(),
-       scenario, artifact, expected, observed);
   _changed.insert(scenario);
 }
 
@@ -169,20 +167,36 @@ void CommandRun::planBuild() noexcept {
 }
 
 // Mark this command for re-execution
-bool CommandRun::markForRerun(RerunReason reason) noexcept {
+void CommandRun::markForRerun(RerunReason reason, shared_ptr<CommandRun> prev) noexcept {
   // Is this command already marked?
   bool already_marked = _rerun_reason.has_value();
 
   // If not, or if the given reason is "higher" than the previous marking, update it
   if (!already_marked || reason > _rerun_reason.value()) {
     _rerun_reason = reason;
+
+    if (reason == RerunReason::Changed) {
+      LOGF(rebuild, "{} must run: input changed or output is missing/modified", getCommand());
+    } else {
+      ASSERT(prev) << "Expected a previous command when propagating a marking";
+
+      if (reason == RerunReason::Child) {
+        LOGF(rebuild, "{} must run: parent {} is running", getCommand(), prev->getCommand());
+
+      } else if (reason == RerunReason::InputMayChange) {
+        LOGF(rebuild, "{} must run: input may be changed by {}", getCommand(), prev->getCommand());
+
+      } else if (reason == RerunReason::OutputNeeded) {
+        LOGF(rebuild, "{} must run: output is needed by {}", getCommand(), prev->getCommand());
+      }
+    }
   }
 
   // If this is a new marking, propagate it to any connected commands
   if (!already_marked) {
     // Mark this command's children
     for (const auto& child : _children) {
-      child->markForRerun(RerunReason::Child);
+      child->markForRerun(RerunReason::Child, shared_from_this());
     }
 
     // Mark any commands that produce output that this command needs
@@ -192,22 +206,19 @@ bool CommandRun::markForRerun(RerunReason reason) noexcept {
       if (!creator) continue;
 
       // If the version is cached, we can commit it without running the creator
-      // TODO: This check should really ask the artifact if it can commit the version at the time of
-      // the input, not during rebuild planning.
+      // TODO: This check should really ask the artifact if it can commit the version at the time
+      // of the input, not during rebuild planning.
       if (options::enable_cache && v->canCommit()) continue;
 
       // Mark the creator for rerun so it will produce the necessary input
-      creator->markForRerun(RerunReason::OutputNeeded);
+      creator->markForRerun(RerunReason::OutputNeeded, shared_from_this());
     }
 
     // Mark any commands that use this command's output
     for (const auto& user : _output_used_by) {
-      user->markForRerun(RerunReason::InputMayChange);
+      user->markForRerun(RerunReason::InputMayChange, shared_from_this());
     }
   }
-
-  // Return true if this was a new marking
-  return !already_marked;
 }
 
 // Check to see if this command was marked for re-execution after the last run

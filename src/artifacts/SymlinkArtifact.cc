@@ -43,6 +43,9 @@ void SymlinkArtifact::matchContent(Build& build,
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, _symlink_version);
+
     // Report the mismatch
     c->currentRun()->inputChanged(shared_from_this(), _symlink_version, expected, scenario);
   }
