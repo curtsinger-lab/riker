@@ -22,10 +22,7 @@ class SymlinkVersion : public Version {
   virtual string getTypeName() const noexcept override { return "symlink"; }
 
   /// Commit this version to the filesystem
-  void commit(fs::path path) noexcept;
-
-  /// Check if this version has a fingerprint
-  // virtual bool hasFingerprint() const noexcept override { return true; }
+  void commit(fs::path path) noexcept override;
 
   /// Compare this version to another version
   virtual bool matches(shared_ptr<Version> other) const noexcept override {

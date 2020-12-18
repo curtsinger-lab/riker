@@ -39,7 +39,7 @@ class FileVersion final : public Version {
   bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  void commit(fs::path path, mode_t mode = 0600) noexcept;
+  void commitWithMode(fs::path path, mode_t mode = 0600) noexcept;
 
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
