@@ -65,37 +65,19 @@ class RebuildPlanner final : public BuildObserver {
                             shared_ptr<Artifact> a,
                             shared_ptr<Version> v,
                             InputType t) noexcept override final {
-    // During the planning phase, record this dependency
-    if (v->getCreator()) {
-      // Special case: make will stat files at the end of the build. We'll skip recording these
-      // inputs for now. If we don't do that, any build that updates a target will force a full
-      // rebuild with make.
-      if (auto metadata = v->as<MetadataVersion>(); metadata && c->isMake()) {
-        // TODO: Revisit this special case once we have command skipping. We could defer running
-        // make but then launch is later (and skip its children) if the stat data changes.
+    // If the version has no creator, we do not need to propagate any markings
+    auto creator = v->getCreator();
+    if (!creator) return;
 
-        // make needs the output from the creator if we need to rerun it, but don't add make to the
-        // creator's set of commands that it will mark for rerun
-        _needs_output_from[c].insert(v->getCreator()->getCommand());
-        return;
-      }
+    // If this is make accessing metadata, we only need to mark in one direction;
+    // changing metadata alone does not need to trigger a re-execution of make
+    if (v->as<MetadataVersion>() && c->isMake()) return;
 
-      // Output from creator is used by c. If creator reruns, c may have to rerun.
-      // This is not true for inputs that just require the version to exist
-      if (t != InputType::Exists) {
-        _output_used_by[v->getCreator()->getCommand()].insert(c);
-      }
+    // If the only requirement is that the artifact exists, we don't need to create a dependency
+    if (t == InputType::Exists) return;
 
-      // The dependency back edge depends on caching
-      if (options::enable_cache && a->canCommit(v)) {
-        // If the requested artifact can commit the version we need, there's no need to depend on
-        // the creator of this version.
-
-      } else {
-        // Otherwise, if c has to run then we also need to run creator to produce this input
-        _needs_output_from[c].insert(v->getCreator()->getCommand());
-      }
-    }
+    // Otherwise command c may have to rerun if the input's creator reruns
+    _output_used_by[v->getCreator()->getCommand()].insert(c);
   }
 
   /// An artifact's final version does not match what is on the filesystem
@@ -152,10 +134,16 @@ class RebuildPlanner final : public BuildObserver {
     }
 
     // Mark any commands that produce output that this command needs
-    if (auto iter = _needs_output_from.find(c); iter != _needs_output_from.end()) {
-      for (const auto& other : iter->second) {
-        mark(other, RerunReason::OutputNeeded, c);
-      }
+    for (const auto& [a, v, t] : c->previousRun()->getInputs()) {
+      // If the version does not have a creator, there's no need to run anything to create it
+      auto creator = v->getCreator();
+      if (!creator) continue;
+
+      // If the version is cached, we can commit it without running the creator
+      if (options::enable_cache && v->canCommit()) continue;
+
+      // Mark the creator for rerun so it will produce the necessary input
+      mark(creator->getCommand(), RerunReason::OutputNeeded, c);
     }
 
     // Mark any commands that use this command's output
@@ -175,7 +163,4 @@ class RebuildPlanner final : public BuildObserver {
 
   /// Map command that produces output(s) -> commands that consume that output
   map<shared_ptr<Command>, set<shared_ptr<Command>>> _output_used_by;
-
-  /// Map command that consumes uncached input -> commands that produce that input
-  map<shared_ptr<Command>, set<shared_ptr<Command>>> _needs_output_from;
 };
