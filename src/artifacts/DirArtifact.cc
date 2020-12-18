@@ -407,7 +407,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(Build& build,
   _entries[entry] = {writing, target};
 
   // Notify the build of this output
-  build.observeOutput(c, shared_from_this(), writing);
+  c->currentRun()->addOutput(shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
@@ -448,7 +448,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(Build& build,
   _entries[entry] = {writing, nullptr};
 
   // Notify the build of this output
-  build.observeOutput(c, shared_from_this(), writing);
+  c->currentRun()->addOutput(shared_from_this(), writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

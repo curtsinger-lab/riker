@@ -167,7 +167,7 @@ shared_ptr<PipeArtifact> Env::getPipe(Build& build, const shared_ptr<Command>& c
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, pipe, mv);
+    c->currentRun()->addOutput(pipe, mv);
   }
 
   _artifacts.insert(pipe);
@@ -196,10 +196,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(Build& build,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, symlink, mv);
+    c->currentRun()->addOutput(symlink, mv);
 
     sv->createdBy(c->currentRun());
-    build.observeOutput(c, symlink, sv);
+    c->currentRun()->addOutput(symlink, sv);
   }
 
   _artifacts.insert(symlink);
@@ -232,10 +232,10 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    build.observeOutput(c, dir, mv);
+    c->currentRun()->addOutput(dir, mv);
 
     dv->createdBy(c->currentRun());
-    build.observeOutput(c, dir, dv);
+    c->currentRun()->addOutput(dir, dv);
   }
 
   _artifacts.insert(dir);
@@ -244,7 +244,7 @@ shared_ptr<DirArtifact> Env::getDir(Build& build,
 }
 
 shared_ptr<Artifact> Env::createFile(Build& build,
-                                     const shared_ptr<Command>& creator,
+                                     const shared_ptr<Command>& c,
                                      mode_t mode,
                                      bool committed) noexcept {
   // Get the current umask
@@ -258,21 +258,21 @@ shared_ptr<Artifact> Env::createFile(Build& build,
 
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
-  mv->createdBy(creator->currentRun());
+  mv->createdBy(c->currentRun());
   if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<FileVersion>();
   cv->makeEmptyFingerprint();
-  cv->createdBy(creator->currentRun());
+  cv->createdBy(c->currentRun());
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it
   auto artifact = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   // Observe output to metadata and content for the new file
-  build.observeOutput(creator, artifact, mv);
-  build.observeOutput(creator, artifact, cv);
+  c->currentRun()->addOutput(artifact, mv);
+  c->currentRun()->addOutput(artifact, cv);
 
   _artifacts.insert(artifact);
 

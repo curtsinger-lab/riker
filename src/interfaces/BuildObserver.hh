@@ -27,11 +27,6 @@ class BuildObserver {
   /// Virtual destructor
   virtual ~BuildObserver() noexcept = default;
 
-  /// Command c modifies artifact a, creating version v
-  virtual void observeOutput(const shared_ptr<Command>& c,
-                             shared_ptr<Artifact> a,
-                             shared_ptr<Version> v) noexcept {}
-
   /// The stat of an artifact on the filesystem does not match its state at the end of the build.
   /// The build produced version `produced`, which does not match the `ondisk` version.
   virtual void observeFinalMismatch(shared_ptr<Artifact> a,

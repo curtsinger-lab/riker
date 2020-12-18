@@ -35,16 +35,6 @@ void Build::observeLaunch(const shared_ptr<Command>& parent,
   _observer.observeLaunch(parent, child);
 }
 
-// Inform observers that command c modified artifact a, creating version v
-void Build::observeOutput(const shared_ptr<Command>& c,
-                          shared_ptr<Artifact> a,
-                          shared_ptr<Version> v) noexcept {
-  // Track the output from the command
-  c->currentRun()->addOutput(a, v);
-
-  _observer.observeOutput(c, a, v);
-}
-
 // Inform observers that the version of an artifact produced during the build does not match the
 // on-disk version.
 void Build::observeFinalMismatch(shared_ptr<Artifact> a,

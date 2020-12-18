@@ -265,7 +265,7 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(Build& build,
   _metadata_version = writing;
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), _metadata_version);
+  c->currentRun()->addOutput(shared_from_this(), _metadata_version);
 
   return writing;
 }

@@ -191,5 +191,5 @@ void FileArtifact::updateContent(Build& build,
                              << this;
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), writing);
+  c->currentRun()->addOutput(shared_from_this(), writing);
 }

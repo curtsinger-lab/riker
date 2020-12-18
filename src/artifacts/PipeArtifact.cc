@@ -123,7 +123,7 @@ void PipeArtifact::updateContent(Build& build,
   appendVersion(writing);
 
   // Report the output to the build
-  build.observeOutput(c, shared_from_this(), writing);
+  c->currentRun()->addOutput(shared_from_this(), writing);
 
   // Is the written version a pipe write or pipe read?
   if (auto read = writing->as<PipeReadVersion>()) {
