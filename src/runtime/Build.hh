@@ -32,22 +32,18 @@ class Version;
 class Build : public TraceHandler {
  private:
   /// Create a build runner
-  Build(bool commit, TraceHandler& output, fs::path cache_dir) noexcept :
-      _commit(commit),
-      _output(output),
-      _env(make_shared<Env>()),
-      _tracer(*this),
-      _cache_dir(cache_dir) {}
+  Build(bool commit, TraceHandler& output) noexcept :
+      _commit(commit), _output(output), _env(make_shared<Env>()), _tracer(*this) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate(fs::path cache_dir, TraceHandler& output = _default_output) noexcept {
-    return Build(false, output, cache_dir);
+  static Build emulate(TraceHandler& output = _default_output) noexcept {
+    return Build(false, output);
   }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(fs::path cache_dir, TraceHandler& output = _default_output) noexcept {
-    return Build(true, output, cache_dir);
+  static Build rebuild(TraceHandler& output = _default_output) noexcept {
+    return Build(true, output);
   }
 
   // Disallow Copy
@@ -332,7 +328,4 @@ class Build : public TraceHandler {
 
   /// The default output is used if a trace handler is not provided during setup
   inline static TraceHandler _default_output;
-
-  /// The path to the file cache
-  fs::path _cache_dir;
 };

@@ -20,6 +20,7 @@
 #include "runtime/PostBuildChecker.hh"
 #include "ui/Graph.hh"
 #include "ui/TracePrinter.hh"
+#include "ui/constants.hh"
 #include "ui/options.hh"
 #include "ui/stats.hh"
 #include "util/log.hh"
@@ -34,14 +35,6 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-// Constant names for files and paths
-const char* RootBuildCommand = "Dodofile";
-const char* ShellCommand = "/bin/sh";
-const fs::path OutputDir = ".dodo";
-const fs::path DatabaseFilename = OutputDir / "db";
-const fs::path NewDatabaseFilename = OutputDir / "newdb";
-const fs::path CacheDir = OutputDir / "cache";
-
 /**
  * Run the `build` subcommand.
  */
@@ -53,14 +46,14 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   }
 
   // Make sure the output directory exists
-  fs::create_directories(OutputDir);
+  fs::create_directories(constants::OutputDir);
 
   // Also ensure that the cache directory exists
-  fs::create_directory(CacheDir);
+  fs::create_directory(constants::CacheDir);
 
   // Load a trace, or set up a default build if necessary
   // Trace is lazy-loaded, so work is not done here
-  InputTrace trace(args, DatabaseFilename);
+  InputTrace trace(args, constants::DatabaseFilename);
 
   // Build stats
   optional<string> stats;
@@ -70,7 +63,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto start = std::chrono::high_resolution_clock::now();
 
     // Emulate the loaded trace
-    auto build = Build::emulate(CacheDir);
+    auto build = Build::emulate();
     trace.sendTo(build);
 
     // end timer
@@ -85,10 +78,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto start = std::chrono::high_resolution_clock::now();
 
     // Set up an output trace
-    OutputTrace output(NewDatabaseFilename);
+    OutputTrace output(constants::NewDatabaseFilename);
 
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(CacheDir, output);
+    auto build = Build::rebuild(output);
     trace.sendTo(build);
 
     // end timer
@@ -103,16 +96,16 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto start = std::chrono::high_resolution_clock::now();
 
     // Load the newly generated input trace
-    InputTrace new_trace(args, NewDatabaseFilename);
+    InputTrace new_trace(args, constants::NewDatabaseFilename);
 
     // Set up an output trace for the post-build check
-    OutputTrace output(DatabaseFilename);
+    OutputTrace output(constants::DatabaseFilename);
 
     // Set up a filter to update predicates to their post-build state
     PostBuildChecker filter(output);
 
     // Emulate the new trace
-    auto build = Build::emulate(CacheDir, filter);
+    auto build = Build::emulate(filter);
     new_trace.sendTo(build);
 
     // end timer
@@ -131,10 +124,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
  */
 void do_check(vector<string> args) noexcept {
   // Load a build, or set up a default build if necessary
-  InputTrace trace(args, DatabaseFilename);
+  InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate(CacheDir));
+  trace.sendTo(Build::emulate());
 
   // Print commands whose inputs have changed
   // This currently includes commands with missing outputs as well
@@ -181,9 +174,9 @@ void do_check(vector<string> args) noexcept {
 void do_trace(vector<string> args, string output) noexcept {
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace(args, DatabaseFilename).sendTo(TracePrinter(cout));
+    InputTrace(args, constants::DatabaseFilename).sendTo(TracePrinter(cout));
   } else {
-    InputTrace(args, DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
+    InputTrace(args, constants::DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
   }
 }
 
@@ -207,10 +200,10 @@ void do_graph(vector<string> args,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  InputTrace trace(args, DatabaseFilename);
+  InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the build
-  trace.sendTo(Build::emulate(CacheDir));
+  trace.sendTo(Build::emulate());
 
   Graph2 graph(trace, show_all);
 
@@ -242,10 +235,10 @@ void do_graph(vector<string> args,
  */
 void do_stats(vector<string> args, bool list_artifacts) noexcept {
   // Load the serialized build trace
-  InputTrace trace(args, DatabaseFilename);
+  InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the trace
-  auto build = Build::emulate(CacheDir);
+  auto build = Build::emulate();
   trace.sendTo(build);
   auto final_env = build.getEnvironment();
 

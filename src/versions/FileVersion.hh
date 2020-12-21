@@ -45,7 +45,7 @@ class FileVersion final : public Version {
   virtual void commit(fs::path path) noexcept override;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path, fs::path cache_dir) noexcept override;
+  virtual void fingerprint(fs::path path) noexcept override;
 
   /// Does this FileVersion have a fingerprint already?
   bool hasHash() noexcept;
@@ -62,18 +62,17 @@ class FileVersion final : public Version {
   /// Pretty printer
   virtual ostream& print(ostream& o) const noexcept override;
 
-  /// Return the path for the contents of this cached FileVersion relative to the given cache_dir
-  fs::path cacheFilePath(fs::path cache_dir) noexcept;
+  /// Return the path for the contents of this cached FileVersion
+  fs::path cacheFilePath() noexcept;
 
   /// Store a copy on disk
-  virtual void cache(fs::path path, fs::path cache_dir) noexcept override;
+  virtual void cache(fs::path path) noexcept override;
 
  private:
   bool _empty;
   bool _cached;
   std::optional<struct timespec> _mtime;
   std::optional<BLAKE3Hash> _b3hash;
-  std::optional<fs::path> _cache_dir;
 
   /// Compare to another fingerprint instance
   bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
@@ -85,10 +84,10 @@ class FileVersion final : public Version {
   static std::optional<BLAKE3Hash> blake3(fs::path path) noexcept;
 
   /// Return the path for the contents of this cached FileVersion
-  static fs::path cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) noexcept;
+  static fs::path cacheFilePath(BLAKE3Hash& hash) noexcept;
 
   /// Restore a cached copy to the given path
   void stage(fs::path path) noexcept;
 
-  SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash, _cache_dir);
+  SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash);
 };

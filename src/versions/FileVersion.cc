@@ -10,6 +10,7 @@
 #include "artifacts/Artifact.hh"
 #include "blake3.h"
 #include "data/TraceHandler.hh"
+#include "ui/constants.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 
@@ -56,7 +57,7 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
 }
 
 /// Save a fingerprint of this version
-void FileVersion::fingerprint(fs::path path, fs::path cache_dir) noexcept {
+void FileVersion::fingerprint(fs::path path) noexcept {
   // if there is already a fingerprint with a hash, move on
   if (hasHash()) return;
 
@@ -78,7 +79,7 @@ void FileVersion::fingerprint(fs::path path, fs::path cache_dir) noexcept {
 
     // if caching is enabled, cache the file
     if (options::enable_cache && _b3hash.has_value()) {
-      cache(path, cache_dir);
+      cache(path);
     }
   }
 }
@@ -101,7 +102,7 @@ void FileVersion::stage(fs::path path) noexcept {
   // if (stage_exists) return;
 
   // Path to cache file
-  fs::path hash_file = cacheFilePath(_cache_dir.value());
+  fs::path hash_file = cacheFilePath();
 
   // Get the length of the cached file
   struct stat cache_statbuf;
@@ -133,7 +134,7 @@ void FileVersion::stage(fs::path path) noexcept {
   close(dst_fd);
 }
 
-void FileVersion::cache(fs::path path, fs::path cache_dir) noexcept {
+void FileVersion::cache(fs::path path) noexcept {
   // Don't cache if the fingerprint is missing
   if (!_b3hash.has_value()) return;
 
@@ -141,7 +142,7 @@ void FileVersion::cache(fs::path path, fs::path cache_dir) noexcept {
   if (!getCreator()) return;
 
   // Path to cache file
-  fs::path hash_file = cacheFilePath(_b3hash.value(), cache_dir);
+  fs::path hash_file = cacheFilePath(_b3hash.value());
   fs::path hash_dir = hash_file.parent_path();
 
   // Get the length of the input file
@@ -182,7 +183,6 @@ void FileVersion::cache(fs::path path, fs::path cache_dir) noexcept {
   close(src_fd);
   close(dst_fd);
 
-  _cache_dir = cache_dir;
   _cached = true;
 }
 
@@ -261,7 +261,7 @@ string FileVersion::b3hex(BLAKE3Hash b3hash) noexcept {
 }
 
 /// Return the path for the contents of this cached FileVersion
-fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) noexcept {
+fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash) noexcept {
   // We use a three-level directory prefix scheme to store cached files
   // to avoid having too many files in a given folder.  This scheme
   // below has 16^6 unique directory prefixes.
@@ -269,16 +269,16 @@ fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash, fs::path cache_dir) noexce
   fs::path dir_lvl_0 = hash_str.substr(0, 2);
   fs::path dir_lvl_1 = hash_str.substr(2, 2);
   fs::path dir_lvl_2 = hash_str.substr(4, 2);
-  fs::path hash_dir = cache_dir / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
+  fs::path hash_dir = constants::CacheDir / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
 
   // Path to cache file
   return hash_dir / hash_str;
 }
 
-/// Return the path for the contents of this cached FileVersion relative to the given cache_dir
-fs::path FileVersion::cacheFilePath(fs::path cache_dir) noexcept {
+/// Return the path for the contents of this cached FileVersion
+fs::path FileVersion::cacheFilePath() noexcept {
   ASSERT(_b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
-  return cacheFilePath(_b3hash.value(), cache_dir);
+  return cacheFilePath(_b3hash.value());
 }
 
 /// Pretty printer

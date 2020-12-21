@@ -19,7 +19,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
     // Get a path to the artifact, including only committed paths
     auto path = artifact->getPath(false);
     ASSERT(path.has_value()) << "Committed artifact has no path";
-    cache(path.value(), options::cache_dir);
+    cache(path.value());
   }
 
   // Make sure we have metadata to check access against
@@ -87,7 +87,7 @@ bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags fla
 }
 
 // Save metadata
-void MetadataVersion::cache(fs::path path, fs::path cache_dir) noexcept {
+void MetadataVersion::cache(fs::path path) noexcept {
   if (_metadata.has_value()) return;
 
   struct stat statbuf;

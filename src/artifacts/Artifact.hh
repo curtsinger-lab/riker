@@ -118,10 +118,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path, fs::path cache_dir) noexcept;
+  virtual void checkFinalState(fs::path path) noexcept;
 
   /// Commit any pending versions and save fingerprints for this artifact
-  virtual void applyFinalState(fs::path path, fs::path cache_dir) noexcept;
+  virtual void applyFinalState(fs::path path) noexcept;
 
   /// Mark all versions and paths to this artifact as committed
   virtual void setCommitted() noexcept;
@@ -242,16 +242,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param c     The command this resolution is performed on behalf of
    * \param path  The path being resolved
    * \param flags The access mode requested
-   * \param cache_dir The path to the dodo cache directory
    * \param symlink_limit Don't follow symlinks deeper than this number of levels
    * \returns a resolution result, which is either an artifact or an error code
    */
   Ref resolve(const shared_ptr<Command>& c,
               fs::path path,
               AccessFlags flags,
-              fs::path cache_dir,
               size_t symlink_limit = 40) noexcept {
-    return resolve(c, nullptr, path.begin(), path.end(), flags, cache_dir, symlink_limit);
+    return resolve(c, nullptr, path.begin(), path.end(), flags, symlink_limit);
   }
 
   /**
@@ -262,7 +260,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param current   An iterator to the next part of the path to be resolved
    * \param end       An iterator to the end of the path
    * \param flags     The access mode requested for the final resolved file
-   * \param cache_dir The path to the dodo cache directory
    * \param symlink_limit Don't follow symlinks deeper than this number of levels
    * \returns a resolution result, which is either an artifact or an error code
    */
@@ -271,7 +268,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                       fs::path::iterator current,
                       fs::path::iterator end,
                       AccessFlags flags,
-                      fs::path cache_dir,
                       size_t symlink_limit) noexcept;
 
   /****** Utility Methods ******/

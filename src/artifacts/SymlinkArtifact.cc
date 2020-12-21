@@ -95,24 +95,24 @@ void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void SymlinkArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path, cache_dir);
+  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void SymlinkArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
+void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
   // Commit and fingerprint metadata
-  Artifact::applyFinalState(path, cache_dir);
+  Artifact::applyFinalState(path);
 }
 
 Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
@@ -120,7 +120,6 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
                              fs::path::iterator current,
                              fs::path::iterator end,
                              AccessFlags flags,
-                             fs::path cache_dir,
                              size_t symlink_limit) noexcept {
   if (symlink_limit == 0) return ELOOP;
 
@@ -150,13 +149,13 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
   // Is the destination relative or absolute?
   if (dest.is_relative()) {
     // Resolve relative to the previous artifact, which must be the dir that holds this symlink
-    return prev->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
+    return prev->resolve(c, dest, flags, symlink_limit - 1);
 
   } else {
     // Strip the leading slash from the path
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return getEnv()->getRootDir(cache_dir)->resolve(c, dest, flags, cache_dir, symlink_limit - 1);
+    return getEnv()->getRootDir()->resolve(c, dest, flags, symlink_limit - 1);
   }
 }

@@ -121,7 +121,7 @@ void DirArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
 }
 
 // Compare all final versions of this artifact to the filesystem state
-void DirArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
+void DirArtifact::checkFinalState(fs::path path) noexcept {
   // Recursively check the final state of all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
@@ -129,7 +129,7 @@ void DirArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
     // Do we expect the entry to point to an artifact?
     if (artifact) {
       // Yes. Make sure that artifact is in the expected final state
-      artifact->checkFinalState(path / name, cache_dir);
+      artifact->checkFinalState(path / name);
     }
 
     // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
@@ -139,22 +139,22 @@ void DirArtifact::checkFinalState(fs::path path, fs::path cache_dir) noexcept {
   }
 
   // Check the metadata state as well
-  Artifact::checkFinalState(path, cache_dir);
+  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
-void DirArtifact::applyFinalState(fs::path path, fs::path cache_dir) noexcept {
+void DirArtifact::applyFinalState(fs::path path) noexcept {
   // First, commit this artifact and its metadata
   // TODO: Should we just commit the base version, then commit entries on demand?
   commitAll();
 
   // Fingerprint/commit any remaining metadata
-  Artifact::applyFinalState(path, cache_dir);
+  Artifact::applyFinalState(path);
 
   // Recursively apply final state for all known entries
   for (auto& [name, info] : _entries) {
     auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(path / name, cache_dir);
+    if (artifact) artifact->applyFinalState(path / name);
   }
 }
 
@@ -238,7 +238,6 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
                          fs::path::iterator current,
                          fs::path::iterator end,
                          AccessFlags flags,
-                         fs::path cache_dir,
                          size_t symlink_limit) noexcept {
   // If the path has a trailing slash, the final entry will be empty. Advance past any empty
   // entries
@@ -266,15 +265,14 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
   // Are we looking for the current directory?
   if (entry.string() == ".") {
-    return resolve(c, shared_from_this(), current, end, flags, cache_dir, symlink_limit);
+    return resolve(c, shared_from_this(), current, end, flags, symlink_limit);
   }
 
   // Are we looking for the parent directory?
   if (entry.string() == "..") {
     auto parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
-    return parent.value()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
-                                   symlink_limit);
+    return parent.value()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
   }
 
   // We'll track the result of the resolution here
@@ -313,7 +311,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       auto entry_path = dir_path.value() / entry;
 
       // Try to get the artifact from the filesystem
-      auto artifact = getEnv()->getFilesystemArtifact(entry_path, cache_dir);
+      auto artifact = getEnv()->getFilesystemArtifact(entry_path);
 
       // Did we get an artifact?
       if (artifact) {
@@ -366,14 +364,12 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     if (res.getResultCode() != SUCCESS) return res;
 
     // Otherwise continue with resolution, which may follow symlinks
-    return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
-                                      symlink_limit);
+    return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res.isSuccess()) {
-      return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, cache_dir,
-                                        symlink_limit);
+      return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
     }
 
     // Otherwise return the error from the resolution

@@ -26,7 +26,4 @@ namespace options {
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER
-
-  /// Where are cached files saved?
-  inline fs::path cache_dir = ".dodo/cache";
 }
