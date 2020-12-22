@@ -40,6 +40,3 @@ The output file should be back (from the cache)
 
 Clean up
   $ rm -rf .dodo myfile
-
-SKIP! This test does relies on file caching, which is not implemented yet
-  $ exit 80
