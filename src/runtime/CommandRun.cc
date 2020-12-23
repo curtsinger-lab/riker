@@ -221,20 +221,13 @@ void CommandRun::markForRerun(RerunReason reason, shared_ptr<CommandRun> prev) n
   }
 }
 
-// Check to see if this command was marked for re-execution after the last run
-bool CommandRun::mustRerun() const noexcept {
-  // Otherwise check the last run state
-  return _rerun_reason.has_value();
-}
-
 // Add an input to this command
 void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
   _inputs.emplace(a, v, t);
 
   // If this command is running, make sure the file is available
   // We can skip committing a version if this same command also created the version
-  if (getCommand()->previousRun()->mustRerun() && !v->isCommitted() &&
-      v->getCreator() != shared_from_this()) {
+  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
     // Commit the version now
     ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
                             << " cannot be committed";

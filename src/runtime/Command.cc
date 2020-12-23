@@ -101,6 +101,11 @@ const shared_ptr<CommandRun>& Command::previousRun() noexcept {
   return _last_run;
 }
 
+// Check if this command must rerun
+bool Command::mustRerun() noexcept {
+  return previousRun()->getRerun().has_value();
+}
+
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
   // Plan the next build

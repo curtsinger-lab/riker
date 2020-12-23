@@ -102,6 +102,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the transient data for this command's previous run
   const shared_ptr<CommandRun>& previousRun() noexcept;
 
+  /// Check if this command has to rerun
+  bool mustRerun() noexcept;
+
   /// Finish the current run of this command. This moves the run data to last_run.
   void finishRun() noexcept;
 
