@@ -101,17 +101,157 @@ const shared_ptr<CommandRun>& Command::previousRun() noexcept {
   return _last_run;
 }
 
-// Check if this command must rerun
-bool Command::mustRerun() noexcept {
-  return previousRun()->getRerun().has_value();
-}
-
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
-  // Plan the next build
-  _run->planBuild();
-
-  // Create a new Run struct in _last_run, then swap them
+  // Create a new instance of CommandRun in _last_run, then swap them
   _last_run = make_shared<CommandRun>(shared_from_this());
   std::swap(_run, _last_run);
+
+  // Update the command's marking
+  if (_marking == RebuildMarking::MayRun) {
+    // We are currently executing MayRun commands eagerly, so mark them AlreadyRun
+    // TODO: Change MayRun back to Emulate once we're only running MustRun commands
+    _marking = RebuildMarking::AlreadyRun;
+
+  } else if (_marking == RebuildMarking::MustRun) {
+    // MustRun commands were executed, so update them to AlreadyRun
+    _marking = RebuildMarking::AlreadyRun;
+  }
+
+  // Emulate and AlreadyRun markings are left as-is
+}
+
+// Plan the next build based on this command's completed run
+void Command::planBuild() noexcept {
+  // See rebuild planning rules in docs/new-rebuild.md
+  // Rules 1 & 2: If this command observe a change on its previous run, mark it for rerun
+  if (previousRun()->getChanged().size() == 2) {
+    if (mark(RebuildMarking::MustRun)) {
+      LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
+    }
+  }
+}
+
+// Assign a marking to this command. Return true if the marking is new.
+bool Command::mark(RebuildMarking m) noexcept {
+  // See rebuild planning rules in docs/new-rebuild.md
+
+  // Check the new marking
+  if (m == RebuildMarking::MustRun) {
+    // If this command already had an equivalent or higher marking, return false.
+    // There's no need to propagate this marking because it is not new.
+    if (_marking == RebuildMarking::MustRun || _marking == RebuildMarking::AlreadyRun) {
+      return false;
+    }
+
+    // Update the marking
+    _marking = RebuildMarking::MustRun;
+
+    // Loop over inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getInputs()) {
+      // If the version does not have a creator, there's no need to run anything to create it
+      auto creator = v->getCreator();
+      if (!creator) continue;
+
+      // Rule 3: Mark commands that produce uncached inputs to this command as MustRun
+      // TODO: This check should really ask the artifact if it can commit the version at the time
+      // of the input, not during rebuild planning.
+      if (!v->canCommit()) {
+        // Mark the creator for rerun so it will produce the necessary input
+        if (creator->getCommand()->mark(RebuildMarking::MustRun)) {
+          LOGF(rebuild, "{} must run: output is needed by {}", creator->getCommand(), this);
+        }
+      }
+
+      // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
+      if (creator->getCommand()->_marking == RebuildMarking::MayRun) {
+        creator->getCommand()->mark(RebuildMarking::MustRun);
+        LOGF(rebuild, "{} must run: output is used by {}", creator->getCommand(), this);
+      }
+    }
+
+    // Loop over the commands that use this command's outputs
+    for (const auto& user : previousRun()->getOutputUsers()) {
+      // Rule 5: Mark any users of this command's output as MayRun
+      if (user->getCommand()->mark(RebuildMarking::MayRun)) {
+        LOGF(rebuild, "{} may run: input may be changed by {}", user->getCommand(), this);
+      }
+    }
+
+    // Rule a: Mark all of this command's children as MustRun
+    for (const auto& child : previousRun()->getChildren()) {
+      if (child->getCommand()->mark(RebuildMarking::MustRun)) {
+        LOGF(rebuild, "{} must run: parent {} is running", child->getCommand(), this);
+      }
+    }
+
+    // Rule b: If this command's parent is marked MayRun, change it to MustRun
+    // TODO: Implement this once we track parents.
+
+    // The marking was new, so return true
+    return true;
+
+  } else if (m == RebuildMarking::MayRun) {
+    // If this command already had an equivalent or highe rmarking, return false.
+    // There's no need to propagate this marking becasue it is not new.
+    if (_marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun ||
+        _marking == RebuildMarking::AlreadyRun) {
+      return false;
+    }
+
+    // Update the marking
+    _marking = RebuildMarking::MayRun;
+
+    // Loop over inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getInputs()) {
+      // If the version does not have a creator, there's no need to run anything to create it
+      auto creator = v->getCreator();
+      if (!creator) continue;
+
+      // Rule 6: Mark commands that produce uncached inputs to this command as MayRun
+      // TODO: This check should really ask the artifact if it can commit the version at the time
+      // of the input, not during rebuild planning.
+      if (!v->canCommit()) {
+        // Mark the creator for rerun so it will produce the necessary input
+        if (creator->getCommand()->mark(RebuildMarking::MayRun)) {
+          LOGF(rebuild, "{} may run: output is needed by {}", creator->getCommand(), this);
+        }
+      }
+    }
+
+    // Loop over the commands that use this command's outputs
+    for (const auto& user : previousRun()->getOutputUsers()) {
+      // Rule 7: Mark any users of this command's output as MayRun
+      if (user->getCommand()->mark(RebuildMarking::MayRun)) {
+        LOGF(rebuild, "{} may run: input may be changed by {}", user->getCommand(), this);
+      }
+
+      // Rule 8: If the command that uses this command's output is marked MustRun, mark this command
+      // MustRun as well
+      if (user->getCommand()->_marking == RebuildMarking::MustRun) {
+        if (mark(RebuildMarking::MustRun)) {
+          LOGF(rebuild, "{} must run: output is used by command {}", this, user->getCommand());
+        }
+      }
+    }
+
+    // Rule c: Mark all of this command's children as MayRun
+    for (const auto& child : previousRun()->getChildren()) {
+      if (child->getCommand()->mark(RebuildMarking::MayRun)) {
+        LOGF(rebuild, "{} may run: parent {} may run", child->getCommand(), this);
+      }
+    }
+
+    // The marking was new, so return true
+    return true;
+
+  } else {
+    // Emulate and AlreadyRun are never new markings
+    return false;
+  }
+}
+
+// Check if this command must rerun
+bool Command::mustRerun() const noexcept {
+  return _marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun;
 }

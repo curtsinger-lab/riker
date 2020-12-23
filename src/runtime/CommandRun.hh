@@ -28,15 +28,6 @@ class Command;
 class Ref;
 class Version;
 
-/// Record the reason why a command has been marked for rerun. Reasons are ordered; any command
-/// marked with both Child and Changed will retain the Changed marking.
-enum class RerunReason : int {
-  Child = 0,           // The marked command is a child of another command marked for rerun
-  InputMayChange = 1,  // The marked command consumes output from another command marked for rerun
-  OutputNeeded = 2,    // The marked command produces output needed by another marked command
-  Changed = 3          // The marked command directly observed a change
-};
-
 enum class InputType {
   PathResolution,  // The input is a dependency for path resolution
   Accessed,        // The input is accessed directly
@@ -113,10 +104,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
                                 Ref::ID root_ref,
                                 map<int, Ref::ID> fds) noexcept;
 
-  /****** Dependency Tracking and Rebuild Planning ******/
-
-  /// Plan the rebuild state for this command
-  void planBuild() noexcept;
+  /****** Dependency Tracking ******/
 
   /// This command observes a change in a given scenario
   void observeChange(Scenario s) noexcept;
@@ -142,7 +130,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
 
   /// Get the outputs from this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> getOutputs() const noexcept {
+  const set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>>& getOutputs() const noexcept {
     return _outputs;
   }
 
@@ -153,13 +141,6 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   void outputChanged(shared_ptr<Artifact> artifact,
                      shared_ptr<Version> ondisk,
                      shared_ptr<Version> expected) noexcept;
-
-  optional<RerunReason> getRerun() const noexcept { return _rerun_reason; }
-
- private:
-  /// Mark this command for rerun. If set, the previous pointer keeps track of which command run
-  /// caused this marking.
-  void markForRerun(RerunReason reason, shared_ptr<CommandRun> prev = nullptr) noexcept;
 
  private:
   /// The command this run is associated with
@@ -182,9 +163,6 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// Keep track of the scenarios where this command has observed a change
   set<Scenario> _changed;
-
-  /// If this command is marked for re-execution, the optional will have a value
-  optional<RerunReason> _rerun_reason;
 
   /// The set of inputs to this command
   set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> _inputs;

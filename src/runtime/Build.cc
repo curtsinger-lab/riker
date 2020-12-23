@@ -47,6 +47,11 @@ void Build::finish() noexcept {
 
   // Inform the output trace that it is finished
   _output.finish();
+
+  // Plan the next build
+  for (auto& c : _commands) {
+    c->planBuild();
+  }
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {

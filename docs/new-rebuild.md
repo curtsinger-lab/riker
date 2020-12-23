@@ -1,16 +1,15 @@
 # Iterative Rebuild Process
 For the iterative build process, we use the following set of command markings:
-- Unknown (initial state)
-- Skip
+- Emulate (initial state)
 - MayRun
 - MustRun
 - AlreadyRun
 
 The build will repeatedly loop over the entire build trace. On each iteration, the build will emulate all commands, except those marked MustRun; those will be executed and traced. The trace collected from a MustRun command replaces its old trace steps. Future iterations use this new trace.
 
-When the trace concludes, we loop over all commands. Commands that were marked MustRun were presumably run, so we mark them AlreadyRun. Commands marked MayRun are returned to the Unknown state. The Skip and AlreadyRun markings are left as-is.
+When the trace concludes, we loop over all commands. Commands that were marked MustRun were presumably run, so we mark them AlreadyRun. Commands marked MayRun are returned to the Emulate state. Commands already marked Emulate or AlreadyRun are left as-is.
 
-We are now going to begin a recursive marking process to plan the next iteration. Markings are propagated using all of the marking rules appropriate to the mark being applied. MustRun is considered a higher-order marking than MayRun, so MayRun markings are overwritten by MustRun markings. When a recursive marking call does not increase the marking level (Unknown to MayRun or MustRun; MayRun to MustRun) the recursion can terminate without propagating any new markings.
+We are now going to begin a recursive marking process to plan the next iteration. Markings are propagated using all of the marking rules appropriate to the mark being applied. MustRun is considered a higher-order marking than MayRun, so MayRun markings are overwritten by MustRun markings. When a recursive marking call does not increase the marking level (Emulate to MayRun or MustRun; MayRun to MustRun) the recursion can terminate without propagating any new markings.
 
 We kick off the marking phase by looping over commands and applying the first two rules. This is analagous to marking the roots in a garbage collector.
 
@@ -36,8 +35,6 @@ When a command C is marked MayRun:
 
   Until we have command skipping, propagate these markings when C is marked MayRun
     c. For each child command D launched by C, mark D as MayRun
-
-At the end of the marking phase, any command that remains in the Unknown state is marked Skip.
 
 We should now have a completely marked set of commands. If any commands are marked MayRun, return to the beginning of this process and repeat. If not, the build is complete. Perform the post-build checks and write out the new trace.
 
