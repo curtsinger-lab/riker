@@ -129,16 +129,15 @@ void do_check(vector<string> args) noexcept {
   // Emulate the loaded trace
   trace.sendTo(Build::emulate());
 
-  // Print commands whose inputs have changed
-  // This currently includes commands with missing outputs as well
-  // outputs)
-  bool header_printed = false;
+  // Print commands that must run
+  bool must_run_header_printed = false;
   for (const auto& c : trace.getCommands()) {
-    // Did the command change in both scenarios, build and post-build?
-    if (c->previousRun()->getChanged().size() == 2) {
+    if (c->getMarking() == RebuildMarking::MustRun) {
       // Print the header if necessary
-      if (!header_printed) cout << "Commands with changed inputs or missing outputs:" << endl;
-      header_printed = true;
+      if (!must_run_header_printed) {
+        cout << "Commands that must run:" << endl;
+        must_run_header_printed = true;
+      }
 
       // Print the command
       cout << "  " << c->getShortName(options::command_length) << endl;
@@ -146,23 +145,22 @@ void do_check(vector<string> args) noexcept {
   }
 
   // If we printed anything, add a newline
-  if (header_printed) cout << endl;
+  if (must_run_header_printed) cout << endl;
 
   // Print the rebuild plan
-  header_printed = false;
+  bool may_run_header_printed = false;
   for (const auto& c : trace.getCommands()) {
-    // Check if this command has to rerun
-    if (c->mustRerun()) {
-      if (!header_printed) {
-        cout << "The following commands will be rerun:" << endl;
-        header_printed = true;
+    if (c->getMarking() == RebuildMarking::MayRun) {
+      if (!may_run_header_printed) {
+        cout << "Commands that may run:" << endl;
+        may_run_header_printed = true;
       }
       cout << "  " << c->getShortName(options::command_length) << endl;
     }
   }
 
   // If we never printed the header, there were no commands to rerun
-  if (!header_printed) {
+  if (!must_run_header_printed && !may_run_header_printed) {
     cout << "No commands to rerun" << endl;
   }
 }

@@ -113,10 +113,24 @@ ostream& operator<<(ostream& o, Graph2& g) noexcept {
     o << "label=\"" << escape(c->getShortName()) << "\" ";
     o << "tooltip=\"" << escape(c->getFullName()) << "\" ";
     o << "fontname=Courier ";
-    /*if (_changed_commands.find(c) != _changed_commands.end()) {
+
+    // Color the command based on its marking state
+    if (c->getMarking() == RebuildMarking::MayRun) {
+      // Commands that may run are yellow
       o << "style=\"filled\" ";
       o << "fillcolor=\"yellow\" ";
-    }*/
+
+    } else if (c->getMarking() == RebuildMarking::MustRun) {
+      // Commands that must run are red
+      o << "style=\"filled\" ";
+      o << "fillcolor=\"red\" ";
+
+    } else if (c->getMarking() == RebuildMarking::AlreadyRun) {
+      // Commands that were run in the production of the graph are green
+      o << "style=\"filled\" ";
+      o << "fillcolor=\"green\" ";
+    }
+
     o << "]\n";
   }
 

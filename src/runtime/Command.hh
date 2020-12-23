@@ -151,6 +151,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Check if this command has to rerun
   bool mustRerun() const noexcept;
 
+  /// Get the marking for this command
+  RebuildMarking getMarking() const noexcept { return _marking; }
+
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
