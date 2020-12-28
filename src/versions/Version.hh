@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 
+#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
 
@@ -24,7 +25,7 @@ namespace fs = std::filesystem;
 /// A reference to a specific version of an artifact
 class Version : public std::enable_shared_from_this<Version> {
  public:
-  Version() noexcept = default;
+  Version() noexcept { stats::versions++; }
 
   virtual ~Version() noexcept = default;
 

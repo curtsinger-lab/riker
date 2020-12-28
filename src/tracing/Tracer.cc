@@ -28,6 +28,7 @@
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"
+#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 #include "versions/Version.hh"
@@ -77,6 +78,9 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
       else
         FAIL << "Error while waiting: " << ERR;
     }
+
+    // Count the ptrace stop for this event
+    stats::ptrace_stops++;
 
     // Does this event refer to a process we don't know about yet?
     if (_threads.find(child) == _threads.end()) {

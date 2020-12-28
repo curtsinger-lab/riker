@@ -23,6 +23,7 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
+#include "ui/stats.hh"
 
 using std::make_shared;
 using std::map;
@@ -147,6 +148,7 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
 
   // Also add the artifact to the set of all artifacts
   _artifacts.insert(a);
+  stats::artifacts++;
 
   // Return the artifact
   return a;
@@ -171,6 +173,7 @@ shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   }
 
   _artifacts.insert(pipe);
+  stats::artifacts++;
 
   return pipe;
 }
@@ -202,6 +205,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
   }
 
   _artifacts.insert(symlink);
+  stats::artifacts++;
 
   return symlink;
 }
@@ -237,6 +241,7 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
   }
 
   _artifacts.insert(dir);
+  stats::artifacts++;
 
   return dir;
 }
@@ -272,6 +277,7 @@ shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
   c->currentRun()->addOutput(artifact, cv);
 
   _artifacts.insert(artifact);
+  stats::artifacts++;
 
   return artifact;
 }
