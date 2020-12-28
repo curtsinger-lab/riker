@@ -17,6 +17,7 @@
 #include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
+#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 #include "versions/DirVersion.hh"
@@ -70,7 +71,6 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
 }
 
 void Thread::resume() noexcept {
-  _build.countPTraceStop();  // count this ptrace stop
   int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
   FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
 }
@@ -111,6 +111,7 @@ unsigned long Thread::getEventMessage() noexcept {
   unsigned long message;
   FAIL_IF(ptrace(PTRACE_GETEVENTMSG, _tid, nullptr, &message))
       << "Unable to read ptrace event message: " << ERR;
+
   return message;
 }
 
@@ -1407,12 +1408,4 @@ void Thread::_waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) no
   LOGF(trace, "{}: waitid(...)", this);
   FAIL << "waitid syscall is not handled yet";
   resume();
-}
-
-void Thread::countSyscall() const noexcept {
-  _build.countSyscall();
-}
-
-void Thread::countPTraceStop() const noexcept {
-  _build.countPTraceStop();
 }

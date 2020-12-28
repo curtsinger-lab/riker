@@ -53,40 +53,8 @@ class Build : public TraceHandler {
   /// Get the environment used in this build
   shared_ptr<Env> getEnvironment() const noexcept { return _env; }
 
-  /// Get the number of steps this build has executed
-  size_t getStepCount() const noexcept { return _emulated_step_count + _traced_step_count; }
-
-  /// Get the number of steps this build emulated
-  size_t getEmulatedStepCount() const noexcept { return _emulated_step_count; }
-
-  /// Get the number of steps this build traced
-  size_t getTracedStepCount() const noexcept { return _traced_step_count; }
-
-  /// Get the number of commands this build has executed
-  size_t getCommandCount() const noexcept {
-    return _emulated_command_count + _traced_command_count;
-  }
-
-  /// Get the number of commands this build emulated
-  size_t getEmulatedCommandCount() const noexcept { return _emulated_command_count; }
-
-  /// Get the number of commands this build traced
-  size_t getTracedCommandCount() const noexcept { return _traced_command_count; }
-
-  /// Get the number of syscalls handled by this build
-  size_t getSyscallCount() const noexcept { return _num_syscalls; }
-
-  /// Get the number of ptrace stops recorded in this build
-  size_t getPTraceStopCount() const noexcept { return _num_ptrace_stops; }
-
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
-
-  /// Increments a syscall count
-  void countSyscall() { _num_syscalls++; }
-
-  /// Increments a ptrace stop count
-  void countPTraceStop() { _num_ptrace_stops++; }
 
   /********** Handle IR steps supplied from a loaded trace **********/
 
@@ -289,24 +257,6 @@ class Build : public TraceHandler {
   }
 
  private:
-  /// The number of syscalls handled in this build
-  size_t _num_syscalls = 0;
-
-  /// The number of ptrace stops in this build
-  size_t _num_ptrace_stops = 0;
-
-  /// The number of IR steps emulated in this build
-  size_t _emulated_step_count = 0;
-
-  /// The number of IR steps traced in this build
-  size_t _traced_step_count = 0;
-
-  /// The count of commands emulated in this build
-  size_t _emulated_command_count = 0;
-
-  /// The count of commands traced in this build
-  size_t _traced_command_count = 0;
-
   /// Should this build commit the environment to the filesystem when it's finished?
   bool _commit;
 

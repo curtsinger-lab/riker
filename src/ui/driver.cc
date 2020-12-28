@@ -59,23 +59,20 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   optional<string> stats;
 
   { /* PHASE 1: PRE-BUILD EMULATION */
-    // start timer
-    auto start = std::chrono::high_resolution_clock::now();
+    // Reset stats counters and record the start time
+    reset_stats();
 
     // Emulate the loaded trace
     auto build = Build::emulate();
     trace.sendTo(build);
 
-    // end timer
-    auto finish = std::chrono::high_resolution_clock::now();
-
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "pre", (finish - start).count());
+    gather_stats(stats_log_path, stats, "pre");
   }
 
   { /* PHASE 2: REBUILD */
-    // start timer
-    auto start = std::chrono::high_resolution_clock::now();
+    // Reset stats counters and record the start time
+    reset_stats();
 
     // Set up an output trace
     OutputTrace output(constants::NewDatabaseFilename);
@@ -84,16 +81,13 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto build = Build::rebuild(output);
     trace.sendTo(build);
 
-    // end timer
-    auto finish = std::chrono::high_resolution_clock::now();
-
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "rebuild", (finish - start).count());
+    gather_stats(stats_log_path, stats, "rebuild");
   }
 
   { /* PHASE 3: POST-BUILD EMULATION */
-    // start timer
-    auto start = std::chrono::high_resolution_clock::now();
+    // Reset stats counters and record the start time
+    reset_stats();
 
     // Load the newly generated input trace
     InputTrace new_trace(args, constants::NewDatabaseFilename);
@@ -108,11 +102,8 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     auto build = Build::emulate(filter);
     new_trace.sendTo(build);
 
-    // end timer
-    auto finish = std::chrono::high_resolution_clock::now();
-
     // Save rebuild stats
-    gather_stats(stats_log_path, build, stats, "post", (finish - start).count());
+    gather_stats(stats_log_path, stats, "post");
   }
 
   // write stats
@@ -232,6 +223,9 @@ void do_graph(vector<string> args,
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
 void do_stats(vector<string> args, bool list_artifacts) noexcept {
+  // Reset the stats counters
+  reset_stats();
+
   // Load the serialized build trace
   InputTrace trace(args, constants::DatabaseFilename);
 
@@ -240,18 +234,12 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   trace.sendTo(build);
   auto final_env = build.getEnvironment();
 
-  // Count the number of versions of artifacts
-  size_t version_count = 0;
-  for (const auto& artifact : final_env->getArtifacts()) {
-    version_count += artifact->getVersionCount();
-  }
-
   // Print statistics
   cout << "Build Statistics:" << endl;
-  cout << "  Commands: " << build.getCommandCount() << endl;
-  cout << "  Steps: " << build.getStepCount() << endl;
-  cout << "  Artifacts: " << final_env->getArtifacts().size() << endl;
-  cout << "  Artifact Versions: " << version_count << endl;
+  cout << "  Commands: " << stats::emulated_commands << endl;
+  cout << "  Steps: " << stats::emulated_steps << endl;
+  cout << "  Artifacts: " << stats::artifacts << endl;
+  cout << "  Artifact Versions: " << stats::versions << endl;
 
   if (list_artifacts) {
     cout << endl;

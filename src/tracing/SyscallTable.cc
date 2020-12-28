@@ -9,6 +9,7 @@
 
 #include "tracing/Flags.hh"
 #include "tracing/Thread.hh"
+#include "ui/stats.hh"
 #include "util/log.hh"
 
 using std::array;
@@ -128,7 +129,7 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T
 /// A helper macro for use in the SyscallTable constructor
 #define TRACE(name)                                                                          \
   _syscalls[__NR_##name] = SyscallEntry(#name, [](Thread& __thr, user_regs_struct& __regs) { \
-    __thr.countSyscall();                                                                    \
+    stats::syscalls++;                                                                       \
     invoke_handler(&Thread::_##name, __thr, __regs);                                         \
   });
 
