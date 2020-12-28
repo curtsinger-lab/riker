@@ -64,13 +64,23 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
-    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess, _env->getStdin(c)));
+    // Create the stdin ref. Add one user, which accounts for the build tool itself
+    // That way we won't close stdin when the build is finishing
+    auto stdin_ref = make_shared<Ref>(ReadAccess, _env->getStdin(c));
+    stdin_ref->addUser();
+    c->currentRun()->setRef(output, stdin_ref);
 
   } else if (entity == SpecialRef::stdout) {
-    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStdout(c)));
+    // Create the stdout ref and add one user (the build tool)
+    auto stdout_ref = make_shared<Ref>(WriteAccess, _env->getStdout(c));
+    stdout_ref->addUser();
+    c->currentRun()->setRef(output, stdout_ref);
 
   } else if (entity == SpecialRef::stderr) {
-    c->currentRun()->setRef(output, make_shared<Ref>(WriteAccess, _env->getStderr(c)));
+    // Create the stderr ref and add one user (the build tool)
+    auto stderr_ref = make_shared<Ref>(WriteAccess, _env->getStderr(c));
+    stderr_ref->addUser();
+    c->currentRun()->setRef(output, stderr_ref);
 
   } else if (entity == SpecialRef::root) {
     c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir()));
