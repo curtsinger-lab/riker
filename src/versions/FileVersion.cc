@@ -9,7 +9,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "blake3.h"
-#include "data/TraceHandler.hh"
+#include "data/IRSink.hh"
 #include "ui/constants.hh"
 #include "ui/options.hh"
 #include "util/log.hh"

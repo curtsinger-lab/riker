@@ -26,9 +26,9 @@ enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
 /// Different ways to compare references with a CompareRefs predicate
 enum class RefComparison { SameInstance, DifferentInstances };
 
-class TraceHandler {
+class IRSink {
  public:
-  virtual ~TraceHandler() noexcept {}
+  virtual ~IRSink() noexcept {}
 
   /// Called when the trace is finished
   virtual void finish() noexcept {}

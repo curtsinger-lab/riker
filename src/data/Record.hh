@@ -15,7 +15,7 @@
 #include <cereal/types/tuple.hpp>
 #include <cereal/types/vector.hpp>
 
-#include "data/TraceHandler.hh"
+#include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
@@ -34,7 +34,7 @@ struct Record {
 
   virtual bool isEnd() const noexcept { return false; }
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept = 0;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept = 0;
 
   template <class Archive>
   void serialize(Archive& archive) {}
@@ -52,7 +52,7 @@ struct CommandRecord : public Record {
   CommandRecord(Command::ID id, vector<string> args, map<int, Ref::ID> initial_fds, bool executed) :
       _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -71,7 +71,7 @@ struct SpecialRefRecord : public Record {
   SpecialRefRecord(Command::ID cmd, SpecialRef entity, Ref::ID output) noexcept :
       _cmd(cmd), _entity(entity), _output(output) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -90,7 +90,7 @@ struct PipeRefRecord : public Record {
   PipeRefRecord(Command::ID cmd, Ref::ID read_end, Ref::ID write_end) noexcept :
       _cmd(cmd), _read_end(read_end), _write_end(write_end) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -109,7 +109,7 @@ struct FileRefRecord : public Record {
   FileRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -128,7 +128,7 @@ struct SymlinkRefRecord : public Record {
   SymlinkRefRecord(Command::ID cmd, fs::path target, Ref::ID output) noexcept :
       _cmd(cmd), _target(target), _output(output) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -147,7 +147,7 @@ struct DirRefRecord : public Record {
   DirRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -172,7 +172,7 @@ struct PathRefRecord : public Record {
                 Ref::ID output) noexcept :
       _cmd(cmd), _base(base), _path(path), _flags(flags), _output(output) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -189,7 +189,7 @@ struct UsingRefRecord : public Record {
 
   UsingRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -206,7 +206,7 @@ struct DoneWithRefRecord : public Record {
 
   DoneWithRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -226,7 +226,7 @@ struct CompareRefsRecord : public Record {
   CompareRefsRecord(Command::ID cmd, Ref::ID ref1, Ref::ID ref2, RefComparison type) noexcept :
       _cmd(cmd), _ref1(ref1), _ref2(ref2), _type(type) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -246,7 +246,7 @@ struct ExpectResultRecord : public Record {
   ExpectResultRecord(Command::ID cmd, Scenario scenario, Ref::ID ref, int expected) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _expected(expected) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -269,7 +269,7 @@ struct MatchMetadataRecord : public Record {
                       shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -292,7 +292,7 @@ struct MatchContentRecord : public Record {
                      shared_ptr<Version> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -311,7 +311,7 @@ struct UpdateMetadataRecord : public Record {
   UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -330,7 +330,7 @@ struct UpdateContentRecord : public Record {
   UpdateContentRecord(Command::ID cmd, Ref::ID ref, shared_ptr<Version> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -350,7 +350,7 @@ struct AddEntryRecord : public Record {
   AddEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -370,7 +370,7 @@ struct RemoveEntryRecord : public Record {
   RemoveEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -389,7 +389,7 @@ struct LaunchRecord : public Record {
   LaunchRecord(Command::ID cmd, Command::ID child, list<tuple<Ref::ID, Ref::ID>> refs) noexcept :
       _cmd(cmd), _child(child), _refs(refs) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -408,7 +408,7 @@ struct JoinRecord : public Record {
   JoinRecord(Command::ID cmd, Command::ID child, int exit_status) noexcept :
       _cmd(cmd), _child(child), _exit_status(exit_status) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -425,7 +425,7 @@ struct ExitRecord : public Record {
 
   ExitRecord(Command::ID cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
@@ -438,7 +438,7 @@ struct EndRecord : public Record {
 
   virtual bool isEnd() const noexcept override { return true; }
 
-  virtual void handle(InputTrace& input, TraceHandler& handler) noexcept override;
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {

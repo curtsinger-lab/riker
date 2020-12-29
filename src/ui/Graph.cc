@@ -4,7 +4,6 @@
 #include <ostream>
 
 #include "artifacts/Artifact.hh"
-#include "data/InputTrace.hh"
 #include "runtime/Command.hh"
 #include "util/log.hh"
 

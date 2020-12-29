@@ -3,7 +3,7 @@
 #include <memory>
 #include <ostream>
 
-#include "data/TraceHandler.hh"
+#include "data/IRSink.hh"
 #include "runtime/Ref.hh"
 #include "util/wrappers.hh"
 
@@ -25,7 +25,7 @@ inline static ostream& operator<<(ostream& o, Scenario s) {
   }
 }
 
-class TracePrinter : public TraceHandler {
+class TracePrinter : public IRSink {
  public:
   /// Create a trace printer that writes to a provided ostream
   TracePrinter(ostream& out) : _out(out) {}

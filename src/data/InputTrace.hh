@@ -12,8 +12,9 @@
 
 #include <cereal/archives/binary.hpp>
 
+#include "data/IRSink.hh"
+#include "data/IRSource.hh"
 #include "data/Record.hh"
-#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
@@ -32,7 +33,7 @@ namespace fs = std::filesystem;
 /**
  * An input trace is a build trace loaded from disk
  */
-class InputTrace {
+class InputTrace : public IRSource {
  public:
   /// Load an input trace from a given path, or produce a default starting trace if no trace exists
   InputTrace(vector<string> args, fs::path filename) noexcept : _args(args), _filename(filename) {
@@ -49,10 +50,10 @@ class InputTrace {
   InputTrace& operator=(InputTrace&&) = default;
 
   /// Send the loaded trace to a trace handler
-  void sendTo(TraceHandler& handler) noexcept;
+  virtual void sendTo(IRSink& handler) noexcept override;
 
-  /// Send the loaded trace to a trace handler
-  void sendTo(TraceHandler&& handler) noexcept { sendTo(handler); }
+  /// Send the loaded trace to an r-value trace handler
+  virtual void sendTo(IRSink&& handler) noexcept override { sendTo(handler); }
 
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.
@@ -72,7 +73,7 @@ class InputTrace {
 
  private:
   /// Send a default trace to a trace handler
-  void sendDefault(TraceHandler& handler) noexcept;
+  void sendDefault(IRSink& handler) noexcept;
 
  private:
   /// Any extra arguments a user may supply to a buildfile

@@ -16,7 +16,6 @@ using std::string;
 
 class Artifact;
 class Command;
-class InputTrace;
 class Version;
 
 class Graph {

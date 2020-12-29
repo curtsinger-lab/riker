@@ -6,8 +6,8 @@
 #include <memory>
 #include <string>
 
+#include "data/IRSink.hh"
 #include "data/Record.hh"
-#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 /**
  * An output trace is used to write a trace to disk
  */
-class OutputTrace : public TraceHandler {
+class OutputTrace : public IRSink {
  public:
   /// Create a trace at the given path
   OutputTrace(string filename) noexcept : _filename(filename) {
