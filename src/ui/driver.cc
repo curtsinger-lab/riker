@@ -118,11 +118,12 @@ void do_check(vector<string> args) noexcept {
   InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate());
+  auto build = Build::emulate();
+  trace.sendTo(build);
 
   // Print commands that must run
   bool must_run_header_printed = false;
-  for (const auto& c : trace.getCommands()) {
+  for (const auto& c : build.getCommands()) {
     if (c->getMarking() == RebuildMarking::MustRun) {
       // Print the header if necessary
       if (!must_run_header_printed) {
@@ -140,7 +141,7 @@ void do_check(vector<string> args) noexcept {
 
   // Print the rebuild plan
   bool may_run_header_printed = false;
-  for (const auto& c : trace.getCommands()) {
+  for (const auto& c : build.getCommands()) {
     if (c->getMarking() == RebuildMarking::MayRun) {
       if (!may_run_header_printed) {
         cout << "Commands that may run:" << endl;
@@ -192,9 +193,11 @@ void do_graph(vector<string> args,
   InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the build
-  trace.sendTo(Build::emulate());
+  auto build = Build::emulate();
+  trace.sendTo(build);
 
-  Graph2 graph(trace, show_all);
+  Graph graph(show_all);
+  graph.addCommands(build.getCommands());
 
   if (no_render) {
     ofstream f(output);

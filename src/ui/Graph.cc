@@ -21,12 +21,7 @@ string escape(string s) noexcept {
     return s.substr(0, pos) + "\\\"" + escape(s.substr(pos + 1));
 }
 
-Graph2::Graph2(InputTrace& trace, bool show_all) noexcept : _show_all(show_all) {
-  // Recursively add commands to the graph, starting with the root command
-  addCommand(trace.getRootCommand());
-}
-
-string Graph2::addCommand(shared_ptr<Command> c) noexcept {
+string Graph::addCommand(shared_ptr<Command> c) noexcept {
   // Look to see if we already have a record of this command. Return if we do.
   auto iter = _command_ids.find(c);
   if (iter != _command_ids.end()) return iter->second;
@@ -74,7 +69,7 @@ string Graph2::addCommand(shared_ptr<Command> c) noexcept {
   return command_id;
 }
 
-string Graph2::addArtifact(shared_ptr<Artifact> a) noexcept {
+string Graph::addArtifact(shared_ptr<Artifact> a) noexcept {
   // Look for the artifact. If it's already in the map, return its ID.
   auto iter = _artifact_ids.find(a);
   if (iter != _artifact_ids.end()) return iter->second;
@@ -91,7 +86,7 @@ string Graph2::addArtifact(shared_ptr<Artifact> a) noexcept {
   return artifact_id;
 }
 
-string Graph2::addVersion(shared_ptr<Version> v) noexcept {
+string Graph::addVersion(shared_ptr<Version> v) noexcept {
   // Look for the version. If it's already in the map, return its ID.
   auto iter = _version_ids.find(v);
   if (iter != _version_ids.end()) return iter->second;
@@ -103,7 +98,7 @@ string Graph2::addVersion(shared_ptr<Version> v) noexcept {
   return version_id;
 }
 
-ostream& operator<<(ostream& o, Graph2& g) noexcept {
+ostream& operator<<(ostream& o, Graph& g) noexcept {
   o << "digraph {\n";
   o << "  graph [rankdir=LR]\n";
 

@@ -53,6 +53,9 @@ class Build : public TraceHandler {
   /// Get the environment used in this build
   shared_ptr<Env> getEnvironment() const noexcept { return _env; }
 
+  /// Get the list of commands in this build
+  const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
+
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
 
