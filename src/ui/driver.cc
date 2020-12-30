@@ -13,6 +13,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include "data/IRBuffer.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "runtime/Build.hh"
@@ -58,28 +59,31 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Build stats
   optional<string> stats;
 
+  // The buffer that holds the output trace from emulation
+  IRBuffer phase1_buffer;
+
   { /* PHASE 1: PRE-BUILD EMULATION */
     // Reset stats counters and record the start time
     reset_stats();
 
     // Emulate the loaded trace
-    auto build = Build::emulate();
+    auto build = Build::emulate(phase1_buffer);
     trace.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "pre");
   }
 
+  // The buffer that holds the output from the rebuild
+  IRBuffer phase2_buffer;
+
   { /* PHASE 2: REBUILD */
     // Reset stats counters and record the start time
     reset_stats();
 
-    // Set up an output trace
-    OutputTrace output(constants::NewDatabaseFilename);
-
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(output);
-    trace.sendTo(build);
+    auto build = Build::rebuild(phase2_buffer);
+    phase1_buffer.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "rebuild");
@@ -89,9 +93,6 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     // Reset stats counters and record the start time
     reset_stats();
 
-    // Load the newly generated input trace
-    InputTrace new_trace(args, constants::NewDatabaseFilename);
-
     // Set up an output trace for the post-build check
     OutputTrace output(constants::DatabaseFilename);
 
@@ -100,7 +101,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
     // Emulate the new trace
     auto build = Build::emulate(filter);
-    new_trace.sendTo(build);
+    phase2_buffer.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "post");
