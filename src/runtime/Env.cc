@@ -17,13 +17,13 @@
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "ui/options.hh"
+#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 #include "versions/Version.hh"
-#include "ui/stats.hh"
 
 using std::make_shared;
 using std::map;
@@ -112,16 +112,16 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
   if (ignored_artifacts.find(path) != ignored_artifacts.end()) {
     // The provided path is in our set of ignored paths. For now, just track it as a file.
     auto cv = make_shared<FileVersion>();
-    cv->fingerprint(path);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
+    cv->fingerprint(path);
 
   } else if ((info.st_mode & S_IFMT) == S_IFREG) {
     // The path refers to a regular file
     auto cv = make_shared<FileVersion>();
-    cv->fingerprint(path);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
+    cv->fingerprint(path);
 
   } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
     // The path refers to a directory
@@ -138,9 +138,9 @@ shared_ptr<Artifact> Env::getFilesystemArtifact(fs::path path) {
     // The path refers to something else
     WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
     auto cv = make_shared<FileVersion>();
-    cv->fingerprint(path);
     cv->setCommitted();
     a = make_shared<FileArtifact>(shared_from_this(), mv, cv);
+    cv->fingerprint(path);
   }
 
   // Add the new artifact to the inode map
