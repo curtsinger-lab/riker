@@ -40,7 +40,7 @@ using std::tuple;
 using std::vector;
 
 // Run this trace
-void InputTrace::sendTo(TraceHandler& handler) noexcept {
+void InputTrace::sendTo(IRSink& handler) noexcept {
   bool use_default = false;
 
   try {
@@ -86,7 +86,7 @@ void InputTrace::sendTo(TraceHandler& handler) noexcept {
   handler.finish();
 }
 
-void InputTrace::sendDefault(TraceHandler& handler) noexcept {
+void InputTrace::sendDefault(IRSink& handler) noexcept {
   Command::ID no_cmd_id = 0;
   auto no_cmd = getCommand(no_cmd_id);
 

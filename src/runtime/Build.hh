@@ -7,9 +7,9 @@
 #include <tuple>
 #include <vector>
 
+#include "data/IRSink.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
-#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
@@ -29,22 +29,18 @@ class Version;
  * A Build instance manages the execution of a build. This instance is responsible for setting up
  * the build environment, emulating or running each of the commands, and concluding the build.
  */
-class Build : public TraceHandler {
+class Build : public IRSink {
  private:
   /// Create a build runner
-  Build(bool commit, TraceHandler& output) noexcept :
+  Build(bool commit, IRSink& output) noexcept :
       _commit(commit), _output(output), _env(make_shared<Env>()), _tracer(*this) {}
 
  public:
   /// Create a build runner that exclusively emulates trace steps
-  static Build emulate(TraceHandler& output = _default_output) noexcept {
-    return Build(false, output);
-  }
+  static Build emulate(IRSink& output = _default_output) noexcept { return Build(false, output); }
 
   /// Create a build runner that executes a rebuild plan
-  static Build rebuild(TraceHandler& output = _default_output) noexcept {
-    return Build(true, output);
-  }
+  static Build rebuild(IRSink& output = _default_output) noexcept { return Build(true, output); }
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -52,6 +48,9 @@ class Build : public TraceHandler {
 
   /// Get the environment used in this build
   shared_ptr<Env> getEnvironment() const noexcept { return _env; }
+
+  /// Get the list of commands in this build
+  const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
 
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
@@ -261,7 +260,7 @@ class Build : public TraceHandler {
   bool _commit;
 
   /// Trace steps are sent to this trace handler, typically an OutputTrace
-  TraceHandler& _output;
+  IRSink& _output;
 
   /// The environment in which this build executes
   shared_ptr<Env> _env;
@@ -277,5 +276,5 @@ class Build : public TraceHandler {
   map<shared_ptr<Command>, shared_ptr<Process>> _running;
 
   /// The default output is used if a trace handler is not provided during setup
-  inline static TraceHandler _default_output;
+  inline static IRSink _default_output;
 };

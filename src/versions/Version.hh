@@ -18,7 +18,7 @@ class Artifact;
 class Build;
 class Command;
 class CommandRun;
-class TraceHandler;
+class IRSink;
 
 namespace fs = std::filesystem;
 
@@ -55,7 +55,7 @@ class Version : public std::enable_shared_from_this<Version> {
   /// Mark this version as committed
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
-  /// Save a copy of this version for later reuse. Inform the provided TraceHandler of the save.
+  /// Save a copy of this version for later reuse. Inform the provided IRSink of the save.
   virtual void cache(fs::path path) noexcept {}
 
   /// Commit this version to the filesystem
@@ -68,7 +68,7 @@ class Version : public std::enable_shared_from_this<Version> {
   }
 
   /// Save a fingerprint of this version for later comparison. If a new fingerprint is saved, inform
-  /// the provided TraceHandler.
+  /// the provided IRSink.
   virtual void fingerprint(fs::path path) noexcept {
     // By default, fingerprinting a version just saves it
     cache(path);

@@ -2,8 +2,8 @@
 
 #include "artifacts/PipeArtifact.hh"
 #include "data/AccessFlags.hh"
+#include "data/IRSink.hh"
 #include "data/InputTrace.hh"
-#include "data/TraceHandler.hh"
 #include "runtime/Command.hh"
 #include "versions/DirListVersion.hh"
 #include "versions/FileVersion.hh"
@@ -43,7 +43,7 @@ CEREAL_REGISTER_TYPE(PipeCloseVersion);
 CEREAL_REGISTER_TYPE(PipeReadVersion);
 
 // Read a command from an input trace
-void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void CommandRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   // Has this input trace already created a command from this record?
   if (!input.hasCommand(_id)) {
     // No. Create a command and add it to the trace
@@ -59,99 +59,99 @@ void CommandRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
 }
 
 // Send a SpecialRef IR step from an input trace to a trace handler
-void SpecialRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void SpecialRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.specialRef(input.getCommand(_cmd), _entity, _output);
 }
 
 // Send a PipeRef IR step from an input trace to a trace handler
-void PipeRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void PipeRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.pipeRef(input.getCommand(_cmd), _read_end, _write_end);
 }
 
 // Send a FileRef IR step from an input trace to a trace handler
-void FileRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void FileRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.fileRef(input.getCommand(_cmd), _mode, _output);
 }
 
 // Send a SymlinkRef IR step from an input trace to a trace handler
-void SymlinkRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void SymlinkRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.symlinkRef(input.getCommand(_cmd), _target, _output);
 }
 
 // Sedn a DirRef IR step from an input trace to a trace handler
-void DirRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void DirRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.dirRef(input.getCommand(_cmd), _mode, _output);
 }
 
 // Send a PathRef IR step from an input trace to a trace handler
-void PathRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void PathRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.pathRef(input.getCommand(_cmd), _base, _path, _flags, _output);
 }
 
 // Send an Open IR step from an input trace to a trace handler
-void UsingRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void UsingRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.usingRef(input.getCommand(_cmd), _ref);
 }
 
 // Send a Close IR step from an input trace to a trace handler
-void DoneWithRefRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void DoneWithRefRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.doneWithRef(input.getCommand(_cmd), _ref);
 }
 
 // Send a CompareRefs IR step from an input trace to a trace handler
-void CompareRefsRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void CompareRefsRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.compareRefs(input.getCommand(_cmd), _ref1, _ref2, _type);
 }
 
 // Send an ExpectResult IR step from an input trace to a trace handler
-void ExpectResultRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void ExpectResultRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.expectResult(input.getCommand(_cmd), _scenario, _ref, _expected);
 }
 
 // Send a MatchMetadata IR step from an input trace to a trace handler
-void MatchMetadataRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void MatchMetadataRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref, _version);
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
-void MatchContentRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void MatchContentRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.matchContent(input.getCommand(_cmd), _scenario, _ref, _version);
 }
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler
-void UpdateMetadataRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void UpdateMetadataRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.updateMetadata(input.getCommand(_cmd), _ref, _version);
 }
 
 // Send an UpdateContent IR step from an input trace to a trace handler
-void UpdateContentRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void UpdateContentRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.updateContent(input.getCommand(_cmd), _ref, _version);
 }
 
 // Send an AddEntry IR step from an input trace to a trace handler
-void AddEntryRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void AddEntryRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.addEntry(input.getCommand(_cmd), _dir, _name, _target);
 }
 
 // Send a RemoveEntry IR step from an input trace to a trace handler
-void RemoveEntryRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void RemoveEntryRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.removeEntry(input.getCommand(_cmd), _dir, _name, _target);
 }
 
 // Send a Launch IR step from an input trace to a trace handler
-void LaunchRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void LaunchRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.launch(input.getCommand(_cmd), input.getCommand(_child), _refs);
 }
 
 // Send a Join IR step from an input trace to a trace handler
-void JoinRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void JoinRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.join(input.getCommand(_cmd), input.getCommand(_child), _exit_status);
 }
 
 // Send an Exit IR step from an input trace to a trace handler
-void ExitRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {
+void ExitRecord::handle(InputTrace& input, IRSink& handler) noexcept {
   handler.exit(input.getCommand(_cmd), _exit_status);
 }
 
 // Handle a record that marks the end of an input trace
-void EndRecord::handle(InputTrace& input, TraceHandler& handler) noexcept {}
+void EndRecord::handle(InputTrace& input, IRSink& handler) noexcept {}

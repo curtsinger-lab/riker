@@ -16,16 +16,23 @@ using std::string;
 
 class Artifact;
 class Command;
-class InputTrace;
 class Version;
 
-class Graph2 {
+class Graph {
  public:
   /// Create a graph from the commands in an input trace
-  Graph2(InputTrace& trace, bool show_all) noexcept;
+  Graph(bool show_all) noexcept : _show_all(show_all) {}
 
   /// Print a Graph reference
-  friend ostream& operator<<(ostream& o, Graph2& g) noexcept;
+  friend ostream& operator<<(ostream& o, Graph& g) noexcept;
+
+  /// Add an iterable set of commands to the graph
+  template <class T>
+  void addCommands(const T& commands) noexcept {
+    for (const auto& c : commands) {
+      addCommand(c);
+    }
+  }
 
  private:
   /// Add a command to the graph

@@ -13,6 +13,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include "data/IRBuffer.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "runtime/Build.hh"
@@ -58,53 +59,57 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Build stats
   optional<string> stats;
 
+  // The buffer that holds the output trace from emulation
+  IRBuffer phase1_buffer;
+
   { /* PHASE 1: PRE-BUILD EMULATION */
     // Reset stats counters and record the start time
     reset_stats();
 
     // Emulate the loaded trace
-    auto build = Build::emulate();
+    auto build = Build::emulate(phase1_buffer);
     trace.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "pre");
   }
 
+  // The buffer that holds the output from the rebuild
+  IRBuffer phase2_buffer;
+
   { /* PHASE 2: REBUILD */
     // Reset stats counters and record the start time
     reset_stats();
 
-    // Set up an output trace
-    OutputTrace output(constants::NewDatabaseFilename);
-
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(output);
-    trace.sendTo(build);
+    auto build = Build::rebuild(phase2_buffer);
+    phase1_buffer.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "rebuild");
   }
 
+  // The buffer tha thold soutput from the post-build checks
+  IRBuffer phase3_buffer;
+
   { /* PHASE 3: POST-BUILD EMULATION */
     // Reset stats counters and record the start time
     reset_stats();
 
-    // Load the newly generated input trace
-    InputTrace new_trace(args, constants::NewDatabaseFilename);
-
-    // Set up an output trace for the post-build check
-    OutputTrace output(constants::DatabaseFilename);
-
     // Set up a filter to update predicates to their post-build state
-    PostBuildChecker filter(output);
+    PostBuildChecker filter(phase3_buffer);
 
     // Emulate the new trace
     auto build = Build::emulate(filter);
-    new_trace.sendTo(build);
+    phase2_buffer.sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "post");
   }
+
+  // Set up an output trace for the post-build check
+  OutputTrace output(constants::DatabaseFilename);
+  phase3_buffer.sendTo(output);
 
   // write stats
   write_stats(stats_log_path, stats);
@@ -118,11 +123,12 @@ void do_check(vector<string> args) noexcept {
   InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the loaded trace
-  trace.sendTo(Build::emulate());
+  auto build = Build::emulate();
+  trace.sendTo(build);
 
   // Print commands that must run
   bool must_run_header_printed = false;
-  for (const auto& c : trace.getCommands()) {
+  for (const auto& c : build.getCommands()) {
     if (c->getMarking() == RebuildMarking::MustRun) {
       // Print the header if necessary
       if (!must_run_header_printed) {
@@ -140,7 +146,7 @@ void do_check(vector<string> args) noexcept {
 
   // Print the rebuild plan
   bool may_run_header_printed = false;
-  for (const auto& c : trace.getCommands()) {
+  for (const auto& c : build.getCommands()) {
     if (c->getMarking() == RebuildMarking::MayRun) {
       if (!may_run_header_printed) {
         cout << "Commands that may run:" << endl;
@@ -192,9 +198,11 @@ void do_graph(vector<string> args,
   InputTrace trace(args, constants::DatabaseFilename);
 
   // Emulate the build
-  trace.sendTo(Build::emulate());
+  auto build = Build::emulate();
+  trace.sendTo(build);
 
-  Graph2 graph(trace, show_all);
+  Graph graph(show_all);
+  graph.addCommands(build.getCommands());
 
   if (no_render) {
     ofstream f(output);

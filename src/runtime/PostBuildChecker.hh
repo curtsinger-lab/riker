@@ -1,7 +1,7 @@
 #include <memory>
 
 #include "artifacts/Artifact.hh"
-#include "data/TraceHandler.hh"
+#include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
@@ -11,9 +11,9 @@ using std::shared_ptr;
  * This class processes a build trace that has already been completed, and adds new predicates to
  * check against the state left at the end of a build.
  */
-class PostBuildChecker : public TraceHandler {
+class PostBuildChecker : public IRSink {
  public:
-  PostBuildChecker(TraceHandler& output) : _output(output) {}
+  PostBuildChecker(IRSink& output) : _output(output) {}
 
   /// Called when the trace is finished
   virtual void finish() noexcept override { _output.finish(); }
@@ -181,5 +181,5 @@ class PostBuildChecker : public TraceHandler {
   }
 
  private:
-  TraceHandler& _output;
+  IRSink& _output;
 };
