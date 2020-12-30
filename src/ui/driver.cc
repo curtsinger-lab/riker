@@ -89,15 +89,15 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     gather_stats(stats_log_path, stats, "rebuild");
   }
 
+  // The buffer tha thold soutput from the post-build checks
+  IRBuffer phase3_buffer;
+
   { /* PHASE 3: POST-BUILD EMULATION */
     // Reset stats counters and record the start time
     reset_stats();
 
-    // Set up an output trace for the post-build check
-    OutputTrace output(constants::DatabaseFilename);
-
     // Set up a filter to update predicates to their post-build state
-    PostBuildChecker filter(output);
+    PostBuildChecker filter(phase3_buffer);
 
     // Emulate the new trace
     auto build = Build::emulate(filter);
@@ -106,6 +106,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "post");
   }
+
+  // Set up an output trace for the post-build check
+  OutputTrace output(constants::DatabaseFilename);
+  phase3_buffer.sendTo(output);
 
   // write stats
   write_stats(stats_log_path, stats);

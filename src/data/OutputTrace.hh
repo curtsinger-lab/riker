@@ -1,18 +1,20 @@
 #pragma once
 
 #include <filesystem>
-#include <list>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <string>
+
+#include <cereal/archives/binary.hpp>
 
 #include "data/IRSink.hh"
 #include "data/Record.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
-using std::list;
 using std::map;
+using std::ofstream;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
@@ -25,10 +27,7 @@ namespace fs = std::filesystem;
 class OutputTrace : public IRSink {
  public:
   /// Create a trace at the given path
-  OutputTrace(string filename) noexcept : _filename(filename) {
-    // Add the null command to the command map with ID 0
-    _commands.emplace(Command::getNullCommand(), 0);
-  }
+  OutputTrace(string filename) noexcept;
 
   // Disallow copy
   OutputTrace(const OutputTrace&) = delete;
@@ -147,11 +146,11 @@ class OutputTrace : public IRSink {
   virtual void exit(const shared_ptr<Command>& command, int exit_status) noexcept override;
 
  private:
-  /// The path where this trace will be written
-  string _filename;
+  /// The output file stream
+  ofstream _out;
 
-  /// The list of records to write
-  list<unique_ptr<Record>> _records;
+  /// The cereal archive
+  cereal::BinaryOutputArchive _archive;
 
   /// The map from commands to their IDs in the output trace
   map<shared_ptr<Command>, Command::ID> _commands;
