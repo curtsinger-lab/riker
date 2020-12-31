@@ -53,6 +53,12 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Also ensure that the cache directory exists
   fs::create_directory(constants::CacheDir);
 
+  // Build stats
+  optional<string> stats;
+
+  // Reset the statistics counters
+  reset_stats();
+
   // Load a trace, or set up a default build if necessary
   // Trace is lazy-loaded, so work is not done here
   unique_ptr<IRSource> input = InputTrace::load(constants::DatabaseFilename, args);
@@ -75,6 +81,12 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
       }
     }
 
+    // If this is iteration 0, report the end of phase 1
+    if (iteration == 0) {
+      gather_stats(stats_log_path, stats, "pre");
+      reset_stats();
+    }
+
     // If we're done, commit all changes
     if (done) env->commitAll();
 
@@ -82,6 +94,9 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     input = std::move(output);
     iteration++;
   }
+
+  gather_stats(stats_log_path, stats, "rebuild");
+  reset_stats();
 
   // Run the post-build checks
   IRBuffer post_build_buffer;
@@ -93,6 +108,9 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   // Write the final trace to disk
   OutputTrace output(constants::DatabaseFilename);
   post_build_buffer.sendTo(output);
+
+  gather_stats(stats_log_path, stats, "post");
+  write_stats(stats_log_path, stats);
 }
 
 /**
