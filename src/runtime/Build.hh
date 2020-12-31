@@ -30,17 +30,10 @@ class Version;
  * the build environment, emulating or running each of the commands, and concluding the build.
  */
 class Build : public IRSink {
- private:
-  /// Create a build runner
-  Build(bool commit, IRSink& output) noexcept :
-      _commit(commit), _output(output), _env(make_shared<Env>()), _tracer(*this) {}
-
  public:
-  /// Create a build runner that exclusively emulates trace steps
-  static Build emulate(IRSink& output = _default_output) noexcept { return Build(false, output); }
-
-  /// Create a build runner that executes a rebuild plan
-  static Build rebuild(IRSink& output = _default_output) noexcept { return Build(true, output); }
+  /// Create a build runner
+  Build(bool execute, IRSink& output = _default_output) noexcept :
+      _execute(execute), _output(output), _env(make_shared<Env>()), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -259,8 +252,8 @@ class Build : public IRSink {
   }
 
  private:
-  /// Should this build commit the environment to the filesystem when it's finished?
-  bool _commit;
+  /// Is this build allowed to execute commands?
+  bool _execute;
 
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;

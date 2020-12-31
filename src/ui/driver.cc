@@ -67,7 +67,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     reset_stats();
 
     // Emulate the loaded trace
-    auto build = Build::emulate(phase1_buffer);
+    Build build(false, phase1_buffer);
     trace->sendTo(build);
 
     // Save rebuild stats
@@ -82,8 +82,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     reset_stats();
 
     // Now run the trace again with the planned rebuild steps
-    auto build = Build::rebuild(phase2_buffer);
+    Build build(true, phase2_buffer);
     phase1_buffer.sendTo(build);
+
+    // Commit the final environment state to the filesystem
+    build.getEnvironment()->commitAll();
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "rebuild");
@@ -100,7 +103,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     PostBuildChecker filter(phase3_buffer);
 
     // Emulate the new trace
-    auto build = Build::emulate(filter);
+    Build build(false, filter);
     phase2_buffer.sendTo(build);
 
     // Save rebuild stats
@@ -123,7 +126,7 @@ void do_check(vector<string> args) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
-  auto build = Build::emulate();
+  Build build(false);
   trace->sendTo(build);
 
   // Print commands that must run
@@ -198,7 +201,7 @@ void do_graph(vector<string> args,
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
-  auto build = Build::emulate();
+  Build build(false);
   trace->sendTo(build);
 
   Graph graph(show_all);
@@ -238,7 +241,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
-  auto build = Build::emulate();
+  Build build(false);
   trace->sendTo(build);
   auto final_env = build.getEnvironment();
 

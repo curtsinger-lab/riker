@@ -43,6 +43,9 @@ class Env : public std::enable_shared_from_this<Env> {
   Env(const Env&) = delete;
   Env& operator=(const Env&) = delete;
 
+  /// Commit all un-committed state to the file system
+  void commitAll() noexcept;
+
   /// Get the standard input pipe
   shared_ptr<PipeArtifact> getStdin(const shared_ptr<Command>& c) noexcept;
 

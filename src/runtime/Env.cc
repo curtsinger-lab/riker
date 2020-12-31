@@ -30,6 +30,10 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 
+void Env::commitAll() noexcept {
+  getRootDir()->applyFinalState("/");
+}
+
 shared_ptr<PipeArtifact> Env::getStdin(const shared_ptr<Command>& c) noexcept {
   if (!_stdin) {
     _stdin = getPipe(c);

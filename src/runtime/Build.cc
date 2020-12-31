@@ -30,7 +30,7 @@ using std::shared_ptr;
 
 // Can a step from the provided command be emulated?
 bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {
-  return !_commit || !c->mustRerun();
+  return !_execute || !c->mustRerun();
 }
 
 /************************ Handle IR steps from a loaded trace ************************/
@@ -41,9 +41,6 @@ void Build::finish() noexcept {
 
   // Compare the final state of all artifacts to the actual filesystem
   _env->getRootDir()->checkFinalState("/");
-
-  // Commit the final environment state to the filesystem
-  if (_commit) _env->getRootDir()->applyFinalState("/");
 
   // Mark all commands as finished
   for (auto& c : _commands) {
