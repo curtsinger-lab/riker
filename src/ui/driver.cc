@@ -54,7 +54,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
   // Load a trace, or set up a default build if necessary
   // Trace is lazy-loaded, so work is not done here
-  InputTrace trace(args, constants::DatabaseFilename);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Build stats
   optional<string> stats;
@@ -68,7 +68,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
     // Emulate the loaded trace
     auto build = Build::emulate(phase1_buffer);
-    trace.sendTo(build);
+    trace->sendTo(build);
 
     // Save rebuild stats
     gather_stats(stats_log_path, stats, "pre");
@@ -120,11 +120,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
  */
 void do_check(vector<string> args) noexcept {
   // Load a build, or set up a default build if necessary
-  InputTrace trace(args, constants::DatabaseFilename);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
   auto build = Build::emulate();
-  trace.sendTo(build);
+  trace->sendTo(build);
 
   // Print commands that must run
   bool must_run_header_printed = false;
@@ -169,9 +169,9 @@ void do_check(vector<string> args) noexcept {
 void do_trace(vector<string> args, string output) noexcept {
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace(args, constants::DatabaseFilename).sendTo(TracePrinter(cout));
+    InputTrace::load(constants::DatabaseFilename, args)->sendTo(TracePrinter(cout));
   } else {
-    InputTrace(args, constants::DatabaseFilename).sendTo(TracePrinter(ofstream(output)));
+    InputTrace::load(constants::DatabaseFilename, args)->sendTo(TracePrinter(ofstream(output)));
   }
 }
 
@@ -195,11 +195,11 @@ void do_graph(vector<string> args,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  InputTrace trace(args, constants::DatabaseFilename);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
   auto build = Build::emulate();
-  trace.sendTo(build);
+  trace->sendTo(build);
 
   Graph graph(show_all);
   graph.addCommands(build.getCommands());
@@ -235,11 +235,11 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   reset_stats();
 
   // Load the serialized build trace
-  InputTrace trace(args, constants::DatabaseFilename);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
   auto build = Build::emulate();
-  trace.sendTo(build);
+  trace->sendTo(build);
   auto final_env = build.getEnvironment();
 
   // Print statistics

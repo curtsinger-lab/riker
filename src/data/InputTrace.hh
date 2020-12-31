@@ -34,20 +34,15 @@ namespace fs = std::filesystem;
  * An input trace is a build trace loaded from disk
  */
 class InputTrace : public IRSource {
+ private:
+  InputTrace(string filename, vector<string> args = {});
+
  public:
-  /// Load an input trace from a given path, or produce a default starting trace if no trace exists
-  InputTrace(vector<string> args, fs::path filename) noexcept : _args(args), _filename(filename) {
-    // Add the null command to the command map
-    _commands.emplace_back(Command::getNullCommand());
-  }
+  static unique_ptr<IRSource> load(string filename, vector<string> args = {}) noexcept;
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
   InputTrace& operator=(const InputTrace&) = delete;
-
-  // Allow move
-  InputTrace(InputTrace&&) = default;
-  InputTrace& operator=(InputTrace&&) = default;
 
   /// Send the loaded trace to a trace handler
   virtual void sendTo(IRSink& handler) noexcept override;
@@ -72,15 +67,14 @@ class InputTrace : public IRSource {
   bool hasCommand(Command::ID id) const noexcept { return id >= 0 && _commands.size() > id; }
 
  private:
-  /// Send a default trace to a trace handler
-  void sendDefault(IRSink& handler) noexcept;
+  /// The input stream this trace is read from
+  ifstream _input;
 
- private:
+  /// The binary archive that decodes the loaded trace
+  cereal::BinaryInputArchive _archive;
+
   /// Any extra arguments a user may supply to a buildfile
   vector<string> _args;
-
-  /// The path to the loaded trace
-  fs::path _filename;
 
   /// The map from command IDs to command instances
   vector<shared_ptr<Command>> _commands;
