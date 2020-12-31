@@ -250,6 +250,9 @@ class Build : public IRSink {
   void traceExit(const shared_ptr<Command>& c, int exit_status) noexcept;
 
  private:
+  /// Should a step from the given command be emulated?
+  bool canEmulate(const shared_ptr<Command>& c) noexcept;
+
   /// Is a particular command running?
   bool isRunning(const shared_ptr<Command>& c) const noexcept {
     return _running.find(c) != _running.end();
