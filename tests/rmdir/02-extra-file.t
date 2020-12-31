@@ -27,6 +27,8 @@ Run a rebuild
   $ $DODO --show
   rmdir foo
   rmdir: failed to remove 'foo': Directory not empty
+  (warning) [Command Dodofile] should rerun because child [Command rmdir foo] changed exit status.
+  (warning) [Command Dodofile] should rerun because child [Command rmdir foo] changed exit status.
 
 The foo directory should be left over
   $ rm foo/c

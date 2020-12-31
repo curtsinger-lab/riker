@@ -144,7 +144,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
  private:
   /// The command this run is associated with
-  weak_ptr<Command> _command;
+  shared_ptr<Command> _command;
 
   /// The command's local references
   vector<shared_ptr<Ref>> _refs;

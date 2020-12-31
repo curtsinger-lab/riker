@@ -28,6 +28,7 @@
 
 using std::cout;
 using std::endl;
+using std::make_unique;
 using std::ofstream;
 using std::optional;
 using std::string;
@@ -54,71 +55,44 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
   // Load a trace, or set up a default build if necessary
   // Trace is lazy-loaded, so work is not done here
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  unique_ptr<IRSource> input = InputTrace::load(constants::DatabaseFilename, args);
 
-  // Build stats
-  optional<string> stats;
+  size_t iteration = 0;
+  bool done = false;
+  while (!done) {
+    // Create a buffer to hold the IR output
+    auto output = make_unique<IRBuffer>();
 
-  // The buffer that holds the output trace from emulation
-  IRBuffer phase1_buffer;
-
-  { /* PHASE 1: PRE-BUILD EMULATION */
-    // Reset stats counters and record the start time
-    reset_stats();
-
-    // Emulate the loaded trace
     auto env = make_shared<Env>();
-    Build build(false, env, phase1_buffer);
-    trace->sendTo(build);
+    Build build(true, env, *output);
+    input->sendTo(build);
 
-    // Save rebuild stats
-    gather_stats(stats_log_path, stats, "pre");
+    // Check if any commands must run on the next iteration. If so, we are not done.
+    done = true;
+    for (auto& c : build.getCommands()) {
+      if (c->mustRerun()) {
+        done = false;
+      }
+    }
+
+    // If we're done, commit all changes
+    if (done) env->commitAll();
+
+    // The output becomes the next iteration's input
+    input = std::move(output);
+    iteration++;
   }
 
-  // The buffer that holds the output from the rebuild
-  IRBuffer phase2_buffer;
+  // Run the post-build checks
+  IRBuffer post_build_buffer;
+  PostBuildChecker filter(post_build_buffer);
+  auto env = make_shared<Env>();
+  Build build(false, env, filter);
+  input->sendTo(build);
 
-  { /* PHASE 2: REBUILD */
-    // Reset stats counters and record the start time
-    reset_stats();
-
-    // Now run the trace again with the planned rebuild steps
-    auto env = make_shared<Env>();
-    Build build(true, env, phase2_buffer);
-    phase1_buffer.sendTo(build);
-
-    // Commit the final environment state to the filesystem
-    env->commitAll();
-
-    // Save rebuild stats
-    gather_stats(stats_log_path, stats, "rebuild");
-  }
-
-  // The buffer tha thold soutput from the post-build checks
-  IRBuffer phase3_buffer;
-
-  { /* PHASE 3: POST-BUILD EMULATION */
-    // Reset stats counters and record the start time
-    reset_stats();
-
-    // Set up a filter to update predicates to their post-build state
-    PostBuildChecker filter(phase3_buffer);
-
-    // Emulate the new trace
-    auto env = make_shared<Env>();
-    Build build(false, env, filter);
-    phase2_buffer.sendTo(build);
-
-    // Save rebuild stats
-    gather_stats(stats_log_path, stats, "post");
-  }
-
-  // Set up an output trace for the post-build check
+  // Write the final trace to disk
   OutputTrace output(constants::DatabaseFilename);
-  phase3_buffer.sendTo(output);
-
-  // write stats
-  write_stats(stats_log_path, stats);
+  post_build_buffer.sendTo(output);
 }
 
 /**

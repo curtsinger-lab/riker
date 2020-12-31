@@ -25,6 +25,8 @@ Run a rebuild
   $ $DODO --show
   rm foo/b
   rm: cannot remove 'foo/b': No such file or directory
+  (warning) [Command Dodofile] should rerun because child [Command rm foo/b] changed exit status.
+  (warning) [Command Dodofile] should rerun because child [Command rm foo/b] changed exit status.
 
 Make sure the foo directory does not exist
   $ stat foo

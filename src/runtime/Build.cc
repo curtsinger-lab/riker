@@ -601,8 +601,10 @@ void Build::join(const shared_ptr<Command>& c,
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
          child, exit_status, child->currentRun()->getExitStatus());
 
-    c->currentRun()->observeChange(Scenario::Build);
-    c->currentRun()->observeChange(Scenario::PostBuild);
+    // TODO: Re-enable this once we have skipping
+    // c->currentRun()->observeChange(Scenario::Build);
+    // c->currentRun()->observeChange(Scenario::PostBuild);
+    WARN << c << " should rerun because child " << child << " changed exit status.";
   }
 }
 
