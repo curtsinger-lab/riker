@@ -32,15 +32,12 @@ class Version;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(bool execute, IRSink& output = _default_output) noexcept :
-      _execute(execute), _output(output), _env(make_shared<Env>()), _tracer(*this) {}
+  Build(bool execute, shared_ptr<Env> env, IRSink& output = _default_output) noexcept :
+      _execute(execute), _env(env), _output(output), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
-
-  /// Get the environment used in this build
-  shared_ptr<Env> getEnvironment() const noexcept { return _env; }
 
   /// Get the list of commands in this build
   const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
@@ -255,11 +252,11 @@ class Build : public IRSink {
   /// Is this build allowed to execute commands?
   bool _execute;
 
-  /// Trace steps are sent to this trace handler, typically an OutputTrace
-  IRSink& _output;
-
   /// The environment in which this build executes
   shared_ptr<Env> _env;
+
+  /// Trace steps are sent to this trace handler, typically an OutputTrace
+  IRSink& _output;
 
   /// The set of commands that were run by this build (both traced and emulated commands included)
   set<shared_ptr<Command>> _commands;
