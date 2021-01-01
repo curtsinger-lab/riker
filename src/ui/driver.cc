@@ -69,9 +69,13 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     // Create a buffer to hold the IR output
     auto output = make_unique<IRBuffer>();
 
+    LOGF(phase, "Starting build phase {}", iteration);
+
     auto env = make_shared<Env>();
     Build build(true, env, *output);
     input->sendTo(build);
+
+    LOGF(phase, "Finished build phase {}", iteration);
 
     // Check if any commands must run on the next iteration. If so, we are not done.
     done = true;
@@ -88,7 +92,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     }
 
     // If we're done, commit all changes
-    if (done) env->commitAll();
+    if (done) {
+      LOGF(phase, "Committing environment changes from build phase {}", iteration);
+      env->commitAll();
+    }
 
     // The output becomes the next iteration's input
     input = std::move(output);
@@ -98,12 +105,16 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   gather_stats(stats_log_path, stats, "rebuild");
   reset_stats();
 
+  LOG(phase) << "Starting post-build checks";
+
   // Run the post-build checks
   IRBuffer post_build_buffer;
   PostBuildChecker filter(post_build_buffer);
   auto env = make_shared<Env>();
   Build build(false, env, filter);
   input->sendTo(build);
+
+  LOG(phase) << "Finished post-build checks";
 
   // Write the final trace to disk
   OutputTrace output(constants::DatabaseFilename);
@@ -318,13 +329,17 @@ int main(int argc, char* argv[]) noexcept {
              if (category == "exec" || category == "all") {
                logger<LogCategory::exec>::enabled = true;
              }
+             if (category == "phase" || category == "all") {
+               logger<LogCategory::phase>::enabled = true;
+             }
            }
          },
          "Display log messages from one or more categories")
       ->type_name("CATEGORY")
-      ->transform(CLI::IsMember({"warning", "trace", "ir", "artifact", "rebuild", "exec", "all"},
-                                CLI::ignore_case)
-                      .description("{warning, trace, ir, artifact, rebuild, exec, all}"))
+      ->transform(
+          CLI::IsMember({"warning", "trace", "ir", "artifact", "rebuild", "exec", "phase", "all"},
+                        CLI::ignore_case)
+              .description("{warning, trace, ir, artifact, rebuild, exec, phase, all}"))
       ->delimiter(',');
   app.add_option("--fingerprint", options::fingerprint_level,
                  "Set the fingerprint level (default=local)")
