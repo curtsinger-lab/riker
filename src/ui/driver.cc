@@ -373,6 +373,9 @@ int main(int argc, char* argv[]) noexcept {
 
   build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
 
+  // TODO: Swap this for an --eager flag once lazy builds are the default
+  build->add_flag("--lazy", options::lazy_builds, "Run commands as needed during the build");
+
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 

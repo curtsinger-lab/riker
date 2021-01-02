@@ -109,9 +109,13 @@ void Command::finishRun() noexcept {
 
   // Update the command's marking
   if (_marking == RebuildMarking::MayRun) {
-    // We are currently executing MayRun commands eagerly, so mark them AlreadyRun
-    // TODO: Change MayRun back to Emulate once we're only running MustRun commands
-    _marking = RebuildMarking::AlreadyRun;
+    // If this is a lazy build, return MayRun to Emulate so it can be marked later.
+    // If this is an eager build, MayRun commands are executed so change to AlreadyRun.
+    if (options::lazy_builds) {
+      _marking = RebuildMarking::Emulate;
+    } else {
+      _marking = RebuildMarking::AlreadyRun;
+    }
 
   } else if (_marking == RebuildMarking::MustRun) {
     // MustRun commands were executed, so update them to AlreadyRun
@@ -253,5 +257,12 @@ bool Command::mark(RebuildMarking m) noexcept {
 
 // Check if this command must rerun
 bool Command::mustRerun() const noexcept {
-  return _marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun;
+  // Commands marked MustRun have to run
+  if (_marking == RebuildMarking::MustRun) return true;
+
+  // Commands marked MayRun have to run if this is not a lazy build
+  if (!options::lazy_builds && _marking == RebuildMarking::MayRun) return true;
+
+  // Otherwise the command does not need to run
+  return false;
 }

@@ -26,4 +26,7 @@ namespace options {
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER
+
+  /// Enable lazy builds (only run commands marked mustRun, come back to the MayRun commands later)
+  inline bool lazy_builds = false;  // PAPER
 }
