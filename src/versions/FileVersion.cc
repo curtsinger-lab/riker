@@ -37,7 +37,10 @@ void FileVersion::commit(fs::path path) noexcept {
   if (_cached) {
     // stage in cached file
     stage(path);
+    return;
   }
+
+  FAIL << "Committable file version " << this << " must be either empty or cached.";
 }
 
 // Commit this version to the filesystem
