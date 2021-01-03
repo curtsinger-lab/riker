@@ -79,10 +79,18 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void setName(string newname) noexcept { _name = newname; }
 
   /// Get the number of versions of this artifact
-  size_t getVersionCount() const noexcept { return _versions.size(); }
+  size_t getVersionCount() const noexcept {
+    return _metadata_versions.size() + _content_versions.size();
+  }
 
-  /// Get the list of versions of this artifact
-  const list<shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
+  /// Get a list of all metadata versions that have been set for this artifact
+  const list<shared_ptr<MetadataVersion>>& getMetadataVersions() const noexcept {
+    return _metadata_versions;
+  }
+
+  const list<shared_ptr<ContentVersion>>& getContentVersions() const noexcept {
+    return _content_versions;
+  }
 
   /// Get the environment this artifact is part of
   shared_ptr<Env> getEnv() const noexcept { return _env.lock(); }
@@ -106,11 +114,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept = 0;
 
-  /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<Version> v) const noexcept = 0;
+  /// Can this artifact's metadata be committed?
+  virtual bool canCommit(shared_ptr<MetadataVersion> v) const noexcept = 0;
+
+  /// Can this artifact's content version be committed?
+  virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept = 0;
+
+  /// Commit this artifact's metadata version
+  virtual void commit(shared_ptr<MetadataVersion> v) noexcept = 0;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept = 0;
+  virtual void commit(shared_ptr<ContentVersion> v) noexcept = 0;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept = 0;
@@ -290,8 +304,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
  protected:
-  /// Add a version to the sequence of versions for this artifact
-  void appendVersion(shared_ptr<Version> v) noexcept;
+  /// Add a metadata version to this artifact's list of versions
+  void appendVersion(shared_ptr<MetadataVersion> v) noexcept;
+
+  /// Add a content version to this artifact's list of versions
+  void appendVersion(shared_ptr<ContentVersion> v) noexcept;
 
  protected:
   /// The environment this artifact is managed by
@@ -313,6 +330,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A fixed string name assigned to this artifact
   string _name;
 
-  /// The sequence of versions of this artifact applied so far
-  list<shared_ptr<Version>> _versions;
+  /// The sequence of metadata versions applied to this artifact
+  list<shared_ptr<MetadataVersion>> _metadata_versions;
+
+  /// The sequence of content versions applied to this artifact
+  list<shared_ptr<ContentVersion>> _content_versions;
 };

@@ -27,10 +27,16 @@ class SymlinkArtifact : public Artifact {
   virtual string getTypeName() const noexcept override { return "Symlink"; }
 
   /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
+  virtual bool canCommit(shared_ptr<MetadataVersion> v) const noexcept override;
+
+  /// Can a specific version of this artifact be committed?
+  virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept override;
+  virtual void commit(shared_ptr<MetadataVersion> v) noexcept override;
+
+  /// Commit a specific version of this artifact to the filesystem
+  virtual void commit(shared_ptr<ContentVersion> v) noexcept override;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept override;

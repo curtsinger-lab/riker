@@ -50,29 +50,34 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
   }
 }
 
-bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (v == _symlink_version) {
-    return true;
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool SymlinkArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
+  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
+                                 << " in " << this;
+  return _metadata_version->canCommit();
 }
 
-void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
+bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  ASSERT(v == _symlink_version) << "Attempted to check committable state for unknown version " << v
+                                << " in " << this;
+  return _symlink_version->canCommit();
+}
+
+void SymlinkArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
-  if (v == _symlink_version) {
-    _symlink_version->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _metadata_version->commit(path.value());
+}
+
+void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Symlink has no path";
+
+  ASSERT(v == _symlink_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _symlink_version->commit(path.value());
 }
 
 bool SymlinkArtifact::canCommitAll() const noexcept {
@@ -88,7 +93,8 @@ void SymlinkArtifact::commitAll() noexcept {
 
   _symlink_version->commit(path.value());
 
-  // Don't commit symlink metadata for now. We can eventually commit ownership, but not permissions.
+  // Don't commit symlink metadata for now. We can eventually commit ownership, but not
+  // permissions.
   //_metadata_version->commit(path.value());
 }
 

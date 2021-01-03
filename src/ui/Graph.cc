@@ -35,8 +35,8 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     _command_edges.emplace(command_id, child_id);
   }
 
-  // Add this command's inputs
-  for (auto& [a, v, t] : c->previousRun()->getInputs()) {
+  // Add this command's metadata inputs
+  for (auto& [a, v, t] : c->previousRun()->getMetadataInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !v->getCreator()) continue;
 
@@ -51,8 +51,37 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     _io_edges.emplace(artifact_id + ":" + version_id, command_id);
   }
 
-  // Add this command's outputs
-  for (auto& [a, v] : c->previousRun()->getOutputs()) {
+  // Add this command's content inputs
+  for (auto& [a, v, t] : c->previousRun()->getContentInputs()) {
+    // Only include explicitly-accessed inputs or inputs created by the build
+    if (t != InputType::Accessed && !v->getCreator()) continue;
+
+    // Exclude artifacts with absolute paths, unless all artifacts are shown
+    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
+
+    // Add the artifact and version
+    auto artifact_id = addArtifact(a);
+    auto version_id = addVersion(v);
+
+    // Add the input edge
+    _io_edges.emplace(artifact_id + ":" + version_id, command_id);
+  }
+
+  // Add this command's metadata outputs
+  for (auto& [a, v] : c->previousRun()->getMetadataOutputs()) {
+    // Exclude artifacts with absolute paths, unless all artifacts are shown
+    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
+
+    // Add the artifact and version
+    auto artifact_id = addArtifact(a);
+    auto version_id = addVersion(v);
+
+    // Add the output edge
+    _io_edges.emplace(command_id, artifact_id + ":" + version_id);
+  }
+
+  // Add this command's content outputs
+  for (auto& [a, v] : c->previousRun()->getContentOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 
@@ -77,22 +106,39 @@ string Graph::addArtifact(shared_ptr<Artifact> a) noexcept {
   string artifact_id = "a" + to_string(_artifact_ids.size());
   _artifact_ids.emplace_hint(iter, a, artifact_id);
 
-  // Add all of this artifact's versions
-  for (auto& v : a->getVersions()) {
+  // Add all of this artifact's metadata versions
+  for (auto& v : a->getMetadataVersions()) {
+    addVersion(v);
+  }
+
+  // Add all of this artifact's content versions
+  for (auto& v : a->getContentVersions()) {
     addVersion(v);
   }
 
   return artifact_id;
 }
 
-string Graph::addVersion(shared_ptr<Version> v) noexcept {
+string Graph::addVersion(shared_ptr<MetadataVersion> v) noexcept {
   // Look for the version. If it's already in the map, return its ID.
-  auto iter = _version_ids.find(v);
-  if (iter != _version_ids.end()) return iter->second;
+  auto iter = _metadata_version_ids.find(v);
+  if (iter != _metadata_version_ids.end()) return iter->second;
 
   // Create an ID for the version and save it
-  string version_id = "v" + to_string(_version_ids.size());
-  _version_ids.emplace_hint(iter, v, version_id);
+  string version_id = "mv" + to_string(_metadata_version_ids.size());
+  _metadata_version_ids.emplace_hint(iter, v, version_id);
+
+  return version_id;
+}
+
+string Graph::addVersion(shared_ptr<ContentVersion> v) noexcept {
+  // Look for the version. If it's already in the map, return its ID.
+  auto iter = _content_version_ids.find(v);
+  if (iter != _content_version_ids.end()) return iter->second;
+
+  // Create an ID for the version and save it
+  string version_id = "cv" + to_string(_content_version_ids.size());
+  _content_version_ids.emplace_hint(iter, v, version_id);
 
   return version_id;
 }
@@ -150,8 +196,19 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
       o << "<tr><td>" + name + "</td></tr>";
     }
 
-    // Add a row for each version
-    for (const auto& v : artifact->getVersions()) {
+    // Add a row for each metadata version
+    for (const auto& v : artifact->getMetadataVersions()) {
+      o << "<tr><td port=\"" + g.addVersion(v) + "\"";
+      /*if (_changed_versions.find(v) != _changed_versions.end()) {
+        o << " bgcolor=\"yellow\"";
+      }*/
+      o << ">";
+      o << "<font point-size=\"10\">metadata</font>";
+      o << "</td></tr>";
+    }
+
+    // Add a row for each content version
+    for (const auto& v : artifact->getContentVersions()) {
       o << "<tr><td port=\"" + g.addVersion(v) + "\"";
       /*if (_changed_versions.find(v) != _changed_versions.end()) {
         o << " bgcolor=\"yellow\"";

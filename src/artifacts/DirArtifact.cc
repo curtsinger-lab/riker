@@ -29,30 +29,37 @@ DirArtifact::DirArtifact(shared_ptr<Env> env,
   appendVersion(dv);
 }
 
-bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (auto dv = v->as<DirVersion>()) {
-    return dv->canCommit();
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool DirArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
+  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
+                                 << " in " << this;
+  return _metadata_version->canCommit();
 }
 
-void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  auto dv = v->as<DirVersion>();
+  ASSERT(dv) << "Attempted to check committable state for unknown version " << v << " in " << this;
+  return dv->canCommit();
+}
+
+void DirArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
 
   _base_dir_version->commit(path.value());
 
-  if (auto dv = v->as<DirVersion>()) {
-    dv->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _metadata_version->commit(path.value());
+}
+
+void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+
+  _base_dir_version->commit(path.value());
+
+  auto dv = v->as<DirVersion>();
+  ASSERT(dv) << "Attempted to commit unknown version " << v << " in " << this;
+  dv->commit(path.value());
 }
 
 bool DirArtifact::canCommitAll() const noexcept {

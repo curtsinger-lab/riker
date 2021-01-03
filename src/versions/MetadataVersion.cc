@@ -120,5 +120,5 @@ void MetadataVersion::commit(fs::path path) noexcept {
   FAIL_IF(rc != 0) << "Failed to commit permissions to " << path << ": " << ERR;
 
   // Mark this version as committed
-  Version::setCommitted();
+  setCommitted();
 }

@@ -31,7 +31,6 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
-#include "versions/Version.hh"
 
 using std::list;
 using std::make_shared;

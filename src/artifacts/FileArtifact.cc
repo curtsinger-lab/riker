@@ -6,9 +6,9 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
-#include "versions/Version.hh"
 
 using std::shared_ptr;
 using std::string;
@@ -21,29 +21,34 @@ FileArtifact::FileArtifact(shared_ptr<Env> env,
   _content_version = cv;
 }
 
-bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (v == _content_version) {
-    return _content_version->canCommit();
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool FileArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
+  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
+                                 << " in " << this;
+  return _metadata_version->canCommit();
 }
 
-void FileArtifact::commit(shared_ptr<Version> v) noexcept {
+bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  ASSERT(v == _content_version) << "Attempted to check committable state for unknown version " << v
+                                << " in " << this;
+  return _content_version->canCommit();
+}
+
+void FileArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
-  if (v == _content_version) {
-    _content_version->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _metadata_version->commit(path.value());
+}
+
+void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a file with no path";
+
+  ASSERT(v == _content_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _content_version->commit(path.value());
 }
 
 /// Do we have saved content and metadata for this artifact?

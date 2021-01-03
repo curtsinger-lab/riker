@@ -11,7 +11,6 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "runtime/CommandRun.hh"
-#include "versions/Version.hh"
 
 using std::cout;
 using std::endl;
@@ -151,8 +150,31 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Update the marking
     _marking = RebuildMarking::MustRun;
 
-    // Loop over inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getInputs()) {
+    // Loop over metadata inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getMetadataInputs()) {
+      // If the version does not have a creator, there's no need to run anything to create it
+      auto creator = v->getCreator();
+      if (!creator) continue;
+
+      // Rule 3: Mark commands that produce uncached inputs to this command as MustRun
+      // TODO: This check should really ask the artifact if it can commit the version at the time
+      // of the input, not during rebuild planning.
+      if (!v->canCommit()) {
+        // Mark the creator for rerun so it will produce the necessary input
+        if (creator->getCommand()->mark(RebuildMarking::MustRun)) {
+          LOGF(rebuild, "{} must run: output is needed by {}", creator->getCommand(), this);
+        }
+      }
+
+      // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
+      if (creator->getCommand()->_marking == RebuildMarking::MayRun) {
+        creator->getCommand()->mark(RebuildMarking::MustRun);
+        LOGF(rebuild, "{} must run: output is used by {}", creator->getCommand(), this);
+      }
+    }
+
+    // Loop over content inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getContentInputs()) {
       // If the version does not have a creator, there's no need to run anything to create it
       auto creator = v->getCreator();
       if (!creator) continue;
@@ -206,8 +228,25 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Update the marking
     _marking = RebuildMarking::MayRun;
 
-    // Loop over inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getInputs()) {
+    // Loop over metadata inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getMetadataInputs()) {
+      // If the version does not have a creator, there's no need to run anything to create it
+      auto creator = v->getCreator();
+      if (!creator) continue;
+
+      // Rule 6: Mark commands that produce uncached inputs to this command as MayRun
+      // TODO: This check should really ask the artifact if it can commit the version at the time
+      // of the input, not during rebuild planning.
+      if (!v->canCommit()) {
+        // Mark the creator for rerun so it will produce the necessary input
+        if (creator->getCommand()->mark(RebuildMarking::MayRun)) {
+          LOGF(rebuild, "{} may run: output is needed by {}", creator->getCommand(), this);
+        }
+      }
+    }
+
+    // Loop over content inputs to this command
+    for (const auto& [a, v, t] : previousRun()->getContentInputs()) {
       // If the version does not have a creator, there's no need to run anything to create it
       auto creator = v->getCreator();
       if (!creator) continue;

@@ -12,12 +12,12 @@ class Command;
 class Env;
 
 // Check if a written pipe version matches another version
-bool PipeWriteVersion::matches(shared_ptr<Version> other) const noexcept {
+bool PipeWriteVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
   return other->as<PipeWriteVersion>().get() == this;
 }
 
 // Check if a read pipe version matches another version
-bool PipeReadVersion::matches(shared_ptr<Version> other) const noexcept {
+bool PipeReadVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
   // Cast the other version to a PipeReadVersion
   auto r = other->as<PipeReadVersion>();
   if (!r) return false;

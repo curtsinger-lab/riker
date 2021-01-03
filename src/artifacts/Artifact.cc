@@ -13,9 +13,9 @@
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
 #include "ui/options.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
-#include "versions/Version.hh"
 
 using std::make_shared;
 using std::nullopt;
@@ -213,7 +213,7 @@ optional<fs::path> Artifact::commitPath() noexcept {
 void Artifact::checkFinalState(fs::path path) noexcept {
   if (!_metadata_version->isCommitted()) {
     auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path);
+    v->cache(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_metadata_version->matches(v)) {
@@ -234,7 +234,7 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
-  _metadata_version->fingerprint(path);
+  _metadata_version->cache(path);
 }
 
 /// Get the current metadata version for this artifact
@@ -285,8 +285,12 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& 
   return writing;
 }
 
-void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
-  _versions.push_back(v);
+void Artifact::appendVersion(shared_ptr<MetadataVersion> v) noexcept {
+  _metadata_versions.push_back(v);
+}
+
+void Artifact::appendVersion(shared_ptr<ContentVersion> v) noexcept {
+  _content_versions.push_back(v);
 }
 
 Ref Artifact::resolve(const shared_ptr<Command>& c,

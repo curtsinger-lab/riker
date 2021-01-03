@@ -54,7 +54,7 @@ class FileVersion final : public ContentVersion {
   void makeEmptyFingerprint() noexcept;
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override;
+  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
 
   /// get a string representation of the hash
   string b3hex() const noexcept;

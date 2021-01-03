@@ -14,7 +14,6 @@
 #include "runtime/Env.hh"
 #include "util/serializer.hh"
 #include "versions/DirListVersion.hh"
-#include "versions/Version.hh"
 
 using std::shared_ptr;
 
@@ -51,9 +50,9 @@ void BaseDirVersion::commit(fs::path path) noexcept {
                                   << flags.filetype_str() << " (" << (statbuf.st_mode & S_IFMT)
                                   << ").";
   }
-  
+
   // Mark this version as committed
-  Version::setCommitted();
+  ContentVersion::setCommitted();
 }
 
 // Commit the addition of an entry to a directory
@@ -71,7 +70,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 
@@ -113,7 +112,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
                       << ERR;
 
       // Mark this version as committed and return
-      Version::setCommitted();
+      ContentVersion::setCommitted();
       return;
     }
   } else {
@@ -121,7 +120,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     // probably need to check this).
 
     // Mark this version as committed so the artifact can use it as a committed path
-    Version::setCommitted();
+    ContentVersion::setCommitted();
 
     // Now commit the artifact
     _target->commitAll();
@@ -145,7 +144,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 
@@ -159,7 +158,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
 
   } else {
@@ -169,7 +168,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
                      << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 }

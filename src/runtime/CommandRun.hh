@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "runtime/Ref.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::list;
 using std::map;
@@ -110,27 +112,53 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// An input to this command did not match the expected version
   void inputChanged(shared_ptr<Artifact> artifact,
-                    shared_ptr<Version> observed,
-                    shared_ptr<Version> expected,
+                    shared_ptr<MetadataVersion> observed,
+                    shared_ptr<MetadataVersion> expected,
+                    Scenario scenario) noexcept;
+
+  /// An input to this command did not match the expected version
+  void inputChanged(shared_ptr<Artifact> artifact,
+                    shared_ptr<ContentVersion> observed,
+                    shared_ptr<ContentVersion> expected,
                     Scenario scenario) noexcept;
 
   /// Get the set of scenarios where this command has observed a change
   const set<Scenario>& getChanged() const noexcept { return _changed; }
 
   /// Track an input to this command
-  void addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept;
+  void addInput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v, InputType t) noexcept;
+
+  /// Track an input to this command
+  void addInput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v, InputType t) noexcept;
 
   /// Get the inputs to this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> getInputs() const noexcept {
-    return _inputs;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>, InputType>> getMetadataInputs()
+      const noexcept {
+    return _metadata_inputs;
+  }
+
+  /// Get the inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<ContentVersion>, InputType>> getContentInputs()
+      const noexcept {
+    return _content_inputs;
   }
 
   /// Track an output from this command
-  void addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept;
+  void addOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept;
+
+  /// Track an output from this command
+  void addOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept;
 
   /// Get the outputs from this command
-  const set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>>& getOutputs() const noexcept {
-    return _outputs;
+  const set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>>>& getMetadataOutputs()
+      const noexcept {
+    return _metadata_outputs;
+  }
+
+  /// Get the outputs from this command
+  const set<tuple<shared_ptr<Artifact>, shared_ptr<ContentVersion>>>& getContentOutputs()
+      const noexcept {
+    return _content_outputs;
   }
 
   /// Get the users of this command's outputs
@@ -138,8 +166,13 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// An output from this command does not match the on-disk state (checked at the end of the build)
   void outputChanged(shared_ptr<Artifact> artifact,
-                     shared_ptr<Version> ondisk,
-                     shared_ptr<Version> expected) noexcept;
+                     shared_ptr<MetadataVersion> ondisk,
+                     shared_ptr<MetadataVersion> expected) noexcept;
+
+  /// An output from this command does not match the on-disk state (checked at the end of the build)
+  void outputChanged(shared_ptr<Artifact> artifact,
+                     shared_ptr<ContentVersion> ondisk,
+                     shared_ptr<ContentVersion> expected) noexcept;
 
  private:
   /// The command this run is associated with
@@ -164,10 +197,16 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   set<Scenario> _changed;
 
   /// The set of inputs to this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>, InputType>> _inputs;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>, InputType>> _metadata_inputs;
+
+  /// The set of inputs to this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<ContentVersion>, InputType>> _content_inputs;
 
   /// The set of outputs from this command
-  set<tuple<shared_ptr<Artifact>, shared_ptr<Version>>> _outputs;
+  set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>>> _metadata_outputs;
+
+  /// The set of outputs from this command
+  set<tuple<shared_ptr<Artifact>, shared_ptr<ContentVersion>>> _content_outputs;
 
   /// The set of command runs that use this command's outputs
   set<shared_ptr<CommandRun>> _output_used_by;

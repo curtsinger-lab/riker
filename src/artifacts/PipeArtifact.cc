@@ -13,7 +13,12 @@ class Command;
 class Env;
 
 // Can a specific version of this artifact be committed?
-bool PipeArtifact::canCommit(shared_ptr<Version> v) const noexcept {
+bool PipeArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
+  return v->isCommitted() || v->canCommit();
+}
+
+// Can a specific version of this artifact be committed?
+bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return v->isCommitted() || v->canCommit();
 }
 

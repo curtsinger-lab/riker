@@ -20,10 +20,10 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
-#include "versions/Version.hh"
 
 using std::make_shared;
 using std::map;
