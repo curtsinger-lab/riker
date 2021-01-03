@@ -51,11 +51,12 @@ void FileVersion::gcLink() noexcept {
   FAIL_IF(fileExists(new_hash_file)) << "Cannot gcLink more than once.";
 
   // does cur_hash_file exist?  If not, fail
-  FAIL_IF(!fileExists(cur_hash_file)) << "Cannot perform gcLink on non-existent cache file.";
+  FAIL_IF(!fileExists(cur_hash_file))
+      << "Cannot link " << new_hash_file << " to non-existent cache file " << cur_hash_file;
 
   // Create the directories, if needed
-  fs::path cur_hash_dir = new_hash_file.parent_path();
-  fs::create_directories(cur_hash_dir);
+  fs::path new_hash_dir = new_hash_file.parent_path();
+  fs::create_directories(new_hash_dir);
 
   // and then link the file in the old cache to the new cache
   int rv = ::link(cur_hash_file.c_str(), new_hash_file.c_str());
