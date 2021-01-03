@@ -8,7 +8,7 @@
 
 #include "util/log.hh"
 #include "util/serializer.hh"
-#include "versions/Version.hh"
+#include "versions/ContentVersion.hh"
 
 using std::ostream;
 using std::set;
@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
  * on-demand when a command lists the contents of a directory. These versions can be matched against
  * a directory, but are never used to update the contents of a directory.
  */
-class DirListVersion : public Version {
+class DirListVersion : public ContentVersion {
  public:
   DirListVersion() noexcept = default;
 
@@ -56,5 +56,5 @@ class DirListVersion : public Version {
   /// The names of entries in the directory
   set<fs::path> _entries;
 
-  SERIALIZE(BASE(Version), _entries);
+  SERIALIZE(BASE(ContentVersion), _entries);
 };

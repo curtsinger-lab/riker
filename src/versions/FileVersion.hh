@@ -14,7 +14,7 @@
 #include "string.h"
 #include "ui/options.hh"
 #include "util/serializer.hh"
-#include "versions/Version.hh"
+#include "versions/ContentVersion.hh"
 
 using std::nullopt;
 using std::optional;
@@ -27,7 +27,7 @@ typedef std::array<uint8_t, BLAKE3_OUT_LEN> BLAKE3Hash;
 
 class Ref;
 
-class FileVersion final : public Version {
+class FileVersion final : public ContentVersion {
  public:
   /// Create a FileVersion with no existing fingerprint
   FileVersion() noexcept = default;
@@ -89,5 +89,5 @@ class FileVersion final : public Version {
   /// Restore a cached copy to the given path
   void stage(fs::path path) noexcept;
 
-  SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash);
+  SERIALIZE(BASE(ContentVersion), _empty, _cached, _mtime, _b3hash);
 };

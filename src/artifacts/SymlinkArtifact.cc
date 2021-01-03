@@ -29,14 +29,14 @@ void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref:
 }
 
 // Get this artifact's content without creating dependencies
-shared_ptr<Version> SymlinkArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> SymlinkArtifact::peekContent() noexcept {
   return _symlink_version;
 }
 
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
-                                   shared_ptr<Version> expected) noexcept {
+                                   shared_ptr<ContentVersion> expected) noexcept {
   // The symlink version is an input to command c
   c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
 

@@ -60,12 +60,12 @@ class SymlinkArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get this artifact's current content without creating any dependencies
-  virtual shared_ptr<Version> peekContent() noexcept override;
+  virtual shared_ptr<ContentVersion> peekContent() noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            shared_ptr<Version> expected) noexcept override;
+                            shared_ptr<ContentVersion> expected) noexcept override;
 
   /************ Symlink Operations ************/
 

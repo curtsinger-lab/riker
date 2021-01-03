@@ -170,14 +170,14 @@ void DirArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID 
 }
 
 // Get this artifact's content without creating dependencies
-shared_ptr<Version> DirArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> DirArtifact::peekContent() noexcept {
   return getList(nullptr);
 }
 
 /// Check to see if this artifact's content matches a known version
 void DirArtifact::matchContent(const shared_ptr<Command>& c,
                                Scenario scenario,
-                               shared_ptr<Version> expected) noexcept {
+                               shared_ptr<ContentVersion> expected) noexcept {
   // Get a list of entries in this directory
   auto observed = getList(c);
 

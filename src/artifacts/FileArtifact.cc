@@ -161,14 +161,14 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
 }
 
 // Get this artifact's content without creating dependencies
-shared_ptr<Version> FileArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> FileArtifact::peekContent() noexcept {
   return _content_version;
 }
 
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
-                                shared_ptr<Version> expected) noexcept {
+                                shared_ptr<ContentVersion> expected) noexcept {
   // The content version is an input to command c
   c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
@@ -183,7 +183,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
 
 /// Apply a new content version to this artifact
 void FileArtifact::updateContent(const shared_ptr<Command>& c,
-                                 shared_ptr<Version> writing) noexcept {
+                                 shared_ptr<ContentVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing->as<FileVersion>();

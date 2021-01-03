@@ -109,7 +109,7 @@ void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
 void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
                                Scenario scenario,
                                Ref::ID ref,
-                               shared_ptr<Version> version) noexcept {
+                               shared_ptr<ContentVersion> version) noexcept {
   _archive(unique_ptr<Record>(
       make_unique<MatchContentRecord>(getCommandID(cmd), scenario, ref, version)));
 }
@@ -124,7 +124,7 @@ void OutputTrace::updateMetadata(const shared_ptr<Command>& cmd,
 /// Add a UpdateContent IR step to the output trace
 void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
                                 Ref::ID ref,
-                                shared_ptr<Version> version) noexcept {
+                                shared_ptr<ContentVersion> version) noexcept {
   _archive(unique_ptr<Record>(make_unique<UpdateContentRecord>(getCommandID(cmd), ref, version)));
 }
 

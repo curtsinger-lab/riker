@@ -116,7 +116,7 @@ class PostBuildChecker : public IRSink {
   virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> expected) noexcept override {
+                            shared_ptr<ContentVersion> expected) noexcept override {
     if (scenario == Scenario::Build) {
       // Emit the predicate from the original build phase
       _output.matchContent(command, Scenario::Build, ref, expected);
@@ -141,7 +141,7 @@ class PostBuildChecker : public IRSink {
   /// Handle an UpdateContent IR step
   virtual void updateContent(const shared_ptr<Command>& command,
                              Ref::ID ref,
-                             shared_ptr<Version> version) noexcept override {
+                             shared_ptr<ContentVersion> version) noexcept override {
     _output.updateContent(command, ref, version);
   }
 
