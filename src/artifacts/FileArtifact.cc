@@ -4,6 +4,7 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -32,8 +33,9 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getPath();
-  ASSERT(path.has_value()) << "File has no path";
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a file with no path";
 
   if (v == _content_version) {
     _content_version->commit(path.value());
@@ -59,17 +61,12 @@ void FileArtifact::commitAll() noexcept {
   // we may have already committed this artifact
   if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
 
-  auto path = getPath();
-  ASSERT(path.has_value()) << "File has no path: " << this;
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());
   _metadata_version->commit(path.value());
-}
-
-/// Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Exists);
 }
 
 /// Compare all final versions of this artifact to the filesystem state

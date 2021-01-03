@@ -98,6 +98,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   bool checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept;
 
+  /// Commit links to ensure there is at least one committed path to this artifact
+  optional<fs::path> commitPath() noexcept;
+
   /************ Core Artifact Operations ************/
 
   /// Get the name of this artifact type
@@ -114,9 +117,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept = 0;
-
-  /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept;

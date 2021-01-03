@@ -21,7 +21,7 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
 
     if (id == Ref::Cwd) {
       // The current directory has to exist to launch the command
-      ref->getArtifact()->mustExist(_command);
+      // ref->getArtifact()->mustExist(_command);
 
     } else {
       // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
@@ -179,9 +179,6 @@ void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputTy
     // If this is make accessing metadata, we only need to mark in one direction;
     // changing metadata alone does not need to trigger a re-execution of make
     if (v->as<MetadataVersion>() && getCommand()->isMake()) return;
-
-    // If the only requirement is that the artifact exists, we don't need to create a dependency
-    if (t == InputType::Exists) return;
 
     // Otherwise, add this command run to the creator's set of output users
     creator->_output_used_by.insert(shared_from_this());

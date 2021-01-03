@@ -62,7 +62,8 @@ bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getPath();
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   if (v == _symlink_version) {
@@ -81,17 +82,12 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void SymlinkArtifact::commitAll() noexcept {
-  auto path = getPath();
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
   _metadata_version->commit(path.value());
-}
-
-// Command c requires that this artifact exists in its current state. Create dependency edges.
-void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Exists);
 }
 
 // Compare all final versions of this artifact to the filesystem state

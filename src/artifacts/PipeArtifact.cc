@@ -27,18 +27,6 @@ bool PipeArtifact::canCommitAll() const noexcept {
   return true;
 }
 
-// Command c requires that this artifact exists in its current state. Create dependency edges.
-void PipeArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-
-  // If there is a last read version, it must exist
-  if (_last_read) c->currentRun()->addInput(shared_from_this(), _last_read, InputType::Exists);
-
-  for (auto write : _writes) {
-    c->currentRun()->addInput(shared_from_this(), write, InputType::Exists);
-  }
-}
-
 // Mark all versions of this artifact as committed
 void PipeArtifact::setCommitted() noexcept {
   if (_last_read) _last_read->setCommitted(true);

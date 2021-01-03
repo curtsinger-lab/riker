@@ -41,20 +41,9 @@ bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void DirArtifact::commit(shared_ptr<Version> v) noexcept {
-  // This directory must have some path, but it may not be committed yet.
-  // If the path happens not to be committed, committing the base version should place it at that
-  // path.
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
 
-  // The base directory version must always be committed to commit any other version
-  auto path = getPath(false);
-  if (!path.has_value() && _link_updates.size() > 0) {
-    auto [weak_dir, _, weak_version] = *_link_updates.begin();
-    auto dir = weak_dir.lock();
-    auto version = weak_version.lock();
-    dir->commit(version);
-    path = getPath(false);
-  }
-  ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(path.value());
 
   if (auto dv = v->as<DirVersion>()) {
@@ -85,17 +74,8 @@ bool DirArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void DirArtifact::commitAll() noexcept {
-  // The base directory version must always be committed to commit any other version
-  // Try to get a committed path to this directory
-  auto path = getPath(false);
-  if (!path.has_value() && _link_updates.size() > 0) {
-    // If we don't have a committed path to this directory, commit one of its uncommitted paths
-    auto [weak_dir, _, weak_version] = *_link_updates.begin();
-    auto dir = weak_dir.lock();
-    auto version = weak_version.lock();
-    dir->commit(version);
-    path = getPath(false);
-  }
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(path.value());
 
@@ -107,17 +87,6 @@ void DirArtifact::commitAll() noexcept {
 
   // Commit metadata
   _metadata_version->commit(path.value());
-}
-
-// Command c requires that this artifact exists in its current state. Create dependency edges.
-void DirArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-  c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::Exists);
-
-  for (auto [entry, info] : _entries) {
-    auto [version, artifact] = info;
-    c->currentRun()->addInput(shared_from_this(), version, InputType::Exists);
-  }
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -390,9 +359,6 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
   writing->createdBy(c->currentRun());
-
-  // For this link to be committed, we need the artifact to exist or be committable
-  target->mustExist(c);
 
   // Inform the artifact of its new link
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);
