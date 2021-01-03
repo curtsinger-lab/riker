@@ -32,7 +32,7 @@ using std::experimental::source_location;
 #define END_COLOR "\033[01;0m"
 
 /// Specify log categories, and indicate each with a distinct bit
-enum class LogCategory { error, warning, trace, ir, artifact, rebuild, exec, phase };
+enum class LogCategory { error, warning, trace, ir, artifact, rebuild, exec, phase, cache };
 
 constexpr const char* getLogCategoryName(LogCategory category) {
   if (category == LogCategory::error) return "error";
@@ -43,6 +43,7 @@ constexpr const char* getLogCategoryName(LogCategory category) {
   if (category == LogCategory::rebuild) return "rebuild";
   if (category == LogCategory::exec) return "exec";
   if (category == LogCategory::phase) return "phase";
+  if (category == LogCategory::cache) return "cache";
   return "unknown";
 }
 

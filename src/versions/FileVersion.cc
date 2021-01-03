@@ -14,6 +14,61 @@
 #include "ui/options.hh"
 #include "util/log.hh"
 
+/// Check whether a file exists.  Passing in a pointer to a buffer will optionally
+/// return a stat data structure.
+bool FileVersion::fileExists(fs::path p, shared_ptr<struct stat> statbuf) noexcept {
+  if (statbuf == nullptr) {
+    struct stat mybuf;
+    return ::lstat(p.c_str(), &mybuf) == 0;
+  } else {
+    return ::lstat(p.c_str(), statbuf.get()) == 0;
+  }
+}
+
+/// Obtain the length of a file, in bytes.  If the file cannot be stat'ed (e.g., it doesn't exist),
+/// -1 is returned.
+loff_t FileVersion::fileLength(fs::path p) noexcept {
+  struct stat statbuf;
+  if (::lstat(p.c_str(), &statbuf) == -1) {
+    return -1;
+  }
+  return statbuf.st_size;
+}
+
+/// Tell the garbage collector to preserve this version.
+void FileVersion::gcLink() noexcept {
+  // have we already cached this file?  If so, bail
+  if (_cached) return;
+
+  // no fingerprint, no cache file, so bail
+  FAIL_IF(!_b3hash.has_value()) << "Invalid gcLink on uncached file.";
+
+  // get cache paths
+  fs::path new_hash_file = cacheFilePath(_b3hash.value(), true);
+  fs::path cur_hash_file = cacheFilePath(_b3hash.value(), false);
+
+  // does new_hash_file exist?  If yes, bail
+  FAIL_IF(fileExists(new_hash_file)) << "Cannot gcLink more than once.";
+
+  // does cur_hash_file exist?  If not, fail
+  FAIL_IF(!fileExists(cur_hash_file)) << "Cannot perform gcLink on non-existent cache file.";
+
+  // Create the directories, if needed
+  fs::path cur_hash_dir = new_hash_file.parent_path();
+  fs::create_directories(cur_hash_dir);
+
+  // and then link the file in the old cache to the new cache
+  int rv = ::link(cur_hash_file.c_str(), new_hash_file.c_str());
+  FAIL_IF(rv == -1) << "Cannot link old cache file " << cur_hash_file << " into new cache location "
+                    << new_hash_file << ": " << ERR;
+
+  // we have effectively cached this file now
+  _cached = true;
+
+  LOG(cache) << "Linked old cached file " << cur_hash_file << " to new cached file "
+             << new_hash_file;
+}
+
 // Is this version saved in a way that can be committed?
 bool FileVersion::canCommit() const noexcept {
   if (isCommitted()) return true;
@@ -62,29 +117,32 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
 /// Save a fingerprint of this version
 void FileVersion::fingerprint(fs::path path) noexcept {
   // if there is already a fingerprint with a hash, move on
-  if (hasHash()) return;
+  if (hasHash()) {
+    LOG(cache) << "Skipping fingerprinting for version " << this << " for artifact at " << path
+               << " that already has a fingerprint.";
+    return;
+  }
 
   // does the file actually exist?
-  struct stat statbuf;
-  int rc = ::lstat(path.c_str(), &statbuf);
-  if (rc != 0) return;  // leave mtime and hash undefined
+  auto statbuf = make_shared<struct stat>();
+  if (!fileExists(path, statbuf)) {
+    LOG(cache) << "Can't fingerprint version " << this << " for nonexistent artifact at " << path
+               << ".";
+    return;  // leave mtime and hash undefined
+  }
 
   // otherwise, take a "fingerprint"
   // save mtime from statbuf
-  _empty = statbuf.st_size == 0;
-  _mtime = statbuf.st_mtim;
+  _empty = statbuf->st_size == 0;
+  _mtime = statbuf->st_mtim;
 
-  // if file is readable and hashable, save hash
-  if (rc == 0) {
-    // is this a regular file?
-    if (!(statbuf.st_mode & S_IFREG)) return;
-    _b3hash = blake3(path);
+  // if file is a not regular file, bail
+  if (!(statbuf->st_mode & S_IFREG)) return;
 
-    // if caching is enabled, cache the file
-    if (options::enable_cache && _b3hash.has_value()) {
-      cache(path);
-    }
-  }
+  // finally save hash
+  _b3hash = blake3(path);
+
+  LOG(cache) << "Fingerprinted version " << this << " for artifact at " << path << ".";
 }
 
 /// Does this FileVersion have a hash already?
@@ -97,91 +155,99 @@ void FileVersion::makeEmptyFingerprint() noexcept {
   _empty = true;
 }
 
-/// Restores a file to the given path from the cache
-void FileVersion::stage(fs::path path) noexcept {
-  // Does the staged file already exist?  If so, don't stage.
-  // struct stat statbuf;
-  // bool stage_exists(::lstat(path.c_str(), &statbuf) == 0);
-  // if (stage_exists) return;
-
-  // Path to cache file
+/// Restores a file to the given path from the cache.
+/// Returns true if the cache file exists and restoration was successful.
+/// The exact error message can be printed by the caller by inspecting errno.
+bool FileVersion::stage(fs::path path) noexcept {
+  // Path to cached file
   fs::path hash_file = cacheFilePath();
 
-  // Get the length of the cached file
-  struct stat cache_statbuf;
-  bool file_exists(::lstat(hash_file.c_str(), &cache_statbuf) == 0);
-  ASSERT(file_exists) << "Unable to stage in '" << path << "' because cache file '" << hash_file
-                      << "' does not exist: " << ERR;
-  loff_t len = cache_statbuf.st_size;
+  // does the cached file exist, and if so, how big is it in bytes?
+  off_t len = fileLength(hash_file);
+  bool file_exists = len != -1;
+
+  // the call to stage must succeed
+  FAIL_IF(!file_exists) << "Unable to stage in cached file " << path << " from cached file "
+                        << hash_file << ": " << ERR;
 
   // Open source and destination fds
   int src_fd = ::open(hash_file.c_str(), O_RDONLY);
-  FAIL_IF(src_fd == -1) << "Unable to open cache file '" << hash_file << "': " << ERR;
-  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);  // TODO: no mode makes me sad
-  FAIL_IF(dst_fd == -1) << "Unable to create stage file '" << path << "': " << ERR;
+  FAIL_IF(src_fd == -1) << "Unable to open cache file " << hash_file << ": " << ERR;
+  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
+  FAIL_IF(dst_fd == -1) << "Unable to create stage file " << path << ": " << ERR;
 
   // copy file to cache using non-POSIX fast copy
   loff_t bytes_cp;
   do {
     bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
-    FAIL_IF(bytes_cp == -1) << "Could not copy cache file '" << hash_file << "' to stage location '"
-                            << path << "': " << ERR;
+    FAIL_IF(bytes_cp == -1) << "Could not copy cache file " << hash_file << " to stage location "
+                            << path << ": " << ERR;
 
     len -= bytes_cp;
   } while (len > 0 && bytes_cp > 0);
 
-  LOG(artifact) << "Staged in file version at path '" << path << "' from cache file '" << hash_file
-                << "'";
-
   close(src_fd);
   close(dst_fd);
+
+  LOG(cache) << "Staged in file version at path " << path << " from cache file " << hash_file;
+
+  return true;
 }
 
 void FileVersion::cache(fs::path path) noexcept {
-  // Don't cache if the fingerprint is missing
-  if (!_b3hash.has_value()) return;
+  // Don't cache if already cached
+  if (_cached) {
+    LOG(artifact) << "Not caching version " << this << " at path " << path
+                  << " because it is already cached.";
+    return;
+  }
+
+  // Freak out if the fingerprint is missing
+  FAIL_IF(!_b3hash.has_value()) << "Cannot cache version " << this << " at path " << path
+                                << " without a fingerprint.";
 
   // Don't cache files that weren't created by the build
-  if (!getCreator()) return;
+  // Freak out if we're asked to cache a file not created by the build
+  FAIL_IF(!getCreator()) << "Refusing to cache version " << this << " at path " << path
+                         << " created outside build.";
 
   // Path to cache file
-  fs::path hash_file = cacheFilePath(_b3hash.value());
+  fs::path hash_file = cacheFilePath(_b3hash.value(), true);
   fs::path hash_dir = hash_file.parent_path();
 
   // Get the length of the input file
-  struct stat statbuf;
-  if (::lstat(path.c_str(), &statbuf)) {
-    LOG(artifact) << "Failed to stat " << path;
+  loff_t len = fileLength(path);
+  FAIL_IF(len == -1) << "Failed to stat " << path << " during cache operation.";
+
+  // Is the cache file already in the current cache?  If so, we're done.
+  if (fileExists(hash_file)) {
+    _cached = true;
     return;
   }
-  loff_t len = statbuf.st_size;
 
-  // Does the cache file already exist?  If so, skip. (reuse statbuf)
-  struct stat cache_statbuf;
-  bool file_exists(::lstat(hash_file.c_str(), &cache_statbuf) == 0);
-  if (file_exists) return;
+  // Otherwise, we need to cache the file
 
   // Create the directories, if needed
   fs::create_directories(hash_dir);
 
   // Open source and destination fds
   int src_fd = ::open(path.c_str(), O_RDONLY);
-  FAIL_IF(src_fd == -1) << "Unable to open file '" << path << "' for caching: " << ERR;
+  FAIL_IF(src_fd == -1) << "Unable to open file " << path << " for caching: " << ERR;
   int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
-  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << "' for file '" << path
-                        << "': " << ERR;
+  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << " for file " << path
+                        << ": " << ERR;
 
   // copy file to cache using non-POSIX fast copy
   loff_t bytes_cp;
   do {
     bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
-    FAIL_IF(bytes_cp == -1) << "Could not copy file '" << path << "' to cache location '"
-                            << hash_file << "': " << ERR;
+    FAIL_IF(bytes_cp == -1) << "Could not copy file " << path << " to cache location '" << hash_file
+                            << ": " << ERR;
 
     len -= bytes_cp;
   } while (len > 0 && bytes_cp > 0);
 
-  LOG(artifact) << "Cached file version at path '" << path << "' in '" << hash_file << "'";
+  LOG(artifact) << "Cached file version at path " << path << " in " << hash_file;
 
   close(src_fd);
   close(dst_fd);
@@ -263,8 +329,9 @@ string FileVersion::b3hex(BLAKE3Hash b3hash) noexcept {
   return ss.str();
 }
 
-/// Return the path for the contents of this cached FileVersion
-fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash) noexcept {
+/// Return the path for the contents of this cached FileVersion for either the
+/// current build or the previous one.
+fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept {
   // We use a three-level directory prefix scheme to store cached files
   // to avoid having too many files in a given folder.  This scheme
   // below has 16^6 unique directory prefixes.
@@ -272,7 +339,8 @@ fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash) noexcept {
   fs::path dir_lvl_0 = hash_str.substr(0, 2);
   fs::path dir_lvl_1 = hash_str.substr(2, 2);
   fs::path dir_lvl_2 = hash_str.substr(4, 2);
-  fs::path hash_dir = constants::CacheDir / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
+  fs::path base = newhash ? constants::NewCacheDir : constants::CacheDir;
+  fs::path hash_dir = base / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
 
   // Path to cache file
   return hash_dir / hash_str;
@@ -281,7 +349,7 @@ fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash) noexcept {
 /// Return the path for the contents of this cached FileVersion
 fs::path FileVersion::cacheFilePath() noexcept {
   ASSERT(_b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
-  return cacheFilePath(_b3hash.value());
+  return cacheFilePath(_b3hash.value(), false);
 }
 
 /// Pretty printer
@@ -299,7 +367,10 @@ ostream& FileVersion::print(ostream& o) const noexcept {
       << _mtime.value().tv_nsec << " ";
 
   // has hash
-  if (_b3hash.has_value()) o << "b3hash=" << b3hex();
+  if (_b3hash.has_value()) o << "b3hash=" << b3hex() << " ";
+
+  // has cached copy
+  o << "cached=" << (_cached ? "true" : "false");
 
   o << "]";
 

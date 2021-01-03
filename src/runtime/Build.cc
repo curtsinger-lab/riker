@@ -10,9 +10,11 @@
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/policy.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/TracePrinter.hh"
+#include "ui/constants.hh"
 #include "ui/options.hh"
 #include "ui/stats.hh"
 #include "util/wrappers.hh"
@@ -838,15 +840,10 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, Scenario::Build, ref_id, expected);
 
-  // If a different command created this version, fingerprint it for later comparison
-  auto creator = expected->getCreator();
-  if (creator != c->currentRun()) {
-    // We can only take a fingerprint with a committed path
-    auto path = artifact->getPath(false);
-    if (path.has_value()) {
-      expected->fingerprint(path.value());
-    }
-  }
+  // fingerprint?
+  auto path = artifact->getPath(false);
+  auto p = make_shared<std::optional<fs::path>>(path);
+  if (isFingerprintable(c, p, expected)) expected->fingerprint(path.value());
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
@@ -870,15 +867,13 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchContent(c, Scenario::Build, ref_id, expected);
 
-  // If a different command created this version, fingerprint it for later comparison
-  auto creator = expected->getCreator();
-  if (creator != c->currentRun()) {
-    // We can only take a fingerprint with a committed path
-    auto path = artifact->getPath(false);
-    if (path.has_value()) {
-      expected->fingerprint(path.value());
-    }
-  }
+  // fingerprint?
+  auto path = artifact->getPath(false);
+  auto p = make_shared<std::optional<fs::path>>(path);
+  if (isFingerprintable(c, p, expected)) expected->fingerprint(path.value());
+
+  // cache?
+  if (isCachable(c, p, expected)) expected->cache(path.value());
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref_id, expected};
@@ -1105,4 +1100,24 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
+}
+
+/// Run cache garbage collector
+void Build::cache_gc() noexcept {
+  if (!options::enable_cache) {
+    return;
+  }
+
+  // We overwrite OldCacheDir with CacheDir
+  std::error_code err;
+
+  // Sadly, std::filesystem::rename fails if the destination is nonempty; remove it first
+  // It's OK if the path does not exist-- it won't exist on the initial build.
+  std::filesystem::remove_all(constants::CacheDir, err);
+  FAIL_IF(err.value() != 0) << "Unable to remove old cache dir '" << constants::CacheDir
+                            << "': " << err.message();
+
+  std::filesystem::rename(constants::NewCacheDir, constants::CacheDir, err);
+  FAIL_IF(err.value() != 0) << "Unable to rename new cache dir '" << constants::NewCacheDir
+                            << " to '" << constants::CacheDir << "': " << err.message();
 }

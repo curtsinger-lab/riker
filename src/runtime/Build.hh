@@ -45,6 +45,9 @@ class Build : public IRSink {
   /// Print information about this build
   ostream& print(ostream& o) const noexcept;
 
+  /// Run cache garbage collector
+  static void cache_gc() noexcept;
+
   /********** Handle IR steps supplied from a loaded trace **********/
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)

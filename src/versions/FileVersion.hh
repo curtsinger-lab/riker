@@ -68,6 +68,9 @@ class FileVersion final : public Version {
   /// Store a copy on disk
   virtual void cache(fs::path path) noexcept override;
 
+  /// Tell the garbage collector to preserve this version.
+  virtual void gcLink() noexcept override;
+
  private:
   bool _empty;
   bool _cached;
@@ -77,17 +80,25 @@ class FileVersion final : public Version {
   /// Compare to another fingerprint instance
   bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
 
+  /// Restore a cached copy to the given path
+  bool stage(fs::path path) noexcept;
+
   /// Convert a BLAKE3 byte array to a hexadecimal string
   static string b3hex(BLAKE3Hash b3hash) noexcept;
 
   /// Return a BLAKE3 hash for the contents of the file at the given path.
   static std::optional<BLAKE3Hash> blake3(fs::path path) noexcept;
 
-  /// Return the path for the contents of this cached FileVersion
-  static fs::path cacheFilePath(BLAKE3Hash& hash) noexcept;
+  /// Return the path for the contents of a cached FileVersion
+  static fs::path cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept;
 
-  /// Restore a cached copy to the given path
-  void stage(fs::path path) noexcept;
+  /// Check whether a file exists.  Passing in a pointer to a buffer will optionally
+  /// return a stat data structure.
+  static bool fileExists(fs::path p, shared_ptr<struct stat> statbuf = nullptr) noexcept;
+
+  /// Obtain the length of a file, in bytes.  If the file cannot be stat'ed (e.g., it doesn't
+  /// exist), -1 is returned.
+  static loff_t fileLength(fs::path p) noexcept;
 
   SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash);
 };

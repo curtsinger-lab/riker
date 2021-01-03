@@ -17,4 +17,7 @@ namespace constants {
 
   /// Where are cached files saved?
   const fs::path CacheDir = OutputDir / "cache";
+
+  /// Where are cached files saved?
+  const fs::path NewCacheDir = OutputDir / "newcache";
 }

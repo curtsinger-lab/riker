@@ -5,6 +5,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
+#include "runtime/policy.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/Version.hh"
@@ -77,7 +78,8 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
-    v->fingerprint(path);
+    auto p = make_shared<std::optional<fs::path>>(path);
+    if (isFingerprintable(nullptr, p, _content_version)) v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -100,8 +102,14 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   // Make sure the content is committed
   _content_version->commit(path);
 
+  // Get pointer to path
+  auto p = make_shared<std::optional<fs::path>>(path);
+
   // If we don't already have a content fingerprint, take one
-  _content_version->fingerprint(path);
+  if (isFingerprintable(nullptr, p, _content_version)) _content_version->fingerprint(path);
+
+  // Cache the contents
+  if (isCachable(nullptr, p, _content_version)) _content_version->cache(path);
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(path);

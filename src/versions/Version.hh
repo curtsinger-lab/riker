@@ -81,6 +81,11 @@ class Version : public std::enable_shared_from_this<Version> {
     return false;
   }
 
+  /// Tell the garbage collector to preserve this version.
+  virtual void gcLink() noexcept {
+    // do nothing by default
+  }
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 

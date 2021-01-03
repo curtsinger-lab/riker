@@ -97,6 +97,9 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
       env->commitAll();
     }
 
+    // run cache garbage collector
+    Build::cache_gc();
+
     // The output becomes the next iteration's input
     input = std::move(output);
     iteration++;
@@ -332,14 +335,18 @@ int main(int argc, char* argv[]) noexcept {
              if (category == "phase" || category == "all") {
                logger<LogCategory::phase>::enabled = true;
              }
+             if (category == "cache" || category == "all") {
+               logger<LogCategory::cache>::enabled = true;
+             }
            }
          },
          "Display log messages from one or more categories")
       ->type_name("CATEGORY")
       ->transform(
-          CLI::IsMember({"warning", "trace", "ir", "artifact", "rebuild", "exec", "phase", "all"},
-                        CLI::ignore_case)
-              .description("{warning, trace, ir, artifact, rebuild, exec, phase, all}"))
+          CLI::IsMember(
+              {"warning", "trace", "ir", "artifact", "rebuild", "exec", "phase", "cache", "all"},
+              CLI::ignore_case)
+              .description("{warning, trace, ir, artifact, rebuild, exec, phase, cache, all}"))
       ->delimiter(',');
   app.add_option("--fingerprint", options::fingerprint_level,
                  "Set the fingerprint level (default=local)")
