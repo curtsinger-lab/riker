@@ -22,6 +22,7 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
     if (id == Ref::Cwd) {
       // The current directory has to exist to launch the command
       // ref->getArtifact()->mustExist(_command);
+      ref->getArtifact()->commitPath();
 
     } else {
       // All other referenced artifacts must be fully committed, except we'll ignore pipes for now

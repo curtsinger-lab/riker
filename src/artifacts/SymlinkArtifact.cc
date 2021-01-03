@@ -87,10 +87,12 @@ void SymlinkArtifact::commitAll() noexcept {
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
-  _metadata_version->commit(path.value());
+
+  // Don't commit symlink metadata for now. We can eventually commit ownership, but not permissions.
+  //_metadata_version->commit(path.value());
 }
 
-// Compare all final versions of this artifact to the filesystem state
+// Compare all final versions of this artifact to the filesystem stateq
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
