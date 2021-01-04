@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a the build
-  $ rm -rf .dodo output
+  $ rm -rf .dodo output Dodofile
   $ gcc -o Dodofile c-Dodofile.c
 
 Run the first build
