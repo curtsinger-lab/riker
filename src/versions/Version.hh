@@ -86,6 +86,9 @@ class Version : public std::enable_shared_from_this<Version> {
     // do nothing by default
   }
 
+  /// Is the version cached?
+  virtual bool isCached() const noexcept { return false; }
+
   /// Get the name for the type of version this is
   virtual string getTypeName() const noexcept = 0;
 

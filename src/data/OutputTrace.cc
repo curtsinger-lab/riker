@@ -111,7 +111,8 @@ void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
                                Ref::ID ref,
                                shared_ptr<Version> version) noexcept {
   // Preserve this version in the cache
-  version->gcLink();
+  if (version->isCached()) version->gcLink();
+
   _archive(unique_ptr<Record>(
       make_unique<MatchContentRecord>(getCommandID(cmd), scenario, ref, version)));
 }
@@ -128,7 +129,8 @@ void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
                                 Ref::ID ref,
                                 shared_ptr<Version> version) noexcept {
   // Preserve this version in the cache
-  version->gcLink();
+  if (version->isCached()) version->gcLink();
+
   _archive(unique_ptr<Record>(make_unique<UpdateContentRecord>(getCommandID(cmd), ref, version)));
 }
 

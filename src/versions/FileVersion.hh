@@ -71,6 +71,9 @@ class FileVersion final : public Version {
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept override;
 
+  /// Is the version cached?
+  virtual bool isCached() const noexcept override;
+
  private:
   bool _empty;
   bool _cached;

@@ -393,3 +393,8 @@ bool FileVersion::matches(shared_ptr<Version> other) const noexcept {
   if (other_file.get() == this) return true;
   return fingerprints_match(other_file);
 }
+
+/// Is the version cached?
+bool FileVersion::isCached() const noexcept {
+  return _cached;
+}
