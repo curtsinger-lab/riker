@@ -1111,13 +1111,16 @@ void Build::cache_gc() noexcept {
   // We overwrite OldCacheDir with CacheDir
   std::error_code err;
 
-  // Sadly, std::filesystem::rename fails if the destination is nonempty; remove it first
-  // It's OK if the path does not exist-- it won't exist on the initial build.
-  std::filesystem::remove_all(constants::CacheDir, err);
-  FAIL_IF(err.value() != 0) << "Unable to remove old cache dir '" << constants::CacheDir
-                            << "': " << err.message();
+  // only collect if both .dodo/cache and a .dodo/newcache exist
+  if (fileExists(constants::CacheDir) && fileExists(constants::NewCacheDir)) {
+    // Sadly, std::filesystem::rename fails if the destination is nonempty; remove it first
+    // It's OK if the path does not exist-- it won't exist on the initial build.
+    std::filesystem::remove_all(constants::CacheDir, err);
+    FAIL_IF(err.value() != 0) << "Unable to remove old cache dir '" << constants::CacheDir
+                              << "': " << err.message();
 
-  std::filesystem::rename(constants::NewCacheDir, constants::CacheDir, err);
-  FAIL_IF(err.value() != 0) << "Unable to rename new cache dir '" << constants::NewCacheDir
-                            << " to '" << constants::CacheDir << "': " << err.message();
+    std::filesystem::rename(constants::NewCacheDir, constants::CacheDir, err);
+    FAIL_IF(err.value() != 0) << "Unable to rename new cache dir from '" << constants::NewCacheDir
+                              << " to '" << constants::CacheDir << "': " << err.message();
+  }
 }

@@ -13,27 +13,7 @@
 #include "ui/constants.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
-
-/// Check whether a file exists.  Passing in a pointer to a buffer will optionally
-/// return a stat data structure.
-bool FileVersion::fileExists(fs::path p, shared_ptr<struct stat> statbuf) noexcept {
-  if (statbuf == nullptr) {
-    struct stat mybuf;
-    return ::lstat(p.c_str(), &mybuf) == 0;
-  } else {
-    return ::lstat(p.c_str(), statbuf.get()) == 0;
-  }
-}
-
-/// Obtain the length of a file, in bytes.  If the file cannot be stat'ed (e.g., it doesn't exist),
-/// -1 is returned.
-loff_t FileVersion::fileLength(fs::path p) noexcept {
-  struct stat statbuf;
-  if (::lstat(p.c_str(), &statbuf) == -1) {
-    return -1;
-  }
-  return statbuf.st_size;
-}
+#include "util/wrappers.hh"
 
 /// Tell the garbage collector to preserve this version.
 void FileVersion::gcLink() noexcept {

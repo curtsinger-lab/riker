@@ -95,13 +95,5 @@ class FileVersion final : public Version {
   /// Return the path for the contents of a cached FileVersion
   static fs::path cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept;
 
-  /// Check whether a file exists.  Passing in a pointer to a buffer will optionally
-  /// return a stat data structure.
-  static bool fileExists(fs::path p, shared_ptr<struct stat> statbuf = nullptr) noexcept;
-
-  /// Obtain the length of a file, in bytes.  If the file cannot be stat'ed (e.g., it doesn't
-  /// exist), -1 is returned.
-  static loff_t fileLength(fs::path p) noexcept;
-
   SERIALIZE(BASE(Version), _empty, _cached, _mtime, _b3hash);
 };
