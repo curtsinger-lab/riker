@@ -166,11 +166,6 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// An output from this command does not match the on-disk state (checked at the end of the build)
   void outputChanged(shared_ptr<Artifact> artifact,
-                     shared_ptr<MetadataVersion> ondisk,
-                     shared_ptr<MetadataVersion> expected) noexcept;
-
-  /// An output from this command does not match the on-disk state (checked at the end of the build)
-  void outputChanged(shared_ptr<Artifact> artifact,
                      shared_ptr<ContentVersion> ondisk,
                      shared_ptr<ContentVersion> expected) noexcept;
 

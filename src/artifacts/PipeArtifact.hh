@@ -30,9 +30,6 @@ class PipeArtifact : public Artifact {
   virtual string getTypeName() const noexcept override { return "Pipe"; }
 
   /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<MetadataVersion> v) const noexcept override;
-
-  /// Can a specific version of this artifact be committed?
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem

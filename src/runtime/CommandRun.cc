@@ -179,9 +179,6 @@ void CommandRun::addInput(shared_ptr<Artifact> a,
   // We can skip committing a version if this same command also created the version
   if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
     // Commit the version now
-    ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
-                            << " cannot be committed";
-
     a->commit(v);
   }
 
@@ -227,20 +224,6 @@ void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v
 // Add an output to this command
 void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
   _content_outputs.emplace(a, v);
-}
-
-// An output from this command does not match the on-disk state (checked at the end of the build)
-void CommandRun::outputChanged(shared_ptr<Artifact> artifact,
-                               shared_ptr<MetadataVersion> ondisk,
-                               shared_ptr<MetadataVersion> expected) noexcept {
-  // If the expected output could be committed, there's no need to mark this command for rerun
-  if (artifact->canCommit(expected)) return;
-
-  LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})",
-       getCommand(), artifact, expected, ondisk);
-
-  _changed.insert(Scenario::Build);
-  _changed.insert(Scenario::PostBuild);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)

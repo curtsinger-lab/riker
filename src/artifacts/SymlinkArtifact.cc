@@ -50,12 +50,6 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
   }
 }
 
-bool SymlinkArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
-  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
-                                 << " in " << this;
-  return _metadata_version->canCommit();
-}
-
 bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   ASSERT(v == _symlink_version) << "Attempted to check committable state for unknown version " << v
                                 << " in " << this;
@@ -81,8 +75,8 @@ void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
 }
 
 bool SymlinkArtifact::canCommitAll() const noexcept {
-  // Symlink versions are always committable, so just check the metadata version
-  return _metadata_version->canCommit();
+  // Symlink versions are always committable
+  return true;
 }
 
 // Commit all final versions of this artifact to the filesystem
@@ -103,9 +97,6 @@ void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact

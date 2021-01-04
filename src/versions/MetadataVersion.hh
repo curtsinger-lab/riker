@@ -1,8 +1,6 @@
 #pragma once
 
-#include <map>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <string>
 
@@ -14,8 +12,6 @@
 #include "ui/stats.hh"
 #include "util/serializer.hh"
 
-using std::map;
-using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
@@ -24,61 +20,16 @@ using std::weak_ptr;
 class Artifact;
 class CommandRun;
 
-inline static map<uint16_t, string> modes = {
-    {S_IFSOCK, "sock"}, {S_IFLNK, "symlink"}, {S_IFREG, "file"}, {S_IFBLK, "blockdev"},
-    {S_IFDIR, "dir"},   {S_IFCHR, "chardev"}, {S_IFIFO, "fifo"}};
-
-struct Metadata {
- public:
-  uid_t uid;
-  gid_t gid;
-  uint16_t mode;
-
-  /// Default constructor for deserialization
-  Metadata() noexcept = default;
-
-  /// Create a Metadata object from stat data
-  Metadata(struct stat& s) noexcept : uid(s.st_uid), gid(s.st_gid), mode(s.st_mode) {}
-
-  /// Create a Metadata object from specific uid, gid, and mode values
-  Metadata(uid_t uid, gid_t gid, mode_t mode) : uid(uid), gid(gid), mode(mode) {}
-
-  /// Compare to another Metadata instance
-  bool operator==(const Metadata& other) const noexcept {
-    if (uid != other.uid) return false;
-    if (gid != other.gid) return false;
-    if ((mode & S_IFMT) != (other.mode & S_IFMT)) return false;
-    return true;
-  }
-
-  /// Print metadata
-  friend ostream& operator<<(ostream& o, const Metadata& m) noexcept {
-    o << "uid=" << m.uid << ", ";
-    o << "gid=" << m.gid << ", ";
-    o << "type=" << modes[m.mode & S_IFMT] << ", ";
-    o << "perms=";
-    o << (m.mode & S_IRUSR ? 'r' : '-');
-    o << (m.mode & S_IWUSR ? 'w' : '-');
-    o << (m.mode & S_IXUSR ? 'x' : '-');
-    o << (m.mode & S_IRGRP ? 'r' : '-');
-    o << (m.mode & S_IWGRP ? 'w' : '-');
-    o << (m.mode & S_IXGRP ? 'x' : '-');
-    o << (m.mode & S_IROTH ? 'r' : '-');
-    o << (m.mode & S_IWOTH ? 'w' : '-');
-    o << (m.mode & S_IXOTH ? 'x' : '-');
-    return o;
-  }
-
-  SERIALIZE(uid, gid, mode);
-};
-
 class MetadataVersion {
  public:
-  /// Create a new metadata version with unknown metadata
-  MetadataVersion() noexcept { stats::versions++; }
+  /// Create a new metadata version
+  MetadataVersion(uid_t uid, gid_t gid, mode_t mode) noexcept : _uid(uid), _gid(gid), _mode(mode) {
+    stats::versions++;
+  }
 
-  /// Cerate a new metadata version with existing metadata
-  MetadataVersion(Metadata&& m) noexcept : _metadata(m) {}
+  /// Cerate a new metadata version from a stat struct
+  MetadataVersion(const struct stat& data) noexcept :
+      MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
   /// Get the command that created this version
   shared_ptr<CommandRun> getCreator() const noexcept { return _creator.lock(); }
@@ -101,27 +52,11 @@ class MetadataVersion {
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;
 
-  /// Save the on-disk state to this version for later commit
-  void cache(fs::path path) noexcept;
-
-  /// Check if this version can be committed
-  bool canCommit() const noexcept;
-
   /// Compare this version to another version
-  bool matches(shared_ptr<MetadataVersion> other) const {
-    if (!other) return false;
-    if (other.get() == this) return true;
-    return _metadata == other->_metadata;
-  }
+  bool matches(shared_ptr<MetadataVersion> other) const noexcept;
 
   /// Print this metadata version
-  ostream& print(ostream& o) const noexcept {
-    if (_metadata.has_value()) {
-      return o << "[metadata: " << _metadata.value() << "]";
-    } else {
-      return o << "[metadata: unsaved]";
-    }
-  }
+  ostream& print(ostream& o) const noexcept;
 
   /// Print a Version
   friend ostream& operator<<(ostream& o, const MetadataVersion& v) noexcept { return v.print(o); }
@@ -139,7 +74,16 @@ class MetadataVersion {
   /// The command run that created this version
   weak_ptr<CommandRun> _creator;
 
-  optional<Metadata> _metadata;
+  /// The user id for this metadata version
+  uid_t _uid;
 
-  SERIALIZE(_metadata);
+  /// The group id for this metadata version
+  gid_t _gid;
+
+  /// The file mode bits for this metadata version
+  mode_t _mode;
+
+  friend class cereal::access;
+  MetadataVersion() noexcept = default;
+  SERIALIZE(_uid, _gid, _mode);
 };

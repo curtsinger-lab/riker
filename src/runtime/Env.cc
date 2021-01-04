@@ -165,7 +165,7 @@ shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   mode_t mode = S_IFIFO | 0600;
 
   // Create initial versions and the pipe artifact
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, mode);
   mv->setCommitted();
 
   auto pipe = make_shared<PipeArtifact>(shared_from_this(), mv);
@@ -191,7 +191,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
   mode_t mode = S_IFLNK | 0777;
 
   // Create initial versions and the pipe artifact
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, mode);
   if (committed) mv->setCommitted();
 
   auto sv = make_shared<SymlinkVersion>(target);
@@ -227,7 +227,7 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
   mode_t stat_mode = S_IFDIR | (mode & ~mask);
 
   // Create initial versions
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
   if (committed) mv->setCommitted();
 
   auto dv = make_shared<BaseDirVersion>(true);
@@ -263,7 +263,7 @@ shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
   mode_t stat_mode = S_IFREG | (mode & ~mask);
 
   // Create an initial metadata version
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
   mv->createdBy(c->currentRun());
   if (committed) mv->setCommitted();
 

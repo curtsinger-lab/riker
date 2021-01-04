@@ -29,12 +29,6 @@ DirArtifact::DirArtifact(shared_ptr<Env> env,
   appendVersion(dv);
 }
 
-bool DirArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
-  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
-                                 << " in " << this;
-  return _metadata_version->canCommit();
-}
-
 bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   auto dv = v->as<DirVersion>();
   ASSERT(dv) << "Attempted to check committable state for unknown version " << v << " in " << this;
@@ -63,9 +57,6 @@ void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
 }
 
 bool DirArtifact::canCommitAll() const noexcept {
-  // Can the metadata version be committed?
-  if (!_metadata_version->canCommit()) return false;
-
   // Can the base version be committed? If not, stop now.
   if (!_base_dir_version->canCommit()) return false;
 
@@ -113,9 +104,6 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
     // it. That means there will be some earlier reference that was expected to succeed or fail
     // that will now have changed.
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact

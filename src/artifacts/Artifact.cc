@@ -209,32 +209,10 @@ optional<fs::path> Artifact::commitPath() noexcept {
   return path;
 }
 
-// Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(fs::path path) noexcept {
-  if (!_metadata_version->isCommitted()) {
-    auto v = make_shared<MetadataVersion>();
-    v->cache(path);
-
-    // Is there a difference between the tracked version and what's on the filesystem?
-    if (!_metadata_version->matches(v)) {
-      // Yes. Report the mismatch
-      auto creator = _metadata_version->getCreator();
-      if (creator) creator->outputChanged(shared_from_this(), v, _metadata_version);
-
-    } else {
-      // No. We can treat the metadata version as if it is committed
-      _metadata_version->setCommitted();
-    }
-  }
-}
-
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(fs::path path) noexcept {
-  // If we don't have a fingerprint of the metadata, take one
-
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
-  _metadata_version->cache(path);
 }
 
 /// Get the current metadata version for this artifact
@@ -271,9 +249,15 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
-  // If a written version was not provided, create one. It will represent the current state, and its
-  // fingerprint/saved data will be filled in later if necessary.
-  if (!writing) writing = make_shared<MetadataVersion>();
+  // If a written version was not provided, create one
+  if (!writing) {
+    auto path = getPath(true);
+    ASSERT(path.has_value()) << "Traced update to an artifact with no committed path";
+    struct stat statbuf;
+    int rc = ::lstat(path.value().c_str(), &statbuf);
+    WARN_IF(rc != 0) << "Error calling lstat on " << path.value() << ": " << ERR;
+    writing = make_shared<MetadataVersion>(statbuf);
+  }
 
   // Update the metadata version for this artifact
   appendVersion(writing);

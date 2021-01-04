@@ -114,9 +114,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual string getTypeName() const noexcept = 0;
 
-  /// Can this artifact's metadata be committed?
-  virtual bool canCommit(shared_ptr<MetadataVersion> v) const noexcept = 0;
-
   /// Can this artifact's content version be committed?
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept = 0;
 
@@ -133,7 +130,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual void commitAll() noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
-  virtual void checkFinalState(fs::path path) noexcept;
+  virtual void checkFinalState(fs::path path) noexcept = 0;
 
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept;

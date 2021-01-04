@@ -838,16 +838,6 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, Scenario::Build, ref_id, expected);
 
-  // If a different command created this version, fingerprint it for later comparison
-  auto creator = expected->getCreator();
-  if (creator != c->currentRun()) {
-    // We can only take a fingerprint with a committed path
-    auto path = artifact->getPath(false);
-    if (path.has_value()) {
-      expected->cache(path.value());
-    }
-  }
-
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
 }

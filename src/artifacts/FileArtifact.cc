@@ -21,12 +21,6 @@ FileArtifact::FileArtifact(shared_ptr<Env> env,
   _content_version = cv;
 }
 
-bool FileArtifact::canCommit(shared_ptr<MetadataVersion> v) const noexcept {
-  ASSERT(v == _metadata_version) << "Attempted to check committable state for unknown version " << v
-                                 << " in " << this;
-  return _metadata_version->canCommit();
-}
-
 bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   ASSERT(v == _content_version) << "Attempted to check committable state for unknown version " << v
                                 << " in " << this;
@@ -53,9 +47,6 @@ void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
 
 /// Do we have saved content and metadata for this artifact?
 bool FileArtifact::canCommitAll() const noexcept {
-  // Can the metadata version be committed?
-  if (!_metadata_version->canCommit()) return false;
-
   return _content_version->canCommit();
 }
 
@@ -92,9 +83,6 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
       _content_version->setCommitted();
     }
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
