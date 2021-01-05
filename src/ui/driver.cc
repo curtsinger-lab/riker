@@ -97,9 +97,6 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
       env->commitAll();
     }
 
-    // run cache garbage collector; don't run on initial iteration, which is always pure emulation
-    if (iteration > 0) Build::cache_gc();
-
     // The output becomes the next iteration's input
     input = std::move(output);
     iteration++;

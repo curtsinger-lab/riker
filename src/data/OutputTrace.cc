@@ -9,6 +9,8 @@
 
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "ui/constants.hh"
+#include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
@@ -186,4 +188,20 @@ void OutputTrace::finish() noexcept {
 
   // Close the output filestream
   _out.close();
+
+  // We overwrite OldCacheDir with CacheDir
+  std::error_code err;
+
+  // only collect if both .dodo/cache and a .dodo/newcache exist
+  if (fileExists(constants::CacheDir) && fileExists(constants::NewCacheDir)) {
+    // Sadly, std::filesystem::rename fails if the destination is nonempty; remove it first
+    // It's OK if the path does not exist-- it won't exist on the initial build.
+    fs::remove_all(constants::CacheDir, err);
+    FAIL_IF(err.value() != 0) << "Unable to remove old cache dir '" << constants::CacheDir
+                              << "': " << err.message();
+
+    fs::rename(constants::NewCacheDir, constants::CacheDir, err);
+    FAIL_IF(err.value() != 0) << "Unable to rename new cache dir from '" << constants::NewCacheDir
+                              << " to '" << constants::CacheDir << "': " << err.message();
+  }
 }

@@ -75,11 +75,6 @@ class FileVersion final : public ContentVersion {
   virtual bool isCached() const noexcept override;
 
  private:
-  bool _empty;
-  bool _cached;
-  std::optional<struct timespec> _mtime;
-  std::optional<BLAKE3Hash> _b3hash;
-
   /// Compare to another fingerprint instance
   bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
 
@@ -95,5 +90,21 @@ class FileVersion final : public ContentVersion {
   /// Return the path for the contents of a cached FileVersion
   static fs::path cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept;
 
+ private:
+  /// Is this an empty file?
+  bool _empty = false;
+
+  /// Is there a cached copy of this file?
+  bool _cached = false;
+
+  /// When was this file version modified?
+  std::optional<struct timespec> _mtime;
+
+  /// What is the has of this file version's contents?
+  std::optional<BLAKE3Hash> _b3hash;
+
   SERIALIZE(BASE(ContentVersion), _empty, _cached, _mtime, _b3hash);
+
+  /// Transient field: has this version been linked into the new cache directory?
+  bool _linked = false;
 };

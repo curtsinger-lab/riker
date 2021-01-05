@@ -17,8 +17,8 @@
 
 /// Tell the garbage collector to preserve this version.
 void FileVersion::gcLink() noexcept {
-  // have we already cached this file?  If so, bail
-  if (_cached) return;
+  // If this file is already linked into the new cache, bail
+  if (_linked) return;
 
   // no fingerprint, no cache file, so bail
   FAIL_IF(!_b3hash.has_value()) << "Invalid gcLink on uncached file.";
@@ -28,7 +28,11 @@ void FileVersion::gcLink() noexcept {
   fs::path cur_hash_file = cacheFilePath(_b3hash.value(), false);
 
   // does new_hash_file exist?  If yes, bail
-  FAIL_IF(fileExists(new_hash_file)) << "Cannot gcLink more than once.";
+  // If the linked file exists arleady, mark this file as linked and return
+  if (fileExists(new_hash_file)) {
+    _linked = true;
+    return;
+  }
 
   // does cur_hash_file exist?  If not, fail
   FAIL_IF(!fileExists(cur_hash_file))
@@ -44,7 +48,7 @@ void FileVersion::gcLink() noexcept {
                     << new_hash_file << ": " << ERR;
 
   // we have effectively cached this file now
-  _cached = true;
+  _linked = true;
 
   LOG(cache) << "Linked old cached file " << cur_hash_file << " to new cached file "
              << new_hash_file;
