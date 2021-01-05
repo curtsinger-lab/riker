@@ -19,6 +19,7 @@
 using std::list;
 using std::make_shared;
 using std::map;
+using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::shared_ptr;
@@ -118,7 +119,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept = 0;
 
   /// Commit this artifact's metadata version
-  virtual void commitMetadata() noexcept = 0;
+  virtual void commitMetadata() noexcept;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
   virtual void commit(shared_ptr<ContentVersion> v) noexcept = 0;
@@ -127,7 +128,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommitAll() const noexcept = 0;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept = 0;
+  virtual void commitAll(optional<fs::path> path = nullopt) noexcept = 0;
+
+  /// Commit the miminal set of versions requires to ensure this artifact exists on the filesystem
+  virtual void commitMinimal(fs::path path) noexcept { commitAll(path); }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept = 0;

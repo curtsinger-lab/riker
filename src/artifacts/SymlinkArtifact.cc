@@ -56,15 +56,9 @@ bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return _symlink_version->canCommit();
 }
 
-void SymlinkArtifact::commitMetadata() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Symlink has no path";
-
-  _metadata_version->commit(path.value());
-}
-
 void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  LOG(artifact) << "Committing content to " << this;
+
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
@@ -79,10 +73,12 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void SymlinkArtifact::commitAll() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Symlink has no path";
+void SymlinkArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
+
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a symlink with no path";
 
   _symlink_version->commit(path.value());
 

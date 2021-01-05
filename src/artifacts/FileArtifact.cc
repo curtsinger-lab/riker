@@ -27,15 +27,9 @@ bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return _content_version->canCommit();
 }
 
-void FileArtifact::commitMetadata() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Committing to a file with no path";
-
-  _metadata_version->commit(path.value());
-}
-
 void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  LOG(artifact) << "Committing content to " << this;
+
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Committing to a file with no path";
@@ -50,14 +44,15 @@ bool FileArtifact::canCommitAll() const noexcept {
 }
 
 /// Commit all final versions of this artifact to the filesystem
-void FileArtifact::commitAll() noexcept {
-  LOG(artifact) << "Committing " << this;
+void FileArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
 
   // we may have already committed this artifact
   if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
 
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());

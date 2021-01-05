@@ -21,7 +21,10 @@ namespace fs = std::filesystem;
 
 // Commit a base directory version
 void BaseDirVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) return;
+  if (isCommitted()) {
+    LOG(artifact) << "Directory at " << path << " is already committed";
+    return;
+  }
 
   // This directory better be one we've created, otherwise it should have been committed already
   ASSERT(_created) << "An on-disk directory is somehow not committed";
@@ -34,6 +37,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
     if (errno == ENOENT) {
       // dir doesn't exist-- go ahead and create it
       rc = ::mkdir(path.c_str(), 0755);
+      LOG(artifact) << "Created directory at " << path;
 
       FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
     } else {
@@ -119,11 +123,11 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     // The artifact has no committed links. Committing the artifact *should* create it (we
     // probably need to check this).
 
+    // Now commit the artifact
+    _target->commitMinimal(dir_path / _entry);
+
     // Mark this version as committed so the artifact can use it as a committed path
     ContentVersion::setCommitted();
-
-    // Now commit the artifact
-    _target->commitAll();
   }
 }
 

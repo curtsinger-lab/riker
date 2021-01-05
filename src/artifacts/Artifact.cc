@@ -209,6 +209,16 @@ optional<fs::path> Artifact::commitPath() noexcept {
   return path;
 }
 
+void Artifact::commitMetadata() noexcept {
+  LOG(artifact) << "Committing metadata to " << this;
+
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing metadata to an artifact with no path";
+
+  _metadata_version->commit(path.value());
+}
+
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(fs::path path) noexcept {
   // Make sure metadata for this artifact is committed

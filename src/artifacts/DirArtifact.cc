@@ -35,19 +35,15 @@ bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return dv->canCommit();
 }
 
-void DirArtifact::commitMetadata() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-
-  if (!_metadata_version->isCommitted()) {
-    _base_dir_version->commit(path.value());
-    _metadata_version->commit(path.value());
-  }
-}
-
 void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
+
+  LOG(artifact) << "Committing content version " << v << " to " << this;
+
+  if (_base_dir_version->isCommitted()) {
+    LOG(artifact) << "  base dir already committed at " << path.value();
+  }
 
   _base_dir_version->commit(path.value());
 
@@ -71,9 +67,12 @@ bool DirArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commitAll() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
+void DirArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
+
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+
   ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(path.value());
 
@@ -85,6 +84,13 @@ void DirArtifact::commitAll() noexcept {
 
   // Commit metadata
   _metadata_version->commit(path.value());
+}
+
+// Commit the minimal set of versions requires to ensure this artifact exists on the filesystem
+void DirArtifact::commitMinimal(fs::path path) noexcept {
+  LOG(artifact) << "Committing minimal content and metadata to " << this;
+  _base_dir_version->commit(path);
+  _metadata_version->commit(path);
 }
 
 // Compare all final versions of this artifact to the filesystem state

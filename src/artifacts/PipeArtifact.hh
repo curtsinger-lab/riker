@@ -2,6 +2,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -12,6 +13,8 @@
 #include "versions/PipeVersion.hh"
 
 using std::list;
+using std::nullopt;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -42,7 +45,7 @@ class PipeArtifact : public Artifact {
   virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept override {}
+  virtual void commitAll(optional<fs::path> path = nullopt) noexcept override {}
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path PathRef) noexcept override {}
