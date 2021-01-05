@@ -159,9 +159,9 @@ bool Command::mark(RebuildMarking m) noexcept {
       // Rule 3 does not apply, because metadata versions can always be committed
 
       // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
-      if (creator->getCommand()->_marking == RebuildMarking::MayRun) {
-        creator->getCommand()->mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output is used by {}", creator->getCommand(), this);
+      if (creator->_marking == RebuildMarking::MayRun) {
+        creator->mark(RebuildMarking::MustRun);
+        LOGF(rebuild, "{} must run: output is used by {}", creator, this);
       }
     }
 
@@ -176,15 +176,15 @@ bool Command::mark(RebuildMarking m) noexcept {
       // of the input, not during rebuild planning.
       if (!v->canCommit()) {
         // Mark the creator for rerun so it will produce the necessary input
-        if (creator->getCommand()->mark(RebuildMarking::MustRun)) {
-          LOGF(rebuild, "{} must run: output is needed by {}", creator->getCommand(), this);
+        if (creator->mark(RebuildMarking::MustRun)) {
+          LOGF(rebuild, "{} must run: output is needed by {}", creator, this);
         }
       }
 
       // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
-      if (creator->getCommand()->_marking == RebuildMarking::MayRun) {
-        creator->getCommand()->mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output is used by {}", creator->getCommand(), this);
+      if (creator->_marking == RebuildMarking::MayRun) {
+        creator->mark(RebuildMarking::MustRun);
+        LOGF(rebuild, "{} must run: output is used by {}", creator, this);
       }
     }
 
@@ -192,7 +192,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& user : previousRun()->getOutputUsers()) {
       // Rule 5: Mark any users of this command's output as MayRun
       if (user->getCommand()->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be changed by {}", user->getCommand(), this);
+        LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
       }
     }
 
@@ -240,8 +240,8 @@ bool Command::mark(RebuildMarking m) noexcept {
       // of the input, not during rebuild planning.
       if (!v->canCommit()) {
         // Mark the creator for rerun so it will produce the necessary input
-        if (creator->getCommand()->mark(RebuildMarking::MayRun)) {
-          LOGF(rebuild, "{} may run: output is needed by {}", creator->getCommand(), this);
+        if (creator->mark(RebuildMarking::MayRun)) {
+          LOGF(rebuild, "{} may run: output is needed by {}", creator, this);
         }
       }
     }

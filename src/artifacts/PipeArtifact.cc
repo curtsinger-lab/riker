@@ -42,7 +42,7 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
   // Is the command closing the last writable reference to this pipe?
   if (c->currentRun()->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
-    final_write->createdBy(c->currentRun());
+    final_write->createdBy(c);
     _writes.push_back(final_write);
     appendVersion(final_write);
   }

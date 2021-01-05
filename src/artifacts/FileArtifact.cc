@@ -70,7 +70,7 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     if (!_content_version->matches(v)) {
       // Yes. Report the mismatch
       auto creator = _content_version->getCreator();
-      if (creator) creator->outputChanged(shared_from_this(), v, _content_version);
+      if (creator) creator->currentRun()->outputChanged(shared_from_this(), v, _content_version);
 
     } else {
       // No. We can treat the content version as if it is committed

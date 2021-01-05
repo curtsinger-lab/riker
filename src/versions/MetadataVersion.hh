@@ -18,7 +18,7 @@ using std::string;
 using std::weak_ptr;
 
 class Artifact;
-class CommandRun;
+class Command;
 
 class MetadataVersion {
  public:
@@ -32,10 +32,10 @@ class MetadataVersion {
       MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
   /// Get the command that created this version
-  shared_ptr<CommandRun> getCreator() const noexcept { return _creator.lock(); }
+  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<CommandRun> r) noexcept { _creator = r; }
+  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
@@ -71,8 +71,8 @@ class MetadataVersion {
   /// Has this version been committed?
   bool _committed = false;
 
-  /// The command run that created this version
-  weak_ptr<CommandRun> _creator;
+  /// The command that created this version
+  weak_ptr<Command> _creator;
 
   /// The user id for this metadata version
   uid_t _uid;

@@ -172,7 +172,7 @@ shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
+    mv->createdBy(c);
     c->currentRun()->addMetadataOutput(pipe, mv);
   }
 
@@ -201,10 +201,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
+    mv->createdBy(c);
     c->currentRun()->addMetadataOutput(symlink, mv);
 
-    sv->createdBy(c->currentRun());
+    sv->createdBy(c);
     c->currentRun()->addContentOutput(symlink, sv);
   }
 
@@ -237,10 +237,10 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
+    mv->createdBy(c);
     c->currentRun()->addMetadataOutput(dir, mv);
 
-    dv->createdBy(c->currentRun());
+    dv->createdBy(c);
     c->currentRun()->addContentOutput(dir, dv);
   }
 
@@ -264,13 +264,13 @@ shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
 
   // Create an initial metadata version
   auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
-  mv->createdBy(c->currentRun());
+  mv->createdBy(c);
   if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<FileVersion>();
   cv->makeEmptyFingerprint();
-  cv->createdBy(c->currentRun());
+  cv->createdBy(c);
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it

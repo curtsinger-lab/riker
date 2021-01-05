@@ -188,7 +188,7 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept 
     if (getCommand()->isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
-    creator->_output_used_by.insert(shared_from_this());
+    creator->currentRun()->_output_used_by.insert(shared_from_this());
   }
 }
 
@@ -200,7 +200,7 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
 
   // If this command is running, make sure the file is available
   // We can skip committing a version if this same command also created the version
-  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
+  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != getCommand()) {
     // Commit the version now
     ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
                             << " cannot be committed";
@@ -211,7 +211,7 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {
     // Otherwise, add this command run to the creator's set of output users
-    creator->_output_used_by.insert(shared_from_this());
+    creator->currentRun()->_output_used_by.insert(shared_from_this());
   }
 }
 

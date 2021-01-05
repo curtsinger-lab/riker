@@ -361,7 +361,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
 
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
-  writing->createdBy(c->currentRun());
+  writing->createdBy(c);
 
   // Inform the artifact of its new link
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);
@@ -384,7 +384,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
                                                 shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
-  writing->createdBy(c->currentRun());
+  writing->createdBy(c);
 
   // Do we have a record of an entry with the given name?
   auto iter = _entries.find(entry);

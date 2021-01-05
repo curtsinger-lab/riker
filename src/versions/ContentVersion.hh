@@ -11,7 +11,7 @@ using std::ostream;
 using std::shared_ptr;
 using std::weak_ptr;
 
-class CommandRun;
+class Command;
 
 class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
  public:
@@ -34,10 +34,10 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   }
 
   /// Get the command that created this version
-  shared_ptr<CommandRun> getCreator() const noexcept { return _creator.lock(); }
+  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<CommandRun> r) noexcept { _creator = r; }
+  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
@@ -94,6 +94,6 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   /// Has this version been committed?
   bool _committed = false;
 
-  /// The command run that created this version
-  weak_ptr<CommandRun> _creator;
+  /// The command that created this version
+  weak_ptr<Command> _creator;
 };

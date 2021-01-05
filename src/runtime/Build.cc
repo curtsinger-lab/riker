@@ -409,7 +409,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Apply the write
   ref->getArtifact()->updateMetadata(c, written);
@@ -441,7 +441,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Apply the write
   ref->getArtifact()->updateContent(c, written);
@@ -862,7 +862,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 
   // If a different command created this version, fingerprint it for later comparison
   auto creator = expected->getCreator();
-  if (creator != c->currentRun()) {
+  if (creator != c) {
     // We can only take a fingerprint with a committed path
     auto path = artifact->getPath(false);
     if (path.has_value()) {
@@ -893,7 +893,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
   _output.updateMetadata(c, ref_id, written);
 
   // The calling command created this version
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // This apply operation was traced, so the written version is committed
   written->setCommitted();
@@ -925,7 +925,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   written->setCommitted();
 
   // The calling command created this version
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Update the artifact's content
   artifact->updateContent(c, written);
