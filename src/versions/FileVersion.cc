@@ -15,28 +15,77 @@
 #include "util/log.hh"
 #include "util/wrappers.hh"
 
+/// Convert a BLAKE3 byte array to a hexadecimal string
+static string b3hex(BLAKE3Hash b3hash) noexcept {
+  stringstream ss;
+  for (int byte : b3hash) {
+    ss << std::setfill('0') << std::setw(2) << std::hex << byte;
+  }
+  return ss.str();
+}
+
+/// Return a BLAKE3 hash for the contents of the file at the given path.
+static std::optional<BLAKE3Hash> blake3(fs::path path) noexcept {
+  // initialize hasher
+  blake3_hasher hasher;
+  blake3_hasher_init(&hasher);
+
+  // buffer for file read
+  unsigned char buf[BLAKE3BUFSZ];
+
+  // read from given file
+  LOG(exec) << "Fingerprinting " << path;
+  FILE* f = fopen(path.c_str(), "r");
+  if (!f) {
+    LOG(artifact) << "Unable to fingerprint file '" << path.c_str() << "': " << ERR;
+    return nullopt;
+  }
+
+  // create output array
+  BLAKE3Hash output;
+
+  // compute hash incrementally for each chunk read
+  ssize_t n;
+  while ((n = fread(buf, sizeof(char), sizeof(buf), f)) > 0) {
+    blake3_hasher_update(&hasher, buf, n);
+  }
+  fclose(f);
+
+  // finalize the hash
+  blake3_hasher_finalize(&hasher, output.data(), BLAKE3_OUT_LEN);
+
+  return output;
+}
+
+/// Generate a path from a hash value. The result does not include the cache directory path.
+static fs::path hashPath(BLAKE3Hash& hash) noexcept {
+  // We use a three-level directory prefix scheme to store cached files
+  // to avoid having too many files in a given folder.  This scheme
+  // below has 16^6 unique directory prefixes.
+  string hash_str = b3hex(hash);
+  fs::path dir_lvl_0 = hash_str.substr(0, 2);
+  fs::path dir_lvl_1 = hash_str.substr(2, 2);
+  fs::path dir_lvl_2 = hash_str.substr(4, 2);
+  return dir_lvl_0 / dir_lvl_1 / dir_lvl_2 / hash_str;
+}
+
 /// Tell the garbage collector to preserve this version.
 void FileVersion::gcLink() noexcept {
+  // If this file is not cached, there's nothing to do.
+  if (!_cached) return;
+
   // If this file is already linked into the new cache, bail
   if (_linked) return;
 
   // no fingerprint, no cache file, so bail
   FAIL_IF(!_b3hash.has_value()) << "Invalid gcLink on uncached file.";
 
+  // Generate the hash path
+  auto hash_path = hashPath(_b3hash.value());
+
   // get cache paths
-  fs::path new_hash_file = cacheFilePath(_b3hash.value(), true);
-  fs::path cur_hash_file = cacheFilePath(_b3hash.value(), false);
-
-  // does new_hash_file exist?  If yes, bail
-  // If the linked file exists arleady, mark this file as linked and return
-  if (fileExists(new_hash_file)) {
-    _linked = true;
-    return;
-  }
-
-  // does cur_hash_file exist?  If not, fail
-  FAIL_IF(!fileExists(cur_hash_file))
-      << "Cannot link " << new_hash_file << " to non-existent cache file " << cur_hash_file;
+  auto new_hash_file = constants::NewCacheDir / hash_path;
+  auto cur_hash_file = constants::CacheDir / hash_path;
 
   // Create the directories, if needed
   fs::path new_hash_dir = new_hash_file.parent_path();
@@ -44,14 +93,24 @@ void FileVersion::gcLink() noexcept {
 
   // and then link the file in the old cache to the new cache
   int rv = ::link(cur_hash_file.c_str(), new_hash_file.c_str());
-  FAIL_IF(rv == -1) << "Cannot link old cache file " << cur_hash_file << " into new cache location "
-                    << new_hash_file << ": " << ERR;
 
-  // we have effectively cached this file now
-  _linked = true;
+  // Check the return value
+  if (rv == 0) {
+    // If link returned 0, the link succeeded
+    LOG(cache) << "Linked old cached file " << cur_hash_file << " to new cached file "
+               << new_hash_file;
 
-  LOG(cache) << "Linked old cached file " << cur_hash_file << " to new cached file "
-             << new_hash_file;
+    _linked = true;
+
+  } else if (rv == -1 && errno == EEXIST) {
+    // If link return EEXIST, the cached file was already linked
+    LOG(cache) << "Cache version " << this << " was already linked in the new cache";
+    _linked = true;
+
+  } else {
+    FAIL << "Cannot link old cache file " << cur_hash_file << " into new cache location "
+         << new_hash_file << ": " << ERR;
+  }
 }
 
 // Is this version saved in a way that can be committed?
@@ -102,7 +161,7 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
 /// Save a fingerprint of this version
 void FileVersion::fingerprint(fs::path path) noexcept {
   // if there is already a fingerprint with a hash, move on
-  if (hasHash()) {
+  if (_b3hash.has_value()) {
     LOG(cache) << "Skipping fingerprinting for version " << this << " for artifact at " << path
                << " that already has a fingerprint.";
     return;
@@ -130,11 +189,6 @@ void FileVersion::fingerprint(fs::path path) noexcept {
   LOG(cache) << "Fingerprinted version " << this << " for artifact at " << path << ".";
 }
 
-/// Does this FileVersion have a hash already?
-bool FileVersion::hasHash() noexcept {
-  return _b3hash.has_value();
-}
-
 void FileVersion::makeEmptyFingerprint() noexcept {
   // it is not necessary to fingerprint or cache empty files
   _empty = true;
@@ -144,8 +198,13 @@ void FileVersion::makeEmptyFingerprint() noexcept {
 /// Returns true if the cache file exists and restoration was successful.
 /// The exact error message can be printed by the caller by inspecting errno.
 bool FileVersion::stage(fs::path path) noexcept {
+  // Make sure we have a hash and that this version is cached
+  ASSERT(_b3hash.has_value()) << "Un-hashed file version " << this
+                              << " cannot be staged from cache";
+  ASSERT(_cached) << "Attempted to stage un-cached file version " << this << " from cache.";
+
   // Path to cached file
-  fs::path hash_file = cacheFilePath();
+  fs::path hash_file = constants::CacheDir / hashPath(_b3hash.value());
 
   // does the cached file exist, and if so, how big is it in bytes?
   off_t len = fileLength(hash_file);
@@ -187,6 +246,13 @@ void FileVersion::cache(fs::path path) noexcept {
     return;
   }
 
+  // Don't cache if this file is empty
+  if (_empty) {
+    LOG(artifact) << "Not caching version " << this << " at path " << path
+                  << " because it is empty.";
+    return;
+  }
+
   // Freak out if the fingerprint is missing
   FAIL_IF(!_b3hash.has_value()) << "Cannot cache version " << this << " at path " << path
                                 << " without a fingerprint.";
@@ -197,7 +263,7 @@ void FileVersion::cache(fs::path path) noexcept {
                          << " created outside build.";
 
   // Path to cache file
-  fs::path hash_file = cacheFilePath(_b3hash.value(), true);
+  fs::path hash_file = constants::CacheDir / hashPath(_b3hash.value());
   fs::path hash_dir = hash_file.parent_path();
 
   // Get the length of the input file
@@ -272,71 +338,6 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
   return false;
 }
 
-/// Return a BLAKE3 hash for the contents of the file at the given path (static method)
-std::optional<BLAKE3Hash> FileVersion::blake3(fs::path path) noexcept {
-  // initialize hasher
-  blake3_hasher hasher;
-  blake3_hasher_init(&hasher);
-
-  // buffer for file read
-  unsigned char buf[BLAKE3BUFSZ];
-
-  // read from given file
-  LOG(exec) << "Fingerprinting " << path;
-  FILE* f = fopen(path.c_str(), "r");
-  if (!f) {
-    LOG(artifact) << "Unable to fingerprint file '" << path.c_str() << "': " << ERR;
-    return nullopt;
-  }
-
-  // create output array
-  BLAKE3Hash output;
-
-  // compute hash incrementally for each chunk read
-  ssize_t n;
-  while ((n = fread(buf, sizeof(char), sizeof(buf), f)) > 0) {
-    blake3_hasher_update(&hasher, buf, n);
-  }
-  fclose(f);
-
-  // finalize the hash
-  blake3_hasher_finalize(&hasher, output.data(), BLAKE3_OUT_LEN);
-
-  return output;
-}
-
-/// Convert a BLAKE3 byte array to a hexadecimal string (static method)
-string FileVersion::b3hex(BLAKE3Hash b3hash) noexcept {
-  stringstream ss;
-  for (int byte : b3hash) {
-    ss << std::setfill('0') << std::setw(2) << std::hex << byte;
-  }
-  return ss.str();
-}
-
-/// Return the path for the contents of this cached FileVersion for either the
-/// current build or the previous one.
-fs::path FileVersion::cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept {
-  // We use a three-level directory prefix scheme to store cached files
-  // to avoid having too many files in a given folder.  This scheme
-  // below has 16^6 unique directory prefixes.
-  string hash_str = b3hex(hash);
-  fs::path dir_lvl_0 = hash_str.substr(0, 2);
-  fs::path dir_lvl_1 = hash_str.substr(2, 2);
-  fs::path dir_lvl_2 = hash_str.substr(4, 2);
-  fs::path base = newhash ? constants::NewCacheDir : constants::CacheDir;
-  fs::path hash_dir = base / dir_lvl_0 / dir_lvl_1 / dir_lvl_2;
-
-  // Path to cache file
-  return hash_dir / hash_str;
-}
-
-/// Return the path for the contents of this cached FileVersion
-fs::path FileVersion::cacheFilePath() noexcept {
-  ASSERT(_b3hash.has_value()) << "Cannot obtain cache location for unfingerprinted file.";
-  return cacheFilePath(_b3hash.value(), false);
-}
-
 /// Pretty printer
 ostream& FileVersion::print(ostream& o) const noexcept {
   // is empty
@@ -352,7 +353,7 @@ ostream& FileVersion::print(ostream& o) const noexcept {
       << _mtime.value().tv_nsec << " ";
 
   // has hash
-  if (_b3hash.has_value()) o << "b3hash=" << b3hex() << " ";
+  if (_b3hash.has_value()) o << "b3hash=" << b3hex(_b3hash.value()) << " ";
 
   // has cached copy
   o << "cached=" << (_cached ? "true" : "false");
@@ -362,23 +363,10 @@ ostream& FileVersion::print(ostream& o) const noexcept {
   return o;
 }
 
-/// get a string representation of the hash
-string FileVersion::b3hex() const noexcept {
-  if (!_b3hash.has_value()) {
-    return "NO HASH";
-  }
-  return b3hex(_b3hash.value());
-}
-
 /// Compare this version to another version
 bool FileVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
   auto other_file = other->as<FileVersion>();
   if (!other_file) return false;
   if (other_file.get() == this) return true;
   return fingerprints_match(other_file);
-}
-
-/// Is the version cached?
-bool FileVersion::isCached() const noexcept {
-  return _cached;
 }

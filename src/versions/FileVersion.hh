@@ -39,16 +39,10 @@ class FileVersion final : public ContentVersion {
   bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  void commitEmptyFile(fs::path path, mode_t mode = 0600) noexcept;
-
-  /// Commit this version to the filesystem
   virtual void commit(fs::path path) noexcept override;
 
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path) noexcept override;
-
-  /// Does this FileVersion have a fingerprint already?
-  bool hasHash() noexcept;
 
   /// Save an empty fingerprint of this version
   void makeEmptyFingerprint() noexcept;
@@ -56,14 +50,8 @@ class FileVersion final : public ContentVersion {
   /// Compare this version to another version
   virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
 
-  /// get a string representation of the hash
-  string b3hex() const noexcept;
-
   /// Pretty printer
   virtual ostream& print(ostream& o) const noexcept override;
-
-  /// Return the path for the contents of this cached FileVersion
-  fs::path cacheFilePath() noexcept;
 
   /// Store a copy on disk
   virtual void cache(fs::path path) noexcept override;
@@ -71,24 +59,15 @@ class FileVersion final : public ContentVersion {
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept override;
 
-  /// Is the version cached?
-  virtual bool isCached() const noexcept override;
-
  private:
   /// Compare to another fingerprint instance
   bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
 
+  /// Commit this version to the filesystem
+  void commitEmptyFile(fs::path path, mode_t mode = 0600) noexcept;
+
   /// Restore a cached copy to the given path
   bool stage(fs::path path) noexcept;
-
-  /// Convert a BLAKE3 byte array to a hexadecimal string
-  static string b3hex(BLAKE3Hash b3hash) noexcept;
-
-  /// Return a BLAKE3 hash for the contents of the file at the given path.
-  static std::optional<BLAKE3Hash> blake3(fs::path path) noexcept;
-
-  /// Return the path for the contents of a cached FileVersion
-  static fs::path cacheFilePath(BLAKE3Hash& hash, bool newhash) noexcept;
 
  private:
   /// Is this an empty file?
