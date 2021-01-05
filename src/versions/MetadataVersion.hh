@@ -27,9 +27,15 @@ class MetadataVersion {
     stats::versions++;
   }
 
-  /// Cerate a new metadata version from a stat struct
+  /// Create a new metadata version from a stat struct
   MetadataVersion(const struct stat& data) noexcept :
       MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
+
+  /// Create a new metadata version by changing the owner and/or group in this one
+  shared_ptr<MetadataVersion> chown(uid_t user, gid_t group) noexcept;
+
+  /// Create a new metadata version by changing the mode bits in this one
+  shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
 
   /// Get the command that created this version
   shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }

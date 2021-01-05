@@ -259,15 +259,7 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
-  // If a written version was not provided, create one
-  if (!writing) {
-    auto path = getPath(true);
-    ASSERT(path.has_value()) << "Traced update to an artifact with no committed path";
-    struct stat statbuf;
-    int rc = ::lstat(path.value().c_str(), &statbuf);
-    WARN_IF(rc != 0) << "Error calling lstat on " << path.value() << ": " << ERR;
-    writing = make_shared<MetadataVersion>(statbuf);
-  }
+  ASSERT(writing) << "Attempted to write a null metadata version to " << this;
 
   // Update the metadata version for this artifact
   appendVersion(writing);

@@ -823,7 +823,8 @@ void Build::traceExpectResult(const shared_ptr<Command>& c, Ref::ID ref_id, int 
 }
 
 // Command c accesses an artifact's metadata
-void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
+shared_ptr<MetadataVersion> Build::traceMatchMetadata(const shared_ptr<Command>& c,
+                                                      Ref::ID ref_id) noexcept {
   // Count a traced step
   stats::traced_steps++;
 
@@ -842,6 +843,8 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
+
+  return expected;
 }
 
 // Command c accesses an artifact's content
@@ -874,7 +877,9 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 }
 
 // Command c modifies an artifact
-void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
+void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
+                                Ref::ID ref_id,
+                                shared_ptr<MetadataVersion> written) noexcept {
   // Count a traced step
   stats::traced_steps++;
 
@@ -884,9 +889,9 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
   auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to write metadata through an unresolved reference " << ref;
 
-  // Record the update and get the written version
-  auto written = artifact->updateMetadata(c);
-  ASSERT(written) << "Unable to get written metadata version from " << artifact;
+  // Record the update in the artifact
+  ASSERT(written) << "Tried to write a null metadata version to " << artifact;
+  artifact->updateMetadata(c, written);
 
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);

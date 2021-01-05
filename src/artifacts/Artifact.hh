@@ -182,9 +182,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                      shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  shared_ptr<MetadataVersion> updateMetadata(
-      const shared_ptr<Command>& c,
-      shared_ptr<MetadataVersion> writing = nullptr) noexcept;
+  shared_ptr<MetadataVersion> updateMetadata(const shared_ptr<Command>& c,
+                                             shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Traced Operations ************/
 

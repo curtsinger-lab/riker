@@ -13,6 +13,16 @@
 using std::map;
 using std::shared_ptr;
 
+/// Create a new metadata version by changing the owner and/or group in this one
+shared_ptr<MetadataVersion> MetadataVersion::chown(uid_t user, gid_t group) noexcept {
+  return make_shared<MetadataVersion>(user, group, _mode);
+}
+
+/// Create a new metadata version by changing the mode bits in this one
+shared_ptr<MetadataVersion> MetadataVersion::chmod(mode_t mode) noexcept {
+  return make_shared<MetadataVersion>(_uid, _gid, (_mode & S_IFMT) | mode);
+}
+
 bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept {
   // TODO: Currently checking against the dodo process's effective user and group(s). This check
   // should instead use the user and group(s) of the emulated process/command. Such attributes
