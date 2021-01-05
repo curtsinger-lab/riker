@@ -54,7 +54,7 @@ class SyscallEntry {
   bool isTraced() const { return _traced; }
 
   /// Run the handler for this system call
-  void runHandler(shared_ptr<Thread>& t, user_regs_struct& regs) const { _handler(*t, regs); }
+  void runHandler(Thread& t, user_regs_struct& regs) const { _handler(t, regs); }
 
  private:
   const char* _name;

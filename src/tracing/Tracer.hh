@@ -8,6 +8,7 @@
 
 #include <sys/types.h>
 
+#include "tracing/Thread.hh"
 #include "util/log.hh"
 
 using std::list;
@@ -19,7 +20,6 @@ using std::unordered_map;
 class Build;
 class Command;
 class Process;
-class Thread;
 
 class Tracer {
   friend class Process;
@@ -49,23 +49,23 @@ class Tracer {
   shared_ptr<Process> launchTraced(const shared_ptr<Command>& cmd) noexcept;
 
   /// Called when we catch a system call in the traced process
-  void handleSyscall(shared_ptr<Thread> t) noexcept;
+  void handleSyscall(Thread& t) noexcept;
 
   /// Called after a traced process issues a clone system call
-  void handleClone(shared_ptr<Thread> t, int flags) noexcept;
+  void handleClone(Thread& t, int flags) noexcept;
 
   /// Called after a traced process issues a fork system call
-  void handleFork(shared_ptr<Thread> t) noexcept;
+  void handleFork(Thread& t) noexcept;
 
   /// Called when a traced process exits
-  void handleExit(shared_ptr<Thread> t, int exit_status) noexcept;
+  void handleExit(Thread& t, int exit_status) noexcept;
 
  private:
   /// This tracer is executing commands on behalf of this build
   Build& _build;
 
   /// A map from thread IDs to threads
-  unordered_map<pid_t, shared_ptr<Thread>> _threads;
+  unordered_map<pid_t, Thread> _threads;
 
   /// The map of processes that have exited
   unordered_map<pid_t, shared_ptr<Process>> _exited;
