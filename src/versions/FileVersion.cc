@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -25,31 +26,50 @@ static string b3hex(BLAKE3Hash b3hash) noexcept {
 }
 
 /// Return a BLAKE3 hash for the contents of the file at the given path.
-static std::optional<BLAKE3Hash> blake3(fs::path path) noexcept {
+static std::optional<BLAKE3Hash> blake3(fs::path path, struct stat& statbuf) noexcept {
   // initialize hasher
   blake3_hasher hasher;
   blake3_hasher_init(&hasher);
 
-  // buffer for file read
-  unsigned char buf[BLAKE3BUFSZ];
-
   // read from given file
   LOG(exec) << "Fingerprinting " << path;
-  FILE* f = fopen(path.c_str(), "r");
-  if (!f) {
-    LOG(artifact) << "Unable to fingerprint file '" << path.c_str() << "': " << ERR;
+  int fd = ::open(path.c_str(), O_RDONLY);
+  if (fd < 0) {
+    LOG(artifact) << "Unable to fingerprint file " << path << ": " << ERR;
     return nullopt;
   }
 
   // create output array
   BLAKE3Hash output;
 
-  // compute hash incrementally for each chunk read
-  ssize_t n;
-  while ((n = fread(buf, sizeof(char), sizeof(buf), f)) > 0) {
-    blake3_hasher_update(&hasher, buf, n);
+  // try to mmap the file
+  void* p = ::mmap(nullptr, statbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
+
+  // Did the mmap call succeed?
+  if (p == MAP_FAILED) {
+    // No. Fall back to read() calls
+    LOG(artifact) << "Unable to mmap file " << path << ": " << ERR;
+
+    // Buffer for reading blocks from the file
+    char buf[BLAKE3BUFSZ];
+
+    // compute hash incrementally for each chunk read
+    ssize_t n;
+    while ((n = ::read(fd, buf, sizeof(buf))) > 0) {
+      blake3_hasher_update(&hasher, buf, n);
+    }
+
+  } else {
+    LOG(artifact) << "Hashing file " << path << " from mmapped data.";
+    // Yes. Now p points to the file data. Send it all at once.
+    blake3_hasher_update(&hasher, p, statbuf.st_size);
+
+    // Unmap
+    ::munmap(p, statbuf.st_size);
   }
-  fclose(f);
+
+  // Close the file
+  ::close(fd);
 
   // finalize the hash
   blake3_hasher_finalize(&hasher, output.data(), BLAKE3_OUT_LEN);
@@ -184,7 +204,7 @@ void FileVersion::fingerprint(fs::path path) noexcept {
   if (!(statbuf->st_mode & S_IFREG)) return;
 
   // finally save hash
-  _b3hash = blake3(path);
+  _b3hash = blake3(path, *statbuf);
 
   LOG(cache) << "Fingerprinted version " << this << " for artifact at " << path << ".";
 }
