@@ -65,6 +65,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
   size_t iteration = 0;
   bool done = false;
+  bool trace_changed = false;
   while (!done) {
     // Create a buffer to hold the IR output
     auto output = make_unique<IRBuffer>();
@@ -85,6 +86,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     for (auto& c : build.getCommands()) {
       if (c->mustRerun()) {
         done = false;
+        trace_changed = true;
       }
     }
 
@@ -108,24 +110,27 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
   gather_stats(stats_log_path, stats, "rebuild");
   reset_stats();
 
-  LOG(phase) << "Starting post-build checks";
+  // If any commands had to rerun, run post-build checks and write out a new trace
+  if (trace_changed) {
+    LOG(phase) << "Starting post-build checks";
 
-  // Run the post-build checks
-  IRBuffer post_build_buffer;
-  PostBuildChecker post_build_chcker(post_build_buffer);
+    // Run the post-build checks
+    IRBuffer post_build_buffer;
+    PostBuildChecker post_build_chcker(post_build_buffer);
 
-  // Reset the environment
-  env::reset();
+    // Reset the environment
+    env::reset();
 
-  // Run the build
-  Build build(false, post_build_chcker);
-  input->sendTo(build);
+    // Run the build
+    Build build(false, post_build_chcker);
+    input->sendTo(build);
 
-  LOG(phase) << "Finished post-build checks";
+    LOG(phase) << "Finished post-build checks";
 
-  // Write the final trace to disk
-  OutputTrace output(constants::DatabaseFilename);
-  post_build_buffer.sendTo(output);
+    // Write the final trace to disk
+    OutputTrace output(constants::DatabaseFilename);
+    post_build_buffer.sendTo(output);
+  }
 
   gather_stats(stats_log_path, stats, "post");
   write_stats(stats_log_path, stats);

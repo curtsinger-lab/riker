@@ -46,7 +46,6 @@ Check the output
 Rebuild again, which should do nothing
   $ $DODO --show
   (warning) [Command Dodofile] should rerun because child [Command cat link] changed exit status.
-  (warning) [Command Dodofile] should rerun because child [Command cat link] changed exit status.
 
 Check the output again
   $ cat output1
