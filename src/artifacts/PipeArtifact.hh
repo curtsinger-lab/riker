@@ -2,6 +2,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -10,9 +11,10 @@
 #include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
 #include "versions/PipeVersion.hh"
-#include "versions/Version.hh"
 
 using std::list;
+using std::nullopt;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -31,16 +33,19 @@ class PipeArtifact : public Artifact {
   virtual string getTypeName() const noexcept override { return "Pipe"; }
 
   /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
+  virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
+
+  /// Commit any metadata updates to the filesystem
+  virtual void commitMetadata() noexcept override {}
 
   /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept override {}
+  virtual void commit(shared_ptr<ContentVersion> v) noexcept override {}
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept override {}
+  virtual void commitAll(optional<fs::path> path = nullopt) noexcept override {}
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path PathRef) noexcept override {}

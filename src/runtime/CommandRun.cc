@@ -21,8 +21,12 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
 
     if (id == Ref::Cwd) {
       // The current directory has to exist to launch the command
-      // ref->getArtifact()->mustExist(_command);
-      ref->getArtifact()->commitPath();
+      auto path = ref->getArtifact()->commitPath();
+      if (path.has_value()) {
+        LOG(exec) << "Committed cwd path " << path.value();
+      } else {
+        WARN << "Failed to commit path to current working directory " << ref->getArtifact();
+      }
 
     } else {
       // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
@@ -155,19 +159,48 @@ void CommandRun::observeChange(Scenario s) noexcept {
 
 // An input to this command did not match the expected version
 void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
-                              shared_ptr<Version> observed,
-                              shared_ptr<Version> expected,
+                              shared_ptr<MetadataVersion> observed,
+                              shared_ptr<MetadataVersion> expected,
+                              Scenario scenario) noexcept {
+  _changed.insert(scenario);
+}
+
+// An input to this command did not match the expected version
+void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
+                              shared_ptr<ContentVersion> observed,
+                              shared_ptr<ContentVersion> expected,
                               Scenario scenario) noexcept {
   _changed.insert(scenario);
 }
 
 // Add an input to this command
-void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputType t) noexcept {
-  _inputs.emplace(a, v, t);
+void CommandRun::addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept {
+  const auto& v = a->peekMetadata();
+  _metadata_inputs.emplace(a, v, t);
+
+  // If this command is running, make sure the metadata input is committed
+  if (getCommand()->mustRerun()) a->commitMetadata();
+
+  // If the version was created by another command, inform the creator that this command uses it
+  if (auto creator = v->getCreator(); creator) {
+    // If this is make accessing metadata, we only need to mark in one direction;
+    // changing metadata alone does not need to trigger a re-execution of make
+    if (getCommand()->isMake()) return;
+
+    // Otherwise, add this command run to the creator's set of output users
+    creator->currentRun()->_output_used_by.insert(shared_from_this());
+  }
+}
+
+// Add an input to this command
+void CommandRun::addContentInput(shared_ptr<Artifact> a,
+                                 shared_ptr<ContentVersion> v,
+                                 InputType t) noexcept {
+  _content_inputs.emplace(a, v, t);
 
   // If this command is running, make sure the file is available
   // We can skip committing a version if this same command also created the version
-  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
+  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != getCommand()) {
     // Commit the version now
     ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
                             << " cannot be committed";
@@ -177,24 +210,25 @@ void CommandRun::addInput(shared_ptr<Artifact> a, shared_ptr<Version> v, InputTy
 
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {
-    // If this is make accessing metadata, we only need to mark in one direction;
-    // changing metadata alone does not need to trigger a re-execution of make
-    if (v->as<MetadataVersion>() && getCommand()->isMake()) return;
-
     // Otherwise, add this command run to the creator's set of output users
-    creator->_output_used_by.insert(shared_from_this());
+    creator->currentRun()->_output_used_by.insert(shared_from_this());
   }
 }
 
 // Add an output to this command
-void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<Version> v) noexcept {
-  _outputs.emplace(a, v);
+void CommandRun::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
+  _metadata_outputs.emplace(a, v);
+}
+
+// Add an output to this command
+void CommandRun::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
+  _content_outputs.emplace(a, v);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)
 void CommandRun::outputChanged(shared_ptr<Artifact> artifact,
-                               shared_ptr<Version> ondisk,
-                               shared_ptr<Version> expected) noexcept {
+                               shared_ptr<ContentVersion> ondisk,
+                               shared_ptr<ContentVersion> expected) noexcept {
   // If the expected output could be committed, there's no need to mark this command for rerun
   if (artifact->canCommit(expected)) return;
 

@@ -27,7 +27,7 @@ class DirListVersion : public ContentVersion {
   DirListVersion() noexcept = default;
 
   /// Check if this list matches another list
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override {
     auto other_list = other->as<DirListVersion>();
     if (!other_list) return false;
     return _entries == other_list->_entries;

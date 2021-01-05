@@ -29,36 +29,30 @@ DirArtifact::DirArtifact(shared_ptr<Env> env,
   appendVersion(dv);
 }
 
-bool DirArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (auto dv = v->as<DirVersion>()) {
-    return dv->canCommit();
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  auto dv = v->as<DirVersion>();
+  ASSERT(dv) << "Attempted to check committable state for unknown version " << v << " in " << this;
+  return dv->canCommit();
 }
 
-void DirArtifact::commit(shared_ptr<Version> v) noexcept {
+void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
 
+  LOG(artifact) << "Committing content version " << v << " to " << this;
+
+  if (_base_dir_version->isCommitted()) {
+    LOG(artifact) << "  base dir already committed at " << path.value();
+  }
+
   _base_dir_version->commit(path.value());
 
-  if (auto dv = v->as<DirVersion>()) {
-    dv->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  auto dv = v->as<DirVersion>();
+  ASSERT(dv) << "Attempted to commit unknown version " << v << " in " << this;
+  dv->commit(path.value());
 }
 
 bool DirArtifact::canCommitAll() const noexcept {
-  // Can the metadata version be committed?
-  if (!_metadata_version->canCommit()) return false;
-
   // Can the base version be committed? If not, stop now.
   if (!_base_dir_version->canCommit()) return false;
 
@@ -73,9 +67,12 @@ bool DirArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commitAll() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
+void DirArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
+
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+
   ASSERT(path.has_value()) << "Committing to a directory with no path";
   _base_dir_version->commit(path.value());
 
@@ -87,6 +84,13 @@ void DirArtifact::commitAll() noexcept {
 
   // Commit metadata
   _metadata_version->commit(path.value());
+}
+
+// Commit the minimal set of versions requires to ensure this artifact exists on the filesystem
+void DirArtifact::commitMinimal(fs::path path) noexcept {
+  LOG(artifact) << "Committing minimal content and metadata to " << this;
+  _base_dir_version->commit(path);
+  _metadata_version->commit(path);
 }
 
 // Compare all final versions of this artifact to the filesystem state
@@ -106,9 +110,6 @@ void DirArtifact::checkFinalState(fs::path path) noexcept {
     // it. That means there will be some earlier reference that was expected to succeed or fail
     // that will now have changed.
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
@@ -179,7 +180,8 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
   }
 
   // The command listing this directory depends on its base version
-  if (c) c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::Accessed);
+  if (c)
+    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version, InputType::Accessed);
 
   for (auto [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -196,7 +198,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    if (c) c->currentRun()->addInput(shared_from_this(), version, InputType::Accessed);
+    if (c) c->currentRun()->addContentInput(shared_from_this(), version, InputType::Accessed);
   }
 
   return result;
@@ -262,11 +264,12 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     }
 
     // Add a path resolution input from the version that matched
-    c->currentRun()->addInput(shared_from_this(), v, InputType::PathResolution);
+    c->currentRun()->addContentInput(shared_from_this(), v, InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
-    c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::PathResolution);
+    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version,
+                                     InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (_base_dir_version->getCreated()) {
@@ -358,7 +361,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
 
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
-  writing->createdBy(c->currentRun());
+  writing->createdBy(c);
 
   // Inform the artifact of its new link
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);
@@ -367,7 +370,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
   _entries[entry] = {writing, target};
 
   // Notify the build of this output
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
@@ -381,7 +384,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
                                                 shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
-  writing->createdBy(c->currentRun());
+  writing->createdBy(c);
 
   // Do we have a record of an entry with the given name?
   auto iter = _entries.find(entry);
@@ -407,7 +410,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
   _entries[entry] = {writing, nullptr};
 
   // Notify the build of this output
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

@@ -411,7 +411,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Apply the write
   ref->getArtifact()->updateMetadata(c, written);
@@ -443,7 +443,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Apply the write
   ref->getArtifact()->updateContent(c, written);
@@ -840,11 +840,6 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, Scenario::Build, ref_id, expected);
 
-  // fingerprint?
-  auto path = artifact->getPath(false);
-  auto p = make_shared<std::optional<fs::path>>(path);
-  if (isFingerprintable(c, p, expected)) expected->fingerprint(path.value());
-
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
 }
@@ -869,11 +864,10 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 
   // fingerprint?
   auto path = artifact->getPath(false);
-  auto p = make_shared<std::optional<fs::path>>(path);
-  if (isFingerprintable(c, p, expected)) expected->fingerprint(path.value());
+  if (isFingerprintable(c, path, expected)) expected->fingerprint(path.value());
 
   // cache?
-  if (isCachable(c, p, expected)) expected->cache(path.value());
+  if (isCachable(c, path, expected)) expected->cache(path.value());
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref_id, expected};
@@ -898,7 +892,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
   _output.updateMetadata(c, ref_id, written);
 
   // The calling command created this version
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // This apply operation was traced, so the written version is committed
   written->setCommitted();
@@ -930,7 +924,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   written->setCommitted();
 
   // The calling command created this version
-  written->createdBy(c->currentRun());
+  written->createdBy(c);
 
   // Update the artifact's content
   artifact->updateContent(c, written);

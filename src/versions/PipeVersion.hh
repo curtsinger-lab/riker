@@ -24,7 +24,7 @@ class PipeWriteVersion : public ContentVersion {
   virtual string getTypeName() const noexcept override { return "pipe write"; }
 
   /// Check if a written pipe version matches another
-  virtual bool matches(shared_ptr<Version> other) const noexcept override;
+  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
 
   /// A pipe write cannot be committed
   virtual void commit(fs::path path) noexcept override {}
@@ -42,7 +42,7 @@ class PipeCloseVersion : public PipeWriteVersion {
   virtual string getTypeName() const noexcept override { return "pipe close"; }
 
   /// Check if a this version matches another
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
+  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override {
     return static_cast<bool>(other->as<PipeCloseVersion>());
   }
 
@@ -68,7 +68,7 @@ class PipeReadVersion : public ContentVersion {
   virtual string getTypeName() const noexcept override { return "pipe read"; }
 
   /// Check if a read pipe version matches another
-  virtual bool matches(shared_ptr<Version> other) const noexcept override;
+  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
 
   /// A pipe read cannot be committed
   virtual void commit(fs::path path) noexcept override {}

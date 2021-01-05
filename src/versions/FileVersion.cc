@@ -92,7 +92,7 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
   LOG(artifact) << "Created file at " << path;
 
   // Mark this version as committed
-  Version::setCommitted();
+  ContentVersion::setCommitted();
 }
 
 /// Save a fingerprint of this version
@@ -367,7 +367,7 @@ string FileVersion::b3hex() const noexcept {
 }
 
 /// Compare this version to another version
-bool FileVersion::matches(shared_ptr<Version> other) const noexcept {
+bool FileVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
   auto other_file = other->as<FileVersion>();
   if (!other_file) return false;
   if (other_file.get() == this) return true;

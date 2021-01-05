@@ -13,9 +13,9 @@
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
 #include "ui/options.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
-#include "versions/Version.hh"
 
 using std::make_shared;
 using std::nullopt;
@@ -191,7 +191,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::PathResolution);
+  c->currentRun()->addMetadataInput(shared_from_this(), InputType::PathResolution);
   return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
@@ -209,39 +209,27 @@ optional<fs::path> Artifact::commitPath() noexcept {
   return path;
 }
 
-// Compare all final versions of this artifact to the filesystem state
-void Artifact::checkFinalState(fs::path path) noexcept {
-  if (!_metadata_version->isCommitted()) {
-    auto v = make_shared<MetadataVersion>();
-    v->fingerprint(path);
+void Artifact::commitMetadata() noexcept {
+  LOG(artifact) << "Committing metadata to " << this;
 
-    // Is there a difference between the tracked version and what's on the filesystem?
-    if (!_metadata_version->matches(v)) {
-      // Yes. Report the mismatch
-      auto creator = _metadata_version->getCreator();
-      if (creator) creator->outputChanged(shared_from_this(), v, _metadata_version);
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing metadata to an artifact with no path";
 
-    } else {
-      // No. We can treat the metadata version as if it is committed
-      _metadata_version->setCommitted();
-    }
-  }
+  _metadata_version->commit(path.value());
 }
 
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(fs::path path) noexcept {
-  // If we don't have a fingerprint of the metadata, take one
-
   // Make sure metadata for this artifact is committed
   _metadata_version->commit(path);
-  _metadata_version->fingerprint(path);
 }
 
 /// Get the current metadata version for this artifact
 shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  if (c) c->currentRun()->addInput(shared_from_this(), _metadata_version, t);
+  if (c) c->currentRun()->addMetadataInput(shared_from_this(), t);
 
   // Return the metadata version
   return _metadata_version;
@@ -271,22 +259,32 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
                                                      shared_ptr<MetadataVersion> writing) noexcept {
-  // If a written version was not provided, create one. It will represent the current state, and its
-  // fingerprint/saved data will be filled in later if necessary.
-  if (!writing) writing = make_shared<MetadataVersion>();
+  // If a written version was not provided, create one
+  if (!writing) {
+    auto path = getPath(true);
+    ASSERT(path.has_value()) << "Traced update to an artifact with no committed path";
+    struct stat statbuf;
+    int rc = ::lstat(path.value().c_str(), &statbuf);
+    WARN_IF(rc != 0) << "Error calling lstat on " << path.value() << ": " << ERR;
+    writing = make_shared<MetadataVersion>(statbuf);
+  }
 
   // Update the metadata version for this artifact
   appendVersion(writing);
   _metadata_version = writing;
 
   // Report the output to the build
-  c->currentRun()->addOutput(shared_from_this(), _metadata_version);
+  c->currentRun()->addMetadataOutput(shared_from_this(), _metadata_version);
 
   return writing;
 }
 
-void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
-  _versions.push_back(v);
+void Artifact::appendVersion(shared_ptr<MetadataVersion> v) noexcept {
+  _metadata_versions.push_back(v);
+}
+
+void Artifact::appendVersion(shared_ptr<ContentVersion> v) noexcept {
+  _content_versions.push_back(v);
 }
 
 Ref Artifact::resolve(const shared_ptr<Command>& c,

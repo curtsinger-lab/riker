@@ -44,5 +44,5 @@ void SymlinkVersion::commit(fs::path path) noexcept {
   }
 
   // Mark this version as committed
-  Version::setCommitted();
+  ContentVersion::setCommitted();
 }

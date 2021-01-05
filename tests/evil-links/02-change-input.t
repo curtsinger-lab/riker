@@ -40,3 +40,4 @@ Run a rebuild
 
 Clean up
   $ rm -rf .dodo output foo a
+  $ echo "Hello" > input

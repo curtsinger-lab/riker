@@ -38,7 +38,7 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<ContentVersion> expected) noexcept {
   // The symlink version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::Accessed);
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
@@ -50,45 +50,40 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
   }
 }
 
-bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (v == _symlink_version) {
-    return true;
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  ASSERT(v == _symlink_version) << "Attempted to check committable state for unknown version " << v
+                                << " in " << this;
+  return _symlink_version->canCommit();
 }
 
-void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
+void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  LOG(artifact) << "Committing content to " << this;
+
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
-  if (v == _symlink_version) {
-    _symlink_version->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  ASSERT(v == _symlink_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _symlink_version->commit(path.value());
 }
 
 bool SymlinkArtifact::canCommitAll() const noexcept {
-  // Symlink versions are always committable, so just check the metadata version
-  return _metadata_version->canCommit();
+  // Symlink versions are always committable
+  return true;
 }
 
 // Commit all final versions of this artifact to the filesystem
-void SymlinkArtifact::commitAll() noexcept {
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Symlink has no path";
+void SymlinkArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
+
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a symlink with no path";
 
   _symlink_version->commit(path.value());
 
-  // Don't commit symlink metadata for now. We can eventually commit ownership, but not permissions.
+  // Don't commit symlink metadata for now. We can eventually commit ownership, but not
+  // permissions.
   //_metadata_version->commit(path.value());
 }
 
@@ -97,9 +92,6 @@ void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
@@ -134,7 +126,7 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
   }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::PathResolution);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();

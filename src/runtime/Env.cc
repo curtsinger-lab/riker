@@ -20,10 +20,10 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
-#include "versions/Version.hh"
 
 using std::make_shared;
 using std::map;
@@ -165,15 +165,15 @@ shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   mode_t mode = S_IFIFO | 0600;
 
   // Create initial versions and the pipe artifact
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, mode);
   mv->setCommitted();
 
   auto pipe = make_shared<PipeArtifact>(shared_from_this(), mv);
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(pipe, mv);
+    mv->createdBy(c);
+    c->currentRun()->addMetadataOutput(pipe, mv);
   }
 
   _artifacts.insert(pipe);
@@ -191,7 +191,7 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
   mode_t mode = S_IFLNK | 0777;
 
   // Create initial versions and the pipe artifact
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, mode);
   if (committed) mv->setCommitted();
 
   auto sv = make_shared<SymlinkVersion>(target);
@@ -201,11 +201,11 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(symlink, mv);
+    mv->createdBy(c);
+    c->currentRun()->addMetadataOutput(symlink, mv);
 
-    sv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(symlink, sv);
+    sv->createdBy(c);
+    c->currentRun()->addContentOutput(symlink, sv);
   }
 
   _artifacts.insert(symlink);
@@ -227,7 +227,7 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
   mode_t stat_mode = S_IFDIR | (mode & ~mask);
 
   // Create initial versions
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
+  auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
   if (committed) mv->setCommitted();
 
   auto dv = make_shared<BaseDirVersion>(true);
@@ -237,11 +237,11 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
 
   // If a command was provided, report the outputs to the build
   if (c) {
-    mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(dir, mv);
+    mv->createdBy(c);
+    c->currentRun()->addMetadataOutput(dir, mv);
 
-    dv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(dir, dv);
+    dv->createdBy(c);
+    c->currentRun()->addContentOutput(dir, dv);
   }
 
   _artifacts.insert(dir);
@@ -263,22 +263,22 @@ shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
   mode_t stat_mode = S_IFREG | (mode & ~mask);
 
   // Create an initial metadata version
-  auto mv = make_shared<MetadataVersion>(Metadata(uid, gid, stat_mode));
-  mv->createdBy(c->currentRun());
+  auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
+  mv->createdBy(c);
   if (committed) mv->setCommitted();
 
   // Create an initial content version
   auto cv = make_shared<FileVersion>();
   cv->makeEmptyFingerprint();
-  cv->createdBy(c->currentRun());
+  cv->createdBy(c);
   if (committed) cv->setCommitted();
 
   // Create the artifact and return it
   auto artifact = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   // Observe output to metadata and content for the new file
-  c->currentRun()->addOutput(artifact, mv);
-  c->currentRun()->addOutput(artifact, cv);
+  c->currentRun()->addMetadataOutput(artifact, mv);
+  c->currentRun()->addContentOutput(artifact, cv);
 
   _artifacts.insert(artifact);
   stats::artifacts++;

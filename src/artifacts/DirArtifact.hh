@@ -10,6 +10,7 @@
 #include "versions/DirVersion.hh"
 
 using std::map;
+using std::nullopt;
 using std::optional;
 using std::shared_ptr;
 using std::string;
@@ -31,16 +32,19 @@ class DirArtifact final : public Artifact {
   virtual string getTypeName() const noexcept override { return "Dir"; }
 
   /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(shared_ptr<Version> v) const noexcept override;
+  virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(shared_ptr<Version> v) noexcept override;
+  virtual void commit(shared_ptr<ContentVersion> v) noexcept override;
 
   /// Can this artifact be fully committed?
   virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll() noexcept override;
+  virtual void commitAll(optional<fs::path> path = nullopt) noexcept override;
+
+  /// Commit the minimal set of versions required to ensure this artifact exists on the filesystem
+  virtual void commitMinimal(fs::path path) noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;

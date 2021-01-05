@@ -1,15 +1,23 @@
 #pragma once
 
-#include "artifacts/Artifact.hh"
-#include "runtime/Command.hh"
-#include "versions/Version.hh"
+#include <filesystem>
+#include <memory>
+#include <optional>
+
+using std::optional;
+using std::shared_ptr;
+
+namespace fs = std::filesystem;
+
+class Command;
+class ContentVersion;
 
 /// Returns true iff the version is fingerprintable
-bool isFingerprintable(shared_ptr<Command> c,
-                       shared_ptr<std::optional<fs::path>> p,
-                       shared_ptr<Version> v);
+bool isFingerprintable(const shared_ptr<Command>& c,
+                       const optional<fs::path>& p,
+                       const shared_ptr<ContentVersion>& v);
 
 /// Returns true iff the version is cachable
-bool isCachable(shared_ptr<Command> c,
-                shared_ptr<std::optional<fs::path>> p,
-                shared_ptr<Version> v);
+bool isCachable(const shared_ptr<Command>& c,
+                const optional<fs::path>& p,
+                const shared_ptr<ContentVersion>& v);

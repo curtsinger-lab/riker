@@ -14,7 +14,6 @@
 #include "runtime/Env.hh"
 #include "util/serializer.hh"
 #include "versions/DirListVersion.hh"
-#include "versions/Version.hh"
 
 using std::shared_ptr;
 
@@ -22,7 +21,10 @@ namespace fs = std::filesystem;
 
 // Commit a base directory version
 void BaseDirVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) return;
+  if (isCommitted()) {
+    LOG(artifact) << "Directory at " << path << " is already committed";
+    return;
+  }
 
   // This directory better be one we've created, otherwise it should have been committed already
   ASSERT(_created) << "An on-disk directory is somehow not committed";
@@ -35,6 +37,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
     if (errno == ENOENT) {
       // dir doesn't exist-- go ahead and create it
       rc = ::mkdir(path.c_str(), 0755);
+      LOG(artifact) << "Created directory at " << path;
 
       FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;
     } else {
@@ -51,9 +54,9 @@ void BaseDirVersion::commit(fs::path path) noexcept {
                                   << flags.filetype_str() << " (" << (statbuf.st_mode & S_IFMT)
                                   << ").";
   }
-  
+
   // Mark this version as committed
-  Version::setCommitted();
+  ContentVersion::setCommitted();
 }
 
 // Commit the addition of an entry to a directory
@@ -71,7 +74,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 
@@ -113,18 +116,18 @@ void AddEntry::commit(fs::path dir_path) noexcept {
                       << ERR;
 
       // Mark this version as committed and return
-      Version::setCommitted();
+      ContentVersion::setCommitted();
       return;
     }
   } else {
     // The artifact has no committed links. Committing the artifact *should* create it (we
     // probably need to check this).
 
-    // Mark this version as committed so the artifact can use it as a committed path
-    Version::setCommitted();
-
     // Now commit the artifact
-    _target->commitAll();
+    _target->commitMinimal(dir_path / _entry);
+
+    // Mark this version as committed so the artifact can use it as a committed path
+    ContentVersion::setCommitted();
   }
 }
 
@@ -145,7 +148,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 
@@ -159,7 +162,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
 
   } else {
@@ -169,7 +172,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
                      << ERR;
 
     // Mark this version as committed and return
-    Version::setCommitted();
+    ContentVersion::setCommitted();
     return;
   }
 }

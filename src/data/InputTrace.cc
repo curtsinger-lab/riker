@@ -24,11 +24,11 @@
 #include "runtime/Env.hh"
 #include "runtime/Ref.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
-#include "versions/Version.hh"
 
 using std::endl;
 using std::ifstream;

@@ -7,9 +7,9 @@
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/policy.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
-#include "versions/Version.hh"
 
 using std::shared_ptr;
 using std::string;
@@ -22,48 +22,38 @@ FileArtifact::FileArtifact(shared_ptr<Env> env,
   _content_version = cv;
 }
 
-bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
-  if (v == _content_version) {
-    return _content_version->canCommit();
-  } else if (v == _metadata_version) {
-    return _metadata_version->canCommit();
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
+bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
+  ASSERT(v == _content_version) << "Attempted to check committable state for unknown version " << v
+                                << " in " << this;
+  return _content_version->canCommit();
 }
 
-void FileArtifact::commit(shared_ptr<Version> v) noexcept {
+void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  LOG(artifact) << "Committing content to " << this;
+
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
-  if (v == _content_version) {
-    _content_version->commit(path.value());
-  } else if (v == _metadata_version) {
-    _metadata_version->commit(path.value());
-  } else {
-    FAIL << "Attempted to commit unknown version " << v << " in " << this;
-  }
+  ASSERT(v == _content_version) << "Attempted to commit unknown version " << v << " in " << this;
+  _content_version->commit(path.value());
 }
 
 /// Do we have saved content and metadata for this artifact?
 bool FileArtifact::canCommitAll() const noexcept {
-  // Can the metadata version be committed?
-  if (!_metadata_version->canCommit()) return false;
-
   return _content_version->canCommit();
 }
 
 /// Commit all final versions of this artifact to the filesystem
-void FileArtifact::commitAll() noexcept {
-  LOG(artifact) << "Committing " << this;
+void FileArtifact::commitAll(optional<fs::path> path) noexcept {
+  LOG(artifact) << "Committing content and metadata to " << this;
 
   // we may have already committed this artifact
   if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
 
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
+  // If we weren't given a specific path to commit to, get one by committing links
+  if (!path.has_value()) path = commitPath();
+
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());
@@ -75,23 +65,19 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
-    auto p = make_shared<std::optional<fs::path>>(path);
-    if (isFingerprintable(nullptr, p, _content_version)) v->fingerprint(path);
+    if (isFingerprintable(nullptr, path, _content_version)) v->fingerprint(path);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
       // Yes. Report the mismatch
       auto creator = _content_version->getCreator();
-      if (creator) creator->outputChanged(shared_from_this(), v, _content_version);
+      if (creator) creator->currentRun()->outputChanged(shared_from_this(), v, _content_version);
 
     } else {
       // No. We can treat the content version as if it is committed
       _content_version->setCommitted();
     }
   }
-
-  // Check the metadata state as well
-  Artifact::checkFinalState(path);
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
@@ -99,14 +85,11 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   // Make sure the content is committed
   _content_version->commit(path);
 
-  // Get pointer to path
-  auto p = make_shared<std::optional<fs::path>>(path);
-
   // If we don't already have a content fingerprint, take one
-  if (isFingerprintable(nullptr, p, _content_version)) _content_version->fingerprint(path);
+  if (isFingerprintable(nullptr, path, _content_version)) _content_version->fingerprint(path);
 
   // Cache the contents
-  if (isCachable(nullptr, p, _content_version)) _content_version->cache(path);
+  if (isCachable(nullptr, path, _content_version)) _content_version->cache(path);
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(path);
@@ -125,7 +108,7 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The current content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -134,7 +117,7 @@ void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -175,7 +158,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 shared_ptr<ContentVersion> expected) noexcept {
   // The content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
@@ -197,5 +180,5 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
                              << this;
 
   // Report the output to the build
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 }

@@ -1,8 +1,6 @@
 #pragma once
 
-#include <map>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <string>
 
@@ -11,72 +9,39 @@
 #include <unistd.h>
 
 #include "data/AccessFlags.hh"
+#include "ui/stats.hh"
 #include "util/serializer.hh"
-#include "versions/Version.hh"
 
-using std::map;
-using std::optional;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+using std::weak_ptr;
 
-class Ref;
+class Artifact;
+class Command;
 
-inline static map<uint16_t, string> modes = {
-    {S_IFSOCK, "sock"}, {S_IFLNK, "symlink"}, {S_IFREG, "file"}, {S_IFBLK, "blockdev"},
-    {S_IFDIR, "dir"},   {S_IFCHR, "chardev"}, {S_IFIFO, "fifo"}};
-
-struct Metadata {
+class MetadataVersion {
  public:
-  uid_t uid;
-  gid_t gid;
-  uint16_t mode;
-
-  /// Default constructor for deserialization
-  Metadata() noexcept = default;
-
-  /// Create a Metadata object from stat data
-  Metadata(struct stat& s) noexcept : uid(s.st_uid), gid(s.st_gid), mode(s.st_mode) {}
-
-  /// Create a Metadata object from specific uid, gid, and mode values
-  Metadata(uid_t uid, gid_t gid, mode_t mode) : uid(uid), gid(gid), mode(mode) {}
-
-  /// Compare to another Metadata instance
-  bool operator==(const Metadata& other) const noexcept {
-    if (uid != other.uid) return false;
-    if (gid != other.gid) return false;
-    if ((mode & S_IFMT) != (other.mode & S_IFMT)) return false;
-    return true;
+  /// Create a new metadata version
+  MetadataVersion(uid_t uid, gid_t gid, mode_t mode) noexcept : _uid(uid), _gid(gid), _mode(mode) {
+    stats::versions++;
   }
 
-  /// Print metadata
-  friend ostream& operator<<(ostream& o, const Metadata& m) noexcept {
-    o << "uid=" << m.uid << ", ";
-    o << "gid=" << m.gid << ", ";
-    o << "type=" << modes[m.mode & S_IFMT] << ", ";
-    o << "perms=";
-    o << (m.mode & S_IRUSR ? 'r' : '-');
-    o << (m.mode & S_IWUSR ? 'w' : '-');
-    o << (m.mode & S_IXUSR ? 'x' : '-');
-    o << (m.mode & S_IRGRP ? 'r' : '-');
-    o << (m.mode & S_IWGRP ? 'w' : '-');
-    o << (m.mode & S_IXGRP ? 'x' : '-');
-    o << (m.mode & S_IROTH ? 'r' : '-');
-    o << (m.mode & S_IWOTH ? 'w' : '-');
-    o << (m.mode & S_IXOTH ? 'x' : '-');
-    return o;
-  }
+  /// Cerate a new metadata version from a stat struct
+  MetadataVersion(const struct stat& data) noexcept :
+      MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
-  SERIALIZE(uid, gid, mode);
-};
+  /// Get the command that created this version
+  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
-class MetadataVersion final : public Version {
- public:
-  /// Create a new metadata version with unknown metadata
-  MetadataVersion() noexcept = default;
+  /// Record that this version was created by command c
+  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
 
-  /// Cerate a new metadata version with existing metadata
-  MetadataVersion(Metadata&& m) noexcept : _metadata(m) {}
+  /// Check if this version has been committed
+  bool isCommitted() const noexcept { return _committed; }
+
+  /// Mark this version as committed
+  void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Check if a given access is allowed by the mode bits in this metadata record
   bool checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
@@ -84,37 +49,41 @@ class MetadataVersion final : public Version {
   /// Get the mode field from this metadata version
   mode_t getMode() const noexcept;
 
-  /// Get the name for this type of version
-  virtual string getTypeName() const noexcept override { return "metadata"; }
-
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
-
-  /// Save the on-disk state to this version for later commit
-  virtual void cache(fs::path path) noexcept override;
-
-  /// Check if this version can be committed
-  bool canCommit() const noexcept override;
+  void commit(fs::path path) noexcept;
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<Version> other) const noexcept override {
-    auto other_metadata = other->as<MetadataVersion>();
-    if (!other_metadata) return false;
-    if (other_metadata.get() == this) return true;
-    return _metadata == other_metadata->_metadata;
-  }
+  bool matches(shared_ptr<MetadataVersion> other) const noexcept;
 
   /// Print this metadata version
-  virtual ostream& print(ostream& o) const noexcept override {
-    if (_metadata.has_value()) {
-      return o << "[metadata: " << _metadata.value() << "]";
-    } else {
-      return o << "[metadata: unsaved]";
-    }
+  ostream& print(ostream& o) const noexcept;
+
+  /// Print a Version
+  friend ostream& operator<<(ostream& o, const MetadataVersion& v) noexcept { return v.print(o); }
+
+  /// Print a Version*
+  friend ostream& operator<<(ostream& o, const MetadataVersion* v) noexcept {
+    if (v == nullptr) return o << "<null MetadataVersion>";
+    return v->print(o);
   }
 
  private:
-  optional<Metadata> _metadata;
+  /// Has this version been committed?
+  bool _committed = false;
 
-  SERIALIZE(BASE(Version), _metadata);
+  /// The command that created this version
+  weak_ptr<Command> _creator;
+
+  /// The user id for this metadata version
+  uid_t _uid;
+
+  /// The group id for this metadata version
+  gid_t _gid;
+
+  /// The file mode bits for this metadata version
+  mode_t _mode;
+
+  friend class cereal::access;
+  MetadataVersion() noexcept = default;
+  SERIALIZE(_uid, _gid, _mode);
 };

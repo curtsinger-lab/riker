@@ -31,7 +31,6 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
-#include "versions/Version.hh"
 
 using std::list;
 using std::make_shared;
@@ -280,7 +279,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     auto cwd_path = cwd->getPath(false);
     ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
-    FAIL_IF(rc != 0) << "Failed to change to starting directory to launch " << cmd;
+    FAIL_IF(rc != 0) << "Failed to chdir to " << cwd_path.value() << " to launch " << cmd;
 
     // TODO: Change to the appropriate root directory
 
