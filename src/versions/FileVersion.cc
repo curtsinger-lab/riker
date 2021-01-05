@@ -188,7 +188,7 @@ void FileVersion::fingerprint(fs::path path) noexcept {
   }
 
   // does the file actually exist?
-  auto statbuf = make_shared<struct stat>();
+  struct stat statbuf;
   if (!fileExists(path, statbuf)) {
     LOG(cache) << "Can't fingerprint version " << this << " for nonexistent artifact at " << path
                << ".";
@@ -197,14 +197,14 @@ void FileVersion::fingerprint(fs::path path) noexcept {
 
   // otherwise, take a "fingerprint"
   // save mtime from statbuf
-  _empty = statbuf->st_size == 0;
-  _mtime = statbuf->st_mtim;
+  _empty = statbuf.st_size == 0;
+  _mtime = statbuf.st_mtim;
 
   // if file is a not regular file, bail
-  if (!(statbuf->st_mode & S_IFREG)) return;
+  if (!(statbuf.st_mode & S_IFREG)) return;
 
   // finally save hash
-  _b3hash = blake3(path, *statbuf);
+  _b3hash = blake3(path, statbuf);
 
   LOG(cache) << "Fingerprinted version " << this << " for artifact at " << path << ".";
 }

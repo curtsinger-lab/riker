@@ -108,15 +108,15 @@ inline string getErrorName(int err) noexcept {
   }
 }
 
-/// Check whether a file exists.  Passing in a pointer to a buffer will optionally
-/// return a stat data structure.
-inline bool fileExists(fs::path p, shared_ptr<struct stat> statbuf = nullptr) noexcept {
-  if (statbuf == nullptr) {
-    struct stat mybuf;
-    return ::lstat(p.c_str(), &mybuf) == 0;
-  } else {
-    return ::lstat(p.c_str(), statbuf.get()) == 0;
-  }
+/// Check if a file exists. Fill in the stat buffer provided as a parameter
+inline bool fileExists(fs::path p, struct stat& statbuf) noexcept {
+  return ::lstat(p.c_str(), &statbuf) == 0;
+}
+
+/// Check whether a file exists
+inline bool fileExists(fs::path p) noexcept {
+  struct stat statbuf;
+  return fileExists(p, statbuf);
 }
 
 /// Obtain the length of a file, in bytes.  If the file cannot be stat'ed (e.g., it doesn't exist),
