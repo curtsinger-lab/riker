@@ -118,7 +118,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept = 0;
 
   /// Commit this artifact's metadata version
-  virtual void commit(shared_ptr<MetadataVersion> v) noexcept = 0;
+  virtual void commitMetadata() noexcept = 0;
 
   /// Commit a specific version (and any co-dependent versions) to the filesystem
   virtual void commit(shared_ptr<ContentVersion> v) noexcept = 0;

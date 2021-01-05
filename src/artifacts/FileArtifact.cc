@@ -27,12 +27,11 @@ bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return _content_version->canCommit();
 }
 
-void FileArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
+void FileArtifact::commitMetadata() noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
-  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
   _metadata_version->commit(path.value());
 }
 
@@ -110,7 +109,7 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The current content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -119,7 +118,7 @@ void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // The command now depends on the content of this file
   build.traceMatchContent(c, ref, _content_version);
@@ -160,7 +159,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 shared_ptr<ContentVersion> expected) noexcept {
   // The content version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {
@@ -182,5 +181,5 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
                              << this;
 
   // Report the output to the build
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 }

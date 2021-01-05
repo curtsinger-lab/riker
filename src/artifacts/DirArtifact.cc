@@ -35,14 +35,14 @@ bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return dv->canCommit();
 }
 
-void DirArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
+void DirArtifact::commitMetadata() noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
 
-  _base_dir_version->commit(path.value());
-
-  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
-  _metadata_version->commit(path.value());
+  if (!_metadata_version->isCommitted()) {
+    _base_dir_version->commit(path.value());
+    _metadata_version->commit(path.value());
+  }
 }
 
 void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
@@ -174,7 +174,8 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
   }
 
   // The command listing this directory depends on its base version
-  if (c) c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::Accessed);
+  if (c)
+    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version, InputType::Accessed);
 
   for (auto [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -191,7 +192,7 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    if (c) c->currentRun()->addInput(shared_from_this(), version, InputType::Accessed);
+    if (c) c->currentRun()->addContentInput(shared_from_this(), version, InputType::Accessed);
   }
 
   return result;
@@ -257,11 +258,12 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     }
 
     // Add a path resolution input from the version that matched
-    c->currentRun()->addInput(shared_from_this(), v, InputType::PathResolution);
+    c->currentRun()->addContentInput(shared_from_this(), v, InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
-    c->currentRun()->addInput(shared_from_this(), _base_dir_version, InputType::PathResolution);
+    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version,
+                                     InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (_base_dir_version->getCreated()) {
@@ -362,7 +364,7 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
   _entries[entry] = {writing, target};
 
   // Notify the build of this output
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
@@ -402,7 +404,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
   _entries[entry] = {writing, nullptr};
 
   // Notify the build of this output
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);

@@ -38,7 +38,7 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<ContentVersion> expected) noexcept {
   // The symlink version is an input to command c
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::Accessed);
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
@@ -56,12 +56,11 @@ bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return _symlink_version->canCommit();
 }
 
-void SymlinkArtifact::commit(shared_ptr<MetadataVersion> v) noexcept {
+void SymlinkArtifact::commitMetadata() noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
-  ASSERT(v == _metadata_version) << "Attempted to commit unknown version " << v << " in " << this;
   _metadata_version->commit(path.value());
 }
 
@@ -131,7 +130,7 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
   }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::PathResolution);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();

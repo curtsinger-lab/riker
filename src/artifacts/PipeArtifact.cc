@@ -51,7 +51,8 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
 // A traced command just read from this artifact
 void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The reading command depends on the last read
-  if (_last_read) c->currentRun()->addInput(shared_from_this(), _last_read, InputType::Accessed);
+  if (_last_read)
+    c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
 
   // Create a new version to track this read
   auto read_version = make_shared<PipeReadVersion>(_writes);
@@ -95,7 +96,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
   }
 
   // The command depends on the last read version
-  c->currentRun()->addInput(shared_from_this(), _last_read, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
@@ -113,7 +114,7 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
   appendVersion(writing);
 
   // Report the output to the build
-  c->currentRun()->addOutput(shared_from_this(), writing);
+  c->currentRun()->addContentOutput(shared_from_this(), writing);
 
   // Is the written version a pipe write or pipe read?
   if (auto read = writing->as<PipeReadVersion>()) {
@@ -122,7 +123,7 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
 
     // The reading command depends on all writes since the last read
     for (auto write : _writes) {
-      c->currentRun()->addInput(shared_from_this(), write, InputType::Accessed);
+      c->currentRun()->addContentInput(shared_from_this(), write, InputType::Accessed);
     }
 
     // Clear the list of unread writes

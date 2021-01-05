@@ -173,7 +173,7 @@ shared_ptr<PipeArtifact> Env::getPipe(const shared_ptr<Command>& c) noexcept {
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(pipe, mv);
+    c->currentRun()->addMetadataOutput(pipe, mv);
   }
 
   _artifacts.insert(pipe);
@@ -202,10 +202,10 @@ shared_ptr<SymlinkArtifact> Env::getSymlink(const shared_ptr<Command>& c,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(symlink, mv);
+    c->currentRun()->addMetadataOutput(symlink, mv);
 
     sv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(symlink, sv);
+    c->currentRun()->addContentOutput(symlink, sv);
   }
 
   _artifacts.insert(symlink);
@@ -238,10 +238,10 @@ shared_ptr<DirArtifact> Env::getDir(const shared_ptr<Command>& c,
   // If a command was provided, report the outputs to the build
   if (c) {
     mv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(dir, mv);
+    c->currentRun()->addMetadataOutput(dir, mv);
 
     dv->createdBy(c->currentRun());
-    c->currentRun()->addOutput(dir, dv);
+    c->currentRun()->addContentOutput(dir, dv);
   }
 
   _artifacts.insert(dir);
@@ -277,8 +277,8 @@ shared_ptr<Artifact> Env::createFile(const shared_ptr<Command>& c,
   auto artifact = make_shared<FileArtifact>(shared_from_this(), mv, cv);
 
   // Observe output to metadata and content for the new file
-  c->currentRun()->addOutput(artifact, mv);
-  c->currentRun()->addOutput(artifact, cv);
+  c->currentRun()->addMetadataOutput(artifact, mv);
+  c->currentRun()->addContentOutput(artifact, cv);
 
   _artifacts.insert(artifact);
   stats::artifacts++;

@@ -126,10 +126,10 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   const set<Scenario>& getChanged() const noexcept { return _changed; }
 
   /// Track an input to this command
-  void addInput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v, InputType t) noexcept;
+  void addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept;
 
   /// Track an input to this command
-  void addInput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v, InputType t) noexcept;
+  void addContentInput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v, InputType t) noexcept;
 
   /// Get the inputs to this command
   set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>, InputType>> getMetadataInputs()
@@ -144,10 +144,10 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   }
 
   /// Track an output from this command
-  void addOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept;
+  void addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept;
 
   /// Track an output from this command
-  void addOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept;
+  void addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept;
 
   /// Get the outputs from this command
   const set<tuple<shared_ptr<Artifact>, shared_ptr<MetadataVersion>>>& getMetadataOutputs()

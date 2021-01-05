@@ -33,8 +33,8 @@ class DirArtifact final : public Artifact {
   /// Can a specific version of this artifact be committed?
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
 
-  /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(shared_ptr<MetadataVersion> v) noexcept override;
+  /// Commit any metadata updates to the filesystem
+  virtual void commitMetadata() noexcept override;
 
   /// Commit a specific version of this artifact to the filesystem
   virtual void commit(shared_ptr<ContentVersion> v) noexcept override;

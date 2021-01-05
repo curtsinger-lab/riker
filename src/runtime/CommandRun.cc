@@ -170,17 +170,12 @@ void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
 }
 
 // Add an input to this command
-void CommandRun::addInput(shared_ptr<Artifact> a,
-                          shared_ptr<MetadataVersion> v,
-                          InputType t) noexcept {
+void CommandRun::addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept {
+  const auto& v = a->peekMetadata();
   _metadata_inputs.emplace(a, v, t);
 
-  // If this command is running, make sure the file is available
-  // We can skip committing a version if this same command also created the version
-  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
-    // Commit the version now
-    a->commit(v);
-  }
+  // If this command is running, make sure the metadata input is committed
+  if (getCommand()->mustRerun()) a->commitMetadata();
 
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {
@@ -194,9 +189,9 @@ void CommandRun::addInput(shared_ptr<Artifact> a,
 }
 
 // Add an input to this command
-void CommandRun::addInput(shared_ptr<Artifact> a,
-                          shared_ptr<ContentVersion> v,
-                          InputType t) noexcept {
+void CommandRun::addContentInput(shared_ptr<Artifact> a,
+                                 shared_ptr<ContentVersion> v,
+                                 InputType t) noexcept {
   _content_inputs.emplace(a, v, t);
 
   // If this command is running, make sure the file is available
@@ -217,12 +212,12 @@ void CommandRun::addInput(shared_ptr<Artifact> a,
 }
 
 // Add an output to this command
-void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
+void CommandRun::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
   _metadata_outputs.emplace(a, v);
 }
 
 // Add an output to this command
-void CommandRun::addOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
+void CommandRun::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
   _content_outputs.emplace(a, v);
 }
 

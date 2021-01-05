@@ -191,7 +191,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::PathResolution);
+  c->currentRun()->addMetadataInput(shared_from_this(), InputType::PathResolution);
   return _metadata_version->checkAccess(shared_from_this(), flags);
 }
 
@@ -219,7 +219,7 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  if (c) c->currentRun()->addInput(shared_from_this(), _metadata_version, t);
+  if (c) c->currentRun()->addMetadataInput(shared_from_this(), t);
 
   // Return the metadata version
   return _metadata_version;
@@ -264,7 +264,7 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& 
   _metadata_version = writing;
 
   // Report the output to the build
-  c->currentRun()->addOutput(shared_from_this(), _metadata_version);
+  c->currentRun()->addMetadataOutput(shared_from_this(), _metadata_version);
 
   return writing;
 }
