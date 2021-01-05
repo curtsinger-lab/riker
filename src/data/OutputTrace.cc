@@ -9,6 +9,7 @@
 
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 using std::make_unique;
@@ -109,7 +110,7 @@ void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
 void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
                                Scenario scenario,
                                Ref::ID ref,
-                               shared_ptr<Version> version) noexcept {
+                               shared_ptr<ContentVersion> version) noexcept {
   // Preserve this version in the cache
   if (version->isCached()) version->gcLink();
 
@@ -127,7 +128,7 @@ void OutputTrace::updateMetadata(const shared_ptr<Command>& cmd,
 /// Add a UpdateContent IR step to the output trace
 void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
                                 Ref::ID ref,
-                                shared_ptr<Version> version) noexcept {
+                                shared_ptr<ContentVersion> version) noexcept {
   // Preserve this version in the cache
   if (version->isCached()) version->gcLink();
 

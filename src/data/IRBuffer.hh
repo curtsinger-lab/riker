@@ -137,7 +137,7 @@ class IRBuffer : public IRSource, public IRSink {
   virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> version) noexcept override {
+                            shared_ptr<ContentVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.matchContent(command, scenario, ref, version); });
@@ -154,7 +154,7 @@ class IRBuffer : public IRSource, public IRSink {
   /// Handle an UpdateContent IR step
   virtual void updateContent(const shared_ptr<Command>& command,
                              Ref::ID ref,
-                             shared_ptr<Version> version) noexcept override {
+                             shared_ptr<ContentVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.updateContent(command, ref, version); });
   }

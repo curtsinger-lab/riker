@@ -38,9 +38,6 @@ class SymlinkArtifact : public Artifact {
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept override;
 
-  /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
-
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
 
@@ -60,12 +57,12 @@ class SymlinkArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get this artifact's current content without creating any dependencies
-  virtual shared_ptr<Version> peekContent() noexcept override;
+  virtual shared_ptr<ContentVersion> peekContent() noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            shared_ptr<Version> expected) noexcept override;
+                            shared_ptr<ContentVersion> expected) noexcept override;
 
   /************ Symlink Operations ************/
 

@@ -108,7 +108,7 @@ class OutputTrace : public IRSink {
   virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> version) noexcept override;
+                            shared_ptr<ContentVersion> version) noexcept override;
 
   /// Add a UpdateMetadata IR step to the output trace
   virtual void updateMetadata(const shared_ptr<Command>& command,
@@ -118,7 +118,7 @@ class OutputTrace : public IRSink {
   /// Add a UpdateContent IR step to the output trace
   virtual void updateContent(const shared_ptr<Command>& command,
                              Ref::ID ref,
-                             shared_ptr<Version> version) noexcept override;
+                             shared_ptr<ContentVersion> version) noexcept override;
 
   /// Add an AddEntry IR step to the output trace
   virtual void addEntry(const shared_ptr<Command>& command,

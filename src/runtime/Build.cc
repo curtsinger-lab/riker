@@ -363,7 +363,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 void Build::matchContent(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
-                         shared_ptr<Version> expected) noexcept {
+                         shared_ptr<ContentVersion> expected) noexcept {
   // If we can't emulate this command, skip its IR step
   if (!canEmulate(c)) return;
 
@@ -420,7 +420,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 // Command c modifies an artifact
 void Build::updateContent(const shared_ptr<Command>& c,
                           Ref::ID ref_id,
-                          shared_ptr<Version> written) noexcept {
+                          shared_ptr<ContentVersion> written) noexcept {
   // If we can't emulate this command, skip its IR step
   if (!canEmulate(c)) return;
 
@@ -852,7 +852,7 @@ void Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noe
 // Command c accesses an artifact's content
 void Build::traceMatchContent(const shared_ptr<Command>& c,
                               Ref::ID ref_id,
-                              shared_ptr<Version> expected) noexcept {
+                              shared_ptr<ContentVersion> expected) noexcept {
   // Count a traced step
   stats::traced_steps++;
 
@@ -910,7 +910,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) no
 // Command c modifies an artifact
 void Build::traceUpdateContent(const shared_ptr<Command>& c,
                                Ref::ID ref_id,
-                               shared_ptr<Version> written) noexcept {
+                               shared_ptr<ContentVersion> written) noexcept {
   // Count a traced step
   stats::traced_steps++;
 

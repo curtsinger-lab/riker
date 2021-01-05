@@ -281,7 +281,7 @@ struct MatchContentRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  shared_ptr<Version> _version;
+  shared_ptr<ContentVersion> _version;
 
   /// Default constructor for serialization
   MatchContentRecord() noexcept = default;
@@ -289,7 +289,7 @@ struct MatchContentRecord : public Record {
   MatchContentRecord(Command::ID cmd,
                      Scenario scenario,
                      Ref::ID ref,
-                     shared_ptr<Version> version) noexcept :
+                     shared_ptr<ContentVersion> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -322,12 +322,12 @@ struct UpdateMetadataRecord : public Record {
 struct UpdateContentRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  shared_ptr<Version> _version;
+  shared_ptr<ContentVersion> _version;
 
   /// Default constructor for serialization
   UpdateContentRecord() noexcept = default;
 
-  UpdateContentRecord(Command::ID cmd, Ref::ID ref, shared_ptr<Version> version) noexcept :
+  UpdateContentRecord(Command::ID cmd, Ref::ID ref, shared_ptr<ContentVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;

@@ -42,9 +42,6 @@ class PipeArtifact : public Artifact {
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept override {}
 
-  /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(const shared_ptr<Command>& c) noexcept override;
-
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path PathRef) noexcept override {}
 
@@ -82,16 +79,16 @@ class PipeArtifact : public Artifact {
   /************ Content Operations ************/
 
   /// Get this artifact's current content without creating any dependencies
-  virtual shared_ptr<Version> peekContent() noexcept override;
+  virtual shared_ptr<ContentVersion> peekContent() noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            shared_ptr<Version> expected) noexcept override;
+                            shared_ptr<ContentVersion> expected) noexcept override;
 
   /// Apply a new content version to this artifact
   virtual void updateContent(const shared_ptr<Command>& c,
-                             shared_ptr<Version> writing) noexcept override;
+                             shared_ptr<ContentVersion> writing) noexcept override;
 
   /************ Miscellaneous ************/
   /// Get a file descriptor for this artifact

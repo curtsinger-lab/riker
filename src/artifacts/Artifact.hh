@@ -14,6 +14,7 @@
 #include "runtime/Ref.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
 
 using std::list;
 using std::make_shared;
@@ -97,6 +98,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   bool checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept;
 
+  /// Commit links to ensure there is at least one committed path to this artifact
+  optional<fs::path> commitPath() noexcept;
+
   /************ Core Artifact Operations ************/
 
   /// Get the name of this artifact type
@@ -113,9 +117,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll() noexcept = 0;
-
-  /// Command c requires that this artifact exists in its current state. Create dependency edges.
-  virtual void mustExist(const shared_ptr<Command>& c) noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept;
@@ -207,15 +208,16 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Content Operations ************/
 
   /// Get this artifact's current content without creating any dependencies
-  virtual shared_ptr<Version> peekContent() noexcept = 0;
+  virtual shared_ptr<ContentVersion> peekContent() noexcept = 0;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
-                            shared_ptr<Version> expected) noexcept = 0;
+                            shared_ptr<ContentVersion> expected) noexcept = 0;
 
   /// Update this artifact's content with a file version
-  virtual void updateContent(const shared_ptr<Command>& c, shared_ptr<Version> writing) noexcept {
+  virtual void updateContent(const shared_ptr<Command>& c,
+                             shared_ptr<ContentVersion> writing) noexcept {
     WARN << c << ": tried to apply a content version to artifact " << this;
   }
 

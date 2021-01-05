@@ -106,7 +106,7 @@ class Build : public IRSink {
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> expected) noexcept override;
+                            shared_ptr<ContentVersion> expected) noexcept override;
 
   /// A command modifies the metadata for an artifact
   virtual void updateMetadata(const shared_ptr<Command>& c,
@@ -116,7 +116,7 @@ class Build : public IRSink {
   /// A command writes a new version to an artifact
   virtual void updateContent(const shared_ptr<Command>& c,
                              Ref::ID ref,
-                             shared_ptr<Version> written) noexcept override;
+                             shared_ptr<ContentVersion> written) noexcept override;
 
   /// A command adds an entry to a directory
   virtual void addEntry(const shared_ptr<Command>& command,
@@ -194,7 +194,7 @@ class Build : public IRSink {
   /// A command accesses content for an artifact and expects to find a particular version
   void traceMatchContent(const shared_ptr<Command>& c,
                          Ref::ID ref,
-                         shared_ptr<Version> expected) noexcept;
+                         shared_ptr<ContentVersion> expected) noexcept;
 
   /// A command modifies the metadata for an artifact
   void traceUpdateMetadata(const shared_ptr<Command>& c, Ref::ID ref) noexcept;
@@ -202,7 +202,7 @@ class Build : public IRSink {
   /// A command writes a new version to an artifact
   void traceUpdateContent(const shared_ptr<Command>& c,
                           Ref::ID ref,
-                          shared_ptr<Version> written) noexcept;
+                          shared_ptr<ContentVersion> written) noexcept;
 
   /// Handle an AddEntry IR step
   void traceAddEntry(const shared_ptr<Command>& command,

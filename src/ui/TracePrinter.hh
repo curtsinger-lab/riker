@@ -102,7 +102,7 @@ class TracePrinter : public IRSink {
   virtual void matchContent(const shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> expected) noexcept override {
+                            shared_ptr<ContentVersion> expected) noexcept override {
     _out << MatchContentPrinter{c, scenario, ref, expected} << endl;
   }
 
@@ -114,7 +114,7 @@ class TracePrinter : public IRSink {
 
   virtual void updateContent(const shared_ptr<Command>& c,
                              Ref::ID ref,
-                             shared_ptr<Version> written) noexcept override {
+                             shared_ptr<ContentVersion> written) noexcept override {
     _out << UpdateContentPrinter{c, ref, written} << endl;
   }
 
@@ -319,7 +319,7 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> c;
     Scenario scenario;
     Ref::ID ref;
-    shared_ptr<Version> expected;
+    shared_ptr<ContentVersion> expected;
 
     friend ostream& operator<<(ostream& o, const MatchContentPrinter& p) noexcept {
       return o << p.c << ": MatchContent(r" << p.ref << ", " << p.expected << ") " << p.scenario;
@@ -341,7 +341,7 @@ class TracePrinter : public IRSink {
   struct UpdateContentPrinter {
     shared_ptr<Command> c;
     Ref::ID ref;
-    shared_ptr<Version> written;
+    shared_ptr<ContentVersion> written;
 
     friend ostream& operator<<(ostream& o, const UpdateContentPrinter& p) noexcept {
       return o << p.c << ": UpdateContent(r" << p.ref << ", " << p.written << ")";

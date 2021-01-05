@@ -29,14 +29,14 @@ void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref:
 }
 
 // Get this artifact's content without creating dependencies
-shared_ptr<Version> SymlinkArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> SymlinkArtifact::peekContent() noexcept {
   return _symlink_version;
 }
 
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
-                                   shared_ptr<Version> expected) noexcept {
+                                   shared_ptr<ContentVersion> expected) noexcept {
   // The symlink version is an input to command c
   c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Accessed);
 
@@ -62,7 +62,8 @@ bool SymlinkArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void SymlinkArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getPath();
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   if (v == _symlink_version) {
@@ -81,20 +82,17 @@ bool SymlinkArtifact::canCommitAll() const noexcept {
 
 // Commit all final versions of this artifact to the filesystem
 void SymlinkArtifact::commitAll() noexcept {
-  auto path = getPath();
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
   _symlink_version->commit(path.value());
-  _metadata_version->commit(path.value());
+
+  // Don't commit symlink metadata for now. We can eventually commit ownership, but not permissions.
+  //_metadata_version->commit(path.value());
 }
 
-// Command c requires that this artifact exists in its current state. Create dependency edges.
-void SymlinkArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-  c->currentRun()->addInput(shared_from_this(), _symlink_version, InputType::Exists);
-}
-
-// Compare all final versions of this artifact to the filesystem state
+// Compare all final versions of this artifact to the filesystem stateq
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (!_symlink_version->isCommitted()) {
     // TODO: Compare to on-disk symlink state here

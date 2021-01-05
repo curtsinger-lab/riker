@@ -4,6 +4,7 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/policy.hh"
 #include "versions/FileVersion.hh"
@@ -33,8 +34,9 @@ bool FileArtifact::canCommit(shared_ptr<Version> v) const noexcept {
 }
 
 void FileArtifact::commit(shared_ptr<Version> v) noexcept {
-  auto path = getPath();
-  ASSERT(path.has_value()) << "File has no path";
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a file with no path";
 
   if (v == _content_version) {
     _content_version->commit(path.value());
@@ -60,17 +62,12 @@ void FileArtifact::commitAll() noexcept {
   // we may have already committed this artifact
   if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
 
-  auto path = getPath();
-  ASSERT(path.has_value()) << "File has no path: " << this;
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());
   _metadata_version->commit(path.value());
-}
-
-/// Command c requires that this artifact exists in its current state. Create dependency edges.
-void FileArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-  c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Exists);
 }
 
 /// Compare all final versions of this artifact to the filesystem state
@@ -169,14 +166,14 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
 }
 
 // Get this artifact's content without creating dependencies
-shared_ptr<Version> FileArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> FileArtifact::peekContent() noexcept {
   return _content_version;
 }
 
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
-                                shared_ptr<Version> expected) noexcept {
+                                shared_ptr<ContentVersion> expected) noexcept {
   // The content version is an input to command c
   c->currentRun()->addInput(shared_from_this(), _content_version, InputType::Accessed);
 
@@ -191,7 +188,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
 
 /// Apply a new content version to this artifact
 void FileArtifact::updateContent(const shared_ptr<Command>& c,
-                                 shared_ptr<Version> writing) noexcept {
+                                 shared_ptr<ContentVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
   _content_version = writing->as<FileVersion>();

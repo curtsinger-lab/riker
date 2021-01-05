@@ -6,14 +6,14 @@
 
 #include "util/log.hh"
 #include "util/serializer.hh"
-#include "versions/Version.hh"
+#include "versions/ContentVersion.hh"
 
 using std::ostream;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
 
-class SymlinkVersion : public Version {
+class SymlinkVersion : public ContentVersion {
  public:
   /// Create a symlink version with a known destination
   SymlinkVersion(fs::path dest) : _dest(dest) {}
@@ -46,5 +46,5 @@ class SymlinkVersion : public Version {
 
   // Create a default constructor and declare fields for serialization
   SymlinkVersion() = default;
-  SERIALIZE(BASE(Version), _dest);
+  SERIALIZE(BASE(ContentVersion), _dest);
 };

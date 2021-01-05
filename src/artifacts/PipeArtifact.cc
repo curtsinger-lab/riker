@@ -27,18 +27,6 @@ bool PipeArtifact::canCommitAll() const noexcept {
   return true;
 }
 
-// Command c requires that this artifact exists in its current state. Create dependency edges.
-void PipeArtifact::mustExist(const shared_ptr<Command>& c) noexcept {
-  c->currentRun()->addInput(shared_from_this(), _metadata_version, InputType::Exists);
-
-  // If there is a last read version, it must exist
-  if (_last_read) c->currentRun()->addInput(shared_from_this(), _last_read, InputType::Exists);
-
-  for (auto write : _writes) {
-    c->currentRun()->addInput(shared_from_this(), write, InputType::Exists);
-  }
-}
-
 // Mark all versions of this artifact as committed
 void PipeArtifact::setCommitted() noexcept {
   if (_last_read) _last_read->setCommitted(true);
@@ -87,7 +75,7 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
 }
 
 // Get this pipe's content without creating any dependencies
-shared_ptr<Version> PipeArtifact::peekContent() noexcept {
+shared_ptr<ContentVersion> PipeArtifact::peekContent() noexcept {
   if (_last_read) {
     return _last_read;
   } else {
@@ -98,7 +86,7 @@ shared_ptr<Version> PipeArtifact::peekContent() noexcept {
 // Check to see if this artifact's content matches a known version
 void PipeArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,
-                                shared_ptr<Version> expected) noexcept {
+                                shared_ptr<ContentVersion> expected) noexcept {
   // If nothing has been read from this pipe, there can be no match
   if (!_last_read) {
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
@@ -120,7 +108,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
 
 // Apply a new content version to this artifact
 void PipeArtifact::updateContent(const shared_ptr<Command>& c,
-                                 shared_ptr<Version> writing) noexcept {
+                                 shared_ptr<ContentVersion> writing) noexcept {
   // Append the new version to the list of versions
   appendVersion(writing);
 

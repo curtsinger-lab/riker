@@ -12,7 +12,8 @@
 class Command;
 class MetadataVersion;
 class Ref;
-class Version;
+class ContentVersion;
+class MetadataVersion;
 
 using std::list;
 using std::shared_ptr;
@@ -89,7 +90,7 @@ class IRSink {
   virtual void matchContent(const shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<Version> version) noexcept {}
+                            shared_ptr<ContentVersion> version) noexcept {}
 
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(const shared_ptr<Command>& command,
@@ -99,7 +100,7 @@ class IRSink {
   /// Handle an UpdateContent IR step
   virtual void updateContent(const shared_ptr<Command>& command,
                              Ref::ID ref,
-                             shared_ptr<Version> version) noexcept {}
+                             shared_ptr<ContentVersion> version) noexcept {}
 
   /// Handle an AddEntry IR step
   virtual void addEntry(const shared_ptr<Command>& command,

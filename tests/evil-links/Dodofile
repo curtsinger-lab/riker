@@ -1,0 +1,12 @@
+#!/bin/sh
+
+mkdir foo
+mkdir foo/bar
+mkdir foo/bar/baz
+mkdir -p a/b/c
+ln -s ../../../a/b/c/out foo/bar/baz/win
+cd foo/bar/baz
+cat ../../../input > win
+cd ../../..
+mv a/b/c/out output
+rm -rf foo a

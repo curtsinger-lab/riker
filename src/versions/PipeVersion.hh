@@ -4,7 +4,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
-#include "versions/Version.hh"
+#include "versions/ContentVersion.hh"
 
 using std::list;
 using std::shared_ptr;
@@ -15,10 +15,10 @@ class Build;
 class Command;
 class Ref;
 
-class PipeWriteVersion : public Version {
+class PipeWriteVersion : public ContentVersion {
  public:
   /// Create a new version to track a write to a pipe
-  PipeWriteVersion() noexcept : Version() {}
+  PipeWriteVersion() noexcept : ContentVersion() {}
 
   /// Get a short name for this version type
   virtual string getTypeName() const noexcept override { return "pipe write"; }
@@ -33,7 +33,7 @@ class PipeWriteVersion : public Version {
   virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe write]"; }
 
  private:
-  SERIALIZE(BASE(Version));
+  SERIALIZE(BASE(ContentVersion));
 };
 
 class PipeCloseVersion : public PipeWriteVersion {
@@ -59,7 +59,7 @@ class PipeCloseVersion : public PipeWriteVersion {
   SERIALIZE(BASE(PipeWriteVersion));
 };
 
-class PipeReadVersion : public Version {
+class PipeReadVersion : public ContentVersion {
  public:
   /// Create a new version that tracks a read from a pipe. The read observes some number of writes.
   PipeReadVersion(list<shared_ptr<PipeWriteVersion>> observed) noexcept : _observed(observed) {}
@@ -84,5 +84,5 @@ class PipeReadVersion : public Version {
 
   // Create default constructor and declare fields for serialization
   PipeReadVersion() noexcept = default;
-  SERIALIZE(BASE(Version), _observed);
+  SERIALIZE(BASE(ContentVersion), _observed);
 };

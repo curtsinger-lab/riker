@@ -8,8 +8,8 @@
 #include "runtime/Ref.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirListVersion.hh"
-#include "versions/Version.hh"
 
 using std::make_shared;
 using std::ostream;
@@ -27,7 +27,7 @@ class Env;
  * encode complete versions that describe all of the contents of the directory, or partial versions
  * that describe an update to a single entry in the directory.
  */
-class DirVersion : public Version {
+class DirVersion : public ContentVersion {
  public:
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept = 0;
@@ -36,7 +36,7 @@ class DirVersion : public Version {
   virtual void commit(fs::path dir_path) noexcept = 0;
 
  private:
-  SERIALIZE(BASE(Version));
+  SERIALIZE(BASE(ContentVersion));
 };
 
 /**
