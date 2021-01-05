@@ -8,8 +8,8 @@
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
-#include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/env.hh"
 #include "runtime/policy.hh"
 #include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
@@ -42,7 +42,7 @@ void Build::finish() noexcept {
   _tracer.wait();
 
   // Compare the final state of all artifacts to the actual filesystem
-  _env->getRootDir()->checkFinalState("/");
+  env::getRootDir()->checkFinalState("/");
 
   // Mark all commands as finished
   for (auto& c : _commands) {
@@ -76,28 +76,28 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
   if (entity == SpecialRef::stdin) {
     // Create the stdin ref. Add one user, which accounts for the build tool itself
     // That way we won't close stdin when the build is finishing
-    auto stdin_ref = make_shared<Ref>(ReadAccess, _env->getStdin(c));
+    auto stdin_ref = make_shared<Ref>(ReadAccess, env::getStdin(c));
     stdin_ref->addUser();
     c->currentRun()->setRef(output, stdin_ref);
 
   } else if (entity == SpecialRef::stdout) {
     // Create the stdout ref and add one user (the build tool)
-    auto stdout_ref = make_shared<Ref>(WriteAccess, _env->getStdout(c));
+    auto stdout_ref = make_shared<Ref>(WriteAccess, env::getStdout(c));
     stdout_ref->addUser();
     c->currentRun()->setRef(output, stdout_ref);
 
   } else if (entity == SpecialRef::stderr) {
     // Create the stderr ref and add one user (the build tool)
-    auto stderr_ref = make_shared<Ref>(WriteAccess, _env->getStderr(c));
+    auto stderr_ref = make_shared<Ref>(WriteAccess, env::getStderr(c));
     stderr_ref->addUser();
     c->currentRun()->setRef(output, stderr_ref);
 
   } else if (entity == SpecialRef::root) {
-    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, _env->getRootDir()));
+    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, env::getRootDir()));
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
-    auto ref = make_shared<Ref>(_env->getRootDir()->resolve(c, cwd_path, ReadAccess + ExecAccess));
+    auto ref = make_shared<Ref>(env::getRootDir()->resolve(c, cwd_path, ReadAccess + ExecAccess));
     c->currentRun()->setRef(output, ref);
 
     ASSERT(ref->isSuccess()) << "Failed to resolve current working directory";
@@ -108,7 +108,7 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     auto dodo_launch = (dodo.parent_path() / "dodo-launch").relative_path();
 
     auto ref =
-        make_shared<Ref>(_env->getRootDir()->resolve(c, dodo_launch, ReadAccess + ExecAccess));
+        make_shared<Ref>(env::getRootDir()->resolve(c, dodo_launch, ReadAccess + ExecAccess));
     c->currentRun()->setRef(output, ref);
 
   } else {
@@ -131,7 +131,7 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
   _output.pipeRef(c, read_end, write_end);
 
   // Resolve the reference and save the result in output
-  auto pipe = _env->getPipe(c);
+  auto pipe = env::getPipe(c);
   c->currentRun()->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
   c->currentRun()->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
 }
@@ -152,7 +152,7 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess, _env->createFile(c, mode, false)));
+      output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode, false)));
 }
 
 // A command references a new anonymous symlink
@@ -171,7 +171,7 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                                   _env->getSymlink(c, target, false)));
+                                                   env::getSymlink(c, target, false)));
 }
 
 // A command references a new anonymous directory
@@ -189,8 +189,8 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                                   _env->getDir(c, mode, false)));
+  c->currentRun()->setRef(
+      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode, false)));
 }
 
 // A command makes a reference with a path
@@ -635,7 +635,7 @@ tuple<Ref::ID, Ref::ID> Build::tracePipeRef(const shared_ptr<Command>& c) noexce
   stats::traced_steps++;
 
   // Create a pipe artifact
-  auto pipe = _env->getPipe(c);
+  auto pipe = env::getPipe(c);
 
   // Set up references for the read and write ends of the pipe
   auto read_end = c->currentRun()->setRef(make_shared<Ref>(ReadAccess, pipe));
@@ -656,7 +656,7 @@ Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept 
   stats::traced_steps++;
 
   // Create an anonymous file
-  auto file = _env->createFile(c, mode, true);
+  auto file = env::createFile(c, mode, true);
 
   // Create a reference for the new file
   auto output = c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
@@ -676,7 +676,7 @@ Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) no
   stats::traced_steps++;
 
   // Create a symlink artifact
-  auto symlink = _env->getSymlink(c, target, true);
+  auto symlink = env::getSymlink(c, target, true);
 
   // Create a reference to the new symlink
   auto output =
@@ -697,7 +697,7 @@ Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   stats::traced_steps++;
 
   // Create a directory artifact
-  auto dir = _env->getDir(c, mode, true);
+  auto dir = env::getDir(c, mode, true);
 
   // Create a reference to the new directory
   auto output =

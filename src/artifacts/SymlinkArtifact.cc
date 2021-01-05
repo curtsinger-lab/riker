@@ -9,10 +9,9 @@
 
 using std::shared_ptr;
 
-SymlinkArtifact::SymlinkArtifact(shared_ptr<Env> env,
-                                 shared_ptr<MetadataVersion> mv,
+SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
-    Artifact(env, mv) {
+    Artifact(mv) {
   appendVersion(sv);
   _symlink_version = sv;
 }
@@ -146,6 +145,6 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
     dest = dest.relative_path();
 
     // Resolve relative to root. First strip the leading slash off the path
-    return getEnv()->getRootDir()->resolve(c, dest, flags, symlink_limit - 1);
+    return env::getRootDir()->resolve(c, dest, flags, symlink_limit - 1);
   }
 }

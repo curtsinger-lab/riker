@@ -1,49 +1,34 @@
 #pragma once
 
 #include <filesystem>
-#include <map>
 #include <memory>
 #include <set>
-#include <string>
 
 #include <sys/types.h>
 
 #include "data/AccessFlags.hh"
 
-using std::map;
 using std::set;
 using std::shared_ptr;
-using std::string;
 
 namespace fs = std::filesystem;
 
 class Artifact;
-class Build;
 class Command;
 class DirArtifact;
-class PathRef;
 class PipeArtifact;
 class Ref;
 class SymlinkArtifact;
 
 /**
- * An Env instance represents the environment where a build process executes. This captures all of
- * the files, directories, and pipes that the build process interacts with. The primary job of the
- * Env is to produce artifacts to model each of these entities in response to accesses from traced
- * or emulated commands.
+ * The env namespace holds all of the operations that can be performed on the model of the
+ * filesystem. There is only one environment, but it can be reset to match filesystem state.
  */
-class Env : public std::enable_shared_from_this<Env> {
- public:
-  /**
-   * Create an environment for build emulation or execution.
-   */
-  Env() noexcept = default;
+namespace env {
+  /// Reset the environment to match filesystem state
+  void reset() noexcept;
 
-  // Disallow Copy
-  Env(const Env&) = delete;
-  Env& operator=(const Env&) = delete;
-
-  /// Commit all un-committed state to the file system
+  /// Commit all changes in the environment to the filesystem
   void commitAll() noexcept;
 
   /// Get the standard input pipe
@@ -62,7 +47,7 @@ class Env : public std::enable_shared_from_this<Env> {
   fs::path getTempPath() noexcept;
 
   /// Get a set of all the artifacts in the build
-  const set<shared_ptr<Artifact>>& getArtifacts() const noexcept { return _artifacts; }
+  const set<shared_ptr<Artifact>>& getArtifacts() noexcept;
 
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
@@ -70,7 +55,7 @@ class Env : public std::enable_shared_from_this<Env> {
    * \param path  The path to this artifact on the filesystem
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getFilesystemArtifact(fs::path path);
+  shared_ptr<Artifact> getFilesystemArtifact(fs::path path) noexcept;
 
   /**
    * Create a pipe artifact
@@ -103,27 +88,12 @@ class Env : public std::enable_shared_from_this<Env> {
 
   /**
    * Create a file artifact that exists only in the filesystem model
-   * \param path    The path where this file will eventually appear
-   * \param creator The command that creates this file
+   * \param creator   The command that creates this file
+   * \param mode      The permission bits to be set on the new file (will be modified by umask)
+   * \param committed If true, the file is already committed
    * \returns a file artifact
    */
   shared_ptr<Artifact> createFile(const shared_ptr<Command>& creator,
                                   mode_t mode,
                                   bool committed) noexcept;
-
- private:
-  /// The next unique ID for a temporary file
-  size_t _next_temp_id = 0;
-
-  // Special artifacts
-  shared_ptr<PipeArtifact> _stdin;    //< Standard input
-  shared_ptr<PipeArtifact> _stdout;   //< Standard output
-  shared_ptr<PipeArtifact> _stderr;   //< Standard error
-  shared_ptr<DirArtifact> _root_dir;  //< The root directory
-
-  /// A set of all the artifacts used during the build
-  set<shared_ptr<Artifact>> _artifacts;
-
-  /// A map of artifacts identified by inode
-  map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
-};
+}

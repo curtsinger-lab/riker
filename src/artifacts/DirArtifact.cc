@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 #include "runtime/Build.hh"
-#include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/env.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 
@@ -21,10 +21,8 @@ using std::shared_ptr;
 using std::string;
 using std::tie;
 
-DirArtifact::DirArtifact(shared_ptr<Env> env,
-                         shared_ptr<MetadataVersion> mv,
-                         shared_ptr<BaseDirVersion> dv) noexcept :
-    Artifact(env, mv) {
+DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
+    Artifact(mv) {
   _base_dir_version = dv;
   appendVersion(dv);
 }
@@ -283,7 +281,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       auto entry_path = dir_path.value() / entry;
 
       // Try to get the artifact from the filesystem
-      auto artifact = getEnv()->getFilesystemArtifact(entry_path);
+      auto artifact = env::getFilesystemArtifact(entry_path);
 
       // Did we get an artifact?
       if (artifact) {
@@ -323,7 +321,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       if (!checkAccess(c, WriteAccess)) return EACCES;
 
       // Create a new file
-      auto newfile = getEnv()->createFile(c, flags.mode, false);
+      auto newfile = env::createFile(c, flags.mode, false);
 
       // Link the new file into this directory
       auto link_version = addEntry(c, entry, newfile);

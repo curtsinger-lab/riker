@@ -25,7 +25,7 @@ class Ref;
 
 class PipeArtifact : public Artifact {
  public:
-  PipeArtifact(shared_ptr<Env> env, shared_ptr<MetadataVersion> mv) noexcept : Artifact(env, mv) {}
+  PipeArtifact(shared_ptr<MetadataVersion> mv) noexcept : Artifact(mv) {}
 
   /************ Core Artifact Operations ************/
 

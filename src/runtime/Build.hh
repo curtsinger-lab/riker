@@ -11,8 +11,8 @@
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "runtime/Command.hh"
-#include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/env.hh"
 #include "tracing/Tracer.hh"
 
 using std::list;
@@ -32,8 +32,8 @@ class Version;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(bool execute, shared_ptr<Env> env, IRSink& output = _default_output) noexcept :
-      _execute(execute), _env(env), _output(output), _tracer(*this) {}
+  Build(bool execute, IRSink& output = _default_output) noexcept :
+      _execute(execute), _output(output), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -251,9 +251,6 @@ class Build : public IRSink {
  private:
   /// Is this build allowed to execute commands?
   bool _execute;
-
-  /// The environment in which this build executes
-  shared_ptr<Env> _env;
 
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;

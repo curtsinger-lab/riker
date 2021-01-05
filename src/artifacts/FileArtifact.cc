@@ -14,10 +14,8 @@
 using std::shared_ptr;
 using std::string;
 
-FileArtifact::FileArtifact(shared_ptr<Env> env,
-                           shared_ptr<MetadataVersion> mv,
-                           shared_ptr<FileVersion> cv) noexcept :
-    Artifact(env, mv) {
+FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersion> cv) noexcept :
+    Artifact(mv) {
   appendVersion(cv);
   _content_version = cv;
 }

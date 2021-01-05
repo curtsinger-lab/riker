@@ -11,7 +11,7 @@
 #include "artifacts/DirArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
-#include "runtime/Env.hh"
+#include "runtime/env.hh"
 #include "util/serializer.hh"
 #include "versions/DirListVersion.hh"
 

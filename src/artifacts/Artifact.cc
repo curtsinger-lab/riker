@@ -10,8 +10,8 @@
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "runtime/Env.hh"
 #include "runtime/Ref.hh"
+#include "runtime/env.hh"
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
@@ -22,7 +22,7 @@ using std::nullopt;
 using std::set;
 using std::shared_ptr;
 
-Artifact::Artifact(shared_ptr<Env> env, shared_ptr<MetadataVersion> v) noexcept : _env(env) {
+Artifact::Artifact(shared_ptr<MetadataVersion> v) noexcept {
   appendVersion(v);
   _metadata_version = v;
 }
@@ -177,7 +177,7 @@ fs::path Artifact::assignTemporaryPath() noexcept {
   ASSERT(!_temp_path.has_value())
       << "Cannot assign a temporary path to an artifact that already has one";
 
-  auto path = getEnv()->getTempPath();
+  auto path = env::getTempPath();
   _temp_path = path;
   return path;
 }

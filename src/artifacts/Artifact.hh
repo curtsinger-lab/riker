@@ -58,7 +58,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \param env       This artifact is instantiated as part of this environment
    * \param v         An initial version the new artifact should be seeded with
    */
-  Artifact(shared_ptr<Env> env, shared_ptr<MetadataVersion> v) noexcept;
+  Artifact(shared_ptr<MetadataVersion> v) noexcept;
 
   // Required virtual destructor
   virtual ~Artifact() noexcept = default;
@@ -92,9 +92,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   const list<shared_ptr<ContentVersion>>& getContentVersions() const noexcept {
     return _content_versions;
   }
-
-  /// Get the environment this artifact is part of
-  shared_ptr<Env> getEnv() const noexcept { return _env.lock(); }
 
   /// Get a file descriptor for this artifact
   virtual int getFD(AccessFlags flags) noexcept;
@@ -312,9 +309,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void appendVersion(shared_ptr<ContentVersion> v) noexcept;
 
  protected:
-  /// The environment this artifact is managed by
-  weak_ptr<Env> _env;
-
   /// The latest metadata version
   shared_ptr<MetadataVersion> _metadata_version;
 

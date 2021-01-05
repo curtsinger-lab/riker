@@ -20,9 +20,7 @@ class Ref;
 
 class SymlinkArtifact : public Artifact {
  public:
-  SymlinkArtifact(shared_ptr<Env> env,
-                  shared_ptr<MetadataVersion> mv,
-                  shared_ptr<SymlinkVersion> sv) noexcept;
+  SymlinkArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<SymlinkVersion> sv) noexcept;
 
   /************ Core Artifact Operations ************/
 

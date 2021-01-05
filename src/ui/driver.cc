@@ -71,8 +71,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
     LOGF(phase, "Starting build phase {}", iteration);
 
-    auto env = make_shared<Env>();
-    Build build(true, env, *output);
+    // Reset the environment
+    env::reset();
+
+    // Run the build
+    Build build(true, *output);
     input->sendTo(build);
 
     LOGF(phase, "Finished build phase {}", iteration);
@@ -94,7 +97,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
     // If we're done, commit all changes
     if (done) {
       LOGF(phase, "Committing environment changes from build phase {}", iteration);
-      env->commitAll();
+      env::commitAll();
     }
 
     // The output becomes the next iteration's input
@@ -109,9 +112,13 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path, bool print
 
   // Run the post-build checks
   IRBuffer post_build_buffer;
-  PostBuildChecker filter(post_build_buffer);
-  auto env = make_shared<Env>();
-  Build build(false, env, filter);
+  PostBuildChecker post_build_chcker(post_build_buffer);
+
+  // Reset the environment
+  env::reset();
+
+  // Run the build
+  Build build(false, post_build_chcker);
   input->sendTo(build);
 
   LOG(phase) << "Finished post-build checks";
@@ -132,8 +139,7 @@ void do_check(vector<string> args) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
-  auto env = make_shared<Env>();
-  Build build(false, env);
+  Build build(false);
   trace->sendTo(build);
 
   // Print commands that must run
@@ -208,8 +214,7 @@ void do_graph(vector<string> args,
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
-  auto env = make_shared<Env>();
-  Build build(false, env);
+  Build build(false);
   trace->sendTo(build);
 
   Graph graph(show_all);
@@ -249,8 +254,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
-  auto env = make_shared<Env>();
-  Build build(false, env);
+  Build build(false);
   trace->sendTo(build);
 
   // Print statistics
@@ -263,7 +267,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   if (list_artifacts) {
     cout << endl;
     cout << "Artifacts:" << endl;
-    for (const auto& a : env->getArtifacts()) {
+    for (const auto& a : env::getArtifacts()) {
       if (a->getName().empty()) {
         cout << "  " << a->getTypeName() << ": <anonymous>" << endl;
       } else {
