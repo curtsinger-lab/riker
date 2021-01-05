@@ -2,6 +2,8 @@
 #include "runtime/Command.hh"
 #include "versions/Version.hh"
 
+set<string> never_cache = {"/dev/null"};
+
 static bool isFingerprintablePredicate(shared_ptr<Command> c,
                                        shared_ptr<std::optional<fs::path>> p,
                                        shared_ptr<Version> v) {
@@ -41,6 +43,15 @@ bool isFingerprintable(shared_ptr<Command> c,
 bool isCachable(shared_ptr<Command> c,
                 shared_ptr<std::optional<fs::path>> p,
                 shared_ptr<Version> v) {
+  // is this a special file?
+  if (p->has_value()) {
+    auto path = p->value().string();
+    if (never_cache.find(path) != never_cache.end()) {
+      LOG(cache) << "Policy: versions for file " << path << " are never cached.";
+      return false;
+    }
+  }
+
   // get the creator of the given version
   auto creator = v->getCreator();
 
