@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $DODO --show
+  $ $DODO --show --fingerprint all
   dodo-launch
   Dodofile
   pdflatex main.tex
@@ -21,12 +21,12 @@ Copy in a version with edited text (no reference changes)
   $ cp main-edited-ref.tex main.tex
 
 Run a rebuild. Both pdflatexs must run because references changed.
-  $ $DODO --show
+  $ $DODO --show --fingerprint all
   pdflatex main.tex
   pdflatex main.tex
 
 Run a rebuild (should do nothing)
-  $ $DODO --show
+  $ $DODO --show --fingerprint all
 
 Clean up
   $ rm -rf .dodo

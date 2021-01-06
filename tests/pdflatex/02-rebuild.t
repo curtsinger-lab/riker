@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $DODO --show
+  $ $DODO --fingerprint all --show
   dodo-launch
   Dodofile
   pdflatex main.tex
@@ -18,7 +18,7 @@ Check for the output pdf
   main.pdf: PDF document, * (glob)
 
 Run a rebuild (should do nothing)
-  $ $DODO --show
+  $ $DODO --fingerprint all --show
 
 Clean up
   $ rm -rf .dodo

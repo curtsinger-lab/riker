@@ -1,20 +1,54 @@
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
+#include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 
 set<string> never_cache = {"/dev/null"};
 
+static bool fingerprintPath(fs::path path) {
+  // If all files are fingerprinted, return true immediately
+  if (options::fingerprint_level == FingerprintLevel::All) return true;
+
+  // If no files are fingerprinted, return false immediately
+  if (options::fingerprint_level == FingerprintLevel::None) return false;
+
+  // Otherwise, only local files are fingerprinted
+
+  // Get the current working directory
+  static fs::path cwd = fs::current_path();
+
+  // We'll walk through the cwd and candidate path together
+  auto cwd_iter = cwd.begin();
+  auto path_iter = path.begin();
+
+  // Loop as long as both paths have parts
+  while (cwd_iter != cwd.end() && path_iter != path.end()) {
+    // If the paths differ at this point, the path is not local
+    if (*path_iter != *cwd_iter) return false;
+
+    // Advance both iterators
+    cwd_iter++;
+    path_iter++;
+  }
+
+  // The candidate path started with the current working directory, so return true
+  return true;
+}
+
 static bool isFingerprintablePredicate(const shared_ptr<Command>& c,
                                        const optional<fs::path>& p,
                                        const shared_ptr<ContentVersion>& v) {
-  // sometimes we want to fingerprint things at startup, when there is no running command
-  if (!c) return p.has_value();
+  // If there is no path, do not fingerprint
+  if (!p.has_value()) return false;
 
-  // otherwise, get the creator of the given version
-  auto creator = v->getCreator();
+  // If there is no reader, fingerprint files with an acceptable path
+  if (!c) return fingerprintPath(p.value());
 
-  // and fingerprint if v was not created by c and v has a path
-  return creator != c && p.has_value();
+  // If the version was not created by a command, fingerprint it only if it has an acceptable path
+  if (!v->getCreator()) return fingerprintPath(p.value());
+
+  // Finally, if the version was created by a command, fingerprint it if that command is not reading
+  return v->getCreator() != c;
 }
 
 bool isFingerprintable(const shared_ptr<Command>& c,
