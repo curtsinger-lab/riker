@@ -179,34 +179,38 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
 }
 
 /// Save a fingerprint of this version
-void FileVersion::fingerprint(fs::path path) noexcept {
-  // if there is already a fingerprint with a hash, move on
-  if (_b3hash.has_value()) {
-    LOG(cache) << "Skipping fingerprinting for version " << this << " for artifact at " << path
-               << " that already has a fingerprint.";
+void FileVersion::fingerprint(fs::path path, FingerprintType type) noexcept {
+  // If no fingerprint was requested, return immediately
+  if (type == FingerprintType::None) return;
+
+  // If a quick fingerprint was requested and we already have mtime, return immediately
+  if (type == FingerprintType::Quick && _mtime.has_value()) return;
+
+  // If a full fingerprint was requested and we already have an mtime and hash, return immediately
+  if (type == FingerprintType::Full && _mtime.has_value() && _b3hash.has_value()) return;
+
+  // Stat the file to get mtime, empty, and size
+  struct stat statbuf;
+  int rc = ::lstat(path.c_str(), &statbuf);
+  if (rc) {
+    LOG(cache) << "Failed stat call in FileVersion::fingerprint(" << path << "): " << ERR;
     return;
   }
 
-  // does the file actually exist?
-  struct stat statbuf;
-  if (!fileExists(path, statbuf)) {
-    LOG(cache) << "Can't fingerprint version " << this << " for nonexistent artifact at " << path
-               << ".";
-    return;  // leave mtime and hash undefined
-  }
-
-  // otherwise, take a "fingerprint"
-  // save mtime from statbuf
+  // Update the empty and mtime fields
   _empty = statbuf.st_size == 0;
   _mtime = statbuf.st_mtim;
 
-  // if file is a not regular file, bail
-  if (!(statbuf.st_mode & S_IFREG)) return;
+  // If a full fingerprint was requested and we don't have one already, collect it
+  if (type == FingerprintType::Full && !_b3hash.has_value()) {
+    // if file is a not regular file, bail
+    if (!(statbuf.st_mode & S_IFREG)) return;
 
-  // finally save hash
-  _b3hash = blake3(path, statbuf);
+    // finally save hash
+    _b3hash = blake3(path, statbuf);
 
-  LOG(cache) << "Fingerprinted version " << this << " for artifact at " << path << ".";
+    LOG(cache) << "Collected full fingerprint for version " << this << " at path " << path << ".";
+  }
 }
 
 void FileVersion::makeEmptyFingerprint() noexcept {
@@ -272,6 +276,9 @@ void FileVersion::cache(fs::path path) noexcept {
                   << " because it is empty.";
     return;
   }
+
+  // Make sure we have a full fingerprint for this version
+  fingerprint(path, FingerprintType::Full);
 
   // Freak out if the fingerprint is missing
   FAIL_IF(!_b3hash.has_value()) << "Cannot cache version " << this << " at path " << path

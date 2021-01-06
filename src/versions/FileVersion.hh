@@ -46,7 +46,7 @@ class FileVersion final : public ContentVersion {
   virtual void commit(fs::path path) noexcept override;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path) noexcept override;
+  virtual void fingerprint(fs::path path, FingerprintType type) noexcept override;
 
   /// Save an empty fingerprint of this version
   void makeEmptyFingerprint() noexcept;

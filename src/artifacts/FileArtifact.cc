@@ -63,7 +63,8 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (!_content_version->isCommitted()) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
-    if (isFingerprintable(nullptr, path, _content_version)) v->fingerprint(path);
+    auto fingerprint_type = policy::chooseFingerprintType(nullptr, path, v);
+    v->fingerprint(path, fingerprint_type);
 
     // Is there a difference between the tracked version and what's on the filesystem?
     if (!_content_version->matches(v)) {
@@ -84,10 +85,11 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   _content_version->commit(path);
 
   // If we don't already have a content fingerprint, take one
-  if (isFingerprintable(nullptr, path, _content_version)) _content_version->fingerprint(path);
+  auto fingerprint_type = policy::chooseFingerprintType(nullptr, path, _content_version);
+  _content_version->fingerprint(path, fingerprint_type);
 
   // Cache the contents
-  if (isCachable(nullptr, path, _content_version)) _content_version->cache(path);
+  if (policy::isCacheable(nullptr, path, _content_version)) _content_version->cache(path);
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(path);

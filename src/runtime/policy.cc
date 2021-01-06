@@ -3,105 +3,110 @@
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 
-set<string> never_cache = {"/dev/null"};
+namespace policy {
 
-static bool fingerprintPath(fs::path path) {
-  // If all files are fingerprinted, return true immediately
-  if (options::fingerprint_level == FingerprintLevel::All) return true;
+  set<string> never_cache = {"/dev/null"};
 
-  // If no files are fingerprinted, return false immediately
-  if (options::fingerprint_level == FingerprintLevel::None) return false;
+  /// Check if the given path has the current working directory as a prefix
+  static bool localPath(fs::path path) {
+    // Get the current working directory
+    static fs::path cwd = fs::current_path();
 
-  // Otherwise, only local files are fingerprinted
+    // We'll walk through the cwd and candidate path together
+    auto cwd_iter = cwd.begin();
+    auto path_iter = path.begin();
 
-  // Get the current working directory
-  static fs::path cwd = fs::current_path();
+    // Loop as long as both paths have parts
+    while (cwd_iter != cwd.end() && path_iter != path.end()) {
+      // If the paths differ at this point, the path is not local
+      if (*path_iter != *cwd_iter) return false;
 
-  // We'll walk through the cwd and candidate path together
-  auto cwd_iter = cwd.begin();
-  auto path_iter = path.begin();
+      // Advance both iterators
+      cwd_iter++;
+      path_iter++;
+    }
 
-  // Loop as long as both paths have parts
-  while (cwd_iter != cwd.end() && path_iter != path.end()) {
-    // If the paths differ at this point, the path is not local
-    if (*path_iter != *cwd_iter) return false;
-
-    // Advance both iterators
-    cwd_iter++;
-    path_iter++;
+    // The candidate path started with the current working directory, so return true
+    return true;
   }
 
-  // The candidate path started with the current working directory, so return true
-  return true;
-}
+  FingerprintType chooseFingerprintType(const shared_ptr<Command>& reader,
+                                        fs::path path,
+                                        const shared_ptr<ContentVersion>& version) {
+    // If the fingerprinting policy is None, always collect quick fingerprints
+    if (options::fingerprint_level == FingerprintLevel::None) {
+      LOG(cache) << "Selected quick fingerprint for " << version << " at path " << path
+                 << " because fingerprint level is set to None.";
+      return FingerprintType::Quick;
+    }
 
-static bool isFingerprintablePredicate(const shared_ptr<Command>& c,
-                                       const optional<fs::path>& p,
-                                       const shared_ptr<ContentVersion>& v) {
-  // If there is no path, do not fingerprint
-  if (!p.has_value()) return false;
+    // If the fingerprinting policy is All, always collect full fingerprints
+    if (options::fingerprint_level == FingerprintLevel::All) {
+      LOG(cache) << "Selected full fingerprint for " << version << " at path " << path
+                 << " because fingerprint level is set to All.";
 
-  // If there is no reader, fingerprint files with an acceptable path
-  if (!c) return fingerprintPath(p.value());
+      return FingerprintType::Full;
+    }
 
-  // If the version was not created by a command, fingerprint it only if it has an acceptable path
-  if (!v->getCreator()) return fingerprintPath(p.value());
+    // If we've made it to this point, only local and intermediate versions are fingerprinted
 
-  // Finally, if the version was created by a command, fingerprint it if that command is not reading
-  return v->getCreator() != c;
-}
+    // Does the version have both a reader and a creator?
+    if (version->getCreator() && reader) {
+      // Yes. If the reader and creator are the same command, we don't collect a fingerprint
+      // Otherwise take a full fingerprint
+      if (version->getCreator() == reader) {
+        LOG(cache) << "Selected no fingerprint for " << version << " at path " << path
+                   << " because the version is read by its writer.";
 
-bool isFingerprintable(const shared_ptr<Command>& c,
-                       const optional<fs::path>& p,
-                       const shared_ptr<ContentVersion>& v) {
-  bool do_fingerprint = isFingerprintablePredicate(c, p, v);
+        return FingerprintType::None;
 
-  if (!c) {
-    LOG(cache) << "Policy: version " << v << " for path "
-               << (p.has_value() ? p.value() : "(no path)")
-               << (do_fingerprint ? " should" : " should not") << " be fingerprinted because it"
-               << (p.has_value() ? " has a path" : " does not have a path") << ".";
-  } else {
-    LOG(cache) << "Policy: version " << v << " for path "
-               << (p.has_value() ? p.value() : "(no path)")
-               << (do_fingerprint ? " should" : " should not") << " be fingerprinted because it"
-               << (c ? " was created by the build," : " was not created by the build,")
-               << (v->getCreator() != c ? " has a different creating command,"
-                                        : " was created by this command,")
-               << " and" << (p.has_value() ? " has a path" : " does not have a path") << ".";
-  }
+      } else {
+        LOG(cache) << "Selected full fingerprint for " << version << " at path " << path
+                   << " because it is an intermediate file.";
 
-  return do_fingerprint;
-}
+        return FingerprintType::Full;
+      }
 
-bool isCachable(const shared_ptr<Command>& c,
-                const optional<fs::path>& p,
-                const shared_ptr<ContentVersion>& v) {
-  // is this a special file?
-  if (p.has_value()) {
-    auto path = p.value().string();
-    if (never_cache.find(path) != never_cache.end()) {
-      LOG(cache) << "Policy: versions for file " << path << " are never cached.";
-      return false;
+    } else {
+      // Missing a reader or creator. We only fingerprint the file if its path is local
+      if (localPath(path)) {
+        LOG(cache) << "Selected full fingerprint for " << version << " at path " << path
+                   << " because path is local.";
+        return FingerprintType::Full;
+
+      } else {
+        LOG(cache) << "Selected quick fingerprint for " << version << " at path " << path
+                   << " because path is not local.";
+        return FingerprintType::Quick;
+      }
     }
   }
 
-  // get the creator of the given version
-  auto creator = v->getCreator();
+  bool isCacheable(const shared_ptr<Command>& reader,
+                   fs::path path,
+                   const shared_ptr<ContentVersion>& version) {
+    // is this a special file?
+    if (never_cache.find(path.string()) != never_cache.end()) {
+      LOG(cache) << "Policy: versions for file " << path << " are never cached.";
+      return false;
+    }
 
-  bool is_fingerprintable = isFingerprintablePredicate(c, p, v);
-  bool has_creator = creator != nullptr;
-  bool cache_enabled = options::enable_cache;
+    // get the creator of the given version
+    auto creator = version->getCreator();
 
-  // we cache if v is fingerprintable, was created by a build command, and caching is enabled
-  bool do_cache =
-      isFingerprintablePredicate(c, p, v) && creator != nullptr && options::enable_cache;
+    bool is_fingerprintable = chooseFingerprintType(reader, path, version) != FingerprintType::None;
+    bool has_creator = creator != nullptr;
+    bool cache_enabled = options::enable_cache;
 
-  LOG(cache) << "Policy: version " << v << " for path " << (p.has_value() ? p.value() : "(no path)")
-             << (do_cache ? " should" : " should not") << " be cached because it"
-             << (is_fingerprintable ? " is fingerprintable," : " is not fingerprintable,")
-             << (has_creator ? " has a creator," : " has no creator,") << " and"
-             << (cache_enabled ? " cache is enabled" : " cache is disabled") << ".";
+    // we cache if v is fingerprintable, was created by a build command, and caching is enabled
+    bool do_cache = is_fingerprintable && creator != nullptr && options::enable_cache;
 
-  return do_cache;
+    LOG(cache) << "Policy: version " << version << " for path " << path
+               << (do_cache ? " should" : " should not") << " be cached because it"
+               << (is_fingerprintable ? " is fingerprintable," : " is not fingerprintable,")
+               << (has_creator ? " has a creator," : " has no creator,") << " and"
+               << (cache_enabled ? " cache is enabled" : " cache is disabled") << ".";
+
+    return do_cache;
+  }
 }

@@ -2,9 +2,9 @@
 
 #include <filesystem>
 #include <memory>
-#include <optional>
 
-using std::optional;
+#include "versions/ContentVersion.hh"
+
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
@@ -12,12 +12,14 @@ namespace fs = std::filesystem;
 class Command;
 class ContentVersion;
 
-/// Returns true iff the version is fingerprintable
-bool isFingerprintable(const shared_ptr<Command>& c,
-                       const optional<fs::path>& p,
-                       const shared_ptr<ContentVersion>& v);
+namespace policy {
+  /// Get the appropriate fingerprint type for a content version
+  FingerprintType chooseFingerprintType(const shared_ptr<Command>& reader,
+                                        fs::path path,
+                                        const shared_ptr<ContentVersion>& version);
 
-/// Returns true iff the version is cachable
-bool isCachable(const shared_ptr<Command>& c,
-                const optional<fs::path>& p,
-                const shared_ptr<ContentVersion>& v);
+  /// Returns true iff the version is cachable
+  bool isCacheable(const shared_ptr<Command>& reader,
+                   fs::path path,
+                   const shared_ptr<ContentVersion>& version);
+}

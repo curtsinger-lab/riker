@@ -865,12 +865,17 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchContent(c, Scenario::Build, ref_id, expected);
 
-  // fingerprint?
+  // Get a path to this artifact
   auto path = artifact->getPath(false);
-  if (isFingerprintable(c, path, expected)) expected->fingerprint(path.value());
 
-  // cache?
-  if (isCachable(c, path, expected)) expected->cache(path.value());
+  // If the artifact has a committed path, we may fingerprint or cache it
+  if (path.has_value()) {
+    auto fingerprint_type = policy::chooseFingerprintType(c, path.value(), expected);
+    expected->fingerprint(path.value(), fingerprint_type);
+
+    // cache?
+    if (policy::isCacheable(c, path.value(), expected)) expected->cache(path.value());
+  }
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref_id, expected};

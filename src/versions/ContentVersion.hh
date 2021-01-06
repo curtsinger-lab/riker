@@ -13,6 +13,12 @@ using std::weak_ptr;
 
 class Command;
 
+/// The fingerprint polciy determines what type of fingerprint we collect for a version.
+///  None: no fingerprint at all
+///  Quick: mtime only
+///  Full: a hash of the content
+enum class FingerprintType { None, Quick, Full };
+
 class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
  public:
   ContentVersion() noexcept { stats::versions++; }
@@ -59,7 +65,7 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
 
   /// Save a fingerprint of this version for later comparison. If a new fingerprint is saved, inform
   /// the provided IRSink.
-  virtual void fingerprint(fs::path path) noexcept {
+  virtual void fingerprint(fs::path path, FingerprintType type) noexcept {
     // By default, fingerprinting a version just saves it
     cache(path);
   }
