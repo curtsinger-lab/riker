@@ -192,7 +192,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& user : previousRun()->getOutputUsers()) {
       // Rule 5: Mark any users of this command's output as MayRun
       if (user->getCommand()->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
+        LOGF(rebuild, "{} may run: input may be changed by {}", user->getCommand(), this);
       }
     }
 

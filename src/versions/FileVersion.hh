@@ -32,6 +32,10 @@ class FileVersion final : public ContentVersion {
   /// Create a FileVersion with no existing fingerprint
   FileVersion() noexcept = default;
 
+  /// Create a FileVersion starting with stat data for a fingerprint
+  FileVersion(struct stat statbuf) noexcept :
+      _empty(statbuf.st_size == 0), _mtime(statbuf.st_mtim) {}
+
   /// Get the name for this type of version
   virtual string getTypeName() const noexcept override { return "content"; }
 
