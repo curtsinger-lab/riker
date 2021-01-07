@@ -2,14 +2,17 @@
 
 #include <memory>
 
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
-#include "versions/FileVersion.hh"
+#include "runtime/Command.hh"
+#include "util/log.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/PipeVersion.hh"
 
 using std::shared_ptr;
-
-class Command;
-class Env;
 
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {

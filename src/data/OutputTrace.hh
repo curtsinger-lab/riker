@@ -2,15 +2,19 @@
 
 #include <filesystem>
 #include <fstream>
+#include <list>
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
+
+#include <sys/types.h>
 
 #include <cereal/archives/binary.hpp>
 
 #include "data/IRSink.hh"
-#include "data/Record.hh"
 #include "runtime/Command.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 
 using std::map;
@@ -21,6 +25,8 @@ using std::unique_ptr;
 
 namespace fs = std::filesystem;
 
+class AccessFlags;
+class ContentVersion;
 class MetadataVersion;
 
 /**

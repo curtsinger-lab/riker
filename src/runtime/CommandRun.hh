@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "runtime/Ref.hh"
-#include "versions/ContentVersion.hh"
 
 using std::list;
 using std::map;
@@ -26,8 +25,8 @@ using std::weak_ptr;
 class Artifact;
 class Build;
 class Command;
+class ContentVersion;
 class MetadataVersion;
-class Ref;
 
 enum class InputType {
   PathResolution,  // The input is a dependency for path resolution

@@ -1,24 +1,34 @@
 #pragma once
 
+#include <cstddef>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 
 #include "artifacts/Artifact.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
-#include "versions/DirVersion.hh"
 
 using std::map;
 using std::nullopt;
 using std::optional;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 
+namespace fs = std::filesystem;
+
+class AccessFlags;
+class BaseDirVersion;
+class Build;
 class Command;
-class FileVersion;
+class ContentVersion;
+class DirListVersion;
+class DirVersion;
 class MetadataVersion;
-class Ref;
 
 class DirArtifact final : public Artifact {
  public:

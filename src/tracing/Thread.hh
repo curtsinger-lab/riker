@@ -1,8 +1,13 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
 
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -11,13 +16,19 @@
 #include <sys/wait.h>
 
 #include "runtime/Command.hh"
+#include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
+#include "util/log.hh"
 
 using std::function;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
+
+class AccessFlags;
+class Build;
+class Tracer;
 
 class Thread {
  public:
@@ -268,12 +279,12 @@ class Thread {
   void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 
   /// Print a thread to an output stream
-  friend ostream& operator<<(ostream& o, const Thread& t) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Thread& t) noexcept {
     return o << "[Thread " << t._tid << " in " << t._process << "]";
   }
 
   /// Print a thread pointer
-  friend ostream& operator<<(ostream& o, const Thread* t) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Thread* t) noexcept {
     if (t == nullptr) return o << "<null Thread>";
     return o << *t;
   }

@@ -1,8 +1,12 @@
 #pragma once
 
-#include <unistd.h>
+#include <filesystem>
+#include <list>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <tuple>
 
-#include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
@@ -11,9 +15,7 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-class Build;
-class Command;
-class Ref;
+namespace fs = std::filesystem;
 
 class PipeWriteVersion : public ContentVersion {
  public:
@@ -30,7 +32,9 @@ class PipeWriteVersion : public ContentVersion {
   virtual void commit(fs::path path) noexcept override {}
 
   /// Print this version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe write]"; }
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
+    return o << "[pipe write]";
+  }
 
  private:
   SERIALIZE(BASE(ContentVersion));
@@ -53,7 +57,9 @@ class PipeCloseVersion : public PipeWriteVersion {
   virtual void commit(fs::path path) noexcept override {}
 
   /// Print this version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[pipe close]"; }
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
+    return o << "[pipe close]";
+  }
 
  private:
   SERIALIZE(BASE(PipeWriteVersion));
@@ -74,7 +80,7 @@ class PipeReadVersion : public ContentVersion {
   virtual void commit(fs::path path) noexcept override {}
 
   /// Print this version
-  virtual ostream& print(ostream& o) const noexcept override {
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[pipe read " << _observed.size() << "]";
   }
 

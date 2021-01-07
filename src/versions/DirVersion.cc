@@ -1,19 +1,21 @@
 #include "DirVersion.hh"
 
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <optional>
+#include <sstream>
+#include <tuple>
 
 #include <errno.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "data/AccessFlags.hh"
-#include "runtime/Build.hh"
-#include "runtime/env.hh"
-#include "util/serializer.hh"
-#include "versions/DirListVersion.hh"
+#include "tracing/Flags.hh"
+#include "util/log.hh"
 
 using std::shared_ptr;
 

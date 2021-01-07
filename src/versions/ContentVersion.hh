@@ -7,7 +7,6 @@
 #include "util/log.hh"
 #include "util/serializer.hh"
 
-using std::ostream;
 using std::shared_ptr;
 using std::weak_ptr;
 
@@ -85,13 +84,15 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   virtual string getTypeName() const noexcept = 0;
 
   /// Print this version
-  virtual ostream& print(ostream& o) const noexcept = 0;
+  virtual std::ostream& print(std::ostream& o) const noexcept = 0;
 
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const ContentVersion& v) noexcept { return v.print(o); }
+  friend std::ostream& operator<<(std::ostream& o, const ContentVersion& v) noexcept {
+    return v.print(o);
+  }
 
   /// Print a Version*
-  friend ostream& operator<<(ostream& o, const ContentVersion* v) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const ContentVersion* v) noexcept {
     if (v == nullptr) return o << "<null ContentVersion>";
     return v->print(o);
   }

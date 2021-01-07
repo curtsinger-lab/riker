@@ -1,10 +1,19 @@
 #include "CommandRun.hh"
 
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
+#include <filesystem>
+#include <sstream>
+
 #include "artifacts/Artifact.hh"
-#include "artifacts/PipeArtifact.hh"
+#include "artifacts/PipeArtifact.hh"  // IWYU pragma: keep
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "util/log.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+
+namespace fs = std::filesystem;
 
 // Get the command that produced this Run
 shared_ptr<Command> CommandRun::getCommand() const noexcept {

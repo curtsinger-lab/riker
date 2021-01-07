@@ -1,8 +1,14 @@
 #include "Thread.hh"
 
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <sstream>
 
+#include <fmt/format.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -10,18 +16,17 @@
 #include <sys/wait.h>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/DirArtifact.hh"
+#include "data/AccessFlags.hh"
+#include "data/IRSink.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
-#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
-#include "versions/DirVersion.hh"
-#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 using std::shared_ptr;

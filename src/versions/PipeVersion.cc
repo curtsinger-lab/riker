@@ -2,13 +2,7 @@
 
 #include <memory>
 
-#include "runtime/Build.hh"
-#include "versions/FileVersion.hh"
-
 using std::shared_ptr;
-
-class Command;
-class Env;
 
 // Check if a written pipe version matches another version
 bool PipeWriteVersion::matches(shared_ptr<ContentVersion> other) const noexcept {

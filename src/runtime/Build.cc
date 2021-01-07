@@ -1,33 +1,33 @@
 #include "Build.hh"
 
+#include <cstdio>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <ostream>
+#include <sstream>
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
-#include "artifacts/PipeArtifact.hh"
-#include "artifacts/SymlinkArtifact.hh"
+#include "artifacts/PipeArtifact.hh"     // IWYU pragma: keep
+#include "artifacts/SymlinkArtifact.hh"  // IWYU pragma: keep
+#include "data/AccessFlags.hh"
+#include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "runtime/env.hh"
 #include "runtime/policy.hh"
-#include "tracing/Process.hh"
 #include "tracing/Tracer.hh"
 #include "ui/TracePrinter.hh"
-#include "ui/constants.hh"
 #include "ui/options.hh"
 #include "ui/stats.hh"
+#include "util/log.hh"
 #include "util/wrappers.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
-#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
-#include "versions/SymlinkVersion.hh"
 
-using std::cerr;
 using std::cout;
 using std::endl;
-using std::make_unique;
-using std::ostream;
 using std::shared_ptr;
 
 // Can a step from the provided command be emulated?

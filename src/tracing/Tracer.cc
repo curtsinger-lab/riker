@@ -4,12 +4,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <list>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
+#include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <linux/bpf_common.h>
@@ -23,8 +27,9 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
-#include "runtime/Build.hh"
 #include "runtime/Command.hh"
+#include "runtime/CommandRun.hh"
+#include "runtime/Ref.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"
@@ -40,6 +45,8 @@ using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+
+namespace fs = std::filesystem;
 
 shared_ptr<Process> Tracer::start(const shared_ptr<Command>& cmd) noexcept {
   // Launch the command with tracing
@@ -240,7 +247,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
-  vector<pair<int, int>> initial_fds;
+  vector<std::pair<int, int>> initial_fds;
 
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, ref_id] : cmd->getInitialFDs()) {

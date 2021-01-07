@@ -1,9 +1,15 @@
 #include "SymlinkArtifact.hh"
 
+#include <cerrno>
 #include <memory>
 
 #include "artifacts/DirArtifact.hh"
+#include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
+#include "runtime/Command.hh"
+#include "runtime/env.hh"
+#include "util/log.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
 using std::shared_ptr;

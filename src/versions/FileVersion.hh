@@ -1,18 +1,17 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+#include <ctime>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
-#include <utility>
 
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "blake3.h"
-#include "string.h"
-#include "ui/options.hh"
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
@@ -21,14 +20,13 @@ using std::optional;
 using std::string;
 using std::stringstream;
 
-#define BLAKE3BUFSZ 65536 /* taken from BLAKE3 demo app without much thought! */
-
-typedef std::array<uint8_t, BLAKE3_OUT_LEN> BLAKE3Hash;
-
-class Ref;
+namespace fs = std::filesystem;
 
 class FileVersion final : public ContentVersion {
  public:
+  /// The type that holds a hash of this file content version
+  using Hash = std::array<uint8_t, BLAKE3_OUT_LEN>;
+
   /// Create a FileVersion with no existing fingerprint
   FileVersion() noexcept = default;
 
@@ -55,7 +53,7 @@ class FileVersion final : public ContentVersion {
   virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
 
   /// Pretty printer
-  virtual ostream& print(ostream& o) const noexcept override;
+  virtual std::ostream& print(std::ostream& o) const noexcept override;
 
   /// Store a copy on disk
   virtual void cache(fs::path path) noexcept override;
@@ -84,9 +82,9 @@ class FileVersion final : public ContentVersion {
   std::optional<struct timespec> _mtime;
 
   /// What is the has of this file version's contents?
-  std::optional<BLAKE3Hash> _b3hash;
+  std::optional<Hash> _hash;
 
-  SERIALIZE(BASE(ContentVersion), _empty, _cached, _mtime, _b3hash);
+  SERIALIZE(BASE(ContentVersion), _empty, _cached, _mtime, _hash);
 
   /// Transient field: has this version been linked into the new cache directory?
   bool _linked = false;

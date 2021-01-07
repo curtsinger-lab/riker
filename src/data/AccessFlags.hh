@@ -8,13 +8,11 @@
 #include "tracing/Flags.hh"
 #include "util/serializer.hh"
 
-using std::ostream;
-using std::pair;
-
 enum class AccessType { Any, Dir, NotDir, Symlink, File };
 
 /// This struct encodes the flags specified when making an access to a particular reference
-struct AccessFlags {
+class AccessFlags {
+ public:
   union {
     struct {
       bool r : 1;          //< Does the reference require read access?
@@ -64,7 +62,7 @@ struct AccessFlags {
   }
 
   /// Generate flags for the open() call from this AccessFlags instance
-  pair<int, uint16_t> toOpen() const noexcept {
+  std::pair<int, uint16_t> toOpen() const noexcept {
     int flags = 0;
     if (r && w) flags |= O_RDWR;
     if (r && !w) flags |= O_RDONLY;
@@ -90,7 +88,7 @@ struct AccessFlags {
   }
 
   /// Generate mode and flags for the access() call from this AccessFlags instance
-  pair<int, int> toAccess() const noexcept {
+  std::pair<int, int> toAccess() const noexcept {
     int mode = 0;
     if (r) mode |= R_OK;
     if (w) mode |= W_OK;
@@ -113,7 +111,7 @@ struct AccessFlags {
   int toStat() const noexcept { return nofollow ? AT_SYMLINK_NOFOLLOW : 0; }
 
   /// Print an AccessFlags struct to an output stream
-  friend ostream& operator<<(ostream& o, const AccessFlags& f) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const AccessFlags& f) noexcept {
     o << (f.r ? 'r' : '-') << (f.w ? 'w' : '-') << (f.x ? 'x' : '-')
       << (f.nofollow ? " nofollow" : "") << (f.truncate ? " truncate" : "")
       << (f.create ? " create" : "") << (f.exclusive ? " exclusive" : "")

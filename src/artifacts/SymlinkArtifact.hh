@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -7,6 +8,8 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "runtime/CommandRun.hh"
+#include "runtime/Ref.hh"
 
 using std::map;
 using std::nullopt;
@@ -16,8 +19,12 @@ using std::string;
 
 namespace fs = std::filesystem;
 
+class AccessFlags;
+class Build;
+class Command;
+class ContentVersion;
 class MetadataVersion;
-class Ref;
+class SymlinkVersion;
 
 class SymlinkArtifact : public Artifact {
  public:

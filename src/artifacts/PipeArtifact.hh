@@ -1,16 +1,15 @@
 #pragma once
 
+#include <filesystem>
 #include <list>
 #include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
 
-#include <unistd.h>
-
 #include "artifacts/Artifact.hh"
-#include "util/serializer.hh"
-#include "versions/PipeVersion.hh"
+#include "runtime/CommandRun.hh"
+#include "runtime/Ref.hh"
 
 using std::list;
 using std::nullopt;
@@ -19,10 +18,15 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
+namespace fs = std::filesystem;
+
+class AccessFlags;
 class Build;
 class Command;
+class ContentVersion;
 class MetadataVersion;
-class Ref;
+class PipeReadVersion;
+class PipeWriteVersion;
 
 class PipeArtifact : public Artifact {
  public:

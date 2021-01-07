@@ -1,14 +1,15 @@
 #include "Record.hh"
 
-#include "artifacts/PipeArtifact.hh"
-#include "data/AccessFlags.hh"
+#include <cereal/types/polymorphic.hpp>
+
 #include "data/IRSink.hh"
 #include "data/InputTrace.hh"
 #include "runtime/Command.hh"
-#include "versions/DirListVersion.hh"
-#include "versions/FileVersion.hh"
-#include "versions/MetadataVersion.hh"
-#include "versions/SymlinkVersion.hh"
+#include "versions/DirListVersion.hh"   // IWYU pragma: keep
+#include "versions/FileVersion.hh"      // IWYU pragma: keep
+#include "versions/MetadataVersion.hh"  // IWYU pragma: keep
+#include "versions/PipeVersion.hh"      // IWYU pragma: keep
+#include "versions/SymlinkVersion.hh"   // IWYU pragma: keep
 
 // Record types
 CEREAL_REGISTER_TYPE(CommandRecord);

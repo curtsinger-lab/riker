@@ -5,7 +5,6 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <utility>
 
 #include <experimental/source_location>
 
@@ -16,7 +15,6 @@
 #include <sys/time.h>
 
 using std::cerr;
-using std::move;
 using std::experimental::source_location;
 
 #define NORMAL "\033[00;"

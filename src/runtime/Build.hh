@@ -1,29 +1,36 @@
 #pragma once
 
+#include <filesystem>
 #include <list>
+#include <map>
 #include <memory>
 #include <ostream>
 #include <set>
+#include <string>
 #include <tuple>
 #include <vector>
 
+#include <sys/types.h>
+
 #include "data/IRSink.hh"
-#include "data/InputTrace.hh"
-#include "data/OutputTrace.hh"
-#include "runtime/Command.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
-#include "runtime/env.hh"
 #include "tracing/Tracer.hh"
 
 using std::list;
 using std::make_shared;
-using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
 using std::vector;
 
+namespace fs = std::filesystem;
+
+class AccessFlags;
+class Command;
+class ContentVersion;
 class MetadataVersion;
+class Process;
 
 /**
  * A Build instance manages the execution of a build. This instance is responsible for setting up
@@ -43,7 +50,7 @@ class Build : public IRSink {
   const set<shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
 
   /// Print information about this build
-  ostream& print(ostream& o) const noexcept;
+  std::ostream& print(std::ostream& o) const noexcept;
 
   /********** Handle IR steps supplied from a loaded trace **********/
 

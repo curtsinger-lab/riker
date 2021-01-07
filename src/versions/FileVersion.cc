@@ -1,8 +1,11 @@
 #include "FileVersion.hh"
 
+#include <cerrno>
+#include <iomanip>
 #include <memory>
 #include <optional>
 
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -10,14 +13,18 @@
 
 #include "artifacts/Artifact.hh"
 #include "blake3.h"
-#include "data/IRSink.hh"
 #include "ui/constants.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 
+using std::ostream;
+
+// The number of bytes read from a file at once when using read() for blake3 hashing
+enum : size_t { BLAKE3BUFSZ = 65536 };
+
 /// Convert a BLAKE3 byte array to a hexadecimal string
-static string b3hex(BLAKE3Hash b3hash) noexcept {
+static string b3hex(FileVersion::Hash b3hash) noexcept {
   stringstream ss;
   for (int byte : b3hash) {
     ss << std::setfill('0') << std::setw(2) << std::hex << byte;
@@ -26,7 +33,7 @@ static string b3hex(BLAKE3Hash b3hash) noexcept {
 }
 
 /// Return a BLAKE3 hash for the contents of the file at the given path.
-static std::optional<BLAKE3Hash> blake3(fs::path path, struct stat& statbuf) noexcept {
+static std::optional<FileVersion::Hash> blake3(fs::path path, struct stat& statbuf) noexcept {
   // initialize hasher
   blake3_hasher hasher;
   blake3_hasher_init(&hasher);
@@ -40,7 +47,7 @@ static std::optional<BLAKE3Hash> blake3(fs::path path, struct stat& statbuf) noe
   }
 
   // create output array
-  BLAKE3Hash output;
+  FileVersion::Hash output;
 
   // try to mmap the file
   void* p = ::mmap(nullptr, statbuf.st_size, PROT_READ, MAP_SHARED, fd, 0);
@@ -78,7 +85,7 @@ static std::optional<BLAKE3Hash> blake3(fs::path path, struct stat& statbuf) noe
 }
 
 /// Generate a path from a hash value. The result does not include the cache directory path.
-static fs::path hashPath(BLAKE3Hash& hash) noexcept {
+static fs::path hashPath(FileVersion::Hash& hash) noexcept {
   // We use a three-level directory prefix scheme to store cached files
   // to avoid having too many files in a given folder.  This scheme
   // below has 16^6 unique directory prefixes.
@@ -98,10 +105,10 @@ void FileVersion::gcLink() noexcept {
   if (_linked) return;
 
   // no fingerprint, no cache file, so bail
-  FAIL_IF(!_b3hash.has_value()) << "Invalid gcLink on uncached file.";
+  FAIL_IF(!_hash.has_value()) << "Invalid gcLink on uncached file.";
 
   // Generate the hash path
-  auto hash_path = hashPath(_b3hash.value());
+  auto hash_path = hashPath(_hash.value());
 
   // get cache paths
   auto new_hash_file = constants::NewCacheDir / hash_path;
@@ -187,7 +194,7 @@ void FileVersion::fingerprint(fs::path path, FingerprintType type) noexcept {
   if (type == FingerprintType::Quick && _mtime.has_value()) return;
 
   // If a full fingerprint was requested and we already have an mtime and hash, return immediately
-  if (type == FingerprintType::Full && _mtime.has_value() && _b3hash.has_value()) return;
+  if (type == FingerprintType::Full && _mtime.has_value() && _hash.has_value()) return;
 
   // Stat the file to get mtime, empty, and size
   struct stat statbuf;
@@ -202,12 +209,12 @@ void FileVersion::fingerprint(fs::path path, FingerprintType type) noexcept {
   _mtime = statbuf.st_mtim;
 
   // If a full fingerprint was requested and we don't have one already, collect it
-  if (type == FingerprintType::Full && !_b3hash.has_value()) {
+  if (type == FingerprintType::Full && !_hash.has_value()) {
     // if file is a not regular file, bail
     if (!(statbuf.st_mode & S_IFREG)) return;
 
     // finally save hash
-    _b3hash = blake3(path, statbuf);
+    _hash = blake3(path, statbuf);
 
     LOG(cache) << "Collected full fingerprint for version " << this << " at path " << path << ".";
   }
@@ -223,12 +230,11 @@ void FileVersion::makeEmptyFingerprint() noexcept {
 /// The exact error message can be printed by the caller by inspecting errno.
 bool FileVersion::stage(fs::path path) noexcept {
   // Make sure we have a hash and that this version is cached
-  ASSERT(_b3hash.has_value()) << "Un-hashed file version " << this
-                              << " cannot be staged from cache";
+  ASSERT(_hash.has_value()) << "Un-hashed file version " << this << " cannot be staged from cache";
   ASSERT(_cached) << "Attempted to stage un-cached file version " << this << " from cache.";
 
   // Path to cached file
-  fs::path hash_file = constants::CacheDir / hashPath(_b3hash.value());
+  fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
 
   // does the cached file exist, and if so, how big is it in bytes?
   off_t len = fileLength(hash_file);
@@ -281,8 +287,8 @@ void FileVersion::cache(fs::path path) noexcept {
   fingerprint(path, FingerprintType::Full);
 
   // Freak out if the fingerprint is missing
-  FAIL_IF(!_b3hash.has_value()) << "Cannot cache version " << this << " at path " << path
-                                << " without a fingerprint.";
+  FAIL_IF(!_hash.has_value()) << "Cannot cache version " << this << " at path " << path
+                              << " without a fingerprint.";
 
   // Don't cache files that weren't created by the build
   // Freak out if we're asked to cache a file not created by the build
@@ -290,7 +296,7 @@ void FileVersion::cache(fs::path path) noexcept {
                          << " created outside build.";
 
   // Path to cache file
-  fs::path hash_file = constants::CacheDir / hashPath(_b3hash.value());
+  fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
   fs::path hash_dir = hash_file.parent_path();
 
   // Get the length of the input file
@@ -352,14 +358,14 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
   }
 
   // If fingerprinting is enabled, check to see if we have a hash and the hashes match
-  if (!options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
-      _b3hash.value() == other->_b3hash.value()) {
+  if (!options::mtime_only && _hash.has_value() && other->_hash.has_value() &&
+      _hash.value() == other->_hash.value()) {
     return true;
   }
 
   // If fingerprinting is disabled but the hashes match, print some info
-  if (options::mtime_only && _b3hash.has_value() && other->_b3hash.has_value() &&
-      _b3hash.value() == other->_b3hash.value()) {
+  if (options::mtime_only && _hash.has_value() && other->_hash.has_value() &&
+      _hash.value() == other->_hash.value()) {
   }
 
   return false;
@@ -371,7 +377,7 @@ ostream& FileVersion::print(ostream& o) const noexcept {
   if (_empty) return o << "[file content: empty]";
 
   // not empty, no mtime, no hash
-  if (!_mtime.has_value() && !_b3hash.has_value()) return o << "[file content: unknown]";
+  if (!_mtime.has_value() && !_hash.has_value()) return o << "[file content: unknown]";
 
   // has mtime
   o << "[file content: ";
@@ -380,7 +386,7 @@ ostream& FileVersion::print(ostream& o) const noexcept {
       << _mtime.value().tv_nsec << " ";
 
   // has hash
-  if (_b3hash.has_value()) o << "b3hash=" << b3hex(_b3hash.value()) << " ";
+  if (_hash.has_value()) o << "b3hash=" << b3hex(_hash.value()) << " ";
 
   // has cached copy
   o << "cached=" << (_cached ? "true" : "false");

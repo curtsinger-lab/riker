@@ -1,22 +1,20 @@
 #pragma once
 
+// IWYU pragma: no_include <ext/alloc_traits.h>
+
 #include <filesystem>
 #include <fstream>
 #include <list>
 #include <map>
 #include <memory>
-#include <ostream>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include <cereal/archives/binary.hpp>
 
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
-#include "data/Record.hh"
 #include "runtime/Command.hh"
-#include "runtime/Ref.hh"
 
 using std::ifstream;
 using std::list;

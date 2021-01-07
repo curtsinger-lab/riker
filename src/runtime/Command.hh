@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -11,13 +13,12 @@
 #include <tuple>
 #include <vector>
 
-#include "data/AccessFlags.hh"
 #include "runtime/Ref.hh"
+#include "util/log.hh"
 
 using std::list;
 using std::map;
 using std::optional;
-using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -27,11 +28,7 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-class Artifact;
-class Build;
 class CommandRun;
-class Ref;
-class Step;
 
 /// The set of possible markings for a command that determine how it is executed during rebuild
 enum class RebuildMarking {
@@ -119,7 +116,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
-  friend ostream& operator<<(ostream& o, const Command& c) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Command& c) noexcept {
     if (c.isNullCommand()) {
       return o << "[No Command]";
     } else {
@@ -128,7 +125,7 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
   /// Print a Command* to an output stream
-  friend ostream& operator<<(ostream& o, const Command* c) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Command* c) noexcept {
     if (c == nullptr) return o << "<null Command>";
     return o << *c;
   }

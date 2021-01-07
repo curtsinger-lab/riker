@@ -6,8 +6,6 @@
 
 #include <sys/types.h>
 
-#include "data/AccessFlags.hh"
-
 using std::set;
 using std::shared_ptr;
 
@@ -17,7 +15,6 @@ class Artifact;
 class Command;
 class DirArtifact;
 class PipeArtifact;
-class Ref;
 class SymlinkArtifact;
 
 /**

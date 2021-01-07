@@ -7,19 +7,19 @@
 #include <tuple>
 #include <vector>
 
+#include <sys/types.h>
+
 #include "runtime/Command.hh"
+#include "runtime/Ref.hh"
 
 using std::make_shared;
 using std::map;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
 using std::vector;
 
 class Build;
-class Ref;
-class Tracer;
 
 class Process : public std::enable_shared_from_this<Process> {
  public:
@@ -83,12 +83,12 @@ class Process : public std::enable_shared_from_this<Process> {
   void exit(int exit_status) noexcept;
 
   /// Print a process to an output stream
-  friend ostream& operator<<(ostream& o, const Process& p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Process& p) noexcept {
     return o << "[Process " << p._pid << " (" << p._command->getShortName() << ")]";
   }
 
   /// Print a process pointer
-  friend ostream& operator<<(ostream& o, const Process* p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Process* p) noexcept {
     if (p == nullptr) return o << "<null Process>";
     return o << *p;
   }

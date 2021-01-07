@@ -1,9 +1,9 @@
 #include "Artifact.hh"
 
+// IWYU pragma: no_include <type_traits>
 #include <cerrno>
 #include <memory>
 #include <set>
-#include <type_traits>
 
 #include <fcntl.h>
 

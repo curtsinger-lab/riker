@@ -1,0 +1,12 @@
+[
+  { include: ["<bits/types/siginfo_t.h>", "private", "<sys/types.h>", "public"] },
+  { include: ["<bits/types/struct_iovec.h>", "private", "<sys/types.h>", "public"] },
+  { symbol: ["std::pair", "public", "<utility>", "public"] },
+  { symbol: ["std::ostream", "public", "<ostream>", "public"] },
+  { symbol: ["string", "public", "<string>", "public"] },
+  { symbol: ["ostream", "public", "<ostream>", "public"] },
+  { include: ["\"CLI/App.hpp\"", "private", "<CLI/CLI.hpp>", "public"] },
+  { include: ["\"CLI/Error.hpp\"", "private", "<CLI/CLI.hpp>", "public"] },
+  { include: ["\"CLI/Option.hpp\"", "private", "<CLI/CLI.hpp>", "public"] },
+  { include: ["\"CLI/Validators.hpp\"", "private", "<CLI/CLI.hpp>", "public"] },
+]

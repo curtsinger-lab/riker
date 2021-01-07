@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <cstdint>
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -11,8 +11,6 @@ using std::string;
 using std::chrono::time_point;
 
 namespace fs = std::filesystem;
-
-class Build;
 
 namespace stats {
   /// The time set when the stats counters were last reset

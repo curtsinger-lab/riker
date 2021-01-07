@@ -8,8 +8,6 @@
 #include <utility>
 
 using std::map;
-using std::ostream;
-using std::pair;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -25,7 +23,7 @@ class Graph {
   Graph(bool show_all) noexcept : _show_all(show_all) {}
 
   /// Print a Graph reference
-  friend ostream& operator<<(ostream& o, Graph& g) noexcept;
+  friend std::ostream& operator<<(std::ostream& o, Graph& g) noexcept;
 
   /// Add an iterable set of commands to the graph
   template <class T>
@@ -65,8 +63,8 @@ class Graph {
   map<shared_ptr<ContentVersion>, string> _content_version_ids;
 
   /// A set of command edges, from parent to child
-  set<pair<string, string>> _command_edges;
+  set<std::pair<string, string>> _command_edges;
 
   // Command input edges (artifact -> command)
-  set<pair<string, string>> _io_edges;
+  set<std::pair<string, string>> _io_edges;
 };

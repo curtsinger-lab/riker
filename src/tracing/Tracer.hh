@@ -8,8 +8,7 @@
 
 #include <sys/types.h>
 
-#include "tracing/Thread.hh"
-#include "util/log.hh"
+#include "tracing/Thread.hh"  // IWYU pragma: keep
 
 using std::list;
 using std::optional;

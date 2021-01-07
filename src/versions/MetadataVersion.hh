@@ -1,22 +1,23 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <ostream>
 #include <string>
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#include "data/AccessFlags.hh"
 #include "ui/stats.hh"
 #include "util/serializer.hh"
 
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::weak_ptr;
 
+namespace fs = std::filesystem;
+
+class AccessFlags;
 class Artifact;
 class Command;
 
@@ -62,13 +63,15 @@ class MetadataVersion {
   bool matches(shared_ptr<MetadataVersion> other) const noexcept;
 
   /// Print this metadata version
-  ostream& print(ostream& o) const noexcept;
+  std::ostream& print(std::ostream& o) const noexcept;
 
   /// Print a Version
-  friend ostream& operator<<(ostream& o, const MetadataVersion& v) noexcept { return v.print(o); }
+  friend std::ostream& operator<<(std::ostream& o, const MetadataVersion& v) noexcept {
+    return v.print(o);
+  }
 
   /// Print a Version*
-  friend ostream& operator<<(ostream& o, const MetadataVersion* v) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const MetadataVersion* v) noexcept {
     if (v == nullptr) return o << "<null MetadataVersion>";
     return v->print(o);
   }

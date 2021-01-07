@@ -1,12 +1,13 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
 
-#include <sys/user.h>
-#include <syscall.h>
+#include <sys/user.h>  // IWYU pragma: keep
+#include <syscall.h>   // IWYU pragma: keep
 
 using std::array;
 using std::map;

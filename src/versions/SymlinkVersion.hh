@@ -2,13 +2,12 @@
 
 #include <filesystem>
 #include <memory>
-#include <ostream>
+#include <sstream>
+#include <string>
 
-#include "util/log.hh"
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
-using std::ostream;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
@@ -19,7 +18,7 @@ class SymlinkVersion : public ContentVersion {
   SymlinkVersion(fs::path dest) : _dest(dest) {}
 
   /// Get the name for this type of version
-  virtual string getTypeName() const noexcept override { return "symlink"; }
+  virtual std::string getTypeName() const noexcept override { return "symlink"; }
 
   /// Commit this version to the filesystem
   virtual void commit(fs::path path) noexcept override;
@@ -37,7 +36,7 @@ class SymlinkVersion : public ContentVersion {
   const fs::path& getDestination() const noexcept { return _dest; }
 
   /// Print this symlink version
-  virtual ostream& print(ostream& o) const noexcept override {
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[symlink: dest=" << _dest << "]";
   }
 

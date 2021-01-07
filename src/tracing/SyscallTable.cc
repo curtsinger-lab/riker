@@ -1,21 +1,30 @@
 #include "SyscallTable.hh"
 
 #include <array>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <syscall.h>
 
 #include "tracing/Flags.hh"
 #include "tracing/Thread.hh"
 #include "ui/stats.hh"
-#include "util/log.hh"
+
+// IWYU pragma: no_include <sys/socket.h>
+// IWYU pragma: no_include <sys/types.h>
+// IWYU pragma: no_include <sys/user.h>
+// IWYU pragma: no_include <sys/wait.h>
 
 using std::array;
 using std::map;
 using std::shared_ptr;
 using std::string;
+using std::vector;
+
+namespace fs = std::filesystem;
 
 /**
  * A simple wrapper class around system call arguments that can convert them to known types by

@@ -1,13 +1,16 @@
 #include "Process.hh"
 
+#include <filesystem>
+#include <map>
 #include <memory>
+#include <utility>
 
-#include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "util/log.hh"
 
+using std::map;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;

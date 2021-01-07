@@ -10,7 +10,6 @@
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
-using std::ostream;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -44,7 +43,9 @@ class DirListVersion : public ContentVersion {
   virtual string getTypeName() const noexcept override { return "listed"; }
 
   /// Print this version
-  virtual ostream& print(ostream& o) const noexcept override { return o << "[dir: listed]"; }
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
+    return o << "[dir: listed]";
+  }
 
   /// Add an entry to this listed directory version
   void addEntry(fs::path entry) noexcept { _entries.insert(entry); }

@@ -1,7 +1,20 @@
-#include "artifacts/Artifact.hh"
-#include "runtime/Command.hh"
+#include "policy.hh"
+
+#include <filesystem>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+
 #include "ui/options.hh"
+#include "util/log.hh"
 #include "versions/ContentVersion.hh"
+
+using std::set;
+
+namespace fs = std::filesystem;
+
+class Command;
 
 namespace policy {
 

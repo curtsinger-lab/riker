@@ -1,24 +1,32 @@
-#include <chrono>
+// IWYU pragma: no_include <type_traits>
+// IWYU pragma: no_include <stdexcept>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <list>
+#include <map>
+#include <memory>
 #include <optional>
-#include <sstream>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <CLI/CLI.hpp>
 
+#include "artifacts/Artifact.hh"
 #include "data/IRBuffer.hh"
+#include "data/IRSource.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/PostBuildChecker.hh"
+#include "runtime/env.hh"
 #include "ui/Graph.hh"
 #include "ui/TracePrinter.hh"
 #include "ui/constants.hh"

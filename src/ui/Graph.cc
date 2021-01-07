@@ -1,16 +1,21 @@
 #include "Graph.hh"
 
+#include <filesystem>
+#include <list>
 #include <memory>
 #include <ostream>
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
-#include "util/log.hh"
+#include "runtime/CommandRun.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 using std::ostream;
 using std::shared_ptr;
 using std::to_string;
+
+namespace fs = std::filesystem;
 
 /// Escape a string for safe printing inside a graphviz string
 string escape(string s) noexcept {

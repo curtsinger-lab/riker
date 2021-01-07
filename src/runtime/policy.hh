@@ -10,7 +10,6 @@ using std::shared_ptr;
 namespace fs = std::filesystem;
 
 class Command;
-class ContentVersion;
 
 namespace policy {
   /// Get the appropriate fingerprint type for a content version

@@ -1,6 +1,8 @@
 #include "Command.hh"
 
-#include <cstdlib>
+// IWYU pragma: no_include <ext/alloc_traits.h>
+// IWYU pragma: no_include <utility>
+
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -8,9 +10,9 @@
 #include <set>
 #include <string>
 
-#include "artifacts/Artifact.hh"
-#include "artifacts/PipeArtifact.hh"
 #include "runtime/CommandRun.hh"
+#include "ui/options.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 using std::cout;

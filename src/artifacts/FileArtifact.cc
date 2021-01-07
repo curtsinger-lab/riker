@@ -4,9 +4,10 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
+#include "runtime/Command.hh"
 #include "runtime/policy.hh"
+#include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 

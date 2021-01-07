@@ -1,18 +1,21 @@
 #include "DirArtifact.hh"
 
+// IWYU pragma: no_include <utility>
+#include <cerrno>
 #include <list>
 #include <memory>
+#include <sstream>
 #include <string>
-#include <utility>
 
-#include <dirent.h>
-#include <sys/types.h>
-#include <unistd.h>
-
+#include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
+#include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "runtime/env.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/DirListVersion.hh"
+#include "versions/DirVersion.hh"
 
 using std::list;
 using std::make_shared;

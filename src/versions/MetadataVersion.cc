@@ -1,16 +1,24 @@
 #include "MetadataVersion.hh"
 
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <ostream>
+#include <set>
+#include <sstream>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "artifacts/Artifact.hh"
-#include "data/IRSink.hh"
+#include "data/AccessFlags.hh"
+#include "util/log.hh"
 #include "util/wrappers.hh"
 
 using std::map;
+using std::ostream;
 using std::shared_ptr;
 
 /// Create a new metadata version by changing the owner and/or group in this one

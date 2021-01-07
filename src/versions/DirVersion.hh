@@ -4,23 +4,18 @@
 #include <memory>
 #include <ostream>
 #include <set>
+#include <string>
 
-#include "runtime/Ref.hh"
-#include "util/log.hh"
+#include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
-#include "versions/DirListVersion.hh"
 
 using std::make_shared;
-using std::ostream;
 using std::set;
 using std::shared_ptr;
+using std::string;
 
 namespace fs = std::filesystem;
-
-class Build;
-class DirArtifact;
-class Env;
 
 /**
  * A DirVersion represents some part of the state of a directory. Subclasses of DirVersion can
@@ -66,7 +61,7 @@ class BaseDirVersion : public DirVersion {
   }
 
   /// Print this directory version
-  virtual ostream& print(ostream& o) const noexcept override {
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
     if (_created) {
       return o << "[dir: empty]";
     } else {
@@ -111,7 +106,7 @@ class AddEntry : public DirVersion {
   virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
 
   /// Print a link version
-  virtual ostream& print(ostream& o) const noexcept override {
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[dir: link " << _entry << " -> " << _target << "]";
   }
 
@@ -143,7 +138,7 @@ class RemoveEntry : public DirVersion {
   virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
 
   /// Print an unlink version
-  virtual ostream& print(ostream& o) const noexcept override {
+  virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[dir: unlink " << _entry << "]";
   }
 

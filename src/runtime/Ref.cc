@@ -1,7 +1,8 @@
 #include "Ref.hh"
 
+#include <unistd.h>
+
 #include "artifacts/Artifact.hh"
-#include "runtime/Build.hh"
 
 /// A command is now using this Ref. Return true if this first use by the given command
 void Ref::addUser() noexcept {

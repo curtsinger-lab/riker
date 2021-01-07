@@ -1,11 +1,13 @@
 #include "env.hh"
 
+#include <cstddef>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 
-#include <fcntl.h>
+#include <fcntl.h>  // IWYU pragma: keep
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -15,13 +17,12 @@
 #include "artifacts/FileArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
-#include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "ui/options.hh"
+#include "runtime/CommandRun.hh"
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
-#include "versions/ContentVersion.hh"
+#include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"

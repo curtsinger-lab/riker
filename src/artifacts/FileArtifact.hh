@@ -1,20 +1,26 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
 
 #include "artifacts/Artifact.hh"
+#include "runtime/CommandRun.hh"
+#include "runtime/Ref.hh"
 
 using std::nullopt;
 using std::optional;
 using std::shared_ptr;
 using std::string;
 
+namespace fs = std::filesystem;
+
+class Build;
+class ContentVersion;
 class Command;
 class FileVersion;
 class MetadataVersion;
-class Ref;
 
 class FileArtifact : public Artifact {
  public:

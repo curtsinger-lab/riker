@@ -1,40 +1,26 @@
 #include "InputTrace.hh"
 
-#include <iostream>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include <fcntl.h>
-#include <sys/stat.h>
-
+// IWYU pragma: no_include "cereal/cereal.hpp"
+// IWYU pragma: no_include "cereal/details/helpers.hpp"
 #include <cereal/archives/binary.hpp>
 
-#include "artifacts/Artifact.hh"
-#include "artifacts/DirArtifact.hh"
-#include "artifacts/PipeArtifact.hh"
-#include "data/AccessFlags.hh"
 #include "data/DefaultTrace.hh"
 #include "data/Record.hh"
-#include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "runtime/CommandRun.hh"
-#include "runtime/Ref.hh"
-#include "runtime/env.hh"
 #include "util/log.hh"
-#include "versions/ContentVersion.hh"
-#include "versions/DirVersion.hh"
-#include "versions/FileVersion.hh"
-#include "versions/SymlinkVersion.hh"
 
 using std::endl;
 using std::ifstream;
 using std::make_shared;
 using std::make_unique;
 using std::map;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::tuple;

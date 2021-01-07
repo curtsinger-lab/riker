@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -7,20 +9,16 @@
 #include <string>
 
 #include "data/AccessFlags.hh"
-#include "util/UniqueID.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 
 using std::map;
 using std::optional;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::weak_ptr;
 
 class Artifact;
-class Build;
-class Command;
 
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int8_t { SUCCESS = 0 };
@@ -92,7 +90,7 @@ class Ref final {
   int getFD() noexcept;
 
   /// Print a Ref
-  ostream& print(ostream& o) const noexcept {
+  std::ostream& print(std::ostream& o) const noexcept {
     if (_rc == SUCCESS) {
       return o << getArtifact();
     } else {
@@ -101,10 +99,10 @@ class Ref final {
   }
 
   /// Stream print wrapper for Ref references
-  friend ostream& operator<<(ostream& o, const Ref& r) noexcept { return r.print(o); }
+  friend std::ostream& operator<<(std::ostream& o, const Ref& r) noexcept { return r.print(o); }
 
   /// Stream print wrapper for Ref pointers
-  friend ostream& operator<<(ostream& o, const Ref* r) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Ref* r) noexcept {
     if (r == nullptr) return o << "<null Ref>";
     return o << *r;
   }

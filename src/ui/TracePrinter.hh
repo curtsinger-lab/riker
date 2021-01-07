@@ -8,14 +8,13 @@
 #include "util/wrappers.hh"
 
 using std::endl;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 
 class Command;
 class Ref;
 
-inline static ostream& operator<<(ostream& o, Scenario s) {
+inline static std::ostream& operator<<(std::ostream& o, Scenario s) {
   if (s == Scenario::Build) {
     return o << "<build>";
   } else if (s == Scenario::PostBuild) {
@@ -28,10 +27,10 @@ inline static ostream& operator<<(ostream& o, Scenario s) {
 class TracePrinter : public IRSink {
  public:
   /// Create a trace printer that writes to a provided ostream
-  TracePrinter(ostream& out) : _out(out) {}
+  TracePrinter(std::ostream& out) : _out(out) {}
 
   /// Create a trace printer that writes to a provided ostream (rvalue reference form)
-  TracePrinter(ostream&& out) : _out(out) {}
+  TracePrinter(std::ostream&& out) : _out(out) {}
 
   virtual void specialRef(const shared_ptr<Command>& c,
                           SpecialRef entity,
@@ -156,7 +155,7 @@ class TracePrinter : public IRSink {
     SpecialRef entity;
     Ref::ID output;
 
-    friend ostream& operator<<(ostream& o, const SpecialRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const SpecialRefPrinter& p) noexcept {
       o << p.c << ": r" << p.output << " = ";
       switch (p.entity) {
         case SpecialRef::stdin:
@@ -193,7 +192,7 @@ class TracePrinter : public IRSink {
     Ref::ID read_end;
     Ref::ID write_end;
 
-    friend ostream& operator<<(ostream& o, const PipeRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const PipeRefPrinter& p) noexcept {
       return o << p.c << ": [r" << p.read_end << ", r" << p.write_end << "] = PipeRef()";
     }
   };
@@ -204,7 +203,7 @@ class TracePrinter : public IRSink {
     mode_t mode;
     Ref::ID output;
 
-    friend ostream& operator<<(ostream& o, const FileRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const FileRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = FileRef(" << std::oct << p.mode << std::dec
                << ")";
     }
@@ -216,7 +215,7 @@ class TracePrinter : public IRSink {
     fs::path target;
     Ref::ID output;
 
-    friend ostream& operator<<(ostream& o, const SymlinkRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const SymlinkRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = SymlinkRef(" << p.target << ")";
     }
   };
@@ -227,7 +226,7 @@ class TracePrinter : public IRSink {
     mode_t mode;
     Ref::ID output;
 
-    friend ostream& operator<<(ostream& o, const DirRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const DirRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = DirRef(" << std::oct << p.mode << ")";
     }
   };
@@ -240,7 +239,7 @@ class TracePrinter : public IRSink {
     AccessFlags flags;
     Ref::ID output;
 
-    friend ostream& operator<<(ostream& o, const PathRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const PathRefPrinter& p) noexcept {
       return o << p.c << ": r" << p.output << " = PathRef(r" << p.base << ", " << p.path << ", "
                << p.flags << ")";
     }
@@ -251,7 +250,7 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> c;
     Ref::ID ref;
 
-    friend ostream& operator<<(ostream& o, const UsingRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const UsingRefPrinter& p) noexcept {
       return o << p.c << ": UsingRef(r" << p.ref << ")";
     }
   };
@@ -261,7 +260,7 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> c;
     Ref::ID ref;
 
-    friend ostream& operator<<(ostream& o, const DoneWithRefPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const DoneWithRefPrinter& p) noexcept {
       return o << p.c << ": DoneWithRef(r" << p.ref << ")";
     }
   };
@@ -273,7 +272,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref2;
     RefComparison type;
 
-    friend ostream& operator<<(ostream& o, const CompareRefsPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const CompareRefsPrinter& p) noexcept {
       o << p.c << ": ";
       string typestr;
       if (p.type == RefComparison::SameInstance) {
@@ -295,7 +294,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref;
     int expected;
 
-    friend ostream& operator<<(ostream& o, const ExpectResultPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const ExpectResultPrinter& p) noexcept {
       o << p.c << ": ";
       return o << "ExpectResult(r" << p.ref << ", " << getErrorName(p.expected) << ") "
                << p.scenario;
@@ -309,7 +308,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref;
     shared_ptr<MetadataVersion> expected;
 
-    friend ostream& operator<<(ostream& o, const MatchMetadataPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const MatchMetadataPrinter& p) noexcept {
       return o << p.c << ": MatchMetadata(r" << p.ref << ", " << p.expected << ") " << p.scenario;
     }
   };
@@ -321,7 +320,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref;
     shared_ptr<ContentVersion> expected;
 
-    friend ostream& operator<<(ostream& o, const MatchContentPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const MatchContentPrinter& p) noexcept {
       return o << p.c << ": MatchContent(r" << p.ref << ", " << p.expected << ") " << p.scenario;
     }
   };
@@ -332,7 +331,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref;
     shared_ptr<MetadataVersion> written;
 
-    friend ostream& operator<<(ostream& o, const UpdateMetadataPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const UpdateMetadataPrinter& p) noexcept {
       return o << p.c << ": UpdateMetadata(r" << p.ref << ", " << p.written << ")";
     }
   };
@@ -343,7 +342,7 @@ class TracePrinter : public IRSink {
     Ref::ID ref;
     shared_ptr<ContentVersion> written;
 
-    friend ostream& operator<<(ostream& o, const UpdateContentPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const UpdateContentPrinter& p) noexcept {
       return o << p.c << ": UpdateContent(r" << p.ref << ", " << p.written << ")";
     }
   };
@@ -355,7 +354,7 @@ class TracePrinter : public IRSink {
     fs::path name;
     Ref::ID target;
 
-    friend ostream& operator<<(ostream& o, const AddEntryPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const AddEntryPrinter& p) noexcept {
       return o << p.c << ": AddEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
     }
   };
@@ -367,7 +366,7 @@ class TracePrinter : public IRSink {
     fs::path name;
     Ref::ID target;
 
-    friend ostream& operator<<(ostream& o, const RemoveEntryPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const RemoveEntryPrinter& p) noexcept {
       return o << p.c << ": RemoveEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
     }
   };
@@ -378,7 +377,7 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> child;
     list<tuple<Ref::ID, Ref::ID>> refs;
 
-    friend ostream& operator<<(ostream& o, const LaunchPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const LaunchPrinter& p) noexcept {
       o << p.c << ": Launch(" << p.child << ", [";
       bool first = true;
       for (const auto& [parent_ref_id, child_ref_id] : p.refs) {
@@ -396,7 +395,7 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> child;
     int exit_status;
 
-    friend ostream& operator<<(ostream& o, const JoinPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const JoinPrinter& p) noexcept {
       return o << p.c << ": Join(" << p.child << ", " << p.exit_status << ")";
     }
   };
@@ -406,11 +405,11 @@ class TracePrinter : public IRSink {
     shared_ptr<Command> c;
     int exit_status;
 
-    friend ostream& operator<<(ostream& o, const ExitPrinter& p) noexcept {
+    friend std::ostream& operator<<(std::ostream& o, const ExitPrinter& p) noexcept {
       return o << p.c << ": Exit(" << p.exit_status << ")";
     }
   };
 
  private:
-  ostream& _out;
+  std::ostream& _out;
 };

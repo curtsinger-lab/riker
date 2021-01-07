@@ -1,8 +1,11 @@
 #include "DefaultTrace.hh"
 
+#include <cstdio>
 #include <list>
 #include <memory>
 #include <tuple>
+
+#include <unistd.h>
 
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"

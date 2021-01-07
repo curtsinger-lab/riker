@@ -1,10 +1,7 @@
 #pragma once
 
+#include <cereal/access.hpp>  // IWYU pragma: export
 #include <cereal/types/base_class.hpp>
-
-namespace cereal {
-  class access;
-}
 
 #define SERIALIZE(...)                        \
   friend class cereal::access;                \

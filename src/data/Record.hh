@@ -1,28 +1,41 @@
 #pragma once
 
+#include <filesystem>
+#include <list>
 #include <map>
+#include <memory>
+#include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
-#include <cereal/types/array.hpp>
-#include <cereal/types/list.hpp>
-#include <cereal/types/map.hpp>
-#include <cereal/types/memory.hpp>
-#include <cereal/types/optional.hpp>
-#include <cereal/types/polymorphic.hpp>
-#include <cereal/types/set.hpp>
-#include <cereal/types/string.hpp>
-#include <cereal/types/tuple.hpp>
-#include <cereal/types/vector.hpp>
+#include <sys/types.h>
+#include <time.h>
 
+// IWYU pragma: no_include "cereal/details/polymorphic_impl.hpp"
+#include <cereal/types/array.hpp>        // IWYU pragma: keep
+#include <cereal/types/base_class.hpp>   // IWYU pragma: keep
+#include <cereal/types/list.hpp>         // IWYU pragma: keep
+#include <cereal/types/map.hpp>          // IWYU pragma: keep
+#include <cereal/types/memory.hpp>       // IWYU pragma: keep
+#include <cereal/types/optional.hpp>     // IWYU pragma: keep
+#include <cereal/types/polymorphic.hpp>  // IWYU pragma: keep
+#include <cereal/types/set.hpp>          // IWYU pragma: keep
+#include <cereal/types/string.hpp>       // IWYU pragma: keep
+#include <cereal/types/tuple.hpp>        // IWYU pragma: keep
+#include <cereal/types/vector.hpp>       // IWYU pragma: keep
+
+#include "data/AccessFlags.hh"
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"
+#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 
 using std::map;
 using std::tuple;
 using std::vector;
 
+class ContentVersion;
 class InputTrace;
 class MetadataVersion;
 

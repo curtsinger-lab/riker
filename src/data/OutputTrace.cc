@@ -1,15 +1,22 @@
 #include "OutputTrace.hh"
 
+// IWYU pragma: no_include <sstream>
+// IWYU pragma: no_include <system_error>
+
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <memory>
 
+// IWYU pragma: no_include "cereal/cereal.hpp"
 #include <cereal/archives/binary.hpp>
 
+#include "data/AccessFlags.hh"
+#include "data/Record.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "ui/constants.hh"
+#include "util/log.hh"
 #include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
 
