@@ -83,7 +83,7 @@ void SymlinkArtifact::commitAll(optional<fs::path> path) noexcept {
 
   // Don't commit symlink metadata for now. We can eventually commit ownership, but not
   // permissions.
-  //_metadata_version->commit(path.value());
+  // Artifact::commitMetadata();
 }
 
 // Compare all final versions of this artifact to the filesystem stateq

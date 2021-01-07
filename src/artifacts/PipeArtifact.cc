@@ -19,8 +19,10 @@ bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
 
 // Can this artifact be fully committed?
 bool PipeArtifact::canCommitAll() const noexcept {
-  if (!_metadata_version->isCommitted()) return false;
+  // If there is an uncommitted read from the pipe, we can't commit all pipe state
   if (_last_read && !_last_read->isCommitted()) return false;
+
+  // If there are any uncommitted writes into the pipe, we can't commit all pipe state
   for (auto write : _writes) {
     if (!write->isCommitted()) return false;
   }

@@ -46,16 +46,13 @@ bool FileArtifact::canCommitAll() const noexcept {
 void FileArtifact::commitAll(optional<fs::path> path) noexcept {
   LOG(artifact) << "Committing content and metadata to " << this;
 
-  // we may have already committed this artifact
-  if (_content_version->isCommitted() && _metadata_version->isCommitted()) return;
-
   // If we weren't given a specific path to commit to, get one by committing links
   if (!path.has_value()) path = commitPath();
 
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());
-  _metadata_version->commit(path.value());
+  Artifact::commitMetadata(path);
 }
 
 /// Compare all final versions of this artifact to the filesystem state

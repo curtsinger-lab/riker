@@ -36,7 +36,7 @@ class PipeArtifact : public Artifact {
   virtual bool canCommit(shared_ptr<ContentVersion> v) const noexcept override;
 
   /// Commit any metadata updates to the filesystem
-  virtual void commitMetadata() noexcept override {}
+  virtual void commitMetadata(optional<fs::path> path = nullopt) noexcept override {}
 
   /// Commit a specific version of this artifact to the filesystem
   virtual void commit(shared_ptr<ContentVersion> v) noexcept override {}
