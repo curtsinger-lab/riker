@@ -1,9 +1,10 @@
 #include "Process.hh"
 
-#include <filesystem>
 #include <map>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
@@ -15,8 +16,6 @@ using std::map;
 using std::shared_ptr;
 using std::string;
 using std::vector;
-
-namespace fs = std::filesystem;
 
 Process::Process(Build& build,
                  shared_ptr<Command> command,

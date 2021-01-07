@@ -1,14 +1,13 @@
 #include "OutputTrace.hh"
 
-// IWYU pragma: no_include <sstream>
-// IWYU pragma: no_include <system_error>
-
 #include <filesystem>
 #include <fstream>
+#include <list>
 #include <map>
 #include <memory>
+#include <string>
+#include <tuple>
 
-// IWYU pragma: no_include "cereal/cereal.hpp"
 #include <cereal/archives/binary.hpp>
 
 #include "data/AccessFlags.hh"
@@ -23,7 +22,6 @@
 using std::list;
 using std::make_unique;
 using std::map;
-using std::ofstream;
 using std::shared_ptr;
 using std::string;
 using std::tuple;

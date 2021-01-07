@@ -6,8 +6,6 @@
 #include <string>
 #include <vector>
 
-// IWYU pragma: no_include "cereal/cereal.hpp"
-// IWYU pragma: no_include "cereal/details/helpers.hpp"
 #include <cereal/archives/binary.hpp>
 
 #include "data/DefaultTrace.hh"
@@ -15,12 +13,8 @@
 #include "runtime/Command.hh"
 #include "util/log.hh"
 
-using std::endl;
-using std::ifstream;
-using std::make_shared;
 using std::make_unique;
 using std::map;
-using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;

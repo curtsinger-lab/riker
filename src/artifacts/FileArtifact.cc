@@ -1,5 +1,6 @@
 #include "FileArtifact.hh"
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 
@@ -14,6 +15,8 @@
 using std::make_shared;
 using std::optional;
 using std::shared_ptr;
+
+namespace fs = std::filesystem;
 
 class MetadataVersion;
 

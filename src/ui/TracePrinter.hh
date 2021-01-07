@@ -1,11 +1,14 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <ostream>
 
 #include "data/IRSink.hh"
 #include "runtime/Ref.hh"
 #include "util/wrappers.hh"
+
+namespace fs = std::filesystem;
 
 class Command;
 class Ref;

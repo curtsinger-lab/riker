@@ -1,8 +1,7 @@
 #include "CommandRun.hh"
 
-// IWYU pragma: no_include <ext/alloc_traits.h>
-
 #include <filesystem>
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -11,7 +10,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
-#include "artifacts/PipeArtifact.hh"  // IWYU pragma: keep
+#include "artifacts/PipeArtifact.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "util/log.hh"

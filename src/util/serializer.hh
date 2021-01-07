@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cereal/access.hpp>  // IWYU pragma: export
+#include <cereal/access.hpp>
 #include <cereal/types/base_class.hpp>
 
 #define SERIALIZE(...)                        \

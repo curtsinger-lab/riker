@@ -17,8 +17,6 @@
 #include "tracing/Flags.hh"
 #include "util/log.hh"
 
-using std::shared_ptr;
-
 namespace fs = std::filesystem;
 
 // Commit a base directory version

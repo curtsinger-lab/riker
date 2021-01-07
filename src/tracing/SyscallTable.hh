@@ -3,8 +3,8 @@
 #include <array>
 #include <cstddef>
 
-#include <sys/user.h>  // IWYU pragma: keep
-#include <syscall.h>   // IWYU pragma: keep
+#include <sys/user.h>
+#include <syscall.h>
 
 class Thread;
 

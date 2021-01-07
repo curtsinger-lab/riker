@@ -1,10 +1,8 @@
 #include "stats.hh"
 
-// IWYU pragma: no_include <initializer_list>
-// IWYU pragma: no_include <type_traits>
-
 #include <chrono>
 #include <fstream>
+#include <optional>
 #include <string>
 
 using std::endl;

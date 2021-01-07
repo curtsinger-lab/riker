@@ -1,6 +1,7 @@
 #include "Build.hh"
 
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -12,8 +13,8 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
-#include "artifacts/PipeArtifact.hh"     // IWYU pragma: keep
-#include "artifacts/SymlinkArtifact.hh"  // IWYU pragma: keep
+#include "artifacts/PipeArtifact.hh"
+#include "artifacts/SymlinkArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -38,6 +39,8 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 using std::vector;
+
+namespace fs = std::filesystem;
 
 // Can a step from the provided command be emulated?
 bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {

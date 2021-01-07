@@ -1,6 +1,5 @@
 #include "Artifact.hh"
 
-// IWYU pragma: no_include <type_traits>
 #include <cerrno>
 #include <map>
 #include <memory>
@@ -18,7 +17,6 @@
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
 
-using std::make_shared;
 using std::map;
 using std::nullopt;
 using std::optional;

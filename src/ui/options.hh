@@ -1,9 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
-namespace fs = std::filesystem;
-
 enum class FingerprintLevel { None, Local, All };
 
 // Namespace to contain global flags that control build behavior

@@ -1,10 +1,10 @@
 #include "MetadataVersion.hh"
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <ostream>
-#include <set>
 #include <sstream>
 #include <string>
 
@@ -22,6 +22,8 @@ using std::map;
 using std::ostream;
 using std::shared_ptr;
 using std::string;
+
+namespace fs = std::filesystem;
 
 /// Create a new metadata version by changing the owner and/or group in this one
 shared_ptr<MetadataVersion> MetadataVersion::chown(uid_t user, gid_t group) noexcept {

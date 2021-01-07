@@ -1,6 +1,7 @@
 #include "SymlinkArtifact.hh"
 
 #include <cerrno>
+#include <filesystem>
 #include <memory>
 
 #include "artifacts/DirArtifact.hh"
@@ -14,6 +15,8 @@
 
 using std::optional;
 using std::shared_ptr;
+
+namespace fs = std::filesystem;
 
 class MetadataVersion;
 

@@ -8,7 +8,7 @@
 
 #include <sys/types.h>
 
-#include "tracing/Thread.hh"  // IWYU pragma: keep
+#include "tracing/Thread.hh"
 
 class Build;
 class Command;

@@ -1,14 +1,10 @@
 #include "Command.hh"
 
-// IWYU pragma: no_include <ext/alloc_traits.h>
-// IWYU pragma: no_include <utility>
-
 #include <filesystem>
 #include <list>
-#include <map>
 #include <memory>
-#include <set>
 #include <string>
+#include <vector>
 
 #include "runtime/CommandRun.hh"
 #include "ui/options.hh"
@@ -16,9 +12,6 @@
 #include "versions/MetadataVersion.hh"
 
 using std::make_shared;
-using std::make_unique;
-using std::map;
-using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;

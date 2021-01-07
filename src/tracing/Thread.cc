@@ -4,9 +4,12 @@
 #include <climits>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include <fmt/format.h>
 #include <sys/mman.h>

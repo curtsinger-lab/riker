@@ -1,13 +1,14 @@
 #include "env.hh"
 
 #include <cstddef>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
 
-#include <fcntl.h>  // IWYU pragma: keep
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -32,7 +33,8 @@ using std::map;
 using std::pair;
 using std::set;
 using std::shared_ptr;
-using std::string;
+
+namespace fs = std::filesystem;
 
 namespace env {
   /// The next unique ID for a temporary file

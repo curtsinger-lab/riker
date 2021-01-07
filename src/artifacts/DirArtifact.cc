@@ -1,7 +1,7 @@
 #include "DirArtifact.hh"
 
-// IWYU pragma: no_include <utility>
 #include <cerrno>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -19,7 +19,8 @@
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
-using std::tie;
+
+namespace fs = std::filesystem;
 
 class MetadataVersion;
 

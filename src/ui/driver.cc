@@ -1,5 +1,3 @@
-// IWYU pragma: no_include <type_traits>
-// IWYU pragma: no_include <stdexcept>
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -10,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>

@@ -1,6 +1,5 @@
 #include "SyscallTable.hh"
 
-#include <array>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -11,12 +10,6 @@
 #include "tracing/Thread.hh"
 #include "ui/stats.hh"
 
-// IWYU pragma: no_include <sys/socket.h>
-// IWYU pragma: no_include <sys/types.h>
-// IWYU pragma: no_include <sys/user.h>
-// IWYU pragma: no_include <sys/wait.h>
-
-using std::array;
 using std::string;
 using std::vector;
 

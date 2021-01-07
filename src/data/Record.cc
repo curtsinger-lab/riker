@@ -7,11 +7,11 @@
 #include "data/IRSink.hh"
 #include "data/InputTrace.hh"
 #include "runtime/Command.hh"
-#include "versions/DirListVersion.hh"   // IWYU pragma: keep
-#include "versions/FileVersion.hh"      // IWYU pragma: keep
-#include "versions/MetadataVersion.hh"  // IWYU pragma: keep
-#include "versions/PipeVersion.hh"      // IWYU pragma: keep
-#include "versions/SymlinkVersion.hh"   // IWYU pragma: keep
+#include "versions/DirListVersion.hh"
+#include "versions/FileVersion.hh"
+#include "versions/MetadataVersion.hh"
+#include "versions/PipeVersion.hh"
+#include "versions/SymlinkVersion.hh"
 
 using std::make_shared;
 

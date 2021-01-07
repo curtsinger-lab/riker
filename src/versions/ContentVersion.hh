@@ -1,11 +1,14 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <ostream>
 
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
+
+namespace fs = std::filesystem;
 
 class Command;
 

@@ -1,9 +1,12 @@
 #include "FileVersion.hh"
 
 #include <cerrno>
+#include <filesystem>
 #include <iomanip>
 #include <memory>
 #include <optional>
+#include <sstream>
+#include <string>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -23,6 +26,8 @@ using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::stringstream;
+
+namespace fs = std::filesystem;
 
 // The number of bytes read from a file at once when using read() for blake3 hashing
 enum : size_t { BLAKE3BUFSZ = 65536 };
