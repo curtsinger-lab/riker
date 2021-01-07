@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <optional>
-#include <string>
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
@@ -15,7 +14,6 @@
 using std::make_shared;
 using std::optional;
 using std::shared_ptr;
-using std::string;
 
 class MetadataVersion;
 

@@ -2,7 +2,6 @@
 
 // IWYU pragma: no_include <utility>
 #include <cerrno>
-#include <list>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -17,7 +16,6 @@
 #include "versions/DirListVersion.hh"
 #include "versions/DirVersion.hh"
 
-using std::list;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;

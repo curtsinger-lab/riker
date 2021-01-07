@@ -4,7 +4,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 // IWYU pragma: no_include "cereal/cereal.hpp"
@@ -23,7 +22,6 @@ using std::make_unique;
 using std::map;
 using std::shared_ptr;
 using std::string;
-using std::tuple;
 using std::unique_ptr;
 using std::vector;
 

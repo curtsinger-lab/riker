@@ -4,11 +4,9 @@
 // IWYU pragma: no_include <utility>
 
 #include <filesystem>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 
@@ -17,12 +15,9 @@
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
-using std::cout;
-using std::endl;
 using std::make_shared;
 using std::make_unique;
 using std::map;
-using std::nullopt;
 using std::set;
 using std::shared_ptr;
 using std::string;

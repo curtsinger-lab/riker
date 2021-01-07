@@ -3,15 +3,12 @@
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
-#include <memory>
 
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "tracing/Flags.hh"
 #include "util/log.hh"
-
-using std::shared_ptr;
 
 namespace fs = std::filesystem;
 

@@ -2,8 +2,6 @@
 
 #include <array>
 #include <filesystem>
-#include <map>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,8 +17,6 @@
 // IWYU pragma: no_include <sys/wait.h>
 
 using std::array;
-using std::map;
-using std::shared_ptr;
 using std::string;
 using std::vector;
 
