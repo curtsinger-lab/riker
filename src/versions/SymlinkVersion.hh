@@ -8,8 +8,6 @@
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
-using std::shared_ptr;
-
 namespace fs = std::filesystem;
 
 class SymlinkVersion : public ContentVersion {
@@ -27,7 +25,7 @@ class SymlinkVersion : public ContentVersion {
   virtual bool canCommit() const noexcept override { return true; }
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override {
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override {
     auto other_symlink = other->as<SymlinkVersion>();
     return other_symlink && _dest == other_symlink->_dest;
   }

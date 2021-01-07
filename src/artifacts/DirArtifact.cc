@@ -69,7 +69,7 @@ bool DirArtifact::canCommitAll() const noexcept {
 }
 
 // Commit all final versions of this artifact to the filesystem
-void DirArtifact::commitAll(optional<fs::path> path) noexcept {
+void DirArtifact::commitAll(std::optional<fs::path> path) noexcept {
   LOG(artifact) << "Committing content and metadata to " << this;
 
   // If we weren't given a specific path to commit to, get one by committing links

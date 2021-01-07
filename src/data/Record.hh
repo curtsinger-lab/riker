@@ -31,10 +31,6 @@
 #include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 
-using std::map;
-using std::tuple;
-using std::vector;
-
 class ContentVersion;
 class InputTrace;
 class MetadataVersion;
@@ -56,14 +52,17 @@ struct Record {
 
 struct CommandRecord : public Record {
   Command::ID _id;
-  vector<string> _args;
-  map<int, Ref::ID> _initial_fds;
+  std::vector<std::string> _args;
+  std::map<int, Ref::ID> _initial_fds;
   bool _executed;
 
   /// Default constructor for serialization
   CommandRecord() noexcept = default;
 
-  CommandRecord(Command::ID id, vector<string> args, map<int, Ref::ID> initial_fds, bool executed) :
+  CommandRecord(Command::ID id,
+                std::vector<std::string> args,
+                std::map<int, Ref::ID> initial_fds,
+                bool executed) :
       _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -272,7 +271,7 @@ struct MatchMetadataRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  shared_ptr<MetadataVersion> _version;
+  std::shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
   MatchMetadataRecord() noexcept = default;
@@ -280,7 +279,7 @@ struct MatchMetadataRecord : public Record {
   MatchMetadataRecord(Command::ID cmd,
                       Scenario scenario,
                       Ref::ID ref,
-                      shared_ptr<MetadataVersion> version) noexcept :
+                      std::shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -295,7 +294,7 @@ struct MatchContentRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  shared_ptr<ContentVersion> _version;
+  std::shared_ptr<ContentVersion> _version;
 
   /// Default constructor for serialization
   MatchContentRecord() noexcept = default;
@@ -303,7 +302,7 @@ struct MatchContentRecord : public Record {
   MatchContentRecord(Command::ID cmd,
                      Scenario scenario,
                      Ref::ID ref,
-                     shared_ptr<ContentVersion> version) noexcept :
+                     std::shared_ptr<ContentVersion> version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -317,12 +316,14 @@ struct MatchContentRecord : public Record {
 struct UpdateMetadataRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  shared_ptr<MetadataVersion> _version;
+  std::shared_ptr<MetadataVersion> _version;
 
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, shared_ptr<MetadataVersion> version) noexcept :
+  UpdateMetadataRecord(Command::ID cmd,
+                       Ref::ID ref,
+                       std::shared_ptr<MetadataVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -336,12 +337,14 @@ struct UpdateMetadataRecord : public Record {
 struct UpdateContentRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  shared_ptr<ContentVersion> _version;
+  std::shared_ptr<ContentVersion> _version;
 
   /// Default constructor for serialization
   UpdateContentRecord() noexcept = default;
 
-  UpdateContentRecord(Command::ID cmd, Ref::ID ref, shared_ptr<ContentVersion> version) noexcept :
+  UpdateContentRecord(Command::ID cmd,
+                      Ref::ID ref,
+                      std::shared_ptr<ContentVersion> version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -395,12 +398,14 @@ struct RemoveEntryRecord : public Record {
 struct LaunchRecord : public Record {
   Command::ID _cmd;
   Command::ID _child;
-  list<tuple<Ref::ID, Ref::ID>> _refs;
+  std::list<std::tuple<Ref::ID, Ref::ID>> _refs;
 
   /// Default constructor for serialization
   LaunchRecord() noexcept = default;
 
-  LaunchRecord(Command::ID cmd, Command::ID child, list<tuple<Ref::ID, Ref::ID>> refs) noexcept :
+  LaunchRecord(Command::ID cmd,
+               Command::ID child,
+               std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept :
       _cmd(cmd), _child(child), _refs(refs) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;

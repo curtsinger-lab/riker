@@ -29,7 +29,10 @@
 #include "util/wrappers.hh"
 #include "versions/MetadataVersion.hh"
 
+using std::function;
 using std::shared_ptr;
+using std::string;
+using std::vector;
 
 namespace fs = std::filesystem;
 

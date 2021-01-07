@@ -10,10 +10,6 @@
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
-using std::set;
-using std::shared_ptr;
-using std::string;
-
 namespace fs = std::filesystem;
 
 /**
@@ -26,7 +22,7 @@ class DirListVersion : public ContentVersion {
   DirListVersion() noexcept = default;
 
   /// Check if this list matches another list
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override {
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override {
     auto other_list = other->as<DirListVersion>();
     if (!other_list) return false;
     return _entries == other_list->_entries;
@@ -40,7 +36,7 @@ class DirListVersion : public ContentVersion {
   }
 
   /// Get the name for the type of version this is
-  virtual string getTypeName() const noexcept override { return "listed"; }
+  virtual std::string getTypeName() const noexcept override { return "listed"; }
 
   /// Print this version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
@@ -55,7 +51,7 @@ class DirListVersion : public ContentVersion {
 
  private:
   /// The names of entries in the directory
-  set<fs::path> _entries;
+  std::set<fs::path> _entries;
 
   SERIALIZE(BASE(ContentVersion), _entries);
 };

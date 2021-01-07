@@ -13,11 +13,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-using std::map;
-using std::optional;
-using std::set;
-using std::tuple;
-
 namespace fs = std::filesystem;
 
 inline fs::path readlink(fs::path path) noexcept {
@@ -36,8 +31,8 @@ inline fs::path readlink(fs::path path) noexcept {
   return result;
 }
 
-inline tuple<gid_t, uid_t> get_identity() noexcept {
-  static optional<tuple<gid_t, uid_t>> _identity;
+inline std::tuple<gid_t, uid_t> get_identity() noexcept {
+  static std::optional<std::tuple<gid_t, uid_t>> _identity;
 
   if (!_identity.has_value()) {
     _identity = {getegid(), geteuid()};
@@ -46,11 +41,11 @@ inline tuple<gid_t, uid_t> get_identity() noexcept {
   return _identity.value();
 }
 
-inline const set<gid_t>& getgroups() noexcept {
-  static optional<set<gid_t>> _groups;
+inline const std::set<gid_t>& getgroups() noexcept {
+  static std::optional<std::set<gid_t>> _groups;
 
   if (!_groups.has_value()) {
-    _groups = set<gid_t>();
+    _groups = std::set<gid_t>();
     int n = getgroups(0, NULL);
     gid_t sgrps[n];
     getgroups(n, sgrps);
@@ -63,7 +58,7 @@ inline const set<gid_t>& getgroups() noexcept {
 }
 
 inline std::string getSignalName(int sig) {
-  static map<int, std::string> signals{
+  static std::map<int, std::string> signals{
       {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},
       {SIGILL, "SIGILL"},       {SIGTRAP, "SIGTRAP"},     {SIGABRT, "SIGABRT"},
       {SIGIOT, "SIGIOT"},       {SIGBUS, "SIGBUS"},       {SIGFPE, "SIGFPE"},
@@ -87,17 +82,17 @@ inline std::string getSignalName(int sig) {
 
 inline std::string getErrorName(int err) noexcept {
   // Set up a map from return codes to names
-  static map<int8_t, std::string> errors = {{0, "SUCCESS"},
-                                            {EACCES, "EACCES"},
-                                            {EDQUOT, "EDQUOT"},
-                                            {EEXIST, "EEXIST"},
-                                            {EINVAL, "EINVAL"},
-                                            {EISDIR, "EISDIR"},
-                                            {ELOOP, "ELOOP"},
-                                            {ENOENT, "ENOENT"},
-                                            {ENOEXEC, "ENOEXEC"},
-                                            {ENOTDIR, "ENOTDIR"},
-                                            {ENAMETOOLONG, "ENAMETOOLONG"}};
+  static std::map<int8_t, std::string> errors = {{0, "SUCCESS"},
+                                                 {EACCES, "EACCES"},
+                                                 {EDQUOT, "EDQUOT"},
+                                                 {EEXIST, "EEXIST"},
+                                                 {EINVAL, "EINVAL"},
+                                                 {EISDIR, "EISDIR"},
+                                                 {ELOOP, "ELOOP"},
+                                                 {ENOENT, "ENOENT"},
+                                                 {ENOEXEC, "ENOEXEC"},
+                                                 {ENOTDIR, "ENOTDIR"},
+                                                 {ENAMETOOLONG, "ENAMETOOLONG"}};
 
   auto iter = errors.find(err);
   if (iter == errors.end()) {

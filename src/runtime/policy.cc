@@ -11,6 +11,8 @@
 #include "versions/ContentVersion.hh"
 
 using std::set;
+using std::shared_ptr;
+using std::string;
 
 namespace fs = std::filesystem;
 

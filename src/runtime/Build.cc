@@ -2,10 +2,13 @@
 
 #include <cstdio>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
@@ -28,7 +31,13 @@
 
 using std::cout;
 using std::endl;
+using std::list;
+using std::make_shared;
+using std::map;
 using std::shared_ptr;
+using std::string;
+using std::tuple;
+using std::vector;
 
 // Can a step from the provided command be emulated?
 bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {

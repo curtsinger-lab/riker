@@ -12,33 +12,26 @@
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
-using std::make_shared;
-using std::map;
-using std::shared_ptr;
-using std::string;
-using std::tuple;
-using std::vector;
-
 class Build;
 
 class Process : public std::enable_shared_from_this<Process> {
  public:
   /// Keep track of file descriptors with a reference, and a boolean to track whether or not the
   /// descriptor is closed on an exec syscall
-  using FileDescriptor = tuple<Ref::ID, bool>;
+  using FileDescriptor = std::tuple<Ref::ID, bool>;
 
   Process(Build& build,
-          shared_ptr<Command> command,
+          std::shared_ptr<Command> command,
           pid_t pid,
           Ref::ID cwd,
           Ref::ID root,
-          map<int, FileDescriptor> fds) noexcept;
+          std::map<int, FileDescriptor> fds) noexcept;
 
   /// Get the process ID
   pid_t getID() const noexcept { return _pid; }
 
   /// Get the command this process is running
-  const shared_ptr<Command>& getCommand() const noexcept { return _command; }
+  const std::shared_ptr<Command>& getCommand() const noexcept { return _command; }
 
   /// Get the root directory
   Ref::ID getRoot() const noexcept { return _root; }
@@ -74,10 +67,10 @@ class Process : public std::enable_shared_from_this<Process> {
   bool hasExited() const noexcept { return _exited; }
 
   /// This process forked off a child process
-  shared_ptr<Process> fork(pid_t child_pid) noexcept;
+  std::shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
-  void exec(Ref::ID exe_ref, vector<string> args, vector<string> env) noexcept;
+  void exec(Ref::ID exe_ref, std::vector<std::string> args, std::vector<std::string> env) noexcept;
 
   /// This process is exiting
   void exit(int exit_status) noexcept;
@@ -98,7 +91,7 @@ class Process : public std::enable_shared_from_this<Process> {
   Build& _build;
 
   /// The command this process is running
-  shared_ptr<Command> _command;
+  std::shared_ptr<Command> _command;
 
   /// Is this process the primary process running its command?
   bool _primary = false;
@@ -113,7 +106,7 @@ class Process : public std::enable_shared_from_this<Process> {
   Ref::ID _root;
 
   /// The process' file descriptor table
-  map<int, FileDescriptor> _fds;
+  std::map<int, FileDescriptor> _fds;
 
   /// Has this process exited?
   bool _exited = false;

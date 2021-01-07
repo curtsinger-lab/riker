@@ -3,17 +3,12 @@
 #include <filesystem>
 #include <memory>
 #include <ostream>
-#include <string>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "ui/stats.hh"
 #include "util/serializer.hh"
-
-using std::shared_ptr;
-using std::string;
-using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -33,16 +28,16 @@ class MetadataVersion {
       MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
   /// Create a new metadata version by changing the owner and/or group in this one
-  shared_ptr<MetadataVersion> chown(uid_t user, gid_t group) noexcept;
+  std::shared_ptr<MetadataVersion> chown(uid_t user, gid_t group) noexcept;
 
   /// Create a new metadata version by changing the mode bits in this one
-  shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
+  std::shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
 
   /// Get the command that created this version
-  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
+  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
+  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
@@ -51,7 +46,7 @@ class MetadataVersion {
   void setCommitted(bool committed = true) noexcept { _committed = committed; }
 
   /// Check if a given access is allowed by the mode bits in this metadata record
-  bool checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
+  bool checkAccess(std::shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
 
   /// Get the mode field from this metadata version
   mode_t getMode() const noexcept;
@@ -60,7 +55,7 @@ class MetadataVersion {
   void commit(fs::path path) noexcept;
 
   /// Compare this version to another version
-  bool matches(shared_ptr<MetadataVersion> other) const noexcept;
+  bool matches(std::shared_ptr<MetadataVersion> other) const noexcept;
 
   /// Print this metadata version
   std::ostream& print(std::ostream& o) const noexcept;
@@ -81,7 +76,7 @@ class MetadataVersion {
   bool _committed = false;
 
   /// The command that created this version
-  weak_ptr<Command> _creator;
+  std::weak_ptr<Command> _creator;
 
   /// The user id for this metadata version
   uid_t _uid;

@@ -2,17 +2,9 @@
 
 #include <array>
 #include <cstddef>
-#include <map>
-#include <memory>
-#include <string>
 
 #include <sys/user.h>  // IWYU pragma: keep
 #include <syscall.h>   // IWYU pragma: keep
-
-using std::array;
-using std::map;
-using std::shared_ptr;
-using std::string;
 
 class Thread;
 
@@ -80,5 +72,5 @@ class SyscallTable {
   static constexpr size_t size() { return _the_table._syscalls.size(); }
 
  private:
-  array<SyscallEntry, SYSCALL_COUNT> _syscalls;
+  std::array<SyscallEntry, SYSCALL_COUNT> _syscalls;
 };

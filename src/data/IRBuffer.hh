@@ -7,9 +7,6 @@
 #include "data/IRSource.hh"
 #include "util/log.hh"
 
-using std::function;
-using std::list;
-
 class MetadataVersion;
 
 class IRBuffer : public IRSource, public IRSink {
@@ -44,7 +41,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a SpecialRef IR step
-  virtual void specialRef(const shared_ptr<Command>& command,
+  virtual void specialRef(const std::shared_ptr<Command>& command,
                           SpecialRef entity,
                           Ref::ID output) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
@@ -52,7 +49,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a PipeRef IR step
-  virtual void pipeRef(const shared_ptr<Command>& command,
+  virtual void pipeRef(const std::shared_ptr<Command>& command,
                        Ref::ID read_end,
                        Ref::ID write_end) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
@@ -60,7 +57,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a FileRef IR step
-  virtual void fileRef(const shared_ptr<Command>& command,
+  virtual void fileRef(const std::shared_ptr<Command>& command,
                        mode_t mode,
                        Ref::ID output) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
@@ -68,7 +65,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a SymlinkRef IR step
-  virtual void symlinkRef(const shared_ptr<Command>& command,
+  virtual void symlinkRef(const std::shared_ptr<Command>& command,
                           fs::path target,
                           Ref::ID output) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
@@ -76,7 +73,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a DirRef IR step
-  virtual void dirRef(const shared_ptr<Command>& command,
+  virtual void dirRef(const std::shared_ptr<Command>& command,
                       mode_t mode,
                       Ref::ID output) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
@@ -84,7 +81,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a PathRef IR step
-  virtual void pathRef(const shared_ptr<Command>& command,
+  virtual void pathRef(const std::shared_ptr<Command>& command,
                        Ref::ID base,
                        fs::path path,
                        AccessFlags flags,
@@ -95,19 +92,19 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a UsingRef IR step
-  virtual void usingRef(const shared_ptr<Command>& command, Ref::ID ref) noexcept override {
+  virtual void usingRef(const std::shared_ptr<Command>& command, Ref::ID ref) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.usingRef(command, ref); });
   }
 
   /// Handle a DoneWithRef IR step
-  virtual void doneWithRef(const shared_ptr<Command>& command, Ref::ID ref) noexcept override {
+  virtual void doneWithRef(const std::shared_ptr<Command>& command, Ref::ID ref) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.doneWithRef(command, ref); });
   }
 
   /// Handle a CompareRefs IR step
-  virtual void compareRefs(const shared_ptr<Command>& command,
+  virtual void compareRefs(const std::shared_ptr<Command>& command,
                            Ref::ID ref1,
                            Ref::ID ref2,
                            RefComparison type) noexcept override {
@@ -116,7 +113,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle an ExpectResult IR step
-  virtual void expectResult(const shared_ptr<Command>& command,
+  virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
                             int expected) noexcept override {
@@ -126,43 +123,43 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a MatchMetadata IR step
-  virtual void matchMetadata(const shared_ptr<Command>& command,
+  virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             shared_ptr<MetadataVersion> version) noexcept override {
+                             std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.matchMetadata(command, scenario, ref, version); });
   }
 
   /// Handel a MatchContent IR step
-  virtual void matchContent(const shared_ptr<Command>& command,
+  virtual void matchContent(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            shared_ptr<ContentVersion> version) noexcept override {
+                            std::shared_ptr<ContentVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.matchContent(command, scenario, ref, version); });
   }
 
   /// Handle an UpdateMetadata IR step
-  virtual void updateMetadata(const shared_ptr<Command>& command,
+  virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              shared_ptr<MetadataVersion> version) noexcept override {
+                              std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.updateMetadata(command, ref, version); });
   }
 
   /// Handle an UpdateContent IR step
-  virtual void updateContent(const shared_ptr<Command>& command,
+  virtual void updateContent(const std::shared_ptr<Command>& command,
                              Ref::ID ref,
-                             shared_ptr<ContentVersion> version) noexcept override {
+                             std::shared_ptr<ContentVersion> version) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.updateContent(command, ref, version); });
   }
 
   /// Handle an AddEntry IR step
-  virtual void addEntry(const shared_ptr<Command>& command,
+  virtual void addEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
                         fs::path name,
                         Ref::ID target) noexcept override {
@@ -171,7 +168,7 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a RemoveEntry IR step
-  virtual void removeEntry(const shared_ptr<Command>& command,
+  virtual void removeEntry(const std::shared_ptr<Command>& command,
                            Ref::ID dir,
                            fs::path name,
                            Ref::ID target) noexcept override {
@@ -180,23 +177,23 @@ class IRBuffer : public IRSource, public IRSink {
   }
 
   /// Handle a Launch IR step
-  virtual void launch(const shared_ptr<Command>& command,
-                      const shared_ptr<Command>& child,
-                      list<tuple<Ref::ID, Ref::ID>> refs) noexcept override {
+  virtual void launch(const std::shared_ptr<Command>& command,
+                      const std::shared_ptr<Command>& child,
+                      std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.launch(command, child, refs); });
   }
 
   /// Handle a Join IR step
-  virtual void join(const shared_ptr<Command>& command,
-                    const shared_ptr<Command>& child,
+  virtual void join(const std::shared_ptr<Command>& command,
+                    const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.join(command, child, exit_status); });
   }
 
   /// Handle an Exit IR step
-  virtual void exit(const shared_ptr<Command>& command, int exit_status) noexcept override {
+  virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override {
     ASSERT(_mode == BufferMode::Filling) << "Cannot add steps to a buffer that is not filling";
     _steps.emplace_back([=](IRSink& handler) { handler.exit(command, exit_status); });
   }
@@ -208,5 +205,5 @@ class IRBuffer : public IRSource, public IRSink {
   BufferMode _mode = BufferMode::Filling;
 
   /// Keep a list of IR steps as callbacks that take a sink as input
-  list<function<void(IRSink&)>> _steps;
+  std::list<std::function<void(IRSink&)>> _steps;
 };

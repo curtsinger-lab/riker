@@ -2,8 +2,12 @@
 
 // IWYU pragma: no_include <type_traits>
 #include <cerrno>
+#include <map>
 #include <memory>
+#include <optional>
 #include <set>
+#include <string>
+#include <tuple>
 
 #include <fcntl.h>
 
@@ -16,9 +20,13 @@
 #include "versions/MetadataVersion.hh"
 
 using std::make_shared;
+using std::map;
 using std::nullopt;
+using std::optional;
 using std::set;
 using std::shared_ptr;
+using std::string;
+using std::tuple;
 
 Artifact::Artifact(shared_ptr<MetadataVersion> v) noexcept {
   appendVersion(v);

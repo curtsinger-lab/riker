@@ -7,11 +7,6 @@
 #include <string>
 #include <utility>
 
-using std::map;
-using std::set;
-using std::shared_ptr;
-using std::string;
-
 class Artifact;
 class Command;
 class MetadataVersion;
@@ -35,36 +30,36 @@ class Graph {
 
  private:
   /// Add a command to the graph
-  string addCommand(shared_ptr<Command> c) noexcept;
+  std::string addCommand(std::shared_ptr<Command> c) noexcept;
 
   /// Add an artifact to the graph
-  string addArtifact(shared_ptr<Artifact> c) noexcept;
+  std::string addArtifact(std::shared_ptr<Artifact> c) noexcept;
 
   /// Add a version to the graph
-  string addVersion(shared_ptr<MetadataVersion> c) noexcept;
+  std::string addVersion(std::shared_ptr<MetadataVersion> c) noexcept;
 
   /// Add a version to the graph
-  string addVersion(shared_ptr<ContentVersion> c) noexcept;
+  std::string addVersion(std::shared_ptr<ContentVersion> c) noexcept;
 
  private:
   /// Should the graph output include all artifacts?
   bool _show_all;
 
   /// A map from commands to their IDs in the graph output
-  map<shared_ptr<Command>, string> _command_ids;
+  std::map<std::shared_ptr<Command>, std::string> _command_ids;
 
   /// A map from artifacts to the ID used to represent the entire artifact in the build graph
-  map<shared_ptr<Artifact>, string> _artifact_ids;
+  std::map<std::shared_ptr<Artifact>, std::string> _artifact_ids;
 
   /// A map from versions to their ID (not prefixed by artifact ID)
-  map<shared_ptr<MetadataVersion>, string> _metadata_version_ids;
+  std::map<std::shared_ptr<MetadataVersion>, std::string> _metadata_version_ids;
 
   /// A map from versions to their ID (not prefixed by artifact ID)
-  map<shared_ptr<ContentVersion>, string> _content_version_ids;
+  std::map<std::shared_ptr<ContentVersion>, std::string> _content_version_ids;
 
   /// A set of command edges, from parent to child
-  set<std::pair<string, string>> _command_edges;
+  std::set<std::pair<std::string, std::string>> _command_edges;
 
   // Command input edges (artifact -> command)
-  set<std::pair<string, string>> _io_edges;
+  std::set<std::pair<std::string, std::string>> _io_edges;
 };

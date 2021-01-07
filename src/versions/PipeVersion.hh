@@ -5,15 +5,9 @@
 #include <memory>
 #include <ostream>
 #include <string>
-#include <tuple>
 
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
-
-using std::list;
-using std::shared_ptr;
-using std::string;
-using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -23,10 +17,10 @@ class PipeWriteVersion : public ContentVersion {
   PipeWriteVersion() noexcept : ContentVersion() {}
 
   /// Get a short name for this version type
-  virtual string getTypeName() const noexcept override { return "pipe write"; }
+  virtual std::string getTypeName() const noexcept override { return "pipe write"; }
 
   /// Check if a written pipe version matches another
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override;
 
   /// A pipe write cannot be committed
   virtual void commit(fs::path path) noexcept override {}
@@ -43,10 +37,10 @@ class PipeWriteVersion : public ContentVersion {
 class PipeCloseVersion : public PipeWriteVersion {
  public:
   /// Get a short name for thsi version type
-  virtual string getTypeName() const noexcept override { return "pipe close"; }
+  virtual std::string getTypeName() const noexcept override { return "pipe close"; }
 
   /// Check if a this version matches another
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override {
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override {
     return static_cast<bool>(other->as<PipeCloseVersion>());
   }
 
@@ -68,13 +62,14 @@ class PipeCloseVersion : public PipeWriteVersion {
 class PipeReadVersion : public ContentVersion {
  public:
   /// Create a new version that tracks a read from a pipe. The read observes some number of writes.
-  PipeReadVersion(list<shared_ptr<PipeWriteVersion>> observed) noexcept : _observed(observed) {}
+  PipeReadVersion(std::list<std::shared_ptr<PipeWriteVersion>> observed) noexcept :
+      _observed(observed) {}
 
   /// Get a short name for this version type
-  virtual string getTypeName() const noexcept override { return "pipe read"; }
+  virtual std::string getTypeName() const noexcept override { return "pipe read"; }
 
   /// Check if a read pipe version matches another
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override;
 
   /// A pipe read cannot be committed
   virtual void commit(fs::path path) noexcept override {}
@@ -86,7 +81,7 @@ class PipeReadVersion : public ContentVersion {
 
  private:
   /// The list of writes this read version observes
-  list<shared_ptr<PipeWriteVersion>> _observed;
+  std::list<std::shared_ptr<PipeWriteVersion>> _observed;
 
   // Create default constructor and declare fields for serialization
   PipeReadVersion() noexcept = default;

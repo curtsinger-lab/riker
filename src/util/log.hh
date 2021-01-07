@@ -14,9 +14,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-using std::cerr;
-using std::experimental::source_location;
-
 #define NORMAL "\033[00;"
 #define BOLD "\033[01;"
 #define FAINT "\033[02;"
@@ -75,38 +72,39 @@ class logger {
   inline static constexpr const char* name = getLogCategoryName(category);
 
  public:
-  logger(source_location location = source_location::current()) noexcept {
+  logger(std::experimental::source_location location =
+             std::experimental::source_location::current()) noexcept {
     // Stop immediately if this logger is not enabled
     if (!enabled) return;
 
     // Set the color for the log category text
     if (!logger_options::disable_color) {
       if (category == LogCategory::error) {
-        cerr << FAINT RED;
+        std::cerr << FAINT RED;
       } else if (category == LogCategory::warning) {
-        cerr << FAINT YELLOW;
+        std::cerr << FAINT YELLOW;
       } else {
-        cerr << FAINT GREEN;
+        std::cerr << FAINT GREEN;
       }
     }
 
     // Print the logging category name
-    cerr << "(" << name << ") ";
+    std::cerr << "(" << name << ") ";
 
     // Print source information, if enabled
     if (logger_options::debug) {
-      if (!logger_options::disable_color) cerr << NORMAL BLUE;
-      cerr << "[" << location.file_name() << ":" << location.line() << "] ";
+      if (!logger_options::disable_color) std::cerr << NORMAL BLUE;
+      std::cerr << "[" << location.file_name() << ":" << location.line() << "] ";
     }
 
     // Set the log color for the actual message
     if (!logger_options::disable_color) {
       if (category == LogCategory::error) {
-        cerr << NORMAL RED;
+        std::cerr << NORMAL RED;
       } else if (category == LogCategory::warning) {
-        cerr << NORMAL YELLOW;
+        std::cerr << NORMAL YELLOW;
       } else {
-        cerr << NORMAL GREEN;
+        std::cerr << NORMAL GREEN;
       }
     }
   }
@@ -115,9 +113,9 @@ class logger {
     if (!enabled) return;
 
     // End color output and print a newline
-    if (!logger_options::disable_color) cerr << END_COLOR;
-    cerr << "\n";
-    cerr << std::dec;
+    if (!logger_options::disable_color) std::cerr << END_COLOR;
+    std::cerr << "\n";
+    std::cerr << std::dec;
 
     // If this log is a fatal
     if (category == LogCategory::error) {
@@ -141,7 +139,7 @@ class logger {
 
   template <typename T>
   logger& operator<<(const T& t) noexcept {
-    if (enabled) cerr << t;
+    if (enabled) std::cerr << t;
     return *this;
   }
 };

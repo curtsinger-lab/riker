@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -11,12 +10,6 @@
 #include "data/AccessFlags.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
-
-using std::map;
-using std::optional;
-using std::shared_ptr;
-using std::string;
-using std::weak_ptr;
 
 class Artifact;
 
@@ -49,7 +42,7 @@ class Ref final {
   }
 
   /// Create a Ref that resolves to an artifact
-  Ref(AccessFlags flags, shared_ptr<Artifact> artifact) noexcept :
+  Ref(AccessFlags flags, std::shared_ptr<Artifact> artifact) noexcept :
       _rc(SUCCESS), _artifact(artifact), _flags(flags) {
     ASSERT(artifact) << "Attempted to create a Ref that resolved successfully with a null artifact";
   }
@@ -63,7 +56,7 @@ class Ref final {
   Ref& operator=(Ref&&) noexcept = default;
 
   /// Get the artifact reached via this reference
-  shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
+  std::shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
 
   /// Get the result code returned to this reference
   int getResultCode() const noexcept { return _rc; }
@@ -112,7 +105,7 @@ class Ref final {
   int _rc;
 
   /// The artifact this reference resolved to
-  weak_ptr<Artifact> _artifact;
+  std::weak_ptr<Artifact> _artifact;
 
   /// Keep the flags used to establish this reference so we know what accesses are permitted
   AccessFlags _flags;
@@ -121,5 +114,5 @@ class Ref final {
   size_t _users = 0;
 
   /// If this Ref has a valid file descriptor, it is saved here
-  optional<int> _fd;
+  std::optional<int> _fd;
 };

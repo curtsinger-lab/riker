@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <list>
 #include <memory>
+#include <string>
 #include <tuple>
+#include <vector>
 
 #include <unistd.h>
 
@@ -13,7 +15,9 @@
 
 using std::list;
 using std::make_shared;
+using std::string;
 using std::tuple;
+using std::vector;
 
 void DefaultTrace::sendTo(IRSink& handler) noexcept {
   auto null_cmd = Command::getNullCommand();

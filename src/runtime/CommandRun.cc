@@ -3,7 +3,12 @@
 // IWYU pragma: no_include <ext/alloc_traits.h>
 
 #include <filesystem>
+#include <map>
+#include <memory>
+#include <optional>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"  // IWYU pragma: keep
@@ -12,6 +17,12 @@
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
+
+using std::list;
+using std::map;
+using std::shared_ptr;
+using std::string;
+using std::vector;
 
 namespace fs = std::filesystem;
 

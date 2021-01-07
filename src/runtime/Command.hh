@@ -3,28 +3,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <list>
 #include <map>
 #include <memory>
-#include <optional>
 #include <ostream>
-#include <set>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "runtime/Ref.hh"
 #include "util/log.hh"
-
-using std::list;
-using std::map;
-using std::optional;
-using std::set;
-using std::shared_ptr;
-using std::string;
-using std::tuple;
-using std::unique_ptr;
-using std::vector;
 
 namespace fs = std::filesystem;
 
@@ -67,7 +53,7 @@ class Command : public std::enable_shared_from_this<Command> {
   using ID = uint32_t;
 
   /// Create a new command
-  Command(vector<string> args) noexcept;
+  Command(std::vector<std::string> args) noexcept;
 
   /// Declare a destructor
   ~Command() noexcept;
@@ -81,13 +67,13 @@ class Command : public std::enable_shared_from_this<Command> {
   Command& operator=(Command&&) noexcept = default;
 
   /// Get a shared pointer to the special null command instance
-  static const shared_ptr<Command>& getNullCommand() noexcept;
+  static const std::shared_ptr<Command>& getNullCommand() noexcept;
 
   /// Get a short, printable name for this command
-  string getShortName(size_t limit = 20) const noexcept;
+  std::string getShortName(size_t limit = 20) const noexcept;
 
   /// Get the full name for this command
-  string getFullName() const noexcept;
+  std::string getFullName() const noexcept;
 
   /// Is this command the null command?
   bool isNullCommand() const noexcept;
@@ -102,10 +88,10 @@ class Command : public std::enable_shared_from_this<Command> {
   void setExecuted() noexcept { _executed = true; }
 
   /// Get the list of arguments this command was started with
-  const vector<string>& getArguments() const noexcept { return _args; }
+  const std::vector<std::string>& getArguments() const noexcept { return _args; }
 
   /// Get the set of file descriptors set up at the start of this command's run
-  const map<int, Ref::ID>& getInitialFDs() const noexcept { return _initial_fds; }
+  const std::map<int, Ref::ID>& getInitialFDs() const noexcept { return _initial_fds; }
 
   /// Add an initial file descriptor to this command
   void addInitialFD(int fd, Ref::ID ref) noexcept {
@@ -133,10 +119,10 @@ class Command : public std::enable_shared_from_this<Command> {
   /****** Rebuild Planning ******/
 
   /// Get the transient data for this command's current run
-  const shared_ptr<CommandRun>& currentRun() noexcept;
+  const std::shared_ptr<CommandRun>& currentRun() noexcept;
 
   /// Get the transient data for this command's previous run
-  const shared_ptr<CommandRun>& previousRun() noexcept;
+  const std::shared_ptr<CommandRun>& previousRun() noexcept;
 
   /// Finish the current run of this command. This moves the run data to last_run.
   void finishRun() noexcept;
@@ -156,19 +142,19 @@ class Command : public std::enable_shared_from_this<Command> {
 
  private:
   /// The arguments passed to this command on startup
-  vector<string> _args;
+  std::vector<std::string> _args;
 
   /// The file descriptor entries populated at the start of this command's execution
-  map<int, Ref::ID> _initial_fds;
+  std::map<int, Ref::ID> _initial_fds;
 
   /// Has this command ever run?
   bool _executed = false;
 
   /// Transient data for the current run
-  shared_ptr<CommandRun> _run;
+  std::shared_ptr<CommandRun> _run;
 
   /// Transient data for the last run
-  shared_ptr<CommandRun> _last_run;
+  std::shared_ptr<CommandRun> _last_run;
 
   /// The marking state for this command that determines how the command is run
   RebuildMarking _marking = RebuildMarking::Emulate;

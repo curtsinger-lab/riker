@@ -10,8 +10,11 @@
 #include "runtime/Ref.hh"
 #include "util/log.hh"
 
+using std::make_shared;
 using std::map;
 using std::shared_ptr;
+using std::string;
+using std::vector;
 
 namespace fs = std::filesystem;
 

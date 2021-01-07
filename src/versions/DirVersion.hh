@@ -3,17 +3,11 @@
 #include <filesystem>
 #include <memory>
 #include <ostream>
-#include <set>
 #include <string>
 
 #include "artifacts/Artifact.hh"
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
-
-using std::make_shared;
-using std::set;
-using std::shared_ptr;
-using std::string;
 
 namespace fs = std::filesystem;
 
@@ -52,7 +46,7 @@ class BaseDirVersion : public DirVersion {
   virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
-  virtual string getTypeName() const noexcept override {
+  virtual std::string getTypeName() const noexcept override {
     if (_created) {
       return "empty";
     } else {
@@ -83,13 +77,14 @@ class BaseDirVersion : public DirVersion {
 class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  AddEntry(string entry, shared_ptr<Artifact> target) noexcept : _entry(entry), _target(target) {}
+  AddEntry(std::string entry, std::shared_ptr<Artifact> target) noexcept :
+      _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version links
-  string getEntryName() const noexcept { return _entry; }
+  std::string getEntryName() const noexcept { return _entry; }
 
   /// Get the target of the newly-linked entry
-  shared_ptr<Artifact> getTarget() const noexcept { return _target; }
+  std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override {
@@ -103,7 +98,7 @@ class AddEntry : public DirVersion {
   virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "+" + string(_entry); }
+  virtual std::string getTypeName() const noexcept override { return "+" + std::string(_entry); }
 
   /// Print a link version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
@@ -111,22 +106,22 @@ class AddEntry : public DirVersion {
   }
 
  private:
-  string _entry;
-  shared_ptr<Artifact> _target;
+  std::string _entry;
+  std::shared_ptr<Artifact> _target;
 };
 
 /// A RemoveEntry version updates a directory so it no longer has a specific entry
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(string entry, shared_ptr<Artifact> target) noexcept :
+  RemoveEntry(std::string entry, std::shared_ptr<Artifact> target) noexcept :
       _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version removes
-  string getEntryName() const noexcept { return _entry; }
+  std::string getEntryName() const noexcept { return _entry; }
 
   /// Get a reference to the artifact that is unlinked
-  shared_ptr<Artifact> getTarget() const noexcept { return _target; }
+  std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept override { return true; }
@@ -135,7 +130,7 @@ class RemoveEntry : public DirVersion {
   virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
-  virtual string getTypeName() const noexcept override { return "-" + string(_entry); }
+  virtual std::string getTypeName() const noexcept override { return "-" + std::string(_entry); }
 
   /// Print an unlink version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
@@ -144,8 +139,8 @@ class RemoveEntry : public DirVersion {
 
  private:
   /// The name of the entry this version removes
-  string _entry;
+  std::string _entry;
 
   /// A reference to the artifact that is unlinked by this version
-  shared_ptr<Artifact> _target;
+  std::shared_ptr<Artifact> _target;
 };

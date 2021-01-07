@@ -2,8 +2,6 @@
 
 #include <optional>
 
-using std::optional;
-
 /**
  * This is a utility class for assigning unique identifiers to instaces. Identifiers are assigned
  * sequentially on creation.

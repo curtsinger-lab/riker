@@ -7,9 +7,6 @@
 #include "util/log.hh"
 #include "util/serializer.hh"
 
-using std::shared_ptr;
-using std::weak_ptr;
-
 class Command;
 
 /// The fingerprint polciy determines what type of fingerprint we collect for a version.
@@ -34,15 +31,15 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
 
   /// Try to cast this version to one of its subtypes
   template <class T>
-  shared_ptr<T> as() noexcept {
+  std::shared_ptr<T> as() noexcept {
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
   /// Get the command that created this version
-  shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
+  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
   /// Record that this version was created by command c
-  void createdBy(shared_ptr<Command> c) noexcept { _creator = c; }
+  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
 
   /// Check if this version has been committed
   bool isCommitted() const noexcept { return _committed; }
@@ -70,7 +67,7 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   }
 
   /// Check if this version matches another
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept {
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept {
     FAIL << "Unsupported call to matches() on version " << this;
     return false;
   }
@@ -81,7 +78,7 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   }
 
   /// Get the name for the type of version this is
-  virtual string getTypeName() const noexcept = 0;
+  virtual std::string getTypeName() const noexcept = 0;
 
   /// Print this version
   virtual std::ostream& print(std::ostream& o) const noexcept = 0;
@@ -107,5 +104,5 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   bool _committed = false;
 
   /// The command that created this version
-  weak_ptr<Command> _creator;
+  std::weak_ptr<Command> _creator;
 };

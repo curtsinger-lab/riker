@@ -1,5 +1,7 @@
 #include "Record.hh"
 
+#include <memory>
+
 #include <cereal/types/polymorphic.hpp>
 
 #include "data/IRSink.hh"
@@ -10,6 +12,8 @@
 #include "versions/MetadataVersion.hh"  // IWYU pragma: keep
 #include "versions/PipeVersion.hh"      // IWYU pragma: keep
 #include "versions/SymlinkVersion.hh"   // IWYU pragma: keep
+
+using std::make_shared;
 
 // Record types
 CEREAL_REGISTER_TYPE(CommandRecord);

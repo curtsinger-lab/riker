@@ -37,10 +37,13 @@
 using std::cout;
 using std::endl;
 using std::make_unique;
+using std::map;
 using std::ofstream;
 using std::optional;
+using std::set;
 using std::string;
 using std::stringstream;
+using std::unique_ptr;
 using std::vector;
 
 namespace fs = std::filesystem;

@@ -15,11 +15,6 @@
 #include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
-using std::nullopt;
-using std::optional;
-using std::string;
-using std::stringstream;
-
 namespace fs = std::filesystem;
 
 class FileVersion final : public ContentVersion {
@@ -35,7 +30,7 @@ class FileVersion final : public ContentVersion {
       _empty(statbuf.st_size == 0), _mtime(statbuf.st_mtim) {}
 
   /// Get the name for this type of version
-  virtual string getTypeName() const noexcept override { return "content"; }
+  virtual std::string getTypeName() const noexcept override { return "content"; }
 
   /// Can this version be committed to the filesystem?
   bool canCommit() const noexcept override;
@@ -50,7 +45,7 @@ class FileVersion final : public ContentVersion {
   void makeEmptyFingerprint() noexcept;
 
   /// Compare this version to another version
-  virtual bool matches(shared_ptr<ContentVersion> other) const noexcept override;
+  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override;
 
   /// Pretty printer
   virtual std::ostream& print(std::ostream& o) const noexcept override;
@@ -63,7 +58,7 @@ class FileVersion final : public ContentVersion {
 
  private:
   /// Compare to another fingerprint instance
-  bool fingerprints_match(shared_ptr<FileVersion> other) const noexcept;
+  bool fingerprints_match(std::shared_ptr<FileVersion> other) const noexcept;
 
   /// Commit this version to the filesystem
   void commitEmptyFile(fs::path path, mode_t mode = 0600) noexcept;

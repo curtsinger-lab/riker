@@ -20,10 +20,14 @@
 #include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
 
+using std::list;
 using std::make_unique;
 using std::map;
 using std::ofstream;
 using std::shared_ptr;
+using std::string;
+using std::tuple;
+using std::unique_ptr;
 
 namespace fs = std::filesystem;
 

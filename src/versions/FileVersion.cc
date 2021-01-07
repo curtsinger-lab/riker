@@ -11,14 +11,18 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "artifacts/Artifact.hh"
 #include "blake3.h"
 #include "ui/constants.hh"
 #include "ui/options.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 
+using std::nullopt;
+using std::optional;
 using std::ostream;
+using std::shared_ptr;
+using std::string;
+using std::stringstream;
 
 // The number of bytes read from a file at once when using read() for blake3 hashing
 enum : size_t { BLAKE3BUFSZ = 65536 };
@@ -33,7 +37,7 @@ static string b3hex(FileVersion::Hash b3hash) noexcept {
 }
 
 /// Return a BLAKE3 hash for the contents of the file at the given path.
-static std::optional<FileVersion::Hash> blake3(fs::path path, struct stat& statbuf) noexcept {
+static optional<FileVersion::Hash> blake3(fs::path path, struct stat& statbuf) noexcept {
   // initialize hasher
   blake3_hasher hasher;
   blake3_hasher_init(&hasher);

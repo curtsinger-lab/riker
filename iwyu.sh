@@ -1,2 +1,2 @@
 #!/bin/sh
-make -k -j1 CXX="iwyu -Xiwyu --mapping_file=.iwyu.imp"
+make -k -B CXX="iwyu -Xiwyu --mapping_file=.iwyu.imp"

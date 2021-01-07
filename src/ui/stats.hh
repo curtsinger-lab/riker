@@ -6,15 +6,11 @@
 #include <optional>
 #include <string>
 
-using std::optional;
-using std::string;
-using std::chrono::time_point;
-
 namespace fs = std::filesystem;
 
 namespace stats {
   /// The time set when the stats counters were last reset
-  inline time_point start_time = std::chrono::high_resolution_clock::now();
+  inline std::chrono::time_point start_time = std::chrono::high_resolution_clock::now();
 
   /// The number of unique commands that have been emulated
   inline size_t emulated_commands = 0;
@@ -58,14 +54,16 @@ inline static void reset_stats() noexcept {
  * Generate an empty row for stats CSV. This is to ensure that non-dodo
  * benchmarks output a CSV with the same format.
  */
-void write_empty_stats(optional<fs::path> p);
+void write_empty_stats(std::optional<fs::path> p);
 
 /**
  * Write stats to CSV.
  */
-void write_stats(optional<fs::path> p, optional<string> stats);
+void write_stats(std::optional<fs::path> p, std::optional<std::string> stats);
 
 /**
  * Generate a stats row fragment in CSV format
  */
-void gather_stats(optional<fs::path> p, optional<string>& stats_opt, string phase);
+void gather_stats(std::optional<fs::path> p,
+                  std::optional<std::string>& stats_opt,
+                  std::string phase);

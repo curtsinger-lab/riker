@@ -4,6 +4,7 @@
 #include <list>
 #include <memory>
 #include <ostream>
+#include <string>
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
@@ -13,6 +14,7 @@
 
 using std::ostream;
 using std::shared_ptr;
+using std::string;
 using std::to_string;
 
 namespace fs = std::filesystem;

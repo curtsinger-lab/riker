@@ -12,6 +12,7 @@
 #include "versions/ContentVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
+using std::optional;
 using std::shared_ptr;
 
 class MetadataVersion;

@@ -5,8 +5,10 @@
 
 #include <filesystem>
 #include <iostream>
+#include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -24,6 +26,7 @@ using std::nullopt;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 namespace fs = std::filesystem;
 

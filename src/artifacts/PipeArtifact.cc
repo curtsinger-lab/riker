@@ -1,6 +1,7 @@
 #include "PipeArtifact.hh"
 
 #include <memory>
+#include <tuple>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -12,7 +13,9 @@
 #include "versions/ContentVersion.hh"
 #include "versions/PipeVersion.hh"
 
+using std::make_shared;
 using std::shared_ptr;
+using std::tuple;
 
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {

@@ -15,31 +15,28 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
-#include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
 #include "util/log.hh"
 
-using std::function;
-using std::shared_ptr;
-
 namespace fs = std::filesystem;
 
 class AccessFlags;
 class Build;
+class Command;
 class Tracer;
 
 class Thread {
  public:
-  Thread(Build& build, Tracer& tracer, shared_ptr<Process> process, pid_t tid) noexcept :
+  Thread(Build& build, Tracer& tracer, std::shared_ptr<Process> process, pid_t tid) noexcept :
       _build(build), _tracer(tracer), _process(process), _tid(tid) {}
 
   /// Get the process this thread runs in
-  shared_ptr<Process> getProcess() const noexcept { return _process; }
+  std::shared_ptr<Process> getProcess() const noexcept { return _process; }
 
   /// Get the command this thread's process is running
-  const shared_ptr<Command>& getCommand() const noexcept { return _process->getCommand(); }
+  const std::shared_ptr<Command>& getCommand() const noexcept { return _process->getCommand(); }
 
   /// Get the thread ID
   pid_t getID() const noexcept { return _tid; }
@@ -49,7 +46,7 @@ class Thread {
 
   /// Resume a thread that has stopped before a syscall, and run the provided handler when the
   /// syscall finishes
-  void finishSyscall(function<void(long)> handler) noexcept;
+  void finishSyscall(std::function<void(long)> handler) noexcept;
 
   /// Run the registered post-syscall handler
   void syscallFinished() noexcept;
@@ -64,7 +61,7 @@ class Thread {
   void setRegisters(user_regs_struct& regs) noexcept;
 
   /// Read a string from this thread's memory
-  string readString(uintptr_t tracee_pointer) noexcept;
+  std::string readString(uintptr_t tracee_pointer) noexcept;
 
   /// Read a normalized path from this thread's memory
   fs::path readPath(uintptr_t tracee_pointer) noexcept;
@@ -75,10 +72,10 @@ class Thread {
 
   /// Read a terminated array from this thread's memory
   template <typename T, T Terminator, size_t BatchSize = 128>
-  vector<T> readTerminatedArray(uintptr_t tracee_pointer) noexcept;
+  std::vector<T> readTerminatedArray(uintptr_t tracee_pointer) noexcept;
 
   /// Read a null-terminated array of strings
-  vector<string> readArgvArray(uintptr_t tracee_pointer) noexcept;
+  std::vector<std::string> readArgvArray(uintptr_t tracee_pointer) noexcept;
 
   /// Get the path associated with a file descriptor that may be AT_FDCWD
   fs::path getPath(at_fd fd) const noexcept;
@@ -271,10 +268,15 @@ class Thread {
   void _clone(void* fn, void* stack, int flags) noexcept;
   void _exit(int status) noexcept;
   void _exit_group(int status) noexcept;
-  void _execve(fs::path filename, vector<string> args, vector<string> env) noexcept {
+  void _execve(fs::path filename,
+               std::vector<std::string> args,
+               std::vector<std::string> env) noexcept {
     _execveat(at_fd::cwd(), filename, args, env);
   }
-  void _execveat(at_fd dfd, fs::path filename, vector<string> args, vector<string> env) noexcept;
+  void _execveat(at_fd dfd,
+                 fs::path filename,
+                 std::vector<std::string> args,
+                 std::vector<std::string> env) noexcept;
   void _wait4(pid_t pid, int* wstatus, int options) noexcept;
   void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 
@@ -297,11 +299,11 @@ class Thread {
   Tracer& _tracer;
 
   /// The process this thread is executing in
-  shared_ptr<Process> _process;
+  std::shared_ptr<Process> _process;
 
   /// The thread's tid
   pid_t _tid;
 
   /// The handler function that should run when the next system call is finished
-  function<void(long)> _post_syscall_handler;
+  std::function<void(long)> _post_syscall_handler;
 };

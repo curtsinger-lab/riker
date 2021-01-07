@@ -1,6 +1,7 @@
 #include "FileArtifact.hh"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "artifacts/Artifact.hh"
@@ -11,6 +12,8 @@
 #include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
 
+using std::make_shared;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 

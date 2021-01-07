@@ -6,9 +6,6 @@
 
 #include <sys/types.h>
 
-using std::set;
-using std::shared_ptr;
-
 namespace fs = std::filesystem;
 
 class Artifact;
@@ -29,22 +26,22 @@ namespace env {
   void commitAll() noexcept;
 
   /// Get the standard input pipe
-  shared_ptr<PipeArtifact> getStdin(const shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<PipeArtifact> getStdin(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the standard output pipe
-  shared_ptr<PipeArtifact> getStdout(const shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<PipeArtifact> getStdout(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the standard error pipe
-  shared_ptr<PipeArtifact> getStderr(const shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<PipeArtifact> getStderr(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the root directory
-  shared_ptr<DirArtifact> getRootDir() noexcept;
+  std::shared_ptr<DirArtifact> getRootDir() noexcept;
 
   /// Get a unique path to a temporary file in the build directory
   fs::path getTempPath() noexcept;
 
   /// Get a set of all the artifacts in the build
-  const set<shared_ptr<Artifact>>& getArtifacts() noexcept;
+  const std::set<std::shared_ptr<Artifact>>& getArtifacts() noexcept;
 
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.
@@ -52,14 +49,14 @@ namespace env {
    * \param path  The path to this artifact on the filesystem
    * \returns an artifact pointer
    */
-  shared_ptr<Artifact> getFilesystemArtifact(fs::path path) noexcept;
+  std::shared_ptr<Artifact> getFilesystemArtifact(fs::path path) noexcept;
 
   /**
    * Create a pipe artifact
    * \param c The command that creates the pipe
    * \returns a pipe artifact
    */
-  shared_ptr<PipeArtifact> getPipe(const shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<PipeArtifact> getPipe(const std::shared_ptr<Command>& c) noexcept;
 
   /**
    * Create a symlink artifact
@@ -68,9 +65,9 @@ namespace env {
    * \param committed If true, the symlink is already committed
    * \returns a symlink artifact
    */
-  shared_ptr<SymlinkArtifact> getSymlink(const shared_ptr<Command>& c,
-                                         fs::path target,
-                                         bool committed) noexcept;
+  std::shared_ptr<SymlinkArtifact> getSymlink(const std::shared_ptr<Command>& c,
+                                              fs::path target,
+                                              bool committed) noexcept;
 
   /**
    * Create a directory artifact
@@ -79,9 +76,9 @@ namespace env {
    * \param committed If true, the directory is already committed
    * \returns a directory artifact
    */
-  shared_ptr<DirArtifact> getDir(const shared_ptr<Command>& c,
-                                 mode_t mode,
-                                 bool committed) noexcept;
+  std::shared_ptr<DirArtifact> getDir(const std::shared_ptr<Command>& c,
+                                      mode_t mode,
+                                      bool committed) noexcept;
 
   /**
    * Create a file artifact that exists only in the filesystem model
@@ -90,7 +87,7 @@ namespace env {
    * \param committed If true, the file is already committed
    * \returns a file artifact
    */
-  shared_ptr<Artifact> createFile(const shared_ptr<Command>& creator,
-                                  mode_t mode,
-                                  bool committed) noexcept;
+  std::shared_ptr<Artifact> createFile(const std::shared_ptr<Command>& creator,
+                                       mode_t mode,
+                                       bool committed) noexcept;
 }

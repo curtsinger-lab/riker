@@ -45,6 +45,7 @@ using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::tuple;
+using std::vector;
 
 namespace fs = std::filesystem;
 
