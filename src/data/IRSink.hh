@@ -10,10 +10,9 @@
 #include "runtime/CommandRun.hh"
 
 class Command;
-class MetadataVersion;
-class Ref;
 class ContentVersion;
 class MetadataVersion;
+class Ref;
 
 using std::list;
 using std::shared_ptr;

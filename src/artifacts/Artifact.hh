@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -10,18 +11,16 @@
 #include <tuple>
 
 #include "data/AccessFlags.hh"
+#include "runtime/Command.hh"
 #include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
-#include "ui/options.hh"
 #include "util/log.hh"
-#include "versions/ContentVersion.hh"
 
 using std::list;
 using std::make_shared;
 using std::map;
 using std::nullopt;
 using std::optional;
-using std::ostream;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -29,20 +28,11 @@ using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
-class AddEntry;
 class Build;
-class Command;
+class ContentVersion;
 class DirArtifact;
-class DirListVersion;
 class DirVersion;
-class Env;
-class FileVersion;
 class MetadataVersion;
-class PathRef;
-class Ref;
-class SymlinkVersion;
-class RemoveEntry;
-class Version;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact
@@ -286,7 +276,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /****** Utility Methods ******/
 
   /// Print this artifact
-  friend ostream& operator<<(ostream& o, const Artifact& a) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Artifact& a) noexcept {
     o << "[" << a.getTypeName();
     auto name = a.getName();
     if (!name.empty()) o << " " << name;
@@ -295,7 +285,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
   /// Print a pointer to an artifact
-  friend ostream& operator<<(ostream& o, const Artifact* a) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const Artifact* a) noexcept {
     if (a == nullptr) return o << "<null Artifact>";
     return o << *a;
   }

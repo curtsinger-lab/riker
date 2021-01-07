@@ -4,7 +4,6 @@
 
 #include "runtime/Build.hh"
 #include "versions/FileVersion.hh"
-#include "versions/MetadataVersion.hh"
 
 using std::shared_ptr;
 

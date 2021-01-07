@@ -1,18 +1,16 @@
 #include "Artifact.hh"
 
+#include <cerrno>
 #include <memory>
 #include <set>
+#include <type_traits>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <fcntl.h>
 
 #include "artifacts/DirArtifact.hh"
-#include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "runtime/env.hh"
-#include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"

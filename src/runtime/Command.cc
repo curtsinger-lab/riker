@@ -11,6 +11,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
 #include "runtime/CommandRun.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::cout;
 using std::endl;

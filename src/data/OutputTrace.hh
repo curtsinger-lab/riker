@@ -21,6 +21,8 @@ using std::unique_ptr;
 
 namespace fs = std::filesystem;
 
+class MetadataVersion;
+
 /**
  * An output trace is used to write a trace to disk
  */

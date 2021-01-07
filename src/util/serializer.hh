@@ -1,11 +1,6 @@
 #pragma once
 
-#include <memory>
-
 #include <cereal/types/base_class.hpp>
-
-using std::shared_ptr;
-using std::string;
 
 namespace cereal {
   class access;

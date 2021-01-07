@@ -21,6 +21,7 @@ using std::tuple;
 
 class Build;
 class Command;
+class MetadataVersion;
 class Ref;
 
 class PipeArtifact : public Artifact {

@@ -6,6 +6,7 @@
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
 #include "util/log.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::ostream;
 using std::shared_ptr;

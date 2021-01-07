@@ -10,6 +10,8 @@
 using std::function;
 using std::list;
 
+class MetadataVersion;
+
 class IRBuffer : public IRSource, public IRSink {
  public:
   /**** IRSource Methods ****/

@@ -16,6 +16,7 @@ using std::string;
 
 namespace fs = std::filesystem;
 
+class MetadataVersion;
 class Ref;
 
 class SymlinkArtifact : public Artifact {

@@ -4,10 +4,11 @@
 
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
-#include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
 using std::shared_ptr;
+
+class MetadataVersion;
 
 SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :

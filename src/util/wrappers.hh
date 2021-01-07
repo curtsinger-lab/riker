@@ -16,7 +16,6 @@
 using std::map;
 using std::optional;
 using std::set;
-using std::string;
 using std::tuple;
 
 namespace fs = std::filesystem;
@@ -32,7 +31,7 @@ inline fs::path readlink(fs::path path) noexcept {
     bytes_read = readlink(path.c_str(), buffer, capacity);
   } while (bytes_read == capacity);
 
-  string result(buffer, buffer + bytes_read);
+  std::string result(buffer, buffer + bytes_read);
   free(buffer);
   return result;
 }
@@ -63,8 +62,8 @@ inline const set<gid_t>& getgroups() noexcept {
   return _groups.value();
 }
 
-inline string getSignalName(int sig) {
-  static map<int, string> signals{
+inline std::string getSignalName(int sig) {
+  static map<int, std::string> signals{
       {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},
       {SIGILL, "SIGILL"},       {SIGTRAP, "SIGTRAP"},     {SIGABRT, "SIGABRT"},
       {SIGIOT, "SIGIOT"},       {SIGBUS, "SIGBUS"},       {SIGFPE, "SIGFPE"},
@@ -86,19 +85,19 @@ inline string getSignalName(int sig) {
   }
 }
 
-inline string getErrorName(int err) noexcept {
+inline std::string getErrorName(int err) noexcept {
   // Set up a map from return codes to names
-  static map<int8_t, string> errors = {{0, "SUCCESS"},
-                                       {EACCES, "EACCES"},
-                                       {EDQUOT, "EDQUOT"},
-                                       {EEXIST, "EEXIST"},
-                                       {EINVAL, "EINVAL"},
-                                       {EISDIR, "EISDIR"},
-                                       {ELOOP, "ELOOP"},
-                                       {ENOENT, "ENOENT"},
-                                       {ENOEXEC, "ENOEXEC"},
-                                       {ENOTDIR, "ENOTDIR"},
-                                       {ENAMETOOLONG, "ENAMETOOLONG"}};
+  static map<int8_t, std::string> errors = {{0, "SUCCESS"},
+                                            {EACCES, "EACCES"},
+                                            {EDQUOT, "EDQUOT"},
+                                            {EEXIST, "EEXIST"},
+                                            {EINVAL, "EINVAL"},
+                                            {EISDIR, "EISDIR"},
+                                            {ELOOP, "ELOOP"},
+                                            {ENOENT, "ENOENT"},
+                                            {ENOEXEC, "ENOEXEC"},
+                                            {ENOTDIR, "ENOTDIR"},
+                                            {ENAMETOOLONG, "ENAMETOOLONG"}};
 
   auto iter = errors.find(err);
   if (iter == errors.end()) {

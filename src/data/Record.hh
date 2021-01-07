@@ -24,6 +24,7 @@ using std::tuple;
 using std::vector;
 
 class InputTrace;
+class MetadataVersion;
 
 enum : size_t { ArchiveMagic = 0xD0D0D035178357, ArchiveVersion = 101 };
 

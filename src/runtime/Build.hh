@@ -23,7 +23,7 @@ using std::shared_ptr;
 using std::tuple;
 using std::vector;
 
-class Version;
+class MetadataVersion;
 
 /**
  * A Build instance manages the execution of a build. This instance is responsible for setting up

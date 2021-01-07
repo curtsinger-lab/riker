@@ -13,8 +13,8 @@ using std::string;
 
 class Command;
 class FileVersion;
+class MetadataVersion;
 class Ref;
-class Version;
 
 class FileArtifact : public Artifact {
  public:

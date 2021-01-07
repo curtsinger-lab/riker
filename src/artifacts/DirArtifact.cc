@@ -13,13 +13,14 @@
 #include "runtime/Ref.hh"
 #include "runtime/env.hh"
 #include "util/log.hh"
-#include "versions/MetadataVersion.hh"
 
 using std::list;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
 using std::tie;
+
+class MetadataVersion;
 
 DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(mv) {

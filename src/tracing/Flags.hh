@@ -7,8 +7,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-using std::ostream;
-
 /****** Pretty Printers for Syscall Arguments ******/
 
 /// A wrapper for file descriptors used as the base in the at* system calls
@@ -26,7 +24,7 @@ class at_fd {
   /// Get the file descriptor number
   int getFD() const noexcept { return _fd; }
 
-  friend ostream& operator<<(ostream& o, const at_fd& v) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const at_fd& v) noexcept {
     if (v._fd == AT_FDCWD) {
       return o << "AT_FDCWD";
     } else {
@@ -71,7 +69,7 @@ class mode_flags {
 
   mode_t getMode() const noexcept { return _mode; }
 
-  friend ostream& operator<<(ostream& o, const mode_flags& p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const mode_flags& p) noexcept {
     if (p._mode == 0) return o << 0;
 
     o << (p.userRead() ? 'r' : '-');
@@ -147,7 +145,7 @@ class o_flags {
   bool tmpfile() const noexcept { return has<O_TMPFILE>(); }
   bool trunc() const noexcept { return has<O_TRUNC>(); }
 
-  friend ostream& operator<<(ostream& o, const o_flags& p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const o_flags& p) noexcept {
     bool noflag = true;
 
     // decode O_RDWR, O_RDONLY, O_WRONLY. Check O_RDWR first in case O_RDWR == O_RDONLY | O_WRONLY
@@ -213,7 +211,7 @@ class at_flags {
   bool symlink_nofollow() const noexcept { return has<AT_SYMLINK_NOFOLLOW>(); }
   bool removedir() const noexcept { return has<AT_REMOVEDIR>(); }
 
-  friend ostream& operator<<(ostream& o, const at_flags& p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const at_flags& p) noexcept {
     if (p._flags == 0) return o << 0;
 
     bool noflag = true;
@@ -258,7 +256,7 @@ class rename_flags {
   bool noreplace() const noexcept { return has<RENAME_NOREPLACE>(); }
   bool whiteout() const noexcept { return has<RENAME_WHITEOUT>(); }
 
-  friend ostream& operator<<(ostream& o, const rename_flags& p) noexcept {
+  friend std::ostream& operator<<(std::ostream& o, const rename_flags& p) noexcept {
     bool noflag = true;
 
     // pretty printer

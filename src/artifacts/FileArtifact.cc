@@ -9,10 +9,11 @@
 #include "runtime/policy.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
-#include "versions/MetadataVersion.hh"
 
 using std::shared_ptr;
 using std::string;
+
+class MetadataVersion;
 
 FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersion> cv) noexcept :
     Artifact(mv) {

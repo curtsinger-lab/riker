@@ -12,7 +12,6 @@
 #include "ui/constants.hh"
 #include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
-#include "versions/MetadataVersion.hh"
 
 using std::make_unique;
 using std::map;
@@ -20,6 +19,8 @@ using std::ofstream;
 using std::shared_ptr;
 
 namespace fs = std::filesystem;
+
+class MetadataVersion;
 
 // Create a trace at the given path
 OutputTrace::OutputTrace(string filename) noexcept :
