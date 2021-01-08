@@ -297,6 +297,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void appendVersion(std::shared_ptr<ContentVersion> v) noexcept;
 
  private:
+  /// The command that most recently wrote metadata, possibly null
+  std::weak_ptr<Command> _metadata_writer;
+
   /// The most recent metadata version that has not yet been committed
   std::shared_ptr<MetadataVersion> _uncommitted_metadata;
 

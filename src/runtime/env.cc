@@ -200,8 +200,7 @@ namespace env {
 
     // If a command was provided, report the outputs to the build
     if (c) {
-      mv->createdBy(c);
-      c->currentRun()->addMetadataOutput(pipe, mv);
+      pipe->updateMetadata(c, mv, c->running());
     }
 
     _artifacts.insert(pipe);
@@ -226,8 +225,7 @@ namespace env {
 
     // If a command was provided, report the outputs to the build
     if (c) {
-      mv->createdBy(c);
-      c->currentRun()->addMetadataOutput(symlink, mv);
+      symlink->updateMetadata(c, mv, c->running());
 
       sv->createdBy(c);
       c->currentRun()->addContentOutput(symlink, sv);
@@ -259,8 +257,7 @@ namespace env {
 
     // If a command was provided, report the outputs to the build
     if (c) {
-      mv->createdBy(c);
-      c->currentRun()->addMetadataOutput(dir, mv);
+      dir->updateMetadata(c, mv, c->running());
 
       dv->createdBy(c);
       c->currentRun()->addContentOutput(dir, dv);
@@ -284,7 +281,6 @@ namespace env {
 
     // Create an initial metadata version
     auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
-    mv->createdBy(c);
 
     // Create an initial content version
     auto cv = make_shared<FileVersion>();
@@ -295,8 +291,9 @@ namespace env {
     // Create the artifact and return it
     auto artifact = make_shared<FileArtifact>(c->running(), mv, cv);
 
+    artifact->updateMetadata(c, mv, c->running());
+
     // Observe output to metadata and content for the new file
-    c->currentRun()->addMetadataOutput(artifact, mv);
     c->currentRun()->addContentOutput(artifact, cv);
 
     _artifacts.insert(artifact);

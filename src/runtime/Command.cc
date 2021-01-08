@@ -145,9 +145,8 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MustRun;
 
     // Loop over metadata inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getMetadataInputs()) {
+    for (const auto& [a, v, creator, t] : previousRun()->getMetadataInputs()) {
       // If the version does not have a creator, there's no need to run anything to create it
-      auto creator = v->getCreator();
       if (!creator) continue;
 
       // Rule 3 does not apply, because metadata versions can always be committed
@@ -215,9 +214,8 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MayRun;
 
     // Loop over metadata inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getMetadataInputs()) {
+    for (const auto& [a, v, creator, t] : previousRun()->getMetadataInputs()) {
       // If the version does not have a creator, there's no need to run anything to create it
-      auto creator = v->getCreator();
       if (!creator) continue;
 
       // Rule 6 does not apply because metadata versions can always be committed

@@ -243,7 +243,7 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  if (c) c->currentRun()->addMetadataInput(shared_from_this(), t);
+  if (c) c->currentRun()->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
 
   // Return the uncommitted metadata version if there is one
   if (_uncommitted_metadata) return _uncommitted_metadata;
@@ -280,6 +280,9 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& 
                                                      shared_ptr<MetadataVersion> writing,
                                                      bool committed) noexcept {
   ASSERT(writing) << "Attempted to write a null metadata version to " << this;
+
+  // Remember which command wrote the metadata
+  _metadata_writer = c;
 
   // Remember this metadata version
   appendVersion(writing);

@@ -7,6 +7,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "artifacts/Artifact.hh"
@@ -21,7 +22,9 @@ using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::vector;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -193,21 +196,23 @@ void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
 }
 
 // Add an input to this command
-void CommandRun::addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept {
+void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
+                                  shared_ptr<Command> writer,
+                                  InputType t) noexcept {
   const auto& v = a->peekMetadata();
-  _metadata_inputs.emplace(a, v, t);
+  _metadata_inputs.emplace(a, v, writer, t);
 
   // If this command is running, make sure the metadata input is committed
   if (getCommand()->running()) a->commitMetadata();
 
-  // If the version was created by another command, inform the creator that this command uses it
-  if (auto creator = v->getCreator(); creator) {
+  // If the version was created by another command, inform the wrater that this command uses it
+  if (writer) {
     // If this is make accessing metadata, we only need to mark in one direction;
     // changing metadata alone does not need to trigger a re-execution of make
     if (getCommand()->isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
-    creator->currentRun()->_output_used_by.insert(shared_from_this());
+    writer->currentRun()->_output_used_by.insert(shared_from_this());
   }
 }
 

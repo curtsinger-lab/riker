@@ -418,10 +418,6 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
 
-  // Mark the version as created by the calling command. This field is transient, so we have to
-  // apply it on ever run
-  written->createdBy(c);
-
   // Apply the write
   ref->getArtifact()->updateMetadata(c, written, false);
 }
@@ -909,9 +905,6 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
 
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);
-
-  // The calling command created this version
-  written->createdBy(c);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};

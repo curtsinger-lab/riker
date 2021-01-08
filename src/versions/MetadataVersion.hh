@@ -33,12 +33,6 @@ class MetadataVersion {
   /// Create a new metadata version by changing the mode bits in this one
   std::shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
 
-  /// Get the command that created this version
-  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
-
-  /// Record that this version was created by command c
-  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
-
   /// Check if a given access is allowed by the mode bits in this metadata record
   bool checkAccess(std::shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
 

@@ -44,9 +44,9 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's metadata inputs
-  for (auto& [a, v, t] : c->previousRun()->getMetadataInputs()) {
+  for (auto& [a, v, creator, t] : c->previousRun()->getMetadataInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
-    if (t != InputType::Accessed && !v->getCreator()) continue;
+    if (t != InputType::Accessed && !creator) continue;
 
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
