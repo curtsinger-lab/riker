@@ -32,36 +32,50 @@ failed = 0
 # Keep track of runtime
 runtime = 0.0
 
-# Run tests in each directory
+# Keep a list of the paths to all tests
+tests = []
+
+# Keep a list of pairs of (test dir name, test count)
+test_counts = []
+
+# Build a list of all the tests
 for d in testdirs:
   # If the entry in the test directory is not a dir, skip it
   if not os.path.isdir(os.path.join(TESTDIR, d)):
     continue
 
   # Get a list of tests
-  tests = []
+  local_tests = []
   for t in os.listdir(os.path.join(TESTDIR, d)):
     if t.endswith('.t'):
-      tests.append(os.path.join(TESTDIR, d, t))
+      local_tests.append(os.path.join(TESTDIR, d, t))
 
   # If there are no tests, skip this iteration
-  if len(tests) == 0:
+  if len(local_tests) == 0:
     continue
 
   # Sort the list of tests
-  tests.sort()
+  local_tests.sort()
 
-  # Run the tests
-  start_time = time.time()
-  p = subprocess.Popen(['cram', '--quiet'] + tests, env=testenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  # Add the current list of tests to the global list
+  tests += local_tests
 
+  # Record the test directory name and number of tests
+  test_counts += [(d, len(local_tests))]
+
+# Now launch all the tests at once
+start_time = time.time()
+p = subprocess.Popen(['cram', '--quiet'] + tests, env=testenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+# Loop over each of the test directories
+for d, count in test_counts:
   # Print the test directory name
   sys.stdout.write(('{:>'+str(longest)+'} ').format(d))
   sys.stdout.flush()
 
-  # Print output until the first newline
-  c = p.stdout.read(1).decode()
-  while c != '\n' and len(c) == 1:
+  # Print test outcomes until we've hit `count` tests for this directory
+  for i in range(0, count):
+    c = p.stdout.read(1).decode()
     if c == '.':
       passed += 1
     elif c == 's':
@@ -71,18 +85,16 @@ for d in testdirs:
 
     sys.stdout.write(c)
     sys.stdout.flush()
-    c = p.stdout.read(1).decode()
   sys.stdout.write('\n')
   
-  # Consume remaining output
-  p.communicate()
+# Consume remaining output
+p.communicate()
 
-  # Update the runtime
-  runtime += time.time() - start_time
+runtime = time.time() - start_time
 
-  # Check the return code
-  if p.returncode != 0:
-    exitcode = p.returncode
+# Check the return code
+if p.returncode != 0:
+  exitcode = p.returncode
 
 tests = passed + skipped + failed
 print("Ran {} tests, {} passed, {} skipped, {} failed.".format(tests, passed, skipped, failed))
