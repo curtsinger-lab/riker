@@ -35,10 +35,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
  public:
   /**
    * Create a new artifact. Only accessibly to this class and Env
-   * \param env       This artifact is instantiated as part of this environment
-   * \param v         An initial version the new artifact should be seeded with
+   * \param committed Is the initial state of this artifact already committed?
+   * \param v         An initial metadata version for this artifact
    */
-  Artifact(std::shared_ptr<MetadataVersion> v) noexcept;
+  Artifact(bool committed, std::shared_ptr<MetadataVersion> v) noexcept;
 
   // Required virtual destructor
   virtual ~Artifact() noexcept = default;
@@ -164,9 +164,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                      std::shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  std::shared_ptr<MetadataVersion> updateMetadata(
-      const std::shared_ptr<Command>& c,
-      std::shared_ptr<MetadataVersion> writing) noexcept;
+  std::shared_ptr<MetadataVersion> updateMetadata(const std::shared_ptr<Command>& c,
+                                                  std::shared_ptr<MetadataVersion> writing,
+                                                  bool committed) noexcept;
 
   /************ Traced Operations ************/
 
@@ -297,8 +297,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void appendVersion(std::shared_ptr<ContentVersion> v) noexcept;
 
  private:
-  /// The latest metadata version
-  std::shared_ptr<MetadataVersion> _metadata_version;
+  /// The most recent metadata version that has not yet been committed
+  std::shared_ptr<MetadataVersion> _uncommitted_metadata;
+
+  /// The current metadata version on the filesystem
+  std::shared_ptr<MetadataVersion> _committed_metadata;
 
   /// A link update records a directory, entry name, and the version that creates/removes the link
   using LinkUpdate = std::tuple<std::weak_ptr<DirArtifact>, fs::path, std::weak_ptr<DirVersion>>;

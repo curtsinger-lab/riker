@@ -24,8 +24,10 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
-    Artifact(mv) {
+DirArtifact::DirArtifact(bool committed,
+                         shared_ptr<MetadataVersion> mv,
+                         shared_ptr<BaseDirVersion> dv) noexcept :
+    Artifact(committed, mv) {
   _base_dir_version = dv;
   appendVersion(dv);
 }
@@ -324,7 +326,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       if (!checkAccess(c, WriteAccess)) return EACCES;
 
       // Create a new file
-      auto newfile = env::createFile(c, flags.mode, false);
+      auto newfile = env::createFile(c, flags.mode);
 
       // Link the new file into this directory
       auto link_version = addEntry(c, entry, newfile);

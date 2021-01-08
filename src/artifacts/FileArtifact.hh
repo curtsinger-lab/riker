@@ -19,7 +19,9 @@ class MetadataVersion;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<FileVersion> cv) noexcept;
+  FileArtifact(bool committed,
+               std::shared_ptr<MetadataVersion> mv,
+               std::shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 

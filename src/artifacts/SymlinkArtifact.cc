@@ -20,9 +20,10 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
+SymlinkArtifact::SymlinkArtifact(bool committed,
+                                 shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
-    Artifact(mv) {
+    Artifact(committed, mv) {
   appendVersion(sv);
   _symlink_version = sv;
 }
@@ -111,8 +112,7 @@ void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Make sure this symlink is committed
   _symlink_version->commit(path);
 
-  // Commit and fingerprint metadata
-  Artifact::applyFinalState(path);
+  // TODO: commit ownership but not permissions from metadata
 }
 
 Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,

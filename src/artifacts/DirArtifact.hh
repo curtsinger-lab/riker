@@ -25,7 +25,9 @@ class MetadataVersion;
 
 class DirArtifact final : public Artifact {
  public:
-  DirArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<BaseDirVersion> dv) noexcept;
+  DirArtifact(bool committed,
+              std::shared_ptr<MetadataVersion> mv,
+              std::shared_ptr<BaseDirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 

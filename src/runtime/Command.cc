@@ -272,8 +272,8 @@ bool Command::mark(RebuildMarking m) noexcept {
   }
 }
 
-// Check if this command must rerun
-bool Command::mustRerun() const noexcept {
+// Is this command currently running, according to its marking?
+bool Command::running() const noexcept {
   // Commands marked MustRun have to run
   if (_marking == RebuildMarking::MustRun) return true;
 

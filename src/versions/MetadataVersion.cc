@@ -98,16 +98,11 @@ mode_t MetadataVersion::getMode() const noexcept {
 
 // Commit this version to the filesystem
 void MetadataVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) return;
-
   int rc = ::lchown(path.c_str(), _uid, _gid);
   FAIL_IF(rc != 0) << "Failed to commit owner and group to " << path << ": " << ERR;
 
   rc = ::chmod(path.c_str(), _mode);
   FAIL_IF(rc != 0) << "Failed to commit permissions to " << path << ": " << ERR;
-
-  // Mark this version as committed
-  setCommitted();
 }
 
 // Compare two metadata versions

@@ -44,7 +44,7 @@ namespace fs = std::filesystem;
 
 // Can a step from the provided command be emulated?
 bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {
-  return !_execute || !c->mustRerun();
+  return !_execute || !c->running();
 }
 
 /************************ Handle IR steps from a loaded trace ************************/
@@ -163,8 +163,8 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode, false)));
+  c->currentRun()->setRef(output,
+                          make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
 }
 
 // A command references a new anonymous symlink
@@ -182,8 +182,8 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess,
-                                                   env::getSymlink(c, target, false)));
+  c->currentRun()->setRef(
+      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getSymlink(c, target)));
 }
 
 // A command references a new anonymous directory
@@ -202,7 +202,7 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
 
   // Resolve the reference and save the result in output
   c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode, false)));
+      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode)));
 }
 
 // A command makes a reference with a path
@@ -418,15 +418,12 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
 
-  // Make sure this version is NOT marked as committed
-  written->setCommitted(false);
-
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
   written->createdBy(c);
 
   // Apply the write
-  ref->getArtifact()->updateMetadata(c, written);
+  ref->getArtifact()->updateMetadata(c, written, false);
 }
 
 // Command c modifies an artifact
@@ -668,7 +665,7 @@ Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept 
   stats::traced_steps++;
 
   // Create an anonymous file
-  auto file = env::createFile(c, mode, true);
+  auto file = env::createFile(c, mode);
 
   // Create a reference for the new file
   auto output = c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
@@ -688,7 +685,7 @@ Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) no
   stats::traced_steps++;
 
   // Create a symlink artifact
-  auto symlink = env::getSymlink(c, target, true);
+  auto symlink = env::getSymlink(c, target);
 
   // Create a reference to the new symlink
   auto output =
@@ -709,7 +706,7 @@ Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   stats::traced_steps++;
 
   // Create a directory artifact
-  auto dir = env::getDir(c, mode, true);
+  auto dir = env::getDir(c, mode);
 
   // Create a reference to the new directory
   auto output =
@@ -908,16 +905,13 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
 
   // Record the update in the artifact
   ASSERT(written) << "Tried to write a null metadata version to " << artifact;
-  artifact->updateMetadata(c, written);
+  artifact->updateMetadata(c, written, true);
 
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);
 
   // The calling command created this version
   written->createdBy(c);
-
-  // This apply operation was traced, so the written version is committed
-  written->setCommitted();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};

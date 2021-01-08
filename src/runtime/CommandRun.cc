@@ -198,7 +198,7 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a, InputType t) noexcept 
   _metadata_inputs.emplace(a, v, t);
 
   // If this command is running, make sure the metadata input is committed
-  if (getCommand()->mustRerun()) a->commitMetadata();
+  if (getCommand()->running()) a->commitMetadata();
 
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {
@@ -219,7 +219,7 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
 
   // If this command is running, make sure the file is available
   // We can skip committing a version if this same command also created the version
-  if (getCommand()->mustRerun() && !v->isCommitted() && v->getCreator() != getCommand()) {
+  if (getCommand()->running() && !v->isCommitted() && v->getCreator() != getCommand()) {
     // Commit the version now
     ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
                             << " cannot be committed";

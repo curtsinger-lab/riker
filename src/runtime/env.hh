@@ -66,8 +66,7 @@ namespace env {
    * \returns a symlink artifact
    */
   std::shared_ptr<SymlinkArtifact> getSymlink(const std::shared_ptr<Command>& c,
-                                              fs::path target,
-                                              bool committed) noexcept;
+                                              fs::path target) noexcept;
 
   /**
    * Create a directory artifact
@@ -76,9 +75,7 @@ namespace env {
    * \param committed If true, the directory is already committed
    * \returns a directory artifact
    */
-  std::shared_ptr<DirArtifact> getDir(const std::shared_ptr<Command>& c,
-                                      mode_t mode,
-                                      bool committed) noexcept;
+  std::shared_ptr<DirArtifact> getDir(const std::shared_ptr<Command>& c, mode_t mode) noexcept;
 
   /**
    * Create a file artifact that exists only in the filesystem model
@@ -88,6 +85,5 @@ namespace env {
    * \returns a file artifact
    */
   std::shared_ptr<Artifact> createFile(const std::shared_ptr<Command>& creator,
-                                       mode_t mode,
-                                       bool committed) noexcept;
+                                       mode_t mode) noexcept;
 }

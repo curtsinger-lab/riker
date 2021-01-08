@@ -39,12 +39,6 @@ class MetadataVersion {
   /// Record that this version was created by command c
   void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
 
-  /// Check if this version has been committed
-  bool isCommitted() const noexcept { return _committed; }
-
-  /// Mark this version as committed
-  void setCommitted(bool committed = true) noexcept { _committed = committed; }
-
   /// Check if a given access is allowed by the mode bits in this metadata record
   bool checkAccess(std::shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
 
@@ -72,9 +66,6 @@ class MetadataVersion {
   }
 
  private:
-  /// Has this version been committed?
-  bool _committed = false;
-
   /// The command that created this version
   std::weak_ptr<Command> _creator;
 

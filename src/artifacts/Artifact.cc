@@ -24,9 +24,14 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-Artifact::Artifact(shared_ptr<MetadataVersion> v) noexcept {
+Artifact::Artifact(bool committed, shared_ptr<MetadataVersion> v) noexcept {
   appendVersion(v);
-  _metadata_version = v;
+
+  if (committed) {
+    _committed_metadata = v;
+  } else {
+    _uncommitted_metadata = v;
+  }
 }
 
 string Artifact::getName() const noexcept {
@@ -53,7 +58,10 @@ string Artifact::getName() const noexcept {
 }
 
 void Artifact::setCommitted() noexcept {
-  _metadata_version->setCommitted();
+  if (_uncommitted_metadata) {
+    _committed_metadata = std::move(_uncommitted_metadata);
+  }
+
   for (auto& [weak_dir, entry, weak_version] : _link_updates) {
     auto version = weak_version.lock();
     if (version) version->setCommitted();
@@ -193,8 +201,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  c->currentRun()->addMetadataInput(shared_from_this(), InputType::PathResolution);
-  return _metadata_version->checkAccess(shared_from_this(), flags);
+  return getMetadata(c, InputType::PathResolution)->checkAccess(shared_from_this(), flags);
 }
 
 optional<fs::path> Artifact::commitPath() noexcept {
@@ -212,19 +219,24 @@ optional<fs::path> Artifact::commitPath() noexcept {
 }
 
 void Artifact::commitMetadata(optional<fs::path> path) noexcept {
+  if (!_uncommitted_metadata) {
+    LOG(artifact) << "Metadata for " << this << " is already committed";
+    return;
+  }
+
   LOG(artifact) << "Committing metadata to " << this;
 
   // Get a committed path to this artifact, possibly by committing links above it in the path
   if (!path.has_value()) path = commitPath();
   ASSERT(path.has_value()) << "Committing metadata to an artifact with no path";
 
-  _metadata_version->commit(path.value());
+  _uncommitted_metadata->commit(path.value());
+  _committed_metadata = std::move(_uncommitted_metadata);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(fs::path path) noexcept {
-  // Make sure metadata for this artifact is committed
-  _metadata_version->commit(path);
+  commitMetadata(path);
 }
 
 /// Get the current metadata version for this artifact
@@ -233,8 +245,13 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
   // Notify the build of the input
   if (c) c->currentRun()->addMetadataInput(shared_from_this(), t);
 
-  // Return the metadata version
-  return _metadata_version;
+  // Return the uncommitted metadata version if there is one
+  if (_uncommitted_metadata) return _uncommitted_metadata;
+
+  ASSERT(_committed_metadata) << "Artifact " << this << " has no metadata version";
+
+  // Otherwise return committed metadata
+  return _committed_metadata;
 }
 
 /// Get the current metadata for this artifact without creating any dependencies
@@ -260,15 +277,23 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
-                                                     shared_ptr<MetadataVersion> writing) noexcept {
+                                                     shared_ptr<MetadataVersion> writing,
+                                                     bool committed) noexcept {
   ASSERT(writing) << "Attempted to write a null metadata version to " << this;
 
-  // Update the metadata version for this artifact
+  // Remember this metadata version
   appendVersion(writing);
-  _metadata_version = writing;
+
+  // Update the appropriate metadata version
+  if (committed) {
+    _uncommitted_metadata.reset();
+    _committed_metadata = writing;
+  } else {
+    _uncommitted_metadata = writing;
+  }
 
   // Report the output to the build
-  c->currentRun()->addMetadataOutput(shared_from_this(), _metadata_version);
+  c->currentRun()->addMetadataOutput(shared_from_this(), writing);
 
   return writing;
 }

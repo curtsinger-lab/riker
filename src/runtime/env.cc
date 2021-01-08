@@ -143,7 +143,6 @@ namespace env {
     }
 
     auto mv = make_shared<MetadataVersion>(info);
-    mv->setCommitted();
 
     // Create a new artifact for this inode
     shared_ptr<Artifact> a;
@@ -151,31 +150,31 @@ namespace env {
       // The provided path is in our set of ignored paths. For now, just track it as a file.
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(mv, cv);
+      a = make_shared<FileArtifact>(true, mv, cv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFREG) {
       // The path refers to a regular file
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(mv, cv);
+      a = make_shared<FileArtifact>(true, mv, cv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
       // The path refers to a directory
       auto dv = make_shared<BaseDirVersion>(false);
       dv->setCommitted();
-      a = make_shared<DirArtifact>(mv, dv);
+      a = make_shared<DirArtifact>(true, mv, dv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
       auto sv = make_shared<SymlinkVersion>(readlink(path));
       sv->setCommitted();
-      a = make_shared<SymlinkArtifact>(mv, sv);
+      a = make_shared<SymlinkArtifact>(true, mv, sv);
 
     } else {
       // The path refers to something else
       WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(mv, cv);
+      a = make_shared<FileArtifact>(true, mv, cv);
     }
 
     // Add the new artifact to the inode map
@@ -197,9 +196,7 @@ namespace env {
 
     // Create initial versions and the pipe artifact
     auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-    mv->setCommitted();
-
-    auto pipe = make_shared<PipeArtifact>(mv);
+    auto pipe = make_shared<PipeArtifact>(c->running(), mv);
 
     // If a command was provided, report the outputs to the build
     if (c) {
@@ -213,9 +210,7 @@ namespace env {
     return pipe;
   }
 
-  shared_ptr<SymlinkArtifact> getSymlink(const shared_ptr<Command>& c,
-                                         fs::path target,
-                                         bool committed) noexcept {
+  shared_ptr<SymlinkArtifact> getSymlink(const shared_ptr<Command>& c, fs::path target) noexcept {
     // Create a manufactured stat buffer for the new symlink
     uid_t uid = getuid();
     gid_t gid = getgid();
@@ -223,12 +218,11 @@ namespace env {
 
     // Create initial versions and the pipe artifact
     auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-    if (committed) mv->setCommitted();
 
     auto sv = make_shared<SymlinkVersion>(target);
-    if (committed) sv->setCommitted();
+    if (c->running()) sv->setCommitted();
 
-    auto symlink = make_shared<SymlinkArtifact>(mv, sv);
+    auto symlink = make_shared<SymlinkArtifact>(c->running(), mv, sv);
 
     // If a command was provided, report the outputs to the build
     if (c) {
@@ -245,9 +239,7 @@ namespace env {
     return symlink;
   }
 
-  shared_ptr<DirArtifact> getDir(const shared_ptr<Command>& c,
-                                 mode_t mode,
-                                 bool committed) noexcept {
+  shared_ptr<DirArtifact> getDir(const shared_ptr<Command>& c, mode_t mode) noexcept {
     // Get the current umask
     auto mask = umask(0);
     umask(mask);
@@ -259,12 +251,11 @@ namespace env {
 
     // Create initial versions
     auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
-    if (committed) mv->setCommitted();
 
     auto dv = make_shared<BaseDirVersion>(true);
-    if (committed) dv->setCommitted();
+    if (c->running()) dv->setCommitted();
 
-    auto dir = make_shared<DirArtifact>(mv, dv);
+    auto dir = make_shared<DirArtifact>(c->running(), mv, dv);
 
     // If a command was provided, report the outputs to the build
     if (c) {
@@ -281,9 +272,7 @@ namespace env {
     return dir;
   }
 
-  shared_ptr<Artifact> createFile(const shared_ptr<Command>& c,
-                                  mode_t mode,
-                                  bool committed) noexcept {
+  shared_ptr<Artifact> createFile(const shared_ptr<Command>& c, mode_t mode) noexcept {
     // Get the current umask
     auto mask = umask(0);
     umask(mask);
@@ -296,16 +285,15 @@ namespace env {
     // Create an initial metadata version
     auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
     mv->createdBy(c);
-    if (committed) mv->setCommitted();
 
     // Create an initial content version
     auto cv = make_shared<FileVersion>();
     cv->makeEmptyFingerprint();
     cv->createdBy(c);
-    if (committed) cv->setCommitted();
+    if (c->running()) cv->setCommitted();
 
     // Create the artifact and return it
-    auto artifact = make_shared<FileArtifact>(mv, cv);
+    auto artifact = make_shared<FileArtifact>(c->running(), mv, cv);
 
     // Observe output to metadata and content for the new file
     c->currentRun()->addMetadataOutput(artifact, mv);
