@@ -16,6 +16,7 @@
 #include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/PipeVersion.hh"
 
 using std::map;
 using std::nullopt;

@@ -54,16 +54,19 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
   if (c->currentRun()->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
     final_write->createdBy(c);
-    _writes.push_back(final_write);
-    appendVersion(final_write);
+
+    // Intentionally not calling build.traceUpdateContent here. That will implicitly be invoked when
+    // the final reference to this pipe is closed.
+    updateContent(c, final_write);
   }
 }
 
 // A traced command just read from this artifact
 void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The reading command depends on the last read
-  if (_last_read)
+  if (_last_read) {
     c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
+  }
 
   // Create a new version to track this read
   auto read_version = make_shared<PipeReadVersion>(_writes);
@@ -140,13 +143,13 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
     // Clear the list of unread writes
     _writes.clear();
 
-  } else if (auto write = writing->as<PipeWriteVersion>()) {
-    // Add this write to the list of un-read writes
-    _writes.push_back(write);
-
   } else if (auto close = writing->as<PipeCloseVersion>()) {
     // Add the close operation to the list of un-read writes
     _writes.push_back(close);
+
+  } else if (auto write = writing->as<PipeWriteVersion>()) {
+    // Add this write to the list of un-read writes
+    _writes.push_back(write);
 
   } else {
     FAIL << "Unsupported pipe version type " << writing;

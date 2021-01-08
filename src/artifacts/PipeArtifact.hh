@@ -111,6 +111,6 @@ class PipeArtifact : public Artifact {
   /// The versions that have been written to this pipe since the last read
   std::list<std::shared_ptr<PipeWriteVersion>> _writes;
 
-  // File descriptors for an actual opened pipe
+  /// File descriptors for an actual opened pipe
   std::optional<std::tuple<int, int>> _fds;
 };

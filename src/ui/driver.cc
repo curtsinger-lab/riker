@@ -32,6 +32,8 @@
 #include "ui/options.hh"
 #include "ui/stats.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::cout;
 using std::endl;
