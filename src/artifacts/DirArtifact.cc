@@ -5,6 +5,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 #include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
@@ -19,6 +20,7 @@
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 
 namespace fs = std::filesystem;
 
@@ -186,9 +188,9 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
   if (c)
     c->currentRun()->addContentInput(shared_from_this(), _base_dir_version, InputType::Accessed);
 
-  for (auto [name, info] : _entries) {
+  for (const auto& [name, info] : _entries) {
     // Get the version and artifact for this entry
-    auto [version, artifact] = info;
+    const auto& [version, artifact] = info;
 
     // If this entry is from the base version, we've already covered it
     if (version == _base_dir_version) continue;
@@ -235,16 +237,18 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
   // We must be looking for an entry in this directory. Get the entry name and advance the
   // iterator
-  auto entry = *current++;
+  const auto& entry = *current++;
 
   // Are we looking for the current directory?
-  if (entry.string() == ".") {
+  auto entry_str = entry.string();
+
+  if (entry_str == ".") {
     return resolve(c, shared_from_this(), current, end, flags, symlink_limit);
   }
 
   // Are we looking for the parent directory?
-  if (entry.string() == "..") {
-    auto parent = getParentDir();
+  if (entry_str == "..") {
+    const auto& parent = getParentDir();
     ASSERT(parent.has_value()) << "Directory has no parent";
     return parent.value()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
   }
@@ -257,7 +261,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   if (entries_iter != _entries.end()) {
     // Found a match.
     // Get the version responsible for this entry and the artifact it mapped (possibly null)
-    auto [v, a] = entries_iter->second;
+    const auto& [v, a] = entries_iter->second;
 
     // Is there an artifact to resolve to?
     if (a) {
@@ -286,7 +290,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       auto entry_path = dir_path.value() / entry;
 
       // Try to get the artifact from the filesystem
-      auto artifact = env::getFilesystemArtifact(entry_path);
+      const auto& artifact = env::getFilesystemArtifact(entry_path);
 
       // Did we get an artifact?
       if (artifact) {
@@ -296,14 +300,14 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
         // Inform the artifact of its link in the current directory
         artifact->addLinkUpdate(this->as<DirArtifact>(), entry, _base_dir_version);
 
-        // Add the entry to this directory's map
-        _entries[entry] = {_base_dir_version, artifact};
-
       } else {
-        // Record the absence of this entry and set the result to ENOENT
-        _entries[entry] = {_base_dir_version, nullptr};
+        // Set the result to ENOENT
         res = ENOENT;
       }
+
+      // Add the entry to this directory's map (if artifact is null, this indicates the absence of
+      // an entry)
+      _entries.emplace_hint(entries_iter, entry, tuple{_base_dir_version, artifact});
     }
   }
 
@@ -326,10 +330,10 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       if (!checkAccess(c, WriteAccess)) return EACCES;
 
       // Create a new file
-      auto newfile = env::createFile(c, flags.mode);
+      const auto& newfile = env::createFile(c, flags.mode);
 
       // Link the new file into this directory
-      auto link_version = addEntry(c, entry, newfile);
+      addEntry(c, entry, newfile);
 
       // return the artifact we just created and stop resolution
       return Ref(flags, newfile);
@@ -356,21 +360,25 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
                                              fs::path entry,
                                              shared_ptr<Artifact> target) noexcept {
-  // Check for an existing entry with the same name
-  auto iter = _entries.find(entry);
-  if (iter != _entries.end()) {
-    // TODO: We will overwrite the old entry. How do we track that?
-  }
-
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
   writing->createdBy(c);
 
+  // Check for an existing entry with the same name
+  auto iter = _entries.find(entry);
+  if (iter != _entries.end()) {
+    // TODO: We will overwrite the old entry. How do we track that?
+
+    // Update the existing entry
+    iter->second = {writing, target};
+
+  } else {
+    // Add the new entry
+    _entries.emplace_hint(iter, entry, tuple{writing, target});
+  }
+
   // Inform the artifact of its new link
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);
-
-  // Add the new entry to the entries map
-  _entries[entry] = {writing, target};
 
   // Notify the build of this output
   c->currentRun()->addContentOutput(shared_from_this(), writing);
@@ -393,7 +401,7 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
   auto iter = _entries.find(entry);
   if (iter != _entries.end()) {
     // Get the version that added this entry, and the artifact it maps to
-    auto& [version, artifact] = iter->second;
+    const auto& [version, artifact] = iter->second;
 
     // If there is an artifact at this entry, inform it of an unlink operation
     if (artifact) artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
@@ -407,10 +415,14 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
         writing->setCommitted();
       }
     }
-  }
 
-  // Update the entries map
-  _entries[entry] = {writing, nullptr};
+    // Update the existing entry
+    iter->second = {writing, nullptr};
+
+  } else {
+    // Add a new entry
+    _entries.emplace_hint(iter, entry, tuple{writing, nullptr});
+  }
 
   // Notify the build of this output
   c->currentRun()->addContentOutput(shared_from_this(), writing);
