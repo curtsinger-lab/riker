@@ -17,6 +17,10 @@ using std::make_shared;
 using std::shared_ptr;
 using std::tuple;
 
+PipeArtifact::PipeArtifact() noexcept : Artifact() {}
+
+PipeArtifact::PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept : Artifact(mv) {}
+
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return v->isCommitted() || v->canCommit();

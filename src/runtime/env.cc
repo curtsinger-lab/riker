@@ -150,31 +150,31 @@ namespace env {
       // The provided path is in our set of ignored paths. For now, just track it as a file.
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(true, mv, cv);
+      a = make_shared<FileArtifact>(mv, cv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFREG) {
       // The path refers to a regular file
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(true, mv, cv);
+      a = make_shared<FileArtifact>(mv, cv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
       // The path refers to a directory
       auto dv = make_shared<BaseDirVersion>(false);
       dv->setCommitted();
-      a = make_shared<DirArtifact>(true, mv, dv);
+      a = make_shared<DirArtifact>(mv, dv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
       auto sv = make_shared<SymlinkVersion>(readlink(path));
       sv->setCommitted();
-      a = make_shared<SymlinkArtifact>(true, mv, sv);
+      a = make_shared<SymlinkArtifact>(mv, sv);
 
     } else {
       // The path refers to something else
       WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
       auto cv = make_shared<FileVersion>(info);
       cv->setCommitted();
-      a = make_shared<FileArtifact>(true, mv, cv);
+      a = make_shared<FileArtifact>(mv, cv);
     }
 
     // Add the new artifact to the inode map
@@ -194,14 +194,11 @@ namespace env {
     gid_t gid = getgid();
     mode_t mode = S_IFIFO | 0600;
 
-    // Create initial versions and the pipe artifact
-    auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-    auto pipe = make_shared<PipeArtifact>(c->running(), mv);
+    // Create the pipe artifact
+    auto pipe = make_shared<PipeArtifact>();
 
-    // If a command was provided, report the outputs to the build
-    if (c) {
-      pipe->updateMetadata(c, mv, c->running());
-    }
+    // Set the pipe's metadata on behalf of the command
+    pipe->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
 
     _artifacts.insert(pipe);
     stats::artifacts++;
@@ -215,18 +212,18 @@ namespace env {
     gid_t gid = getgid();
     mode_t mode = S_IFLNK | 0777;
 
-    // Create initial versions and the pipe artifact
-    auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-
+    // Create the initial symlink content version
     auto sv = make_shared<SymlinkVersion>(target);
     if (c->running()) sv->setCommitted();
 
-    auto symlink = make_shared<SymlinkArtifact>(c->running(), mv, sv);
+    // Create the symlink artifact
+    auto symlink = make_shared<SymlinkArtifact>(sv);
 
-    // If a command was provided, report the outputs to the build
+    // Set the metadata for the new symlink artifact
+    symlink->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
+
+    // If a command was provided, record the content output
     if (c) {
-      symlink->updateMetadata(c, mv, c->running());
-
       sv->createdBy(c);
       c->currentRun()->addContentOutput(symlink, sv);
     }
@@ -247,18 +244,17 @@ namespace env {
     gid_t gid = getgid();
     mode_t stat_mode = S_IFDIR | (mode & ~mask);
 
-    // Create initial versions
-    auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
-
+    // Create the directory content version
     auto dv = make_shared<BaseDirVersion>(true);
     if (c->running()) dv->setCommitted();
 
-    auto dir = make_shared<DirArtifact>(c->running(), mv, dv);
+    auto dir = make_shared<DirArtifact>(dv);
 
-    // If a command was provided, report the outputs to the build
+    // Set the metadata for the new directory artifact
+    dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
+
+    // If a command was provided, record the content output
     if (c) {
-      dir->updateMetadata(c, mv, c->running());
-
       dv->createdBy(c);
       c->currentRun()->addContentOutput(dir, dv);
     }
@@ -279,9 +275,6 @@ namespace env {
     gid_t gid = getgid();
     mode_t stat_mode = S_IFREG | (mode & ~mask);
 
-    // Create an initial metadata version
-    auto mv = make_shared<MetadataVersion>(uid, gid, stat_mode);
-
     // Create an initial content version
     auto cv = make_shared<FileVersion>();
     cv->makeEmptyFingerprint();
@@ -289,9 +282,10 @@ namespace env {
     if (c->running()) cv->setCommitted();
 
     // Create the artifact and return it
-    auto artifact = make_shared<FileArtifact>(c->running(), mv, cv);
+    auto artifact = make_shared<FileArtifact>(cv);
 
-    artifact->updateMetadata(c, mv, c->running());
+    // Set the metadata for the new file artifact
+    artifact->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
 
     // Observe output to metadata and content for the new file
     c->currentRun()->addContentOutput(artifact, cv);

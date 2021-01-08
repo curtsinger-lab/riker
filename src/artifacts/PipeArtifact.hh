@@ -23,8 +23,9 @@ class PipeWriteVersion;
 
 class PipeArtifact : public Artifact {
  public:
-  PipeArtifact(bool committed, std::shared_ptr<MetadataVersion> mv) noexcept :
-      Artifact(committed, mv) {}
+  PipeArtifact() noexcept;
+
+  PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept;
 
   /************ Core Artifact Operations ************/
 

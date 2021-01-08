@@ -419,7 +419,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   if (!ref->isResolved()) return;
 
   // Apply the write
-  ref->getArtifact()->updateMetadata(c, written, false);
+  ref->getArtifact()->updateMetadata(c, written);
 }
 
 // Command c modifies an artifact
@@ -901,7 +901,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
 
   // Record the update in the artifact
   ASSERT(written) << "Tried to write a null metadata version to " << artifact;
-  artifact->updateMetadata(c, written, true);
+  artifact->updateMetadata(c, written);
 
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);

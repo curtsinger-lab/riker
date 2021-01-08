@@ -21,9 +21,9 @@ class SymlinkVersion;
 
 class SymlinkArtifact : public Artifact {
  public:
-  SymlinkArtifact(bool committed,
-                  std::shared_ptr<MetadataVersion> mv,
-                  std::shared_ptr<SymlinkVersion> sv) noexcept;
+  SymlinkArtifact(std::shared_ptr<SymlinkVersion> sv) noexcept;
+
+  SymlinkArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<SymlinkVersion> sv) noexcept;
 
   /************ Core Artifact Operations ************/
 

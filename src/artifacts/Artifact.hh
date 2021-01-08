@@ -34,11 +34,17 @@ class MetadataVersion;
 class Artifact : public std::enable_shared_from_this<Artifact> {
  public:
   /**
-   * Create a new artifact. Only accessibly to this class and Env
-   * \param committed Is the initial state of this artifact already committed?
-   * \param v         An initial metadata version for this artifact
+   * Create a new artifact with no existing metadata. This should be followed with updateContent and
+   * updateMetadata calls to set initial state for the artifact.
    */
-  Artifact(bool committed, std::shared_ptr<MetadataVersion> v) noexcept;
+  Artifact() noexcept;
+
+  /**
+   * Create a new artifact with an existing metadata version. This is only appropriate for artifacts
+   * that exist on the filesystem.
+   * \param v The new artifact's committed metadata version
+   */
+  Artifact(std::shared_ptr<MetadataVersion> v) noexcept;
 
   // Required virtual destructor
   virtual ~Artifact() noexcept = default;
@@ -164,9 +170,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                      std::shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  std::shared_ptr<MetadataVersion> updateMetadata(const std::shared_ptr<Command>& c,
-                                                  std::shared_ptr<MetadataVersion> writing,
-                                                  bool committed) noexcept;
+  std::shared_ptr<MetadataVersion> updateMetadata(
+      const std::shared_ptr<Command>& c,
+      std::shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Traced Operations ************/
 

@@ -24,14 +24,11 @@ using std::shared_ptr;
 using std::string;
 using std::tuple;
 
-Artifact::Artifact(bool committed, shared_ptr<MetadataVersion> v) noexcept {
-  appendVersion(v);
+Artifact::Artifact() noexcept {}
 
-  if (committed) {
-    _committed_metadata = v;
-  } else {
-    _uncommitted_metadata = v;
-  }
+Artifact::Artifact(shared_ptr<MetadataVersion> v) noexcept {
+  appendVersion(v);
+  _committed_metadata = v;
 }
 
 string Artifact::getName() const noexcept {
@@ -277,8 +274,7 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 
 /// Apply a new metadata version to this artifact
 shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
-                                                     shared_ptr<MetadataVersion> writing,
-                                                     bool committed) noexcept {
+                                                     shared_ptr<MetadataVersion> writing) noexcept {
   ASSERT(writing) << "Attempted to write a null metadata version to " << this;
 
   // Remember which command wrote the metadata
@@ -287,11 +283,13 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& 
   // Remember this metadata version
   appendVersion(writing);
 
-  // Update the appropriate metadata version
-  if (committed) {
+  // Is the writing command running?
+  if (c->running()) {
+    // Yes. The metadata is committed
     _uncommitted_metadata.reset();
     _committed_metadata = writing;
   } else {
+    // No. The metadata is uncommitted
     _uncommitted_metadata = writing;
   }
 

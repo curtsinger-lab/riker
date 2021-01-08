@@ -20,10 +20,14 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-SymlinkArtifact::SymlinkArtifact(bool committed,
-                                 shared_ptr<MetadataVersion> mv,
+SymlinkArtifact::SymlinkArtifact(std::shared_ptr<SymlinkVersion> sv) noexcept : Artifact() {
+  appendVersion(sv);
+  _symlink_version = sv;
+}
+
+SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
-    Artifact(committed, mv) {
+    Artifact(mv) {
   appendVersion(sv);
   _symlink_version = sv;
 }
