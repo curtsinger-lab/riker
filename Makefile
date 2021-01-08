@@ -12,11 +12,12 @@ CXXFLAGS := -Isrc \
 					 	-Ideps/CLI11/include \
 					 	-I$(BLAKE3) \
 					 	-Wall \
-					 	-g \
 					 	-Wfatal-errors \
 					 	$(OPT) \
-					 	-fstandalone-debug \
-					 	--std=c++17
+						--std=c++17 \
+						-g \
+					 	-fstandalone-debug
+
 LDFLAGS = $(OPT) -lstdc++fs -lfmt
 
 SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
