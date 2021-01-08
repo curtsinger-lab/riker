@@ -509,6 +509,9 @@ void Thread::_fstatat(at_fd dirfd,
   LOGF(trace, "{}: fstatat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname,
        (void*)statbuf, flags);
 
+  // TODO: Trust the model when running in release mode. Otherwise finish the syscall and validate
+  // the result. Other syscalls can use this model too, but fstatat is particularly common.
+
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if (flags.empty_path()) {
@@ -688,6 +691,9 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 
 void Thread::_read(int fd) noexcept {
   LOGF(trace, "{}: read({})", this, fd);
+
+  // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do, but
+  // files do not.
 
   // Get a reference to the artifact being read
   auto ref_id = _process->getFD(fd);
