@@ -340,8 +340,8 @@ int Artifact::getFD(AccessFlags flags) noexcept {
   // Get flags to pass to the open call
   auto [open_flags, open_mode] = flags.toOpen();
 
-  // Open the artifact
-  int fd = ::open(path.value().c_str(), open_flags, open_mode);
+  // Open the artifact in cloexec mode so children do not inherit it
+  int fd = ::open(path.value().c_str(), open_flags | O_CLOEXEC, open_mode);
   FAIL_IF(fd < 0) << "Failed to open " << this;
 
   return fd;

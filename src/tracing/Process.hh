@@ -54,8 +54,11 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Remove a file descriptor entry
   void closeFD(int fd) noexcept;
 
-  /// Remove a file descriptor entry if it exists
-  void tryCloseFD(int fd) noexcept;
+  /// Remove a file descriptor entry if it exists. Return true if the close succeeded.
+  bool tryCloseFD(int fd) noexcept;
+
+  /// Get the lowest-numbered available file descriptor
+  int nextFD() const noexcept;
 
   /// Set a file descriptor's close-on-exec flag
   void setCloexec(int fd, bool cloexec) noexcept;

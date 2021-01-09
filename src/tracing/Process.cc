@@ -88,13 +88,34 @@ void Process::closeFD(int fd) noexcept {
 }
 
 // Remove a file descriptor entry if it exists
-void Process::tryCloseFD(int fd) noexcept {
+bool Process::tryCloseFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
     auto& [old_ref, old_cloexec] = iter->second;
     _build.traceDoneWithRef(_command, old_ref);
     _fds.erase(iter);
+    return true;
   }
+  return false;
+}
+
+// Get the lowest-numbered available FD
+int Process::nextFD() const noexcept {
+  int expected_fd = 0;
+  auto iter = _fds.begin();
+  while (iter != _fds.end()) {
+    // If the next fd is different from the expected fd, the expected fd must be available
+    if (iter->first != expected_fd) {
+      return expected_fd;
+    }
+
+    // Advance the expected and actual fds
+    expected_fd++;
+    iter++;
+  }
+
+  // If we hit the end of the map with no gaps, the next expected fd is the next available
+  return expected_fd;
 }
 
 // Set a file descriptor's close-on-exec flag

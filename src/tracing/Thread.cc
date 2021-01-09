@@ -28,6 +28,7 @@
 #include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
+#include "ui/options.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
 #include "versions/MetadataVersion.hh"
@@ -257,42 +258,63 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
     ref->getArtifact()->beforeTruncate(_build, getCommand(), ref_id);
   }
 
-  // Allow the syscall to finish
-  finishSyscall([=](long fd) {
-    // Let the process continue
-    resume();
+  // If model validation was not requested, resume the process now
+  if (!options::validate) resume();
 
-    // Check whether the openat call succeeded or failed
-    if (fd >= 0) {
-      // The command observed a successful openat, so add this predicate to the command log
-      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+  // Get the expected file descriptor for the opened file
+  auto expected_fd = getProcess()->nextFD();
 
-      ASSERT(ref->isResolved()) << "Failed to locate artifact for opened file: " << filename
-                                << " (received " << ref->getResultCode() << " from emulator)";
+  // Did the reference resolve?
+  if (ref->isResolved()) {
+    // The command observed a successful openat, so add this predicate to the command log
+    _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
 
-      // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
-      if (flags.tmpfile()) {
-        auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode());
+    // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
+    if (flags.tmpfile()) {
+      auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode());
 
-        // Record the reference in the process' file descriptor table
-        _process->addFD(fd, anon_ref_id, flags.cloexec());
-
-      } else {
-        // If the file is truncated by the open call, set the contents in the artifact
-        if (ref_flags.truncate) {
-          ref->getArtifact()->afterTruncate(_build, getCommand(), ref_id);
-        }
-
-        // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(fd, ref_id, flags.cloexec());
-      }
+      // Record the reference in the process' file descriptor table
+      _process->addFD(expected_fd, anon_ref_id, flags.cloexec());
 
     } else {
-      // The command observed a failed openat, so add the error predicate to the command log
-      // Negate fd because syscalls return negative errors
-      _build.traceExpectResult(getCommand(), ref_id, -fd);
+      // If the file is truncated by the open call, set the contents in the artifact
+      if (ref_flags.truncate) {
+        ref->getArtifact()->afterTruncate(_build, getCommand(), ref_id);
+      }
+
+      // Record the reference in the correct location in this process' file descriptor table
+      _process->addFD(expected_fd, ref_id, flags.cloexec());
     }
-  });
+
+  } else {
+    // The command observed a failed openat, so add the error predicate to the command log
+    _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
+  }
+
+  // If syscall validation was requested, do so now
+  if (options::validate) {
+    // Allow the syscall to finish
+    finishSyscall([=](long fd) {
+      // Let the process continue
+      resume();
+
+      // Check whether the openat call succeeded or failed
+      if (fd >= 0) {
+        WARN_IF(fd != expected_fd)
+            << "Model Mismatch: expected fd " << expected_fd << " but received fd " << fd;
+
+        WARN_IF(!ref->isResolved())
+            << "Model Mismatch: failed to locate artifact for opened file: " << filename
+            << " (received " << ref->getResultCode() << " from model)";
+
+      } else {
+        // Negate fd because syscalls return negative errors
+        WARN_IF(ref->getResultCode() != -fd)
+            << "Model Mismatch: expected openat to return " << getErrorName(ref->getResultCode())
+            << ", but actual result is " << getErrorName(-fd);
+      }
+    });
+  }
 }
 
 void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept {
@@ -342,20 +364,18 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
 void Thread::_close(int fd) noexcept {
   LOGF(trace, "{}: close({})", this, fd);
 
-  _process->tryCloseFD(fd);
+  bool closed = _process->tryCloseFD(fd);
 
-  finishSyscall([=](long rc) {
-    // Resume the blocked thread
+  if (options::validate) {
+    finishSyscall([=](long rc) {
+      resume();
+      WARN_IF(closed && rc != 0) << "Model Mismatch: close() syscall failed: " << getErrorName(-rc);
+      WARN_IF(!closed && rc == 0) << "Model Mismatch: close() syscall succeeded";
+    });
+
+  } else {
     resume();
-
-    // If the syscall succeeded, remove the file descriptor
-    if (rc == 0) {
-      LOGF(trace, "{}: closed FD {}", this, fd);
-      //_process->closeFD(fd);
-    } else {
-      LOGF(trace, "{}: close({}) returned error {}", this, rc, getErrorName(-rc));
-    }
-  });
+  }
 }
 
 /************************ Pipes ************************/
@@ -589,7 +609,8 @@ void Thread::_fchownat(at_fd dfd,
   LOGF(trace, "{}: fchownat({}={}, {}, {}, {}, {})", this, dfd, getPath(dfd), filename, user, group,
        flags);
 
-  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no effects
+  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no
+  // effects
   if (!flags.empty_path() && filename.empty()) {
     resume();
     return;
@@ -650,7 +671,8 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
 void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags flags) noexcept {
   LOGF(trace, "{}: fchmodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, flags);
 
-  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no effects
+  // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no
+  // effects
   if (!flags.empty_path() && filename.empty()) {
     resume();
     return;
@@ -692,8 +714,8 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 void Thread::_read(int fd) noexcept {
   LOGF(trace, "{}: read({})", this, fd);
 
-  // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do, but
-  // files do not.
+  // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do,
+  // but files do not.
 
   // Get a reference to the artifact being read
   auto ref_id = _process->getFD(fd);

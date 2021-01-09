@@ -396,6 +396,9 @@ int main(int argc, char* argv[]) noexcept {
       ->description("Disable the build cache")
       ->group("Optimizations");
 
+  app.add_flag("--validate", options::validate,
+               "Trace syscall returns to validate the filesystem model");
+
   /************* Build Subcommand *************/
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
