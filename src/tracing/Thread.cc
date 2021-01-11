@@ -762,6 +762,7 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
 
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
+  // NOTE: The BPF program currently excludes these
   if (fd < 0) {
     LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
     resume();

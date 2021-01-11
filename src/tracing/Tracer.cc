@@ -303,12 +303,30 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // Loop over syscalls
     for (uint32_t i = 0; i < SyscallTable::size(); i++) {
-      if (SyscallTable::get(i).isTraced()) {
-        // Check if the syscall matches the current entry
-        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
+      // Is this the mmap syscall entry?
+      if (i == __NR_mmap) {
+        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 4));
 
-        // On a match, return trace
+        // Load the fd argument
+        filter.push_back(
+            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[4])));
+
+        // If fd is -1, allow the syscall. Otherwise trace it.
+        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 1));
+        filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
         filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+
+      } else {
+        if (SyscallTable::get(i).isTraced()) {
+          // Check if the syscall matches the current entry. If it matches, trace the syscall.
+          filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
+          filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+
+        } else {
+          // Check if the syscall matches the current entry. If it does, allow the syscall.
+          filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
+          filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+        }
       }
     }
 
