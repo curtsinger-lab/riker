@@ -244,19 +244,13 @@ bool Command::mark(RebuildMarking m) noexcept {
       auto creator = v->getCreator();
       if (!creator) continue;
 
-      // Rule 6: Mark commands that produce uncached inputs to this command as MayRun, but if the
-      // producer is already marked MustRun, mark this command as MustRun as well.
+      // Rule 6: Mark commands that produce uncached inputs to this command as MayRun
       // TODO: This check should really ask the artifact if it can commit the version at the time
       // of the input, not during rebuild planning.
       if (!v->canCommit()) {
-        if (creator->_marking == RebuildMarking::MustRun) {
-          LOGF(rebuild, "{} must run: uncached input may by changed by {}", this, creator);
-          mark(RebuildMarking::MustRun);
-        } else {
-          // Mark the creator for rerun so it will produce the necessary input
-          if (creator->mark(RebuildMarking::MayRun)) {
-            LOGF(rebuild, "{} may run: output is needed by {}", creator, this);
-          }
+        // Mark the creator for rerun so it will produce the necessary input
+        if (creator->mark(RebuildMarking::MayRun)) {
+          LOGF(rebuild, "{} may run: output is needed by {}", creator, this);
         }
       }
     }

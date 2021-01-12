@@ -28,7 +28,7 @@ When command C is marked MustRun:
     b. If C's parent command D is marked MayRun, mark D as MustRun
 
 When a command C is marked MayRun:
-  6. For each command D that produces uncached input V to C: if D is already marked MustRun, mark C as MustRun. Otherwise mark D as MayRun.
+  6. For each command D that produces uncached input V to C: mark D as MayRun.
   7. For each command D that consumes output V from C: mark D as MayRun
   8. For each command D that consumes output V from C: if D is marked MustRun, mark C as MustRun
 
@@ -62,8 +62,8 @@ Command C has been marked MustRun, so it will definitely run on the next iterati
 ### b. If C's parent command D is marked MayRun, mark D as MustRun
 Command C has been marked MustRun, so it will run on the next iteration. If C's parent D is marked MayRun, it could run on some future iteration. Because we only want to run C a single time, we'll preemptively mark D as MustRun to be sure we never have to run C twice. We'll eventually drop this requirement.
 
-### 6. For each command D that produces uncached input V to C: if D is already marked MustRun, mark C as MustRun. Otherwise mark D as MayRun.
-Command C has been marked MayRun. If we might need to run C, then we might need to run any command D that produces its input. If D already must run, C's input could change so run both C and D.
+### 6. For each command D that produces uncached input V to C: mark D as MayRun.
+Command C has been marked MayRun. If we might need to run C, then we might need to run any command D that produces its input.
 
 ### 7. For each command D that consumes output V from C: mark D as MayRun
 Command C has been marked MayRun. If C may run, it may produce different outputs. Any command D that reads them might also need to run.
