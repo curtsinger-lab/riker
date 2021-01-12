@@ -1,6 +1,7 @@
 #include "Tracer.hh"
 
 #include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -15,10 +16,9 @@
 #include <utility>
 #include <vector>
 
-#include <linux/bpf_common.h>
+#include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
-#include <signal.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -46,6 +46,11 @@ using std::tuple;
 using std::vector;
 
 namespace fs = std::filesystem;
+
+// Stub for the seccomp syscall
+int seccomp(unsigned int operation, unsigned int flags, void* args) {
+  return syscall(__NR_seccomp, operation, flags, args);
+}
 
 shared_ptr<Process> Tracer::start(const shared_ptr<Command>& cmd) noexcept {
   // Launch the command with tracing
@@ -338,7 +343,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     bpf_program.len = filter.size();
 
     // Actually enable the filter
-    FAIL_IF(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bpf_program) != 0)
+    FAIL_IF(seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_SPEC_ALLOW, &bpf_program) != 0)
         << "Error enabling seccomp: " << ERR;
 
     // We need to stop here to give our parent a consistent time to add all the
