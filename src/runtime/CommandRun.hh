@@ -156,8 +156,19 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   }
 
   /// Get the users of this command's outputs
-  const std::set<std::shared_ptr<CommandRun>>& getOutputUsers() const noexcept {
-    return _output_used_by;
+  const std::set<std::tuple<std::shared_ptr<Artifact>,
+                            std::shared_ptr<MetadataVersion>,
+                            std::shared_ptr<Command>>>&
+  getMetadataOutputUses() const noexcept {
+    return _metadata_output_uses;
+  }
+
+  /// Get the users of this command's outputs
+  const std::set<std::tuple<std::shared_ptr<Artifact>,
+                            std::shared_ptr<ContentVersion>,
+                            std::shared_ptr<Command>>>&
+  getContentOutputUses() const noexcept {
+    return _content_output_uses;
   }
 
   /// An output from this command does not match the on-disk state (checked at the end of the build)
@@ -205,6 +216,14 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   /// The set of outputs from this command
   std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>> _content_outputs;
 
-  /// The set of command runs that use this command's outputs
-  std::set<std::shared_ptr<CommandRun>> _output_used_by;
+  /// The set of users of this command's outputs
+  std::set<std::tuple<std::shared_ptr<Artifact>,
+                      std::shared_ptr<MetadataVersion>,
+                      std::shared_ptr<Command>>>
+      _metadata_output_uses;
+
+  std::set<std::tuple<std::shared_ptr<Artifact>,
+                      std::shared_ptr<ContentVersion>,
+                      std::shared_ptr<Command>>>
+      _content_output_uses;
 };

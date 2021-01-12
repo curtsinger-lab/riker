@@ -205,7 +205,7 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
     if (getCommand()->isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
-    writer->currentRun()->_output_used_by.insert(shared_from_this());
+    writer->currentRun()->_metadata_output_uses.emplace(a, v, _command);
   }
 }
 
@@ -228,7 +228,7 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
   // If the version was created by another command, inform the creator that this command uses it
   if (auto creator = v->getCreator(); creator) {
     // Otherwise, add this command run to the creator's set of output users
-    creator->currentRun()->_output_used_by.insert(shared_from_this());
+    creator->currentRun()->_content_output_uses.emplace(a, v, _command);
   }
 }
 
