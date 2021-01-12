@@ -51,15 +51,8 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
       }
 
     } else {
-      // All other referenced artifacts must be fully committed, except we'll ignore pipes for now
-      if (ref->getArtifact()->as<PipeArtifact>()) continue;
-
-      if (ref->getArtifact()->canCommitAll()) {
-        ref->getArtifact()->commitAll();
-      } else {
-        WARN << "Launching " << _command << " without committing referenced artifact "
-             << ref->getArtifact();
-      }
+      // Commit all state for the referenced artifact
+      ref->getArtifact()->commitAll();
     }
   }
 }
@@ -226,8 +219,8 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
   // We can skip committing a version if this same command also created the version
   if (getCommand()->running() && !v->isCommitted() && v->getCreator() != getCommand()) {
     // Commit the version now
-    ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
-                            << " cannot be committed";
+    // ASSERT(a->canCommit(v)) << getCommand() << " accesses " << a << ", but version " << v
+    //<< " cannot be committed";
 
     a->commit(v);
   }

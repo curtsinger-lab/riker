@@ -159,6 +159,30 @@ bool FileVersion::canCommit() const noexcept {
 void FileVersion::commit(fs::path path) noexcept {
   if (isCommitted()) return;
 
+  // Compare to the on-disk artifact. This is a short-term workaround for lazy builds
+  // TODO: Remove this once artifacts track both committed and uncommitted state
+  if (!options::eager_builds && !canCommit()) {
+    struct stat statbuf;
+    ::lstat(path.c_str(), &statbuf);
+
+    if (_mtime.has_value()) {
+      if (_mtime.value().tv_sec == statbuf.st_mtim.tv_sec &&
+          _mtime.value().tv_nsec == statbuf.st_mtim.tv_nsec) {
+        setCommitted();
+        return;
+      }
+    }
+
+    if (_hash.has_value()) {
+      auto fs_hash = blake3(path, statbuf);
+
+      if (fs_hash == _hash.value()) {
+        setCommitted();
+        return;
+      }
+    }
+  }
+
   ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
 
   // is this an empty file?

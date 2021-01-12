@@ -8,6 +8,7 @@
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/policy.hh"
+#include "ui/options.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
@@ -167,6 +168,15 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 shared_ptr<ContentVersion> expected) noexcept {
   // The content version is an input to command c
   c->currentRun()->addContentInput(shared_from_this(), _content_version, InputType::Accessed);
+
+  // This is a short-term workaround for lazy builds. If the content version is committed, make sure
+  // it has a fingerprint.
+  // TODO: Remove this once artifacts track committed and uncommitted state
+  if (!options::eager_builds && _content_version->isCommitted()) {
+    auto path = getPath(false);
+    auto fingerprint_type = policy::chooseFingerprintType(c, path.value(), _content_version);
+    _content_version->fingerprint(path.value(), fingerprint_type);
+  }
 
   // Compare the current content version to the expected version
   if (!_content_version->matches(expected)) {

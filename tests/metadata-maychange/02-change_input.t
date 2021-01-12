@@ -31,10 +31,9 @@ Check the rebuild plan. We know a must rerun, but b may have to run because a ch
   Commands that may run:
     ./b
 
-Now run the build. The b command will not run once iterative builds are finished
+Now run the build. The b command does not need to run because ./a does not change the metadata
   $ $DODO --show
   ./a
-  ./b
 
 Clean up
   $ rm -rf .dodo a b

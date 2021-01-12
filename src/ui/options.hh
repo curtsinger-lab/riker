@@ -23,8 +23,8 @@ namespace options {
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER
 
-  /// Enable lazy builds (only run commands marked mustRun, come back to the MayRun commands later)
-  inline bool lazy_builds = false;  // PAPER
+  /// Enable eager builds (run all commands that may or must run)
+  inline bool eager_builds = false;  // PAPER
 
   /****** Debugging ******/
   /// Trace syscall exits to validate outcomes from the filesystem model
