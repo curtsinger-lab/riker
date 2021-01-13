@@ -1,0 +1,9 @@
+{
+    "benchmarks": [
+        "autoconf/benchmark.json",
+        "calc/benchmark.json",
+        "coreutils/benchmark.json",
+        "gzip/benchmark.json",
+        "lsof/benchmark.json"
+    ]
+}

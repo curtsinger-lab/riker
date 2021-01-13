@@ -258,63 +258,47 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
     ref->getArtifact()->beforeTruncate(_build, getCommand(), ref_id);
   }
 
-  // If model validation was not requested, resume the process now
-  if (!options::validate) resume();
+  // Allow the syscall to finish
+  finishSyscall([=](long fd) {
+    // Let the process continue
+    resume();
 
-  // Get the expected file descriptor for the opened file
-  auto expected_fd = getProcess()->nextFD();
+    // Check whether the openat call succeeded or failed
+    if (fd >= 0) {
+      WARN_IF(!ref->isResolved()) << "Model Mismatch: failed to locate artifact for opened file: "
+                                  << filename << " (received " << ref->getResultCode()
+                                  << " from model)";
 
-  // Did the reference resolve?
-  if (ref->isResolved()) {
-    // The command observed a successful openat, so add this predicate to the command log
-    _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+      // The command observed a successful openat, so add this predicate to the command log
+      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
 
-    // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
-    if (flags.tmpfile()) {
-      auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode());
+      // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
+      if (flags.tmpfile()) {
+        auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode());
 
-      // Record the reference in the process' file descriptor table
-      _process->addFD(expected_fd, anon_ref_id, flags.cloexec());
-
-    } else {
-      // If the file is truncated by the open call, set the contents in the artifact
-      if (ref_flags.truncate) {
-        ref->getArtifact()->afterTruncate(_build, getCommand(), ref_id);
-      }
-
-      // Record the reference in the correct location in this process' file descriptor table
-      _process->addFD(expected_fd, ref_id, flags.cloexec());
-    }
-
-  } else {
-    // The command observed a failed openat, so add the error predicate to the command log
-    _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
-  }
-
-  // If syscall validation was requested, do so now
-  if (options::validate) {
-    // Allow the syscall to finish
-    finishSyscall([=](long fd) {
-      // Let the process continue
-      resume();
-
-      // Check whether the openat call succeeded or failed
-      if (fd >= 0) {
-        WARN_IF(fd != expected_fd)
-            << "Model Mismatch: expected fd " << expected_fd << " but received fd " << fd;
-
-        WARN_IF(!ref->isResolved())
-            << "Model Mismatch: failed to locate artifact for opened file: " << filename
-            << " (received " << ref->getResultCode() << " from model)";
+        // Record the reference in the process' file descriptor table
+        _process->addFD(fd, anon_ref_id, flags.cloexec());
 
       } else {
-        // Negate fd because syscalls return negative errors
-        WARN_IF(ref->getResultCode() != -fd)
-            << "Model Mismatch: expected openat to return " << getErrorName(ref->getResultCode())
-            << ", but actual result is " << getErrorName(-fd);
+        // If the file is truncated by the open call, set the contents in the artifact
+        if (ref_flags.truncate) {
+          ref->getArtifact()->afterTruncate(_build, getCommand(), ref_id);
+        }
+
+        // Record the reference in the correct location in this process' file descriptor table
+        _process->addFD(fd, ref_id, flags.cloexec());
       }
-    });
-  }
+
+    } else {
+      // Negate fd because syscalls return negative errors
+      WARN_IF(ref->getResultCode() != -fd)
+          << "Model Mismatch: expected openat to return " << getErrorName(ref->getResultCode())
+          << ", but actual result is " << getErrorName(-fd);
+
+      // The command observed a failed openat, so add the error predicate to the command log
+      _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
+    }
+  });
 }
 
 void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept {
@@ -364,18 +348,11 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
 void Thread::_close(int fd) noexcept {
   LOGF(trace, "{}: close({})", this, fd);
 
-  bool closed = _process->tryCloseFD(fd);
+  // Resume the process
+  resume();
 
-  if (options::validate) {
-    finishSyscall([=](long rc) {
-      resume();
-      WARN_IF(closed && rc != 0) << "Model Mismatch: close() syscall failed: " << getErrorName(-rc);
-      WARN_IF(!closed && rc == 0) << "Model Mismatch: close() syscall succeeded";
-    });
-
-  } else {
-    resume();
-  }
+  // Try to close the FD
+  _process->tryCloseFD(fd);
 }
 
 /************************ Pipes ************************/
