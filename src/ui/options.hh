@@ -23,7 +23,7 @@ namespace options {
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER
 
-  /// Enable eager builds (run all commands that may or must run)
-  inline bool eager_builds = false;  // PAPER
+  /// Run only commands that MUST run, then re-evaluate and execute others as needed
+  inline bool lazy_builds = true;  // PAPER
 
 }

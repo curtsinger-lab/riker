@@ -161,7 +161,7 @@ void FileVersion::commit(fs::path path) noexcept {
 
   // Compare to the on-disk artifact. This is a short-term workaround for lazy builds
   // TODO: Remove this once artifacts track both committed and uncommitted state
-  if (!options::eager_builds && !canCommit()) {
+  if (options::lazy_builds && !canCommit()) {
     struct stat statbuf;
     ::lstat(path.c_str(), &statbuf);
 

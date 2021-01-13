@@ -172,7 +172,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
   // This is a short-term workaround for lazy builds. If the content version is committed, make sure
   // it has a fingerprint.
   // TODO: Remove this once artifacts track committed and uncommitted state
-  if (!options::eager_builds && _content_version->isCommitted()) {
+  if (options::lazy_builds && _content_version->isCommitted()) {
     auto path = getPath(false);
     auto fingerprint_type = policy::chooseFingerprintType(c, path.value(), _content_version);
     _content_version->fingerprint(path.value(), fingerprint_type);
