@@ -14,6 +14,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "ui/options.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
@@ -192,20 +193,25 @@ void CommandRun::inputChanged(shared_ptr<Artifact> artifact,
 void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
                                   shared_ptr<Command> writer,
                                   InputType t) noexcept {
-  const auto& v = a->peekMetadata();
-  _metadata_inputs.emplace(a, v, writer, t);
+  if (options::track_inputs_outputs) {
+    const auto& v = a->peekMetadata();
+    _metadata_inputs.emplace_back(a, v, t);
+  }
 
   // If this command is running, make sure the metadata input is committed
   if (getCommand()->running()) a->commitMetadata();
 
-  // If the version was created by another command, inform the wrater that this command uses it
+  // If the version was created by another command, track the use of that command's output
   if (writer) {
+    // This command uses output from writer
+    _uses_output_from.emplace(writer);
+
     // If this is make accessing metadata, we only need to mark in one direction;
     // changing metadata alone does not need to trigger a re-execution of make
     if (getCommand()->isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
-    writer->currentRun()->_metadata_output_uses.emplace(a, v, _command);
+    writer->currentRun()->_output_used_by.emplace(_command);
   }
 }
 
@@ -213,7 +219,7 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
 void CommandRun::addContentInput(shared_ptr<Artifact> a,
                                  shared_ptr<ContentVersion> v,
                                  InputType t) noexcept {
-  _content_inputs.emplace(a, v, t);
+  if (options::track_inputs_outputs) _content_inputs.emplace_back(a, v, t);
 
   // If this command is running, make sure the file is available
   // We can skip committing a version if this same command also created the version
@@ -225,21 +231,28 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
     a->commit(v);
   }
 
-  // If the version was created by another command, inform the creator that this command uses it
-  if (auto creator = v->getCreator(); creator) {
-    // Otherwise, add this command run to the creator's set of output users
-    creator->currentRun()->_content_output_uses.emplace(a, v, _command);
+  // If the version was created by another command, track the use of that command's output
+  if (auto writer = v->getCreator(); writer) {
+    // This command uses output from writer
+    _uses_output_from.emplace(writer);
+    writer->currentRun()->_output_used_by.emplace(_command);
+
+    // Is the version committeable? If not, this command NEEDS output from writer
+    if (!v->canCommit()) {
+      _needs_output_from.emplace(writer);
+      writer->currentRun()->_output_needed_by.emplace(_command);
+    }
   }
 }
 
 // Add an output to this command
 void CommandRun::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
-  _metadata_outputs.emplace(a, v);
+  if (options::track_inputs_outputs) _metadata_outputs.emplace_back(a, v);
 }
 
 // Add an output to this command
 void CommandRun::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
-  _content_outputs.emplace(a, v);
+  if (options::track_inputs_outputs) _content_outputs.emplace_back(a, v);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)

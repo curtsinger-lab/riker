@@ -44,9 +44,9 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's metadata inputs
-  for (auto& [a, v, creator, t] : c->previousRun()->getMetadataInputs()) {
+  for (const auto& [a, v, t] : c->previousRun()->getMetadataInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
-    if (t != InputType::Accessed && !creator) continue;
+    if (t != InputType::Accessed) continue;
 
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
@@ -60,7 +60,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's content inputs
-  for (auto& [a, v, t] : c->previousRun()->getContentInputs()) {
+  for (const auto& [a, v, t] : c->previousRun()->getContentInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !v->getCreator()) continue;
 
@@ -76,7 +76,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's metadata outputs
-  for (auto& [a, v] : c->previousRun()->getMetadataOutputs()) {
+  for (const auto& [a, v] : c->previousRun()->getMetadataOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 
@@ -89,7 +89,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's content outputs
-  for (auto& [a, v] : c->previousRun()->getContentOutputs()) {
+  for (const auto& [a, v] : c->previousRun()->getContentOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 

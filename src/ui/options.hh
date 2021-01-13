@@ -19,6 +19,9 @@ namespace options {
   /// When fingerprinting, do we use a hash function (i.e., BLAKE3)?
   inline bool mtime_only = false;
 
+  /// Should commands keep a precise record of their inputs and outputs? Used for graph.
+  inline bool track_inputs_outputs = false;
+
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER

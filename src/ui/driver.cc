@@ -220,6 +220,9 @@ void do_graph(vector<string> args,
               string type,
               bool show_all,
               bool no_render) noexcept {
+  // Turn on input/output tracking
+  options::track_inputs_outputs = true;
+
   if (type.empty() && no_render) type = "dot";
   if (type.empty() && !no_render) type = "png";
   if (output.empty()) output = "out." + type;

@@ -122,59 +122,62 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
                        std::shared_ptr<ContentVersion> v,
                        InputType t) noexcept;
 
-  /// Get the inputs to this command
-  std::set<std::tuple<std::shared_ptr<Artifact>,
-                      std::shared_ptr<MetadataVersion>,
-                      std::shared_ptr<Command>,
-                      InputType>>
-  getMetadataInputs() const noexcept {
-    return _metadata_inputs;
-  }
-
-  /// Get the inputs to this command
-  std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>
-  getContentInputs() const noexcept {
-    return _content_inputs;
-  }
-
   /// Track an output from this command
   void addMetadataOutput(std::shared_ptr<Artifact> a, std::shared_ptr<MetadataVersion> v) noexcept;
 
   /// Track an output from this command
   void addContentOutput(std::shared_ptr<Artifact> a, std::shared_ptr<ContentVersion> v) noexcept;
 
-  /// Get the outputs from this command
-  const std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>&
-  getMetadataOutputs() const noexcept {
-    return _metadata_outputs;
-  }
-
-  /// Get the outputs from this command
-  const std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>>&
-  getContentOutputs() const noexcept {
-    return _content_outputs;
-  }
-
-  /// Get the users of this command's outputs
-  const std::set<std::tuple<std::shared_ptr<Artifact>,
-                            std::shared_ptr<MetadataVersion>,
-                            std::shared_ptr<Command>>>&
-  getMetadataOutputUses() const noexcept {
-    return _metadata_output_uses;
-  }
-
-  /// Get the users of this command's outputs
-  const std::set<std::tuple<std::shared_ptr<Artifact>,
-                            std::shared_ptr<ContentVersion>,
-                            std::shared_ptr<Command>>>&
-  getContentOutputUses() const noexcept {
-    return _content_output_uses;
-  }
-
   /// An output from this command does not match the on-disk state (checked at the end of the build)
   void outputChanged(std::shared_ptr<Artifact> artifact,
                      std::shared_ptr<ContentVersion> ondisk,
                      std::shared_ptr<ContentVersion> expected) noexcept;
+
+  /// Get the metadata inputs to this command
+  const std::list<
+      std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>, InputType>>&
+  getMetadataInputs() const noexcept {
+    return _metadata_inputs;
+  }
+
+  /// Get the content inputs to this command
+  const std::list<
+      std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>&
+  getContentInputs() const noexcept {
+    return _content_inputs;
+  }
+
+  /// Get the metadata outputs from this command
+  const std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>&
+  getMetadataOutputs() const noexcept {
+    return _metadata_outputs;
+  }
+
+  /// Get the content outputs from this command
+  const std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>>&
+  getContentOutputs() const noexcept {
+    return _content_outputs;
+  }
+
+  /// Get the set of commands that produce inputs to this command
+  const std::set<std::shared_ptr<Command>>& getUsesOutputFrom() const noexcept {
+    return _uses_output_from;
+  }
+
+  /// Get the set of commands that produce uncached inputs to this command
+  const std::set<std::shared_ptr<Command>>& getNeedsOutputFrom() const noexcept {
+    return _needs_output_from;
+  }
+
+  /// Get the set of commands that use outputs from this command
+  const std::set<std::shared_ptr<Command>>& getOutputUsedBy() const noexcept {
+    return _output_used_by;
+  }
+
+  /// Get the set of commands that use uncached outputs from this command
+  const std::set<std::shared_ptr<Command>>& getOutputNeededBy() const noexcept {
+    return _output_needed_by;
+  }
 
  private:
   /// The command this run is associated with
@@ -199,31 +202,30 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   std::set<Scenario> _changed;
 
   /// The set of inputs to this command
-  std::set<std::tuple<std::shared_ptr<Artifact>,
-                      std::shared_ptr<MetadataVersion>,
-                      std::shared_ptr<Command>,
-                      InputType>>
+  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>, InputType>>
       _metadata_inputs;
 
   /// The set of inputs to this command
-  std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>
+  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>
       _content_inputs;
 
   /// The set of outputs from this command
-  std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>
+  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>
       _metadata_outputs;
 
   /// The set of outputs from this command
-  std::set<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>> _content_outputs;
+  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>>
+      _content_outputs;
 
-  /// The set of users of this command's outputs
-  std::set<std::tuple<std::shared_ptr<Artifact>,
-                      std::shared_ptr<MetadataVersion>,
-                      std::shared_ptr<Command>>>
-      _metadata_output_uses;
+  /// The set of commands that produce any inputs to this command
+  std::set<std::shared_ptr<Command>> _uses_output_from;
 
-  std::set<std::tuple<std::shared_ptr<Artifact>,
-                      std::shared_ptr<ContentVersion>,
-                      std::shared_ptr<Command>>>
-      _content_output_uses;
+  /// The set of commands that produce uncached inputs to this command
+  std::set<std::shared_ptr<Command>> _needs_output_from;
+
+  /// The set of commands that use this command's outputs
+  std::set<std::shared_ptr<Command>> _output_used_by;
+
+  /// The set of commands that require uncached outputs from this command
+  std::set<std::shared_ptr<Command>> _output_needed_by;
 };

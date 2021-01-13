@@ -145,64 +145,38 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Update the marking
     _marking = RebuildMarking::MustRun;
 
-    // Loop over metadata inputs to this command
-    for (const auto& [a, v, creator, t] : previousRun()->getMetadataInputs()) {
-      // If the version does not have a creator, there's no need to run anything to create it
-      if (!creator) continue;
-
-      // Rule 3 does not apply, because metadata versions can always be committed
-
-      // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
-      if (creator->_marking == RebuildMarking::MayRun) {
-        creator->mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output is used by {}", creator, this);
+    // Rule 3: For each command D that produces uncached input V to C: mark D as MustRun
+    for (const auto& producer : previousRun()->getNeedsOutputFrom()) {
+      if (producer->mark(RebuildMarking::MustRun)) {
+        LOGF(rebuild, "{} must run: output is needed by {}", producer, this);
       }
     }
 
-    // Loop over content inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getContentInputs()) {
-      // If the version does not have a creator, there's no need to run anything to create it
-      auto creator = v->getCreator();
-      if (!creator) continue;
-
-      // Rule 3: Mark commands that produce uncached inputs to this command as MustRun
-      // TODO: This check should really ask the artifact if it can commit the version at the time
-      // of the input, not during rebuild planning.
-      if (!v->canCommit()) {
-        // Mark the creator for rerun so it will produce the necessary input
-        if (creator->mark(RebuildMarking::MustRun)) {
-          LOGF(rebuild, "{} must run: output is needed by {}", creator, this);
-        }
-      }
-
-      // Rule 4: If a command D that may run produces an input to this command, mark it MustRun
-      if (creator->_marking == RebuildMarking::MayRun) {
-        creator->mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output is used by {}", creator, this);
+    // Rule 4: For each command D that produces input V to C: if D is marked MayRun, mark D as
+    // MustRun
+    for (const auto& producer : previousRun()->getUsesOutputFrom()) {
+      if (producer->_marking == RebuildMarking::MayRun) {
+        producer->mark(RebuildMarking::MustRun);
+        LOGF(rebuild,
+             "{} must run: may change output needed by {}, which is already marked for run",
+             producer, this);
       }
     }
 
-    // Loop over the uses of this command's metadata outputs
-    for (const auto& [a, v, user] : previousRun()->getMetadataOutputUses()) {
-      // Rule 5: Mark any users of this command's output as MayRun
-      // Metadata can always be committed, so the alternative case is not required here
+    // Rule 5: For each command D that consumes output V from C: if V is cached mark D as MayRun. If
+    // not, mark D as MustRun.
+
+    // Mark the MustRun commands first to avoid marking them a second time
+    for (const auto& user : previousRun()->getOutputNeededBy()) {
+      if (user->mark(RebuildMarking::MustRun)) {
+        LOGF(rebuild, "{} must run: uncached input may be changed by {}", user, this);
+      }
+    }
+
+    // Now do the MayRun markings
+    for (const auto& user : previousRun()->getOutputUsedBy()) {
       if (user->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
-      }
-    }
-
-    // Loop over the uses of this command's metadata outputs
-    for (const auto& [a, v, user] : previousRun()->getContentOutputUses()) {
-      // Rule 5: Mark any users of this command's output as MayRun if v can be committed, otherwise
-      // mark the user as MustRun
-      if (v->canCommit()) {
-        if (user->mark(RebuildMarking::MayRun)) {
-          LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
-        }
-      } else {
-        if (user->mark(RebuildMarking::MustRun)) {
-          LOGF(rebuild, "{} must run: uncached input may be changed by {}", user, this);
-        }
       }
     }
 
@@ -230,60 +204,26 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Update the marking
     _marking = RebuildMarking::MayRun;
 
-    // Loop over metadata inputs to this command
-    for (const auto& [a, v, creator, t] : previousRun()->getMetadataInputs()) {
-      // If the version does not have a creator, there's no need to run anything to create it
-      if (!creator) continue;
-
-      // Rule 6 does not apply because metadata versions can always be committed
-    }
-
-    // Loop over content inputs to this command
-    for (const auto& [a, v, t] : previousRun()->getContentInputs()) {
-      // If the version does not have a creator, there's no need to run anything to create it
-      auto creator = v->getCreator();
-      if (!creator) continue;
-
-      // Rule 6: Mark commands that produce uncached inputs to this command as MayRun
-      // TODO: This check should really ask the artifact if it can commit the version at the time
-      // of the input, not during rebuild planning.
-      if (!v->canCommit()) {
-        // Mark the creator for rerun so it will produce the necessary input
-        if (creator->mark(RebuildMarking::MayRun)) {
-          LOGF(rebuild, "{} may run: output is needed by {}", creator, this);
-        }
+    // Rule 6: For each command D that produces uncached input V to C: mark D as MayRun.
+    for (const auto& producer : previousRun()->getNeedsOutputFrom()) {
+      if (producer->mark(RebuildMarking::MayRun)) {
+        LOGF(rebuild, "{} may run: input may be needed by {}", producer, this);
       }
     }
 
-    // Loop over the commands that use this command's metadata outputs
-    for (const auto& [a, v, user] : previousRun()->getMetadataOutputUses()) {
-      // Rule 7: Mark any users of this command's output as MayRun
+    // Rule 7: For each command D that consumes output V from C: mark D as MayRun
+    for (const auto& user : previousRun()->getOutputUsedBy()) {
       if (user->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
       }
-
-      // Rule 8: If the command that uses this command's output is marked MustRun, mark this command
-      // MustRun as well
-      if (user->_marking == RebuildMarking::MustRun) {
-        if (mark(RebuildMarking::MustRun)) {
-          LOGF(rebuild, "{} must run: output is used by command {}", this, user);
-        }
-      }
     }
 
-    // Loop over the commands that use this command's content outputs
-    for (const auto& [a, v, user] : previousRun()->getContentOutputUses()) {
-      // Rule 7: Mark any users of this command's output as MayRun
-      if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
-      }
-
-      // Rule 8: If the command that uses this command's output is marked MustRun, mark this command
-      // MustRun as well
+    // Rule 8: For each command D that consumes output V from C: if D is marked MustRun, mark C as
+    // MustRun
+    for (const auto& user : previousRun()->getOutputUsedBy()) {
       if (user->_marking == RebuildMarking::MustRun) {
-        if (mark(RebuildMarking::MustRun)) {
-          LOGF(rebuild, "{} must run: output is used by command {}", this, user);
-        }
+        mark(RebuildMarking::MustRun);
+        LOGF(rebuild, "{} must run: output is needed by command {}", this, user);
       }
     }
 
