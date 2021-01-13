@@ -580,7 +580,6 @@ class Config:
         rx: str = r"(?P<input_count>[0-9]+(.[0-9]+)?)(?P<input_unit>B|kB|MB|GB) / (?P<output_count>[0-9]+(.[0-9]+)?)(?P<output_unit>B|kB|MB|GB)"
         p: Pattern[str] = re.compile(rx, re.IGNORECASE)
         line: str = rv.strip()
-        print("DEBUG: Parsing stats in line: '{}'".format(line))
         m: Optional[Match[str]] = p.search(line)
         if m:
             input_count = m.group("input_count")
