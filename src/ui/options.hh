@@ -25,8 +25,4 @@ namespace options {
 
   /// Enable lazy builds (only run commands marked mustRun, come back to the MayRun commands later)
   inline bool lazy_builds = false;  // PAPER
-
-  /****** Debugging ******/
-  /// Trace syscall exits to validate outcomes from the filesystem model
-  inline bool validate = false;
 }
