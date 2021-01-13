@@ -139,6 +139,13 @@ class Config:
         self.make: bool               = True if pargs.incr_none_make else pargs.make
         # run dodo?
         self.dodo: bool               = True if pargs.incr_none_dodo else pargs.dodo
+
+        # more validation:
+        if not self.make and not self.dodo:
+            print("You must specify whether to run dodo (using --dodo or --incr-none-dodo) or "
+                  "make (using --make or --incr-none-make)")
+            sys.exit(1)
+
         # optional no-docker init script
         if "no_docker_init_script" in data:
             self.no_docker_init_script = os.path.join(self.benchmark_path, data["no_docker_init_script"])

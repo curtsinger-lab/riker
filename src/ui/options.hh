@@ -26,7 +26,4 @@ namespace options {
   /// Enable eager builds (run all commands that may or must run)
   inline bool eager_builds = false;  // PAPER
 
-  /****** Debugging ******/
-  /// Trace syscall exits to validate outcomes from the filesystem model
-  inline bool validate = false;
 }

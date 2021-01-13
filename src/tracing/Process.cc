@@ -99,25 +99,6 @@ bool Process::tryCloseFD(int fd) noexcept {
   return false;
 }
 
-// Get the lowest-numbered available FD
-int Process::nextFD() const noexcept {
-  int expected_fd = 0;
-  auto iter = _fds.begin();
-  while (iter != _fds.end()) {
-    // If the next fd is different from the expected fd, the expected fd must be available
-    if (iter->first != expected_fd) {
-      return expected_fd;
-    }
-
-    // Advance the expected and actual fds
-    expected_fd++;
-    iter++;
-  }
-
-  // If we hit the end of the map with no gaps, the next expected fd is the next available
-  return expected_fd;
-}
-
 // Set a file descriptor's close-on-exec flag
 void Process::setCloexec(int fd, bool cloexec) noexcept {
   auto iter = _fds.find(fd);
