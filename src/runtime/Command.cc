@@ -192,13 +192,17 @@ bool Command::mark(RebuildMarking m) noexcept {
     }
 
     // Rule b: If this command's parent is marked MayRun, change it to MustRun
-    // TODO: Implement this once we track parents.
+    auto parent = previousRun()->getParent();
+    if (parent->_marking == RebuildMarking::MayRun) {
+      parent->mark(RebuildMarking::MustRun);
+      LOGF(rebuild, "{} must run: child {} is running and cannot be skipped", parent, this);
+    }
 
     // The marking was new, so return true
     return true;
 
   } else if (m == RebuildMarking::MayRun) {
-    // If this command already had an equivalent or highe rmarking, return false.
+    // If this command already had an equivalent or higher marking, return false.
     // There's no need to propagate this marking becasue it is not new.
     if (_marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun ||
         _marking == RebuildMarking::AlreadyRun) {

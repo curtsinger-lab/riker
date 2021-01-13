@@ -138,6 +138,7 @@ void CommandRun::setExitStatus(int status) noexcept {
 // Record that this command launched a child command
 void CommandRun::addChild(shared_ptr<Command> child) noexcept {
   _children.push_back(child);
+  child->currentRun()->_parent = _command;
 }
 
 // Look for a command that matches one of this command's children from the last run

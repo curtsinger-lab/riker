@@ -74,6 +74,9 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() const noexcept { return _children; }
 
+  /// Get this command's parent
+  std::shared_ptr<Command> getParent() const noexcept { return _parent.lock(); }
+
   /**
    * Look through this command's children from the last run to see if there is a child that matches
    * the given command launch information. Once a child has been matched, it will not match again.
@@ -176,6 +179,9 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
 
   /// This command's use countn for each of its references
   std::vector<size_t> _refs_use_count;
+
+  /// This command's parent, if any
+  std::weak_ptr<Command> _parent;
 
   /// The children launched by this command
   std::list<std::shared_ptr<Command>> _children;
