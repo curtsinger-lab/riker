@@ -146,7 +146,8 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MustRun;
 
     // Rule 3: For each command D that produces uncached input V to C: mark D as MustRun
-    for (const auto& producer : previousRun()->getNeedsOutputFrom()) {
+    for (const auto& weak_producer : previousRun()->getNeedsOutputFrom()) {
+      auto producer = weak_producer.lock();
       if (producer->mark(RebuildMarking::MustRun)) {
         LOGF(rebuild, "{} must run: output is needed by {}", producer, this);
       }
@@ -154,7 +155,8 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule 4: For each command D that produces input V to C: if D is marked MayRun, mark D as
     // MustRun
-    for (const auto& producer : previousRun()->getUsesOutputFrom()) {
+    for (const auto& weak_producer : previousRun()->getUsesOutputFrom()) {
+      auto producer = weak_producer.lock();
       if (producer->_marking == RebuildMarking::MayRun) {
         producer->mark(RebuildMarking::MustRun);
         LOGF(rebuild,
@@ -167,14 +169,16 @@ bool Command::mark(RebuildMarking m) noexcept {
     // not, mark D as MustRun.
 
     // Mark the MustRun commands first to avoid marking them a second time
-    for (const auto& user : previousRun()->getOutputNeededBy()) {
+    for (const auto& weak_user : previousRun()->getOutputNeededBy()) {
+      auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MustRun)) {
         LOGF(rebuild, "{} must run: uncached input may be changed by {}", user, this);
       }
     }
 
     // Now do the MayRun markings
-    for (const auto& user : previousRun()->getOutputUsedBy()) {
+    for (const auto& weak_user : previousRun()->getOutputUsedBy()) {
+      auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
       }
@@ -182,8 +186,8 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule a: Mark all of this command's children as MustRun
     for (const auto& child : previousRun()->getChildren()) {
-      if (child->getCommand()->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: parent {} is running", child->getCommand(), this);
+      if (child->mark(RebuildMarking::MustRun)) {
+        LOGF(rebuild, "{} must run: parent {} is running", child, this);
       }
     }
 
@@ -205,14 +209,16 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MayRun;
 
     // Rule 6: For each command D that produces uncached input V to C: mark D as MayRun.
-    for (const auto& producer : previousRun()->getNeedsOutputFrom()) {
+    for (const auto& weak_producer : previousRun()->getNeedsOutputFrom()) {
+      auto producer = weak_producer.lock();
       if (producer->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: input may be needed by {}", producer, this);
       }
     }
 
     // Rule 7: For each command D that consumes output V from C: mark D as MayRun
-    for (const auto& user : previousRun()->getOutputUsedBy()) {
+    for (const auto& weak_user : previousRun()->getOutputUsedBy()) {
+      auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
       }
@@ -220,7 +226,8 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule 8: For each command D that consumes output V from C: if D is marked MustRun, mark C as
     // MustRun
-    for (const auto& user : previousRun()->getOutputUsedBy()) {
+    for (const auto& weak_user : previousRun()->getOutputUsedBy()) {
+      auto user = weak_user.lock();
       if (user->_marking == RebuildMarking::MustRun) {
         mark(RebuildMarking::MustRun);
         LOGF(rebuild, "{} must run: output is needed by command {}", this, user);
@@ -229,8 +236,8 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule c: Mark all of this command's children as MayRun
     for (const auto& child : previousRun()->getChildren()) {
-      if (child->getCommand()->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: parent {} may run", child->getCommand(), this);
+      if (child->mark(RebuildMarking::MayRun)) {
+        LOGF(rebuild, "{} may run: parent {} may run", child, this);
       }
     }
 

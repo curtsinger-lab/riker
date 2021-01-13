@@ -31,7 +31,7 @@ namespace fs = std::filesystem;
 
 // Get the command that produced this Run
 shared_ptr<Command> CommandRun::getCommand() const noexcept {
-  return _command;
+  return _command.lock();
 }
 
 // Prepare this command to execute by creating dependencies and committing state
@@ -60,20 +60,22 @@ void CommandRun::createLaunchDependencies(Build& build) noexcept {
 
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& CommandRun::getRef(Ref::ID id) const noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid reference ID " << id << " in " << _command;
-  ASSERT(_refs[id]) << "Access to null reference ID " << id << " in " << _command;
+  ASSERT(id >= 0 && id < _refs.size())
+      << "Invalid reference ID " << id << " in " << _command.lock();
+  ASSERT(_refs[id]) << "Access to null reference ID " << id << " in " << _command.lock();
   return _refs[id];
 }
 
 // Store a reference at a known index of this command's local reference table
 void CommandRun::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
-  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << _command;
+  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << _command.lock();
 
   // Are we adding this ref onto the end of the refs list? If so, grow as needed
   if (id >= _refs.size()) _refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  // ASSERT(!_refs[id]) << "Attempted to overwrite reference ID " << id << " in " << _command;
+  // ASSERT(!_refs[id]) << "Attempted to overwrite reference ID " << id << " in " <<
+  // _command.lock();
 
   // Save the ref
   _refs[id] = ref;
@@ -82,7 +84,7 @@ void CommandRun::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
 // Store a reference at the next available index of this command's local reference table
 Ref::ID CommandRun::setRef(shared_ptr<Ref> ref) noexcept {
   Ref::ID id = _refs.size();
-  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << _command;
+  ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << _command.lock();
   _refs.push_back(ref);
 
   return id;
@@ -91,7 +93,7 @@ Ref::ID CommandRun::setRef(shared_ptr<Ref> ref) noexcept {
 // Increment this command's use counter for a Ref.
 // Return true if this is the first use by this command.
 bool CommandRun::usingRef(Ref::ID id) noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << _command;
+  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << _command.lock();
 
   // Expand the use count vector if necessary
   if (_refs_use_count.size() <= id) _refs_use_count.resize(id + 1);
@@ -109,9 +111,9 @@ bool CommandRun::usingRef(Ref::ID id) noexcept {
 // Decrement this command's use counter for a Ref.
 // Return true if that was the last use by this command.
 bool CommandRun::doneWithRef(Ref::ID id) noexcept {
-  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << _command;
+  ASSERT(id >= 0 && id < _refs.size()) << "Invalid ref ID " << id << " in " << _command.lock();
   ASSERT(id < _refs_use_count.size() && _refs_use_count[id] > 0)
-      << "Attempted to end an unknown use of ref r" << id << " in " << _command;
+      << "Attempted to end an unknown use of ref r" << id << " in " << _command.lock();
 
   // Decrement the ref count. Was this the last use of the ref?
   if (--_refs_use_count[id] == 0) {
@@ -134,13 +136,8 @@ void CommandRun::setExitStatus(int status) noexcept {
 }
 
 // Record that this command launched a child command
-void CommandRun::addChild(shared_ptr<CommandRun> child) noexcept {
+void CommandRun::addChild(shared_ptr<Command> child) noexcept {
   _children.push_back(child);
-}
-
-// Get this command's children
-const list<shared_ptr<CommandRun>>& CommandRun::getChildren() const noexcept {
-  return _children;
 }
 
 // Look for a command that matches one of this command's children from the last run
@@ -153,13 +150,11 @@ shared_ptr<Command> CommandRun::findChild(vector<string> args,
   for (auto& child : _children) {
     // Does the child match the given launch parameters?
     // TODO: Check more than just arguments
-    if (!child->_matched) {
-      auto child_cmd = child->getCommand();
-      ASSERT(child_cmd) << "Run has no associated command";
-      if (child->getCommand()->getArguments() == args) {
+    if (!child->previousRun()->_matched) {
+      if (child->getArguments() == args) {
         // Mark the command as matched so we don't match it again
-        child->_matched = true;
-        return child->getCommand();
+        child->previousRun()->_matched = true;
+        return child;
       }
     }
   }

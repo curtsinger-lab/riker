@@ -537,7 +537,7 @@ void Build::launch(const shared_ptr<Command>& c,
   _commands.insert(child);
 
   // Add the child to the parent command's set of children
-  c->currentRun()->addChild(child->currentRun());
+  c->currentRun()->addChild(child);
 
   // Are we going to re-execute the child?
   bool launch_command = false;
@@ -1026,7 +1026,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   _commands.insert(child);
 
   // Add the child to the parent's list of children
-  parent->currentRun()->addChild(child->currentRun());
+  parent->currentRun()->addChild(child);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
   list<tuple<Ref::ID, Ref::ID>> refs;

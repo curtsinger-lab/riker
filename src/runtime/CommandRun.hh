@@ -69,10 +69,10 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
    * Remember that this command launched a child command. This is used on the next run to match
    * launched children against commands fromn the previous run.
    */
-  void addChild(std::shared_ptr<CommandRun> child) noexcept;
+  void addChild(std::shared_ptr<Command> child) noexcept;
 
   /// Get this command's list of children
-  const std::list<std::shared_ptr<CommandRun>>& getChildren() const noexcept;
+  const std::list<std::shared_ptr<Command>>& getChildren() const noexcept { return _children; }
 
   /**
    * Look through this command's children from the last run to see if there is a child that matches
@@ -133,55 +133,43 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
                      std::shared_ptr<ContentVersion> ondisk,
                      std::shared_ptr<ContentVersion> expected) noexcept;
 
+  template <class T>
+  using InputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>, InputType>>;
+
   /// Get the metadata inputs to this command
-  const std::list<
-      std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>, InputType>>&
-  getMetadataInputs() const noexcept {
-    return _metadata_inputs;
-  }
+  const InputList<MetadataVersion>& getMetadataInputs() const noexcept { return _metadata_inputs; }
 
   /// Get the content inputs to this command
-  const std::list<
-      std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>&
-  getContentInputs() const noexcept {
-    return _content_inputs;
-  }
+  const InputList<ContentVersion>& getContentInputs() const noexcept { return _content_inputs; }
+
+  template <class T>
+  using OutputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>>>;
 
   /// Get the metadata outputs from this command
-  const std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>&
-  getMetadataOutputs() const noexcept {
+  const OutputList<MetadataVersion>& getMetadataOutputs() const noexcept {
     return _metadata_outputs;
   }
 
   /// Get the content outputs from this command
-  const std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>>&
-  getContentOutputs() const noexcept {
-    return _content_outputs;
-  }
+  const OutputList<ContentVersion>& getContentOutputs() const noexcept { return _content_outputs; }
+
+  using WeakCommandSet = std::set<std::weak_ptr<Command>, std::owner_less<std::weak_ptr<Command>>>;
 
   /// Get the set of commands that produce inputs to this command
-  const std::set<std::shared_ptr<Command>>& getUsesOutputFrom() const noexcept {
-    return _uses_output_from;
-  }
+  const WeakCommandSet& getUsesOutputFrom() const noexcept { return _uses_output_from; }
 
   /// Get the set of commands that produce uncached inputs to this command
-  const std::set<std::shared_ptr<Command>>& getNeedsOutputFrom() const noexcept {
-    return _needs_output_from;
-  }
+  const WeakCommandSet& getNeedsOutputFrom() const noexcept { return _needs_output_from; }
 
   /// Get the set of commands that use outputs from this command
-  const std::set<std::shared_ptr<Command>>& getOutputUsedBy() const noexcept {
-    return _output_used_by;
-  }
+  const WeakCommandSet& getOutputUsedBy() const noexcept { return _output_used_by; }
 
   /// Get the set of commands that use uncached outputs from this command
-  const std::set<std::shared_ptr<Command>>& getOutputNeededBy() const noexcept {
-    return _output_needed_by;
-  }
+  const WeakCommandSet& getOutputNeededBy() const noexcept { return _output_needed_by; }
 
  private:
   /// The command this run is associated with
-  std::shared_ptr<Command> _command;
+  std::weak_ptr<Command> _command;
 
   /// The command's local references
   std::vector<std::shared_ptr<Ref>> _refs;
@@ -190,7 +178,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   std::vector<size_t> _refs_use_count;
 
   /// The children launched by this command
-  std::list<std::shared_ptr<CommandRun>> _children;
+  std::list<std::shared_ptr<Command>> _children;
 
   /// Has this command run already been matched against a new command launch?
   bool _matched = false;
@@ -202,30 +190,26 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   std::set<Scenario> _changed;
 
   /// The set of inputs to this command
-  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>, InputType>>
-      _metadata_inputs;
+  InputList<MetadataVersion> _metadata_inputs;
 
   /// The set of inputs to this command
-  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>, InputType>>
-      _content_inputs;
+  InputList<ContentVersion> _content_inputs;
 
   /// The set of outputs from this command
-  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<MetadataVersion>>>
-      _metadata_outputs;
+  OutputList<MetadataVersion> _metadata_outputs;
 
   /// The set of outputs from this command
-  std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<ContentVersion>>>
-      _content_outputs;
+  OutputList<ContentVersion> _content_outputs;
 
   /// The set of commands that produce any inputs to this command
-  std::set<std::shared_ptr<Command>> _uses_output_from;
+  WeakCommandSet _uses_output_from;
 
   /// The set of commands that produce uncached inputs to this command
-  std::set<std::shared_ptr<Command>> _needs_output_from;
+  WeakCommandSet _needs_output_from;
 
   /// The set of commands that use this command's outputs
-  std::set<std::shared_ptr<Command>> _output_used_by;
+  WeakCommandSet _output_used_by;
 
   /// The set of commands that require uncached outputs from this command
-  std::set<std::shared_ptr<Command>> _output_needed_by;
+  WeakCommandSet _output_needed_by;
 };
