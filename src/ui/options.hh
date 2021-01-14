@@ -19,6 +19,12 @@ namespace options {
   /// When fingerprinting, do we use a hash function (i.e., BLAKE3)?
   inline bool mtime_only = false;
 
+  /// When set, disable color terminal output
+  inline bool disable_color = false;
+
+  /// When set, include source locations in log messages
+  inline bool debug = false;
+
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER

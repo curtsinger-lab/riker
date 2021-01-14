@@ -318,7 +318,7 @@ static bool stderr_supports_colors() noexcept {
  */
 int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)
-  if (!stderr_supports_colors()) logger_options::disable_color = true;
+  if (!stderr_supports_colors()) options::disable_color = true;
 
   // Set up a CLI app for command line parsing
   CLI::App app;
@@ -330,8 +330,8 @@ int main(int argc, char* argv[]) noexcept {
   app.fallthrough();
 
   /************* Global Options *************/
-  app.add_flag("--debug", logger_options::debug, "Print source locations with log messages");
-  app.add_flag("--no-color", logger_options::disable_color, "Disable color terminal output");
+  app.add_flag("--debug", options::debug, "Print source locations with log messages");
+  app.add_flag("--no-color", options::disable_color, "Disable color terminal output");
 
   app.add_option_function<set<string>>(
          "--log",
