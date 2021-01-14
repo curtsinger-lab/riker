@@ -14,6 +14,9 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include "ui/options.hh"
+#include "util/terminate.hh"
+
 #define NORMAL "\033[00;"
 #define BOLD "\033[01;"
 #define FAINT "\033[02;"
@@ -48,14 +51,6 @@ static std::ostream& operator<<(std::ostream& o, const std::unique_ptr<T>& p) {
   return o << p.get();
 }
 
-namespace logger_options {
-  /// When set, disable color terminal output
-  inline bool disable_color = false;
-
-  /// When set, include source locations in log messages
-  inline bool debug = false;
-};
-
 /**
  * This class is used for logging to the console. The macros defined below return an instance of
  * this class, which they can then print through using the << operator. The logger will
@@ -78,7 +73,7 @@ class logger {
     if (!enabled) return;
 
     // Set the color for the log category text
-    if (!logger_options::disable_color) {
+    if (!options::disable_color) {
       if (category == LogCategory::error) {
         std::cerr << FAINT RED;
       } else if (category == LogCategory::warning) {
@@ -92,13 +87,13 @@ class logger {
     std::cerr << "(" << name << ") ";
 
     // Print source information, if enabled
-    if (logger_options::debug) {
-      if (!logger_options::disable_color) std::cerr << NORMAL BLUE;
+    if (options::debug) {
+      if (!options::disable_color) std::cerr << NORMAL BLUE;
       std::cerr << "[" << location.file_name() << ":" << location.line() << "] ";
     }
 
     // Set the log color for the actual message
-    if (!logger_options::disable_color) {
+    if (!options::disable_color) {
       if (category == LogCategory::error) {
         std::cerr << NORMAL RED;
       } else if (category == LogCategory::warning) {
@@ -113,28 +108,12 @@ class logger {
     if (!enabled) return;
 
     // End color output and print a newline
-    if (!logger_options::disable_color) std::cerr << END_COLOR;
+    if (!options::disable_color) std::cerr << END_COLOR;
     std::cerr << "\n";
     std::cerr << std::dec;
 
-    // If this log is a fatal
-    if (category == LogCategory::error) {
-      // In debug mode, call abort() so we can run a backtrace. Otherwise exit with failure.
-      if (logger_options::debug) {
-        // Make sure we can save a core file
-        struct rlimit limits = {.rlim_cur = RLIM_INFINITY, .rlim_max = RLIM_INFINITY};
-        int rc = setrlimit(RLIMIT_CORE, &limits);
-
-        if (rc == -1) {
-          logger<LogCategory::warning>() << "Failed to enable a core dump. Run `ulimit -c "
-                                            "unlimited` to save a core file on failure.";
-        }
-
-        abort();
-      } else {
-        exit(2);
-      }
-    }
+    // If this log is a fatal call the terminate handler
+    if (category == LogCategory::error) terminate();
   }
 
   template <typename T>

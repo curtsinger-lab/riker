@@ -22,6 +22,12 @@ namespace options {
   /// Should commands keep a precise record of their inputs and outputs? Used for graph.
   inline bool track_inputs_outputs = false;
 
+  /// When set, disable color terminal output
+  inline bool disable_color = false;
+
+  /// When set, include source locations in log messages
+  inline bool debug = false;
+
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER

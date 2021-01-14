@@ -392,6 +392,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
   options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
   options |= PTRACE_O_TRACEEXIT;     // Trace exits
+  options |= PTRACE_O_EXITKILL;      // Kill tracees on exit
 
   FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
       << "Failed to set ptrace options: " << ERR;
