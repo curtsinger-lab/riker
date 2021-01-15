@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -41,7 +42,36 @@ __attribute__((constructor)) void init() {
   }
 }
 
-void filter(string& line) {
+static string wrap(string line, int cols, const char* indent = "                    ") {
+  if (line.size() < cols) {
+    return line;
+  }
+
+  // Hard cut the maximum length that fits on one line
+  auto front = line.substr(0, cols);
+
+  // Look for a nice delimeter in the first line
+  auto delimeter_pos = front.find_last_of(", >:");
+
+  // Is there a delimeter within the last quarter of the line?
+  if (delimeter_pos != string::npos && 3 * cols <= 4 * delimeter_pos) {
+    // Break at the delimeter
+    auto first = line.substr(0, delimeter_pos);
+    auto rest = line.substr(delimeter_pos);
+
+    // If the delimieter was a space, strip it off the front of the remaining string
+    if (rest[0] == ' ') rest = rest.substr(1);
+
+    // Continue wrapping and return
+    return first + "\n" + wrap(indent + rest, cols);
+
+  } else {
+    // Hard wrap at the terminal width
+    return line.substr(0, cols) + "\n" + wrap(indent + line.substr(cols), cols);
+  }
+}
+
+static string filter(string line) {
   static list<tuple<string, string>> substitutions = {
       {"> >", ">>"},
       {"__cxx11::", ""},
@@ -55,7 +85,8 @@ void filter(string& line) {
       {"__normal_iterator", "iterator"},
       {"at ??:?", "at <unknown source location>"},
       {"?? ??:0", "<unknown symbol>"},
-      {":?\n", ":<unknown line>\n"}};
+      {":?\n", ":<unknown line>\n"},
+      {"(inlined by)", "        (inlined):"}};
 
   for (const auto& [pattern, replacement] : substitutions) {
     size_t pos;
@@ -63,11 +94,19 @@ void filter(string& line) {
       line.replace(pos, pattern.size(), replacement);
     }
   }
+
+  // Try to get the terminal width
+  struct winsize size;
+  if (ioctl(STDERR_FILENO, TIOCGWINSZ, &size) == 0) {
+    return wrap(line, size.ws_col);
+  } else {
+    return wrap(line, 80);
+  }
 }
 
 #define BACKTRACE_SIZE 256
 
-void print_backtrace(int skip) {
+static void print_backtrace(int skip) {
   void* buf[BACKTRACE_SIZE];
   int count = backtrace(buf, BACKTRACE_SIZE);
 
@@ -142,6 +181,7 @@ void print_backtrace(int skip) {
 
       // Read lines until the pipe is closed
       while ((nread = getline(&line, &len, stream)) != -1) {
+        if (line[nread - 1] == '\n') line[nread - 1] = '\0';
         backtrace_lines.push_back(line);
       }
       free(line);
@@ -152,15 +192,8 @@ void print_backtrace(int skip) {
   if (backtrace_lines.size() > 0) {
     fprintf(stderr, "Backtrace: \n");
     for (auto line : backtrace_lines) {
-      // Do some quick cleanup on the line
-      filter(line);
-
-      // Update inline messages
-      if (line.find("(inlined by)") == 1) {
-        line = "         (inlined):" + line.substr(13);
-      }
-
-      fprintf(stderr, "  %s", line.c_str());
+      // Do some quick cleanup on the line and print it
+      fprintf(stderr, "%s\n", filter(line).c_str());
     }
   } else {
     fprintf(stderr, "Backtrace unavailable\n");
