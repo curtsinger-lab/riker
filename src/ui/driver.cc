@@ -249,16 +249,37 @@ void do_graph(vector<string> args,
     stringstream ss;
     ss << graph;
 
-    // Write the graph output to a temporary file, then move that file to stdin
-    auto tmp = std::tmpfile();
-    std::fputs(ss.str().c_str(), tmp);
-    std::rewind(tmp);
-    dup2(fileno(tmp), STDIN_FILENO);
+    // Create a pipe to send the graphviz output through
+    int pipe_fds[2];
+    pipe(pipe_fds);
 
-    // Exec dot
-    execlp("dot", "dot", "-T", type.c_str(), "-o", output.c_str(), NULL);
+    // Create a child process
+    pid_t child = fork();
+    if (child == 0) {
+      // Running in the child. Close the write end of the pipe and remap the read end to stdin
+      close(pipe_fds[1]);
+      dup2(pipe_fds[0], STDIN_FILENO);
 
-    FAIL << "Failed to render graph with dot. Is graphviz installed?";
+      // Exec dot
+      execlp("dot", "dot", "-T", type.c_str(), "-o", output.c_str(), NULL);
+
+      FAIL << "Failed to render graph with dot. Is graphviz installed?";
+
+    } else {
+      // Running in the parent. Close the read end of the pipe
+      close(pipe_fds[0]);
+
+      // Write the graphviz output to the pipe
+      auto message = ss.str();
+      write(pipe_fds[1], message.c_str(), message.size());
+
+      // Close the pipe
+      close(pipe_fds[1]);
+
+      // Wait for graphviz to finish
+      int status;
+      waitpid(child, &status, 0);
+    }
   }
 }
 
