@@ -104,11 +104,6 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 }
 
-void FileArtifact::setCommitted() noexcept {
-  _content_version->setCommitted();
-  Artifact::setCommitted();
-}
-
 /// A traced command is about to (possibly) read from this artifact
 void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Do nothing before a read
@@ -196,6 +191,9 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
 
   FAIL_IF(!_content_version) << "Attempted to apply version " << writing << " to file artifact "
                              << this;
+
+  // Update the committed state of the version depending on whether or not the command is running
+  _content_version->setCommitted(c->running());
 
   // Report the output to the build
   c->currentRun()->addContentOutput(shared_from_this(), writing);

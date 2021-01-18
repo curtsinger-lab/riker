@@ -136,6 +136,10 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the marking for this command
   RebuildMarking getMarking() const noexcept { return _marking; }
 
+  /// Directly set a marking on this command without propagating it. Used to mark new commands as
+  /// they are launched
+  void setMarking(RebuildMarking marking) noexcept { _marking = marking; }
+
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;

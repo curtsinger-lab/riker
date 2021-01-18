@@ -122,9 +122,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept;
 
-  /// Mark all versions and paths to this artifact as committed
-  virtual void setCommitted() noexcept;
-
   /************ Path Manipulation ************/
 
   /// A link is a tuple of a directory and an entry name in that directory

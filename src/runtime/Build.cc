@@ -443,9 +443,6 @@ void Build::updateContent(const shared_ptr<Command>& c,
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
 
-  // Make sure this version is NOT marked as committed
-  written->setCommitted(false);
-
   // Mark the version as created by the calling command. This field is transient, so we have to
   // apply it on ever run
   written->createdBy(c);
@@ -732,9 +729,6 @@ Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
   // Resolve the path and create a Ref
   auto ref = make_shared<Ref>(base->getArtifact()->resolve(c, path, flags));
 
-  // If the reference could have created a file, mark that file's versions and links as committed
-  if (ref->isSuccess() && flags.create) ref->getArtifact()->setCommitted();
-
   // Add the refrence to the command
   auto output = c->currentRun()->setRef(ref);
 
@@ -929,9 +923,6 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.updateContent(c, ref_id, written);
 
-  // This apply operation was traced, so the written version is committed
-  written->setCommitted();
-
   // The calling command created this version
   written->createdBy(c);
 
@@ -964,8 +955,8 @@ void Build::traceAddEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.addEntry(c, dir_id, name, target_id);
 
-  // Add the entry to the directory and mark the update as committed
-  dir_artifact->addEntry(c, name, target->getArtifact())->setCommitted();
+  // Add the entry to the directory
+  dir_artifact->addEntry(c, name, target->getArtifact());
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
@@ -993,8 +984,8 @@ void Build::traceRemoveEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.removeEntry(c, dir_id, name, target_id);
 
-  // Remove the entry from the directory and mark the update as committed
-  dir_artifact->removeEntry(c, name, target->getArtifact())->setCommitted();
+  // Remove the entry from the directory
+  dir_artifact->removeEntry(c, name, target->getArtifact());
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
@@ -1024,6 +1015,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Remember that child command executed
   _commands.insert(child);
+
+  // Mark the child command so we know it's currently running
+  child->setMarking(RebuildMarking::MustRun);
 
   // Add the child to the parent's list of children
   parent->currentRun()->addChild(child);

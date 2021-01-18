@@ -367,6 +367,9 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
   auto writing = make_shared<AddEntry>(entry, target);
   writing->createdBy(c);
 
+  // If command c is running, mark this new entry as committed
+  writing->setCommitted(c->running());
+
   // Check for an existing entry with the same name
   auto iter = _entries.find(entry);
   if (iter != _entries.end()) {
@@ -399,6 +402,9 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
   writing->createdBy(c);
+
+  // Set the written version's committed state
+  writing->setCommitted(c->running());
 
   // Do we have a record of an entry with the given name?
   auto iter = _entries.find(entry);

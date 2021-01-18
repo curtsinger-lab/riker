@@ -38,16 +38,6 @@ bool PipeArtifact::canCommitAll() const noexcept {
   return true;
 }
 
-// Mark all versions of this artifact as committed
-void PipeArtifact::setCommitted() noexcept {
-  if (_last_read) _last_read->setCommitted(true);
-  for (auto& write : _writes) {
-    write->setCommitted(true);
-  }
-
-  Artifact::setCommitted();
-}
-
 // A traced command is about to close a reference to this artifact
 void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?
@@ -126,6 +116,9 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
                                  shared_ptr<ContentVersion> writing) noexcept {
   // Append the new version to the list of versions
   appendVersion(writing);
+
+  // Set the written version's committed state
+  writing->setCommitted(c->running());
 
   // Report the output to the build
   c->currentRun()->addContentOutput(shared_from_this(), writing);

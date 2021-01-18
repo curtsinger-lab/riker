@@ -55,17 +55,6 @@ string Artifact::getName() const noexcept {
   return string();
 }
 
-void Artifact::setCommitted() noexcept {
-  if (_uncommitted_metadata) {
-    _committed_metadata = std::move(_uncommitted_metadata);
-  }
-
-  for (auto& [weak_dir, entry, weak_version] : _link_updates) {
-    auto version = weak_version.lock();
-    if (version) version->setCommitted();
-  }
-}
-
 void Artifact::addLinkUpdate(shared_ptr<DirArtifact> dir,
                              fs::path entry,
                              shared_ptr<DirVersion> v) noexcept {
