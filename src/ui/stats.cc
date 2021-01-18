@@ -13,14 +13,10 @@ using std::to_string;
 
 namespace fs = std::filesystem;
 
-#define PHASES \
-  { "pre", "rebuild", "post" }
-
-#define STATISTICS                                                                                 \
-  {                                                                                                \
-    "num_commands", "num_traced_commmands", "num_emulated_commands", "num_steps",                  \
-        "num_emulated_steps", "num_artifacts", "num_versions", "num_ptrace_stops", "num_syscalls", \
-        "elapsed_ns"                                                                               \
+#define HEADER                                                                         \
+  {                                                                                    \
+    "phase", "emulated_commands", "traced_commands", "emulated_steps", "traced_steps", \
+        "artifacts", "versions", "ptrace_stops", "syscalls", "elapsed_ns"              \
   }
 
 /**
@@ -28,13 +24,6 @@ namespace fs = std::filesystem;
  */
 string q(string s) {
   return "\"" + s + "\"";
-}
-
-/**
- * Prefix string with string and then quote.
- */
-string pre(string prefix, string s) {
-  return q(prefix + "_" + s);
 }
 
 /**
@@ -51,25 +40,21 @@ void generate_row(string data[], int len, string& row) {
  * Generate header string for stats CSV. Writes through given string reference.
  */
 int stats_header(string& header) {
-  string stats[] = STATISTICS;
+  string stats[] = HEADER;
   int stats_len = sizeof(stats) / sizeof(*stats);
-  string phases[] = PHASES;
-  int phases_len = sizeof(phases) / sizeof(*phases);
-  string arr[phases_len * stats_len];
+  string arr[stats_len];
 
   // every statistic is measured once in each phase,
   // so create an array containing all the strings and
   // then call generate_row
   int i = 0;
-  for (string phase : PHASES) {
-    for (string colname : STATISTICS) {
-      arr[i] = pre(phase, colname);
-      i++;
-    }
+  for (string colname : HEADER) {
+    arr[i] = q(colname);
+    i++;
   }
-  generate_row(arr, phases_len * stats_len, header);
+  generate_row(arr, stats_len, header);
 
-  return phases_len * stats_len;
+  return stats_len;
 }
 
 /**
@@ -122,12 +107,12 @@ void write_stats(optional<fs::path> p, optional<string> stats) {
 /**
  * Generate a stats row fragment in CSV format
  */
-void gather_stats(optional<fs::path> p, optional<string>& stats_opt, string phase) {
+void gather_stats(optional<fs::path> p, optional<string>& stats_opt, int phase) {
   if (p.has_value()) {
-    // if the stats string is already defined, start with a comma
+    // if the stats string is already defined, start with a newline
     string prefix = "";
     if (stats_opt) {
-      prefix = ",";
+      prefix = "\n";
     }
 
     if (!stats_opt.has_value()) {
@@ -138,11 +123,11 @@ void gather_stats(optional<fs::path> p, optional<string>& stats_opt, string phas
 
     // Add data to the stats value
     stats_opt.value() += prefix;
-    stats_opt.value() += q(to_string(stats::emulated_commands + stats::traced_commands)) + ",";
-    stats_opt.value() += q(to_string(stats::traced_commands)) + ",";
+    stats_opt.value() += q(to_string(phase)) + ",";
     stats_opt.value() += q(to_string(stats::emulated_commands)) + ",";
-    stats_opt.value() += q(to_string(stats::emulated_steps + stats::traced_steps)) + ",";
+    stats_opt.value() += q(to_string(stats::traced_commands)) + ",";
     stats_opt.value() += q(to_string(stats::emulated_steps)) + ",";
+    stats_opt.value() += q(to_string(stats::traced_steps)) + ",";
     stats_opt.value() += q(to_string(stats::artifacts)) + ",";
     stats_opt.value() += q(to_string(stats::versions)) + ",";
     stats_opt.value() += q(to_string(stats::ptrace_stops)) + ",";
