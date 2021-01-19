@@ -164,9 +164,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
                      std::shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  std::shared_ptr<MetadataVersion> updateMetadata(
-      const std::shared_ptr<Command>& c,
-      std::shared_ptr<MetadataVersion> writing) noexcept;
+  void updateMetadata(const std::shared_ptr<Command>& c,
+                      std::shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Traced Operations ************/
 
@@ -228,19 +227,17 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
-  virtual std::shared_ptr<DirVersion> addEntry(const std::shared_ptr<Command>& c,
-                                               fs::path entry,
-                                               std::shared_ptr<Artifact> target) noexcept {
+  virtual void addEntry(const std::shared_ptr<Command>& c,
+                        fs::path entry,
+                        std::shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to add an entry to non-directory artifact " << this;
-    return nullptr;
   }
 
   /// Remove a directory entry from this artifact
-  virtual std::shared_ptr<DirVersion> removeEntry(const std::shared_ptr<Command>& c,
-                                                  fs::path entry,
-                                                  std::shared_ptr<Artifact> target) noexcept {
+  virtual void removeEntry(const std::shared_ptr<Command>& c,
+                           fs::path entry,
+                           std::shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to remove an entry from non-directory artifact " << this;
-    return nullptr;
   }
 
   /**

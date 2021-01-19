@@ -83,15 +83,14 @@ class DirArtifact final : public Artifact {
   /************ Directory Operations ************/
 
   /// Add a directory entry to this artifact
-  virtual std::shared_ptr<DirVersion> addEntry(const std::shared_ptr<Command>& c,
-                                               fs::path entry,
-                                               std::shared_ptr<Artifact> target) noexcept override;
+  virtual void addEntry(const std::shared_ptr<Command>& c,
+                        fs::path entry,
+                        std::shared_ptr<Artifact> target) noexcept override;
 
   /// Remove a directory entry from this artifact
-  virtual std::shared_ptr<DirVersion> removeEntry(
-      const std::shared_ptr<Command>& c,
-      fs::path entry,
-      std::shared_ptr<Artifact> target) noexcept override;
+  virtual void removeEntry(const std::shared_ptr<Command>& c,
+                           fs::path entry,
+                           std::shared_ptr<Artifact> target) noexcept override;
 
   // Un-hide the shorthand version of resolve()
   using Artifact::resolve;

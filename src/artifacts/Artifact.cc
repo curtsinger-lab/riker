@@ -275,8 +275,8 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 }
 
 /// Apply a new metadata version to this artifact
-shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& c,
-                                                     shared_ptr<MetadataVersion> writing) noexcept {
+void Artifact::updateMetadata(const shared_ptr<Command>& c,
+                              shared_ptr<MetadataVersion> writing) noexcept {
   ASSERT(writing) << "Attempted to write a null metadata version to " << this;
 
   // Remember which command wrote the metadata
@@ -297,8 +297,6 @@ shared_ptr<MetadataVersion> Artifact::updateMetadata(const shared_ptr<Command>& 
 
   // Report the output to the build
   c->currentRun()->addMetadataOutput(shared_from_this(), writing);
-
-  return writing;
 }
 
 void Artifact::appendVersion(shared_ptr<MetadataVersion> v) noexcept {

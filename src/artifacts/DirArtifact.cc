@@ -361,9 +361,9 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 }
 
 // Add a directory entry to this artifact
-shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
-                                             fs::path entry,
-                                             shared_ptr<Artifact> target) noexcept {
+void DirArtifact::addEntry(const shared_ptr<Command>& c,
+                           fs::path entry,
+                           shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
   writing->createdBy(c);
@@ -392,14 +392,12 @@ shared_ptr<DirVersion> DirArtifact::addEntry(const shared_ptr<Command>& c,
 
   // Record this version in the artifact
   appendVersion(writing);
-
-  return writing;
 }
 
 // Remove a directory entry from this artifact
-shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
-                                                fs::path entry,
-                                                shared_ptr<Artifact> target) noexcept {
+void DirArtifact::removeEntry(const shared_ptr<Command>& c,
+                              fs::path entry,
+                              shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
   writing->createdBy(c);
@@ -439,6 +437,4 @@ shared_ptr<DirVersion> DirArtifact::removeEntry(const shared_ptr<Command>& c,
 
   // Record this version in the artifact as well
   appendVersion(writing);
-
-  return writing;
 }
