@@ -87,24 +87,36 @@ void FileArtifact::commitAll(optional<fs::path> path) noexcept {
 
 /// Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(fs::path path) noexcept {
+  // Get the command that wrote this file. If there was no writer, no need to check
+  auto creator = _content_writer.lock();
+  if (!creator) return;
+
+  // Is there an uncommitted update to this file?
   if (_uncommitted_content) {
-    // generate a content fingerprint for the actual file on disk
-    auto v = make_shared<FileVersion>();
-    auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
-    v->fingerprint(path, fingerprint_type);
-
-    // Is there a difference between the tracked version and what's on the filesystem?
-    if (!_uncommitted_content->matches(v)) {
-      // Yes. Report the mismatch
-      auto creator = _content_writer.lock();
-      if (creator) {
-        creator->currentRun()->outputChanged(shared_from_this(), v, _uncommitted_content);
-      }
-
-    } else {
-      // No. We can treat the content version as if it is committed
+    // Does the uncommitted version match what's on the filesystem?
+    if (_uncommitted_content->matches(_committed_content)) {
+      // Yes. We can treat the uncommitted version as committed
       _uncommitted_content->setCommitted();
       _committed_content = std::move(_uncommitted_content);
+
+    } else {
+      // No. Try the comparison again with a fingerprint of the committed state
+      auto v = _committed_content;
+      if (!v) v = make_shared<FileVersion>();
+      auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
+      v->fingerprint(path, fingerprint_type);
+
+      // Try the comparison again
+      if (_uncommitted_content->matches(v)) {
+        // Now we have a match.
+        _uncommitted_content->setCommitted();
+        _committed_content = std::move(_uncommitted_content);
+
+      } else {
+        // The versions still don't match
+        creator->currentRun()->outputChanged(shared_from_this(), _committed_content,
+                                             _uncommitted_content);
+      }
     }
   }
 }

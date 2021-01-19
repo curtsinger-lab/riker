@@ -431,6 +431,7 @@ ostream& FileVersion::print(ostream& o) const noexcept {
 
 /// Compare this version to another version
 bool FileVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
+  if (!other) return false;
   auto other_file = other->as<FileVersion>();
   if (!other_file) return false;
   if (other_file.get() == this) return true;
