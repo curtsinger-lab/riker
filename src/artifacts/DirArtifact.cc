@@ -91,14 +91,14 @@ void DirArtifact::commitAll(std::optional<fs::path> path) noexcept {
   }
 
   // Commit metadata
-  Artifact::commitMetadata(path);
+  commitMetadata(path);
 }
 
 // Commit the minimal set of versions requires to ensure this artifact exists on the filesystem
 void DirArtifact::commitMinimal(fs::path path) noexcept {
   LOG(artifact) << "Committing minimal content and metadata to " << this;
   _base_dir_version->commit(path);
-  Artifact::commitMetadata(path);
+  commitMetadata(path);
 }
 
 // Compare all final versions of this artifact to the filesystem state

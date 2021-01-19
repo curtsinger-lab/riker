@@ -218,7 +218,11 @@ void Artifact::commitMetadata(optional<fs::path> path) noexcept {
   ASSERT(path.has_value()) << "Committing metadata to an artifact with no path";
 
   _uncommitted_metadata->commit(path.value());
-  _committed_metadata = std::move(_uncommitted_metadata);
+  setMetadataCommitted();
+}
+
+void Artifact::setMetadataCommitted() noexcept {
+  if (_uncommitted_metadata) _committed_metadata = std::move(_uncommitted_metadata);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
@@ -230,7 +234,15 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
-  if (c) c->currentRun()->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
+  if (c) {
+    c->currentRun()->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
+
+    // If command c is running, make sure metadata is committed
+    if (c->running()) {
+      commitMetadata();
+      ASSERT(!_uncommitted_metadata) << "WTF? " << this;
+    }
+  }
 
   // Return the uncommitted metadata version if there is one
   if (_uncommitted_metadata) return _uncommitted_metadata;

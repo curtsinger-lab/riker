@@ -101,9 +101,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Can this artifact's content version be committed?
   virtual bool canCommit(std::shared_ptr<ContentVersion> v) const noexcept = 0;
 
-  /// Commit this artifact's metadata version
-  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept;
-
   /// Commit a specific version (and any co-dependent versions) to the filesystem
   virtual void commit(std::shared_ptr<ContentVersion> v) noexcept = 0;
 
@@ -293,6 +290,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
  protected:
+  /// Commit this artifact's metadata version
+  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept;
+
+  /// Mark this artifact's metadata as committed without doing anything
+  void setMetadataCommitted() noexcept;
+
   /// Add a metadata version to this artifact's list of versions
   void appendVersion(std::shared_ptr<MetadataVersion> v) noexcept;
 

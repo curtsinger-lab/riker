@@ -64,7 +64,7 @@ void FileArtifact::commitAll(optional<fs::path> path) noexcept {
   ASSERT(path.has_value()) << "Committing to a file with no path";
 
   _content_version->commit(path.value());
-  Artifact::commitMetadata(path);
+  commitMetadata(path);
 }
 
 /// Compare all final versions of this artifact to the filesystem state

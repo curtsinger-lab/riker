@@ -79,6 +79,12 @@ class SymlinkArtifact : public Artifact {
                       AccessFlags flags,
                       size_t symlink_limit) noexcept override;
 
+ protected:
+  /// Skip committing metadata to symlinks
+  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept override {
+    Artifact::setMetadataCommitted();
+  }
+
  private:
   /// The currrent version of this symlink
   std::shared_ptr<SymlinkVersion> _symlink_version;

@@ -35,9 +35,6 @@ class PipeArtifact : public Artifact {
   /// Can a specific version of this artifact be committed?
   virtual bool canCommit(std::shared_ptr<ContentVersion> v) const noexcept override;
 
-  /// Commit any metadata updates to the filesystem
-  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept override {}
-
   /// Commit a specific version of this artifact to the filesystem
   virtual void commit(std::shared_ptr<ContentVersion> v) noexcept override {}
 
@@ -100,6 +97,12 @@ class PipeArtifact : public Artifact {
 
   /// Set file descriptors for this pipe
   void setFDs(int read_fd, int write_fd) noexcept { _fds = {read_fd, write_fd}; }
+
+ protected:
+  /// Skip committing metadata to pipes
+  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept override {
+    Artifact::setMetadataCommitted();
+  }
 
  private:
   /// The version that tracks the most recent read from this pipe

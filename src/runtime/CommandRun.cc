@@ -194,9 +194,6 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
     _metadata_inputs.emplace_back(a, v, t);
   }
 
-  // If this command is running, make sure the metadata input is committed
-  if (getCommand()->running()) a->commitMetadata();
-
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
