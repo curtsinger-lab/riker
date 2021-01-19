@@ -184,12 +184,6 @@ shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c
   return result;
 }
 
-// Get this artifact's content without creating dependencies
-shared_ptr<ContentVersion> FileArtifact::peekContent() noexcept {
-  if (_uncommitted_content) return _uncommitted_content;
-  return _committed_content;
-}
-
 /// Check to see if this artifact's content matches a known version
 void FileArtifact::matchContent(const shared_ptr<Command>& c,
                                 Scenario scenario,

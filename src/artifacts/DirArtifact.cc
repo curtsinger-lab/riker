@@ -144,32 +144,11 @@ void DirArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command just read from this artifact
 void DirArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this directory
-  build.traceMatchContent(c, ref, getList(c));
-}
-
-// Get this artifact's content without creating dependencies
-shared_ptr<ContentVersion> DirArtifact::peekContent() noexcept {
-  return getList(nullptr);
-}
-
-/// Check to see if this artifact's content matches a known version
-void DirArtifact::matchContent(const shared_ptr<Command>& c,
-                               Scenario scenario,
-                               shared_ptr<ContentVersion> expected) noexcept {
-  // Get a list of entries in this directory
-  auto observed = getList(c);
-
-  // Compare the observed and expected versions
-  if (!observed->matches(expected)) {
-    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
-         c, scenario, expected, observed);
-    // Report the mismatch
-    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
-  }
+  build.traceMatchContent(c, ref, getContent(c));
 }
 
 // Get a version that lists all the entries in this directory
-shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) noexcept {
+shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   // Create a DirListVersion to hold the list of directory entries
   auto result = make_shared<DirListVersion>();
 
@@ -210,6 +189,22 @@ shared_ptr<DirListVersion> DirArtifact::getList(const shared_ptr<Command>& c) no
   }
 
   return result;
+}
+
+/// Check to see if this artifact's content matches a known version
+void DirArtifact::matchContent(const shared_ptr<Command>& c,
+                               Scenario scenario,
+                               shared_ptr<ContentVersion> expected) noexcept {
+  // Get a list of entries in this directory
+  auto observed = getContent(c);
+
+  // Compare the observed and expected versions
+  if (!observed->matches(expected)) {
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+         c, scenario, expected, observed);
+    // Report the mismatch
+    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
+  }
 }
 
 Ref DirArtifact::resolve(const shared_ptr<Command>& c,

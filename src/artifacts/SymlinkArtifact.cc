@@ -43,8 +43,12 @@ void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref:
   build.traceMatchContent(c, ref, _symlink_version);
 }
 
-// Get this artifact's content without creating dependencies
-shared_ptr<ContentVersion> SymlinkArtifact::peekContent() noexcept {
+// Get this artifact's current content
+shared_ptr<ContentVersion> SymlinkArtifact::getContent(const shared_ptr<Command>& c) noexcept {
+  if (c) {
+    c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::Accessed);
+  }
+
   return _symlink_version;
 }
 

@@ -207,8 +207,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Content Operations ************/
 
+  /// Get this artifact's current content
+  virtual std::shared_ptr<ContentVersion> getContent(
+      const std::shared_ptr<Command>& c) noexcept = 0;
+
   /// Get this artifact's current content without creating any dependencies
-  virtual std::shared_ptr<ContentVersion> peekContent() noexcept = 0;
+  std::shared_ptr<ContentVersion> peekContent() noexcept { return getContent(nullptr); }
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const std::shared_ptr<Command>& c,

@@ -62,8 +62,9 @@ class SymlinkArtifact : public Artifact {
 
   /************ Content Operations ************/
 
-  /// Get this artifact's current content without creating any dependencies
-  virtual std::shared_ptr<ContentVersion> peekContent() noexcept override;
+  /// Get this artifact's current content
+  virtual std::shared_ptr<ContentVersion> getContent(
+      const std::shared_ptr<Command>& c) noexcept override;
 
   /// Check to see if this artifact's content matches a known version
   virtual void matchContent(const std::shared_ptr<Command>& c,

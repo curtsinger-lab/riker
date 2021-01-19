@@ -79,11 +79,19 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
   build.traceUpdateContent(c, ref, writing);
 }
 
-// Get this pipe's content without creating any dependencies
-shared_ptr<ContentVersion> PipeArtifact::peekContent() noexcept {
+// Get this artifact's current content
+shared_ptr<ContentVersion> PipeArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (_last_read) {
+    if (c) {
+      c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
+    }
     return _last_read;
   } else {
+    if (c) {
+      for (const auto& w : _writes) {
+        c->currentRun()->addContentInput(shared_from_this(), w, InputType::Accessed);
+      }
+    }
     return make_shared<PipeReadVersion>(_writes);
   }
 }
