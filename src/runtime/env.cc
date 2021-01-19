@@ -278,14 +278,13 @@ namespace env {
     // Create an initial content version
     auto cv = make_shared<FileVersion>();
     cv->makeEmptyFingerprint();
-    cv->createdBy(c);
-    if (c->running()) cv->setCommitted();
 
     // Create the artifact and return it
-    auto artifact = make_shared<FileArtifact>(cv);
+    auto artifact = make_shared<FileArtifact>();
 
-    // Set the metadata for the new file artifact
+    // Set the metadata and content for the new file artifact
     artifact->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
+    artifact->updateContent(c, cv);
 
     // Observe output to metadata and content for the new file
     c->currentRun()->addContentOutput(artifact, cv);

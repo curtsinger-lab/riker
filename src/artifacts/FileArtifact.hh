@@ -19,8 +19,16 @@ class MetadataVersion;
 
 class FileArtifact : public Artifact {
  public:
-  FileArtifact(std::shared_ptr<FileVersion> cv) noexcept;
+  /**
+   * Create a new FileArtifact with no initial metadata or content. This should be followed by calls
+   * to updateMetadata and updateContent to fully initialize the artifact.
+   */
+  FileArtifact() noexcept : Artifact() {}
 
+  /**
+   * Create a new FileArtifact with existing metadata and content versions. This only appropriate
+   * for artifacts that exist on the filesystem.
+   */
   FileArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
@@ -80,6 +88,9 @@ class FileArtifact : public Artifact {
 
   /************ Content Operations ************/
 
+  /// Get this artifact's current content version
+  std::shared_ptr<ContentVersion> getContent(const std::shared_ptr<Command>& c) noexcept;
+
   /// Get this artifact's current content without creating any dependencies
   virtual std::shared_ptr<ContentVersion> peekContent() noexcept override;
 
@@ -93,6 +104,12 @@ class FileArtifact : public Artifact {
                              std::shared_ptr<ContentVersion> writing) noexcept override;
 
  private:
-  /// The latest content version
-  std::shared_ptr<FileVersion> _content_version;
+  /// The command that most recently wrote this artifact's content, possibly null
+  std::weak_ptr<Command> _content_writer;
+
+  /// The current uncommitted content, if any
+  std::shared_ptr<FileVersion> _uncommitted_content;
+
+  /// The on-filesystem version of this artifact's content
+  std::shared_ptr<FileVersion> _committed_content;
 };
