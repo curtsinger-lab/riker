@@ -869,11 +869,13 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
 
   // If the artifact has a committed path, we may fingerprint or cache it
   if (path.has_value()) {
-    auto fingerprint_type = policy::chooseFingerprintType(c, path.value(), expected);
+    auto fingerprint_type = policy::chooseFingerprintType(c, expected->getCreator(), path.value());
     expected->fingerprint(path.value(), fingerprint_type);
 
     // cache?
-    if (policy::isCacheable(c, path.value(), expected)) expected->cache(path.value());
+    if (policy::isCacheable(c, expected->getCreator(), path.value())) {
+      expected->cache(path.value());
+    }
   }
 
   // Log the traced step

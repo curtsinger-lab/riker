@@ -90,7 +90,7 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   if (_uncommitted_content) {
     // generate a content fingerprint for the actual file on disk
     auto v = make_shared<FileVersion>();
-    auto fingerprint_type = policy::chooseFingerprintType(nullptr, path, v);
+    auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
     v->fingerprint(path, fingerprint_type);
 
     // Is there a difference between the tracked version and what's on the filesystem?
@@ -118,11 +118,14 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   }
 
   // If we don't already have a content fingerprint, take one
-  auto fingerprint_type = policy::chooseFingerprintType(nullptr, path, _committed_content);
+  auto fingerprint_type =
+      policy::chooseFingerprintType(nullptr, _committed_content->getCreator(), path);
   _committed_content->fingerprint(path, fingerprint_type);
 
   // Cache the contents
-  if (policy::isCacheable(nullptr, path, _committed_content)) _committed_content->cache(path);
+  if (policy::isCacheable(nullptr, _committed_content->getCreator(), path)) {
+    _committed_content->cache(path);
+  }
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(path);
@@ -197,7 +200,8 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
     // If the observed content version is on disk, try to fingerprint it and try the match again
     if (observed == _committed_content) {
       auto path = getPath(false);
-      auto fingerprint_type = policy::chooseFingerprintType(c, path.value(), observed);
+      auto fingerprint_type =
+          policy::chooseFingerprintType(c, observed->getCreator(), path.value());
       observed->fingerprint(path.value(), fingerprint_type);
 
       // Try the comparison again. If it succeeds, we can return
