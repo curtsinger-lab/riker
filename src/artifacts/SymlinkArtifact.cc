@@ -10,6 +10,7 @@
 #include "runtime/Command.hh"
 #include "runtime/env.hh"
 #include "util/log.hh"
+#include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
@@ -20,16 +21,11 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-SymlinkArtifact::SymlinkArtifact(std::shared_ptr<SymlinkVersion> sv) noexcept : Artifact() {
-  appendVersion(sv);
-  _symlink_version = sv;
-}
-
 SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
                                  shared_ptr<SymlinkVersion> sv) noexcept :
     Artifact(mv) {
+  _committed_content = sv;
   appendVersion(sv);
-  _symlink_version = sv;
 }
 
 /// A traced command is about to (possibly) read from this artifact
@@ -40,52 +36,85 @@ void SymlinkArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref
 /// A traced command just read from this artifact
 void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, _symlink_version);
+  build.traceMatchContent(c, ref, getContent(c));
 }
 
 // Get this artifact's current content
 shared_ptr<ContentVersion> SymlinkArtifact::getContent(const shared_ptr<Command>& c) noexcept {
+  auto result = _committed_content;
+  if (_uncommitted_content) result = _uncommitted_content;
+
+  ASSERT(result) << "Artifact " << this << " has no content version";
+
   if (c) {
-    c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
-                                     _symlink_version->getCreator(), InputType::Accessed);
+    c->currentRun()->addContentInput(shared_from_this(), result, _content_writer.lock(),
+                                     InputType::Accessed);
   }
 
-  return _symlink_version;
+  return result;
 }
 
 /// Check to see if this artifact's content matches a known version
 void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<ContentVersion> expected) noexcept {
-  // The symlink version is an input to command c
-  c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
-                                   _symlink_version->getCreator(), InputType::Accessed);
+  auto observed = getContent(c);
 
   // Compare the symlink version to the expected version
-  if (!_symlink_version->matches(expected)) {
+  if (!observed->matches(expected)) {
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
-         c, scenario, expected, _symlink_version);
+         c, scenario, expected, observed);
 
     // Report the mismatch
-    c->currentRun()->inputChanged(shared_from_this(), _symlink_version, expected, scenario);
+    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
+  }
+}
+
+// Set the destination of this symlink
+void SymlinkArtifact::updateContent(const std::shared_ptr<Command>& c,
+                                    std::shared_ptr<ContentVersion> writing) noexcept {
+  if (_committed_content || _uncommitted_content) {
+    WARN << "Updating destination of symlink " << this << " is not supported by the OS";
+  }
+
+  // Set the last writer
+  _content_writer = c;
+
+  // Make sure the written version is a SymlinkVersion
+  auto sv = writing->as<SymlinkVersion>();
+
+  FAIL_IF(!sv) << "Attempted to apply version " << writing << " to symlink artifact " << this;
+
+  // Set the appropriate content version
+  if (c->running()) {
+    _committed_content = sv;
+  } else {
+    _uncommitted_content = sv;
   }
 }
 
 bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
-  ASSERT(v == _symlink_version) << "Attempted to check committable state for unknown version " << v
-                                << " in " << this;
-  return _symlink_version->canCommit();
+  return true;
 }
 
 void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
+  if (!_uncommitted_content) {
+    LOG(artifact) << "Content for " << this << " is already committed";
+    return;
+  }
+
   LOG(artifact) << "Committing content to " << this;
+
+  ASSERT(v == _uncommitted_content)
+      << "Attempted to commit unknown version " << v << " in " << this;
 
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
   ASSERT(path.has_value()) << "Symlink has no path";
 
-  ASSERT(v == _symlink_version) << "Attempted to commit unknown version " << v << " in " << this;
-  _symlink_version->commit(path.value());
+  // Do the commit
+  _uncommitted_content->commit(path.value());
+  _committed_content = std::move(_uncommitted_content);
 }
 
 bool SymlinkArtifact::canCommitAll() const noexcept {
@@ -101,16 +130,19 @@ void SymlinkArtifact::commitAll(optional<fs::path> path) noexcept {
   if (!path.has_value()) path = commitPath();
   ASSERT(path.has_value()) << "Committing to a symlink with no path";
 
-  _symlink_version->commit(path.value());
+  // Commit content
+  if (_uncommitted_content) {
+    _uncommitted_content->commit(path.value());
+    _committed_content = std::move(_uncommitted_content);
+  }
 
-  // Don't commit symlink metadata for now. We can eventually commit ownership, but not
-  // permissions.
+  // Commit metadata (calls a no-op commitMetadata implementation)
   commitMetadata();
 }
 
-// Compare all final versions of this artifact to the filesystem stateq
+// Compare all final versions of this artifact to the filesystem state
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
-  if (!_symlink_version->isCommitted()) {
+  if (_uncommitted_content) {
     // TODO: Compare to on-disk symlink state here
   }
 }
@@ -120,7 +152,10 @@ void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
-  _symlink_version->commit(path);
+  if (_uncommitted_content) {
+    _uncommitted_content->commit(path);
+    _committed_content = std::move(_uncommitted_content);
+  }
 
   // TODO: commit ownership but not permissions from metadata
 }
@@ -145,12 +180,8 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
     }
   }
 
-  // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
-                                   _symlink_version->getCreator(), InputType::PathResolution);
-
   // Get the symlink destination
-  auto dest = _symlink_version->getDestination();
+  auto dest = getContent(c)->as<SymlinkVersion>()->getDestination();
 
   // Append remaining path entries to the destination
   while (current != end) {

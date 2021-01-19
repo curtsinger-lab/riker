@@ -212,21 +212,12 @@ namespace env {
     gid_t gid = getgid();
     mode_t mode = S_IFLNK | 0777;
 
-    // Create the initial symlink content version
-    auto sv = make_shared<SymlinkVersion>(target);
-    if (c->running()) sv->setCommitted();
-
     // Create the symlink artifact
-    auto symlink = make_shared<SymlinkArtifact>(sv);
+    auto symlink = make_shared<SymlinkArtifact>();
 
     // Set the metadata for the new symlink artifact
     symlink->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
-
-    // If a command was provided, record the content output
-    if (c) {
-      sv->createdBy(c);
-      c->currentRun()->addContentOutput(symlink, sv);
-    }
+    symlink->updateContent(c, make_shared<SymlinkVersion>(target));
 
     _artifacts.insert(symlink);
     stats::artifacts++;

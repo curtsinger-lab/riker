@@ -21,8 +21,16 @@ class SymlinkVersion;
 
 class SymlinkArtifact : public Artifact {
  public:
-  SymlinkArtifact(std::shared_ptr<SymlinkVersion> sv) noexcept;
+  /**
+   * Create a new SymlinkArtifact with no initial state. This is useful for modeled artifacts that
+   * do not exist on the filesystem. This constructor should be followed-up with calls to
+   * updateMetadata and updateContent to set the initial state.
+   */
+  SymlinkArtifact() noexcept : Artifact() {}
 
+  /**
+   * Create a SymlinkArtifact that represents an existing symlink on the filesystem.
+   */
   SymlinkArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<SymlinkVersion> sv) noexcept;
 
   /************ Core Artifact Operations ************/
@@ -71,6 +79,10 @@ class SymlinkArtifact : public Artifact {
                             Scenario scenario,
                             std::shared_ptr<ContentVersion> expected) noexcept override;
 
+  /// Set the content of this symlink
+  virtual void updateContent(const std::shared_ptr<Command>& c,
+                             std::shared_ptr<ContentVersion> writing) noexcept override;
+
   /************ Symlink Operations ************/
 
   virtual Ref resolve(const std::shared_ptr<Command>& c,
@@ -87,6 +99,12 @@ class SymlinkArtifact : public Artifact {
   }
 
  private:
-  /// The currrent version of this symlink
-  std::shared_ptr<SymlinkVersion> _symlink_version;
+  /// The command that most recently wrote this artifact's content, possibly null
+  std::weak_ptr<Command> _content_writer;
+
+  /// The current uncommitted content, if any
+  std::shared_ptr<SymlinkVersion> _uncommitted_content;
+
+  /// The on-filesystem version of this artifact's content
+  std::shared_ptr<SymlinkVersion> _committed_content;
 };
