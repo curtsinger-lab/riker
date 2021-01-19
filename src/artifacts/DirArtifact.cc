@@ -167,8 +167,10 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   }
 
   // The command listing this directory depends on its base version
-  if (c)
-    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version, InputType::Accessed);
+  if (c) {
+    c->currentRun()->addContentInput(shared_from_this(), _base_dir_version,
+                                     _base_dir_version->getCreator(), InputType::Accessed);
+  }
 
   for (const auto& [name, info] : _entries) {
     // Get the version and artifact for this entry
@@ -185,7 +187,10 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    if (c) c->currentRun()->addContentInput(shared_from_this(), version, InputType::Accessed);
+    if (c) {
+      c->currentRun()->addContentInput(shared_from_this(), version, version->getCreator(),
+                                       InputType::Accessed);
+    }
   }
 
   return result;
@@ -269,12 +274,13 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     }
 
     // Add a path resolution input from the version that matched
-    c->currentRun()->addContentInput(shared_from_this(), v, InputType::PathResolution);
+    c->currentRun()->addContentInput(shared_from_this(), v, v->getCreator(),
+                                     InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
     c->currentRun()->addContentInput(shared_from_this(), _base_dir_version,
-                                     InputType::PathResolution);
+                                     _base_dir_version->getCreator(), InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (_base_dir_version->getCreated()) {

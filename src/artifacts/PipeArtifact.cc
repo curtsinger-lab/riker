@@ -55,7 +55,8 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
 void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The reading command depends on the last read
   if (_last_read) {
-    c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
+    c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+                                     InputType::Accessed);
   }
 
   // Create a new version to track this read
@@ -83,13 +84,15 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
 shared_ptr<ContentVersion> PipeArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (_last_read) {
     if (c) {
-      c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
+      c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+                                       InputType::Accessed);
     }
     return _last_read;
   } else {
     if (c) {
       for (const auto& w : _writes) {
-        c->currentRun()->addContentInput(shared_from_this(), w, InputType::Accessed);
+        c->currentRun()->addContentInput(shared_from_this(), w, w->getCreator(),
+                                         InputType::Accessed);
       }
     }
     return make_shared<PipeReadVersion>(_writes);
@@ -108,7 +111,8 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
   }
 
   // The command depends on the last read version
-  c->currentRun()->addContentInput(shared_from_this(), _last_read, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+                                   InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
@@ -138,7 +142,8 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
 
     // The reading command depends on all writes since the last read
     for (auto write : _writes) {
-      c->currentRun()->addContentInput(shared_from_this(), write, InputType::Accessed);
+      c->currentRun()->addContentInput(shared_from_this(), write, write->getCreator(),
+                                       InputType::Accessed);
     }
 
     // Clear the list of unread writes

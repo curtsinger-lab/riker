@@ -211,6 +211,7 @@ void CommandRun::addMetadataInput(shared_ptr<Artifact> a,
 // Add an input to this command
 void CommandRun::addContentInput(shared_ptr<Artifact> a,
                                  shared_ptr<ContentVersion> v,
+                                 shared_ptr<Command> writer,
                                  InputType t) noexcept {
   if (options::track_inputs_outputs) _content_inputs.emplace_back(a, v, t);
 
@@ -225,7 +226,7 @@ void CommandRun::addContentInput(shared_ptr<Artifact> a,
   }
 
   // If the version was created by another command, track the use of that command's output
-  if (auto writer = v->getCreator(); writer) {
+  if (writer) {
     // This command uses output from writer
     _uses_output_from.emplace(writer);
     writer->currentRun()->_output_used_by.emplace(_command);

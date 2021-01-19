@@ -123,6 +123,7 @@ class CommandRun : public std::enable_shared_from_this<CommandRun> {
   /// Track an input to this command
   void addContentInput(std::shared_ptr<Artifact> a,
                        std::shared_ptr<ContentVersion> v,
+                       std::shared_ptr<Command> writer,
                        InputType t) noexcept;
 
   /// Track an output from this command

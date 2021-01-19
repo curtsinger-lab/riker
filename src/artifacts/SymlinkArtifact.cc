@@ -46,7 +46,8 @@ void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref:
 // Get this artifact's current content
 shared_ptr<ContentVersion> SymlinkArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (c) {
-    c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::Accessed);
+    c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
+                                     _symlink_version->getCreator(), InputType::Accessed);
   }
 
   return _symlink_version;
@@ -57,7 +58,8 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
                                    Scenario scenario,
                                    shared_ptr<ContentVersion> expected) noexcept {
   // The symlink version is an input to command c
-  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::Accessed);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
+                                   _symlink_version->getCreator(), InputType::Accessed);
 
   // Compare the symlink version to the expected version
   if (!_symlink_version->matches(expected)) {
@@ -144,7 +146,8 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
   }
 
   // Otherwise we follow the symlink. That creates a path resolution dependency on our version
-  c->currentRun()->addContentInput(shared_from_this(), _symlink_version, InputType::PathResolution);
+  c->currentRun()->addContentInput(shared_from_this(), _symlink_version,
+                                   _symlink_version->getCreator(), InputType::PathResolution);
 
   // Get the symlink destination
   auto dest = _symlink_version->getDestination();
