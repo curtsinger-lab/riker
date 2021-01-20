@@ -23,9 +23,16 @@ class PipeWriteVersion;
 
 class PipeArtifact : public Artifact {
  public:
-  PipeArtifact() noexcept;
+  /**
+   * Create a new pipe with no existing metadata. This call should be followed by a call to
+   * updateMetadata.
+   */
+  PipeArtifact() noexcept {}
 
-  PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept;
+  /**
+   * Create a pipe artifact with existing metadata
+   */
+  PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept : Artifact(mv) {}
 
   /************ Core Artifact Operations ************/
 
@@ -106,11 +113,18 @@ class PipeArtifact : public Artifact {
   }
 
  private:
-  /// The version that tracks the most recent read from this pipe
-  std::shared_ptr<PipeReadVersion> _last_read = nullptr;
+  /// The last command to read from this pipe
+  std::weak_ptr<Command> _last_reader;
 
-  /// The versions that have been written to this pipe since the last read
-  std::list<std::shared_ptr<PipeWriteVersion>> _writes;
+  /// The most recent read from this pipe
+  std::shared_ptr<PipeReadVersion> _last_read;
+
+  /// A list of writes to this pipe. Each is a pair of the written version and writer
+  std::list<std::tuple<std::shared_ptr<PipeWriteVersion>, std::weak_ptr<Command>>> _writes;
+
+  /// Is this pipe running in committed or uncommitted mode? Unlike other artifacts, once a pipe
+  /// takes on a committed or uncommitted state it does not change.
+  std::optional<bool> _committed_mode;
 
   /// File descriptors for an actual opened pipe
   std::optional<std::tuple<int, int>> _fds;

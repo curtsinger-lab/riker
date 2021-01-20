@@ -17,10 +17,6 @@ using std::make_shared;
 using std::shared_ptr;
 using std::tuple;
 
-PipeArtifact::PipeArtifact() noexcept : Artifact() {}
-
-PipeArtifact::PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept : Artifact(mv) {}
-
 // Can a specific version of this artifact be committed?
 bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
   return v->isCommitted() || v->canCommit();
@@ -28,14 +24,9 @@ bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
 
 // Can this artifact be fully committed?
 bool PipeArtifact::canCommitAll() const noexcept {
-  // If there is an uncommitted read from the pipe, we can't commit all pipe state
-  if (_last_read && !_last_read->isCommitted()) return false;
-
-  // If there are any uncommitted writes into the pipe, we can't commit all pipe state
-  for (auto write : _writes) {
-    if (!write->isCommitted()) return false;
-  }
-  return true;
+  // The artifact can only be committed if it is already in a committed state, or if its mode has
+  // not been assigned yet
+  return _committed_mode.value_or(true);
 }
 
 // A traced command is about to close a reference to this artifact
@@ -53,14 +44,18 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
 
 // A traced command just read from this artifact
 void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  // Make sure there are no uncommitted updates
+  ASSERT(_committed_mode.value_or(true))
+      << "Traced command is reading from " << this << " with uncommitted state";
+
   // The reading command depends on the last read
   if (_last_read) {
-    c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+    c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
                                      InputType::Accessed);
   }
 
   // Create a new version to track this read
-  auto read_version = make_shared<PipeReadVersion>(_writes);
+  auto read_version = make_shared<PipeReadVersion>();
 
   LOG(artifact) << "Creating pipe read version " << read_version;
 
@@ -84,18 +79,18 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
 shared_ptr<ContentVersion> PipeArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (_last_read) {
     if (c) {
-      c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+      c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
                                        InputType::Accessed);
     }
     return _last_read;
   } else {
     if (c) {
-      for (const auto& w : _writes) {
-        c->currentRun()->addContentInput(shared_from_this(), w, w->getCreator(),
+      for (const auto& [write, writer] : _writes) {
+        c->currentRun()->addContentInput(shared_from_this(), write, writer.lock(),
                                          InputType::Accessed);
       }
     }
-    return make_shared<PipeReadVersion>(_writes);
+    return make_shared<PipeReadVersion>();
   }
 }
 
@@ -111,7 +106,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
   }
 
   // The command depends on the last read version
-  c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_read->getCreator(),
+  c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
                                    InputType::Accessed);
 
   // Compare the current content version to the expected version
@@ -132,6 +127,16 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
   // Set the written version's committed state
   writing->setCommitted(c->running());
 
+  // Has this pipe been assigned a committed/uncommitted mode?
+  if (_committed_mode.has_value()) {
+    // Yes. Make sure the command accessing the pipe is running if the pipe is committed
+    ASSERT(_committed_mode.value() == c->running())
+        << "Invalid access to " << this << " from command " << c;
+  } else {
+    // No. Assign the mode now.
+    _committed_mode = c->running();
+  }
+
   // Report the output to the build
   c->currentRun()->addContentOutput(shared_from_this(), writing);
 
@@ -141,8 +146,8 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
     _last_read = read;
 
     // The reading command depends on all writes since the last read
-    for (auto write : _writes) {
-      c->currentRun()->addContentInput(shared_from_this(), write, write->getCreator(),
+    for (const auto& [write, writer] : _writes) {
+      c->currentRun()->addContentInput(shared_from_this(), write, writer.lock(),
                                        InputType::Accessed);
     }
 
@@ -151,11 +156,11 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
 
   } else if (auto close = writing->as<PipeCloseVersion>()) {
     // Add the close operation to the list of un-read writes
-    _writes.push_back(close);
+    _writes.emplace_back(close, c);
 
   } else if (auto write = writing->as<PipeWriteVersion>()) {
     // Add this write to the list of un-read writes
-    _writes.push_back(write);
+    _writes.emplace_back(write, c);
 
   } else {
     FAIL << "Unsupported pipe version type " << writing;

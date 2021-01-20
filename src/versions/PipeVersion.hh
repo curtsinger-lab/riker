@@ -61,9 +61,8 @@ class PipeCloseVersion : public PipeWriteVersion {
 
 class PipeReadVersion : public ContentVersion {
  public:
-  /// Create a new version that tracks a read from a pipe. The read observes some number of writes.
-  PipeReadVersion(std::list<std::shared_ptr<PipeWriteVersion>> observed) noexcept :
-      _observed(observed) {}
+  /// Create a new version that tracks a read from a pipe.
+  PipeReadVersion() noexcept = default;
 
   /// Get a short name for this version type
   virtual std::string getTypeName() const noexcept override { return "pipe read"; }
@@ -76,14 +75,10 @@ class PipeReadVersion : public ContentVersion {
 
   /// Print this version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
-    return o << "[pipe read " << _observed.size() << "]";
+    return o << "[pipe read]";
   }
 
  private:
-  /// The list of writes this read version observes
-  std::list<std::shared_ptr<PipeWriteVersion>> _observed;
-
-  // Create default constructor and declare fields for serialization
-  PipeReadVersion() noexcept = default;
-  SERIALIZE(BASE(ContentVersion), _observed);
+  // Declare fields for serialization
+  SERIALIZE(BASE(ContentVersion));
 };
