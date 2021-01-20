@@ -32,7 +32,7 @@ bool PipeArtifact::canCommitAll() const noexcept {
 // A traced command is about to close a reference to this artifact
 void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?
-  if (c->currentRun()->getRef(ref)->getFlags().w) {
+  if (c->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
     final_write->createdBy(c);
 
@@ -50,8 +50,7 @@ void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 
   // The reading command depends on the last read
   if (_last_read) {
-    c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
-                                     InputType::Accessed);
+    c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
   }
 
   // Create a new version to track this read
@@ -79,15 +78,13 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
 shared_ptr<ContentVersion> PipeArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (_last_read) {
     if (c) {
-      c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
-                                       InputType::Accessed);
+      c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
     }
     return _last_read;
   } else {
     if (c) {
       for (const auto& [write, writer] : _writes) {
-        c->currentRun()->addContentInput(shared_from_this(), write, writer.lock(),
-                                         InputType::Accessed);
+        c->addContentInput(shared_from_this(), write, writer.lock(), InputType::Accessed);
       }
     }
     return make_shared<PipeReadVersion>();
@@ -102,19 +99,18 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
   if (!_last_read) {
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, _last_read);
-    c->currentRun()->inputChanged(shared_from_this(), nullptr, expected, scenario);
+    c->inputChanged(shared_from_this(), nullptr, expected, scenario);
   }
 
   // The command depends on the last read version
-  c->currentRun()->addContentInput(shared_from_this(), _last_read, _last_reader.lock(),
-                                   InputType::Accessed);
+  c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
 
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, _last_read);
     // Report the mismatch
-    c->currentRun()->inputChanged(shared_from_this(), _last_read, expected, scenario);
+    c->inputChanged(shared_from_this(), _last_read, expected, scenario);
   }
 }
 
@@ -138,7 +134,7 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
   }
 
   // Report the output to the build
-  c->currentRun()->addContentOutput(shared_from_this(), writing);
+  c->addContentOutput(shared_from_this(), writing);
 
   // Is the written version a pipe write or pipe read?
   if (auto read = writing->as<PipeReadVersion>()) {
@@ -147,8 +143,7 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
 
     // The reading command depends on all writes since the last read
     for (const auto& [write, writer] : _writes) {
-      c->currentRun()->addContentInput(shared_from_this(), write, writer.lock(),
-                                       InputType::Accessed);
+      c->addContentInput(shared_from_this(), write, writer.lock(), InputType::Accessed);
     }
 
     // Clear the list of unread writes

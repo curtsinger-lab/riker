@@ -19,7 +19,6 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Command.hh"
-#include "runtime/CommandRun.hh"
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
@@ -247,7 +246,7 @@ namespace env {
     // If a command was provided, record the content output
     if (c) {
       dv->createdBy(c);
-      c->currentRun()->addContentOutput(dir, dv);
+      c->addContentOutput(dir, dv);
     }
 
     _artifacts.insert(dir);
@@ -278,7 +277,7 @@ namespace env {
     artifact->updateContent(c, cv);
 
     // Observe output to metadata and content for the new file
-    c->currentRun()->addContentOutput(artifact, cv);
+    c->addContentOutput(artifact, cv);
 
     _artifacts.insert(artifact);
     stats::artifacts++;

@@ -235,7 +235,7 @@ shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
   // Notify the build of the input
   if (c) {
-    c->currentRun()->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
+    c->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
 
     // If command c is running, make sure metadata is committed
     if (c->running()) {
@@ -270,7 +270,7 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
     // Report the mismatch
     LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, observed);
-    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
+    c->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 
@@ -296,7 +296,7 @@ void Artifact::updateMetadata(const shared_ptr<Command>& c,
   }
 
   // Report the output to the build
-  c->currentRun()->addMetadataOutput(shared_from_this(), writing);
+  c->addMetadataOutput(shared_from_this(), writing);
 }
 
 void Artifact::appendVersion(shared_ptr<MetadataVersion> v) noexcept {

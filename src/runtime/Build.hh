@@ -13,7 +13,6 @@
 #include <sys/types.h>
 
 #include "data/IRSink.hh"
-#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Tracer.hh"
 

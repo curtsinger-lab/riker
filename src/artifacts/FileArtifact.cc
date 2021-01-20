@@ -114,8 +114,7 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
 
       } else {
         // The versions still don't match
-        creator->currentRun()->outputChanged(shared_from_this(), _committed_content,
-                                             _uncommitted_content);
+        creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
       }
     }
   }
@@ -193,8 +192,7 @@ shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c
   ASSERT(result) << "Artifact " << this << " has no content version";
 
   if (c) {
-    c->currentRun()->addContentInput(shared_from_this(), result, _content_writer.lock(),
-                                     InputType::Accessed);
+    c->addContentInput(shared_from_this(), result, _content_writer.lock(), InputType::Accessed);
   }
 
   return result;
@@ -223,7 +221,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, observed);
     // Report the mismatch
-    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
+    c->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 
@@ -250,5 +248,5 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   }
 
   // Report the output to the build
-  c->currentRun()->addContentOutput(shared_from_this(), writing);
+  c->addContentOutput(shared_from_this(), writing);
 }

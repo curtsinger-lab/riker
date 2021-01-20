@@ -27,7 +27,6 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
-#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
@@ -255,7 +254,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, ref_id] : cmd->getInitialFDs()) {
-    auto& ref = cmd->currentRun()->getRef(ref_id);
+    auto& ref = cmd->getRef(ref_id);
 
     // Make sure the reference has already been resolved
     ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
@@ -286,7 +285,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     }
 
     // Change to the initial working directory
-    auto cwd = cmd->currentRun()->getRef(Ref::Cwd)->getArtifact();
+    auto cwd = cmd->getRef(Ref::Cwd)->getArtifact();
     auto cwd_path = cwd->getPath(false);
     ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
@@ -367,7 +366,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     args.push_back(nullptr);
 
     // TODO: explicitly handle the environment
-    auto exe = cmd->currentRun()->getRef(Ref::Exe)->getArtifact();
+    auto exe = cmd->getRef(Ref::Exe)->getArtifact();
     auto exe_path = exe->getPath(false);
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
     execv(exe_path.value().c_str(), (char* const*)args.data());

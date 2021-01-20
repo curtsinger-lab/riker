@@ -87,7 +87,7 @@ class PostBuildChecker : public IRSink {
     if (scenario == Scenario::Build) {
       _output.expectResult(command, Scenario::Build, ref, expected);
       _output.expectResult(command, Scenario::PostBuild, ref,
-                           command->currentRun()->getRef(ref)->getResultCode());
+                           command->getRef(ref)->getResultCode());
     }
   }
 
@@ -101,9 +101,9 @@ class PostBuildChecker : public IRSink {
       _output.matchMetadata(command, Scenario::Build, ref, expected);
 
       // Now also emit a predicate to check for the post-build state
-      if (command->currentRun()->getRef(ref)->isResolved()) {
+      if (command->getRef(ref)->isResolved()) {
         _output.matchMetadata(command, Scenario::PostBuild, ref,
-                              command->currentRun()->getRef(ref)->getArtifact()->peekMetadata());
+                              command->getRef(ref)->getArtifact()->peekMetadata());
       } else {
         // Do we need to make sure the reference is not resolved? Hasn't that already been done?
       }
@@ -120,9 +120,9 @@ class PostBuildChecker : public IRSink {
       _output.matchContent(command, Scenario::Build, ref, expected);
 
       // Now also emit a predicate to check for the post-build state
-      if (command->currentRun()->getRef(ref)->isResolved()) {
+      if (command->getRef(ref)->isResolved()) {
         _output.matchContent(command, Scenario::PostBuild, ref,
-                             command->currentRun()->getRef(ref)->getArtifact()->peekContent());
+                             command->getRef(ref)->getArtifact()->peekContent());
       } else {
         // Do we need to make sure the reference is not resolved? Hasn't that already been done?
       }

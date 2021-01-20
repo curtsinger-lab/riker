@@ -8,7 +8,6 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
-#include "runtime/CommandRun.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
@@ -38,13 +37,13 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   _command_ids.emplace_hint(iter, c, command_id);
 
   // Add this command's children
-  for (auto& child : c->previousRun()->getChildren()) {
+  for (auto& child : c->getChildren()) {
     auto child_id = addCommand(child);
     _command_edges.emplace(command_id, child_id);
   }
 
   // Add this command's metadata inputs
-  for (const auto& [a, v, t] : c->previousRun()->getMetadataInputs()) {
+  for (const auto& [a, v, t] : c->getMetadataInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed) continue;
 
@@ -60,7 +59,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's content inputs
-  for (const auto& [a, v, t] : c->previousRun()->getContentInputs()) {
+  for (const auto& [a, v, t] : c->getContentInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !v->getCreator()) continue;
 
@@ -76,7 +75,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's metadata outputs
-  for (const auto& [a, v] : c->previousRun()->getMetadataOutputs()) {
+  for (const auto& [a, v] : c->getMetadataOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 
@@ -89,7 +88,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's content outputs
-  for (const auto& [a, v] : c->previousRun()->getContentOutputs()) {
+  for (const auto& [a, v] : c->getContentOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 

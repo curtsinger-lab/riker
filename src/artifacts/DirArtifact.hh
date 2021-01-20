@@ -9,7 +9,6 @@
 #include <tuple>
 
 #include "artifacts/Artifact.hh"
-#include "runtime/CommandRun.hh"
 #include "runtime/Ref.hh"
 
 namespace fs = std::filesystem;

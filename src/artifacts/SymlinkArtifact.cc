@@ -47,8 +47,7 @@ shared_ptr<ContentVersion> SymlinkArtifact::getContent(const shared_ptr<Command>
   ASSERT(result) << "Artifact " << this << " has no content version";
 
   if (c) {
-    c->currentRun()->addContentInput(shared_from_this(), result, _content_writer.lock(),
-                                     InputType::Accessed);
+    c->addContentInput(shared_from_this(), result, _content_writer.lock(), InputType::Accessed);
   }
 
   return result;
@@ -66,7 +65,7 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
          c, scenario, expected, observed);
 
     // Report the mismatch
-    c->currentRun()->inputChanged(shared_from_this(), observed, expected, scenario);
+    c->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }
 

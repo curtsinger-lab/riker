@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <list>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -15,6 +16,8 @@
 namespace fs = std::filesystem;
 
 class CommandRun;
+class ContentVersion;
+class MetadataVersion;
 
 /// The set of possible markings for a command that determine how it is executed during rebuild
 enum class RebuildMarking {
@@ -35,6 +38,19 @@ enum class RebuildMarking {
               // build iteration. Commands with this marking can be emulated using the trace from
               // their most recent run. We use this marking to ensure that a command is not run
               // multiple times during a single build.
+};
+
+/**
+ * Predicates are tagged with specific scenarios where they apply.
+ *
+ * If all of a command's predicates in the Build scenario evaluate to true, the command does not
+ * directly observe any change. The same is true for the PostBuild scenario.
+ */
+enum class Scenario { Build, PostBuild };
+
+enum class InputType {
+  PathResolution,  // The input is a dependency for path resolution
+  Accessed,        // The input is accessed directly
 };
 
 /**
@@ -118,12 +134,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /****** Rebuild Planning ******/
 
-  /// Get the transient data for this command's current run
-  const std::shared_ptr<CommandRun>& currentRun() noexcept;
-
-  /// Get the transient data for this command's previous run
-  const std::shared_ptr<CommandRun>& previousRun() noexcept;
-
   /// Finish the current run of this command. This moves the run data to last_run.
   void finishRun() noexcept;
 
@@ -140,9 +150,173 @@ class Command : public std::enable_shared_from_this<Command> {
   /// they are launched
   void setMarking(RebuildMarking marking) noexcept { _marking = marking; }
 
+  /****** Types and struct used to track run-specific data ******/
+
+  using WeakCommandSet = std::set<std::weak_ptr<Command>, std::owner_less<std::weak_ptr<Command>>>;
+
+  template <class T>
+  using InputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>, InputType>>;
+
+  template <class T>
+  using OutputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>>>;
+
+  struct Run {
+    /// The command's local references
+    std::vector<std::shared_ptr<Ref>> _refs;
+
+    /// This command's use countn for each of its references
+    std::vector<size_t> _refs_use_count;
+
+    /// This command's parent, if any
+    std::weak_ptr<Command> _parent;
+
+    /// The children launched by this command
+    std::list<std::shared_ptr<Command>> _children;
+
+    /// Has this command run already been matched against a new command launch?
+    bool _matched = false;
+
+    /// The exit status for this command
+    int _exit_status = -1;
+
+    /// Keep track of the scenarios where this command has observed a change
+    std::set<Scenario> _changed;
+
+    /// The set of inputs to this command
+    InputList<MetadataVersion> _metadata_inputs;
+
+    /// The set of inputs to this command
+    InputList<ContentVersion> _content_inputs;
+
+    /// The set of outputs from this command
+    OutputList<MetadataVersion> _metadata_outputs;
+
+    /// The set of outputs from this command
+    OutputList<ContentVersion> _content_outputs;
+
+    /// The set of commands that produce any inputs to this command
+    WeakCommandSet _uses_output_from;
+
+    /// The set of commands that produce uncached inputs to this command
+    WeakCommandSet _needs_output_from;
+
+    /// The set of commands that use this command's outputs
+    WeakCommandSet _output_used_by;
+
+    /// The set of commands that require uncached outputs from this command
+    WeakCommandSet _output_needed_by;
+  };
+
+  /****** Data for the current run ******/
+
+  /// Create dependencies to prepare this command for execution
+  void createLaunchDependencies() noexcept;
+
+  /// This command launched a child command
+  void addChild(std::shared_ptr<Command> child) noexcept;
+
+  /// Get this command's exit status
+  int getExitStatus() noexcept;
+
+  /// Set this command's exit status, and record that it has exited
+  void setExitStatus(int status) noexcept;
+
+  /// Get a reference from this command's reference table
+  const std::shared_ptr<Ref>& getRef(Ref::ID id) noexcept;
+
+  /// Store a reference at a known index of this command's local reference table
+  void setRef(Ref::ID id, std::shared_ptr<Ref> ref) noexcept;
+
+  /// Store a reference at the next available index of this command's local reference table
+  Ref::ID setRef(std::shared_ptr<Ref> ref) noexcept;
+
+  /// Increment the use count for a Ref. Return true if this is the first use of the ref.
+  bool usingRef(Ref::ID id) noexcept;
+
+  /// Decrement a use count for a Ref. Return true if this was the last use of the ref.
+  bool doneWithRef(Ref::ID id) noexcept;
+
+  /// This command observes a change in a given scenario
+  void observeChange(Scenario s) noexcept;
+
+  /// An input to this command did not match the expected version
+  void inputChanged(std::shared_ptr<Artifact> artifact,
+                    std::shared_ptr<MetadataVersion> observed,
+                    std::shared_ptr<MetadataVersion> expected,
+                    Scenario scenario) noexcept;
+
+  /// An input to this command did not match the expected version
+  void inputChanged(std::shared_ptr<Artifact> artifact,
+                    std::shared_ptr<ContentVersion> observed,
+                    std::shared_ptr<ContentVersion> expected,
+                    Scenario scenario) noexcept;
+
+  /// Track an input to this command
+  void addMetadataInput(std::shared_ptr<Artifact> a,
+                        std::shared_ptr<Command> writer,
+                        InputType t) noexcept;
+
+  /// Track an input to this command
+  void addContentInput(std::shared_ptr<Artifact> a,
+                       std::shared_ptr<ContentVersion> v,
+                       std::shared_ptr<Command> writer,
+                       InputType t) noexcept;
+
+  /// Track an output from this command
+  void addMetadataOutput(std::shared_ptr<Artifact> a, std::shared_ptr<MetadataVersion> v) noexcept;
+
+  /// Track an output from this command
+  void addContentOutput(std::shared_ptr<Artifact> a, std::shared_ptr<ContentVersion> v) noexcept;
+
+  /// An output from this command does not match the on-disk state (checked at the end of the build)
+  void outputChanged(std::shared_ptr<Artifact> artifact,
+                     std::shared_ptr<ContentVersion> ondisk,
+                     std::shared_ptr<ContentVersion> expected) noexcept;
+
+  /****** Data from the previous run ******/
+
+  /// Get this command's list of children
+  const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
+
+  /**
+   * Look through this command's children from the last run to see if there is a child that matches
+   * the given command launch information. Once a child has been matched, it will not match again.
+   *
+   * \param args      The arguments to the child command
+   * \param exe_ref   This command's reference to the child command's executable
+   * \param cwd_ref   This command's reference to the child command's working directory
+   * \param root_ref  This command's reference to the child command's root directory
+   * \param fds       The child command's initial file descriptors, and the reference (in this
+   *                  command) they are initialized with.
+   * \returns A pointer to the matched command, or nullptr if no child matches.
+   */
+  std::shared_ptr<Command> findChild(std::vector<std::string> args,
+                                     Ref::ID exe_ref,
+                                     Ref::ID cwd_ref,
+                                     Ref::ID root_ref,
+                                     std::map<int, Ref::ID> fds) noexcept;
+
+  /// Get the metadata inputs to this command
+  const InputList<MetadataVersion>& getMetadataInputs() noexcept;
+
+  /// Get the content inputs to this command
+  const InputList<ContentVersion>& getContentInputs() noexcept;
+
+  /// Get the metadata outputs from this command
+  const OutputList<MetadataVersion>& getMetadataOutputs() noexcept;
+
+  /// Get the content outputs from this command
+  const OutputList<ContentVersion>& getContentOutputs() noexcept;
+
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
+
+  /// Get the transient data for this command's current run
+  const std::unique_ptr<Run>& currentRun() noexcept;
+
+  /// Get the transient data for this command's previous run
+  const std::unique_ptr<Run>& previousRun() noexcept;
 
  private:
   /// The arguments passed to this command on startup
@@ -155,10 +329,10 @@ class Command : public std::enable_shared_from_this<Command> {
   bool _executed = false;
 
   /// Transient data for the current run
-  std::shared_ptr<CommandRun> _run;
+  std::unique_ptr<Run> _run;
 
   /// Transient data for the last run
-  std::shared_ptr<CommandRun> _last_run;
+  std::unique_ptr<Run> _last_run;
 
   /// The marking state for this command that determines how the command is run
   RebuildMarking _marking = RebuildMarking::Emulate;

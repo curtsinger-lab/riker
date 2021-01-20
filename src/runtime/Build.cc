@@ -90,27 +90,27 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     // That way we won't close stdin when the build is finishing
     auto stdin_ref = make_shared<Ref>(ReadAccess, env::getStdin(c));
     stdin_ref->addUser();
-    c->currentRun()->setRef(output, stdin_ref);
+    c->setRef(output, stdin_ref);
 
   } else if (entity == SpecialRef::stdout) {
     // Create the stdout ref and add one user (the build tool)
     auto stdout_ref = make_shared<Ref>(WriteAccess, env::getStdout(c));
     stdout_ref->addUser();
-    c->currentRun()->setRef(output, stdout_ref);
+    c->setRef(output, stdout_ref);
 
   } else if (entity == SpecialRef::stderr) {
     // Create the stderr ref and add one user (the build tool)
     auto stderr_ref = make_shared<Ref>(WriteAccess, env::getStderr(c));
     stderr_ref->addUser();
-    c->currentRun()->setRef(output, stderr_ref);
+    c->setRef(output, stderr_ref);
 
   } else if (entity == SpecialRef::root) {
-    c->currentRun()->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, env::getRootDir()));
+    c->setRef(output, make_shared<Ref>(ReadAccess + ExecAccess, env::getRootDir()));
 
   } else if (entity == SpecialRef::cwd) {
     auto cwd_path = fs::current_path().relative_path();
     auto ref = make_shared<Ref>(env::getRootDir()->resolve(c, cwd_path, ReadAccess + ExecAccess));
-    c->currentRun()->setRef(output, ref);
+    c->setRef(output, ref);
 
     ASSERT(ref->isSuccess()) << "Failed to resolve current working directory";
     ref->getArtifact()->setName(".");
@@ -121,7 +121,7 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
     auto ref =
         make_shared<Ref>(env::getRootDir()->resolve(c, dodo_launch, ReadAccess + ExecAccess));
-    c->currentRun()->setRef(output, ref);
+    c->setRef(output, ref);
 
   } else {
     FAIL << "Unknown special reference";
@@ -144,8 +144,8 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 
   // Resolve the reference and save the result in output
   auto pipe = env::getPipe(c);
-  c->currentRun()->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
-  c->currentRun()->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
+  c->setRef(read_end, make_shared<Ref>(ReadAccess, pipe));
+  c->setRef(write_end, make_shared<Ref>(WriteAccess, pipe));
 }
 
 // A command references a new anonymous file
@@ -163,8 +163,7 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
   _output.fileRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(output,
-                          make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
+  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
 }
 
 // A command references a new anonymous symlink
@@ -182,8 +181,8 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
   _output.symlinkRef(c, target, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getSymlink(c, target)));
+  c->setRef(output,
+            make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getSymlink(c, target)));
 }
 
 // A command references a new anonymous directory
@@ -201,8 +200,7 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
   _output.dirRef(c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->currentRun()->setRef(
-      output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode)));
+  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode)));
 }
 
 // A command makes a reference with a path
@@ -224,12 +222,12 @@ void Build::pathRef(const shared_ptr<Command>& c,
   _output.pathRef(c, base, path, flags, output);
 
   // Get the directory where resolution should begin
-  auto base_dir = c->currentRun()->getRef(base)->getArtifact();
+  auto base_dir = c->getRef(base)->getArtifact();
 
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  c->currentRun()->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags)));
+  c->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags)));
 }
 
 // A command retains a handle to a given Ref
@@ -243,7 +241,7 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
 
   // Command c is now using ref
-  c->currentRun()->usingRef(ref);
+  c->usingRef(ref);
 
   // Create an IR step and add it to the output trace
   _output.usingRef(c, ref);
@@ -258,10 +256,10 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   stats::emulated_steps++;
 
   // Command c is no longer using ref
-  c->currentRun()->doneWithRef(ref_id);
+  c->doneWithRef(ref_id);
 
   // If this is the final use of the ref, inform the referenced artifact of the close
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
   if (ref->getUserCount() == 0) {
     auto a = ref->getArtifact();
     if (a) {
@@ -294,24 +292,24 @@ void Build::compareRefs(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.compareRefs(c, ref1_id, ref2_id, type);
 
-  auto ref1 = c->currentRun()->getRef(ref1_id);
-  auto ref2 = c->currentRun()->getRef(ref2_id);
+  auto ref1 = c->getRef(ref1_id);
+  auto ref2 = c->getRef(ref2_id);
 
   // Does the comparison resolve as expected?
   if (type == RefComparison::SameInstance) {
     if (ref1->getArtifact() != ref2->getArtifact()) {
       LOGF(rebuild, "{} changed: expected {} and {} to refer to the same artifact", c, ref1, ref2);
 
-      c->currentRun()->observeChange(Scenario::Build);
-      c->currentRun()->observeChange(Scenario::PostBuild);
+      c->observeChange(Scenario::Build);
+      c->observeChange(Scenario::PostBuild);
     }
   } else if (type == RefComparison::DifferentInstances) {
     if (ref1->getArtifact() == ref2->getArtifact()) {
       LOGF(rebuild, "{} changed: expected {} and {} to refer to different artifacts", c, ref1,
            ref2);
 
-      c->currentRun()->observeChange(Scenario::Build);
-      c->currentRun()->observeChange(Scenario::PostBuild);
+      c->observeChange(Scenario::Build);
+      c->observeChange(Scenario::PostBuild);
     }
   } else {
     FAIL << "Unknown reference comparison type";
@@ -336,12 +334,12 @@ void Build::expectResult(const shared_ptr<Command>& c,
   _output.expectResult(c, scenario, ref_id, expected);
 
   // Does the resolved reference match the expected result?
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
   if (ref->getResultCode() != expected) {
     LOGF(rebuild,
          "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
          scenario, ref, expected, ref->getResultCode());
-    c->currentRun()->observeChange(scenario);
+    c->observeChange(scenario);
   }
 }
 
@@ -362,7 +360,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, scenario, ref_id, expected);
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -388,7 +386,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.matchContent(c, scenario, ref_id, expected);
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -413,7 +411,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -438,7 +436,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.updateContent(c, ref_id, written);
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
@@ -468,8 +466,8 @@ void Build::addEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.addEntry(c, dir_id, name, target_id);
 
-  auto dir = c->currentRun()->getRef(dir_id);
-  auto target = c->currentRun()->getRef(target_id);
+  auto dir = c->getRef(dir_id);
+  auto target = c->getRef(target_id);
 
   // We can't do anything with unresolved references. A change should already have been reported.
   if (!dir->isResolved() || !target->isResolved()) return;
@@ -495,8 +493,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.removeEntry(c, dir_id, name, target_id);
 
-  auto dir = c->currentRun()->getRef(dir_id);
-  auto target = c->currentRun()->getRef(target_id);
+  auto dir = c->getRef(dir_id);
+  auto target = c->getRef(target_id);
 
   // We can't do anything with unresolved references. A change should already have been reported.
   if (!dir->isResolved() || !target->isResolved()) return;
@@ -520,21 +518,21 @@ void Build::launch(const shared_ptr<Command>& c,
 
   // Assign references in the child command
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    child->currentRun()->setRef(child_ref_id, c->currentRun()->getRef(parent_ref_id));
+    child->setRef(child_ref_id, c->getRef(parent_ref_id));
   }
 
   // If we're emulating the launch of an unexecuted command, report the change to the command
   if (!child->hasExecuted()) {
     LOGF(rebuild, "{} changed: never run", child);
-    child->currentRun()->observeChange(Scenario::Build);
-    child->currentRun()->observeChange(Scenario::PostBuild);
+    child->observeChange(Scenario::Build);
+    child->observeChange(Scenario::PostBuild);
   }
 
   // Remember that this command was run by the build
   _commands.insert(child);
 
   // Add the child to the parent command's set of children
-  c->currentRun()->addChild(child);
+  c->addChild(child);
 
   // Are we going to re-execute the child?
   bool launch_command = false;
@@ -568,7 +566,7 @@ void Build::launch(const shared_ptr<Command>& c,
     stats::traced_commands++;
 
     // Prepare the child command to execute by committing the necessary state from its references
-    child->currentRun()->createLaunchDependencies(*this);
+    child->createLaunchDependencies();
 
     LOG(exec) << c << " launching " << child;
 
@@ -601,13 +599,13 @@ void Build::join(const shared_ptr<Command>& c,
   _output.join(c, child, exit_status);
 
   // Did the child command's exit status match the expected result?
-  if (child->currentRun()->getExitStatus() != exit_status) {
+  if (child->getExitStatus() != exit_status) {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
-         child, exit_status, child->currentRun()->getExitStatus());
+         child, exit_status, child->getExitStatus());
 
     // TODO: Re-enable this once we have skipping
-    // c->currentRun()->observeChange(Scenario::Build);
-    // c->currentRun()->observeChange(Scenario::PostBuild);
+    // c->observeChange(Scenario::Build);
+    // c->observeChange(Scenario::PostBuild);
     WARN << c << " should rerun because child " << child << " changed exit status.";
   }
 }
@@ -626,7 +624,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   _output.exit(c, exit_status);
 
   // Save the exit status for this command
-  c->currentRun()->setExitStatus(exit_status);
+  c->setExitStatus(exit_status);
 }
 
 /************************ Trace IR Steps ************************/
@@ -640,8 +638,8 @@ tuple<Ref::ID, Ref::ID> Build::tracePipeRef(const shared_ptr<Command>& c) noexce
   auto pipe = env::getPipe(c);
 
   // Set up references for the read and write ends of the pipe
-  auto read_end = c->currentRun()->setRef(make_shared<Ref>(ReadAccess, pipe));
-  auto write_end = c->currentRun()->setRef(make_shared<Ref>(WriteAccess, pipe));
+  auto read_end = c->setRef(make_shared<Ref>(ReadAccess, pipe));
+  auto write_end = c->setRef(make_shared<Ref>(WriteAccess, pipe));
 
   // Create an IR step and add it to the output trace
   _output.pipeRef(c, read_end, write_end);
@@ -661,7 +659,7 @@ Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept 
   auto file = env::createFile(c, mode);
 
   // Create a reference for the new file
-  auto output = c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
+  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
 
   // Create an IR step and add it to the output trace
   _output.fileRef(c, mode, output);
@@ -681,8 +679,7 @@ Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) no
   auto symlink = env::getSymlink(c, target);
 
   // Create a reference to the new symlink
-  auto output =
-      c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, symlink));
+  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, symlink));
 
   // Create an IR step and add it to the output trace
   _output.symlinkRef(c, target, output);
@@ -702,8 +699,7 @@ Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
   auto dir = env::getDir(c, mode);
 
   // Create a reference to the new directory
-  auto output =
-      c->currentRun()->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, dir));
+  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, dir));
 
   // Create an IR step and add it to the output trace
   _output.dirRef(c, mode, output);
@@ -723,21 +719,21 @@ Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
   stats::traced_steps++;
 
   // Get the base directory artifact
-  auto base = c->currentRun()->getRef(base_id);
+  auto base = c->getRef(base_id);
   ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
 
   // Resolve the path and create a Ref
   auto ref = make_shared<Ref>(base->getArtifact()->resolve(c, path, flags));
 
   // Add the refrence to the command
-  auto output = c->currentRun()->setRef(ref);
+  auto output = c->setRef(ref);
 
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base_id, path, flags, output);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base_id, path, flags, output} << " -> "
-          << c->currentRun()->getRef(output);
+          << c->getRef(output);
 
   return output;
 }
@@ -746,7 +742,7 @@ Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
 void Build::traceUsingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command may be saving its first handle to a reference, or it could be a duplicate of an
   // existing reference. Only emit the IR step for the first open.
-  if (c->currentRun()->usingRef(ref)) {
+  if (c->usingRef(ref)) {
     // This is an actual IR step, so count it
     stats::traced_steps++;
 
@@ -762,12 +758,12 @@ void Build::traceUsingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 void Build::traceDoneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // The command might be closing its last handle to the reference, or it could just be one of
   // several remaining handles. Use the returned refcount to catch the last close operation
-  if (c->currentRun()->doneWithRef(ref_id)) {
+  if (c->doneWithRef(ref_id)) {
     // This is an actual IR step, so count it
     stats::traced_steps++;
 
     // If this is the final use of the ref, inform the referenced artifact of the close
-    auto ref = c->currentRun()->getRef(ref_id);
+    auto ref = c->getRef(ref_id);
     if (ref->getUserCount() == 0) {
       auto a = ref->getArtifact();
       if (a) {
@@ -804,7 +800,7 @@ void Build::traceExpectResult(const shared_ptr<Command>& c, Ref::ID ref_id, int 
   // Count a traced step
   stats::traced_steps++;
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // If no expected result was provided, use the result from the reference itself
   if (expected == -1) expected = ref->getResultCode();
@@ -827,7 +823,7 @@ shared_ptr<MetadataVersion> Build::traceMatchMetadata(const shared_ptr<Command>&
   // Count a traced step
   stats::traced_steps++;
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // Get the artifact whose metadata is being accessed
   auto artifact = ref->getArtifact();
@@ -853,7 +849,7 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // Get the artifact whose content is being accessed
   auto artifact = ref->getArtifact();
@@ -889,7 +885,7 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // Get the artifact whose metadata is being written
   auto artifact = ref->getArtifact();
@@ -913,7 +909,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  auto ref = c->currentRun()->getRef(ref_id);
+  auto ref = c->getRef(ref_id);
 
   // Get the artifact whose content is being written
   auto artifact = ref->getArtifact();
@@ -943,8 +939,8 @@ void Build::traceAddEntry(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  auto dir = c->currentRun()->getRef(dir_id);
-  auto target = c->currentRun()->getRef(target_id);
+  auto dir = c->getRef(dir_id);
+  auto target = c->getRef(target_id);
 
   // Get the directory artifact that is being added to
   auto dir_artifact = dir->getArtifact();
@@ -972,8 +968,8 @@ void Build::traceRemoveEntry(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  auto dir = c->currentRun()->getRef(dir_id);
-  auto target = c->currentRun()->getRef(target_id);
+  auto dir = c->getRef(dir_id);
+  auto target = c->getRef(target_id);
 
   // Get the directory artifact that is being removed from
   auto dir_artifact = dir->getArtifact();
@@ -1005,7 +1001,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   stats::traced_commands++;
 
   // Look to see if the current command has a matching child command
-  auto child = parent->previousRun()->findChild(args, exe_ref, cwd_ref, root_ref, fds);
+  auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
 
   // Did we find a matching command?
   if (child) {
@@ -1022,24 +1018,24 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   child->setMarking(RebuildMarking::MustRun);
 
   // Add the child to the parent's list of children
-  parent->currentRun()->addChild(child);
+  parent->addChild(child);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
   list<tuple<Ref::ID, Ref::ID>> refs;
 
   // Add standard references to the child and record them in the refs list
-  child->currentRun()->setRef(Ref::Root, parent->currentRun()->getRef(root_ref));
+  child->setRef(Ref::Root, parent->getRef(root_ref));
   refs.emplace_back(root_ref, Ref::Root);
 
-  child->currentRun()->setRef(Ref::Cwd, parent->currentRun()->getRef(cwd_ref));
+  child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
   refs.emplace_back(cwd_ref, Ref::Cwd);
 
-  child->currentRun()->setRef(Ref::Exe, parent->currentRun()->getRef(exe_ref));
+  child->setRef(Ref::Exe, parent->getRef(exe_ref));
   refs.emplace_back(exe_ref, Ref::Exe);
 
   // Add references for initial file descriptors
   for (const auto& [fd, parent_ref] : fds) {
-    auto child_ref = child->currentRun()->setRef(parent->currentRun()->getRef(parent_ref));
+    auto child_ref = child->setRef(parent->getRef(parent_ref));
     child->addInitialFD(fd, child_ref);
     refs.emplace_back(parent_ref, child_ref);
 
@@ -1048,7 +1044,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   }
 
   // Prepare the child command to execute by committing the necessary state from its references
-  child->currentRun()->createLaunchDependencies(*this);
+  child->createLaunchDependencies();
 
   // The child command will be executed by this build.
   child->setExecuted();
@@ -1095,7 +1091,7 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
   _output.exit(c, exit_status);
 
   // Save the exit status for this command
-  c->currentRun()->setExitStatus(exit_status);
+  c->setExitStatus(exit_status);
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
