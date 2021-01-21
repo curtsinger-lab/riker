@@ -37,14 +37,8 @@ class SymlinkArtifact : public Artifact {
   /// Get a printable name for this artifact type
   virtual std::string getTypeName() const noexcept override { return "Symlink"; }
 
-  /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(std::shared_ptr<ContentVersion> v) const noexcept override;
-
   /// Commit a specific version of this artifact to the filesystem
   virtual void commit(std::shared_ptr<ContentVersion> v) noexcept override;
-
-  /// Can this artifact be fully committed?
-  virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept override;

@@ -469,7 +469,7 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
                             shared_ptr<ContentVersion> ondisk,
                             shared_ptr<ContentVersion> expected) noexcept {
   // If the expected output could be committed, there's no need to mark this command for rerun
-  if (artifact->canCommit(expected)) return;
+  if (expected->canCommit()) return;
 
   LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})", this,
        artifact, expected, ondisk);

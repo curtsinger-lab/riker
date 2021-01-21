@@ -27,17 +27,6 @@ FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersio
   appendVersion(cv);
 }
 
-bool FileArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
-  if (v == _uncommitted_content) {
-    return _uncommitted_content->canCommit();
-  } else if (v == _committed_content) {
-    return true;
-  } else {
-    FAIL << "Attempted to check committable state for unknown version " << v << " in " << this;
-    return false;
-  }
-}
-
 void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   if (!_uncommitted_content) {
     LOG(artifact) << "Content for " << this << " is already committed";
@@ -57,15 +46,6 @@ void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   // Do the commit
   _uncommitted_content->commit(path.value());
   _committed_content = std::move(_uncommitted_content);
-}
-
-/// Do we have saved content and metadata for this artifact?
-bool FileArtifact::canCommitAll() const noexcept {
-  if (_uncommitted_content) {
-    return _uncommitted_content->canCommit();
-  } else {
-    return true;
-  }
 }
 
 /// Commit all final versions of this artifact to the filesystem

@@ -97,14 +97,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept = 0;
 
-  /// Can this artifact's content version be committed?
-  virtual bool canCommit(std::shared_ptr<ContentVersion> v) const noexcept = 0;
-
   /// Commit a specific version (and any co-dependent versions) to the filesystem
   virtual void commit(std::shared_ptr<ContentVersion> v) noexcept = 0;
-
-  /// Can this artifact be fully committed?
-  virtual bool canCommitAll() const noexcept = 0;
 
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept = 0;

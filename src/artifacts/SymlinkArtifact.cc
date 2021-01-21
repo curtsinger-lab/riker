@@ -92,10 +92,6 @@ void SymlinkArtifact::updateContent(const std::shared_ptr<Command>& c,
   }
 }
 
-bool SymlinkArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
-  return true;
-}
-
 void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   if (!_uncommitted_content) {
     LOG(artifact) << "Content for " << this << " is already committed";
@@ -114,11 +110,6 @@ void SymlinkArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   // Do the commit
   _uncommitted_content->commit(path.value());
   _committed_content = std::move(_uncommitted_content);
-}
-
-bool SymlinkArtifact::canCommitAll() const noexcept {
-  // Symlink versions are always committable
-  return true;
 }
 
 // Commit all final versions of this artifact to the filesystem

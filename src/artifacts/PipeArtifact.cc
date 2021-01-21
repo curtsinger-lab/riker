@@ -17,18 +17,6 @@ using std::make_shared;
 using std::shared_ptr;
 using std::tuple;
 
-// Can a specific version of this artifact be committed?
-bool PipeArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
-  return v->isCommitted() || v->canCommit();
-}
-
-// Can this artifact be fully committed?
-bool PipeArtifact::canCommitAll() const noexcept {
-  // The artifact can only be committed if it is already in a committed state, or if its mode has
-  // not been assigned yet
-  return _committed_mode.value_or(true);
-}
-
 // A traced command is about to close a reference to this artifact
 void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?

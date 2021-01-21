@@ -35,14 +35,8 @@ class DirArtifact final : public Artifact {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept override { return "Dir"; }
 
-  /// Can a specific version of this artifact be committed?
-  virtual bool canCommit(std::shared_ptr<ContentVersion> v) const noexcept override;
-
   /// Commit a specific version of this artifact to the filesystem
   virtual void commit(std::shared_ptr<ContentVersion> v) noexcept override;
-
-  /// Can this artifact be fully committed?
-  virtual bool canCommitAll() const noexcept override;
 
   /// Commit all final versions of this artifact to the filesystem
   virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept override;

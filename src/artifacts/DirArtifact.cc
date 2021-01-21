@@ -37,12 +37,6 @@ DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersi
   appendVersion(dv);
 }
 
-bool DirArtifact::canCommit(shared_ptr<ContentVersion> v) const noexcept {
-  auto dv = v->as<DirVersion>();
-  ASSERT(dv) << "Attempted to check committable state for unknown version " << v << " in " << this;
-  return dv->canCommit();
-}
-
 void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
@@ -58,20 +52,6 @@ void DirArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
   auto dv = v->as<DirVersion>();
   ASSERT(dv) << "Attempted to commit unknown version " << v << " in " << this;
   dv->commit(path.value());
-}
-
-bool DirArtifact::canCommitAll() const noexcept {
-  // Can the base version be committed? If not, stop now.
-  if (!_base_dir_version->canCommit()) return false;
-
-  // Can every entry be committed?
-  for (auto& [name, info] : _entries) {
-    auto& [version, artifact] = info;
-    if (!version->canCommit()) return false;
-  }
-
-  // Everything is committable
-  return true;
 }
 
 // Commit all final versions of this artifact to the filesystem
