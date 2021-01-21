@@ -194,31 +194,56 @@ bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noex
 optional<fs::path> Artifact::commitPath() noexcept {
   // Get a committed path to this artifact
   auto path = getPath(false);
-  if (!path.has_value() && _link_updates.size() > 0) {
-    // If we don't have a committed path to this artifact, commit one of its uncommitted paths
-    auto [weak_dir, _, weak_version] = *_link_updates.begin();
+  if (path.has_value()) return path;
+
+  for (const auto& [weak_dir, entry, weak_version] : _link_updates) {
     auto dir = weak_dir.lock();
+    if (!dir) continue;
+
     auto version = weak_version.lock();
-    dir->commit(version);
+    if (!version) continue;
+
+    auto add_entry = version->as<AddEntry>();
+    if (!add_entry) continue;
+
+    dir->commitEntry(entry);
     path = getPath(false);
+    if (path.has_value()) return path;
   }
+
   return path;
 }
 
-void Artifact::commitMetadata(optional<fs::path> path) noexcept {
-  if (!_uncommitted_metadata) {
-    LOG(artifact) << "Metadata for " << this << " is already committed";
-    return;
-  }
-
-  LOG(artifact) << "Committing metadata to " << this;
+/// Commit the content of this artifact to a specific path
+void Artifact::commitContent() noexcept {
+  // If this artifact's content is fully committed, stop immediately
+  if (!hasUncommittedContent()) return;
 
   // Get a committed path to this artifact, possibly by committing links above it in the path
-  if (!path.has_value()) path = commitPath();
+  auto path = commitPath();
+  ASSERT(path.has_value()) << "Committing content to an artifact with no path";
+
+  commitContentTo(path.value());
+}
+
+void Artifact::commitMetadata() noexcept {
+  if (!_uncommitted_metadata) return;
+
+  // Get a committed path to this artifact, possibly by committing links above it in the path
+  auto path = commitPath();
   ASSERT(path.has_value()) << "Committing metadata to an artifact with no path";
 
-  _uncommitted_metadata->commit(path.value());
-  setMetadataCommitted();
+  commitMetadataTo(path.value());
+}
+
+void Artifact::commitMetadataTo(fs::path path) noexcept {
+  if (!_uncommitted_metadata) return;
+
+  // If this artifact still has uncommitted metadata, commit it
+  if (_uncommitted_metadata) {
+    _uncommitted_metadata->commit(path);
+    _committed_metadata = std::move(_uncommitted_metadata);
+  }
 }
 
 void Artifact::setMetadataCommitted() noexcept {
@@ -227,7 +252,7 @@ void Artifact::setMetadataCommitted() noexcept {
 
 // Commit any pending versions and save fingerprints for this artifact
 void Artifact::applyFinalState(fs::path path) noexcept {
-  commitMetadata(path);
+  commitMetadataTo(path);
 }
 
 /// Get the current metadata version for this artifact

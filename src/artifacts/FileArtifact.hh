@@ -35,11 +35,13 @@ class FileArtifact : public Artifact {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept override { return "File"; }
 
-  /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(std::shared_ptr<ContentVersion> v) noexcept override;
+  /// Commit the content of this artifact to a specific path
+  virtual void commitContentTo(fs::path path) noexcept override;
 
-  /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept override;
+  /// Does this artifact have any uncommitted content?
+  virtual bool hasUncommittedContent() noexcept override {
+    return static_cast<bool>(_uncommitted_content);
+  }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;

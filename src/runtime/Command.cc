@@ -290,8 +290,8 @@ void Command::createLaunchDependencies() noexcept {
       }
 
     } else {
-      // Commit all state for the referenced artifact
-      ref->getArtifact()->commitAll();
+      // Access the content of the artifact to force any required commits
+      ref->getArtifact()->getContent(shared_from_this());
     }
   }
 }
@@ -431,14 +431,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
   if (options::track_inputs_outputs) currentRun()->_content_inputs.emplace_back(a, v, t);
 
   // If this command is running, make sure the file is available
-  // We can skip committing a version if this same command also created the version
-  if (running() && !v->isCommitted() && v->getCreator() != shared_from_this()) {
-    // Commit the version now
-    // ASSERT(a->canCommit(v)) << this << " accesses " << a << ", but version " << v
-    //<< " cannot be committed";
-
-    a->commit(v);
-  }
+  if (running()) a->commitContent();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {

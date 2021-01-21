@@ -97,14 +97,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept = 0;
 
-  /// Commit a specific version (and any co-dependent versions) to the filesystem
-  virtual void commit(std::shared_ptr<ContentVersion> v) noexcept = 0;
+  /// Commit the content of this artifact to the filesystem
+  void commitContent() noexcept;
 
-  /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept = 0;
+  /// Commit the content of this artifact to a specific path
+  virtual void commitContentTo(fs::path path) noexcept = 0;
 
-  /// Commit the miminal set of versions requires to ensure this artifact exists on the filesystem
-  virtual void commitMinimal(fs::path path) noexcept { commitAll(path); }
+  /// Does this artifact have any uncommitted content?
+  virtual bool hasUncommittedContent() noexcept = 0;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept = 0;
@@ -284,8 +284,11 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
  protected:
-  /// Commit this artifact's metadata version
-  virtual void commitMetadata(std::optional<fs::path> path = std::nullopt) noexcept;
+  /// Commit this artifact's metadata
+  virtual void commitMetadata() noexcept;
+
+  /// Commit this artifact's metadata to a specific path
+  virtual void commitMetadataTo(fs::path path) noexcept;
 
   /// Mark this artifact's metadata as committed without doing anything
   void setMetadataCommitted() noexcept;

@@ -27,42 +27,12 @@ FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersio
   appendVersion(cv);
 }
 
-void FileArtifact::commit(shared_ptr<ContentVersion> v) noexcept {
-  if (!_uncommitted_content) {
-    LOG(artifact) << "Content for " << this << " is already committed";
-    return;
-  }
+// Commit the content of this artifact to the filesystem
+void FileArtifact::commitContentTo(fs::path path) noexcept {
+  if (!_uncommitted_content) return;
 
-  LOG(artifact) << "Committing content to " << this;
-
-  // Make sure a valid content version was provided
-  ASSERT(v == _uncommitted_content)
-      << "Attempted to commit unknown version " << v << " in " << this;
-
-  // Get a committed path to this artifact, possibly by committing links above it in the path
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Committing to a file with no path";
-
-  // Do the commit
-  _uncommitted_content->commit(path.value());
+  _uncommitted_content->commit(path);
   _committed_content = std::move(_uncommitted_content);
-}
-
-/// Commit all final versions of this artifact to the filesystem
-void FileArtifact::commitAll(optional<fs::path> path) noexcept {
-  LOG(artifact) << "Committing content and metadata to " << this;
-
-  // If we weren't given a specific path to commit to, get one by committing links
-  if (!path.has_value()) path = commitPath();
-
-  ASSERT(path.has_value()) << "Committing to a file with no path";
-
-  if (_uncommitted_content) {
-    _uncommitted_content->commit(path.value());
-    _committed_content = std::move(_uncommitted_content);
-  }
-
-  commitMetadata(path);
 }
 
 /// Compare all final versions of this artifact to the filesystem state

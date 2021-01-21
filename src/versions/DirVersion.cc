@@ -124,7 +124,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     // probably need to check this).
 
     // Now commit the artifact
-    _target->commitMinimal(dir_path / _entry);
+    _target->commitContentTo(dir_path / _entry);
 
     // Mark this version as committed so the artifact can use it as a committed path
     ContentVersion::setCommitted();

@@ -320,8 +320,10 @@ void FileVersion::cache(fs::path path) noexcept {
   fingerprint(path, FingerprintType::Full);
 
   // Freak out if the fingerprint is missing
-  FAIL_IF(!_hash.has_value()) << "Cannot cache version " << this << " at path " << path
-                              << " without a fingerprint.";
+  if (!_hash.has_value()) {
+    WARN << "Cannot cache version " << this << " at path " << path << " without a fingerprint.";
+    return;
+  }
 
   // Don't cache files that weren't created by the build
   // Freak out if we're asked to cache a file not created by the build

@@ -35,14 +35,17 @@ class DirArtifact final : public Artifact {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept override { return "Dir"; }
 
-  /// Commit a specific version of this artifact to the filesystem
-  virtual void commit(std::shared_ptr<ContentVersion> v) noexcept override;
+  /// Commit the content of this artifact to a specific path
+  virtual void commitContentTo(fs::path path) noexcept override;
 
-  /// Commit all final versions of this artifact to the filesystem
-  virtual void commitAll(std::optional<fs::path> path = std::nullopt) noexcept override;
+  /// Does this artifact have any uncommitted content?
+  virtual bool hasUncommittedContent() noexcept override;
 
-  /// Commit the minimal set of versions required to ensure this artifact exists on the filesystem
-  virtual void commitMinimal(fs::path path) noexcept override;
+  /// Commit an entry to this directory
+  void commitEntry(fs::path entry) noexcept;
+
+  /// Commit all entries in this directory
+  void commitAll() noexcept;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
