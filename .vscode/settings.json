@@ -74,6 +74,7 @@
   },
   "C_Cpp.default.cppStandard": "c++17",
   "editor.formatOnSave": true,
+  "C_Cpp.clang_format_path": "/usr/bin/clang-format",
   "files.exclude": {
     "**.obj": true
   },
