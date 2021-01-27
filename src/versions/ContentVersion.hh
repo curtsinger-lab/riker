@@ -7,6 +7,7 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
+#include "versions/Version.hh"
 
 namespace fs = std::filesystem;
 
@@ -18,20 +19,8 @@ class Command;
 ///  Full: a hash of the content
 enum class FingerprintType { None, Quick, Full };
 
-class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
+class ContentVersion : public Version, public std::enable_shared_from_this<ContentVersion> {
  public:
-  ContentVersion() noexcept { stats::versions++; }
-
-  virtual ~ContentVersion() noexcept = default;
-
-  // Disallow Copy
-  ContentVersion(const ContentVersion&) = delete;
-  ContentVersion& operator=(const ContentVersion&) = delete;
-
-  // Allow Move
-  ContentVersion(ContentVersion&&) noexcept = default;
-  ContentVersion& operator=(ContentVersion&&) noexcept = default;
-
   /// Try to cast this version to one of its subtypes
   template <class T>
   std::shared_ptr<T> as() noexcept {
@@ -78,23 +67,6 @@ class ContentVersion : public std::enable_shared_from_this<ContentVersion> {
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept {
     // do nothing by default
-  }
-
-  /// Get the name for the type of version this is
-  virtual std::string getTypeName() const noexcept = 0;
-
-  /// Print this version
-  virtual std::ostream& print(std::ostream& o) const noexcept = 0;
-
-  /// Print a Version
-  friend std::ostream& operator<<(std::ostream& o, const ContentVersion& v) noexcept {
-    return v.print(o);
-  }
-
-  /// Print a Version*
-  friend std::ostream& operator<<(std::ostream& o, const ContentVersion* v) noexcept {
-    if (v == nullptr) return o << "<null ContentVersion>";
-    return v->print(o);
   }
 
  protected:

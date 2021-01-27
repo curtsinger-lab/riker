@@ -48,9 +48,9 @@ class BaseDirVersion : public DirVersion {
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override {
     if (_created) {
-      return "empty";
+      return "empty dir";
     } else {
-      return "on-disk";
+      return "on-disk dir";
     }
   }
 

@@ -316,13 +316,8 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
       }
 
       size_t index = 0;
-      for (const auto& v : a->getMetadataVersions()) {
-        cout << "    mv" << index << ": " << v << endl;
-        index++;
-      }
-      index = 0;
-      for (const auto& v : a->getContentVersions()) {
-        cout << "    cv" << index << ": " << v << endl;
+      for (const auto& v : a->getVersions()) {
+        cout << "    v" << index << ": " << v << endl;
         index++;
       }
       cout << endl;
