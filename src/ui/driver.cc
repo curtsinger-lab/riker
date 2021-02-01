@@ -96,12 +96,6 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
       }
     }
 
-    // If this is iteration 0, report the end of phase 1
-    if (iteration == 0) {
-      gather_stats(stats_log_path, stats, iteration);
-      reset_stats();
-    }
-
     // If we're done, commit all changes
     if (done) {
       LOGF(phase, "Committing environment changes from build phase {}", iteration);
@@ -111,10 +105,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     // The output becomes the next iteration's input
     input = std::move(output);
     iteration++;
-  }
 
-  gather_stats(stats_log_path, stats, iteration - 1);
-  reset_stats();
+    // Write stats out to CSV & reset counters
+    gather_stats(stats_log_path, stats, iteration - 1);
+    reset_stats();
+  }
 
   // If any commands had to rerun, run post-build checks and write out a new trace
   if (trace_changed) {

@@ -28,7 +28,6 @@ Look at the first column of the output again
   "2"
   "0"
   "1"
-  "2"
 
 Cleanup
   $ rm -rf myfile stats.csv .dodo
