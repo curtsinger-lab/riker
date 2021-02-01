@@ -764,10 +764,7 @@ def append_column(header: str, column: List[str], csv_header: str, csv_rows: Lis
 # runs the configured benchmark, returning a CSV data structure
 # (not a file) as output
 def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
-
-    d: str = "RUNNING BENCHMARK for tool '{}' and task '{}'\n".format(tool, task)
-    open('/home/dbarowy/Documents/Code/dodo/debug.txt', 'a+').write(d)
-
+    
     # run benchmark
     rc: int = conf.benchmark_exec(tool)
 
