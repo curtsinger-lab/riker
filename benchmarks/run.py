@@ -166,8 +166,6 @@ class Config:
             self.no_docker_make_runner = os.path.abspath(os.path.join(self.my_path, data["no_docker_make_runner"]))
         elif self.no_docker:
             raise Exception("Benchmark configuration in --no-docker mode must specify 'no_docker_make_runner'.")
-        # temporary output file for CSV in Docker
-        self.tmpfile: str = os.path.abspath(os.path.join(self.benchmark_root, data["tmp_csv"]))
         # location for CSV output of time data
         self.time_data_csv: str = os.path.abspath(os.path.join(self.benchmark_root, data["time_data_csv"]))
 
@@ -182,7 +180,6 @@ class Config:
                 "\tdodo path:\t\t\t{}\n"
                 "\tdodo exe:\t\t\t{}\n"
                 "\tmake exe:\t\t\t{}\n"
-                "\ttemporary csv:\t\t\t{}\n"
                 "\tdocker exe:\t\t\t{}\n"
                 "\timage version:\t\t\t{}\n"
                 "\tDockerfile:\t\t\t{}\n"
@@ -207,7 +204,6 @@ class Config:
                     self.dodo_path,
                     self.dodo_exe,
                     self.make_exe,
-                    self.tmpfile,
                     self.docker_exe,
                     self.image_version,
                     self.dockerfile,
@@ -485,7 +481,6 @@ class Config:
             "BENCHMARK_NAME": self.benchmark_name,
             "BENCHMARK_ROOT": self.benchmark_root,
             "TIME_CSV": self.time_data_csv,
-            "TMP_CSV": self.tmpfile,
             "DODO_EXE": self.dodo_exe
         }
 
@@ -532,8 +527,8 @@ class Config:
     # deletes the image too when rm_image is true
     # when ignore_failure is true, just keep chugging along even
     # if commands fail
-    def benchmark_remove(self, rm_image: bool, ignore_failure: bool = False) -> int:
-        if self.no_docker:
+    def benchmark_remove(self, no_docker: bool, rm_image: bool, ignore_failure: bool = False) -> int:
+        if no_docker:
             # we just remove the folder at no_docker_path
             return rmdir(self.benchmark_root, ignore_errors = ignore_failure)
         else:
@@ -737,7 +732,7 @@ def merge_csvs(file1: str, file2: str) -> CSV:
     (h2, rs2) = csv_read(file2)
     header = h1 + "," + h2
     assert len(rs1) == len(rs2)
-    rows = []
+    rows: List[str] = []
     for i, _ in enumerate(rs1):
         rows += [rs1[i] + "," + rs2[i]]
     return (header, rows)
@@ -766,10 +761,13 @@ def append_column(header: str, column: List[str], csv_header: str, csv_rows: Lis
         rows += [csv_rows[i] + ",\"" + column[i] + "\""]
     return h2, rows
 
-# runs the configured benchmark, and depending on whether
-# additional runs are required (e.g., rebuild), appends
-# a note to the outputted benchmark name in the CSV
+# runs the configured benchmark, returning a CSV data structure
+# (not a file) as output
 def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
+
+    d: str = "RUNNING BENCHMARK for tool '{}' and task '{}'\n".format(tool, task)
+    open('/home/dbarowy/Documents/Code/dodo/debug.txt', 'a+').write(d)
+
     # run benchmark
     rc: int = conf.benchmark_exec(tool)
 
@@ -778,41 +776,33 @@ def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
 
     # if there was no error, copy CSV data
     if rc == 0:
-        dodo_stats_tmpfile: str = conf.tmpfile
         dodo_time_tmpfile: str = conf.time_data_csv
 
         # if running outside Docker, stats are already in the right place
         if not conf.no_docker:
             # copy outputs to 'local' machine
-            dodo_stats_tmpfile = conf.copy_docker_file(conf.tmpfile)
             dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
-        # merge csvs and return as (header, rows)
-        header, rows = merge_csvs(dodo_stats_tmpfile, dodo_time_tmpfile)
+        # read csv and return as (header, rows)
+        header, rows = csv_read(dodo_time_tmpfile)
 
-    # grab docker stats
-    if conf.no_docker:
-        header, rows = append_column("block_in_bytes", [str(0)], header, rows)
-        header, rows = append_column("block_out_bytes", [str(0)], header, rows)
-    else:
-        ds: DockerStats = conf.docker_stats()
-        header, rows = append_column("block_in_bytes", [str(ds.input_bytes)], header, rows)
-        header, rows = append_column("block_out_bytes", [str(ds.output_bytes)], header, rows)
+    # get the number of rows
+    nrows: int = len(rows)
     
     # record the return code-- is nonzero in case of error
-    header, rows = prepend_column("return_code", [str(rc)], header, rows)
+    header, rows = prepend_column("return_code", [str(rc)] * nrows, header, rows)
 
     # build task
-    header, rows = prepend_column("build_task", [str(task)], header, rows)
+    header, rows = prepend_column("build_task", [str(task)] * nrows, header, rows)
 
     # add tool
-    header, rows = prepend_column("tool", [str(tool)], header, rows)
+    header, rows = prepend_column("tool", [str(tool)] * nrows, header, rows)
 
     # add benchmark name
-    header, rows = prepend_column("benchmark_name", [conf.benchmark_name], header, rows)
+    header, rows = prepend_column("benchmark_name", [conf.benchmark_name] * nrows, header, rows)
 
     # add docker mode
-    header, rows = prepend_column("docker_mode", ["TRUE" if not conf.no_docker else "FALSE"], header, rows)
+    header, rows = prepend_column("docker_mode", ["TRUE" if not conf.no_docker else "FALSE"] * nrows, header, rows)
 
     return header, rows
 
@@ -820,7 +810,7 @@ def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
 def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> None:
     # stop and delete container if something ran before
     if needs_cleanup:
-        rc: int = conf.benchmark_remove(rm_image = False, ignore_failure = False)
+        rc: int = conf.benchmark_remove(no_docker = conf.no_docker, rm_image = False, ignore_failure = False)
         if (rc != 0):
             print("Unable to reset docker configuration to run '{}' benchmark.".format(conf.benchmark_name))
             sys.exit(1)
@@ -833,7 +823,7 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
     if conf.container_is_dead():
         if not conf.no_docker:
             print("INFO: Docker container '{}' is dead.  Removing old container and restarting...".format(conf.docker_container_name()))
-        conf.benchmark_remove(False)
+        conf.benchmark_remove(no_docker = conf.no_docker, rm_image = False)
         conf.start_container()
     elif not conf.container_is_running():
         if not conf.no_docker:
@@ -851,23 +841,11 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
 
     # rebuild with dodo?
     if rebuild:
-        # remove tmp CSV-- this script is dumb and doesn't know how to handle
-        # CSVs with multiple rows; dodo will create a new file with one row
-        # of output (not counting the header)
-        if conf.no_docker:
-            rm_silently(conf.tmpfile)
-        else:
-            conf.docker_rm_file(conf.tmpfile, ignore_failure = True, recursive = False)
-
         # run benchmark and obtain CSV result
         header, rows = run_benchmark(conf, tool, Task.REBUILD_NO_CHANGES)
 
         # write out results
         csv_append(conf.output_csv, header, rows)
-
-        # cleanup again if running outside docker
-        if conf.no_docker:
-            rm_silently(conf.tmpfile)
 
 ## MAIN METHOD
 
@@ -885,8 +863,8 @@ for conf in c.configs:
 
         # if the user asked us to start with a clean slate, do so
         if conf.cleanup_before:
-            print("INFO: Pre-cleaning docker images...")
-            conf.benchmark_remove(True, True)
+            print("INFO: Pre-cleaning experiment setup...")
+            conf.benchmark_remove(no_docker = conf.no_docker, rm_image = True, ignore_failure = True)
 
         # initialize docker container, if necessary
         if not conf.image_is_initialized():
@@ -909,7 +887,7 @@ for conf in c.configs:
 
         # tear down docker containers & optionally delete image
         if conf.cleanup_after:
-            conf.benchmark_remove(True)
+            conf.benchmark_remove(no_docker = conf.no_docker, rm_image = True)
 
         # tell the user that we are finished
         print("INFO: DONE: " + conf.benchmark_name)

@@ -19,8 +19,7 @@ cd $BENCHMARK_NAME
 git apply Werror.patch
 
 # copy Dodofile
-cd ..
-cp ../benchmarks/calc/Dodofile 
+cp ../../benchmarks/calc/Dodofile .
 
 # go back
-cd ..
+cd ../..

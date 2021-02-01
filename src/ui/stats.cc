@@ -58,33 +58,6 @@ int stats_header(string& header) {
 }
 
 /**
- * Generate an empty row for stats CSV. This is to ensure that non-dodo
- * benchmarks output a CSV with the same format.
- */
-void write_empty_stats(optional<fs::path> p) {
-  if (p.has_value()) {
-    // create empty row data
-    string header;
-    int cols = stats_header(header);
-    string data[cols];
-    for (int i = 0; i < cols; i++) data[i] = q("0");
-    string row;
-    generate_row(data, cols, row);
-
-    if (!std::filesystem::exists(p.value())) {  // if the log doesn't exist, write a header
-      std::ofstream output(p.value());
-      output << header << endl << row << endl;
-      output.close();
-    } else {  // otherwise, append
-      std::ofstream output;
-      output.open(p.value(), std::ostream::out | std::ostream::app);
-      output << row << endl;
-      output.close();
-    }
-  }
-}
-
-/**
  * Write stats to CSV.
  */
 void write_stats(optional<fs::path> p, optional<string> stats) {

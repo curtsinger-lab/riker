@@ -51,12 +51,6 @@ inline static void reset_stats() noexcept {
 }
 
 /**
- * Generate an empty row for stats CSV. This is to ensure that non-dodo
- * benchmarks output a CSV with the same format.
- */
-void write_empty_stats(std::optional<fs::path> p);
-
-/**
  * Write stats to CSV.
  */
 void write_stats(std::optional<fs::path> p, std::optional<std::string> stats);

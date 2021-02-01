@@ -1,16 +1,15 @@
-#!/bin/sh -x
+#!/bin/sh
 
 cd $BENCHMARK_ROOT/$BENCHMARK_NAME
 
-# -f is:
-# e     elapsed wall clock time, in seconds
-# S     cpu-seconds of system time
-# U     cpu-seconds of user time
-# P     percent CPU time
-# t     average resident set size in kb
+# create file containing just the header, if necessary
+if [ ! -f "$TIME_CSV" ] ; then
+    echo '"phase", "emulated_commands", "traced_commands", "emulated_steps", "traced_steps","artifacts", "versions", "ptrace_stops", "syscalls", "elapsed_ns"' > $TIME_CSV
+fi
 
-# write empty dodo stats
-$DODO_EXE --stats $TMP_CSV --empty-stats
+# compute elapsed time in nanoseconds (only works on Linux)
+time_start=$(date +%s%N)
+./Dodofile
+time_end=$((($(date +%s%N) - $time_start)))
 
-echo "\"wall_s\",\"system_s\",\"user_s\",\"pct_cpu\",\"avg_rss\"" > $TIME_CSV
-/usr/bin/time -f"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\"" --output=$TIME_CSV --append ./Dodofile
+echo "0,0,0,0,0,0,0,0,0,${time_end}" >> $TIME_CSV

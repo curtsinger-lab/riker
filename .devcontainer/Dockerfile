@@ -25,6 +25,7 @@ RUN apt-get update \
     build-essential=12.8ubuntu1 \
     python3-cram=0.7-4 \
     python3-pip=20.0.2-5ubuntu1.1 \
+    mypy=0.761-1build1 \
     graphviz=2.42.2-3build2 \
     cmake=3.16.3-1ubuntu1 \
     texlive-latex-base=2019.20200218-1 \
@@ -56,6 +57,9 @@ RUN mkdir /code \
     && rm -f /usr/bin/lldb-mi \
     && mv src/lldb-mi /usr/bin/lldb-mi \
     && ln -s /usr/bin/lldb-server-10 /usr/bin/lldb-server-10.0.0
+
+# pretend to install Docker
+RUN touch /usr/bin/docker && chmod +x /usr/bin/docker
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
