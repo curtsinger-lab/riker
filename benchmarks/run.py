@@ -764,12 +764,12 @@ def append_column(header: str, column: List[str], csv_header: str, csv_rows: Lis
 # runs the configured benchmark, returning a CSV data structure
 # (not a file) as output
 def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
-    
+
     # run benchmark
     rc: int = conf.benchmark_exec(tool)
 
-    header: str     # we don't know what the header is yet
-    rows: List[str] # nor the rows
+    header: str = ""     # we don't know what the header is yet
+    rows: List[str] = [] # nor the rows
 
     # if there was no error, copy CSV data
     if rc == 0:
