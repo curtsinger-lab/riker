@@ -17,7 +17,14 @@ theme_flashrelate <-
     axis.title.x = element_text(size = 9, family='Times')
   )
 
+# read it in
+data <- read.csv("-riker-nightly-logs-2021-02-01_19-00-output.csv")
 
+# convert selected columns to factors
+data$benchmark_name <- as.factor(data$benchmark_name)
+data$tool <- as.factor(data$tool)
+data$build_task <- as.factor(data$build_task)
+data$return_code <- as.factor(data$return_code)
 
 #tplot <- ggplot(time_df, aes(x = pct_completed, y = seconds, linetype = configuration)) + 
 #  labs(x = "% Benchmarks Synthesized <= Y Total Seconds", y = "# of Seconds", title = "Total Benchmark Synthesis Times") +
