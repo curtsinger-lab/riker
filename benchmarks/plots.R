@@ -1,7 +1,8 @@
-library(ggthemes)
-library(tidyverse)
-library(lemon)
-library(scales)
+#!/usr/bin/env Rscript
+suppressMessages(library(ggthemes))
+suppressMessages(library(tidyverse))
+suppressMessages(library(lemon))
+suppressMessages(library(scales))
 
 theme_flashrelate <-
   theme_few() +
@@ -17,9 +18,19 @@ theme_flashrelate <-
     axis.title.y = element_text(size = 9, family='Times'),
     axis.title.x = element_text(size = 9, family='Times')
   )
+# get the current working directory
+OUTPUT_DIR = getwd();
+
+# read in command-line arguments
+args = commandArgs(trailingOnly=TRUE)
+if (length(args) < 1) {
+   cat("Usage: ./plots.R <input CSV>")
+   cat("  This program will read in <input CSV> and generate a set of PDF plots in the current directory.")
+   quit(status=1)
+}
 
 # read data in
-data <- read.csv("/Users/dbarowy/Documents/Code/dodo/benchmarks/-riker-nightly-logs-2021-02-02_19-00-output.csv")
+data <- read.csv(args[1])
 
 # convert selected columns to factors
 data$benchmark_name <- as.factor(data$benchmark_name)
@@ -59,7 +70,7 @@ pt1 <- ggplot(data_combined_no_docker, aes(x = benchmark, y = elapsed_ms)) +
   theme(plot.title = element_text(hjust = 0.5)) + # center title
   scale_y_continuous(labels = comma) # don't use scientific notation
 pt1
-ggsave(pt1, filename='/Users/dbarowy/Documents/Code/dodo/benchmarks/phase_time_no-docker.pdf', width=11, height=8.5)
+ggsave(pt1, filename=paste(OUTPUT_DIR, 'phase_time_no-docker.pdf', sep="/"), width=11, height=8.5, device=pdf)
 
 # plot stacked bar for phase time (docker)
 pt2 <- ggplot(data_combined_docker, aes(x = benchmark, y = elapsed_ms)) +
@@ -73,5 +84,5 @@ pt2 <- ggplot(data_combined_docker, aes(x = benchmark, y = elapsed_ms)) +
   theme(plot.title = element_text(hjust = 0.5)) + # center title
   scale_y_continuous(labels = comma) # don't use scientific notation
 pt2
-ggsave(pt2, filename='/Users/dbarowy/Documents/Code/dodo/benchmarks/phase_time_docker.pdf', width=11, height=8.5)
+ggsave(pt2, filename=paste(OUTPUT_DIR, 'phase_time_docker.pdf', sep="/"), width=11, height=8.5, device=pdf)
 
