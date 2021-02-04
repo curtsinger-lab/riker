@@ -301,6 +301,57 @@ bool FileVersion::stage(fs::path path) noexcept {
   return true;
 }
 
+void fast_copy(fs::path src, fs::path dest) noexcept {
+  // Get the length of the src file
+  loff_t len = fileLength(src);
+  FAIL_IF(len == -1) << "Failed to stat " << src << " for fast copy.";
+
+  // Open source and destination fds
+  int src_fd = ::open(src.c_str(), O_RDONLY);
+  FAIL_IF(src_fd == -1) << "Unable to open file " << src << " for caching: " << ERR;
+  int dst_fd = ::open(dest.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
+  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << dest << " for file " << src
+                        << ": " << ERR;
+
+  // copy file to cache using non-POSIX fast copy
+  loff_t bytes_cp;
+  bool use_fallback_copy = false;
+  do {
+    bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
+
+    // Did the copy fail?
+    if (bytes_cp == -1) {
+      // Yes. Was it because we're copying across devices?
+      if (errno == EXDEV) {
+        use_fallback_copy = true;
+        break;
+      } else {
+        FAIL << "Could not copy file " << src << " to cache location '" << dest << ": " << ERR;
+      }
+    }
+
+    len -= bytes_cp;
+  } while (len > 0 && bytes_cp > 0);
+
+  // Do we need to use a fallback copy?
+  if (use_fallback_copy) {
+    // Seek both files back to the beginning
+    ::lseek(src_fd, 0, SEEK_SET);
+    ::lseek(dst_fd, 0, SEEK_SET);
+
+    // Copy chunks
+    char buf[128];
+    int bytes_read;
+    while ((bytes_read = ::read(src_fd, buf, 128)) != 0) {
+      int rc = ::write(dst_fd, buf, bytes_read);
+      FAIL_IF(rc != bytes_read) << "Write failed during copy: " << ERR;
+    }
+  }
+
+  close(src_fd);
+  close(dst_fd);
+}
+
 void FileVersion::cache(fs::path path) noexcept {
   // Don't cache if already cached
   if (_cached) {
@@ -334,10 +385,6 @@ void FileVersion::cache(fs::path path) noexcept {
   fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
   fs::path hash_dir = hash_file.parent_path();
 
-  // Get the length of the input file
-  loff_t len = fileLength(path);
-  FAIL_IF(len == -1) << "Failed to stat " << path << " during cache operation.";
-
   // Is the cache file already in the current cache?  If so, we're done.
   if (fileExists(hash_file)) {
     _cached = true;
@@ -349,27 +396,10 @@ void FileVersion::cache(fs::path path) noexcept {
   // Create the directories, if needed
   fs::create_directories(hash_dir);
 
-  // Open source and destination fds
-  int src_fd = ::open(path.c_str(), O_RDONLY);
-  FAIL_IF(src_fd == -1) << "Unable to open file " << path << " for caching: " << ERR;
-  int dst_fd = ::open(hash_file.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
-  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << hash_file << " for file " << path
-                        << ": " << ERR;
-
-  // copy file to cache using non-POSIX fast copy
-  loff_t bytes_cp;
-  do {
-    bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
-    FAIL_IF(bytes_cp == -1) << "Could not copy file " << path << " to cache location '" << hash_file
-                            << ": " << ERR;
-
-    len -= bytes_cp;
-  } while (len > 0 && bytes_cp > 0);
+  // Copy the file, fast hopefully
+  fast_copy(path, hash_file);
 
   LOG(artifact) << "Cached file version at path " << path << " in " << hash_file;
-
-  close(src_fd);
-  close(dst_fd);
 
   _cached = true;
 }
