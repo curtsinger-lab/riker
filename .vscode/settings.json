@@ -82,4 +82,5 @@
     100
   ],
   "git.ignoreLimitWarning": true,
+  "python.formatting.provider": "black",
 }
