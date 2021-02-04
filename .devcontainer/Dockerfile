@@ -31,6 +31,7 @@ RUN apt-get update \
     texlive-latex-base=2019.20200218-1 \
     lsb-release=11.1.0ubuntu2 \
     wget=1.20.3-1ubuntu1 \
+    m4=1.4.18-4 \
     #
     # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
     && groupadd --gid $USER_GID $USERNAME \
