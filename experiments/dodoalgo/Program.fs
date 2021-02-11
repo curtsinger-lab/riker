@@ -46,8 +46,8 @@ let PrintEdge(e: Edge) : string =
 
 let DemoGraph =
     (* nodes *)
-    let dodofile = File("Rikerfile", 0)
-    let dodocmd = Program("Rikerfile", 0)
+    let rikerfile = File("Rikerfile", 0)
+    let rikercmd = Program("Rikerfile", 0)
     let gccfile = File("gcc", 0)
     let gcccmd = Program("gcc", 1)
     let cc1file = File("cc1", 0)
@@ -66,8 +66,8 @@ let DemoGraph =
     let hello = File("hello", 0)
 
     (* edges *)
-    let e1  = Input(dodofile,dodocmd)
-    let e2  = Action(dodocmd, gcccmd)
+    let e1  = Input(rikerfile,rikercmd)
+    let e2  = Action(rikercmd, gcccmd)
     let e3  = Action(gcccmd, cc1cmd)
     let e4  = Action(gcccmd, ascmd)
     let e5  = Action(gcccmd, collect2cmd)

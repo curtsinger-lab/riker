@@ -1,17 +1,17 @@
-# How to make dodo tell you things
+# How to make riker tell you things
 
 ## Rebuilding with output
 
 To run a rebuild that prints each command as it is run:
 
 ```
-$ dodo build --show
+$ rkr build --show
 ```
 
 The following invocation has no subcommand, so it uses the `build` subcommand by default. Therefore, it is the same as the previous command:
 
 ```
-$ dodo build --show
+$ rkr build --show
 ```
 
 ## Changed commands
@@ -19,25 +19,13 @@ $ dodo build --show
 To plan a rebuild and print all commands that would run:
 
 ```
-$ dodo check
+$ rkr check
 ```
 
-To see the above, plus warnings (potential dodo runtime failues), run:
+To see the above, plus warnings (potential rkr runtime failues), run:
 
 ```
-$ dodo check -v
-```
-
-To see the above, plus info (dependence edges), run:
-
-```
-$ dodo check -vv
-```
-
-To see the above, plus logs (changes), run:
-
-```
-$ dodo check -vvv
+$ rkr check --log=all
 ```
 
 ## Last trace
@@ -45,5 +33,5 @@ $ dodo check -vvv
 To print the last trace, run:
 
 ```
-$ dodo trace
+$ rkr trace
 ```
