@@ -322,7 +322,7 @@ static bool stderr_supports_colors() noexcept {
 }
 
 /**
- * This is the entry point for the dodo command line tool
+ * This is the entry point for the rkr command line tool
  */
 int main(int argc, char* argv[]) noexcept {
   // Set color output based on TERM setting (can be overridden with command line option)

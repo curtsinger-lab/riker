@@ -10,7 +10,7 @@ Setup
   $ rm -rf .rkr a_dir Rikerfile
   $ cp Rikerfile-2 Rikerfile
 
-Run dodo
+Run riker
   $ $RKR --show
   rkr-launch
   Rikerfile

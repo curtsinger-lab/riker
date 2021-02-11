@@ -9,7 +9,7 @@
 using namespace std;
 
 int main() {
-  // we want to make sure that dodo has actually seen the symlink
+  // we want to make sure that riker has actually seen the symlink
   int rv = symlink("a_file", "a_symlink");
   int fd = openat(AT_FDCWD, "a_symlink", O_NOFOLLOW);
 

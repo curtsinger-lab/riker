@@ -1,16 +1,17 @@
 {
-  "name": "Dodo Development",
+  "name": "Riker Development",
   "dockerFile": "Dockerfile",
   "runArgs": [
     "--hostname=dev",
     "--cap-add=SYS_PTRACE",
-    "--security-opt", "seccomp=unconfined"
+    "--security-opt",
+    "seccomp=unconfined"
   ],
-  "settings": { 
-		"terminal.integrated.shell.linux": "/bin/bash"
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
   },
   "extensions": [
-		"ms-vscode.cpptools"
+    "ms-vscode.cpptools"
   ],
   // Comment out the line below to run as root
   "remoteUser": "vscode",

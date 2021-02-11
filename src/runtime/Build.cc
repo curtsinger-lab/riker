@@ -116,11 +116,10 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
     ref->getArtifact()->setName(".");
 
   } else if (entity == SpecialRef::launch_exe) {
-    auto dodo = readlink("/proc/self/exe");
-    auto dodo_launch = (dodo.parent_path() / "rkr-launch").relative_path();
+    auto rkr = readlink("/proc/self/exe");
+    auto rkr_launch = (rkr.parent_path() / "rkr-launch").relative_path();
 
-    auto ref =
-        make_shared<Ref>(env::getRootDir()->resolve(c, dodo_launch, ReadAccess + ExecAccess));
+    auto ref = make_shared<Ref>(env::getRootDir()->resolve(c, rkr_launch, ReadAccess + ExecAccess));
     c->setRef(output, ref);
 
   } else {

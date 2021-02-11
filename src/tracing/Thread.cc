@@ -489,7 +489,7 @@ void Thread::_faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags
 
     if (rc == 0) {
       if (!getCommand()->getRef(ref)->isResolved()) WARN << "Failed to resolve reference " << ref;
-      // Don't abort here because the dodo self-build accesses /proc/self.
+      // Don't abort here because the riker self-build accesses /proc/self.
       // We need to fix these references for real at some point.
     }
   });

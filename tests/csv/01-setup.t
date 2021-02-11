@@ -4,7 +4,7 @@ Move to test directory
 Cleanup
   $ rm -rf myfile stats.csv .rkr
 
-Run dodo
+Run riker
   $ $RKR --show --stats stats.csv
   rkr-launch
   Rikerfile

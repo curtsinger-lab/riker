@@ -1,6 +1,6 @@
 This test contains a program that conditionally acts on the presence
 or absence of a file.  If the file is not present, it creates it. On
-rebuild, dodo should replay whatever action it did in the last build.
+rebuild, riker should replay whatever action it did in the last build.
 
 In this test, the final file should contain 'hello\nworld'.
 

@@ -7,7 +7,7 @@ Prepare for a clean run
   $ rm -rf .rkr core abort
   $ clang -g -o abort abort.c
 
-Run the abort program; dodo should eventually print 'core exists' and not die beforehand
+Run the abort program; riker should eventually print 'core exists' and not die beforehand
   $ $RKR --show
   rkr-launch
   Rikerfile

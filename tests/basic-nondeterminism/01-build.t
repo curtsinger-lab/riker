@@ -1,5 +1,5 @@
 The `date` command takes no inputs and is nondeterministic.
-Therefore, if `dodo` already has an output, it should only ever
+Therefore, if `rkr` already has an output, it should only ever
 launch the command once, since all outputs are weakly equivalent.
 
 Move to test directory

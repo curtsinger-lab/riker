@@ -9,7 +9,7 @@
             "targetArchitecture": "x86_64",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/dodo",
+            "program": "${workspaceFolder}/rkr",
             "args": [
                 "--stats=stats.csv"
             ],
@@ -37,7 +37,7 @@
         //     "targetArchitecture": "x86_64",
         //     "type": "cppdbg",
         //     "request": "launch",
-        //     "program": "${workspaceFolder}/dodo",
+        //     "program": "${workspaceFolder}/rkr",
         //     "args": [
         //         "--debug"
         //     ],

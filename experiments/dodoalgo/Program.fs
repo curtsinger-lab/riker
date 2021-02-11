@@ -99,7 +99,7 @@ let ToDOT(g: Graph) : unit =
 let run(c: Command) =
     failwith "hmm"
 
-let Dodo(g: Graph) : unit =
+let Riker(g: Graph) : unit =
     let start = Program("Rikerfile", 0)
     let cmdQ = new Queue<Command>()
     let iStk = new Stack<Artifact>()
@@ -121,6 +121,6 @@ let Dodo(g: Graph) : unit =
 [<EntryPoint>]
 let main argv =
     let d = DemoGraph
-    Dodo d
+    Riker d
     ToDOT d
     0 // return an integer exit code

@@ -36,7 +36,7 @@ shared_ptr<MetadataVersion> MetadataVersion::chmod(mode_t mode) noexcept {
 }
 
 bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept {
-  // TODO: Currently checking against the dodo process's effective user and group(s). This check
+  // TODO: Currently checking against the rkr process' effective user and group(s). This check
   // should instead use the user and group(s) of the emulated process/command. Such attributes
   // should probably be stored within the reference.
 

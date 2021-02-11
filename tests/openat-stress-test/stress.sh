@@ -1,7 +1,7 @@
 #!/bin/sh -x
 
 COMBOS=131072
-RKR=../../../dodo
+RKR=../../../rkr
 LOGDIR=logs-`date +"%Y-%m-%d"`
 
 # ensure that initial directory is clean
@@ -13,7 +13,7 @@ mkdir -p $LOGDIR
 # build stress binary
 clang -Wall stress.c -o stress
 
-# hammer dodo
+# hammer rkr
 for i in `seq 0 $COMBOS`;
 do
     echo "FILE-DOESN'T-EXIST TEST: $i"

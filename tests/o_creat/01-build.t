@@ -8,7 +8,7 @@ Setup
   $ clang++ -o Rikerfile o_creat.cc
   $ echo "first" > input
 
-Run dodo
+Run riker
   $ $RKR --show
   rkr-launch
   Rikerfile

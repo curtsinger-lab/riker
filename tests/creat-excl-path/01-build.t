@@ -1,6 +1,6 @@
-This test checks to see if dodo does the right thing with an openat
+This test checks to see if riker does the right thing with an openat
 call with the O_CREAT|O_EXCL|O_PATH flags set. Because the file already
-exists, dodo should predict EEXIST and not crash.
+exists, riker should predict EEXIST and not crash.
 
 Move to test directory
   $ cd $TESTDIR
