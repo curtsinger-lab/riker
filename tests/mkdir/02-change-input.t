@@ -4,12 +4,12 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run. Create an empty output file for now, so rebuilding works
-  $ rm -rf .dodo output
+  $ rm -rf .rkr output
   $ echo "Hello" > input
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   mkdir foo
   cat input
@@ -24,7 +24,7 @@ Change the input file
   $ echo "Goodbye" > input
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   cat input
 
 Check the output
@@ -32,13 +32,13 @@ Check the output
   Goodbye
 
 Run an additional rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat output
   Goodbye
 
 Clean up
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo
   $ rm output
   $ echo Hello > input

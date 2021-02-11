@@ -33,23 +33,23 @@ BLAKE_SRCS := $(BLAKE3)/blake3.c \
 						 	$(BLAKE3)/blake3_avx512.c
 BLAKE_OBJS := $(patsubst $(BLAKE3)/%.c, .obj/blake3/%.o, $(BLAKE_SRCS))
 
-all: dodo dodo-launch
+all: rkr rkr-launch
 
 clean:
-	rm -rf dodo dodo-launch .obj .dodo
+	rm -rf rkr rkr-launch .obj .rkr
 
 .PHONY: all clean test selftest
 
 .SUFFIXES:
 
-dodo: $(OBJS) $(BLAKE_OBJS)
+rkr: $(OBJS) $(BLAKE_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
 $(OBJS): .obj/%.o: src/%.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) $< -c -o $@
 
-dodo-launch: launch/launch.c Makefile
+rkr-launch: launch/launch.c Makefile
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
@@ -61,12 +61,12 @@ $(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
 .obj/blake3/blake3_avx2.o:: CFLAGS += -mavx2
 .obj/blake3/blake3_avx512.o:: CFLAGS += -mavx512f -mavx512vl
 
-test: dodo dodo-launch
+test: rkr rkr-launch
 	@./runtests.py
 
-selftest: dodo
+selftest: rkr
 	@echo "Running self test"
-	@rm -f .dodo
-	./dodo
+	@rm -f .rkr
+	./rkr
 
 -include $(DEPS)

@@ -2,12 +2,12 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo output
+  $ rm -rf .rkr output
   $ cp input1 input
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ((sort)|(uniq)) (re)
   ((sort)|(uniq)) (re)
@@ -19,7 +19,7 @@ Check the output
   c
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat output
@@ -28,4 +28,4 @@ Check the output again
   c
 
 Clean up
-  $ rm -rf .dodo output
+  $ rm -rf .rkr output

@@ -4,11 +4,11 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo f
+  $ rm -rf .rkr f
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   touch f
 
@@ -16,10 +16,10 @@ Check the output
   $ cat f
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output
   $ cat f 
 
 Clean up
-  $ rm -rf .dodo f
+  $ rm -rf .rkr f

@@ -6,13 +6,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo stress file core
+  $ rm -rf .rkr stress file core
   $ clang stress.c -o stress
   $ touch file
 
 Run a build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   sh Rikerfile
   ./stress 8328
   O_CREAT|O_EXCL|O_PATH (2097344)
@@ -29,4 +29,4 @@ Does 'file' exist?
    Birth:.* (re)
 
 Clean up
-  $ rm -rf .dodo stress file core
+  $ rm -rf .rkr stress file core

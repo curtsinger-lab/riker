@@ -2,13 +2,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f main.aux main.log main.pdf
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   pdflatex main.tex
   pdflatex main.tex
@@ -21,11 +21,11 @@ Copy in a version with edited text (no reference changes)
   $ cp main-edited-ref.tex main.tex
 
 Run a rebuild. Both pdflatexs must run because references changed.
-  $ $DODO --show
+  $ $RKR --show
   pdflatex main.tex
   pdflatex main.tex
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f main.aux main.log main.pdf
   $ cp main-original.tex main.tex

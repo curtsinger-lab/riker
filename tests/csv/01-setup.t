@@ -2,11 +2,11 @@ Move to test directory
   $ cd $TESTDIR
 
 Cleanup
-  $ rm -rf myfile stats.csv .dodo
+  $ rm -rf myfile stats.csv .rkr
 
 Run dodo
-  $ $DODO --show --stats stats.csv
-  dodo-launch
+  $ $RKR --show --stats stats.csv
+  rkr-launch
   Rikerfile
   touch myfile
 
@@ -18,7 +18,7 @@ Look at the first column of the output
   "2"
 
 Run a rebuild
-  $ $DODO --show --stats stats.csv
+  $ $RKR --show --stats stats.csv
 
 Look at the first column of the output again
   $ awk -F "," '{ print $1 }' stats.csv
@@ -30,4 +30,4 @@ Look at the first column of the output again
   "1"
 
 Cleanup
-  $ rm -rf myfile stats.csv .dodo
+  $ rm -rf myfile stats.csv .rkr

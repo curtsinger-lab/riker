@@ -140,7 +140,7 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
 
     for (auto& entry : fs::directory_iterator(path.value())) {
       auto name = entry.path().stem();
-      if (name != ".dodo") {
+      if (name != ".rkr") {
         result->addEntry(entry.path().stem());
       }
     }

@@ -2,15 +2,15 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output A B
 
 Set up the inptu file
   $ echo "Hello" > input
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ln -s input A
   ln -s output B
@@ -26,7 +26,7 @@ Now change input
   $ echo "Goodbye" > input
 
 Run a rebuild, which only needs to rerun cat
-  $ $DODO --show
+  $ $RKR --show
   cat A
 
 Check the output
@@ -43,6 +43,6 @@ Make sure the A and B links do not exist
   [1]
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output A B
   $ echo "Hello" > input

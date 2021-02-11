@@ -47,7 +47,7 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
   handler.usingRef(null_cmd, Ref::Exe);
 
   // Create a root command
-  auto cmd_args = vector<string>{"dodo-launch"};
+  auto cmd_args = vector<string>{"rkr-launch"};
   cmd_args.insert(cmd_args.end(), _args.begin(), _args.end());
   auto root_cmd = make_shared<Command>(cmd_args);
 

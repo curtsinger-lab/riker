@@ -4,13 +4,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile
   $ echo -n "hello" > inputA
   $ echo " world" > inputB
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./A
   cat inputA
@@ -22,11 +22,11 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output
   $ cat myfile
   hello world
 
 Clean up
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile

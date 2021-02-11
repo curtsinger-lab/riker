@@ -4,12 +4,12 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a the build
-  $ rm -rf .dodo output Rikerfile
+  $ rm -rf .rkr output Rikerfile
   $ gcc -o Rikerfile c-Rikerfile.c
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
 
 Check the output
@@ -17,14 +17,14 @@ Check the output
   Hello from C
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Now make the build file unreadable as well
   $ chmod a-rx Rikerfile
 
 Run a build, which should fail
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Unable to launch build file Rikerfile.
     Write build steps in a file named `Rikerfile`.
     This file must be either directly executable, or runnable with `/bin/sh`.
@@ -33,8 +33,8 @@ Make the Rikerfile readable and executable again
   $ chmod u+rx Rikerfile
 
 Run a build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
 
 Check the output
@@ -42,7 +42,7 @@ Check the output
   Hello from C
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo output Rikerfile
+  $ rm -rf .rkr output Rikerfile

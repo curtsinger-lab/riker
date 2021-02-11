@@ -2,15 +2,15 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output A B
 
 Set up the inptu file
   $ echo "Hello" > input
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ln -s input A
   ln -s output B
@@ -23,12 +23,12 @@ Make sure the output is in place
   Hello
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat output
   Hello
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output A B

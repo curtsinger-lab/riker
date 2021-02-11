@@ -4,14 +4,14 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo
   $ mkdir foo
   $ touch foo/a
   $ touch foo/b
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   rm foo/a
   rm foo/b
@@ -24,7 +24,7 @@ Recreate the input, but add an extra file
   $ touch foo/c
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   rmdir foo
   rmdir: failed to remove 'foo': Directory not empty
   (warning) [Command Rikerfile] should rerun because child [Command rmdir foo] changed exit status.
@@ -35,4 +35,4 @@ The foo directory should be left over
   $ rmdir foo
 
 Clean up
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo

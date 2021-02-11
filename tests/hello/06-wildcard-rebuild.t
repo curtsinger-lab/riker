@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo hello foo
+  $ rm -rf .rkr hello foo
 
 Copy in the basic Rikerfile and make sure it's executable
   $ cp wildcard-Rikerfile Rikerfile
@@ -14,8 +14,8 @@ Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)
@@ -31,7 +31,7 @@ Modify the one source file
   $ cp file_versions/hello-modified.c hello.c
 
 Run a rebuild, which should rerun cc1, as, and ld
-  $ $DODO --show
+  $ $RKR --show
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
   [^ ]*ld .* (re)
@@ -41,14 +41,14 @@ Make sure the hello executable is updated
   Goodbye world
 
 Run an additional rebuild, which should now do no work
-  $ $DODO --show
+  $ $RKR --show
 
 Add a file to the directory, which should trigger a rebuild
 TODO: Once command skipping is implemented, this should just rerun Rikerfile
   $ touch foo
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   Rikerfile
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)
@@ -57,5 +57,5 @@ Run a rebuild
   [^ ]*ld .* (re)
 
 Clean up
-  $ rm -rf .dodo hello Rikerfile foo
+  $ rm -rf .rkr hello Rikerfile foo
   $ cp file_versions/hello-original.c hello.c

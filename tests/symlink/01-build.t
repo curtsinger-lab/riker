@@ -2,7 +2,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f dir1/output dir2/output
 
 Setup
@@ -13,8 +13,8 @@ Make sure link is a symlink to dir1
   $ ln -s dir1 link
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   cat input1
   cat input2
@@ -26,7 +26,7 @@ Check the state of dir1/output
   Appended to dir1/output
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat dir1/output
@@ -34,4 +34,4 @@ Check the output again
   Appended to dir1/output
 
 Clean up
-  $ rm -rf .dodo dir1 dir2
+  $ rm -rf .rkr dir1 dir2

@@ -2,8 +2,8 @@ Move to test directory
   $ cd $TESTDIR
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./A
   cat inputA
@@ -11,7 +11,7 @@ Run the build
   cat inputB
 
 Verify the output is correct
-  $ $DODO stats
+  $ $RKR stats
   Build Statistics: (re)
     Commands: [0-9]+ (re)
     Steps: [0-9]+ (re)
@@ -19,7 +19,7 @@ Verify the output is correct
     Artifact Versions: [0-9]+ (re)
 
 Verify the -a output is correct
-  $ $DODO stats -a | head -n 8
+  $ $RKR stats -a | head -n 8
   Build Statistics:
     Commands: [0-9]+ (re)
     Steps: [0-9]+ (re)

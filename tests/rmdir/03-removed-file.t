@@ -4,14 +4,14 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo
   $ mkdir foo
   $ touch foo/a
   $ touch foo/b
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   rm foo/a
   rm foo/b
@@ -22,7 +22,7 @@ Recreate the input, but leave out the b file
   $ touch foo/a
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   rm foo/b
   rm: cannot remove 'foo/b': No such file or directory
   (warning) [Command Rikerfile] should rerun because child [Command rm foo/b] changed exit status.
@@ -34,4 +34,4 @@ Make sure the foo directory does not exist
   [1]
 
 Clean up
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo

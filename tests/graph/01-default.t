@@ -2,17 +2,17 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any previous build
-  $ rm -rf .dodo output out.png
+  $ rm -rf .rkr output out.png
 
 Run a build
-  $ $DODO
+  $ $RKR
 
 Generate graph output
-  $ $DODO graph
+  $ $RKR graph
 
 Check for the rendered build graph
   $ file out.png
   out.png: PNG image .* (re)
 
 Clean up
-  $ rm -rf .dodo output out.png
+  $ rm -rf .rkr output out.png

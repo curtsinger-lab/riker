@@ -5,11 +5,11 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo *.num
+  $ rm -rf .rkr *.num
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
   ((ls -1)|(grep \.num)|(wc -l)) (re)
@@ -20,7 +20,7 @@ Now create an additional file, which changes an input to the build
   $ touch 1.num
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
   ((ls -1)|(grep \.num)|(wc -l)) (re)
@@ -28,7 +28,7 @@ Run a rebuild
   touch 2.num
 
 Run an additional rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo *.num
+  $ rm -rf .rkr *.num

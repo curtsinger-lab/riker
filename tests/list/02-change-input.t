@@ -4,13 +4,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo output *.txt
+  $ rm -rf .rkr output *.txt
   $ echo hello > hello.txt
   $ echo world > world.txt
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   cat hello.txt world.txt
 
@@ -23,7 +23,7 @@ Now change an input file
   $ echo goodbye > hello.txt
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   cat hello.txt world.txt
 
 Check the output
@@ -32,7 +32,7 @@ Check the output
   world
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat output
@@ -40,4 +40,4 @@ Check the output again
   world
 
 Clean up
-  $ rm -rf .dodo output *.txt
+  $ rm -rf .rkr output *.txt

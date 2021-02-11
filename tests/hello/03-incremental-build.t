@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo hello
+  $ rm -rf .rkr hello
 
 Copy in the basic Rikerfile and make sure it's executable
   $ cp incremental-Rikerfile Rikerfile
@@ -14,8 +14,8 @@ Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   gcc -c -o hello.o hello.c
   [^ ]*cc1 .* (re)
@@ -29,11 +29,11 @@ Run the hello executable
   Hello world
 
 Run a rebuild, which should do nothing.
-  $ $DODO --show
+  $ $RKR --show
 
 Make sure the hello executable still works
   $ ./hello
   Hello world
 
 Clean up
-  $ rm -rf .dodo hello.o hello Rikerfile
+  $ rm -rf .rkr hello.o hello Rikerfile

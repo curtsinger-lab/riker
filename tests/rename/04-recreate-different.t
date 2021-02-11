@@ -5,7 +5,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo file1 file2 test
+  $ rm -rf .rkr file1 file2 test
 
 Build the test program
   $ clang -o test test.c
@@ -14,8 +14,8 @@ Create file1 and file2
   $ touch file1 file2
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   sh Rikerfile
   ./test
   rename("file1", "file1") failed
@@ -25,7 +25,7 @@ Recreate file1 and file2
   $ touch file1 file2
 
 Run another build
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo file1 file2 test
+  $ rm -rf .rkr file1 file2 test

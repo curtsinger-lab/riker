@@ -111,8 +111,8 @@ namespace env {
 
   fs::path getTempPath() noexcept {
     // Make sure the temporary directory exsits
-    fs::path tmpdir = ".dodo/tmp";
-    fs::create_directories(".dodo/tmp");
+    fs::path tmpdir = ".rkr/tmp";
+    fs::create_directories(".rkr/tmp");
 
     // Create a unique temporary path
     fs::path result;

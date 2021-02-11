@@ -7,7 +7,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output1 output2
 
 Make sure link is a symlink to "HELLO"
@@ -15,8 +15,8 @@ Make sure link is a symlink to "HELLO"
   $ ln -s HELLO link
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   readlink link
   cat link
@@ -28,7 +28,7 @@ Check the output
   $ cat output2
 
 Run a rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat output1
@@ -36,5 +36,5 @@ Check the output again
   $ cat output2
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output1 output2

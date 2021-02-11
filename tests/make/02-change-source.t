@@ -2,14 +2,14 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo hello
+  $ rm -rf .rkr hello
 
 Copy in the original version of hello.c
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   make --always-make --quiet
   gcc -o hello hello.c
   cc1 * (glob)
@@ -25,7 +25,7 @@ Edit the hello.c file
   $ cp file_versions/hello-modified.c hello.c
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   cc1 * (glob)
   as * (glob)
   ld * (glob)
@@ -35,7 +35,7 @@ Make sure the build worked
   Goodbye world
 
 Run another rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Make sure the output is still there
   $ ./hello
@@ -43,5 +43,5 @@ Make sure the output is still there
 
 Clean up
   $ cp file_versions/hello-original.c hello.c
-  $ rm -rf .dodo hello
+  $ rm -rf .rkr hello
 

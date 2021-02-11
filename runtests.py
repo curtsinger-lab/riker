@@ -16,7 +16,7 @@ longest = max(map(len, testdirs))
 
 # Set up an environment map to run the tests
 testenv = os.environ.copy()
-testenv['DODO'] = os.path.join('..', '..', 'dodo')
+testenv['RKR'] = os.path.join('..', '..', 'rkr')
 
 if 'MAKEFLAGS' in testenv:
   del testenv['MAKEFLAGS']

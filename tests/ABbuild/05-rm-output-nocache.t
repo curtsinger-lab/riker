@@ -4,13 +4,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile
   $ echo -n "hello" > inputA
   $ echo " world" > inputB
 
 Run the first build
-  $ $DODO --show --no-caching
-  dodo-launch
+  $ $RKR --show --no-caching
+  rkr-launch
   Rikerfile
   ./A
   cat inputA
@@ -22,7 +22,7 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $DODO --show --no-caching
+  $ $RKR --show --no-caching
 
 Check the output
   $ cat myfile
@@ -32,7 +32,7 @@ Remove the output file
   $ rm myfile
 
 Run a rebuild, which should do nothing except restore the file from the cache
-  $ $DODO --show --no-caching
+  $ $RKR --show --no-caching
   cat inputA
   cat inputB
 
@@ -41,4 +41,4 @@ The output file should be back (from the cache)
   hello world
 
 Clean up
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile

@@ -6,17 +6,17 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo A
+  $ rm -rf .rkr A
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   sh Rikerfile
   date
 
 Run the build again (nothing should happen)
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm A

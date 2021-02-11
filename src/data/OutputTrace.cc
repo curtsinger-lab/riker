@@ -202,7 +202,7 @@ void OutputTrace::finish() noexcept {
   // We overwrite OldCacheDir with CacheDir
   std::error_code err;
 
-  // only collect if both .dodo/cache and a .dodo/newcache exist
+  // only collect if both .rkr/cache and a .rkr/newcache exist
   if (fileExists(constants::CacheDir) && fileExists(constants::NewCacheDir)) {
     // Sadly, std::filesystem::rename fails if the destination is nonempty; remove it first
     // It's OK if the path does not exist-- it won't exist on the initial build.

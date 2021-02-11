@@ -4,14 +4,14 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo
   $ mkdir foo
   $ touch foo/a
   $ touch foo/b
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   rm foo/a
   rm foo/b
@@ -23,7 +23,7 @@ Recreate the input
   $ touch foo/b
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
 
 Make sure the foo directory does not exist
   $ stat foo
@@ -31,4 +31,4 @@ Make sure the foo directory does not exist
   [1]
 
 Clean up
-  $ rm -rf .dodo foo
+  $ rm -rf .rkr foo

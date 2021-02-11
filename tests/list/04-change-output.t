@@ -4,13 +4,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo output *.txt
+  $ rm -rf .rkr output *.txt
   $ echo hello > hello.txt
   $ echo world > world.txt
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   cat hello.txt world.txt
 
@@ -24,7 +24,7 @@ Now overwrite the output file. Sleep first to make sure the output file's mtime 
   $ echo OVERWRITE > output
 
 Run a rebuild, which should see the output file change and restore it from cache
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output
   $ cat output
@@ -36,7 +36,7 @@ Overwrite the file again
   $ echo OVERWRITE > output
 
 Run a rebuild, this time without caching
-  $ $DODO --show --no-caching
+  $ $RKR --show --no-caching
   cat hello.txt world.txt
 
 Check the output
@@ -45,7 +45,7 @@ Check the output
   world
 
 Run a final rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 And check the final output
   $ cat output
@@ -53,4 +53,4 @@ And check the final output
   world
 
 Clean up
-  $ rm -rf .dodo output *.txt
+  $ rm -rf .rkr output *.txt

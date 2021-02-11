@@ -6,7 +6,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output1 output2
 
 Make sure link is a symlink to "HELLO"
@@ -14,8 +14,8 @@ Make sure link is a symlink to "HELLO"
   $ ln -s HELLO link
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   readlink link
   cat link
@@ -31,7 +31,7 @@ Change the link destination
   $ ln -s GOODBYE link
 
 Rerun the build
-  $ $DODO --show
+  $ $RKR --show
   readlink link
   cat link
   (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
@@ -44,7 +44,7 @@ Check the output
   FAREWELL
 
 Rebuild again, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
   (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
 
 Check the output again
@@ -58,5 +58,5 @@ Restore the link state
   $ ln -s HELLO link
 
 Clean up
-  $ rm -rf .dodo
+  $ rm -rf .rkr
   $ rm -f output1 output2

@@ -7,13 +7,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo creat-dir-open outcome
+  $ rm -rf .rkr creat-dir-open outcome
   $ clang creat-dir-open.c -o creat-dir-open
   $ umask 002
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./creat-dir-open
 
@@ -32,7 +32,7 @@ Remove outcome
   $ rm outcome
 
 Run the second build
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo creat-dir-open outcome
+  $ rm -rf .rkr creat-dir-open outcome

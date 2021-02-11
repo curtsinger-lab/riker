@@ -4,19 +4,19 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo core abort
+  $ rm -rf .rkr core abort
   $ clang -g -o abort abort.c
 
 Run the abort program; dodo should eventually print 'core exists' and not die beforehand
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./abort
   Aborted (core dumped)
   core exists
 
 Clean up
-  $ rm -rf .dodo core abort
+  $ rm -rf .rkr core abort
 
 SKIP! This test doesn't work yet
   $ exit 80

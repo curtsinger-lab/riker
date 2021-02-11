@@ -4,13 +4,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile
   $ echo -n "hello" > inputA
   $ echo " world" > inputB
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./A
   cat inputA
@@ -22,7 +22,7 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output
   $ cat myfile
@@ -32,7 +32,7 @@ Change inputA
   $ echo -n "goodbye" > inputA
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   cat inputA
   cat inputB
 
@@ -41,13 +41,13 @@ Check the output
   goodbye world
 
 Run another rebuild, which should do nothing now
-  $ $DODO --show
+  $ $RKR --show
 
 Change inputB
   $ echo " frodo" > inputB
 
 Run a rebuild
-  $ $DODO --show
+  $ $RKR --show
   cat inputB
 
 Check the output
@@ -55,13 +55,13 @@ Check the output
   goodbye frodo
 
 Run another rebuild, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Check the output again
   $ cat myfile
   goodbye frodo
 
 Clean up
-  $ rm -rf .dodo myfile
+  $ rm -rf .rkr myfile
   $ echo -n "hello" > inputA
   $ echo " world" > inputB

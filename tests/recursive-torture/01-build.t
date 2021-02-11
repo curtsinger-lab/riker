@@ -6,11 +6,11 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .dodo output-*
+  $ rm -rf .rkr output-*
 
 Run the build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   python3 Rikerfile
   python3 build 3
@@ -22,10 +22,10 @@ Run the build
   [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
 Rebuild without changing anything, which should do nothing
-  $ $DODO --show
+  $ $RKR --show
 
 Clean up
-  $ rm -rf .dodo rm output-*
+  $ rm -rf .rkr rm output-*
 
 SKIP! This test is sensitive to the /proc filesystem. Once we properly exclude these paths this test should work again.
   $ exit 80

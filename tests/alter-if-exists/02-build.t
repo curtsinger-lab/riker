@@ -8,13 +8,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .dodo conditional-maker a_file
+  $ rm -rf .rkr conditional-maker a_file
   $ clang conditional-maker.c -o conditional-maker
   $ echo "hello" > a_file
 
 Run the first build
-  $ $DODO --show
-  dodo-launch
+  $ $RKR --show
+  rkr-launch
   Rikerfile
   ./conditional-maker
   'a_file' exists.
@@ -25,7 +25,7 @@ Check the contents of a_file
   world
 
 Run the second build
-  $ $DODO --show
+  $ $RKR --show
 
 Check the contents of the file
   $ cat a_file
@@ -33,5 +33,5 @@ Check the contents of the file
   world
 
 Clean up
-  $ rm -rf .dodo conditional-maker a_file
+  $ rm -rf .rkr conditional-maker a_file
 
