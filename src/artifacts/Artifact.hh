@@ -22,6 +22,7 @@ class ContentVersion;
 class DirArtifact;
 class DirVersion;
 class MetadataVersion;
+class Version;
 
 /**
  * An artifact is a thin wrapper class around a sequence of artifact versions. The artifact
@@ -64,19 +65,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Set the name of this artifact used for pretty-printing
   void setName(std::string newname) noexcept { _name = newname; }
 
-  /// Get the number of versions of this artifact
-  size_t getVersionCount() const noexcept {
-    return _metadata_versions.size() + _content_versions.size();
-  }
-
-  /// Get a list of all metadata versions that have been set for this artifact
-  const std::list<std::shared_ptr<MetadataVersion>>& getMetadataVersions() const noexcept {
-    return _metadata_versions;
-  }
-
-  const std::list<std::shared_ptr<ContentVersion>>& getContentVersions() const noexcept {
-    return _content_versions;
-  }
+  /// Get a list of all the versions associated with this artifact
+  const std::list<std::shared_ptr<Version>>& getVersions() const noexcept { return _versions; }
 
   /// Get a file descriptor for this artifact
   virtual int getFD(AccessFlags flags) noexcept;
@@ -293,11 +283,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Mark this artifact's metadata as committed without doing anything
   void setMetadataCommitted() noexcept;
 
-  /// Add a metadata version to this artifact's list of versions
-  void appendVersion(std::shared_ptr<MetadataVersion> v) noexcept;
-
-  /// Add a content version to this artifact's list of versions
-  void appendVersion(std::shared_ptr<ContentVersion> v) noexcept;
+  /// Remember a version associated with this artifact
+  void appendVersion(std::shared_ptr<Version> v) noexcept;
 
  private:
   /// The command that most recently wrote metadata, possibly null
@@ -321,9 +308,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A fixed string name assigned to this artifact
   std::string _name;
 
-  /// The sequence of metadata versions applied to this artifact
-  std::list<std::shared_ptr<MetadataVersion>> _metadata_versions;
-
-  /// The sequence of content versions applied to this artifact
-  std::list<std::shared_ptr<ContentVersion>> _content_versions;
+  /// All of the versions of this artifact
+  std::list<std::shared_ptr<Version>> _versions;
 };

@@ -113,39 +113,22 @@ string Graph::addArtifact(shared_ptr<Artifact> a) noexcept {
   string artifact_id = "a" + to_string(_artifact_ids.size());
   _artifact_ids.emplace_hint(iter, a, artifact_id);
 
-  // Add all of this artifact's metadata versions
-  for (auto& v : a->getMetadataVersions()) {
-    addVersion(v);
-  }
-
-  // Add all of this artifact's content versions
-  for (auto& v : a->getContentVersions()) {
+  // Add all of this artifact's versions to the graph
+  for (auto& v : a->getVersions()) {
     addVersion(v);
   }
 
   return artifact_id;
 }
 
-string Graph::addVersion(shared_ptr<MetadataVersion> v) noexcept {
+string Graph::addVersion(shared_ptr<Version> v) noexcept {
   // Look for the version. If it's already in the map, return its ID.
-  auto iter = _metadata_version_ids.find(v);
-  if (iter != _metadata_version_ids.end()) return iter->second;
+  auto iter = _version_ids.find(v);
+  if (iter != _version_ids.end()) return iter->second;
 
   // Create an ID for the version and save it
-  string version_id = "mv" + to_string(_metadata_version_ids.size());
-  _metadata_version_ids.emplace_hint(iter, v, version_id);
-
-  return version_id;
-}
-
-string Graph::addVersion(shared_ptr<ContentVersion> v) noexcept {
-  // Look for the version. If it's already in the map, return its ID.
-  auto iter = _content_version_ids.find(v);
-  if (iter != _content_version_ids.end()) return iter->second;
-
-  // Create an ID for the version and save it
-  string version_id = "cv" + to_string(_content_version_ids.size());
-  _content_version_ids.emplace_hint(iter, v, version_id);
+  string version_id = "v" + to_string(_version_ids.size());
+  _version_ids.emplace_hint(iter, v, version_id);
 
   return version_id;
 }
@@ -203,25 +186,14 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
       o << "<tr><td>" + name + "</td></tr>";
     }
 
-    // Add a row for each metadata version
-    for (const auto& v : artifact->getMetadataVersions()) {
+    // Add a row for each version
+    for (const auto& v : artifact->getVersions()) {
       o << "<tr><td port=\"" + g.addVersion(v) + "\"";
       /*if (_changed_versions.find(v) != _changed_versions.end()) {
         o << " bgcolor=\"yellow\"";
       }*/
       o << ">";
       o << "<font point-size=\"10\">metadata</font>";
-      o << "</td></tr>";
-    }
-
-    // Add a row for each content version
-    for (const auto& v : artifact->getContentVersions()) {
-      o << "<tr><td port=\"" + g.addVersion(v) + "\"";
-      /*if (_changed_versions.find(v) != _changed_versions.end()) {
-        o << " bgcolor=\"yellow\"";
-      }*/
-      o << ">";
-      o << "<font point-size=\"10\">" << v->getTypeName() << "</font>";
       o << "</td></tr>";
     }
 

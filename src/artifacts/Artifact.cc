@@ -324,12 +324,8 @@ void Artifact::updateMetadata(const shared_ptr<Command>& c,
   c->addMetadataOutput(shared_from_this(), writing);
 }
 
-void Artifact::appendVersion(shared_ptr<MetadataVersion> v) noexcept {
-  if (options::track_inputs_outputs) _metadata_versions.push_back(v);
-}
-
-void Artifact::appendVersion(shared_ptr<ContentVersion> v) noexcept {
-  if (options::track_inputs_outputs) _content_versions.push_back(v);
+void Artifact::appendVersion(shared_ptr<Version> v) noexcept {
+  if (options::track_inputs_outputs) _versions.push_back(v);
 }
 
 Ref Artifact::resolve(const shared_ptr<Command>& c,

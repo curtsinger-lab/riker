@@ -9,6 +9,7 @@
 
 #include "ui/stats.hh"
 #include "util/serializer.hh"
+#include "versions/Version.hh"
 
 namespace fs = std::filesystem;
 
@@ -16,12 +17,10 @@ class AccessFlags;
 class Artifact;
 class Command;
 
-class MetadataVersion {
+class MetadataVersion : public Version {
  public:
   /// Create a new metadata version
-  MetadataVersion(uid_t uid, gid_t gid, mode_t mode) noexcept : _uid(uid), _gid(gid), _mode(mode) {
-    stats::versions++;
-  }
+  MetadataVersion(uid_t uid, gid_t gid, mode_t mode) noexcept : _uid(uid), _gid(gid), _mode(mode) {}
 
   /// Create a new metadata version from a stat struct
   MetadataVersion(const struct stat& data) noexcept :
@@ -45,19 +44,11 @@ class MetadataVersion {
   /// Compare this version to another version
   bool matches(std::shared_ptr<MetadataVersion> other) const noexcept;
 
+  /// Get the name for the type of version this is
+  virtual std::string getTypeName() const noexcept override { return "metadata"; }
+
   /// Print this metadata version
-  std::ostream& print(std::ostream& o) const noexcept;
-
-  /// Print a Version
-  friend std::ostream& operator<<(std::ostream& o, const MetadataVersion& v) noexcept {
-    return v.print(o);
-  }
-
-  /// Print a Version*
-  friend std::ostream& operator<<(std::ostream& o, const MetadataVersion* v) noexcept {
-    if (v == nullptr) return o << "<null MetadataVersion>";
-    return v->print(o);
-  }
+  virtual std::ostream& print(std::ostream& o) const noexcept override;
 
  private:
   /// The command that created this version

@@ -9,8 +9,7 @@
 
 class Artifact;
 class Command;
-class MetadataVersion;
-class ContentVersion;
+class Version;
 
 class Graph {
  public:
@@ -36,10 +35,7 @@ class Graph {
   std::string addArtifact(std::shared_ptr<Artifact> c) noexcept;
 
   /// Add a version to the graph
-  std::string addVersion(std::shared_ptr<MetadataVersion> c) noexcept;
-
-  /// Add a version to the graph
-  std::string addVersion(std::shared_ptr<ContentVersion> c) noexcept;
+  std::string addVersion(std::shared_ptr<Version> c) noexcept;
 
  private:
   /// Should the graph output include all artifacts?
@@ -52,10 +48,7 @@ class Graph {
   std::map<std::shared_ptr<Artifact>, std::string> _artifact_ids;
 
   /// A map from versions to their ID (not prefixed by artifact ID)
-  std::map<std::shared_ptr<MetadataVersion>, std::string> _metadata_version_ids;
-
-  /// A map from versions to their ID (not prefixed by artifact ID)
-  std::map<std::shared_ptr<ContentVersion>, std::string> _content_version_ids;
+  std::map<std::shared_ptr<Version>, std::string> _version_ids;
 
   /// A set of command edges, from parent to child
   std::set<std::pair<std::string, std::string>> _command_edges;

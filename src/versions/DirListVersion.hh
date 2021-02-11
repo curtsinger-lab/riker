@@ -36,7 +36,7 @@ class DirListVersion : public ContentVersion {
   }
 
   /// Get the name for the type of version this is
-  virtual std::string getTypeName() const noexcept override { return "listed"; }
+  virtual std::string getTypeName() const noexcept override { return "dir list"; }
 
   /// Print this version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
