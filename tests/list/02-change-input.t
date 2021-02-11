@@ -11,7 +11,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   cat hello.txt world.txt
 
 Check the output

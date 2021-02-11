@@ -7,13 +7,13 @@ Move to test directory
   $ cd $TESTDIR
 
 Setup
-  $ rm -rf .dodo a_file a_link Dodofile
-  $ cp Dodofile-1 Dodofile
+  $ rm -rf .dodo a_file a_link Rikerfile
+  $ cp Rikerfile-1 Rikerfile
 
 Run dodo
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   touch a_file
   ln -s a_file a_link
 
@@ -32,4 +32,4 @@ Run a rebuild, which should do nothing, and more importantly, not die
   $ $DODO --show
 
 Clean up
-  $ rm -rf .dodo a_file a_link Dodofile
+  $ rm -rf .dodo a_file a_link Rikerfile

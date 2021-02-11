@@ -18,8 +18,8 @@ tar xzvf gzip-1.10.tar.gz
 rm gzip-1.10.tar.gz
 mv gzip-1.10 $BENCHMARK_NAME
 
-# copy Dodofile
-cp ../benchmarks/gzip/Dodofile $BENCHMARK_NAME
+# copy Rikerfile
+cp ../benchmarks/gzip/Rikerfile $BENCHMARK_NAME
 
 # go back
 cd ..

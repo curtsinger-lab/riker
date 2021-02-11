@@ -55,8 +55,8 @@ RUN mkdir -p benchmark \
     && cd calc \
     && git checkout 2.12.7.2
 
-# copy Dodofile
-COPY benchmarks/calc/Dodofile /benchmark/calc
+# copy Rikerfile
+COPY benchmarks/calc/Rikerfile /benchmark/calc
 
 # import local patches
 COPY benchmarks/calc/Werror.patch /benchmark/calc

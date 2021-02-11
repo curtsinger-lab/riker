@@ -16,7 +16,7 @@ Compile a and b
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./a
   ./b
 

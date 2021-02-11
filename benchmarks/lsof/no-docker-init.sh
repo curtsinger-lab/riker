@@ -14,7 +14,7 @@ cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh .
 
 # obtain benchmark
 git clone https://github.com/lsof-org/lsof.git
-cp ../benchmarks/lsof/Dodofile lsof/
+cp ../benchmarks/lsof/Rikerfile lsof/
 
 # go back
 cd ..

@@ -10,7 +10,7 @@ Prepare for a clean run
 Run the first build (note that commands in (re) below race)
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
   ((ls -1)|(grep \.num)|(wc -l)) (re)
   ((ls -1)|(grep \.num)|(wc -l)) (re)

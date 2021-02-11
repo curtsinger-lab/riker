@@ -12,7 +12,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   rm foo/a
   rm foo/b
   rmdir foo
@@ -27,8 +27,8 @@ Run a rebuild
   $ $DODO --show
   rmdir foo
   rmdir: failed to remove 'foo': Directory not empty
-  (warning) [Command Dodofile] should rerun because child [Command rmdir foo] changed exit status.
-  (warning) [Command Dodofile] should rerun because child [Command rmdir foo] changed exit status.
+  (warning) [Command Rikerfile] should rerun because child [Command rmdir foo] changed exit status.
+  (warning) [Command Rikerfile] should rerun because child [Command rmdir foo] changed exit status.
 
 The foo directory should be left over
   $ rm foo/c

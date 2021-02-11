@@ -6,9 +6,9 @@ Move to test directory
 Clean up any leftover state
   $ rm -rf .dodo hello
 
-Copy in the basic Dodofile and make sure it's executable
-  $ cp incremental-Dodofile Dodofile
-  $ chmod u+x Dodofile
+Copy in the basic Rikerfile and make sure it's executable
+  $ cp incremental-Rikerfile Rikerfile
+  $ chmod u+x Rikerfile
 
 Set up the original source file
   $ cp file_versions/hello-original.c hello.c
@@ -16,7 +16,7 @@ Set up the original source file
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   gcc -c -o hello.o hello.c
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
@@ -36,4 +36,4 @@ Make sure the hello executable still works
   Hello world
 
 Clean up
-  $ rm -rf .dodo hello.o hello Dodofile
+  $ rm -rf .dodo hello.o hello Rikerfile

@@ -18,7 +18,7 @@ for i in `seq 0 $COMBOS`;
 do
     echo "FILE-DOESN'T-EXIST TEST: $i"
     mkdir test
-    cp Dodofile stress test/
+    cp Rikerfile stress test/
     cd test
     $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-empty.txt 2>&1
     cd ..
@@ -26,7 +26,7 @@ do
     
     echo "FILE-EXISTS TEST: $i"
     mkdir test
-    cp Dodofile stress test/
+    cp Rikerfile stress test/
     cd test
     touch file
     $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-file.txt 2>&1
@@ -35,7 +35,7 @@ do
 
     echo "DIRECTORY-EXISTS TEST: $i"
     mkdir test
-    cp Dodofile stress test/
+    cp Rikerfile stress test/
     cd test
     mkdir file
     $DODO --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-dir.txt 2>&1
@@ -44,7 +44,7 @@ do
 
     echo "SYMLINK-EXISTS TEST: $i"
     mkdir test
-    cp Dodofile stress test/
+    cp Rikerfile stress test/
     cd test
     touch phile
     ln -s phile file

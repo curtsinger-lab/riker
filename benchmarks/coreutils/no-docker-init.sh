@@ -17,8 +17,8 @@ wget --no-clobber https://ftp.gnu.org/gnu/coreutils/coreutils-8.32.tar.gz
 tar xzvf coreutils-8.32.tar.gz
 mv coreutils-8.32 $BENCHMARK_NAME
 
-# copy Dodofile
-cp ../benchmarks/coreutils/Dodofile $BENCHMARK_NAME
+# copy Rikerfile
+cp ../benchmarks/coreutils/Rikerfile $BENCHMARK_NAME
 
 # go back
 cd ..

@@ -10,7 +10,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  sh Dodofile
+  sh Rikerfile
   mkdir foo
   mkdir foo/bar
   mkdir foo/bar/baz

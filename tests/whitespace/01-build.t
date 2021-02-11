@@ -13,7 +13,7 @@ This step is necessary because gcc stores input file names in assembler output
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   cc1 .* (re)
   cp hello.s output.s
 

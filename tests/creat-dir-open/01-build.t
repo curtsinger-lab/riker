@@ -14,7 +14,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./creat-dir-open
 
 Check the contents of a_file

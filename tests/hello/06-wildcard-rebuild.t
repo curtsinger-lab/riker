@@ -6,9 +6,9 @@ Move to test directory
 Clean up any leftover state
   $ rm -rf .dodo hello foo
 
-Copy in the basic Dodofile and make sure it's executable
-  $ cp wildcard-Dodofile Dodofile
-  $ chmod u+x Dodofile
+Copy in the basic Rikerfile and make sure it's executable
+  $ cp wildcard-Rikerfile Rikerfile
+  $ chmod u+x Rikerfile
 
 Set up the original source file
   $ cp file_versions/hello-original.c hello.c
@@ -16,7 +16,7 @@ Set up the original source file
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
@@ -44,12 +44,12 @@ Run an additional rebuild, which should now do no work
   $ $DODO --show
 
 Add a file to the directory, which should trigger a rebuild
-TODO: Once command skipping is implemented, this should just rerun Dodofile
+TODO: Once command skipping is implemented, this should just rerun Rikerfile
   $ touch foo
 
 Run a rebuild
   $ $DODO --show
-  Dodofile
+  Rikerfile
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
@@ -57,5 +57,5 @@ Run a rebuild
   [^ ]*ld .* (re)
 
 Clean up
-  $ rm -rf .dodo hello Dodofile foo
+  $ rm -rf .dodo hello Rikerfile foo
   $ cp file_versions/hello-original.c hello.c

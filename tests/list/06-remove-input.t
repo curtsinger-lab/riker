@@ -11,7 +11,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   cat hello.txt world.txt
 
 Check the output
@@ -24,7 +24,7 @@ Now remove an input file
 
 Run a rebuild, which should see the changed directory
   $ $DODO --show
-  Dodofile
+  Rikerfile
   cat hello.txt
 
 Check the output

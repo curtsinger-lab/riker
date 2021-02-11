@@ -58,7 +58,7 @@ Each benchmark is collected in a subdirectory in this directory, and each is def
 
 #### Helper script
 
-Each benchmark should have the following helper script.  You should generally not need to change this script from benchmark to benchmark, as each benchmark's `Dodofile` describes precisely what to do during a build.
+Each benchmark should have the following helper script.  You should generally not need to change this script from benchmark to benchmark, as each benchmark's `Rikerfile` describes precisely what to do during a build.
 
 * A _runner script_, which starts a Riker build wrapped in a call to `time`.  This script should log the output of `time` to a CSV with the header `"\"wall_s\",\"system_s\",\"user_s\",\"pct_cpu\",\"avg_rss\""` and using the following format string: `"\"%e\",\"%S\",\"%U\",\"%P\",\"%t\""`
 

@@ -9,7 +9,7 @@ CAT    = "cat"
 BUILD  = "build"
 
 if len(sys.argv) < 2 or len(sys.argv) > 3:
-   print("Usage: python Dodofile <num recursions> [tmpfile]")
+   print("Usage: python Rikerfile <num recursions> [tmpfile]")
    sys.exit(1)
 
 num = int(sys.argv[1])

@@ -19,8 +19,8 @@ rm linux-5.9.1.tar.xz
 mv linux-5.9.1 $BENCHMARK_NAME
 cp ../benchmarks/linux/linux-kernel.config $BENCHMARK_NAME/.config
 
-# copy Dodofile
-cp ../benchmarks/linux/Dodofile $BENCHMARK_NAME
+# copy Rikerfile
+cp ../benchmarks/linux/Rikerfile $BENCHMARK_NAME
 
 # go back
 cd ..

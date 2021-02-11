@@ -9,7 +9,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   touch f
 
 Check the output

@@ -10,7 +10,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   mkdir working_dir
   cat ../input
   mv working_dir/output .

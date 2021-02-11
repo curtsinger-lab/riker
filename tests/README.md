@@ -26,26 +26,26 @@ Command exited with non-zero status 1
 Tests ran in 20.95 seconds
 
 Failed tests:
-  buildfile (01-sh-Dodofile.t 02-c-Dodofile.t)
+  buildfile (01-sh-Rikerfile.t 02-c-Rikerfile.t)
 ```
 
 where a `!` indicates a failed test.  The two failed tests in this case are indicated by the line:
 
 ```
-  buildfile (01-sh-Dodofile.t 02-c-Dodofile.t)
+  buildfile (01-sh-Rikerfile.t 02-c-Rikerfile.t)
 ```
 
-and correspond to the `tests/buildfile/01-sh-Dodofile.t` and `tests/buildfile/02-c-Dodofile.t` tests, respectively.
+and correspond to the `tests/buildfile/01-sh-Rikerfile.t` and `tests/buildfile/02-c-Rikerfile.t` tests, respectively.
 
-Failed tests log diagnostic information to an `.err` file in the test directory.  For a given test, e.g., `buildfile/01-sh-Dodofile.t`, you can view the difference between what `cram` expected (in `01-sh-Dodofile.t`) and what it got (in `01-sh-Dodofile.t.err`) with something like:
+Failed tests log diagnostic information to an `.err` file in the test directory.  For a given test, e.g., `buildfile/01-sh-Rikerfile.t`, you can view the difference between what `cram` expected (in `01-sh-Rikerfile.t`) and what it got (in `01-sh-Rikerfile.t.err`) with something like:
 
 ```
-$ diff tests/buildfile/01-sh-Dodofile.t*
+$ diff tests/buildfile/01-sh-Rikerfile.t*
 44,45c44,45
-<   Unable to access Dodofile.
+<   Unable to access Rikerfile.
 <     This file must be directly executable or runnable with /bin/sh.
 ---
->   Unable to find either Dodofile or Makefile.
+>   Unable to find either Rikerfile or Makefile.
 >     These files must be directly executable or runnable with /bin/sh.
 ```
 
@@ -53,29 +53,29 @@ For this failing test case, you can see that that Dodo's output changed, so we n
 
 ### Directly running a single test
 
-You can directly run a single test using `cram`.  This is useful whenever you want to check for specific functionality, e.g., to check that you have fixed a failing test case.  Using our example test case above, `01-sh-Dodofile.t`:
+You can directly run a single test using `cram`.  This is useful whenever you want to check for specific functionality, e.g., to check that you have fixed a failing test case.  Using our example test case above, `01-sh-Rikerfile.t`:
 
 ```
-$ DODO=../../dodo cram tests/buildfile/01-sh-Dodofile.t
+$ DODO=../../dodo cram tests/buildfile/01-sh-Rikerfile.t
 ```
 
 You will see test output printed directly in the console:
 
 ```
 !
---- tests/buildfile/01-sh-Dodofile.t
-+++ tests/buildfile/01-sh-Dodofile.t.err
+--- tests/buildfile/01-sh-Rikerfile.t
++++ tests/buildfile/01-sh-Rikerfile.t.err
 @@ -41,8 +41,8 @@
  Run a build, which should fail
    $ $DODO --show
    dodo-launch
--  Unable to access Dodofile.
+-  Unable to access Rikerfile.
 -    This file must be directly executable or runnable with /bin/sh.
-+  Unable to find either Dodofile or Makefile.
++  Unable to find either Rikerfile or Makefile.
 +    These files must be directly executable or runnable with /bin/sh.
  
- Make the Dodofile readable and executable again
-   $ chmod u+rx Dodofile
+ Make the Rikerfile readable and executable again
+   $ chmod u+rx Rikerfile
 
 # Ran 1 tests, 0 skipped, 1 failed.
 ```
@@ -139,9 +139,9 @@ Again, the unindented line is a comment, and the line indented by two spaces and
 We will expect `dodo` to fail in some test cases. To check for this, you can write cases like the following:
 
 ```
-Check for error when missing Dodofile
+Check for error when missing Rikerfile
   $ $DODO
-  Unable to access Dodofile, which is required for the build.
+  Unable to access Rikerfile, which is required for the build.
   See http://dodo.build for instructions.
   [1]
 ```

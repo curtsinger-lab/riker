@@ -46,8 +46,8 @@ let PrintEdge(e: Edge) : string =
 
 let DemoGraph =
     (* nodes *)
-    let dodofile = File("Dodofile", 0)
-    let dodocmd = Program("Dodofile", 0)
+    let dodofile = File("Rikerfile", 0)
+    let dodocmd = Program("Rikerfile", 0)
     let gccfile = File("gcc", 0)
     let gcccmd = Program("gcc", 1)
     let cc1file = File("cc1", 0)
@@ -100,7 +100,7 @@ let run(c: Command) =
     failwith "hmm"
 
 let Dodo(g: Graph) : unit =
-    let start = Program("Dodofile", 0)
+    let start = Program("Rikerfile", 0)
     let cmdQ = new Queue<Command>()
     let iStk = new Stack<Artifact>()
     cmdQ.Enqueue start

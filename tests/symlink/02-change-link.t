@@ -15,7 +15,7 @@ Make sure link is a symlink to dir1
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   cat input1
   cat input2
   cat input3

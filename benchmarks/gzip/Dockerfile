@@ -58,8 +58,8 @@ RUN mkdir -p benchmark \
     && mv gzip-1.10 gzip \
     && cd gzip
 
-# copy Dodofile
-COPY benchmarks/gzip/Dodofile /benchmark/gzip/
+# copy Rikerfile
+COPY benchmarks/gzip/Rikerfile /benchmark/gzip/
 
 # add benchmarking scripts
 COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/

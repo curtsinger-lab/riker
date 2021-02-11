@@ -58,8 +58,8 @@ RUN mkdir -p benchmark \
     && mv autoconf-2.69 autoconf \
     && cd autoconf
 
-# copy Dodofile
-COPY benchmarks/autoconf/Dodofile /benchmark/autoconf/
+# copy Rikerfile
+COPY benchmarks/autoconf/Rikerfile /benchmark/autoconf/
 
 # add benchmarking scripts
 COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/

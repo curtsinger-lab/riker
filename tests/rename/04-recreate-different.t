@@ -16,7 +16,7 @@ Create file1 and file2
 Run the first build
   $ $DODO --show
   dodo-launch
-  sh Dodofile
+  sh Rikerfile
   ./test
   rename("file1", "file1") failed
   rename("file2", "file2") failed

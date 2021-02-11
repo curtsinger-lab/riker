@@ -17,7 +17,7 @@ Make sure link is a symlink to "HELLO"
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   readlink link
   cat link
   cat: link: No such file or directory

@@ -9,7 +9,7 @@ Clean up any leftover state
 Run the build
   $ $DODO --show --fingerprint all
   dodo-launch
-  Dodofile
+  Rikerfile
   pdflatex main.tex
   pdflatex main.tex
 

@@ -11,7 +11,7 @@ Set up the inptu file
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ln -s input A
   ln -s output B
   cat A

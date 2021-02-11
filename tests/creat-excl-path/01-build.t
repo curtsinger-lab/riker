@@ -13,7 +13,7 @@ Prepare for a clean run
 Run a build
   $ $DODO --show
   dodo-launch
-  sh Dodofile
+  sh Rikerfile
   ./stress 8328
   O_CREAT|O_EXCL|O_PATH (2097344)
 

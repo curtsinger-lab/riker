@@ -10,7 +10,7 @@ Prepare for a clean run
 Run the abort program; dodo should eventually print 'core exists' and not die beforehand
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./abort
   Aborted (core dumped)
   core exists

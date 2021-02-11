@@ -11,7 +11,7 @@ Clean up any leftover state
 Run the build
   $ $DODO --show
   dodo-launch
-  sh Dodofile
+  sh Rikerfile
   date
 
 Run the build again (nothing should happen)

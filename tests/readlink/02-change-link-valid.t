@@ -16,7 +16,7 @@ Make sure link is a symlink to "HELLO"
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   readlink link
   cat link
   cat: link: No such file or directory
@@ -34,8 +34,8 @@ Rerun the build
   $ $DODO --show
   readlink link
   cat link
-  (warning) [Command Dodofile] should rerun because child [Command cat link] changed exit status.
-  (warning) [Command Dodofile] should rerun because child [Command cat link] changed exit status.
+  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
+  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
 
 Check the output
   $ cat output1
@@ -45,7 +45,7 @@ Check the output
 
 Rebuild again, which should do nothing
   $ $DODO --show
-  (warning) [Command Dodofile] should rerun because child [Command cat link] changed exit status.
+  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
 
 Check the output again
   $ cat output1

@@ -14,7 +14,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./conditional-maker
   'a_file' does not exist.
 

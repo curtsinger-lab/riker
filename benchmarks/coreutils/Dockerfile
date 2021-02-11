@@ -55,8 +55,8 @@ RUN mkdir -p benchmark \
     && mv coreutils-8.32 coreutils \
     && cd coreutils
 
-# copy Dodofile
-COPY benchmarks/coreutils/Dodofile /benchmark/coreutils/
+# copy Rikerfile
+COPY benchmarks/coreutils/Rikerfile /benchmark/coreutils/
 
 # add benchmarking scripts
 COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/

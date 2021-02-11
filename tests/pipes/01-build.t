@@ -8,7 +8,7 @@ Clean up any leftover state
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ((sort)|(uniq)) (re)
   ((sort)|(uniq)) (re)
 

@@ -18,8 +18,8 @@ cp ../benchmarks/calc/Werror.patch $BENCHMARK_NAME
 cd $BENCHMARK_NAME
 git apply Werror.patch
 
-# copy Dodofile
-cp ../../benchmarks/calc/Dodofile .
+# copy Rikerfile
+cp ../../benchmarks/calc/Rikerfile .
 
 # go back
 cd ../..

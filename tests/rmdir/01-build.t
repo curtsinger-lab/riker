@@ -12,7 +12,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   rm foo/a
   rm foo/b
   rmdir foo

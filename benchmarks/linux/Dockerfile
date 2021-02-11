@@ -60,8 +60,8 @@ RUN mkdir -p benchmark \
 # copy an ordinary kernel config (from Ubuntu 20.04)
 COPY benchmarks/linux/linux-kernel.config /benchmark/linux/.config
 
-# copy Dodofile
-COPY benchmarks/linux/Dodofile /benchmark/linux/
+# copy Rikerfile
+COPY benchmarks/linux/Rikerfile /benchmark/linux/
 
 # add benchmarking scripts
 COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/

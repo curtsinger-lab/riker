@@ -448,9 +448,9 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  /************* Dodofile Arguments ***********/
+  /************* Rikerfile Arguments ***********/
   std::vector<string> args;
-  app.add_option("--args", args, "Arguments to pass to Dodofile")->group("");  // hidden from help
+  app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
 
   /************* Register Callbacks ***********/
   // these are all deferred until the end since a number

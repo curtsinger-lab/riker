@@ -4,14 +4,14 @@ Move to test directory
   $ cd $TESTDIR
 
 Setup
-  $ rm -rf .dodo foo Dodofile
-  $ clang++ -o Dodofile o_creat.cc
+  $ rm -rf .dodo foo Rikerfile
+  $ clang++ -o Rikerfile o_creat.cc
   $ echo "first" > input
 
 Run dodo
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   File created with fd = 4
 
 Check the output
@@ -26,9 +26,9 @@ Edit the input file to trigger a rebuild
 
 Run a rebuild
   $ $DODO --show
-  Dodofile
+  Rikerfile
   Error: File exists
 
 Clean up
-  $ rm -rf .dodo foo Dodofile
+  $ rm -rf .dodo foo Rikerfile
   $ echo "first" > input

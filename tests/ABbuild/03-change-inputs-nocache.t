@@ -11,7 +11,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show --no-caching
   dodo-launch
-  Dodofile
+  Rikerfile
   ./A
   cat inputA
   ./B

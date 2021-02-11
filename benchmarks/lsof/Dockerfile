@@ -50,8 +50,8 @@ RUN mkdir -p benchmark \
     && cd lsof \
     && git checkout 4.93.2
 
-# copy Dodofile
-COPY benchmarks/lsof/Dodofile /benchmark/lsof/
+# copy Rikerfile
+COPY benchmarks/lsof/Rikerfile /benchmark/lsof/
 
 # add benchmarking scripts
 COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/

@@ -7,7 +7,7 @@ Cleanup
 Run dodo
   $ $DODO --show --stats stats.csv
   dodo-launch
-  Dodofile
+  Rikerfile
   touch myfile
 
 Look at the first column of the output

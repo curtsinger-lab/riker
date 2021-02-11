@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define Buildfile "Dodofile"
+#define Buildfile "Rikerfile"
 #define ShellCommand "/bin/sh"
 
 int main(int argc, char** argv) {

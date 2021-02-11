@@ -5,7 +5,7 @@ Remove output file
   $ rm -f myfile
 
 Mark build file as executable
-  $ chmod u+x Dodofile
+  $ chmod u+x Rikerfile
 
 Remove any leftover build database
   $ rm -rf .dodo

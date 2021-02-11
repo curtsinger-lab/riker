@@ -11,8 +11,8 @@ Clean up any leftover state
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
-  python3 Dodofile
+  Rikerfile
+  python3 Rikerfile
   python3 build 3
   [^ ]*cat /tmp/cramtests.*/tmp/tmp.* (re)
   [^ ]*python3 build 2 /tmp/cramtests.*/tmp/tmp.* (re)

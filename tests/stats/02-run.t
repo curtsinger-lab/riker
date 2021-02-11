@@ -4,7 +4,7 @@ Move to test directory
 Run the build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./A
   cat inputA
   ./B

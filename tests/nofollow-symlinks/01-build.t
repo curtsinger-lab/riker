@@ -11,7 +11,7 @@ Prepare for a clean run
 Run the first build
   $ $DODO --show
   dodo-launch
-  Dodofile
+  Rikerfile
   ./symlink-nofollow
   fd = -1
   Error: Too many levels of symbolic links
