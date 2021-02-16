@@ -45,7 +45,7 @@ class FileVersion final : public ContentVersion {
   void makeEmptyFingerprint() noexcept;
 
   /// Compare this version to another version
-  virtual bool matches(std::shared_ptr<ContentVersion> other) const noexcept override;
+  virtual bool matches(std::shared_ptr<ContentVersion> other) noexcept override;
 
   /// Pretty printer
   virtual std::ostream& print(std::ostream& o) const noexcept override;

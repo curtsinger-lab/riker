@@ -60,6 +60,11 @@ void Artifact::addLinkUpdate(shared_ptr<DirArtifact> dir,
                              shared_ptr<DirVersion> v) noexcept {
   // Record the link update
   // TODO: We can cancel out old updates that have been overwritten by newer committed updates.
+  if (_name.empty()) {
+    auto path = getPath();
+    if (path.has_value()) _name = path.value().string();
+  }
+
   _link_updates.emplace_back(dir, entry, v);
 }
 

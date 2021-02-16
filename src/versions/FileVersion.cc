@@ -310,8 +310,8 @@ void fast_copy(fs::path src, fs::path dest) noexcept {
   int src_fd = ::open(src.c_str(), O_RDONLY);
   FAIL_IF(src_fd == -1) << "Unable to open file " << src << " for caching: " << ERR;
   int dst_fd = ::open(dest.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
-  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << dest << " for file " << src
-                        << ": " << ERR;
+  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << dest << " for file " << src << ": "
+                        << ERR;
 
   // copy file to cache using non-POSIX fast copy
   loff_t bytes_cp;
@@ -462,10 +462,17 @@ ostream& FileVersion::print(ostream& o) const noexcept {
 }
 
 /// Compare this version to another version
-bool FileVersion::matches(shared_ptr<ContentVersion> other) const noexcept {
+bool FileVersion::matches(shared_ptr<ContentVersion> other) noexcept {
   if (!other) return false;
   auto other_file = other->as<FileVersion>();
   if (!other_file) return false;
   if (other_file.get() == this) return true;
-  return fingerprints_match(other_file);
+
+  if (fingerprints_match(other_file)) {
+    if (_cached) other_file->_cached = true;
+    if (other_file->_cached) _cached = true;
+    return true;
+  }
+
+  return false;
 }
