@@ -469,6 +469,7 @@ bool FileVersion::matches(shared_ptr<ContentVersion> other) noexcept {
   if (other_file.get() == this) return true;
 
   if (fingerprints_match(other_file)) {
+    // If these versions match and either one is cached, ensure that they are both marked as cached
     if (_cached) other_file->_cached = true;
     if (other_file->_cached) _cached = true;
     return true;
