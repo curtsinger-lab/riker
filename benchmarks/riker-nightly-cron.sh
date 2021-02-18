@@ -7,17 +7,17 @@ SCRIPTPATH=/riker-nightly
 LOGPATH=${SCRIPTPATH}/logs
 
 # clone/pull repository if needed
-if [ ! -d /riker-nightly/dodo ]
+if [ ! -d /riker-nightly/riker ]
 then
     cd /riker-nightly
-    git clone --recursive git@github.com:curtsinger-lab/dodo.git
+    git clone --recursive git@github.com:curtsinger-lab/riker.git
 else
-    cd /riker-nightly/dodo
+    cd /riker-nightly/riker
     git pull
 fi
 
-# build dodo for no-Docker benchmarks
-cd /riker-nightly/dodo
+# build riker for no-Docker benchmarks
+cd /riker-nightly/riker
 make
 
 # get current date & time
@@ -25,12 +25,12 @@ NOW=`date +"%Y-%m-%d_%H-%M"`
 
 # run benchmarks
 # the following is for debugging purposes-- runs one benchmark
-#cd /riker-nightly/dodo/benchmarks && ./run.py ${NOW}-output.csv lsof/benchmark.json 1> ${NOW}-stdout.txt 2> ${NOW}-stderr.txt
+#cd /riker-nightly/riker/benchmarks && ./run.py ${NOW}-output.csv lsof/benchmark.json 1> ${NOW}-stdout.txt 2> ${NOW}-stderr.txt
 # the following runs all benchmarks
-cd /riker-nightly/dodo/benchmarks && ./run-all.py benchmarks.json ${LOGPATH}/${NOW}-output.csv 1> ${LOGPATH}/${NOW}-stdout.txt 2> ${LOGPATH}/${NOW}-stderr.txt
+cd /riker-nightly/riker/benchmarks && ./run-all.py benchmarks.json ${LOGPATH}/${NOW}-output.csv 1> ${LOGPATH}/${NOW}-stdout.txt 2> ${LOGPATH}/${NOW}-stderr.txt
 
 # mail the output
 echo "Benchmark results attached." | /usr/bin/mail -s "Riker nightly benchmark results" -A ${LOGPATH}/${NOW}-output.csv $1,$2
 
 # update this runner
-cp /riker-nightly/dodo/benchmarks/riker-nightly-cron.sh /riker-nightly/
+cp /riker-nightly/riker/benchmarks/riker-nightly-cron.sh /riker-nightly/
