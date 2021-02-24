@@ -263,24 +263,17 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 /// Get the current metadata version for this artifact
 shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c,
                                                   InputType t) noexcept {
+  auto result = _committed_metadata;
+  if (_uncommitted_metadata) result = _uncommitted_metadata;
+
+  ASSERT(result) << "Artifact " << this << " has no metadata version";
+
   // Notify the build of the input
   if (c) {
-    c->addMetadataInput(shared_from_this(), _metadata_writer.lock(), t);
-
-    // If command c is running, make sure metadata is committed
-    if (c->running()) {
-      commitMetadata();
-      ASSERT(!_uncommitted_metadata) << "WTF? " << this;
-    }
+    c->addMetadataInput(shared_from_this(), result, _metadata_writer.lock(), t);
   }
 
-  // Return the uncommitted metadata version if there is one
-  if (_uncommitted_metadata) return _uncommitted_metadata;
-
-  ASSERT(_committed_metadata) << "Artifact " << this << " has no metadata version";
-
-  // Otherwise return committed metadata
-  return _committed_metadata;
+  return result;
 }
 
 /// Get the current metadata for this artifact without creating any dependencies

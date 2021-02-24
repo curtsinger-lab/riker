@@ -19,6 +19,7 @@ class CommandRun;
 class ContentVersion;
 class DirVersion;
 class MetadataVersion;
+class Version;
 
 /// The set of possible markings for a command that determine how it is executed during rebuild
 enum class RebuildMarking {
@@ -183,23 +184,11 @@ class Command : public std::enable_shared_from_this<Command> {
     /// Keep track of the scenarios where this command has observed a change
     std::set<Scenario> _changed;
 
-    /// The set of metadata version inputs to this command
-    InputList<MetadataVersion> _metadata_inputs;
+    /// Inputs to this command
+    InputList<Version> _inputs;
 
-    /// The set of content version inputs to this command
-    InputList<ContentVersion> _content_inputs;
-
-    /// The set of directory version inputs to this command
-    InputList<DirVersion> _directory_inputs;
-
-    /// The set of metadata version outputs from this command
-    OutputList<MetadataVersion> _metadata_outputs;
-
-    /// The set of content version outputs from this command
-    OutputList<ContentVersion> _content_outputs;
-
-    /// The set of directory version outputs from this command
-    OutputList<DirVersion> _directory_outputs;
+    /// Outputs from this command
+    OutputList<Version> _outputs;
 
     /// The set of commands that produce any inputs to this command
     WeakCommandSet _uses_output_from;
@@ -260,6 +249,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Track a metadata version input to this command
   void addMetadataInput(std::shared_ptr<Artifact> a,
+                        std::shared_ptr<MetadataVersion> v,
                         std::shared_ptr<Command> writer,
                         InputType t) noexcept;
 
@@ -312,17 +302,11 @@ class Command : public std::enable_shared_from_this<Command> {
                                      Ref::ID root_ref,
                                      std::map<int, Ref::ID> fds) noexcept;
 
-  /// Get the metadata inputs to this command
-  const InputList<MetadataVersion>& getMetadataInputs() noexcept;
-
   /// Get the content inputs to this command
-  const InputList<ContentVersion>& getContentInputs() noexcept;
+  const InputList<Version>& getInputs() noexcept;
 
-  /// Get the metadata outputs from this command
-  const OutputList<MetadataVersion>& getMetadataOutputs() noexcept;
-
-  /// Get the content outputs from this command
-  const OutputList<ContentVersion>& getContentOutputs() noexcept;
+  /// Get the outputs from this command
+  const OutputList<Version>& getOutputs() noexcept;
 
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.

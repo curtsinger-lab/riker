@@ -42,8 +42,8 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     _command_edges.emplace(command_id, child_id);
   }
 
-  // Add this command's metadata inputs
-  for (const auto& [a, v, t] : c->getMetadataInputs()) {
+  // Add this command's inputs
+  for (const auto& [a, v, t] : c->getInputs()) {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed) continue;
 
@@ -58,37 +58,8 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     _io_edges.emplace(artifact_id + ":" + version_id, command_id);
   }
 
-  // Add this command's content inputs
-  for (const auto& [a, v, t] : c->getContentInputs()) {
-    // Only include explicitly-accessed inputs or inputs created by the build
-    if (t != InputType::Accessed && !v->getCreator()) continue;
-
-    // Exclude artifacts with absolute paths, unless all artifacts are shown
-    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
-
-    // Add the artifact and version
-    auto artifact_id = addArtifact(a);
-    auto version_id = addVersion(v);
-
-    // Add the input edge
-    _io_edges.emplace(artifact_id + ":" + version_id, command_id);
-  }
-
-  // Add this command's metadata outputs
-  for (const auto& [a, v] : c->getMetadataOutputs()) {
-    // Exclude artifacts with absolute paths, unless all artifacts are shown
-    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
-
-    // Add the artifact and version
-    auto artifact_id = addArtifact(a);
-    auto version_id = addVersion(v);
-
-    // Add the output edge
-    _io_edges.emplace(command_id, artifact_id + ":" + version_id);
-  }
-
-  // Add this command's content outputs
-  for (const auto& [a, v] : c->getContentOutputs()) {
+  // Add this command's outputs
+  for (const auto& [a, v] : c->getOutputs()) {
     // Exclude artifacts with absolute paths, unless all artifacts are shown
     if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
 
@@ -193,7 +164,7 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
         o << " bgcolor=\"yellow\"";
       }*/
       o << ">";
-      o << "<font point-size=\"10\">metadata</font>";
+      o << "<font point-size=\"10\">" << v->getTypeName() << "</font>";
       o << "</td></tr>";
     }
 

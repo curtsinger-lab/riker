@@ -403,12 +403,13 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
 
 // Add an input to this command
 void Command::addMetadataInput(shared_ptr<Artifact> a,
+                               shared_ptr<MetadataVersion> v,
                                shared_ptr<Command> writer,
                                InputType t) noexcept {
-  if (options::track_inputs_outputs) {
-    const auto& v = a->peekMetadata();
-    currentRun()->_metadata_inputs.emplace_back(a, v, t);
-  }
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
+
+  // If this command is running, make sure the metadata is committed
+  if (running()) a->commitMetadata();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
@@ -429,7 +430,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
                               shared_ptr<Command> writer,
                               InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_content_inputs.emplace_back(a, v, t);
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
 
   // If this command is running, make sure the file is available
   if (running()) a->commitContent();
@@ -453,7 +454,7 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
                                 std::shared_ptr<DirVersion> v,
                                 std::shared_ptr<Command> writer,
                                 InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_directory_inputs.emplace_back(a, v, t);
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
 
   // If this command is running, make sure the directory version is committed
   if (running()) a->commitContent();
@@ -474,17 +475,17 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
 
 // Add an output to this command
 void Command::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_metadata_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
 }
 
 // Add an output to this command
 void Command::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_content_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
 }
 
 // Add an output to this command
 void Command::addDirectoryOutput(shared_ptr<Artifact> a, shared_ptr<DirVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_directory_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)
@@ -531,22 +532,12 @@ shared_ptr<Command> Command::findChild(vector<string> args,
   return nullptr;
 }
 
-/// Get the metadata inputs to this command
-const Command::InputList<MetadataVersion>& Command::getMetadataInputs() noexcept {
-  return previousRun()->_metadata_inputs;
-}
-
 /// Get the content inputs to this command
-const Command::InputList<ContentVersion>& Command::getContentInputs() noexcept {
-  return previousRun()->_content_inputs;
-}
-
-/// Get the metadata outputs from this command
-const Command::OutputList<MetadataVersion>& Command::getMetadataOutputs() noexcept {
-  return previousRun()->_metadata_outputs;
+const Command::InputList<Version>& Command::getInputs() noexcept {
+  return previousRun()->_inputs;
 }
 
 /// Get the content outputs from this command
-const Command::OutputList<ContentVersion>& Command::getContentOutputs() noexcept {
-  return previousRun()->_content_outputs;
+const Command::OutputList<Version>& Command::getOutputs() noexcept {
+  return previousRun()->_outputs;
 }

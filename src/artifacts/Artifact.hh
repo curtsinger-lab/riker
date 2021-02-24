@@ -87,6 +87,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept = 0;
 
+  /// Commit this artifact's metadata to the filesystem
+  virtual void commitMetadata() noexcept;
+
   /// Commit the content of this artifact to the filesystem
   void commitContent() noexcept;
 
@@ -274,9 +277,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   }
 
  protected:
-  /// Commit this artifact's metadata
-  virtual void commitMetadata() noexcept;
-
   /// Commit this artifact's metadata to a specific path
   virtual void commitMetadataTo(fs::path path) noexcept;
 
