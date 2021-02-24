@@ -31,7 +31,9 @@ class FileVersion final : public ContentVersion {
 
   /// Get the name for this type of version
   virtual std::string getTypeName() const noexcept override {
-    if (_cached) {
+    if (_empty) {
+      return "file content (empty)";
+    } else if (_cached) {
       return "file content (cached)";
     } else {
       return "file content";
