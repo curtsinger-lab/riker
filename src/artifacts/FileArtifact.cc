@@ -77,12 +77,11 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   }
 
   // If we don't already have a content fingerprint, take one
-  auto fingerprint_type =
-      policy::chooseFingerprintType(nullptr, _committed_content->getCreator(), path);
+  auto fingerprint_type = policy::chooseFingerprintType(nullptr, _content_writer.lock(), path);
   _committed_content->fingerprint(path, fingerprint_type);
 
   // Cache the contents
-  if (policy::isCacheable(nullptr, _committed_content->getCreator(), path)) {
+  if (policy::isCacheable(nullptr, _content_writer.lock(), path)) {
     _committed_content->cache(path);
   }
 
@@ -98,12 +97,14 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
+  fingerprintAndCache(c);
   build.traceMatchContent(c, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
+  fingerprintAndCache(c);
   build.traceMatchContent(c, ref, getContent(c));
 }
 
@@ -159,7 +160,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
     if (observed == _committed_content) {
       auto path = getPath(false);
       auto fingerprint_type =
-          policy::chooseFingerprintType(c, observed->getCreator(), path.value());
+          policy::chooseFingerprintType(c, _content_writer.lock(), path.value());
       observed->fingerprint(path.value(), fingerprint_type);
 
       // Try the comparison again. If it succeeds, we can return
@@ -183,7 +184,6 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   FAIL_IF(!fv) << "Attempted to apply version " << writing << " to file artifact " << this;
 
   // Mark the creator of the written version
-  writing->createdBy(c);
   _content_writer = c;
 
   // Is the writer currently running?
@@ -196,4 +196,24 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
 
   // Report the output to the build
   c->addContentOutput(shared_from_this(), writing);
+}
+
+void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) noexcept {
+  // If this artifact does not have a committed version, it can't be cached or fingerprinted
+  if (!_committed_content) return;
+
+  // Get a path to this artifact
+  auto path = getPath(false);
+
+  // If the artifact has a committed path, we may fingerprint or cache it
+  if (path.has_value()) {
+    auto fingerprint_type =
+        policy::chooseFingerprintType(reader, _content_writer.lock(), path.value());
+    _committed_content->fingerprint(path.value(), fingerprint_type);
+
+    // cache?
+    if (policy::isCacheable(reader, _content_writer.lock(), path.value())) {
+      _committed_content->cache(path.value());
+    }
+  }
 }

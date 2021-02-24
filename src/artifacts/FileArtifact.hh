@@ -96,6 +96,10 @@ class FileArtifact : public Artifact {
   virtual void updateContent(const std::shared_ptr<Command>& c,
                              std::shared_ptr<ContentVersion> writing) noexcept override;
 
+ protected:
+  /// Cache and fingerprint this file's content if necessary
+  void fingerprintAndCache(const std::shared_ptr<Command>& reader) noexcept;
+
  private:
   /// The command that most recently wrote this artifact's content, possibly null
   std::weak_ptr<Command> _content_writer;

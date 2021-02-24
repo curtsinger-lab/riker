@@ -366,11 +366,6 @@ void FileVersion::cache(fs::path path) noexcept {
     return;
   }
 
-  // Don't cache files that weren't created by the build
-  // Freak out if we're asked to cache a file not created by the build
-  FAIL_IF(!getCreator()) << "Refusing to cache version " << this << " at path " << path
-                         << " created outside build.";
-
   // Path to cache file
   fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
   fs::path hash_dir = hash_file.parent_path();

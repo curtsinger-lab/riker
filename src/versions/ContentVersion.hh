@@ -27,12 +27,6 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
-  /// Get the command that created this version
-  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
-
-  /// Record that this version was created by command c
-  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
-
   /// Save a copy of this version for later reuse. Inform the provided IRSink of the save.
   virtual void cache(fs::path path) noexcept {}
 
@@ -66,9 +60,4 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
  protected:
   // Declare fields for serialization
   SERIALIZE_EMPTY();
-
-  /******** Transient Fields *********/
-
-  /// The command that created this version
-  std::weak_ptr<Command> _creator;
 };

@@ -22,7 +22,6 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
   // Is the command closing the last writable reference to this pipe?
   if (c->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
-    final_write->createdBy(c);
 
     // Intentionally not calling build.traceUpdateContent here. That will implicitly be invoked when
     // the final reference to this pipe is closed.

@@ -440,10 +440,6 @@ void Build::updateContent(const shared_ptr<Command>& c,
   // We can't do anything with an unresolved reference. A change should already have been reported.
   if (!ref->isResolved()) return;
 
-  // Mark the version as created by the calling command. This field is transient, so we have to
-  // apply it on ever run
-  written->createdBy(c);
-
   // Apply the write
   ref->getArtifact()->updateContent(c, written);
 }
@@ -854,24 +850,10 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
   auto artifact = ref->getArtifact();
   ASSERT(artifact) << "Tried to access content through an unresolved reference " << ref;
 
-  ASSERT(expected) << "Attempted to match contenet of " << artifact << " against a null version";
+  ASSERT(expected) << "Attempted to match content of " << artifact << " against a null version";
 
   // Create an IR step and add it to the output trace
   _output.matchContent(c, Scenario::Build, ref_id, expected);
-
-  // Get a path to this artifact
-  auto path = artifact->getPath(false);
-
-  // If the artifact has a committed path, we may fingerprint or cache it
-  if (path.has_value()) {
-    auto fingerprint_type = policy::chooseFingerprintType(c, expected->getCreator(), path.value());
-    expected->fingerprint(path.value(), fingerprint_type);
-
-    // cache?
-    if (policy::isCacheable(c, expected->getCreator(), path.value())) {
-      expected->cache(path.value());
-    }
-  }
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref_id, expected};
@@ -919,9 +901,6 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
 
   // Create an IR step and add it to the output trace
   _output.updateContent(c, ref_id, written);
-
-  // The calling command created this version
-  written->createdBy(c);
 
   // Update the artifact's content
   artifact->updateContent(c, written);
