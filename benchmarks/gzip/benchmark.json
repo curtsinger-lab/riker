@@ -1,8 +1,8 @@
 {
     "name": "gzip",
     "benchmark_root": "/benchmark",
-    "docker_dodo_runner": "/benchmark/dodo-run.sh",
-    "no_docker_dodo_runner": "scripts/dodo-run.sh",
+    "docker_riker_runner": "/benchmark/riker-run.sh",
+    "no_docker_riker_runner": "scripts/riker-run.sh",
     "docker_make_runner": "/benchmark/make-run.sh",
     "no_docker_make_runner": "scripts/make-run.sh",
     "tmp_csv": "tmp.csv",

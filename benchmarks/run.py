@@ -20,17 +20,27 @@ CSV = Tuple[str, List[str]]
 
 ## CONSTANTS
 ON_POSIX = "posix" in sys.builtin_module_names
+HEADER = [
+    "phase",
+    "emulated_commands",
+    "traced_commands",
+    "emulated_steps",
+    "traced_steps",
+    "artifacts",
+    "versions",
+    "ptrace_stops",
+    "syscalls",
+    "elapsed_ns",
+]
 
 ## CLASS DEFINITIONS
-
-
 class Tool(Enum):
     DODO = 1
     MAKE = 2
 
     def __str__(self) -> str:
         if self.value == 1:
-            return "dodo"
+            return "riker"
         if self.value == 2:
             return "make"
         raise Exception("Unknown tool type.")
@@ -105,7 +115,7 @@ class Config:
         # validation
         required_keys: List[str] = [
             "name",
-            "docker_dodo_runner",
+            "docker_riker_runner",
             "docker_make_runner",
             "tmp_csv",
             "image_version",
@@ -131,11 +141,11 @@ class Config:
         )
         # parent directory of this script
         self.my_path: str = os.path.dirname(os.path.realpath(__file__))
-        # location of dodo executable parent dir
-        self.dodo_path: str = os.path.dirname(self.my_path)
-        # location of dodo executable
-        self.dodo_exe: str = (
-            os.path.join(self.dodo_path, "dodo") if self.no_docker else "/dodo/dodo"
+        # location of riker executable parent dir
+        self.riker_path: str = os.path.dirname(self.my_path)
+        # location of riker executable
+        self.riker_exe: str = (
+            os.path.join(self.riker_path, "rkr") if self.no_docker else "/riker/rkr"
         )
         # location of make executable
         self.make_exe: str = check_output(["which", "make"]).decode("utf-8").strip()
@@ -147,35 +157,35 @@ class Config:
         self.dockerfile: str = os.path.join(self.benchmark_path, "Dockerfile")
         # version name to use for container
         self.image_version: int = int(data["image_version"])
-        # location of script in Docker used to run dodo
-        self.docker_dodo_runner: str = data["docker_dodo_runner"]
+        # location of script in Docker used to run riker
+        self.docker_riker_runner: str = data["docker_riker_runner"]
         # location of script in Docker used to run make
         self.docker_make_runner: str = data["docker_make_runner"]
         # remove container and image before running?
         self.cleanup_before: bool = pargs.cleanup_before
         # remove container and image after running?
         self.cleanup_after: bool = pargs.cleanup_after
-        # run a dodo rebuild after a full build with no changes?
-        self.incr_none_dodo: bool = pargs.incr_none_dodo
+        # run a riker rebuild after a full build with no changes?
+        self.incr_none_riker: bool = pargs.incr_none_riker
         # run a make rebuild after a full build with no changes?
         self.incr_none_make: bool = pargs.incr_none_make
         # run make?
         self.make: bool = True if pargs.incr_none_make else pargs.make
-        # run dodo?
-        self.dodo: bool = True if pargs.incr_none_dodo else pargs.dodo
+        # run riker?
+        self.riker: bool = True if pargs.incr_none_riker else pargs.riker
         # don't run benchmarks?
         self.dont_run = pargs.no_bench
 
         # more validation:
-        if not self.make and not self.dodo and not self.dont_run:
+        if not self.make and not self.riker and not self.dont_run:
             print(
-                "You must specify whether to run dodo (using --dodo or --incr-none-dodo), "
+                "You must specify whether to run riker (using --riker or --incr-none-riker), "
                 "whether to run make (using --make or --incr-none-make), or that you only "
                 " want setup/cleanup actions performed (using --no-bench)."
             )
             sys.exit(1)
-        if self.dont_run and (self.make or self.dodo):
-            print("--make and --dodo are not compatible with --no-bench.")
+        if self.dont_run and (self.make or self.riker):
+            print("--make and --riker are not compatible with --no-bench.")
 
         # optional no-docker init script
         if "no_docker_init_script" in data:
@@ -193,14 +203,14 @@ class Config:
             raise Exception(
                 "Benchmark configuration in --no-docker mode must specify 'no_docker_root'."
             )
-        # optional no-docker dodo script
-        if "no_docker_dodo_runner" in data:
-            self.no_docker_dodo_runner = os.path.abspath(
-                os.path.join(self.my_path, data["no_docker_dodo_runner"])
+        # optional no-docker riker script
+        if "no_docker_riker_runner" in data:
+            self.no_docker_riker_runner = os.path.abspath(
+                os.path.join(self.my_path, data["no_docker_riker_runner"])
             )
         elif self.no_docker:
             raise Exception(
-                "Benchmark configuration in --no-docker mode must specify 'no_docker_dodo_runner'."
+                "Benchmark configuration in --no-docker mode must specify 'no_docker_riker_runner'."
             )
         # optional no-docker make script
         if "no_docker_make_runner" in data:
@@ -224,20 +234,20 @@ class Config:
             "\tbenchmark name:\t\t\t{}\n"
             "\tbenchmark root:\t\t\t{}\n"
             "\trun.py path:\t\t\t{}\n"
-            "\tdodo path:\t\t\t{}\n"
-            "\tdodo exe:\t\t\t{}\n"
+            "\triker path:\t\t\t{}\n"
+            "\triker exe:\t\t\t{}\n"
             "\tmake exe:\t\t\t{}\n"
             "\tdocker exe:\t\t\t{}\n"
             "\timage version:\t\t\t{}\n"
             "\tDockerfile:\t\t\t{}\n"
-            "\tdocker dodo runner:\t\t{}\n"
+            "\tdocker riker runner:\t\t{}\n"
             "\tdocker make runner:\t\t{}\n"
-            "\tno-docker dodo runner:\t\t{}\n"
+            "\tno-docker riker runner:\t\t{}\n"
             "\tno-docker make runner:\t\t{}\n"
             "\ttime data csv:\t\t\t{}\n"
-            "\tclean build (with dodo):\t{}\n"
+            "\tclean build (with riker):\t{}\n"
             "\tclean build (with make):\t{}\n"
-            "\trebuild (no changes w/dodo)\t{}\n"
+            "\trebuild (no changes w/riker)\t{}\n"
             "\trebuild (no changes w/make)\t{}\n"
             "\tno-docker init script\t\t{}\n"
             "\tno-docker path\t\t\t{}\n"
@@ -248,20 +258,20 @@ class Config:
             self.benchmark_name,
             self.benchmark_root,
             self.my_path,
-            self.dodo_path,
-            self.dodo_exe,
+            self.riker_path,
+            self.riker_exe,
             self.make_exe,
             self.docker_exe,
             self.image_version,
             self.dockerfile,
-            self.docker_dodo_runner,
+            self.docker_riker_runner,
             self.docker_make_runner,
-            self.no_docker_dodo_runner,
+            self.no_docker_riker_runner,
             self.no_docker_make_runner,
             self.time_data_csv,
-            "yes" if self.dodo else "no",
+            "yes" if self.riker else "no",
             "yes" if self.make else "no",
-            "yes" if self.incr_none_dodo else "no",
+            "yes" if self.incr_none_riker else "no",
             "yes" if self.incr_none_make else "no",
             self.no_docker_init_script,
             self.no_docker_path,
@@ -322,7 +332,7 @@ class Config:
             "-dit {}".format(self.docker_image_fullname()),  # image name
         ]
 
-    def docker_exec_dodo_cmd(self, env: Dict[str, str] = {}) -> List[str]:
+    def docker_exec_riker_cmd(self, env: Dict[str, str] = {}) -> List[str]:
         # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
         if len(env) > 0:
             env_strings: List[str] = []
@@ -337,7 +347,7 @@ class Config:
                     self.docker_container_name()
                 ),  # the name of the running container
                 "{}".format(
-                    self.docker_dodo_runner
+                    self.docker_riker_runner
                 ),  # the path to the program in the container
             ]
             return arr
@@ -349,12 +359,12 @@ class Config:
                     self.docker_container_name()
                 ),  # the name of the running container
                 "{}".format(
-                    self.docker_dodo_runner
+                    self.docker_riker_runner
                 ),  # the path to the program in the container
             ]
 
-    def no_docker_exec_dodo_cmd(self) -> List[str]:
-        return [self.no_docker_dodo_runner]
+    def no_docker_exec_riker_cmd(self) -> List[str]:
+        return [self.no_docker_riker_runner]
 
     def docker_exec_make_cmd(self, env: Dict[str, str] = {}) -> List[str]:
         # docker exec -e {environment=variables} benchmark-calc /benchmark/run.sh
@@ -588,7 +598,7 @@ class Config:
                 print("ERROR: Unable to start docker container.")
                 sys.exit(1)
 
-    # run dodo benchmark
+    # run riker benchmark
     # returns whatever return code was returned by the benchmark
     def benchmark_exec(self, tool: Tool) -> int:
         # setup environment
@@ -596,21 +606,21 @@ class Config:
             "BENCHMARK_NAME": self.benchmark_name,
             "BENCHMARK_ROOT": self.benchmark_root,
             "TIME_CSV": self.time_data_csv,
-            "DODO_EXE": self.dodo_exe,
+            "RIKER_EXE": self.riker_exe,
         }
 
         # choose appropriate benchmark command
         cmd: List[str]
         if self.no_docker:
             if tool == Tool.DODO:
-                cmd = self.no_docker_exec_dodo_cmd()
+                cmd = self.no_docker_exec_riker_cmd()
             elif tool == Tool.MAKE:
                 cmd = self.no_docker_exec_make_cmd()
             else:
                 raise Exception("Unknown tool.")
         else:
             if tool == Tool.DODO:
-                cmd = self.docker_exec_dodo_cmd(my_env)
+                cmd = self.docker_exec_riker_cmd(my_env)
             elif tool == Tool.MAKE:
                 cmd = self.docker_exec_make_cmd(my_env)
             else:
@@ -762,7 +772,7 @@ def init_configs(args: List[str]) -> Configs:
         action="store_true",
     )
     parser.add_argument(
-        "--dodo", help="measure clean build baseline using make", action="store_true"
+        "--riker", help="measure clean build baseline using make", action="store_true"
     )
     parser.add_argument(
         "--dont-ask",
@@ -775,8 +785,8 @@ def init_configs(args: List[str]) -> Configs:
         action="store_true",
     )
     parser.add_argument(
-        "--incr-none-dodo",
-        help="measure incremental rebuild time for no changes using dodo (implies --dodo)",
+        "--incr-none-riker",
+        help="measure incremental rebuild time for no changes using riker (implies --riker)",
         action="store_true",
     )
     parser.add_argument(
@@ -885,32 +895,46 @@ def csv_append(file: str, header: str, rows: List[str]) -> None:
 
 # read a CSV file, returning
 # a tuple containing the header and an array of rows
-def csv_read(file: str) -> CSV:
-    with open(file, "r") as fh:
-        header: str = ""
-        first: bool = True
-        rows: List[str] = []
+def csv_read(file: str) -> Optional[CSV]:
+    try:
+        with open(file, "r") as fh:
+            header: str = ""
+            first: bool = True
+            rows: List[str] = []
 
-        for line in fh.readlines():
-            if first:
-                header = line.strip()
-                first = False
-            else:
-                rows += [line.strip()]
-        return (header, rows)
+            for line in fh.readlines():
+                if first:
+                    header = line.strip()
+                    first = False
+                else:
+                    rows += [line.strip()]
+            return (header, rows)
+    except OSError as err:
+        return None
 
 
 # reads two csv files and returns the result
 # merged in the form of a (header, rows)
 def merge_csvs(file1: str, file2: str) -> CSV:
-    (h1, rs1) = csv_read(file1)
-    (h2, rs2) = csv_read(file2)
-    header = h1 + "," + h2
-    assert len(rs1) == len(rs2)
-    rows: List[str] = []
-    for i, _ in enumerate(rs1):
-        rows += [rs1[i] + "," + rs2[i]]
-    return (header, rows)
+    res1 = csv_read(file1)
+    res2 = csv_read(file2)
+    if res1 and res2:
+        (h1, rs1) = res1
+        (h2, rs2) = res2
+        header = h1 + "," + h2
+        assert len(rs1) == len(rs2)
+        rows: List[str] = []
+        for i, _ in enumerate(rs1):
+            rows += [rs1[i] + "," + rs2[i]]
+        return (header, rows)
+    if res1:
+        (h, r) = res1
+        return (h, r)
+    elif res2:
+        (h, r) = res2
+        return (h, r)
+    else:
+        return ("", [])
 
 
 # prepend the CSV with the given header and column data
@@ -921,7 +945,9 @@ def prepend_column(
     h2: str = '"' + header + '",' + csv_header
 
     # add the data to the rows
-    assert len(column) == len(csv_rows)
+    if len(column) != len(csv_rows):
+        print("hey!")
+    # assert len(column) == len(csv_rows)
     rows: List[str] = []
     for i, _ in enumerate(csv_rows):
         rows += ['"' + column[i] + '",' + csv_rows[i]]
@@ -943,6 +969,20 @@ def append_column(
     return h2, rows
 
 
+# quotes a string
+def q(s: str) -> str:
+    return '"' + s + '"'
+
+
+# generates a CSV fragment
+def emptyCSV() -> CSV:
+    # make a header string
+    header = ",".join(map(q, HEADER))
+    # make an empty row
+    rows = [",".join([q("0")] * len(HEADER))]
+    return header, rows
+
+
 # runs the configured benchmark, returning a CSV data structure
 # (not a file) as output
 def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
@@ -953,20 +993,28 @@ def run_benchmark(conf: Config, tool: Tool, task: Task) -> CSV:
     header: str = ""  # we don't know what the header is yet
     rows: List[str] = []  # nor the rows
 
-    # if there was no error, copy CSV data
-    if rc == 0:
-        dodo_time_tmpfile: str = conf.time_data_csv
+    # read CSV data-- read may fail if Riker died and wrote nothing
+    riker_time_tmpfile: str = conf.time_data_csv
 
-        # if running outside Docker, stats are already in the right place
-        if not conf.no_docker:
-            # copy outputs to 'local' machine
-            dodo_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
+    # if running outside Docker, stats are already in the right place
+    if not conf.no_docker:
+        # copy outputs to 'local' machine
+        riker_time_tmpfile = conf.copy_docker_file(conf.time_data_csv)
 
-        # read csv and return as (header, rows)
-        header, rows = csv_read(dodo_time_tmpfile)
+    # read csv and return as (header, rows)
+    res = csv_read(riker_time_tmpfile)
+    if res:
+        # update header and rows
+        header, rows = res
 
     # get the number of rows
     nrows: int = len(rows)
+
+    # if nrows is zero, then Riker failed, so generate a blank CSV
+    # and update nrows
+    if nrows == 0:
+        header, rows = emptyCSV()
+        nrows = len(rows)
 
     # record the return code-- is nonzero in case of error
     header, rows = prepend_column("return_code", [str(rc)] * nrows, header, rows)
@@ -1041,7 +1089,7 @@ def run_suite(conf: Config, tool: Tool, rebuild: bool, needs_cleanup: bool) -> N
     # write out results
     csv_append(conf.output_csv, header, rows)
 
-    # rebuild with dodo?
+    # rebuild with riker?
     if rebuild:
         # run benchmark and obtain CSV result
         header, rows = run_benchmark(conf, tool, Task.REBUILD_NO_CHANGES)
@@ -1093,9 +1141,9 @@ for conf in c.configs:
             )
         )
 
-    # build with dodo?
-    if conf.dodo:
-        run_suite(conf, Tool.DODO, conf.incr_none_dodo, needs_cleanup)
+    # build with riker?
+    if conf.riker:
+        run_suite(conf, Tool.DODO, conf.incr_none_riker, needs_cleanup)
         needs_cleanup = True
 
     # build with make?
