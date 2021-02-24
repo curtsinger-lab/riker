@@ -13,8 +13,6 @@
 namespace fs = std::filesystem;
 
 void SymlinkVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) return;
-
   struct stat statbuf;
 
   // does the file already exist?
@@ -40,7 +38,4 @@ void SymlinkVersion::commit(fs::path path) noexcept {
                                 << flags.filetype_str() << " (" << (statbuf.st_mode & S_IFMT)
                                 << ").";
   }
-
-  // Mark this version as committed
-  ContentVersion::setCommitted();
 }

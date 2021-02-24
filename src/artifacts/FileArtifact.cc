@@ -46,7 +46,6 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     // Does the uncommitted version match what's on the filesystem?
     if (_uncommitted_content->matches(_committed_content)) {
       // Yes. We can treat the uncommitted version as committed
-      _uncommitted_content->setCommitted();
       _committed_content = std::move(_uncommitted_content);
 
     } else {
@@ -59,7 +58,6 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
       // Try the comparison again
       if (_uncommitted_content->matches(v)) {
         // Now we have a match.
-        _uncommitted_content->setCommitted();
         _committed_content = std::move(_uncommitted_content);
 
       } else {
@@ -190,7 +188,6 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
 
   // Is the writer currently running?
   if (c->running()) {
-    fv->setCommitted();
     _committed_content = fv;
     _uncommitted_content.reset();
   } else {

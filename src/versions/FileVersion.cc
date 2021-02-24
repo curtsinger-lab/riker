@@ -151,14 +151,11 @@ void FileVersion::gcLink() noexcept {
 
 // Is this version saved in a way that can be committed?
 bool FileVersion::canCommit() const noexcept {
-  if (isCommitted()) return true;
   return _empty || (options::enable_cache && _cached);
 }
 
 /// Commit this version to the filesystem
 void FileVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) return;
-
   // Compare to the on-disk artifact. This is a short-term workaround for lazy builds
   // TODO: Remove this once artifacts track both committed and uncommitted state
   if (options::lazy_builds && !canCommit()) {
@@ -168,7 +165,6 @@ void FileVersion::commit(fs::path path) noexcept {
     if (_mtime.has_value()) {
       if (_mtime.value().tv_sec == statbuf.st_mtim.tv_sec &&
           _mtime.value().tv_nsec == statbuf.st_mtim.tv_nsec) {
-        setCommitted();
         return;
       }
     }
@@ -177,7 +173,6 @@ void FileVersion::commit(fs::path path) noexcept {
       auto fs_hash = blake3(path, statbuf);
 
       if (fs_hash == _hash.value()) {
-        setCommitted();
         return;
       }
     }
@@ -204,8 +199,6 @@ void FileVersion::commit(fs::path path) noexcept {
 
 // Commit this version to the filesystem
 void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
-  if (isCommitted()) return;
-
   ASSERT(canCommit()) << "Attempted to commit unsaved version " << this << " to " << path;
 
   int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, mode);
@@ -213,9 +206,6 @@ void FileVersion::commitEmptyFile(fs::path path, mode_t mode) noexcept {
   close(fd);
 
   LOG(artifact) << "Created file at " << path;
-
-  // Mark this version as committed
-  ContentVersion::setCommitted();
 }
 
 /// Save a fingerprint of this version

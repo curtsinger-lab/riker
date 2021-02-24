@@ -108,9 +108,6 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
   // Append the new version to the list of versions
   appendVersion(writing);
 
-  // Set the written version's committed state
-  writing->setCommitted(c->running());
-
   // Has this pipe been assigned a committed/uncommitted mode?
   if (_committed_mode.has_value()) {
     // Yes. Make sure the command accessing the pipe is running if the pipe is committed
