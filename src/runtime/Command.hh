@@ -156,11 +156,15 @@ class Command : public std::enable_shared_from_this<Command> {
 
   using WeakCommandSet = std::set<std::weak_ptr<Command>, std::owner_less<std::weak_ptr<Command>>>;
 
-  template <class T>
-  using InputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>, InputType>>;
+  using InputList =
+      std::list<std::tuple<std::shared_ptr<Artifact>,  // The artifact that was accessed
+                           std::shared_ptr<Version>,   // The input version
+                           std::weak_ptr<Command>,     // The command that created theinput
+                           InputType>>;                // The type of input
 
-  template <class T>
-  using OutputList = std::list<std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<T>>>;
+  using OutputList =
+      std::list<std::tuple<std::shared_ptr<Artifact>,   // The artifact that was written
+                           std::shared_ptr<Version>>>;  // The version written to that artifact
 
   struct Run {
     /// The command's local references
@@ -185,10 +189,10 @@ class Command : public std::enable_shared_from_this<Command> {
     std::set<Scenario> _changed;
 
     /// Inputs to this command
-    InputList<Version> _inputs;
+    InputList _inputs;
 
     /// Outputs from this command
-    OutputList<Version> _outputs;
+    OutputList _outputs;
 
     /// The set of commands that produce any inputs to this command
     WeakCommandSet _uses_output_from;
@@ -303,10 +307,10 @@ class Command : public std::enable_shared_from_this<Command> {
                                      std::map<int, Ref::ID> fds) noexcept;
 
   /// Get the content inputs to this command
-  const InputList<Version>& getInputs() noexcept;
+  const InputList& getInputs() noexcept;
 
   /// Get the outputs from this command
-  const OutputList<Version>& getOutputs() noexcept;
+  const OutputList& getOutputs() noexcept;
 
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.

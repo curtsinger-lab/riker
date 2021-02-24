@@ -406,7 +406,7 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
                                shared_ptr<MetadataVersion> v,
                                shared_ptr<Command> writer,
                                InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
 
   // If this command is running, make sure the metadata is committed
   if (running()) a->commitMetadata();
@@ -430,7 +430,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
                               shared_ptr<Command> writer,
                               InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
 
   // If this command is running, make sure the file is available
   if (running()) a->commitContent();
@@ -454,7 +454,7 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
                                 std::shared_ptr<DirVersion> v,
                                 std::shared_ptr<Command> writer,
                                 InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, t);
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
 
   // If this command is running, make sure the directory version is committed
   if (running()) a->commitContent();
@@ -533,11 +533,11 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 }
 
 /// Get the content inputs to this command
-const Command::InputList<Version>& Command::getInputs() noexcept {
+const Command::InputList& Command::getInputs() noexcept {
   return previousRun()->_inputs;
 }
 
 /// Get the content outputs from this command
-const Command::OutputList<Version>& Command::getOutputs() noexcept {
+const Command::OutputList& Command::getOutputs() noexcept {
   return previousRun()->_outputs;
 }
