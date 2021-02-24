@@ -49,8 +49,9 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     // Only include explicitly-accessed inputs or inputs created by the build
     if (t != InputType::Accessed && !creator) continue;
 
-    // Exclude artifacts with absolute paths, unless all artifacts are shown
-    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
+    // Exclude artifacts with absolute paths, unless all artifacts are shown or the input was
+    // created during the build
+    if (fs::path(a->getName()).is_absolute() && !_show_all && !creator) continue;
 
     // Add the artifact and version
     auto artifact_id = addArtifact(a);
@@ -62,9 +63,6 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
 
   // Add this command's outputs
   for (const auto& [a, v] : c->getOutputs()) {
-    // Exclude artifacts with absolute paths, unless all artifacts are shown
-    if (fs::path(a->getName()).is_absolute() && !_show_all) continue;
-
     // Add the artifact and version
     auto artifact_id = addArtifact(a);
     auto version_id = addVersion(v);
