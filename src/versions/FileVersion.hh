@@ -30,7 +30,13 @@ class FileVersion final : public ContentVersion {
       _empty(statbuf.st_size == 0), _mtime(statbuf.st_mtim) {}
 
   /// Get the name for this type of version
-  virtual std::string getTypeName() const noexcept override { return "file content"; }
+  virtual std::string getTypeName() const noexcept override {
+    if (_cached) {
+      return "file content (cached)";
+    } else {
+      return "file content";
+    }
+  }
 
   /// Can this version be committed to the filesystem?
   bool canCommit() const noexcept override;
