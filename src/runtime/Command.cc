@@ -10,6 +10,7 @@
 #include "artifacts/Artifact.hh"
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
+#include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 using std::list;
@@ -447,6 +448,30 @@ void Command::addContentInput(shared_ptr<Artifact> a,
   }
 }
 
+// Add an input to this command
+void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
+                                std::shared_ptr<DirVersion> v,
+                                std::shared_ptr<Command> writer,
+                                InputType t) noexcept {
+  if (options::track_inputs_outputs) currentRun()->_directory_inputs.emplace_back(a, v, t);
+
+  // If this command is running, make sure the directory version is committed
+  if (running()) a->commitContent();
+
+  // If the version was created by another command, track the use of that command's output
+  if (writer) {
+    // This command uses output from writer
+    currentRun()->_uses_output_from.emplace(writer);
+    writer->currentRun()->_output_used_by.emplace(shared_from_this());
+
+    // Is the version committeable? If not, this command NEEDS output from writer
+    if (!v->canCommit()) {
+      currentRun()->_needs_output_from.emplace(writer);
+      writer->currentRun()->_output_needed_by.emplace(shared_from_this());
+    }
+  }
+}
+
 // Add an output to this command
 void Command::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
   if (options::track_inputs_outputs) currentRun()->_metadata_outputs.emplace_back(a, v);
@@ -455,6 +480,11 @@ void Command::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersi
 // Add an output to this command
 void Command::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
   if (options::track_inputs_outputs) currentRun()->_content_outputs.emplace_back(a, v);
+}
+
+// Add an output to this command
+void Command::addDirectoryOutput(shared_ptr<Artifact> a, shared_ptr<DirVersion> v) noexcept {
+  if (options::track_inputs_outputs) currentRun()->_directory_outputs.emplace_back(a, v);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)

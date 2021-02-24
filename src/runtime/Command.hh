@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 
 class CommandRun;
 class ContentVersion;
+class DirVersion;
 class MetadataVersion;
 
 /// The set of possible markings for a command that determine how it is executed during rebuild
@@ -182,17 +183,23 @@ class Command : public std::enable_shared_from_this<Command> {
     /// Keep track of the scenarios where this command has observed a change
     std::set<Scenario> _changed;
 
-    /// The set of inputs to this command
+    /// The set of metadata version inputs to this command
     InputList<MetadataVersion> _metadata_inputs;
 
-    /// The set of inputs to this command
+    /// The set of content version inputs to this command
     InputList<ContentVersion> _content_inputs;
 
-    /// The set of outputs from this command
+    /// The set of directory version inputs to this command
+    InputList<DirVersion> _directory_inputs;
+
+    /// The set of metadata version outputs from this command
     OutputList<MetadataVersion> _metadata_outputs;
 
-    /// The set of outputs from this command
+    /// The set of content version outputs from this command
     OutputList<ContentVersion> _content_outputs;
+
+    /// The set of directory version outputs from this command
+    OutputList<DirVersion> _directory_outputs;
 
     /// The set of commands that produce any inputs to this command
     WeakCommandSet _uses_output_from;
@@ -251,22 +258,31 @@ class Command : public std::enable_shared_from_this<Command> {
                     std::shared_ptr<ContentVersion> expected,
                     Scenario scenario) noexcept;
 
-  /// Track an input to this command
+  /// Track a metadata version input to this command
   void addMetadataInput(std::shared_ptr<Artifact> a,
                         std::shared_ptr<Command> writer,
                         InputType t) noexcept;
 
-  /// Track an input to this command
+  /// Track a content version input to this command
   void addContentInput(std::shared_ptr<Artifact> a,
                        std::shared_ptr<ContentVersion> v,
                        std::shared_ptr<Command> writer,
                        InputType t) noexcept;
 
-  /// Track an output from this command
+  /// Track a directory version input to this command
+  void addDirectoryInput(std::shared_ptr<Artifact> a,
+                         std::shared_ptr<DirVersion> v,
+                         std::shared_ptr<Command> writer,
+                         InputType t) noexcept;
+
+  /// Track a metadata version output from this command
   void addMetadataOutput(std::shared_ptr<Artifact> a, std::shared_ptr<MetadataVersion> v) noexcept;
 
-  /// Track an output from this command
+  /// Track a content version output from this command
   void addContentOutput(std::shared_ptr<Artifact> a, std::shared_ptr<ContentVersion> v) noexcept;
+
+  /// Track a directory version output from this command
+  void addDirectoryOutput(std::shared_ptr<Artifact> a, std::shared_ptr<DirVersion> v) noexcept;
 
   /// An output from this command does not match the on-disk state (checked at the end of the build)
   void outputChanged(std::shared_ptr<Artifact> artifact,

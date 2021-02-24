@@ -56,7 +56,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
   }
 
   // Mark this version as committed
-  ContentVersion::setCommitted();
+  DirVersion::setCommitted();
 }
 
 // Commit the addition of an entry to a directory
@@ -74,7 +74,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " from a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    ContentVersion::setCommitted();
+    DirVersion::setCommitted();
     return;
   }
 
@@ -116,7 +116,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
                       << ERR;
 
       // Mark this version as committed and return
-      ContentVersion::setCommitted();
+      DirVersion::setCommitted();
       return;
     }
   } else {
@@ -127,7 +127,7 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     _target->commitContentTo(dir_path / _entry);
 
     // Mark this version as committed so the artifact can use it as a committed path
-    ContentVersion::setCommitted();
+    DirVersion::setCommitted();
   }
 }
 
@@ -148,7 +148,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to move " << _target << " to a temporary location: " << ERR;
 
     // Mark this version as committed and return
-    ContentVersion::setCommitted();
+    DirVersion::setCommitted();
     return;
   }
 
@@ -162,7 +162,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     FAIL_IF(rc != 0) << "Failed to remove directory " << artifact_dir << ": " << ERR;
 
     // Mark this version as committed and return
-    ContentVersion::setCommitted();
+    DirVersion::setCommitted();
     return;
 
   } else {
@@ -172,7 +172,7 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
                      << ERR;
 
     // Mark this version as committed and return
-    ContentVersion::setCommitted();
+    DirVersion::setCommitted();
     return;
   }
 }

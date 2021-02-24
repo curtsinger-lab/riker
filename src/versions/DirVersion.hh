@@ -16,16 +16,43 @@ namespace fs = std::filesystem;
  * encode complete versions that describe all of the contents of the directory, or partial versions
  * that describe an update to a single entry in the directory.
  */
-class DirVersion : public ContentVersion {
+class DirVersion : public Version, public std::enable_shared_from_this<DirVersion> {
  public:
+  /// Try to cast this version to one of its subtypes
+  template <class T>
+  std::shared_ptr<T> as() noexcept {
+    return std::dynamic_pointer_cast<T>(shared_from_this());
+  }
+
   /// Can this version be committed to the filesystem?
   virtual bool canCommit() const noexcept = 0;
 
   /// Commit this version to the filesystem
   virtual void commit(fs::path dir_path) noexcept = 0;
 
+  /// Get the command that created this version
+  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
+
+  /// Record that this version was created by command c
+  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
+
+  /// Check if this version has been committed
+  bool isCommitted() const noexcept { return _committed; }
+
+  /// Mark this version as committed
+  void setCommitted(bool committed = true) noexcept { _committed = committed; }
+
  private:
-  SERIALIZE(BASE(ContentVersion));
+  // Declare fields for serialization
+  SERIALIZE_EMPTY();
+
+  /******** Transient Fields *********/
+
+  /// Has this version been committed?
+  bool _committed = false;
+
+  /// The command that created this version
+  std::weak_ptr<Command> _creator;
 };
 
 /**

@@ -246,7 +246,7 @@ namespace env {
     // If a command was provided, record the content output
     if (c) {
       dv->createdBy(c);
-      c->addContentOutput(dir, dv);
+      c->addDirectoryOutput(dir, dv);
     }
 
     _artifacts.insert(dir);

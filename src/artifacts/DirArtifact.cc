@@ -148,8 +148,8 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
 
   // The command listing this directory depends on its base version
   if (c) {
-    c->addContentInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
-                       InputType::Accessed);
+    c->addDirectoryInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
+                         InputType::Accessed);
   }
 
   for (const auto& [name, info] : _entries) {
@@ -168,7 +168,7 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
 
     // The listing command depends on whatever version is responsible for this entry
     if (c) {
-      c->addContentInput(shared_from_this(), version, version->getCreator(), InputType::Accessed);
+      c->addDirectoryInput(shared_from_this(), version, version->getCreator(), InputType::Accessed);
     }
   }
 
@@ -253,12 +253,12 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     }
 
     // Add a path resolution input from the version that matched
-    c->addContentInput(shared_from_this(), v, v->getCreator(), InputType::PathResolution);
+    c->addDirectoryInput(shared_from_this(), v, v->getCreator(), InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
-    c->addContentInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
-                       InputType::PathResolution);
+    c->addDirectoryInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
+                         InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (_base_dir_version->getCreated()) {
@@ -366,7 +366,7 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
   target->addLinkUpdate(as<DirArtifact>(), entry, writing);
 
   // Notify the build of this output
-  c->addContentOutput(shared_from_this(), writing);
+  c->addDirectoryOutput(shared_from_this(), writing);
 
   // Record this version in the artifact
   appendVersion(writing);
@@ -411,7 +411,7 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
   }
 
   // Notify the build of this output
-  c->addContentOutput(shared_from_this(), writing);
+  c->addDirectoryOutput(shared_from_this(), writing);
 
   // Record this version in the artifact as well
   appendVersion(writing);
