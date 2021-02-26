@@ -11,3 +11,4 @@ out.svg
 out.png
 tests/*/*.t.err
 **/core
+benchmark.local
