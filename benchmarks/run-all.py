@@ -11,7 +11,8 @@ import sys
 # Just put your list of benchmarks in a JSON file called "benchmarks.json."
 # Paths will be resolved relative to the benchmarks.json file.
 
-FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask"
+# FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask"
+FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask --no-docker"
 
 # process args
 if len(sys.argv) != 3:
@@ -25,40 +26,29 @@ base = os.path.abspath(os.path.dirname(arg_json))
 
 # read JSON
 with open(arg_json) as f:
-  data = json.load(f)
-  
-  # run each benchmark
-  for benchmark in data["benchmarks"]:
-      # resolve benchmark relative to base dir
-      path = os.path.join(base, benchmark)
-  
-      # first command
-      cmd1 = [
-          "./run.py",
-          FLAGS,
-          arg_csvf,
-          path
-      ]
+    data = json.load(f)
 
-      # stringify command
-      args1 = " ".join(cmd1)
+    # run each benchmark
+    for benchmark in data["benchmarks"]:
+        # resolve benchmark relative to base dir
+        path = os.path.join(base, benchmark)
 
-      # call the process
-      print(args1)
-      os.system(args1)
-      
-      # second command
-      cmd2 = [
-          "./run.py",
-          FLAGS,
-          "--no-docker",
-          arg_csvf,
-          path
-      ]
+        # first command
+        cmd1 = ["./run.py", FLAGS, arg_csvf, path]
 
-      # stringify command
-      args2 = " ".join(cmd2)
+        # stringify command
+        args1 = " ".join(cmd1)
 
-      # call the process
-      print(args2)
-      os.system(args2)
+        # call the process
+        print(args1)
+        os.system(args1)
+
+        # second command
+        cmd2 = ["./run.py", FLAGS, "--no-docker", arg_csvf, path]
+
+        # stringify command
+        args2 = " ".join(cmd2)
+
+        # call the process
+        print(args2)
+        os.system(args2)

@@ -10,7 +10,7 @@ mkdir -p $BENCHMARK_ROOT
 cd $BENCHMARK_ROOT
 
 # put runners in $BENCHMARK_ROOT
-cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh .
+cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh ../benchmarks/scripts/no-docker-cleanup.sh .
 
 # obtain benchmark
 git clone https://github.com/lcn2/calc.git $BENCHMARK_NAME
