@@ -11,8 +11,7 @@ import sys
 # Just put your list of benchmarks in a JSON file called "benchmarks.json."
 # Paths will be resolved relative to the benchmarks.json file.
 
-# FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask"
-FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask --no-docker"
+FLAGS = "--cleanup-before --cleanup-after --incr-none-riker --incr-none-make --dont-ask"
 
 # process args
 if len(sys.argv) != 3:
