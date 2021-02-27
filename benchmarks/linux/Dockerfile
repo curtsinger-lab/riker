@@ -8,7 +8,7 @@ ARG USER_GID=$USER_UID
 # Stop warnings from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
-# setup dodo
+# setup riker
 RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     # 
@@ -31,16 +31,16 @@ RUN apt-get update \
 # download git
 RUN apt-get install git
 
-# download and install dodo
-ADD src /dodo/src
+# download and install riker
+ADD src /riker/src
 
-ADD deps /dodo/deps
+ADD deps /riker/deps
 
-ADD launch /dodo/launch
+ADD launch /riker/launch
 
-ADD Makefile /dodo/
+ADD Makefile /riker/
 
-RUN cd dodo \
+RUN cd riker \
     && make
 
 # download wget
@@ -64,7 +64,7 @@ COPY benchmarks/linux/linux-kernel.config /benchmark/linux/.config
 COPY benchmarks/linux/Rikerfile /benchmark/linux/
 
 # add benchmarking scripts
-COPY benchmarks/scripts/dodo-run.sh benchmarks/scripts/make-run.sh /benchmark/
+COPY benchmarks/scripts/riker-run.sh benchmarks/scripts/make-run.sh /benchmark/
 
 # Go back to default apt frontend
 ENV DEBIAN_FRONTEND=dialog
