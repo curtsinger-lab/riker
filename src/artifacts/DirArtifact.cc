@@ -101,10 +101,14 @@ void DirArtifact::commitAll() noexcept {
       auto& [committed_artifact, committed_version, committed_creator] = iter->second;
 
       // Remove the link to the committed artifact (if there is one)
-      if (committed_artifact) committed_artifact->commitUnlink(this->as<DirArtifact>(), entry);
+      if (committed_artifact) {
+        committed_artifact->commitUnlink(this->as<DirArtifact>(), entry);
+      }
 
-      // Commit the new link
-      artifact->commitLink(this->as<DirArtifact>(), entry);
+      // Is there an artifact being linked? If so, link it.
+      if (artifact) {
+        artifact->commitLink(this->as<DirArtifact>(), entry);
+      }
 
       // Update the map
       _committed_entries.emplace_hint(iter, entry, link);
@@ -386,7 +390,16 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
 
-  // TODO: check for an old link at this entry? That probably shouldn't happen
+  // Is there already an entry with this name?
+  auto iter = _entries.find(entry);
+  if (iter != _entries.end()) {
+    auto& [old_artifact, old_version, old_creator] = iter->second;
+
+    // Does the entry reference an artifact? It is losing its link
+    if (old_artifact) {
+      old_artifact->removeLink(this->as<DirArtifact>(), entry);
+    }
+  }
 
   // Add the entry to the map of all entries
   _entries[entry] = Link{target, writing, c};

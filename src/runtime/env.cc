@@ -159,7 +159,6 @@ namespace env {
     } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
       // The path refers to a directory
       auto dv = make_shared<BaseDirVersion>(false);
-      dv->setCommitted();
       a = make_shared<DirArtifact>(mv, dv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFLNK) {

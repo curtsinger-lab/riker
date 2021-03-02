@@ -24,29 +24,9 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
-  /// Get the command that created this version
-  std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
-
-  /// Record that this version was created by command c
-  void createdBy(std::shared_ptr<Command> c) noexcept { _creator = c; }
-
-  /// Check if this version has been committed
-  bool isCommitted() const noexcept { return _committed; }
-
-  /// Mark this version as committed
-  void setCommitted(bool committed = true) noexcept { _committed = committed; }
-
  private:
   // Declare fields for serialization
   SERIALIZE_EMPTY();
-
-  /******** Transient Fields *********/
-
-  /// Has this version been committed?
-  bool _committed = false;
-
-  /// The command that created this version
-  std::weak_ptr<Command> _creator;
 };
 
 /**
@@ -55,7 +35,7 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
  */
 class BaseDirVersion : public DirVersion {
  public:
-  BaseDirVersion(bool created) noexcept : _created(created) { setCommitted(!created); }
+  BaseDirVersion(bool created) noexcept : _created(created) {}
 
   /// Does the base version represent a newly created directory?
   bool getCreated() const noexcept { return _created; }

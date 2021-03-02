@@ -44,8 +44,9 @@ string Artifact::getName() const noexcept {
 // Model a link to this artifact, but do not commit it to the filesystem
 void Artifact::addLink(shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
   // Warn if there is already a link at this path in the model
-  WARN_IF(_modeled_links.find({dir, entry}) != _modeled_links.end())
-      << "Link {" << dir << ", " << entry << "} already exists for " << this;
+  if (_modeled_links.find({dir, entry}) != _modeled_links.end()) {
+    WARN << "Link {" << dir << ", " << entry << "} already exists for " << this;
+  }
 
   // Add the link
   _modeled_links.emplace(dir, entry);

@@ -78,7 +78,37 @@ void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) 
 
 /// Commit an unlink of this artifact at the given path
 void FileArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
-  WARN << "Unimplemented FileArtifact::commitUnlink";
+  // Check for a matching committed link. If we don't find one, return immediately.
+  auto iter = _committed_links.find(Link{dir, entry});
+  if (iter == _committed_links.end()) return;
+
+  // Get a path to the directory
+  auto maybe_dir_path = dir->commitPath();
+  ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
+
+  auto dir_path = maybe_dir_path.value();
+  auto unlink_path = dir_path / entry;
+
+  // Committing an unlink of a file has two cases:
+  // 1. There are uncommitted links, but no other committed links. Move to a temporary path.
+  // 2. Otherwise just unlink
+  if (_committed_links.size() == 1 && _modeled_links.size() > 0) {
+    // Get a temporary path for this file
+    auto temp_path = assignTemporaryPath();
+
+    // Move the file
+    int rc = ::rename(unlink_path.c_str(), temp_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to move " << this << " to a temporary location: " << ERR;
+
+  } else {
+    // It's safe to just unlink the file.
+    int rc = ::unlink(unlink_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
+  }
+
+  // Remove the committed link and return
+  _committed_links.erase(iter);
+  return;
 }
 
 /// Compare all final versions of this artifact to the filesystem state

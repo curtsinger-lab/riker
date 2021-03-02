@@ -21,11 +21,6 @@ namespace fs = std::filesystem;
 
 // Commit a base directory version
 void BaseDirVersion::commit(fs::path path) noexcept {
-  if (isCommitted()) {
-    LOG(artifact) << "Directory at " << path << " is already committed";
-    return;
-  }
-
   // This directory better be one we've created, otherwise it should have been committed already
   ASSERT(_created) << "An on-disk directory is somehow not committed";
 
@@ -54,9 +49,6 @@ void BaseDirVersion::commit(fs::path path) noexcept {
                                   << flags.filetype_str() << " (" << (statbuf.st_mode & S_IFMT)
                                   << ").";
   }
-
-  // Mark this version as committed
-  DirVersion::setCommitted();
 }
 
 // Commit the addition of an entry to a directory
