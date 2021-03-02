@@ -10,7 +10,7 @@ mkdir -p $BENCHMARK_ROOT
 cd $BENCHMARK_ROOT
 
 # put runners in $BENCHMARK_ROOT
-cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh .
+cp ../benchmarks/scripts/dodo-run.sh ../benchmarks/scripts/make-run.sh ../benchmarks/scripts/no-docker-cleanup.sh .
 
 # obtain benchmark
 wget --no-clobber https://riker-benchmarks.s3.amazonaws.com/linux-5.9.1.tar.xz

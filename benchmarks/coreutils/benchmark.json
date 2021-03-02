@@ -9,5 +9,6 @@
     "image_version": "1",
     "time_data_csv": "time.csv",
     "no_docker_init_script": "no-docker-init.sh",
+    "no_docker_cleanup_script": "../scripts/no-docker-cleanup.sh",
     "no_docker_root": "../benchmark.local"
 }

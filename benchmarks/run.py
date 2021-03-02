@@ -35,7 +35,7 @@ HEADER = [
 
 ## CLASS DEFINITIONS
 class Tool(Enum):
-    DODO = 1
+    RIKER = 1
     MAKE = 2
 
     def __str__(self) -> str:
@@ -103,7 +103,7 @@ class Configs:
             )
             s += str(conf)
 
-        s += "All output will be written to: {}\n".format(
+        s += "\nAll output will be written to: {}\n".format(
             os.path.realpath(self.output_csv)
         )
         return s
@@ -196,6 +196,17 @@ class Config:
             raise Exception(
                 "Benchmark configuration in --no-docker mode must specify 'no_docker_init_script'."
             )
+
+        # optional no-docker cleanup script
+        if "no_docker_cleanup_script" in data:
+            self.no_docker_cleanup_script = os.path.join(
+                self.benchmark_path, data["no_docker_cleanup_script"]
+            )
+        elif self.no_docker:
+            raise Exception(
+                "Benchmark configuration in --no-docker mode must specify 'no_docker_cleanup_script'."
+            )
+
         # optional path to create no-docker benchmark
         if "no_docker_root" in data:
             self.no_docker_path = os.path.join(self.benchmark_root, self.benchmark_name)
@@ -203,6 +214,7 @@ class Config:
             raise Exception(
                 "Benchmark configuration in --no-docker mode must specify 'no_docker_root'."
             )
+
         # optional no-docker riker script
         if "no_docker_riker_runner" in data:
             self.no_docker_riker_runner = os.path.abspath(
@@ -212,15 +224,18 @@ class Config:
             raise Exception(
                 "Benchmark configuration in --no-docker mode must specify 'no_docker_riker_runner'."
             )
+
         # optional no-docker make script
         if "no_docker_make_runner" in data:
             self.no_docker_make_runner = os.path.abspath(
                 os.path.join(self.my_path, data["no_docker_make_runner"])
             )
+
         elif self.no_docker:
             raise Exception(
                 "Benchmark configuration in --no-docker mode must specify 'no_docker_make_runner'."
             )
+
         # location for CSV output of time data
         self.time_data_csv: str = os.path.abspath(
             os.path.join(self.benchmark_root, data["time_data_csv"])
@@ -250,6 +265,7 @@ class Config:
             "\trebuild (no changes w/riker)\t{}\n"
             "\trebuild (no changes w/make)\t{}\n"
             "\tno-docker init script\t\t{}\n"
+            "\tno-docker cleanup script\t{}\n"
             "\tno-docker path\t\t\t{}\n"
         ).format(
             "yes" if not self.no_docker else "no",
@@ -274,6 +290,7 @@ class Config:
             "yes" if self.incr_none_riker else "no",
             "yes" if self.incr_none_make else "no",
             self.no_docker_init_script,
+            self.no_docker_cleanup_script,
             self.no_docker_path,
         )
 
@@ -470,6 +487,14 @@ class Config:
             self.benchmark_name,  # name of the benchmark
         ]
 
+    # cleanup the no-Docker benchmark
+    def no_docker_cleanup_cmd(self) -> List[str]:
+        return [
+            self.no_docker_cleanup_script,  # path to the cleanup script
+            self.benchmark_root,  # location of initialized benchmark folder
+            self.benchmark_name,  # name of the benchmark
+        ]
+
     # returns true if image already set up
     def image_is_initialized(self) -> bool:
         if self.no_docker:
@@ -612,14 +637,14 @@ class Config:
         # choose appropriate benchmark command
         cmd: List[str]
         if self.no_docker:
-            if tool == Tool.DODO:
+            if tool == Tool.RIKER:
                 cmd = self.no_docker_exec_riker_cmd()
             elif tool == Tool.MAKE:
                 cmd = self.no_docker_exec_make_cmd()
             else:
                 raise Exception("Unknown tool.")
         else:
-            if tool == Tool.DODO:
+            if tool == Tool.RIKER:
                 cmd = self.docker_exec_riker_cmd(my_env)
             elif tool == Tool.MAKE:
                 cmd = self.docker_exec_make_cmd(my_env)
@@ -657,7 +682,12 @@ class Config:
     ) -> int:
         if no_docker:
             # we just remove the folder at no_docker_path
-            return rmdir(self.benchmark_root, ignore_errors=ignore_failure)
+            rc = run_command(conf.no_docker_cleanup_cmd())
+            if rc != 0:
+                print("ERROR: Unable to initialize no-Docker benchmark.")
+                sys.exit(1)
+
+            return rc
         else:
             rc: int
             rc, _ = run_command_capture(
@@ -1143,7 +1173,7 @@ for conf in c.configs:
 
     # build with riker?
     if conf.riker:
-        run_suite(conf, Tool.DODO, conf.incr_none_riker, needs_cleanup)
+        run_suite(conf, Tool.RIKER, conf.incr_none_riker, needs_cleanup)
         needs_cleanup = True
 
     # build with make?
