@@ -24,73 +24,114 @@ using std::tuple;
 
 namespace fs = std::filesystem;
 
+class Command;
 class MetadataVersion;
 
-DirArtifact::DirArtifact(shared_ptr<BaseDirVersion> dv) noexcept : Artifact() {
-  _base_dir_version = dv;
-  appendVersion(dv);
+DirArtifact::DirArtifact(shared_ptr<Command> c) noexcept : Artifact() {
+  FAIL_IF(!c) << "A directory cannot be created by a null command";
+
+  // Record the command that created this directory
+  _creator = c;
+
+  // Set up the base directory version
+  auto base = make_shared<BaseDirVersion>(true);
+  if (c->running()) {
+    _committed_base_version = base;
+  } else {
+    _uncommitted_base_version = base;
+  }
+
+  // Add the base version to the creating command's outputs
+  c->addDirectoryOutput(shared_from_this(), base);
+
+  appendVersion(base);
 }
 
 DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(mv) {
-  _base_dir_version = dv;
+  _committed_base_version = dv;
   appendVersion(dv);
 }
 
-void DirArtifact::commitEntry(fs::path entry) noexcept {
-  auto path = commitPath();
-  ASSERT(path.has_value()) << "Directory " << this << " has no path";
-
-  // Commit the base version of this directory
-  _base_dir_version->commit(path.value());
-
-  // Find the entry
-  auto iter = _entries.find(entry);
-  if (iter != _entries.end()) {
-    auto& [version, target] = iter->second;
-    version->commit(path.value());
-  } else {
-    WARN << this << " was asked to commit non-existent entry " << entry;
-  }
+const shared_ptr<BaseDirVersion>& DirArtifact::getBaseVersion() const noexcept {
+  if (_uncommitted_base_version) return _uncommitted_base_version;
+  return _committed_base_version;
 }
 
 /// Commit the content of this artifact to a specific path
 void DirArtifact::commitContentTo(fs::path path) noexcept {
-  _base_dir_version->commit(path);
+  if (_uncommitted_base_version) {
+    _uncommitted_base_version->commit(path);
+    _committed_base_version = nullptr;
+    std::swap(_uncommitted_base_version, _committed_base_version);
+  }
 }
 
 // Does this artifact have any uncommitted content?
 bool DirArtifact::hasUncommittedContent() noexcept {
-  return !_base_dir_version->isCommitted();
+  if (_uncommitted_base_version) return true;
+  return false;
 }
 
 // Commit all final versions of this artifact to the filesystem
 void DirArtifact::commitAll() noexcept {
+  // Get a committed path to this directory
   auto path = commitPath();
-
   ASSERT(path.has_value()) << "Committing to a directory with no path";
-  _base_dir_version->commit(path.value());
 
-  // Commit the versions needed for each entry
-  for (auto& [name, info] : _entries) {
-    auto& [version, artifact] = info;
-    version->commit(path.value());
-  }
+  // Commit the base directory version
+  commitContentTo(path.value());
 
   // Commit metadata
   commitMetadataTo(path.value());
+
+  // Commit the versions needed for each entry
+  for (auto& [entry, link] : _entries) {
+    auto& [artifact, version, creator] = link;
+
+    // Look for a corresponding committed entry
+    auto iter = _committed_entries.find(entry);
+    if (iter == _committed_entries.end()) {
+      // If there is no matching committed entry, commit the link now
+      artifact->commitLink(this->as<DirArtifact>(), entry);
+      _committed_entries.emplace_hint(iter, entry, link);
+
+    } else if (link != iter->second) {
+      // If there is a committed entry with the same name but different contents, update it
+      auto& [committed_artifact, committed_version, committed_creator] = iter->second;
+
+      // Remove the link to the committed artifact (if there is one)
+      if (committed_artifact) committed_artifact->commitUnlink(this->as<DirArtifact>(), entry);
+
+      // Commit the new link
+      artifact->commitLink(this->as<DirArtifact>(), entry);
+
+      // Update the map
+      _committed_entries.emplace_hint(iter, entry, link);
+    }
+  }
+}
+
+/// Commit a link to this artifact at the given path
+void DirArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented DirArtifact::commitLink()";
+}
+
+/// Commit an unlink of this artifact at the given path
+void DirArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented DirArtifact::commitUnlink()";
 }
 
 // Compare all final versions of this artifact to the filesystem state
 void DirArtifact::checkFinalState(fs::path path) noexcept {
   // Recursively check the final state of all known entries
-  for (auto& [name, info] : _entries) {
-    auto& [version, artifact] = info;
+  for (auto& [entry, link] : _entries) {
+    auto& [artifact, version, creator] = link;
 
     // Do we expect the entry to point to an artifact?
     if (artifact) {
       // Yes. Make sure that artifact is in the expected final state
-      artifact->checkFinalState(path / name);
+      artifact->checkFinalState(path / entry);
     }
 
     // If the entry doesn't reference an artifact, we don't need to check for its absence. We only
@@ -110,9 +151,9 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 
   // Recursively apply final state for all known entries
-  for (auto& [name, info] : _entries) {
-    auto& [version, artifact] = info;
-    if (artifact) artifact->applyFinalState(path / name);
+  for (auto& [entry, link] : _entries) {
+    auto& [artifact, version, creator] = link;
+    if (artifact) artifact->applyFinalState(path / entry);
   }
 }
 
@@ -133,9 +174,9 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   auto result = make_shared<DirListVersion>();
 
   // If this directory was NOT created, get the list of entries from the filesystem
-  if (!_base_dir_version->getCreated()) {
-    // Get a path to the directory, but only allow committed paths
-    auto path = getPath(false);
+  if (_committed_base_version && !_committed_base_version->getCreated()) {
+    // Get a committed path to this directory
+    auto path = getCommittedPath();
     ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
 
     for (auto& entry : fs::directory_iterator(path.value())) {
@@ -146,30 +187,27 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
     }
   }
 
-  // The command listing this directory depends on its base version
-  if (c) {
-    c->addDirectoryInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
-                         InputType::Accessed);
-  }
+  const auto& base = getBaseVersion();
 
-  for (const auto& [name, info] : _entries) {
-    // Get the version and artifact for this entry
-    const auto& [version, artifact] = info;
+  // The command listing this directory depends on its base version
+  if (c) c->addDirectoryInput(shared_from_this(), base, _creator, InputType::Accessed);
+
+  for (const auto& [entry, link] : _entries) {
+    // Get the artifact, version, and creator for this entry
+    const auto& [artifact, version, creator] = link;
 
     // If this entry is from the base version, we've already covered it
-    if (version == _base_dir_version) continue;
+    if (version == base) continue;
 
     // Otherwise the entry is from some other version. Update the list.
     if (artifact) {
-      result->addEntry(name);
+      result->addEntry(entry);
     } else {
-      result->removeEntry(name);
+      result->removeEntry(entry);
     }
 
     // The listing command depends on whatever version is responsible for this entry
-    if (c) {
-      c->addDirectoryInput(shared_from_this(), version, version->getCreator(), InputType::Accessed);
-    }
+    if (c) c->addDirectoryInput(shared_from_this(), version, creator, InputType::Accessed);
   }
 
   return result;
@@ -243,31 +281,31 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   if (entries_iter != _entries.end()) {
     // Found a match.
     // Get the version responsible for this entry and the artifact it mapped (possibly null)
-    const auto& [v, a] = entries_iter->second;
+    const auto& [artifact, version, creator] = entries_iter->second;
 
     // Is there an artifact to resolve to?
-    if (a) {
-      res = Ref(flags, a);
+    if (artifact) {
+      res = Ref(flags, artifact);
     } else {
       res = ENOENT;
     }
 
     // Add a path resolution input from the version that matched
-    c->addDirectoryInput(shared_from_this(), v, v->getCreator(), InputType::PathResolution);
+    c->addDirectoryInput(shared_from_this(), version, creator, InputType::PathResolution);
 
   } else {
     // Add a path resolution input from the base version
-    c->addDirectoryInput(shared_from_this(), _base_dir_version, _base_dir_version->getCreator(),
-                         InputType::PathResolution);
+    const auto& base = getBaseVersion();
+    c->addDirectoryInput(shared_from_this(), base, _creator, InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
-    if (_base_dir_version->getCreated()) {
+    if (base->getCreated()) {
       // A created directory does not have any entries that don't appear in the map.
       res = ENOENT;
 
     } else {
       // Create a path to the entry. Start with a committed path to this directory
-      auto dir_path = getPath(false);
+      auto dir_path = getCommittedPath();
       ASSERT(dir_path.has_value()) << "Directory has no path!";
       auto entry_path = dir_path.value() / entry;
 
@@ -280,16 +318,19 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
         res = Ref(flags, artifact);
 
         // Inform the artifact of its link in the current directory
-        artifact->addLinkUpdate(this->as<DirArtifact>(), entry, _base_dir_version);
+        artifact->addLink(this->as<DirArtifact>(), entry);
+        artifact->addCommittedLink(this->as<DirArtifact>(), entry);
 
       } else {
         // Set the result to ENOENT
         res = ENOENT;
       }
 
-      // Add the entry to this directory's map (if artifact is null, this indicates the absence of
-      // an entry)
-      _entries.emplace_hint(entries_iter, entry, tuple{_base_dir_version, artifact});
+      // Add the entry to this directory's map of entries
+      _entries.emplace(entry, Link{artifact, base, nullptr});
+
+      // The entry is also committed
+      _committed_entries.emplace(entry, Link{artifact, base, nullptr});
     }
   }
 
@@ -344,26 +385,23 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
                            shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this entry
   auto writing = make_shared<AddEntry>(entry, target);
-  writing->createdBy(c);
 
-  // If command c is running, mark this new entry as committed
-  writing->setCommitted(c->running());
+  // TODO: check for an old link at this entry? That probably shouldn't happen
 
-  // Check for an existing entry with the same name
-  auto iter = _entries.find(entry);
-  if (iter != _entries.end()) {
-    // TODO: We will overwrite the old entry. How do we track that?
-
-    // Update the existing entry
-    iter->second = {writing, target};
-
-  } else {
-    // Add the new entry
-    _entries.emplace_hint(iter, entry, tuple{writing, target});
-  }
+  // Add the entry to the map of all entries
+  _entries[entry] = Link{target, writing, c};
 
   // Inform the artifact of its new link
-  target->addLinkUpdate(as<DirArtifact>(), entry, writing);
+  target->addLink(this->as<DirArtifact>(), entry);
+
+  // Is the writing command running?
+  if (c->running()) {
+    // Add the link to the map of committed entries
+    _committed_entries[entry] = Link{target, writing, c};
+
+    // Inform the artifact of its new committed link
+    target->addCommittedLink(this->as<DirArtifact>(), entry);
+  }
 
   // Notify the build of this output
   c->addDirectoryOutput(shared_from_this(), writing);
@@ -378,36 +416,22 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
                               shared_ptr<Artifact> target) noexcept {
   // Create a partial version to track the committed state of this update
   auto writing = make_shared<RemoveEntry>(entry, target);
-  writing->createdBy(c);
 
-  // Set the written version's committed state
-  writing->setCommitted(c->running());
+  // TODO: check for the old entry? We already have the artifact so maybe this isn't required
 
-  // Do we have a record of an entry with the given name?
-  auto iter = _entries.find(entry);
-  if (iter != _entries.end()) {
-    // Get the version that added this entry, and the artifact it maps to
-    const auto& [version, artifact] = iter->second;
+  // Update the map of entries
+  _entries[entry] = Link{nullptr, writing, c};
 
-    // If there is an artifact at this entry, inform it of an unlink operation
-    if (artifact) artifact->addLinkUpdate(as<DirArtifact>(), entry, writing);
+  // Inform the target of its lost link
+  target->removeLink(this->as<DirArtifact>(), entry);
 
-    // Is the version that linked this entry uncommitted?
-    if (!version->isCommitted()) {
-      // Not committed. If the uncommitted version is an AddEntry version, we can cancel it out.
-      if (auto add = version->as<AddEntry>()) {
-        // The new RemoveEntry version cancels out the uncommitted AddEntry version
-        add->setCommitted();
-        writing->setCommitted();
-      }
-    }
+  // Is the writing command running?
+  if (c->running()) {
+    // Remove the link from the map of committed entries too
+    _committed_entries[entry] = Link{nullptr, writing, c};
 
-    // Update the existing entry
-    iter->second = {writing, nullptr};
-
-  } else {
-    // Add a new entry
-    _entries.emplace_hint(iter, entry, tuple{writing, nullptr});
+    // Inform the artifact of its lost committed link
+    target->removeCommittedLink(this->as<DirArtifact>(), entry);
   }
 
   // Notify the build of this output

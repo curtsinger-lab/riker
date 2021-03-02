@@ -60,7 +60,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
 }
 
 // Commit the addition of an entry to a directory
-void AddEntry::commit(fs::path dir_path) noexcept {
+/*void AddEntry::commit(fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // First, check to see if the linked artifact has a temporary path
@@ -129,10 +129,10 @@ void AddEntry::commit(fs::path dir_path) noexcept {
     // Mark this version as committed so the artifact can use it as a committed path
     DirVersion::setCommitted();
   }
-}
+}*/
 
 // Commit the removal of an entry from a directory
-void RemoveEntry::commit(fs::path dir_path) noexcept {
+/*void RemoveEntry::commit(fs::path dir_path) noexcept {
   if (isCommitted()) return;
 
   // We need to know all the links to the artifact being unlinked
@@ -175,4 +175,4 @@ void RemoveEntry::commit(fs::path dir_path) noexcept {
     DirVersion::setCommitted();
     return;
   }
-}
+}*/

@@ -441,7 +441,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
     currentRun()->_uses_output_from.emplace(writer);
     writer->currentRun()->_output_used_by.emplace(shared_from_this());
 
-    // Is the version committeable? If not, this command NEEDS output from writer
+    // Is the version committable? If not, this command NEEDS output from writer
     if (!v->canCommit()) {
       currentRun()->_needs_output_from.emplace(writer);
       writer->currentRun()->_output_needed_by.emplace(shared_from_this());
@@ -464,12 +464,6 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
     // This command uses output from writer
     currentRun()->_uses_output_from.emplace(writer);
     writer->currentRun()->_output_used_by.emplace(shared_from_this());
-
-    // Is the version committeable? If not, this command NEEDS output from writer
-    if (!v->canCommit()) {
-      currentRun()->_needs_output_from.emplace(writer);
-      writer->currentRun()->_output_needed_by.emplace(shared_from_this());
-    }
   }
 }
 

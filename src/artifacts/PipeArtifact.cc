@@ -17,6 +17,16 @@ using std::make_shared;
 using std::shared_ptr;
 using std::tuple;
 
+/// Commit a link to this artifact at the given path
+void PipeArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented PipeArtifact::commitLink()";
+}
+
+/// Commit an unlink of this artifact at the given path
+void PipeArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented PipeArtifact::commitUnlink()";
+}
+
 // A traced command is about to close a reference to this artifact
 void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?

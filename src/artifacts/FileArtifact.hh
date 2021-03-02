@@ -49,6 +49,14 @@ class FileArtifact : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
 
+  /************ Path Operations ************/
+
+  /// Commit a link to this artifact at the given path
+  virtual void commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept override;
+
+  /// Commit an unlink of this artifact at the given path
+  virtual void commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept override;
+
   /************ Traced Operations ************/
 
   /// A traced command is about to (possibly) read from this artifact

@@ -286,7 +286,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // Change to the initial working directory
     auto cwd = cmd->getRef(Ref::Cwd)->getArtifact();
-    auto cwd_path = cwd->getPath(false);
+    auto cwd_path = cwd->getCommittedPath();
     ASSERT(cwd_path.has_value()) << "Current working directory does not have a committed path";
     int rc = ::chdir(cwd_path.value().c_str());
     FAIL_IF(rc != 0) << "Failed to chdir to " << cwd_path.value() << " to launch " << cmd;
@@ -367,7 +367,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // TODO: explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();
-    auto exe_path = exe->getPath(false);
+    auto exe_path = exe->getCommittedPath();
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
     execv(exe_path.value().c_str(), (char* const*)args.data());
 

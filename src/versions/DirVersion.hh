@@ -24,12 +24,6 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept = 0;
-
-  /// Commit this version to the filesystem
-  virtual void commit(fs::path dir_path) noexcept = 0;
-
   /// Get the command that created this version
   std::shared_ptr<Command> getCreator() const noexcept { return _creator.lock(); }
 
@@ -66,11 +60,8 @@ class BaseDirVersion : public DirVersion {
   /// Does the base version represent a newly created directory?
   bool getCreated() const noexcept { return _created; }
 
-  /// We can always commit the base version. It is either already on disk, or a newly created dir
-  virtual bool canCommit() const noexcept override { return true; }
-
-  /// Commit this version to the filesystem
-  virtual void commit(fs::path dir_path) noexcept override;
+  /// Commit this base directory version to
+  void commit(fs::path path) noexcept;
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override {
@@ -113,17 +104,6 @@ class AddEntry : public DirVersion {
   /// Get the target of the newly-linked entry
   std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override {
-    // We can always commit a link to an artifact: it either has a path we can hard link to, or we
-    // could create it. We will always be able to commit the artifact because created links depend
-    // on the current artifact state.
-    return true;
-  }
-
-  /// Commit this version to the filesystem
-  virtual void commit(fs::path dir_path) noexcept override;
-
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "+" + std::string(_entry); }
 
@@ -149,12 +129,6 @@ class RemoveEntry : public DirVersion {
 
   /// Get a reference to the artifact that is unlinked
   std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
-
-  /// Can this version be committed to the filesystem?
-  virtual bool canCommit() const noexcept override { return true; }
-
-  /// Commit this version to the filesystem
-  virtual void commit(fs::path dir_path) noexcept override;
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "-" + std::string(_entry); }

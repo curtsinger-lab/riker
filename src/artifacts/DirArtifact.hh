@@ -24,8 +24,8 @@ class MetadataVersion;
 
 class DirArtifact final : public Artifact {
  public:
-  /// Create a DirArtifact with no initial metadata version.
-  DirArtifact(std::shared_ptr<BaseDirVersion> dv) noexcept;
+  /// Create a DirArtifact to represent a directory created by the given command
+  DirArtifact(std::shared_ptr<Command> creator) noexcept;
 
   /// Create a DirArtifact with existing committed metadata and content
   DirArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<BaseDirVersion> dv) noexcept;
@@ -41,9 +41,6 @@ class DirArtifact final : public Artifact {
   /// Does this artifact have any uncommitted content?
   virtual bool hasUncommittedContent() noexcept override;
 
-  /// Commit an entry to this directory
-  void commitEntry(fs::path entry) noexcept;
-
   /// Commit all entries in this directory
   void commitAll() noexcept;
 
@@ -52,6 +49,14 @@ class DirArtifact final : public Artifact {
 
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
+
+  /************ Path Operations ************/
+
+  /// Commit a link to this artifact at the given path
+  virtual void commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept override;
+
+  /// Commit an unlink of this artifact at the given path
+  virtual void commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept override;
 
   /************ Traced Operations ************/
 
@@ -98,13 +103,30 @@ class DirArtifact final : public Artifact {
                       AccessFlags flags,
                       size_t symlink_limit) noexcept override;
 
- private:
-  /// The base directory version is the backstop for all resolution queries. This is either an
-  /// on-disk verison, or an empty directory
-  std::shared_ptr<BaseDirVersion> _base_dir_version;
+ protected:
+  /// Get the base version for this directory artifact, which may or may not be committed
+  const std::shared_ptr<BaseDirVersion>& getBaseVersion() const noexcept;
 
-  /// A map of entries in this directory. Each mapped value is a pair of the version that created
-  /// that entry and the artifact that entry resolves to (or nullptr if the entry is absent).
-  std::map<std::string, std::tuple<std::shared_ptr<DirVersion>, std::shared_ptr<Artifact>>>
-      _entries;
+ private:
+  /// A link is a tuple of the artifact (possibly nullptr), the version that linked/unlinked the
+  /// artifact, and the command responsible for the latest state
+  using Link = std::tuple<std::shared_ptr<Artifact>,    // The linked artifact, or null if unlinked
+                          std::shared_ptr<DirVersion>,  // The version responsible for the link
+                          std::shared_ptr<Command>>;    // The command that wrote this version
+
+  /// A map from entry names to links in this directory. Includes all links, committed or not.
+  std::map<std::string, Link> _entries;
+
+  /// A map of entries that are committed to the filesystem
+  std::map<std::string, Link> _committed_entries;
+
+  /// The base directory version is the backstop for all resolution queries. The base version can
+  /// only be uncommitted if it is an empty directory.
+  std::shared_ptr<BaseDirVersion> _uncommitted_base_version;
+
+  /// The committed base directory version is committed ot the filesystem
+  std::shared_ptr<BaseDirVersion> _committed_base_version;
+
+  /// The command that created this directory, or nullptr
+  std::shared_ptr<Command> _creator;
 };

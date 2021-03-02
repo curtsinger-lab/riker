@@ -100,6 +100,16 @@ void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
   _committed_content = std::move(_uncommitted_content);
 }
 
+/// Commit a link to this artifact at the given path
+void SymlinkArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented SymlinkArtifact::commitLink()";
+}
+
+/// Commit an unlink of this artifact at the given path
+void SymlinkArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented SymlinkArtifact::commitUnlink()";
+}
+
 // Compare all final versions of this artifact to the filesystem state
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
   if (_uncommitted_content) {

@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/policy.hh"
@@ -33,6 +34,51 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
 
   _uncommitted_content->commit(path);
   _committed_content = std::move(_uncommitted_content);
+}
+
+/// Commit a link to this artifact at the given path
+void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  // Check for a matching committed link. If we find one, return.
+  auto iter = _committed_links.find(Link{dir, entry});
+  if (iter != _committed_links.end()) return;
+
+  // Get a path to the directory
+  auto maybe_dir_path = dir->commitPath();
+  ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
+
+  auto dir_path = maybe_dir_path.value();
+  auto new_path = dir_path / entry;
+
+  // Committing a new path to this artifact has three cases:
+  // 1. The file has a temporary path. Move it into place
+  // 2. The file has an existing committed path. Create a hard link
+  // 3. The file has no committed paths. Commit its content to create the file
+  if (auto temp_path = takeTemporaryPath(); temp_path.has_value()) {
+    // This artifact has a temporary path. We can move it to its new committed location
+    LOG(artifact) << "Moving " << this << " from temporary location to " << dir_path / entry;
+
+    // Yes. Move the artifact into place
+    int rc = ::rename(temp_path.value().c_str(), new_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to move " << this << " from a temporary location: " << ERR;
+
+  } else if (auto committed_path = getCommittedPath(); committed_path.has_value()) {
+    // This artifact has another committed path. We can create a hard link from that path
+    int rc = ::link(committed_path.value().c_str(), new_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to hard link " << this << " to " << new_path << ": " << ERR;
+
+  } else {
+    // This artifact has no paths. Create one by committing its content.
+    commitContentTo(new_path);
+  }
+
+  // Record the committed link and return
+  _committed_links.emplace_hint(iter, Link{dir, entry});
+  return;
+}
+
+/// Commit an unlink of this artifact at the given path
+void FileArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+  WARN << "Unimplemented FileArtifact::commitUnlink";
 }
 
 /// Compare all final versions of this artifact to the filesystem state
@@ -158,7 +204,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
   if (!observed->matches(expected)) {
     // If the observed content version is on disk, try to fingerprint it and try the match again
     if (observed == _committed_content) {
-      auto path = getPath(false);
+      auto path = getCommittedPath();
       auto fingerprint_type =
           policy::chooseFingerprintType(c, _content_writer.lock(), path.value());
       observed->fingerprint(path.value(), fingerprint_type);
@@ -203,7 +249,7 @@ void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) noexce
   if (!_committed_content) return;
 
   // Get a path to this artifact
-  auto path = getPath(false);
+  auto path = getCommittedPath();
 
   // If the artifact has a committed path, we may fingerprint or cache it
   if (path.has_value()) {

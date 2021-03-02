@@ -103,7 +103,8 @@ namespace env {
       FAIL_IF(!_root_dir) << "Artifact at path \"/\" is not a directory";
 
       _root_dir->setName("/");
-      _root_dir->addLinkUpdate(nullptr, "/", nullptr);
+      _root_dir->addLink(_root_dir, "");
+      _root_dir->addCommittedLink(_root_dir, "");
     }
 
     return _root_dir;
@@ -230,20 +231,11 @@ namespace env {
     gid_t gid = getgid();
     mode_t stat_mode = S_IFDIR | (mode & ~mask);
 
-    // Create the directory content version
-    auto dv = make_shared<BaseDirVersion>(true);
-    if (c->running()) dv->setCommitted();
-
-    auto dir = make_shared<DirArtifact>(dv);
+    // Create a directory artifact
+    auto dir = make_shared<DirArtifact>(c);
 
     // Set the metadata for the new directory artifact
     dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
-
-    // If a command was provided, record the content output
-    if (c) {
-      dv->createdBy(c);
-      c->addDirectoryOutput(dir, dv);
-    }
 
     _artifacts.insert(dir);
     stats::artifacts++;

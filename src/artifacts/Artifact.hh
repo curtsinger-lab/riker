@@ -59,6 +59,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
+  /// Try to cast this artifact to some subtype (const version)
+  template <class T>
+  std::shared_ptr<const T> as() const noexcept {
+    return std::dynamic_pointer_cast<const T>(shared_from_this());
+  }
+
   /// Get a pretty-printed name for this artifact
   std::string getName() const noexcept;
 
@@ -78,9 +84,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * \returns true if the access is allowed, or false otherwise
    */
   bool checkAccess(const std::shared_ptr<Command>& c, AccessFlags flags) noexcept;
-
-  /// Commit links to ensure there is at least one committed path to this artifact
-  std::optional<fs::path> commitPath() noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -110,30 +113,35 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// A link is a tuple of a directory and an entry name in that directory
   using Link = std::tuple<std::shared_ptr<DirArtifact>, fs::path>;
 
-  /// Inform this artifact that it is linked or unlinked
-  void addLinkUpdate(std::shared_ptr<DirArtifact> dir,
-                     fs::path entry,
-                     std::shared_ptr<DirVersion> v) noexcept;
+  /// Model a link to this artifact, but do not commit it to the filesystem
+  void addLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
 
-  /// Get all paths to this artifact. Returns two maps, each of which map a link (directory and
-  /// entry) to the version that creates that link. The first map holds committed links, while the
-  /// second map holds uncommitted links.
-  std::tuple<std::map<Link, std::shared_ptr<DirVersion>>,
-             std::map<Link, std::shared_ptr<DirVersion>>>
-  getLinks() const noexcept;
+  /// Model an unlink of this artifact, but do not commit it to the filesystem
+  void removeLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
 
-  /// Get a path to this artifact that may or may not be committed to the filesystem
-  std::optional<fs::path> getPath(bool allow_uncommitted = true) const noexcept;
+  /// Add an already-committed link to this artifact
+  void addCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+
+  /// Remove a committed link from this artifact
+  void removeCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+
+  /// Commit a link to this artifact at the given path
+  virtual void commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept = 0;
+
+  /// Commit an unlink of this artifact at the given path
+  virtual void commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept = 0;
+
+  /// Get a committed path to this artifact
+  std::optional<fs::path> getCommittedPath() const noexcept;
+
+  /// Get a path to this artifact, either committed or uncommitted
+  std::optional<fs::path> getPath() const noexcept;
 
   /// Get a parent directory for this artifact. The result may or may not be on the filesystem
   std::optional<std::shared_ptr<DirArtifact>> getParentDir() noexcept;
 
-  /// Generate and save a temporary path for this artifact. Returns the new path.
-  /// The caller must make sure this artifact is linked at the new temporary path.
-  fs::path assignTemporaryPath() noexcept;
-
-  /// Clear the temporary path for this artifact. Returns the old temporary path if it had one.
-  std::optional<fs::path> takeTemporaryPath() noexcept;
+  /// Get a committed path to this artifact, and commit one if necessary
+  std::optional<fs::path> commitPath() noexcept;
 
   /************ Metadata Operations ************/
 
@@ -283,6 +291,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Mark this artifact's metadata as committed without doing anything
   void setMetadataCommitted() noexcept;
 
+  /// Set a temporary path for this artifact and return it
+  fs::path assignTemporaryPath() noexcept;
+
+  /// Take the temporary path from this artifact and return it
+  std::optional<fs::path> takeTemporaryPath() noexcept;
+
   /// Remember a version associated with this artifact
   void appendVersion(std::shared_ptr<Version> v) noexcept;
 
@@ -296,18 +310,20 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The current metadata version on the filesystem
   std::shared_ptr<MetadataVersion> _committed_metadata;
 
-  /// A link update records a directory, entry name, and the version that creates/removes the link
-  using LinkUpdate = std::tuple<std::weak_ptr<DirArtifact>, fs::path, std::weak_ptr<DirVersion>>;
-
-  /// Keep track of the sequence of links and unlinks to this artifact
-  std::list<LinkUpdate> _link_updates;
-
-  /// A path to a temporary location where this artifact is stored
-  std::optional<fs::path> _temp_path;
-
   /// A fixed string name assigned to this artifact
   std::string _name;
 
   /// All of the versions of this artifact
   std::list<std::shared_ptr<Version>> _versions;
+
+  /// A path to a temporary location where this artifact is linked
+  std::optional<fs::path> _temp_path;
+
+ protected:
+  /// The set of links to this artifact currently available on the filesystem
+  std::set<Link> _committed_links;
+
+  /// The set of links to this artifact in the filesystem model. This will include committed links
+  /// unless they have been unlinked in the model but that unlink has not been committed.
+  std::set<Link> _modeled_links;
 };
