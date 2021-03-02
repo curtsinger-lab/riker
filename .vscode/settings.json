@@ -78,6 +78,9 @@
   "files.exclude": {
     "**.obj": true
   },
+  "files.watcherExclude": {
+    "**/benchmark.local/**": true,
+  },
   "editor.rulers": [
     100
   ],
