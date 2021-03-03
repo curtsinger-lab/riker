@@ -480,14 +480,14 @@ const shared_ptr<Artifact>& DirArtifact::Entry::getTarget(
   // Does this entry have an uncommitted update?
   if (_uncommitted_version) {
     // Yes. Record the command's input
-    c->addDirectoryInput(dir, _uncommitted_version, _writer.lock(), InputType::Accessed);
+    if (c) c->addDirectoryInput(dir, _uncommitted_version, _writer.lock(), InputType::Accessed);
 
     // Return the uncommitted target
     return _uncommitted_target;
 
   } else {
     // No. Use the committed state
-    c->addDirectoryInput(dir, _committed_version, _writer.lock(), InputType::Accessed);
+    if (c) c->addDirectoryInput(dir, _committed_version, _writer.lock(), InputType::Accessed);
 
     // Return the committed target
     return _committed_target;
