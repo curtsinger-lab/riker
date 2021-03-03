@@ -441,11 +441,20 @@ shared_ptr<DirVersion> DirArtifact::Entry::updateTarget(shared_ptr<Command> c,
     // Is there a committed target? If so, remove its committed link as well
     if (_committed_target) _committed_target->removeCommittedLink(dir, name);
 
+    // Inform the artifact of its new link
+    if (target) {
+      target->addLink(dir, name);
+      target->addCommittedLink(dir, name);
+    }
+
     // Update the committed target and version
     _committed_target = target;
     _committed_version = version;
 
   } else {
+    // Inform the artifact of its new link
+    if (target) target->addLink(dir, name);
+
     // Update the uncommitted state. All links have already been updated
     _uncommitted_target = target;
     _uncommitted_version = version;
