@@ -88,7 +88,7 @@ void DirArtifact::commitAll() noexcept {
 
   // Commit each entry in this directory
   for (auto& [name, entry] : _entries) {
-    entry.commit(this->as<DirArtifact>(), name);
+    entry.commit();
   }
 }
 
@@ -96,7 +96,7 @@ void DirArtifact::commitAll() noexcept {
 void DirArtifact::commitEntry(fs::path name) noexcept {
   auto iter = _entries.find(name);
   if (iter != _entries.end()) {
-    iter->second.commit(this->as<DirArtifact>(), name);
+    iter->second.commit();
   }
 }
 
@@ -275,7 +275,7 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
 
   for (const auto& [name, entry] : _entries) {
     // Get the artifact targeted by this entry. This access records a dependency on the entry.
-    const auto& artifact = entry.getTarget(c, this->as<DirArtifact>());
+    const auto& artifact = entry.getTarget(c);
 
     // Does the entry target an artifact?
     if (artifact) {
@@ -357,7 +357,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     // Found a match.
 
     // Get the target of this entry. This access creates a dependency on the entry's state
-    const auto& artifact = entries_iter->second.getTarget(c, this->as<DirArtifact>());
+    const auto& artifact = entries_iter->second.getTarget(c);
 
     // Is there an artifact to resolve to?
     if (artifact) {
@@ -450,8 +450,14 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 void DirArtifact::addEntry(const shared_ptr<Command>& c,
                            fs::path entry,
                            shared_ptr<Artifact> target) noexcept {
-  // Update the target of the named entry
-  auto written = _entries[entry].updateTarget(c, target, this->as<DirArtifact>(), entry);
+  // Make sure we have a record of this entry
+  auto iter = _entries.find(entry);
+  if (iter == _entries.end()) {
+    iter = _entries.emplace_hint(iter, entry, Entry(this->as<DirArtifact>(), entry));
+  }
+
+  // Update the entry's target
+  auto written = iter->second.updateTarget(c, target);
 
   // Record this version in the artifact
   appendVersion(written);
@@ -461,18 +467,27 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
 void DirArtifact::removeEntry(const shared_ptr<Command>& c,
                               fs::path entry,
                               shared_ptr<Artifact> target) noexcept {
-  // Update the target of the named entry
-  auto written = _entries[entry].updateTarget(c, nullptr, this->as<DirArtifact>(), entry);
+  // Make sure we have a record of this entry
+  auto iter = _entries.find(entry);
+  if (iter == _entries.end()) {
+    iter = _entries.emplace_hint(iter, entry, Entry(this->as<DirArtifact>(), entry));
+  }
+
+  // Update the entry's target
+  auto written = iter->second.updateTarget(c, nullptr);
 
   // Record this version in the artifact
   appendVersion(written);
 }
 
+DirArtifact::Entry::Entry(shared_ptr<DirArtifact> dir, fs::path name) noexcept :
+    _dir(dir), _name(name) {}
+
 DirArtifact::Entry::Entry(shared_ptr<DirArtifact> dir,
                           fs::path name,
                           shared_ptr<Artifact> target,
                           shared_ptr<DirVersion> version) noexcept :
-    _committed_target(target), _committed_version(version) {
+    _dir(dir), _name(name), _committed_target(target), _committed_version(version) {
   // If there is an initial target, inform it of its link
   if (target) {
     target->addLink(dir, name);
@@ -481,18 +496,18 @@ DirArtifact::Entry::Entry(shared_ptr<DirArtifact> dir,
 }
 
 // Commit this entry's modeled state to the filesystem
-void DirArtifact::Entry::commit(shared_ptr<DirArtifact> dir, fs::path name) noexcept {
+void DirArtifact::Entry::commit() noexcept {
   // If this entry has no uncommitted state, just return immediately
   if (!_uncommitted_version) return;
 
   // Is there an existing committed target?
   if (_committed_target) {
-    _committed_target->commitUnlink(dir, name);
+    _committed_target->commitUnlink(_dir.lock(), _name);
   }
 
   // Is there an uncommitted target? There may not be if this is just an unlink.
   if (_uncommitted_target) {
-    _uncommitted_target->commitLink(dir, name);
+    _uncommitted_target->commitLink(_dir.lock(), _name);
   }
 
   // The uncommitted state becomes the committed state
@@ -502,50 +517,48 @@ void DirArtifact::Entry::commit(shared_ptr<DirArtifact> dir, fs::path name) noex
 
 // Update this entry to reach a new target artifact on behalf of a command
 shared_ptr<DirVersion> DirArtifact::Entry::updateTarget(shared_ptr<Command> c,
-                                                        shared_ptr<Artifact> target,
-                                                        shared_ptr<DirArtifact> dir,
-                                                        fs::path name) noexcept {
+                                                        shared_ptr<Artifact> target) noexcept {
   // If there is uncommitted state and command c is running, commit first
-  if (_uncommitted_version && c->running()) commit(dir, name);
+  if (_uncommitted_version && c->running()) commit();
 
   // First, create an input to command c from the current version
   if (_uncommitted_version) {
-    c->addDirectoryInput(dir, _uncommitted_version, _writer.lock(), InputType::Accessed);
+    c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock(), InputType::Accessed);
   } else {
-    c->addDirectoryInput(dir, _committed_version, _writer.lock(), InputType::Accessed);
+    c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock(), InputType::Accessed);
   }
 
   // Next, update records of uncommitted links
   if (_uncommitted_version) {
     // The uncommitted target is going to lose its link (if there is one)
-    if (_uncommitted_target) _uncommitted_target->removeLink(dir, name);
+    if (_uncommitted_target) _uncommitted_target->removeLink(_dir.lock(), _name);
   } else {
     // The committed target loses its link (if there is one)
-    if (_committed_target) _committed_target->removeLink(dir, name);
+    if (_committed_target) _committed_target->removeLink(_dir.lock(), _name);
   }
 
   // Create a version to represent the update
   shared_ptr<DirVersion> version;
   if (target) {
-    version = make_shared<AddEntry>(name);
+    version = make_shared<AddEntry>(_name);
   } else {
-    version = make_shared<RemoveEntry>(name);
+    version = make_shared<RemoveEntry>(_name);
   }
 
   // Record the version as output from command c
-  c->addDirectoryOutput(dir, version);
+  c->addDirectoryOutput(_dir.lock(), version);
 
   // Now update the state with the new version
   if (c->running() || c->alreadyRun()) {
     // The command is running or has already run, so all effects are automatically committed
 
     // Is there a committed target? If so, remove its committed link as well
-    if (_committed_target) _committed_target->removeCommittedLink(dir, name);
+    if (_committed_target) _committed_target->removeCommittedLink(_dir.lock(), _name);
 
     // Inform the artifact of its new link
     if (target) {
-      target->addLink(dir, name);
-      target->addCommittedLink(dir, name);
+      target->addLink(_dir.lock(), _name);
+      target->addCommittedLink(_dir.lock(), _name);
     }
 
     // There is no longer an uncommitted target or version
@@ -558,7 +571,7 @@ shared_ptr<DirVersion> DirArtifact::Entry::updateTarget(shared_ptr<Command> c,
 
   } else {
     // Inform the artifact of its new link
-    if (target) target->addLink(dir, name);
+    if (target) target->addLink(_dir.lock(), _name);
 
     // Update the uncommitted state. All links have already been updated
     _uncommitted_target = target;
@@ -579,20 +592,22 @@ const shared_ptr<Artifact>& DirArtifact::Entry::peekTarget() const noexcept {
 }
 
 // Get the artifact linked at this entry on behalf of command c
-const shared_ptr<Artifact>& DirArtifact::Entry::getTarget(
-    shared_ptr<Command> c,
-    shared_ptr<DirArtifact> dir) const noexcept {
+const shared_ptr<Artifact>& DirArtifact::Entry::getTarget(shared_ptr<Command> c) const noexcept {
   // Does this entry have an uncommitted update?
   if (_uncommitted_version) {
     // Yes. Record the command's input
-    if (c) c->addDirectoryInput(dir, _uncommitted_version, _writer.lock(), InputType::Accessed);
+    if (c) {
+      c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock(), InputType::Accessed);
+    }
 
     // Return the uncommitted target
     return _uncommitted_target;
 
   } else {
     // No. Use the committed state
-    if (c) c->addDirectoryInput(dir, _committed_version, _writer.lock(), InputType::Accessed);
+    if (c) {
+      c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock(), InputType::Accessed);
+    }
 
     // Return the committed target
     return _committed_target;

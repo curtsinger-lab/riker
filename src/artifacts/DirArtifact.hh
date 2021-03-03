@@ -119,8 +119,11 @@ class DirArtifact final : public Artifact {
    public:
     /**
      * Create an entry with no initial target or version
+     *
+     * \param dir   The directory that contains this entry
+     * \param name  The name of this entry in the containing directory
      */
-    Entry() noexcept = default;
+    Entry(std::shared_ptr<DirArtifact> dir, fs::path name) noexcept;
 
     /**
      * Create an entry with an initial target and version. Only valid for committed state.
@@ -137,25 +140,18 @@ class DirArtifact final : public Artifact {
 
     /**
      * Commit this entry's modeled state to the filesystem
-     *
-     * \param dir       The directory that contains this entry
-     * \param name      The name of this entry in the containing directory
      */
-    void commit(std::shared_ptr<DirArtifact> dir, fs::path name) noexcept;
+    void commit() noexcept;
 
     /**
      * Update this entry to reach a new target artifact on behalf of a command
      *
      * \param c       The command updating this entry
      * \param target  The artifact this entry should link to (or nullptr to unlink)
-     * \param dir     The directory that contains this entry
-     * \param name    The name of this entry in the containing directory
      * \returns the version that was just written to this entry
      */
     std::shared_ptr<DirVersion> updateTarget(std::shared_ptr<Command> c,
-                                             std::shared_ptr<Artifact> target,
-                                             std::shared_ptr<DirArtifact> dir,
-                                             fs::path name) noexcept;
+                                             std::shared_ptr<Artifact> target) noexcept;
 
     /**
      * Peek at the target of this entry without creating a dependency
@@ -166,13 +162,17 @@ class DirArtifact final : public Artifact {
      * Get the artifact linked at this entry on behalf of command c
      *
      * \param c   The command reading the entry
-     * \param dir The directory artifact that contains this entry
      * \returns   The artifact reachable through this entry, or nullptr if it has been unlinked
      */
-    const std::shared_ptr<Artifact>& getTarget(std::shared_ptr<Command> c,
-                                               std::shared_ptr<DirArtifact> dir) const noexcept;
+    const std::shared_ptr<Artifact>& getTarget(std::shared_ptr<Command> c) const noexcept;
 
    private:
+    /// The directory that contains this entry
+    std::weak_ptr<DirArtifact> _dir;
+
+    /// The name of this entry in the containing directory
+    fs::path _name;
+
     /// The artifact reachable through this entry that is not linked on the filesystem
     std::shared_ptr<Artifact> _uncommitted_target;
 
