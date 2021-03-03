@@ -446,13 +446,13 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
 // Add a directory entry to this artifact
 void DirArtifact::addEntry(const shared_ptr<Command>& c,
-                           fs::path entry,
+                           fs::path name,
                            shared_ptr<Artifact> target) noexcept {
   // Make sure we have a record of this entry
-  auto iter = _entries.find(entry);
+  auto iter = _entries.find(name);
   if (iter == _entries.end()) {
-    iter =
-        _entries.emplace_hint(iter, entry, make_shared<DirEntry>(this->as<DirArtifact>(), entry));
+    auto entry = make_shared<DirEntry>(this->as<DirArtifact>(), name);
+    iter = _entries.emplace_hint(iter, name, entry);
   }
 
   // Update the entry's target
@@ -464,13 +464,13 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
 
 // Remove a directory entry from this artifact
 void DirArtifact::removeEntry(const shared_ptr<Command>& c,
-                              fs::path entry,
+                              fs::path name,
                               shared_ptr<Artifact> target) noexcept {
   // Make sure we have a record of this entry
-  auto iter = _entries.find(entry);
+  auto iter = _entries.find(name);
   if (iter == _entries.end()) {
-    iter =
-        _entries.emplace_hint(iter, entry, make_shared<DirEntry>(this->as<DirArtifact>(), entry));
+    auto entry = make_shared<DirEntry>(this->as<DirArtifact>(), name);
+    iter = _entries.emplace_hint(iter, name, entry);
   }
 
   // Update the entry's target

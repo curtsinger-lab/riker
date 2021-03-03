@@ -44,10 +44,10 @@ class DirListVersion : public ContentVersion {
   }
 
   /// Add an entry to this listed directory version
-  void addEntry(fs::path entry) noexcept { _entries.insert(entry); }
+  void addEntry(fs::path name) noexcept { _entries.insert(name); }
 
   /// Remove an entry from this listed directory version
-  void removeEntry(fs::path entry) noexcept { _entries.erase(entry); }
+  void removeEntry(fs::path name) noexcept { _entries.erase(name); }
 
  private:
   /// The names of entries in the directory
