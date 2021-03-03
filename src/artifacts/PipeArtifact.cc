@@ -120,11 +120,11 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
   // Has this pipe been assigned a committed/uncommitted mode?
   if (_committed_mode.has_value()) {
     // Yes. Make sure the command accessing the pipe is running if the pipe is committed
-    ASSERT(_committed_mode.value() == c->running())
+    ASSERT(_committed_mode.value() == c->running() || c->alreadyRun())
         << "Invalid access to " << this << " from command " << c;
   } else {
     // No. Assign the mode now.
-    _committed_mode = c->running();
+    _committed_mode = c->running() || c->alreadyRun();
   }
 
   // Report the output to the build

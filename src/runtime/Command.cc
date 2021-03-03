@@ -271,6 +271,11 @@ bool Command::running() const noexcept {
   return false;
 }
 
+// Has this command already run?
+bool Command::alreadyRun() const noexcept {
+  return _marking == RebuildMarking::AlreadyRun;
+}
+
 /******************** Current Run Data ********************/
 
 // Prepare this command to execute by creating dependencies and committing state

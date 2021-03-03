@@ -44,6 +44,9 @@ class DirArtifact final : public Artifact {
   /// Commit all entries in this directory
   void commitAll() noexcept;
 
+  /// Commit a specific entry in this directory
+  void commitEntry(fs::path name) noexcept;
+
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
 

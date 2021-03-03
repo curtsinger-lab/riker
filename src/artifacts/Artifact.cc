@@ -146,7 +146,7 @@ optional<fs::path> Artifact::commitPath() noexcept {
   for (const auto& [dir, entry] : _modeled_links) {
     auto dir_path = dir->getCommittedPath();
     if (dir_path.has_value()) {
-      commitLink(dir, entry);
+      dir->commitEntry(entry);
       ASSERT(getCommittedPath().has_value()) << "Just committed link " << entry << " to " << dir
                                              << ", but " << this << " still has no committed path";
       return dir_path.value() / entry;
@@ -157,7 +157,7 @@ optional<fs::path> Artifact::commitPath() noexcept {
   for (const auto& [dir, entry] : _modeled_links) {
     auto dir_path = dir->commitPath();
     if (dir_path.has_value()) {
-      commitLink(dir, entry);
+      dir->commitEntry(entry);
       ASSERT(getCommittedPath().has_value()) << "Just committed link " << entry << " to " << dir
                                              << ", but " << this << " still has no committed path";
       return dir_path.value() / entry;
@@ -257,7 +257,7 @@ void Artifact::updateMetadata(const shared_ptr<Command>& c,
   appendVersion(writing);
 
   // Is the writing command running?
-  if (c->running()) {
+  if (c->running() || c->alreadyRun()) {
     // Yes. The metadata is committed
     _uncommitted_metadata.reset();
     _committed_metadata = writing;

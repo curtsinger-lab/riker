@@ -35,7 +35,7 @@ DirArtifact::DirArtifact(shared_ptr<Command> c) noexcept : Artifact() {
 
   // Set up the base directory version
   auto base = make_shared<BaseDirVersion>(true);
-  if (c->running()) {
+  if (c->running() || c->alreadyRun()) {
     _committed_base_version = base;
   } else {
     _uncommitted_base_version = base;
@@ -88,6 +88,14 @@ void DirArtifact::commitAll() noexcept {
   // Commit each entry in this directory
   for (auto& [name, entry] : _entries) {
     entry.commit(this->as<DirArtifact>(), name);
+  }
+}
+
+/// Commit a specific entry in this directory
+void DirArtifact::commitEntry(fs::path name) noexcept {
+  auto iter = _entries.find(name);
+  if (iter != _entries.end()) {
+    iter->second.commit(this->as<DirArtifact>(), name);
   }
 }
 
@@ -395,10 +403,8 @@ void DirArtifact::Entry::commit(shared_ptr<DirArtifact> dir, fs::path name) noex
   }
 
   // The uncommitted state becomes the committed state
-  _committed_target.reset();
-  _committed_version.reset();
-  std::swap(_uncommitted_target, _committed_target);
-  std::swap(_uncommitted_version, _committed_version);
+  _committed_target = std::move(_uncommitted_target);
+  _committed_version = std::move(_uncommitted_version);
 }
 
 // Update this entry to reach a new target artifact on behalf of a command
@@ -436,8 +442,10 @@ shared_ptr<DirVersion> DirArtifact::Entry::updateTarget(shared_ptr<Command> c,
   // Record the version as output from command c
   c->addDirectoryOutput(dir, version);
 
-  // Now update the state with the new version. This depends on whether or not c is running.
-  if (c->running()) {
+  // Now update the state with the new version
+  if (c->running() || c->alreadyRun()) {
+    // The command is running or has already run, so all effects are automatically committed
+
     // Is there a committed target? If so, remove its committed link as well
     if (_committed_target) _committed_target->removeCommittedLink(dir, name);
 
@@ -446,6 +454,10 @@ shared_ptr<DirVersion> DirArtifact::Entry::updateTarget(shared_ptr<Command> c,
       target->addLink(dir, name);
       target->addCommittedLink(dir, name);
     }
+
+    // There is no longer an uncommitted target or version
+    _uncommitted_target.reset();
+    _uncommitted_version.reset();
 
     // Update the committed target and version
     _committed_target = target;

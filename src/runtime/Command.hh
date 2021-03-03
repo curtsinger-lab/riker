@@ -142,8 +142,11 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Plan the next build iteration starting with this command
   void planBuild() noexcept;
 
-  /// Check if this command is running (according to its planned marking)
+  /// Check if this command is running (according to its marking)
   bool running() const noexcept;
+
+  /// Check if this command has already run (according to its marking)
+  bool alreadyRun() const noexcept;
 
   /// Get the marking for this command
   RebuildMarking getMarking() const noexcept { return _marking; }
