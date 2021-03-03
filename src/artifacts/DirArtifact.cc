@@ -101,12 +101,88 @@ void DirArtifact::commitEntry(fs::path name) noexcept {
 
 /// Commit a link to this artifact at the given path
 void DirArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
-  WARN << "Unimplemented DirArtifact::commitLink()";
+  LOG(artifact) << "Committing link to " << this << " at " << dir << " entry " << entry;
+
+  // Check for a matching committed link. If we find one, return.
+  auto iter = _committed_links.find(Link{dir, entry});
+  if (iter != _committed_links.end()) return;
+
+  // Get a path to the directory
+  auto maybe_dir_path = dir->commitPath();
+  ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
+
+  auto dir_path = maybe_dir_path.value();
+  auto new_path = dir_path / entry;
+
+  // Three cases to handle for directories:
+  // 1. The directory has a temporary path. Move it into place.
+  // 2. The directory has another committed link already. This case isn't handled at the moment
+  // 3. The directory has no committed links. Commit content to create one
+  if (auto temp_path = takeTemporaryPath(); temp_path.has_value()) {
+    // This artifact has a temporary path. We can move it to its new committed location
+    LOG(artifact) << "Moving " << this << " from temporary location to " << dir_path / entry;
+
+    // Yes. Move the artifact into place
+    int rc = ::rename(temp_path.value().c_str(), new_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to move " << this << " from a temporary location: " << ERR;
+
+  } else if (auto committed_path = getCommittedPath(); committed_path.has_value()) {
+    // The symlink has an existing committed path. Bail on this for now.
+    FAIL << "Artifact " << this << " already has a committed path, and cannot be hard linked.";
+
+  } else {
+    ASSERT(hasUncommittedContent()) << "Artifact has no committed path, but content is committed";
+
+    // This artifact has no paths. Create one by committing its content.
+    commitContentTo(new_path);
+  }
+
+  // Record the committed link
+  _committed_links.emplace_hint(iter, Link{dir, entry});
+  return;
 }
 
 /// Commit an unlink of this artifact at the given path
 void DirArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
-  WARN << "Unimplemented DirArtifact::commitUnlink()";
+  LOG(artifact) << "Committing unlink of " << this << " at " << dir << " entry " << entry;
+  // Check for a matching committed link. If we don't find one, return immediately.
+  auto iter = _committed_links.find(Link{dir, entry});
+  if (iter == _committed_links.end()) return;
+
+  // Get a path to the directory
+  auto maybe_dir_path = dir->commitPath();
+  ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
+
+  auto dir_path = maybe_dir_path.value();
+  auto unlink_path = dir_path / entry;
+
+  // Committing an unlink of a directory has two cases:
+  // 1. There are uncommitted links, but no other committed links. Move to a temporary path.
+  // 2. Otherwise commit all entries (which probably unlink files) and then remove it
+  if (_committed_links.size() == 1 && _modeled_links.size() > 0) {
+    LOG(artifact) << "Unlinking " << this << " at " << unlink_path << ": move to temporary path";
+
+    // Get a temporary path for this file
+    auto temp_path = assignTemporaryPath();
+
+    // Move the file
+    int rc = ::rename(unlink_path.c_str(), temp_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to move " << this << " to a temporary location: " << ERR;
+
+  } else {
+    LOG(artifact) << "Unlinking " << this << " at " << unlink_path << ": remove directory";
+
+    // Commit the directory's content, which should remove all of its entries
+    commitAll();
+
+    // Now remove the directory
+    int rc = ::rmdir(unlink_path.c_str());
+    FAIL_IF(rc != 0) << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
+  }
+
+  // Remove the committed link and return
+  _committed_links.erase(iter);
+  return;
 }
 
 // Compare all final versions of this artifact to the filesystem state
