@@ -30,9 +30,13 @@ FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersio
 
 // Commit the content of this artifact to the filesystem
 void FileArtifact::commitContentTo(fs::path path) noexcept {
+  // If there's no uncommitted content, do nothing
   if (!_uncommitted_content) return;
 
+  // Commit the uncommitted state
   _uncommitted_content->commit(path);
+
+  // The artifact content is now committed
   _committed_content = std::move(_uncommitted_content);
 }
 
@@ -125,14 +129,17 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     bool matches = _uncommitted_content->matches(_committed_content);
 
     // If there was no match, try again with a fingerprint
-    if (!matches) {
+    // TODO: Re-enable this once we check for a match between the committed and uncommitted state at
+    // commit time
+    /*if (!matches) {
       auto v = _committed_content;
       if (!v) v = make_shared<FileVersion>();
       auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
       v->fingerprint(path, fingerprint_type);
 
       matches = _uncommitted_content->matches(v);
-    }
+      _committed_content = v;
+    }*/
 
     // Were we able to find a match?
     if (matches) {

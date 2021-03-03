@@ -41,7 +41,16 @@ Check the output
   $ cat output
   Hello
 
-Run an additional rebuild, which should do nothing
+Run an additional rebuild, which will need to rerun cat ../input
+TODO: Falling back to a hash of the committed state breaks because we don't compare hashes at commit time. Once that's working this run should do nothing.
+  $ $RKR --show
+  cat ../input
+
+Check the output again
+  $ cat output
+  Hello
+
+Run one additional rebuild, which should do nothing
   $ $RKR --show
 
 Check the output again
