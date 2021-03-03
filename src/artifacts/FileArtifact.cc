@@ -67,6 +67,8 @@ void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) 
     FAIL_IF(rc != 0) << "Failed to hard link " << this << " to " << new_path << ": " << ERR;
 
   } else {
+    ASSERT(hasUncommittedContent()) << "Artifact has no committed path, but content is committed";
+
     // This artifact has no paths. Create one by committing its content.
     commitContentTo(new_path);
   }
@@ -120,26 +122,27 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
   // Is there an uncommitted update to this file?
   if (_uncommitted_content) {
     // Does the uncommitted version match what's on the filesystem?
-    if (_uncommitted_content->matches(_committed_content)) {
-      // Yes. We can treat the uncommitted version as committed
-      _committed_content = std::move(_uncommitted_content);
+    bool matches = _uncommitted_content->matches(_committed_content);
 
-    } else {
-      // No. Try the comparison again with a fingerprint of the committed state
+    // If there was no match, try again with a fingerprint
+    if (!matches) {
       auto v = _committed_content;
       if (!v) v = make_shared<FileVersion>();
       auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
       v->fingerprint(path, fingerprint_type);
 
-      // Try the comparison again
-      if (_uncommitted_content->matches(v)) {
-        // Now we have a match.
-        _committed_content = std::move(_uncommitted_content);
+      matches = _uncommitted_content->matches(v);
+    }
 
-      } else {
-        // The versions still don't match
-        creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
-      }
+    // Were we able to find a match?
+    if (matches) {
+      // Yes. No work to do here.
+      // TODO: We could possible treat this artifact as already-committed, but we have to make sure
+      // its pending links are committed correctly too.
+
+    } else {
+      // No. The creating command has to rerun.
+      creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
     }
   }
 }
