@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .rkr output
+  $ rm -rf .rkr output working_dir
   $ echo Hello > input
 
 Run the first build

@@ -231,7 +231,10 @@ namespace env {
     mode_t stat_mode = S_IFDIR | (mode & ~mask);
 
     // Create a directory artifact
-    auto dir = make_shared<DirArtifact>(c);
+    auto dir = make_shared<DirArtifact>();
+
+    // Initialize the directory content as an empty dir created by c
+    dir->createEmptyDir(c);
 
     // Set the metadata for the new directory artifact
     dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));

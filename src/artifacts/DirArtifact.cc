@@ -27,7 +27,14 @@ namespace fs = std::filesystem;
 class Command;
 class MetadataVersion;
 
-DirArtifact::DirArtifact(shared_ptr<Command> c) noexcept : Artifact() {
+DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
+    Artifact(mv) {
+  _committed_base_version = dv;
+  appendVersion(dv);
+}
+
+/// Initialize this directory as an empty dir created by command c
+void DirArtifact::createEmptyDir(std::shared_ptr<Command> c) noexcept {
   FAIL_IF(!c) << "A directory cannot be created by a null command";
 
   // Record the command that created this directory
@@ -45,12 +52,6 @@ DirArtifact::DirArtifact(shared_ptr<Command> c) noexcept : Artifact() {
   c->addDirectoryOutput(shared_from_this(), base);
 
   appendVersion(base);
-}
-
-DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
-    Artifact(mv) {
-  _committed_base_version = dv;
-  appendVersion(dv);
 }
 
 const shared_ptr<BaseDirVersion>& DirArtifact::getBaseVersion() const noexcept {

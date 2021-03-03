@@ -24,8 +24,9 @@ class MetadataVersion;
 
 class DirArtifact final : public Artifact {
  public:
-  /// Create a DirArtifact to represent a directory created by the given command
-  DirArtifact(std::shared_ptr<Command> creator) noexcept;
+  /// Create a DirArtifact that exists only in the filesystem model. This should be followed by
+  /// calls to updateMetadata and createEmptyDir
+  DirArtifact() noexcept = default;
 
   /// Create a DirArtifact with existing committed metadata and content
   DirArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<BaseDirVersion> dv) noexcept;
@@ -85,6 +86,9 @@ class DirArtifact final : public Artifact {
                             std::shared_ptr<ContentVersion> expected) noexcept override;
 
   /************ Directory Operations ************/
+
+  /// Initialize this directory as an empty dir created by command c
+  void createEmptyDir(std::shared_ptr<Command> c) noexcept;
 
   /// Add a directory entry to this artifact
   virtual void addEntry(const std::shared_ptr<Command>& c,
