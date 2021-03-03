@@ -178,7 +178,23 @@ void DirArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry)
 
     // Now remove the directory
     int rc = ::rmdir(unlink_path.c_str());
-    FAIL_IF(rc != 0) << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
+
+    if (rc != 0) {
+      if (errno == ENOTEMPTY || errno == EEXIST) {
+        // TODO: We really should not have this case. This is happening because the directory's
+        // modeled state matches the committed state exactly, but we still need to commit it. There
+        // are no unlinks in the output directory to commit, so the rmdir call fails.
+
+        WARN << "Failed to remove directory " << this << " from " << unlink_path
+             << ". Moving to a temporary location instead.";
+
+        auto temp_path = assignTemporaryPath();
+        rc = ::rename(unlink_path.c_str(), temp_path.c_str());
+        FAIL_IF(rc != 0) << "Failed to move " << this << " to a temporary location: " << ERR;
+      } else {
+        FAIL << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
+      }
+    }
   }
 
   // Remove the committed link and return
