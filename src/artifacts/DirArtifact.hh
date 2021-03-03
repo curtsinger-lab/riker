@@ -108,17 +108,83 @@ class DirArtifact final : public Artifact {
   const std::shared_ptr<BaseDirVersion>& getBaseVersion() const noexcept;
 
  private:
-  /// A link is a tuple of the artifact (possibly nullptr), the version that linked/unlinked the
-  /// artifact, and the command responsible for the latest state
-  using Link = std::tuple<std::shared_ptr<Artifact>,    // The linked artifact, or null if unlinked
-                          std::shared_ptr<DirVersion>,  // The version responsible for the link
-                          std::shared_ptr<Command>>;    // The command that wrote this version
+  class Entry {
+   public:
+    /**
+     * Create an entry with no initial target or version
+     */
+    Entry() noexcept = default;
 
-  /// A map from entry names to links in this directory. Includes all links, committed or not.
-  std::map<std::string, Link> _entries;
+    /**
+     * Create an entry with an initial target and version. Only valid for committed state.
+     *
+     * \param dir     The directory that contains this entry
+     * \param name    The name of this entry in the containing directory
+     * \param target  The artifact reachable through this entry (committed state)
+     * \param version The version responsible for this entry (committed state)
+     */
+    Entry(std::shared_ptr<DirArtifact> dir,
+          fs::path name,
+          std::shared_ptr<Artifact> target,
+          std::shared_ptr<DirVersion> version) noexcept;
 
-  /// A map of entries that are committed to the filesystem
-  std::map<std::string, Link> _committed_entries;
+    /**
+     * Commit this entry's modeled state to the filesystem
+     *
+     * \param dir       The directory that contains this entry
+     * \param name      The name of this entry in the containing directory
+     */
+    void commit(std::shared_ptr<DirArtifact> dir, fs::path name) noexcept;
+
+    /**
+     * Update this entry to reach a new target artifact on behalf of a command
+     *
+     * \param c       The command updating this entry
+     * \param target  The artifact this entry should link to (or nullptr to unlink)
+     * \param dir     The directory that contains this entry
+     * \param name    The name of this entry in the containing directory
+     * \returns the version that was just written to this entry
+     */
+    std::shared_ptr<DirVersion> updateTarget(std::shared_ptr<Command> c,
+                                             std::shared_ptr<Artifact> target,
+                                             std::shared_ptr<DirArtifact> dir,
+                                             fs::path name) noexcept;
+
+    /**
+     * Peek at the target of this entry without creating a dependency
+     */
+    const std::shared_ptr<Artifact>& peekTarget() const noexcept;
+
+    /**
+     * Get the artifact linked at this entry on behalf of command c
+     *
+     * \param c   The command reading the entry
+     * \param dir The directory artifact that contains this entry
+     * \returns   The artifact reachable through this entry, or nullptr if it has been unlinked
+     */
+    const std::shared_ptr<Artifact>& getTarget(std::shared_ptr<Command> c,
+                                               std::shared_ptr<DirArtifact> dir) const noexcept;
+
+   private:
+    /// The artifact reachable through this entry that is not linked on the filesystem
+    std::shared_ptr<Artifact> _uncommitted_target;
+
+    /// The latest uncommitted version that updated this entry
+    std::shared_ptr<DirVersion> _uncommitted_version;
+
+    /// The artifact reachable through this entry as reachable through the filesystem
+    std::shared_ptr<Artifact> _committed_target;
+
+    /// The version associated with the filesystem state of this entry
+    std::shared_ptr<DirVersion> _committed_version;
+
+    /// The last command to update this entry
+    std::weak_ptr<Command> _writer;
+  };
+
+ private:
+  /// A map of entries in this directory
+  std::map<fs::path, Entry> _entries;
 
   /// The base directory version is the backstop for all resolution queries. The base version can
   /// only be uncommitted if it is an empty directory.

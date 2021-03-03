@@ -75,40 +75,31 @@ class BaseDirVersion : public DirVersion {
 class AddEntry : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  AddEntry(std::string entry, std::shared_ptr<Artifact> target) noexcept :
-      _entry(entry), _target(target) {}
+  AddEntry(std::string entry) noexcept : _entry(entry) {}
 
   /// Get the name of the entry this version links
   std::string getEntryName() const noexcept { return _entry; }
-
-  /// Get the target of the newly-linked entry
-  std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "+" + std::string(_entry); }
 
   /// Print a link version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
-    return o << "[dir: link " << _entry << " -> " << _target << "]";
+    return o << "[dir: link " << _entry << "]";
   }
 
  private:
   std::string _entry;
-  std::shared_ptr<Artifact> _target;
 };
 
 /// A RemoveEntry version updates a directory so it no longer has a specific entry
 class RemoveEntry : public DirVersion {
  public:
   /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(std::string entry, std::shared_ptr<Artifact> target) noexcept :
-      _entry(entry), _target(target) {}
+  RemoveEntry(std::string entry) noexcept : _entry(entry) {}
 
   /// Get the name of the entry this version removes
   std::string getEntryName() const noexcept { return _entry; }
-
-  /// Get a reference to the artifact that is unlinked
-  std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "-" + std::string(_entry); }
@@ -121,7 +112,4 @@ class RemoveEntry : public DirVersion {
  private:
   /// The name of the entry this version removes
   std::string _entry;
-
-  /// A reference to the artifact that is unlinked by this version
-  std::shared_ptr<Artifact> _target;
 };
