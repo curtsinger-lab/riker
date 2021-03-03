@@ -20,6 +20,7 @@ namespace fs = std::filesystem;
 class Build;
 class ContentVersion;
 class DirArtifact;
+class DirEntry;
 class DirVersion;
 class MetadataVersion;
 class Version;
@@ -85,6 +86,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    */
   bool checkAccess(const std::shared_ptr<Command>& c, AccessFlags flags) noexcept;
 
+  /// This artifact is the root directory
+  void setRootDir() noexcept { _root_dir = true; }
+
   /************ Core Artifact Operations ************/
 
   /// Get the name of this artifact type
@@ -110,26 +114,23 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /************ Path Manipulation ************/
 
-  /// A link is a tuple of a directory and an entry name in that directory
-  using Link = std::tuple<std::shared_ptr<DirArtifact>, fs::path>;
-
   /// Model a link to this artifact, but do not commit it to the filesystem
-  void addLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+  void addLink(std::shared_ptr<DirEntry> entry) noexcept;
 
   /// Model an unlink of this artifact, but do not commit it to the filesystem
-  void removeLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+  void removeLink(std::shared_ptr<DirEntry> entry) noexcept;
 
   /// Add an already-committed link to this artifact
-  void addCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+  void addCommittedLink(std::shared_ptr<DirEntry> entry) noexcept;
 
   /// Remove a committed link from this artifact
-  void removeCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept;
+  void removeCommittedLink(std::shared_ptr<DirEntry> addEntry) noexcept;
 
   /// Commit a link to this artifact at the given path
-  virtual void commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept = 0;
+  virtual void commitLink(std::shared_ptr<DirEntry> entry) noexcept = 0;
 
   /// Commit an unlink of this artifact at the given path
-  virtual void commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept = 0;
+  virtual void commitUnlink(std::shared_ptr<DirEntry> entry) noexcept = 0;
 
   /// Get a committed path to this artifact
   std::optional<fs::path> getCommittedPath() const noexcept;
@@ -301,6 +302,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   void appendVersion(std::shared_ptr<Version> v) noexcept;
 
  private:
+  /// If true, this artifact is the root directory and has path "/"
+  bool _root_dir = false;
+
   /// The command that most recently wrote metadata, possibly null
   std::weak_ptr<Command> _metadata_writer;
 
@@ -320,10 +324,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   std::optional<fs::path> _temp_path;
 
  protected:
+  using LinkSet = std::set<std::weak_ptr<DirEntry>, std::owner_less<std::weak_ptr<DirEntry>>>;
+
   /// The set of links to this artifact currently available on the filesystem
-  std::set<Link> _committed_links;
+  LinkSet _committed_links;
 
   /// The set of links to this artifact in the filesystem model. This will include committed links
   /// unless they have been unlinked in the model but that unlink has not been committed.
-  std::set<Link> _modeled_links;
+  LinkSet _modeled_links;
 };

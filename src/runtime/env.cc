@@ -102,9 +102,8 @@ namespace env {
       _root_dir = a->as<DirArtifact>();
       FAIL_IF(!_root_dir) << "Artifact at path \"/\" is not a directory";
 
+      _root_dir->setRootDir();
       _root_dir->setName("/");
-      _root_dir->addLink(_root_dir, "");
-      _root_dir->addCommittedLink(_root_dir, "");
     }
 
     return _root_dir;

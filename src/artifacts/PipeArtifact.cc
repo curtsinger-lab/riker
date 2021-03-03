@@ -18,12 +18,12 @@ using std::shared_ptr;
 using std::tuple;
 
 /// Commit a link to this artifact at the given path
-void PipeArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void PipeArtifact::commitLink(shared_ptr<DirEntry> entry) noexcept {
   WARN << "Unimplemented PipeArtifact::commitLink()";
 }
 
 /// Commit an unlink of this artifact at the given path
-void PipeArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void PipeArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
   WARN << "Unimplemented PipeArtifact::commitUnlink()";
 }
 

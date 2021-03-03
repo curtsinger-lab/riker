@@ -42,22 +42,25 @@ string Artifact::getName() const noexcept {
 }
 
 // Model a link to this artifact, but do not commit it to the filesystem
-void Artifact::addLink(shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void Artifact::addLink(shared_ptr<DirEntry> entry) noexcept {
   // Warn if there is already a link at this path in the model
-  if (_modeled_links.find({dir, entry}) != _modeled_links.end()) {
-    WARN << "Link {" << dir << ", " << entry << "} already exists for " << this;
+  auto iter = _modeled_links.find(entry);
+  if (iter != _modeled_links.end()) {
+    WARN << "Link {" << entry->getDir() << ", " << entry->getName() << "} already exists for "
+         << this;
   }
 
   // Add the link
-  _modeled_links.emplace(dir, entry);
+  _modeled_links.emplace_hint(iter, entry);
 }
 
 // Model an unlink of this artifact, but do not commit it to the filesystem
-void Artifact::removeLink(shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void Artifact::removeLink(shared_ptr<DirEntry> entry) noexcept {
   // Search for the link
-  auto iter = _modeled_links.find({dir, entry});
+  auto iter = _modeled_links.find(entry);
   if (iter == _modeled_links.end()) {
-    WARN << "Link {" << dir << ", " << entry << "} does not exist for " << this;
+    WARN << "Link {" << entry->getDir() << ", " << entry->getName() << "} does not exist for "
+         << this;
   } else {
     // Remove the link
     _modeled_links.erase(iter);
@@ -65,41 +68,44 @@ void Artifact::removeLink(shared_ptr<DirArtifact> dir, fs::path entry) noexcept 
 }
 
 // Add an already-committed link to this artifact
-void Artifact::addCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void Artifact::addCommittedLink(shared_ptr<DirEntry> entry) noexcept {
   // Make sure this is a link we already know about
-  ASSERT(_modeled_links.find(Link{dir, entry}) != _modeled_links.end())
+  ASSERT(_modeled_links.find(entry) != _modeled_links.end())
       << "Adding a committed link to " << this
       << " that does not match a previously-known uncommitted link.";
 
   // Add this link to the set of committed links
-  _committed_links.emplace(dir, entry);
+  _committed_links.emplace(entry);
 }
 
 // Remove a committed link from this artifact
-void Artifact::removeCommittedLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
-  _committed_links.erase({dir, entry});
+void Artifact::removeCommittedLink(shared_ptr<DirEntry> entry) noexcept {
+  auto iter = _committed_links.find(entry);
+  ASSERT(iter != _committed_links.end()) << "Removing a non-existant committed link to " << this;
+
+  _committed_links.erase(iter);
 }
 
 // Get a committed path to this artifact
 optional<fs::path> Artifact::getCommittedPath() const noexcept {
-  for (const auto& [dir, entry] : _committed_links) {
-    // The root directory is its own parent directory
-    if (entry.empty() && dir == this->as<DirArtifact>()) return "/";
+  if (_root_dir) return "/";
 
-    auto dir_path = dir->getCommittedPath();
-    if (dir_path.has_value()) return dir_path.value() / entry;
+  for (auto weak_entry : _committed_links) {
+    auto entry = weak_entry.lock();
+    auto dir_path = entry->getDir()->getCommittedPath();
+    if (dir_path.has_value()) return dir_path.value() / entry->getName();
   }
   return nullopt;
 }
 
 // Get a path to this artifact, either committed or uncommitted
 optional<fs::path> Artifact::getPath() const noexcept {
-  for (const auto& [dir, entry] : _modeled_links) {
-    // The root directory is its own parent directory
-    if (entry.empty() && dir == this->as<DirArtifact>()) return "/";
+  if (_root_dir) return "/";
 
-    auto dir_path = dir->getPath();
-    if (dir_path.has_value()) return dir_path.value() / entry;
+  for (auto weak_entry : _modeled_links) {
+    auto entry = weak_entry.lock();
+    auto dir_path = entry->getDir()->getPath();
+    if (dir_path.has_value()) return dir_path.value() / entry->getName();
   }
   return nullopt;
 }
@@ -109,8 +115,9 @@ optional<shared_ptr<DirArtifact>> Artifact::getParentDir() noexcept {
   if (_modeled_links.empty()) {
     return nullopt;
   } else {
-    const auto& [dir, entry] = *_modeled_links.begin();
-    return dir;
+    auto weak_entry = *_modeled_links.begin();
+    auto entry = weak_entry.lock();
+    return entry->getDir();
   }
 }
 
@@ -143,24 +150,32 @@ optional<fs::path> Artifact::commitPath() noexcept {
   if (path.has_value()) return path;
 
   // If that didn't work, look for a link whose directory has a committed path and commit the link
-  for (const auto& [dir, entry] : _modeled_links) {
+  for (auto weak_entry : _modeled_links) {
+    auto entry = weak_entry.lock();
+    const auto& dir = entry->getDir();
+    const auto& name = entry->getName();
+
     auto dir_path = dir->getCommittedPath();
     if (dir_path.has_value()) {
-      dir->commitEntry(entry);
-      ASSERT(getCommittedPath().has_value()) << "Just committed link " << entry << " to " << dir
+      dir->commitEntry(name);
+      ASSERT(getCommittedPath().has_value()) << "Just committed link " << name << " to " << dir
                                              << ", but " << this << " still has no committed path";
-      return dir_path.value() / entry;
+      return dir_path.value() / name;
     }
   }
 
   // Finally, try to commit a directory's path for one of the uncommitted links
-  for (const auto& [dir, entry] : _modeled_links) {
+  for (auto weak_entry : _modeled_links) {
+    auto entry = weak_entry.lock();
+    const auto& dir = entry->getDir();
+    const auto& name = entry->getName();
+
     auto dir_path = dir->commitPath();
     if (dir_path.has_value()) {
-      dir->commitEntry(entry);
-      ASSERT(getCommittedPath().has_value()) << "Just committed link " << entry << " to " << dir
+      dir->commitEntry(name);
+      ASSERT(getCommittedPath().has_value()) << "Just committed link " << name << " to " << dir
                                              << ", but " << this << " still has no committed path";
-      return dir_path.value() / entry;
+      return dir_path.value() / name;
     }
   }
 

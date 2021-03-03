@@ -41,17 +41,17 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
 }
 
 /// Commit a link to this artifact at the given path
-void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void FileArtifact::commitLink(shared_ptr<DirEntry> entry) noexcept {
   // Check for a matching committed link. If we find one, return.
-  auto iter = _committed_links.find(Link{dir, entry});
+  auto iter = _committed_links.find(entry);
   if (iter != _committed_links.end()) return;
 
   // Get a path to the directory
-  auto maybe_dir_path = dir->commitPath();
+  auto maybe_dir_path = entry->getDir()->commitPath();
   ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
 
   auto dir_path = maybe_dir_path.value();
-  auto new_path = dir_path / entry;
+  auto new_path = dir_path / entry->getName();
 
   // Committing a new path to this artifact has three cases:
   // 1. The file has a temporary path. Move it into place
@@ -59,7 +59,7 @@ void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) 
   // 3. The file has no committed paths. Commit its content to create the file
   if (auto temp_path = takeTemporaryPath(); temp_path.has_value()) {
     // This artifact has a temporary path. We can move it to its new committed location
-    LOG(artifact) << "Moving " << this << " from temporary location to " << dir_path / entry;
+    LOG(artifact) << "Moving " << this << " from temporary location to " << new_path;
 
     // Yes. Move the artifact into place
     int rc = ::rename(temp_path.value().c_str(), new_path.c_str());
@@ -78,22 +78,22 @@ void FileArtifact::commitLink(std::shared_ptr<DirArtifact> dir, fs::path entry) 
   }
 
   // Record the committed link and return
-  _committed_links.emplace_hint(iter, Link{dir, entry});
+  _committed_links.emplace_hint(iter, entry);
   return;
 }
 
 /// Commit an unlink of this artifact at the given path
-void FileArtifact::commitUnlink(std::shared_ptr<DirArtifact> dir, fs::path entry) noexcept {
+void FileArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
   // Check for a matching committed link. If we don't find one, return immediately.
-  auto iter = _committed_links.find(Link{dir, entry});
+  auto iter = _committed_links.find(entry);
   if (iter == _committed_links.end()) return;
 
   // Get a path to the directory
-  auto maybe_dir_path = dir->commitPath();
+  auto maybe_dir_path = entry->getDir()->commitPath();
   ASSERT(maybe_dir_path.has_value()) << "Committing link to a directory with no path";
 
   auto dir_path = maybe_dir_path.value();
-  auto unlink_path = dir_path / entry;
+  auto unlink_path = dir_path / entry->getName();
 
   // Committing an unlink of a file has two cases:
   // 1. There are uncommitted links, but no other committed links. Move to a temporary path.
