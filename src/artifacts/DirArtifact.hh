@@ -55,6 +55,9 @@ class DirArtifact final : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
 
+  /// Revert this artifact to its committed state
+  virtual void rollback() noexcept override;
+
   /************ Path Operations ************/
 
   /// Commit a link to this artifact at the given path
@@ -127,7 +130,7 @@ class DirArtifact final : public Artifact {
   std::shared_ptr<BaseDirVersion> _committed_base_version;
 
   /// The command that created this directory, or nullptr
-  std::shared_ptr<Command> _creator;
+  std::weak_ptr<Command> _creator;
 };
 
 class DirEntry : public std::enable_shared_from_this<DirEntry> {
@@ -159,6 +162,9 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
 
   /// Commit this entry's modeled state to the filesystem
   void commit() noexcept;
+
+  /// Reset this entry to its committed state
+  void rollback() noexcept;
 
   /**
    * Update this entry to reach a new target artifact on behalf of a command

@@ -41,6 +41,11 @@ string Artifact::getName() const noexcept {
   return path.value_or("");
 }
 
+void Artifact::rollback() noexcept {
+  _uncommitted_metadata.reset();
+  _metadata_writer.reset();
+}
+
 // Model a link to this artifact, but do not commit it to the filesystem
 void Artifact::addLink(shared_ptr<DirEntry> entry) noexcept {
   // Warn if there is already a link at this path in the model

@@ -89,6 +89,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// This artifact is the root directory
   void setRootDir() noexcept { _root_dir = true; }
 
+  /// Revert this artifact to its committed state
+  virtual void rollback() noexcept;
+
   /************ Core Artifact Operations ************/
 
   /// Get the name of this artifact type

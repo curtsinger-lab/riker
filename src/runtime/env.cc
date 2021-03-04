@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <list>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -27,11 +28,13 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
+using std::list;
 using std::make_shared;
 using std::map;
 using std::pair;
 using std::set;
 using std::shared_ptr;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -46,26 +49,24 @@ namespace env {
   shared_ptr<DirArtifact> _root_dir;  //< The root directory
 
   /// A set of all the artifacts used during the build
-  set<shared_ptr<Artifact>> _artifacts;
+  list<weak_ptr<Artifact>> _artifacts;
 
   /// A map of artifacts identified by inode
-  map<pair<dev_t, ino_t>, shared_ptr<Artifact>> _inodes;
+  map<pair<dev_t, ino_t>, weak_ptr<Artifact>> _inodes;
 
   // Reset the state of the environment by clearing all known artifacts
-  void reset() noexcept {
-    _stdin = nullptr;
-    _stdout = nullptr;
-    _stderr = nullptr;
-    _root_dir = nullptr;
-    _artifacts.clear();
-    _inodes.clear();
+  void rollback() noexcept {
+    _stdin.reset();
+    _stdout.reset();
+    _stderr.reset();
+    if (_root_dir) _root_dir->rollback();
   }
 
   // Commit all changes to the filesystem
   void commitAll() noexcept { getRootDir()->applyFinalState("/"); }
 
   // Get the set of all artifacts
-  const set<shared_ptr<Artifact>>& getArtifacts() noexcept { return _artifacts; }
+  const list<weak_ptr<Artifact>>& getArtifacts() noexcept { return _artifacts; }
 
   shared_ptr<PipeArtifact> getStdin(const shared_ptr<Command>& c) noexcept {
     if (!_stdin) {
@@ -137,8 +138,12 @@ namespace env {
     // Does the inode for this path match an artifact we've already created?
     auto inode_iter = _inodes.find({info.st_dev, info.st_ino});
     if (inode_iter != _inodes.end()) {
-      // Found a match. Return it now.
-      return inode_iter->second;
+      // Found a match. Is the weak pointer still valid?
+      auto result = inode_iter->second.lock();
+      if (result) return result;
+
+      // Invalid weak pointer, so we can erase the entry
+      _inodes.erase(inode_iter);
     }
 
     auto mv = make_shared<MetadataVersion>(info);
@@ -175,7 +180,7 @@ namespace env {
     _inodes.emplace_hint(inode_iter, pair{info.st_dev, info.st_ino}, a);
 
     // Also add the artifact to the set of all artifacts
-    _artifacts.insert(a);
+    _artifacts.push_back(a);
     stats::artifacts++;
 
     // Return the artifact
@@ -194,7 +199,7 @@ namespace env {
     // Set the pipe's metadata on behalf of the command
     pipe->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
 
-    _artifacts.insert(pipe);
+    _artifacts.push_back(pipe);
     stats::artifacts++;
 
     return pipe;
@@ -213,7 +218,7 @@ namespace env {
     symlink->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
     symlink->updateContent(c, make_shared<SymlinkVersion>(target));
 
-    _artifacts.insert(symlink);
+    _artifacts.push_back(symlink);
     stats::artifacts++;
 
     return symlink;
@@ -238,7 +243,7 @@ namespace env {
     // Set the metadata for the new directory artifact
     dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
 
-    _artifacts.insert(dir);
+    _artifacts.push_back(dir);
     stats::artifacts++;
 
     return dir;
@@ -268,7 +273,7 @@ namespace env {
     // Observe output to metadata and content for the new file
     c->addContentOutput(artifact, cv);
 
-    _artifacts.insert(artifact);
+    _artifacts.push_back(artifact);
     stats::artifacts++;
 
     return artifact;

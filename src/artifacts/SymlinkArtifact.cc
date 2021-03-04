@@ -28,6 +28,14 @@ SymlinkArtifact::SymlinkArtifact(shared_ptr<MetadataVersion> mv,
   appendVersion(sv);
 }
 
+/// Revert this artifact to its committed state
+void SymlinkArtifact::rollback() noexcept {
+  _uncommitted_content.reset();
+  _content_writer.reset();
+
+  Artifact::rollback();
+}
+
 /// A traced command is about to (possibly) read from this artifact
 void SymlinkArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Do nothing before a read

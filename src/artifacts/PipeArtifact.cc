@@ -17,6 +17,16 @@ using std::make_shared;
 using std::shared_ptr;
 using std::tuple;
 
+/// Revert this artifact to its committed state
+void PipeArtifact::rollback() noexcept {
+  _last_reader.reset();
+  _last_read.reset();
+  _writes.clear();
+  _committed_mode.reset();
+
+  Artifact::rollback();
+}
+
 /// Commit a link to this artifact at the given path
 void PipeArtifact::commitLink(shared_ptr<DirEntry> entry) noexcept {
   WARN << "Unimplemented PipeArtifact::commitLink()";
@@ -171,13 +181,15 @@ int PipeArtifact::getFD(AccessFlags flags) noexcept {
   auto [read_fd, write_fd] = _fds.value();
 
   if (flags.r) {
-    ASSERT(read_fd >= 0) << "Attempted to return invalid pipe file descriptor from " << this;
+    ASSERT(read_fd >= 0) << "Attempted to return invalid pipe file descriptor " << read_fd
+                         << " from read end of " << this;
     // Mark the read fd as invalid so it cannot be returned a second time
     _fds = tuple{-1, write_fd};
     return read_fd;
 
   } else {
-    ASSERT(write_fd >= 0) << "Attempted to return invalid pipe file descriptor from " << this;
+    ASSERT(write_fd >= 0) << "Attempted to return invalid pipe file descriptor " << write_fd
+                          << " from write end of " << this;
     // Mark teh write fd as invalid so it cannot be returned a second time
     _fds = tuple{read_fd, -1};
     return write_fd;

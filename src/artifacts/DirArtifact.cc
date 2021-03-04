@@ -33,6 +33,18 @@ DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersi
   appendVersion(dv);
 }
 
+/// Revert this artifact to its committed state
+void DirArtifact::rollback() noexcept {
+  _uncommitted_base_version.reset();
+  _creator.reset();
+
+  for (const auto& [name, entry] : _entries) {
+    entry->rollback();
+  }
+
+  Artifact::rollback();
+}
+
 /// Initialize this directory as an empty dir created by command c
 void DirArtifact::createEmptyDir(std::shared_ptr<Command> c) noexcept {
   FAIL_IF(!c) << "A directory cannot be created by a null command";
@@ -258,9 +270,9 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
     ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
 
     for (auto& entry : fs::directory_iterator(path.value())) {
-      auto name = entry.path().stem();
+      auto name = entry.path().filename();
       if (name != ".rkr") {
-        result->addEntry(entry.path().stem());
+        result->addEntry(name);
       }
     }
   }
@@ -268,7 +280,7 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   const auto& base = getBaseVersion();
 
   // The command listing this directory depends on its base version
-  if (c) c->addDirectoryInput(shared_from_this(), base, _creator, InputType::Accessed);
+  if (c) c->addDirectoryInput(shared_from_this(), base, _creator.lock(), InputType::Accessed);
 
   for (const auto& [name, entry] : _entries) {
     // Get the artifact targeted by this entry. This access records a dependency on the entry.
@@ -366,7 +378,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   } else {
     // Add a path resolution input from the base version
     const auto& base = getBaseVersion();
-    c->addDirectoryInput(shared_from_this(), base, _creator, InputType::PathResolution);
+    c->addDirectoryInput(shared_from_this(), base, _creator.lock(), InputType::PathResolution);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (base->getCreated()) {
@@ -513,6 +525,28 @@ void DirEntry::commit() noexcept {
   // The uncommitted state becomes the committed state
   _committed_target = std::move(_uncommitted_target);
   _committed_version = std::move(_uncommitted_version);
+}
+
+/// Reset this entry to its committed state
+void DirEntry::rollback() noexcept {
+  // Clear the writer
+  _writer.reset();
+
+  // Is there an uncommitted version?
+  if (_uncommitted_version) {
+    // If there is an uncommitted target, it loses this link
+    if (_uncommitted_target) _uncommitted_target->removeLink(shared_from_this());
+
+    // Clear the uncommitted state
+    _uncommitted_version.reset();
+    _uncommitted_target.reset();
+
+    // If there is a committed target, it regains this link and should be rolled back
+    if (_committed_target) _committed_target->addLink(shared_from_this());
+  }
+
+  // If there is a committed target, roll it back
+  if (_committed_target) _committed_target->rollback();
 }
 
 // Update this entry to reach a new target artifact on behalf of a command

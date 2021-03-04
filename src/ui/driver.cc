@@ -79,7 +79,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Reset the environment
-    env::reset();
+    env::rollback();
 
     // Run the build
     Build build(true, *output);
@@ -120,7 +120,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     PostBuildChecker post_build_chcker(post_build_buffer);
 
     // Reset the environment
-    env::reset();
+    env::rollback();
 
     // Run the build
     Build build(false, post_build_chcker);
@@ -300,7 +300,10 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   if (list_artifacts) {
     cout << endl;
     cout << "Artifacts:" << endl;
-    for (const auto& a : env::getArtifacts()) {
+    for (const auto& weak_artifact : env::getArtifacts()) {
+      auto a = weak_artifact.lock();
+      if (!a) continue;
+
       if (a->getName().empty()) {
         cout << "  " << a->getTypeName() << ": <anonymous>" << endl;
       } else {

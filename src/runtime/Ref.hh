@@ -56,7 +56,7 @@ class Ref final {
   Ref& operator=(Ref&&) noexcept = default;
 
   /// Get the artifact reached via this reference
-  std::shared_ptr<Artifact> getArtifact() const noexcept { return _artifact.lock(); }
+  const std::shared_ptr<Artifact>& getArtifact() const noexcept { return _artifact; }
 
   /// Get the result code returned to this reference
   int getResultCode() const noexcept { return _rc; }
@@ -105,7 +105,7 @@ class Ref final {
   int _rc;
 
   /// The artifact this reference resolved to
-  std::weak_ptr<Artifact> _artifact;
+  std::shared_ptr<Artifact> _artifact;
 
   /// Keep the flags used to establish this reference so we know what accesses are permitted
   AccessFlags _flags;

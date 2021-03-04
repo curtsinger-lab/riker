@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <list>
 #include <memory>
 #include <set>
 
@@ -20,7 +21,7 @@ class SymlinkArtifact;
  */
 namespace env {
   /// Reset the environment to match filesystem state
-  void reset() noexcept;
+  void rollback() noexcept;
 
   /// Commit all changes in the environment to the filesystem
   void commitAll() noexcept;
@@ -41,7 +42,7 @@ namespace env {
   fs::path getTempPath() noexcept;
 
   /// Get a set of all the artifacts in the build
-  const std::set<std::shared_ptr<Artifact>>& getArtifacts() noexcept;
+  const std::list<std::weak_ptr<Artifact>>& getArtifacts() noexcept;
 
   /**
    * Get an artifact to represent a statted file/dir/pipe/symlink.

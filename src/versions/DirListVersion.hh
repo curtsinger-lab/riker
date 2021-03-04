@@ -40,7 +40,14 @@ class DirListVersion : public ContentVersion {
 
   /// Print this version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
-    return o << "[dir: listed]";
+    o << "[dir: {";
+    bool first = true;
+    for (const auto& entry : _entries) {
+      if (!first) o << ", ";
+      first = false;
+      o << entry;
+    }
+    return o << "}]";
   }
 
   /// Add an entry to this listed directory version

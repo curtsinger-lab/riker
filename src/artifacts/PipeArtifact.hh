@@ -50,6 +50,9 @@ class PipeArtifact : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override {}
 
+  /// Revert this artifact to its committed state
+  virtual void rollback() noexcept override;
+
   /************ Path Operations ************/
 
   /// Commit a link to this artifact at the given path

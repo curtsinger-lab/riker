@@ -28,6 +28,14 @@ FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersio
   appendVersion(cv);
 }
 
+/// Revert this artifact to its committed state
+void FileArtifact::rollback() noexcept {
+  _uncommitted_content.reset();
+  _content_writer.reset();
+
+  Artifact::rollback();
+}
+
 // Commit the content of this artifact to the filesystem
 void FileArtifact::commitContentTo(fs::path path) noexcept {
   // If there's no uncommitted content, do nothing
