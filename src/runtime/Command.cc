@@ -409,9 +409,8 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
 // Add an input to this command
 void Command::addMetadataInput(shared_ptr<Artifact> a,
                                shared_ptr<MetadataVersion> v,
-                               shared_ptr<Command> writer,
-                               InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
+                               shared_ptr<Command> writer) noexcept {
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the metadata is committed
   if (running()) a->commitMetadata();
@@ -433,9 +432,8 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
 // Add an input to this command
 void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
-                              shared_ptr<Command> writer,
-                              InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
+                              shared_ptr<Command> writer) noexcept {
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the file is available
   if (running()) a->commitContent();
@@ -457,9 +455,8 @@ void Command::addContentInput(shared_ptr<Artifact> a,
 // Add an input to this command
 void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
                                 std::shared_ptr<DirVersion> v,
-                                std::shared_ptr<Command> writer,
-                                InputType t) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer, t);
+                                std::shared_ptr<Command> writer) noexcept {
+  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the directory version is committed
   if (running()) a->commitContent();

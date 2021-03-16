@@ -57,7 +57,7 @@ void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 
   // The reading command depends on the last read
   if (_last_read) {
-    c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
+    c->addContentInput(shared_from_this(), _last_read, _last_reader.lock());
   }
 
   // Create a new version to track this read
@@ -85,13 +85,13 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
 shared_ptr<ContentVersion> PipeArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   if (_last_read) {
     if (c) {
-      c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
+      c->addContentInput(shared_from_this(), _last_read, _last_reader.lock());
     }
     return _last_read;
   } else {
     if (c) {
       for (const auto& [write, writer] : _writes) {
-        c->addContentInput(shared_from_this(), write, writer.lock(), InputType::Accessed);
+        c->addContentInput(shared_from_this(), write, writer.lock());
       }
     }
     return make_shared<PipeReadVersion>();
@@ -110,7 +110,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
   }
 
   // The command depends on the last read version
-  c->addContentInput(shared_from_this(), _last_read, _last_reader.lock(), InputType::Accessed);
+  c->addContentInput(shared_from_this(), _last_read, _last_reader.lock());
 
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
@@ -147,7 +147,7 @@ void PipeArtifact::updateContent(const shared_ptr<Command>& c,
 
     // The reading command depends on all writes since the last read
     for (const auto& [write, writer] : _writes) {
-      c->addContentInput(shared_from_this(), write, writer.lock(), InputType::Accessed);
+      c->addContentInput(shared_from_this(), write, writer.lock());
     }
 
     // Clear the list of unread writes

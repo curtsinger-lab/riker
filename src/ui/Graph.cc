@@ -43,11 +43,8 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   }
 
   // Add this command's inputs
-  for (const auto& [a, v, weak_creator, t] : c->getInputs()) {
+  for (const auto& [a, v, weak_creator] : c->getInputs()) {
     auto creator = weak_creator.lock();
-
-    // Only include explicitly-accessed inputs or inputs created by the build
-    if (t != InputType::Accessed && !creator) continue;
 
     // Exclude artifacts with absolute paths, unless all artifacts are shown or the input was
     // created during the build

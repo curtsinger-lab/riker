@@ -50,11 +50,6 @@ enum class RebuildMarking {
  */
 enum class Scenario { Build, PostBuild };
 
-enum class InputType {
-  PathResolution,  // The input is a dependency for path resolution
-  Accessed,        // The input is accessed directly
-};
-
 /**
  * Representation of a command that runs as part of the build.
  * Commands correspond to exec() calls during the build process; these are commands we can directly
@@ -162,8 +157,7 @@ class Command : public std::enable_shared_from_this<Command> {
   using InputList =
       std::list<std::tuple<std::shared_ptr<Artifact>,  // The artifact that was accessed
                            std::shared_ptr<Version>,   // The input version
-                           std::weak_ptr<Command>,     // The command that created theinput
-                           InputType>>;                // The type of input
+                           std::weak_ptr<Command>>>;   // The command that created theinput
 
   using OutputList =
       std::list<std::tuple<std::shared_ptr<Artifact>,   // The artifact that was written
@@ -257,20 +251,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Track a metadata version input to this command
   void addMetadataInput(std::shared_ptr<Artifact> a,
                         std::shared_ptr<MetadataVersion> v,
-                        std::shared_ptr<Command> writer,
-                        InputType t) noexcept;
+                        std::shared_ptr<Command> writer) noexcept;
 
   /// Track a content version input to this command
   void addContentInput(std::shared_ptr<Artifact> a,
                        std::shared_ptr<ContentVersion> v,
-                       std::shared_ptr<Command> writer,
-                       InputType t) noexcept;
+                       std::shared_ptr<Command> writer) noexcept;
 
   /// Track a directory version input to this command
   void addDirectoryInput(std::shared_ptr<Artifact> a,
                          std::shared_ptr<DirVersion> v,
-                         std::shared_ptr<Command> writer,
-                         InputType t) noexcept;
+                         std::shared_ptr<Command> writer) noexcept;
 
   /// Track a metadata version output from this command
   void addMetadataOutput(std::shared_ptr<Artifact> a, std::shared_ptr<MetadataVersion> v) noexcept;

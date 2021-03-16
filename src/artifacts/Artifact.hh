@@ -150,8 +150,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  std::shared_ptr<MetadataVersion> getMetadata(const std::shared_ptr<Command>& c,
-                                               InputType t) noexcept;
+  std::shared_ptr<MetadataVersion> getMetadata(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the current metadata without recording any dependencies
   std::shared_ptr<MetadataVersion> peekMetadata() noexcept;

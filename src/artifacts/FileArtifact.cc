@@ -235,7 +235,7 @@ shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c
   ASSERT(result) << "Artifact " << this << " has no content version";
 
   if (c) {
-    c->addContentInput(shared_from_this(), result, _content_writer.lock(), InputType::Accessed);
+    c->addContentInput(shared_from_this(), result, _content_writer.lock());
   }
 
   return result;

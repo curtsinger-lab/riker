@@ -280,7 +280,7 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   const auto& base = getBaseVersion();
 
   // The command listing this directory depends on its base version
-  if (c) c->addDirectoryInput(shared_from_this(), base, _creator.lock(), InputType::Accessed);
+  if (c) c->addDirectoryInput(shared_from_this(), base, _creator.lock());
 
   for (const auto& [name, entry] : _entries) {
     // Get the artifact targeted by this entry. This access records a dependency on the entry.
@@ -378,7 +378,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   } else {
     // Add a path resolution input from the base version
     const auto& base = getBaseVersion();
-    c->addDirectoryInput(shared_from_this(), base, _creator.lock(), InputType::PathResolution);
+    c->addDirectoryInput(shared_from_this(), base, _creator.lock());
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (base->getCreated()) {
@@ -557,9 +557,9 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
 
   // First, create an input to command c from the current version
   if (_uncommitted_version) {
-    c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock(), InputType::Accessed);
+    c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock());
   } else {
-    c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock(), InputType::Accessed);
+    c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock());
   }
 
   // Next, update records of uncommitted links
@@ -631,7 +631,7 @@ const shared_ptr<Artifact>& DirEntry::getTarget(shared_ptr<Command> c) const noe
   if (_uncommitted_version) {
     // Yes. Record the command's input
     if (c) {
-      c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock(), InputType::Accessed);
+      c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock());
     }
 
     // Return the uncommitted target
@@ -640,7 +640,7 @@ const shared_ptr<Artifact>& DirEntry::getTarget(shared_ptr<Command> c) const noe
   } else {
     // No. Use the committed state
     if (c) {
-      c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock(), InputType::Accessed);
+      c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock());
     }
 
     // Return the committed target

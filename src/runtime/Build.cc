@@ -836,7 +836,7 @@ shared_ptr<MetadataVersion> Build::traceMatchMetadata(const shared_ptr<Command>&
   ASSERT(artifact) << "Tried to access metadata through unresolved reference " << ref;
 
   // Get the current metadata from the artifact
-  auto expected = artifact->getMetadata(c, InputType::Accessed);
+  auto expected = artifact->getMetadata(c);
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace
