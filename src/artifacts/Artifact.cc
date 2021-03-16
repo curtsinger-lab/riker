@@ -36,9 +36,39 @@ string Artifact::getName() const noexcept {
   // If a fixed name was assigned, return it
   if (!_name.empty()) return _name;
 
-  // Get a path and return it, or an empty string if there is no path to this artifact
-  auto path = getPath();
-  return path.value_or("");
+  string shortest_name = "";
+
+  // If not, build a name using the path to this artifact
+  for (auto weak_entry : _modeled_links) {
+    // Get the entry
+    auto entry = weak_entry.lock();
+    if (!entry) continue;
+
+    // If there is no parent directory, this entry won't work
+    auto parent = entry->getDir();
+    if (!parent) continue;
+
+    // If the parent directory does not have a name, this entry doesn't help
+    auto parent_name = entry->getDir()->getName();
+    if (parent_name.empty()) continue;
+
+    // Generate a nice name for this artifact using the entry
+    string new_name;
+    if (parent_name == ".") {
+      new_name = entry->getName().string();
+    } else if (parent_name == "/") {
+      new_name = "/" + entry->getName().string();
+    } else {
+      new_name = parent_name + "/" + entry->getName().string();
+    }
+
+    // Update the shortest name
+    if (shortest_name.empty() || shortest_name.size() > new_name.size()) {
+      shortest_name = new_name;
+    }
+  }
+
+  return shortest_name;
 }
 
 void Artifact::rollback() noexcept {

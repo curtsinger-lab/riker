@@ -22,6 +22,13 @@ class Version {
   Version(Version&&) noexcept = default;
   Version& operator=(Version&&) noexcept = default;
 
+  /// Try to cast this version to some subtype
+  template <class T>
+  bool is_a() const noexcept {
+    if (dynamic_cast<const T*>(this)) return true;
+    return false;
+  }
+
   /// Get the name for the type of version this is
   virtual std::string getTypeName() const noexcept = 0;
 
