@@ -4,11 +4,12 @@
 #include <unistd.h>
 
 int main() {
-  int input_fd = open("input", O_RDONLY);
+  int input_fd = open("parent_input", O_RDONLY);
   int output_fd = open("parent_output", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
-  char buffer[10];
-  ssize_t bytes = read(input_fd, buffer, 10);
+  char buffer[512];
+  ssize_t bytes = read(input_fd, buffer, 512);
+
   write(output_fd, buffer, bytes);
 
   int child_id = fork();
@@ -17,6 +18,9 @@ int main() {
   } else {
     wait(NULL);
   }
+
+  close(input_fd);
+  close(output_fd);
 
   return 0;
 }

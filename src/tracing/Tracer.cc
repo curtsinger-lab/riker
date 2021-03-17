@@ -252,9 +252,13 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   // The launched child will dup2 these into place
   vector<std::pair<int, int>> initial_fds;
 
+  LOG(exec) << "Preparing to launch " << cmd;
+
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, ref_id] : cmd->getInitialFDs()) {
     auto& ref = cmd->getRef(ref_id);
+
+    LOG(exec) << "  Setting up fd " << child_fd << " with reference " << ref;
 
     // Make sure the reference has already been resolved
     ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
@@ -281,6 +285,14 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
         int rc = dup2(parent_fd, child_fd);
 
         FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
+      } else {
+        LOG(exec) << "Removing cloexec flag from fd " << parent_fd;
+        int flags = fcntl(parent_fd, F_GETFD, 0);
+        FAIL_IF(flags < 0) << "Failed to get flags for fd " << parent_fd;
+
+        flags &= ~FD_CLOEXEC;
+        int rc = fcntl(parent_fd, F_SETFD, flags);
+        FAIL_IF(rc < 0) << "Failed to set flags for fd " << parent_fd;
       }
     }
 

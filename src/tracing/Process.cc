@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -64,6 +65,7 @@ void Process::addFD(int fd, Ref::ID ref, bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
+    WARN << "  Existing fd references " << getCommand()->getRef(old_ref)->getArtifact();
     _build.traceDoneWithRef(_command, old_ref);
     _fds.erase(iter);
   }

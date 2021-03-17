@@ -1,6 +1,9 @@
 
 all: parent child
 
+clean:
+	rm -rf parent child
+
 parent: parent.c
 	gcc -o parent parent.c
 

@@ -355,8 +355,11 @@ int Artifact::getFD(AccessFlags flags) noexcept {
   // Get flags to pass to the open call
   auto [open_flags, open_mode] = flags.toOpen();
 
+  open_flags |= O_CLOEXEC;  // Open all FDs as close-on-exec
+  open_flags &= ~O_TRUNC;   // The opened file should not be truncated
+
   // Open the artifact in cloexec mode so children do not inherit it
-  int fd = ::open(path.value().c_str(), open_flags | O_CLOEXEC, open_mode);
+  int fd = ::open(path.value().c_str(), open_flags, open_mode);
   FAIL_IF(fd < 0) << "Failed to open " << this;
 
   return fd;
