@@ -137,9 +137,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void planBuild() noexcept;
 
   /// Check if this command can be emulated for the current build iteration
-  bool canEmulate() const noexcept {
-    return _marking == RebuildMarking::Emulate || _marking == RebuildMarking::AlreadyRun;
-  }
+  bool canEmulate() const noexcept { return _marking != RebuildMarking::MustRun; }
 
   /// Check if this command may run on a future build iteration
   bool mayRun() const noexcept { return _marking == RebuildMarking::MayRun; }

@@ -82,7 +82,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     env::rollback();
 
     // Run the build
-    Build build(true, *output);
+    Build build(*output);
     input->sendTo(build);
 
     LOGF(phase, "Finished build phase {}", iteration);
@@ -123,7 +123,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     env::rollback();
 
     // Run the build
-    Build build(false, post_build_chcker);
+    Build build(post_build_chcker);
     input->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
@@ -145,7 +145,7 @@ void do_check(vector<string> args) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
-  Build build(false);
+  Build build;
   trace->sendTo(build);
 
   // Print commands that must run
@@ -223,7 +223,7 @@ void do_graph(vector<string> args,
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
-  Build build(false);
+  Build build;
   trace->sendTo(build);
 
   Graph graph(show_all);
@@ -287,7 +287,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
-  Build build(false);
+  Build build;
   trace->sendTo(build);
 
   // Print statistics

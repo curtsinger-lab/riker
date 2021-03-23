@@ -31,8 +31,7 @@ class Process;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(bool execute, IRSink& output = _default_output) noexcept :
-      _execute(execute), _output(output), _tracer(*this) {}
+  Build(IRSink& output = _default_output) noexcept : _output(output), _tracer(*this) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -257,9 +256,6 @@ class Build : public IRSink {
   }
 
  private:
-  /// Is this build allowed to execute commands?
-  bool _execute;
-
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;
 
