@@ -42,11 +42,6 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-// Can a step from the provided command be emulated?
-bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {
-  return !c->mustRun();
-}
-
 /************************ Handle IR steps from a loaded trace ************************/
 
 void Build::finish() noexcept {
@@ -72,8 +67,8 @@ void Build::finish() noexcept {
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -129,8 +124,8 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
 // A command references a new anonymous pipe
 void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID write_end) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -149,8 +144,8 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 
 // A command references a new anonymous file
 void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -167,8 +162,8 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
 // A command references a new anonymous symlink
 void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID output) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -186,8 +181,8 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
 // A command references a new anonymous directory
 void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -208,8 +203,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
                     fs::path path,
                     AccessFlags flags,
                     Ref::ID output) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -231,8 +226,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
 // A command retains a handle to a given Ref
 void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -248,8 +243,8 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 
 // A command closes a handle to a given Ref
 void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -279,8 +274,8 @@ void Build::compareRefs(const shared_ptr<Command>& c,
                         Ref::ID ref1_id,
                         Ref::ID ref2_id,
                         RefComparison type) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -320,8 +315,8 @@ void Build::expectResult(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          int expected) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -347,8 +342,8 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
                           Ref::ID ref_id,
                           shared_ptr<MetadataVersion> expected) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -373,8 +368,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          shared_ptr<ContentVersion> expected) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -405,8 +400,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
 void Build::updateMetadata(const shared_ptr<Command>& c,
                            Ref::ID ref_id,
                            shared_ptr<MetadataVersion> written) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -430,8 +425,8 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 void Build::updateContent(const shared_ptr<Command>& c,
                           Ref::ID ref_id,
                           shared_ptr<ContentVersion> written) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -460,8 +455,8 @@ void Build::addEntry(const shared_ptr<Command>& c,
                      Ref::ID dir_id,
                      fs::path name,
                      Ref::ID target_id) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -487,8 +482,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
                         Ref::ID dir_id,
                         fs::path name,
                         Ref::ID target_id) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -513,8 +508,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 void Build::launch(const shared_ptr<Command>& c,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -546,7 +541,7 @@ void Build::launch(const shared_ptr<Command>& c,
   // Should we print the child command?
   bool print_command = false;
 
-  if (!canEmulate(child)) {
+  if (child->mustRun()) {
     // Print the command if requested, or if this is a dry run
     if (options::print_on_run || options::dry_run) print_command = true;
 
@@ -589,8 +584,8 @@ void Build::launch(const shared_ptr<Command>& c,
 void Build::join(const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -617,8 +612,8 @@ void Build::join(const shared_ptr<Command>& c,
 }
 
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
-  // If we can't emulate this command, skip its IR step
-  if (!canEmulate(c)) return;
+  // If this step comes from a command we need to run, return immediately
+  if (c->mustRun()) return;
 
   // Count an emulated step
   stats::emulated_steps++;
