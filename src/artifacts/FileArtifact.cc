@@ -281,7 +281,7 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   _content_writer = c;
 
   // Is the writer currently running?
-  if (c->running() || c->alreadyRun()) {
+  if (c->mustRun() || c->alreadyRun()) {
     _committed_content = fv;
     _uncommitted_content.reset();
   } else {

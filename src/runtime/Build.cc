@@ -44,7 +44,7 @@ namespace fs = std::filesystem;
 
 // Can a step from the provided command be emulated?
 bool Build::canEmulate(const shared_ptr<Command>& c) noexcept {
-  return !_execute || !c->running();
+  return !_execute || !c->mustRun();
 }
 
 /************************ Handle IR steps from a loaded trace ************************/

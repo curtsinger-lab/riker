@@ -90,7 +90,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     // Check if any commands must run on the next iteration. If so, we are not done.
     done = true;
     for (auto& c : build.getCommands()) {
-      if (c->running()) {
+      if (c->mustRun()) {
         done = false;
         trace_changed = true;
       }

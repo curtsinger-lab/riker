@@ -139,6 +139,9 @@ void Command::planBuild() noexcept {
 bool Command::mark(RebuildMarking m) noexcept {
   // See rebuild planning rules in docs/new-rebuild.md
 
+  // If lazy builds are turned off, promote a MayRun marking to MustRun
+  if (!options::lazy_builds && m == RebuildMarking::MayRun) m = RebuildMarking::MustRun;
+
   // Check the new marking
   if (m == RebuildMarking::MustRun) {
     // If this command already had an equivalent or higher marking, return false.
@@ -257,23 +260,6 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Emulate and AlreadyRun are never new markings
     return false;
   }
-}
-
-// Is this command currently running, according to its marking?
-bool Command::running() const noexcept {
-  // Commands marked MustRun have to run
-  if (_marking == RebuildMarking::MustRun) return true;
-
-  // Commands marked MayRun have to run if this is not a lazy build
-  if (!options::lazy_builds && _marking == RebuildMarking::MayRun) return true;
-
-  // Otherwise the command does not need to run
-  return false;
-}
-
-// Has this command already run?
-bool Command::alreadyRun() const noexcept {
-  return _marking == RebuildMarking::AlreadyRun;
 }
 
 /******************** Current Run Data ********************/
@@ -413,7 +399,7 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the metadata is committed
-  if (running()) a->commitMetadata();
+  if (mustRun()) a->commitMetadata();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
@@ -436,7 +422,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the file is available
-  if (running()) a->commitContent();
+  if (mustRun()) a->commitContent();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
@@ -459,7 +445,7 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the directory version is committed
-  if (running()) a->commitContent();
+  if (mustRun()) a->commitContent();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {

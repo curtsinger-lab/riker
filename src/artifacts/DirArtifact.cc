@@ -54,7 +54,7 @@ void DirArtifact::createEmptyDir(std::shared_ptr<Command> c) noexcept {
 
   // Set up the base directory version
   auto base = make_shared<BaseDirVersion>(true);
-  if (c->running() || c->alreadyRun()) {
+  if (c->mustRun() || c->alreadyRun()) {
     _committed_base_version = base;
   } else {
     _uncommitted_base_version = base;
@@ -553,7 +553,7 @@ void DirEntry::rollback() noexcept {
 shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
                                               shared_ptr<Artifact> target) noexcept {
   // If there is uncommitted state and command c is running, commit first
-  if (_uncommitted_version && c->running()) commit();
+  if (_uncommitted_version && c->mustRun()) commit();
 
   // First, create an input to command c from the current version
   if (_uncommitted_version) {
@@ -583,7 +583,7 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
   c->addDirectoryOutput(_dir.lock(), version);
 
   // Now update the state with the new version
-  if (c->running() || c->alreadyRun()) {
+  if (c->mustRun() || c->alreadyRun()) {
     // The command is running or has already run, so all effects are automatically committed
 
     // Is there a committed target? If so, remove its committed link as well

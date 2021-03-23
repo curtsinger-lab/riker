@@ -93,7 +93,7 @@ void SymlinkArtifact::updateContent(const std::shared_ptr<Command>& c,
   FAIL_IF(!sv) << "Attempted to apply version " << writing << " to symlink artifact " << this;
 
   // Set the appropriate content version
-  if (c->running() || c->alreadyRun()) {
+  if (c->mustRun() || c->alreadyRun()) {
     _committed_content = sv;
   } else {
     _uncommitted_content = sv;

@@ -31,7 +31,6 @@ enum class RebuildMarking {
            // to MustRun during rebuild planning. Commands marked MayRun will not be executed on the
            // current build iteration, but the possibility that they might need to run in the future
            // is important for planning the build correctly.
-           // NOTE: We currently run these commands right away.
 
   MustRun,  // The MustRun marking indicates that we are certain a command will need to run, so it
             // will be executed on the next build iteration.
@@ -137,11 +136,19 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Plan the next build iteration starting with this command
   void planBuild() noexcept;
 
-  /// Check if this command is running (according to its marking)
-  bool running() const noexcept;
+  /// Check if this command can be emulated for the current build iteration
+  bool canEmulate() const noexcept {
+    return _marking == RebuildMarking::Emulate || _marking == RebuildMarking::AlreadyRun;
+  }
+
+  /// Check if this command may run on a future build iteration
+  bool mayRun() const noexcept { return _marking == RebuildMarking::MayRun; }
+
+  /// Check if this command should run on the current build iteration
+  bool mustRun() const noexcept { return _marking == RebuildMarking::MustRun; }
 
   /// Check if this command has already run (according to its marking)
-  bool alreadyRun() const noexcept;
+  bool alreadyRun() const noexcept { return _marking == RebuildMarking::AlreadyRun; }
 
   /// Get the marking for this command
   RebuildMarking getMarking() const noexcept { return _marking; }
