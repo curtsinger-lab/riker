@@ -47,10 +47,6 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
   for (const auto& [a, v, weak_creator] : c->getInputs()) {
     auto creator = weak_creator.lock();
 
-    // Exclude artifacts with absolute paths, unless all artifacts are shown or the input was
-    // created during the build
-    if (fs::path(a->getName()).is_absolute() && !_show_all && !creator) continue;
-
     // If we're not showing all artifacts and versions, we may skip this one
     if (!_show_all) {
       // Does the version have a creator? If not, we may skip it
@@ -58,8 +54,8 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
         // If the artifact name is an absolute path, skip it
         if (fs::path(a->getName()).is_absolute()) continue;
 
-        // If the version is a DirVersion, skip it
-        if (v->is_a<DirVersion>()) continue;
+        // If the version is a base directory version, we can skip it
+        // if (v->is_a<DirVersion>()) continue;
 
         // If the version is a MetadataVersion, skip it
         if (v->is_a<MetadataVersion>()) continue;
