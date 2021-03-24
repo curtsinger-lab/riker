@@ -1353,18 +1353,16 @@ void Thread::_execveat(at_fd dfd,
 
   // Will the exec call succeed?
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
-    // The reference resolved successfully, so run the exec
+    // The reference resolved successfully, so the exec should succeed
+    _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
+    _process->exec(exe_ref_id, args, env);
+
+    // Now run the actual exec syscall
     finishSyscall([=](long rc) {
       resume();
 
       // Not sure why, but exec returns -38 on success. Make sure that's what we get.
       ASSERT(rc == -38) << "Outcome of exec call did not match expected behavior.";
-
-      // Record the expected outcome
-      _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-
-      // Update the process state with the new executable
-      _process->exec(exe_ref_id, args, env);
 
       // The child command depends on the contents of its executable. First, we need to know what
       // the actual executable is. Read /proc/<pid>/exe to find it
