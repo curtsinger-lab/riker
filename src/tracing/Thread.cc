@@ -1351,41 +1351,48 @@ void Thread::_execveat(at_fd dfd,
   // The parent command needs execute access to the exec-ed path
   auto exe_ref_id = makePathRef(filename, ExecAccess, dfd);
 
-  // Finish the exec syscall and resume
-  finishSyscall([=](long rc) {
-    resume();
+  // Will the exec call succeed?
+  if (getCommand()->getRef(exe_ref_id)->isResolved()) {
+    // The reference resolved successfully, so run the exec
+    finishSyscall([=](long rc) {
+      resume();
 
-    // Not sure why, but exec returns -38 on success.
-    // If we see something else, handle the error
-    if (rc != -38) {
-      // Failure! Record a failed reference. Negate rc because syscalls return negative errors
+      // Not sure why, but exec returns -38 on success. Make sure that's what we get.
+      ASSERT(rc == -38) << "Outcome of exec call did not match expected behavior.";
+
+      // Record the expected outcome
+      _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
+
+      // Update the process state with the new executable
+      _process->exec(exe_ref_id, args, env);
+
+      // The child command depends on the contents of its executable. First, we need to know what
+      // the actual executable is. Read /proc/<pid>/exe to find it
+      auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
+
+      // Now make the reference and expect success
+      auto child_exe_ref_id = makePathRef(real_exe_path, ReadAccess);
+      const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
+      _build.traceExpectResult(getCommand(), child_exe_ref_id, SUCCESS);
+
+      ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+
+      // The child command depends on the contents of the executable
+      child_exe_ref->getArtifact()->beforeRead(_build, getCommand(), child_exe_ref_id);
+      child_exe_ref->getArtifact()->afterRead(_build, getCommand(), child_exe_ref_id);
+    });
+
+  } else {
+    // The reference does not resolve successfully, so exec will fail
+    finishSyscall([=](long rc) {
+      resume();
+
+      ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
+          << "Outcome of exec call did not match expected behavior.";
+
       _build.traceExpectResult(getCommand(), exe_ref_id, -rc);
-      return;
-    }
-
-    // If we reached this point, the executable reference was okay
-    _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-
-    ASSERT(getCommand()->getRef(exe_ref_id)->isResolved()) << "Executable file failed to resolve";
-
-    // Update the process state with the new executable
-    _process->exec(exe_ref_id, args, env);
-
-    // The child command depends on the contents of its executable. First, we need to know what
-    // the actual executable is. Read /proc/<pid>/exe to find it
-    auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
-
-    // Now make the reference and expect success
-    auto child_exe_ref_id = makePathRef(real_exe_path, ReadAccess);
-    const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
-    _build.traceExpectResult(getCommand(), child_exe_ref_id, SUCCESS);
-
-    ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
-
-    // The child command depends on the contents of the executable
-    child_exe_ref->getArtifact()->beforeRead(_build, getCommand(), child_exe_ref_id);
-    child_exe_ref->getArtifact()->afterRead(_build, getCommand(), child_exe_ref_id);
-  });
+    });
+  }
 }
 
 void Thread::_wait4(pid_t pid, int* wstatus, int options) noexcept {
