@@ -15,7 +15,8 @@ class IRBuffer : public IRSource, public IRSink {
 
   /// Send the stored IR trace to a sink
   virtual void sendTo(IRSink& handler) noexcept override {
-    ASSERT(_mode == BufferMode::Draining) << "Cannot send from an IRBuffer while it is filling";
+    // Was the input trace finished?
+    bool finished = _mode == BufferMode::Draining;
 
     // Send steps while the list is not empty
     while (!_steps.empty()) {
@@ -24,9 +25,9 @@ class IRBuffer : public IRSource, public IRSink {
     }
 
     // Send the finish signal to the sink
-    handler.finish();
+    if (finished) handler.finish();
 
-    _mode = BufferMode::Drained;
+    _mode = BufferMode::Filling;
   }
 
   /// Send the stored IR trace to an r-value sink

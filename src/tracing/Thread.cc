@@ -1355,30 +1355,47 @@ void Thread::_execveat(at_fd dfd,
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
     _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-    _process->exec(exe_ref_id, args, env);
+    const auto& child = _process->exec(exe_ref_id, args, env);
 
-    // Now run the actual exec syscall
-    finishSyscall([=](long rc) {
-      resume();
+    // Does the child command need to run?
+    if (child->mustRun()) {
+      // Yes. Run the actual exec syscall
+      finishSyscall([=](long rc) {
+        resume();
 
-      // Not sure why, but exec returns -38 on success. Make sure that's what we get.
-      ASSERT(rc == -38) << "Outcome of exec call did not match expected behavior.";
+        // Not sure why, but exec returns -38 on success. Make sure that's what we get.
+        ASSERT(rc == -38) << "Outcome of exec call did not match expected behavior.";
 
-      // The child command depends on the contents of its executable. First, we need to know what
-      // the actual executable is. Read /proc/<pid>/exe to find it
-      auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
+        // The child command depends on the contents of its executable. First, we need to know what
+        // the actual executable is. Read /proc/<pid>/exe to find it
+        auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
 
-      // Now make the reference and expect success
-      auto child_exe_ref_id = makePathRef(real_exe_path, ReadAccess);
-      const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
-      _build.traceExpectResult(getCommand(), child_exe_ref_id, SUCCESS);
+        // Now make the reference and expect success
+        auto child_exe_ref_id = makePathRef(real_exe_path, ReadAccess);
+        const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
+        _build.traceExpectResult(getCommand(), child_exe_ref_id, SUCCESS);
 
-      ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+        ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
-      // The child command depends on the contents of the executable
-      child_exe_ref->getArtifact()->beforeRead(_build, getCommand(), child_exe_ref_id);
-      child_exe_ref->getArtifact()->afterRead(_build, getCommand(), child_exe_ref_id);
-    });
+        // The child command depends on the contents of the executable
+        child_exe_ref->getArtifact()->beforeRead(_build, getCommand(), child_exe_ref_id);
+        child_exe_ref->getArtifact()->afterRead(_build, getCommand(), child_exe_ref_id);
+      });
+    } else {
+      // No, the child does not need to run the exec syscall.
+      // Leave the process in a stalled state so it can be exited later
+      getProcess()->waitForExit([=](int exit_code) {
+        auto regs = getRegisters();
+        regs.SYSCALL_NUMBER = __NR_exit;
+        regs.SYSCALL_ARG1 = exit_code;
+        setRegisters(regs);
+
+        resume();
+      });
+
+      // Ask the build to process any deferred steps now that the child command is launched
+      _build.runDeferredSteps();
+    }
 
   } else {
     // The reference does not resolve successfully, so exec will fail

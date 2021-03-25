@@ -12,6 +12,7 @@
 
 #include <sys/types.h>
 
+#include "data/IRBuffer.hh"
 #include "data/IRSink.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Tracer.hh"
@@ -31,11 +32,14 @@ class Process;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(IRSink& output = _default_output) noexcept : _output(output), _tracer(*this) {}
+  Build(IRSink& output = _default_output) noexcept;
 
   // Disallow Copy
   Build(const Build&) = delete;
   Build& operator=(const Build&) = delete;
+
+  /// Try to run any steps that were deferred because they came from commands that had not launched
+  void runDeferredSteps() noexcept;
 
   /// Get the list of commands in this build
   const std::set<std::shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
@@ -250,6 +254,9 @@ class Build : public IRSink {
  private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;
+
+  /// Deferred trace steps are placed in this buffer for later running
+  std::unique_ptr<IRBuffer> _deferred;
 
   /// The set of commands that were run by this build (both traced and emulated commands included)
   std::set<std::shared_ptr<Command>> _commands;

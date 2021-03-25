@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -70,10 +71,19 @@ class Process : public std::enable_shared_from_this<Process> {
   std::shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
-  void exec(Ref::ID exe_ref, std::vector<std::string> args, std::vector<std::string> env) noexcept;
+  const std::shared_ptr<Command>& exec(Ref::ID exe_ref,
+                                       std::vector<std::string> args,
+                                       std::vector<std::string> env) noexcept;
 
   /// This process is exiting
   void exit(int exit_status) noexcept;
+
+  /// Set a callback that can be used to force this process to exit
+  void waitForExit(std::function<void(int)> handler) noexcept;
+
+  /// Force this traced process to exit. This is used to trigger an actual process exit in response
+  /// to an emulated command that has been skipped.
+  void forceExit(int exit_status) noexcept;
 
   /// Print a process to an output stream
   friend std::ostream& operator<<(std::ostream& o, const Process& p) noexcept {
@@ -110,4 +120,7 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// Has this process exited?
   bool _exited = false;
+
+  /// The callback to force this process to exit
+  std::function<void(int)> _force_exit_callback;
 };

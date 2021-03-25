@@ -1,5 +1,6 @@
 #include "Process.hh"
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -12,6 +13,7 @@
 #include "runtime/Ref.hh"
 #include "util/log.hh"
 
+using std::function;
 using std::make_shared;
 using std::map;
 using std::shared_ptr;
@@ -118,7 +120,9 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-void Process::exec(Ref::ID exe_ref, vector<string> args, vector<string> env) noexcept {
+const shared_ptr<Command>& Process::exec(Ref::ID exe_ref,
+                                         vector<string> args,
+                                         vector<string> env) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
@@ -165,23 +169,49 @@ void Process::exec(Ref::ID exe_ref, vector<string> args, vector<string> env) noe
   // TODO: Remove mmaps from the previous command, unless they're mapped in multiple processes
   // that participate in that command. This will require some extra bookkeeping. For now, we
   // over-approximate the set of commands that have a file mmapped.
+
+  return _command;
 }
 
 // The process is exiting
 void Process::exit(int exit_status) noexcept {
+  // We only need to handle the exit if the process hasn't already been marked as exited. That will
+  // happen for skipped commands that are forced to exit.
+  if (!_exited) {
+    // Mark the process as exited
+    _exited = true;
+
+    // References to the cwd and root directories are closed
+    _build.traceDoneWithRef(_command, _cwd);
+    _build.traceDoneWithRef(_command, _root);
+
+    // Any remaining file descriptors in this process are closed
+    for (const auto& [index, desc] : _fds) {
+      const auto& [ref, cloexec] = desc;
+      _build.traceDoneWithRef(_command, ref);
+    }
+
+    // If this process was the primary for its command, trace the exit
+    if (_primary) _build.traceExit(_command, exit_status);
+  }
+}
+
+// Set a callback that can be used to force this process to exit
+void Process::waitForExit(function<void(int)> handler) noexcept {
+  ASSERT(!_force_exit_callback) << "Process already has a callback to force exit";
+  _force_exit_callback = handler;
+}
+
+// Force this process to exit instead of running an exec syscall
+void Process::forceExit(int exit_status) noexcept {
+  ASSERT(_force_exit_callback) << "Process does not have a callback to force exit";
+
   // Mark the process as exited
   _exited = true;
 
-  // References to the cwd and root directories are closed
-  _build.traceDoneWithRef(_command, _cwd);
-  _build.traceDoneWithRef(_command, _root);
+  // Invoke the force exit callback
+  _force_exit_callback(exit_status);
 
-  // Any remaining file descriptors in this process are closed
-  for (const auto& [index, desc] : _fds) {
-    const auto& [ref, cloexec] = desc;
-    _build.traceDoneWithRef(_command, ref);
-  }
-
-  // If this process was the primary for its command, trace the exit
-  if (_primary) _build.traceExit(_command, exit_status);
+  // Clear the callback in case it includes any references to allocated memory
+  _force_exit_callback = function<void(int)>();
 }

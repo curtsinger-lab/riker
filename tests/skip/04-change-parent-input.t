@@ -25,10 +25,9 @@ Check the output
 Change the parent's input
   $ echo "Goodbye parent" > parent_input
 
-Run a rebuild
+Run a rebuild, which should run only the parent command
   $ $RKR --show
   ./parent
-  ./child
 
 Check the output
   $ cat parent_output

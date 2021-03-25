@@ -44,17 +44,18 @@ Run an additional rebuild, which should now do no work
   $ $RKR --show
 
 Add a file to the directory, which should trigger a rebuild
-TODO: Once command skipping is implemented, this should just rerun Rikerfile
   $ touch foo
 
 Run a rebuild
   $ $RKR --show
   Rikerfile
-  gcc -o hello hello.c
-  [^ ]*cc1 .* (re)
-  [^ ]*as .* (re)
-  [^ ]*collect2 .* (re)
-  [^ ]*ld .* (re)
+
+Make sure the hello executable is unchanged
+  $ ./hello
+  Goodbye world
+
+Run a final rebuild, which should do nothing
+  $ $RKR --show
 
 Clean up
   $ rm -rf .rkr hello Rikerfile foo

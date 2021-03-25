@@ -194,18 +194,18 @@ bool Command::mark(RebuildMarking m) noexcept {
     }
 
     // Rule a: Mark all of this command's children as MustRun
-    for (const auto& child : previousRun()->_children) {
+    /*for (const auto& child : previousRun()->_children) {
       if (child->mark(RebuildMarking::MustRun)) {
         LOGF(rebuild, "{} must run: parent {} is running", child, this);
       }
-    }
+    }*/
 
     // Rule b: If this command's parent is marked MayRun, change it to MustRun
-    auto parent = previousRun()->_parent.lock();
+    /*auto parent = previousRun()->_parent.lock();
     if (parent && parent->_marking == RebuildMarking::MayRun) {
       parent->mark(RebuildMarking::MustRun);
       LOGF(rebuild, "{} must run: child {} is running and cannot be skipped", parent, this);
-    }
+    }*/
 
     // The marking was new, so return true
     return true;
@@ -248,11 +248,11 @@ bool Command::mark(RebuildMarking m) noexcept {
     }
 
     // Rule c: Mark all of this command's children as MayRun
-    for (const auto& child : previousRun()->_children) {
+    /*for (const auto& child : previousRun()->_children) {
       if (child->mark(RebuildMarking::MayRun)) {
         LOGF(rebuild, "{} may run: parent {} may run", child, this);
       }
-    }
+    }*/
 
     // The marking was new, so return true
     return true;
