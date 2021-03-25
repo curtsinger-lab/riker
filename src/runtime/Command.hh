@@ -19,6 +19,7 @@ class CommandRun;
 class ContentVersion;
 class DirVersion;
 class MetadataVersion;
+class Process;
 class Version;
 
 /// The set of possible markings for a command that determine how it is executed during rebuild
@@ -185,6 +186,9 @@ class Command : public std::enable_shared_from_this<Command> {
     /// is emulated or traced.
     bool _launched = false;
 
+    /// The process this command's run was launched in, or nullptr if there is no process
+    std::shared_ptr<Process> _process;
+
     /// Has this command run already been matched against a new command launch?
     bool _matched = false;
 
@@ -225,7 +229,10 @@ class Command : public std::enable_shared_from_this<Command> {
   bool isLaunched() noexcept;
 
   /// Mark the latest run of this command as launched
-  void setLaunched() noexcept;
+  void setLaunched(std::shared_ptr<Process> p = nullptr) noexcept;
+
+  /// Get the process this command is running in
+  const std::shared_ptr<Process>& getProcess() noexcept;
 
   /// Get this command's exit status
   int getExitStatus() noexcept;

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
+#include "tracing/Process.hh"
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
@@ -301,8 +302,13 @@ bool Command::isLaunched() noexcept {
 }
 
 // Mark the latest run of this command as launched
-void Command::setLaunched() noexcept {
+void Command::setLaunched(shared_ptr<Process> p) noexcept {
   currentRun()->_launched = true;
+  currentRun()->_process = p;
+}
+
+const shared_ptr<Process>& Command::getProcess() noexcept {
+  return currentRun()->_process;
 }
 
 // Get this command's exit status for the current run

@@ -659,9 +659,6 @@ void Build::launch(const shared_ptr<Command>& c,
   // If we're going to actually run the command, mark it as executed now
   if (run_command) child->setExecuted();
 
-  // Whether we're running or emulating the command, it is now launched
-  child->setLaunched();
-
   // Now emit the launch IR step. This has to happen after updating the executed state of the
   // command (above) and before actually launching the command.
   _output.launch(c, child, refs);
@@ -676,12 +673,16 @@ void Build::launch(const shared_ptr<Command>& c,
 
     LOG(exec) << c << " launching " << child;
 
-    // Start the child command in the tracer
-    _running[child] = _tracer.start(child);
+    // Start the child command in the tracer and record it as launched
+    const auto& process = _tracer.start(child);
+    child->setLaunched(process);
 
   } else {
     // Count the emulated command
     stats::emulated_commands++;
+
+    // The child command has launched with no containing process
+    child->setLaunched();
   }
 }
 
@@ -702,7 +703,8 @@ void Build::join(const shared_ptr<Command>& c,
   stats::emulated_steps++;
 
   // If the child command is running in the tracer, wait for it
-  if (isRunning(child)) _tracer.wait(_running[child]);
+  const auto& process = child->getProcess();
+  if (process) _tracer.wait(process);
 
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
@@ -1113,7 +1115,8 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
-                                       map<int, Ref::ID> fds) noexcept {
+                                       map<int, Ref::ID> fds,
+                                       shared_ptr<Process> process) noexcept {
   // Count a traced step and a traced command
   stats::traced_steps++;
   stats::traced_commands++;
@@ -1168,7 +1171,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   child->setExecuted();
 
   // The child command is now launched
-  child->setLaunched();
+  child->setLaunched(process);
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);

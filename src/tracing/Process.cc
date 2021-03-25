@@ -132,7 +132,8 @@ void Process::exec(Ref::ID exe_ref, vector<string> args, vector<string> env) noe
   }
 
   // Inform the build of the launch action
-  auto child = _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds);
+  auto child =
+      _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds, shared_from_this());
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);

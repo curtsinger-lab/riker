@@ -236,7 +236,8 @@ class Build : public IRSink {
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
-                                       std::map<int, Ref::ID> fds) noexcept;
+                                       std::map<int, Ref::ID> fds,
+                                       std::shared_ptr<Process> process) noexcept;
 
   /// A command is joining with a child command
   void traceJoin(const std::shared_ptr<Command>& c,
@@ -247,12 +248,6 @@ class Build : public IRSink {
   void traceExit(const std::shared_ptr<Command>& c, int exit_status) noexcept;
 
  private:
-  /// Is a particular command running?
-  bool isRunning(const std::shared_ptr<Command>& c) const noexcept {
-    return _running.find(c) != _running.end();
-  }
-
- private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;
 
@@ -261,10 +256,6 @@ class Build : public IRSink {
 
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
-
-  /// A map of launched commands to the root process running that command, or nullptr if it is
-  /// only being emulated
-  std::map<std::shared_ptr<Command>, std::shared_ptr<Process>> _running;
 
   /// The last command that updated an artifact's content
   std::weak_ptr<Command> _last_writer;
