@@ -294,6 +294,17 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
   child->currentRun()->_parent = shared_from_this();
 }
 
+// Check if the latest run of this command has been launched yet
+bool Command::isLaunched() noexcept {
+  // The null command is launched by default
+  return isNullCommand() || currentRun()->_launched;
+}
+
+// Mark the latest run of this command as launched
+void Command::setLaunched() noexcept {
+  currentRun()->_launched = true;
+}
+
 // Get this command's exit status for the current run
 int Command::getExitStatus() noexcept {
   return currentRun()->_exit_status;

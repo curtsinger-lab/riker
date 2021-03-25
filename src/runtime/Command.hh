@@ -181,6 +181,10 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _children;
 
+    /// Has this command run been launched by its parent yet? This is set to true whether the launch
+    /// is emulated or traced.
+    bool _launched = false;
+
     /// Has this command run already been matched against a new command launch?
     bool _matched = false;
 
@@ -216,6 +220,12 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// This command launched a child command
   void addChild(std::shared_ptr<Command> child) noexcept;
+
+  /// Check if the latest run of this command has been launched yet
+  bool isLaunched() noexcept;
+
+  /// Mark the latest run of this command as launched
+  void setLaunched() noexcept;
 
   /// Get this command's exit status
   int getExitStatus() noexcept;

@@ -70,6 +70,12 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -127,6 +133,12 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -147,6 +159,12 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -164,6 +182,12 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID output) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -183,6 +207,12 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -205,6 +235,12 @@ void Build::pathRef(const shared_ptr<Command>& c,
                     Ref::ID output) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -229,6 +265,12 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
   // Log the emulated step
@@ -245,6 +287,12 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -276,6 +324,12 @@ void Build::compareRefs(const shared_ptr<Command>& c,
                         RefComparison type) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -318,6 +372,12 @@ void Build::expectResult(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -345,6 +405,12 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -370,6 +436,12 @@ void Build::matchContent(const shared_ptr<Command>& c,
                          shared_ptr<ContentVersion> expected) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -403,6 +475,12 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -427,6 +505,12 @@ void Build::updateContent(const shared_ptr<Command>& c,
                           shared_ptr<ContentVersion> written) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -458,6 +542,12 @@ void Build::addEntry(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -485,6 +575,12 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -511,6 +607,12 @@ void Build::launch(const shared_ptr<Command>& c,
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
+
   // Count an emulated step
   stats::emulated_steps++;
 
@@ -536,7 +638,7 @@ void Build::launch(const shared_ptr<Command>& c,
   c->addChild(child);
 
   // Are we going to re-execute the child?
-  bool launch_command = false;
+  bool run_command = false;
 
   // Should we print the child command?
   bool print_command = false;
@@ -546,7 +648,7 @@ void Build::launch(const shared_ptr<Command>& c,
     if (options::print_on_run || options::dry_run) print_command = true;
 
     // Launch the command if this is not a dry run
-    if (!options::dry_run) launch_command = true;
+    if (!options::dry_run) run_command = true;
   }
 
   // Print the command if requested
@@ -554,15 +656,18 @@ void Build::launch(const shared_ptr<Command>& c,
     cout << child->getShortName(options::command_length) << endl;
   }
 
-  // If we're going to launch the command, mark it as executed now
-  if (launch_command) child->setExecuted();
+  // If we're going to actually run the command, mark it as executed now
+  if (run_command) child->setExecuted();
+
+  // Whether we're running or emulating the command, it is now launched
+  child->setLaunched();
 
   // Now emit the launch IR step. This has to happen after updating the executed state of the
   // command (above) and before actually launching the command.
   _output.launch(c, child, refs);
 
   // Launch the command if requested
-  if (launch_command) {
+  if (run_command) {
     // Count the traced command
     stats::traced_commands++;
 
@@ -586,6 +691,12 @@ void Build::join(const shared_ptr<Command>& c,
                  int exit_status) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -614,6 +725,12 @@ void Build::join(const shared_ptr<Command>& c,
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
+
+  // If this step comes from a command that hasn't been launched, we need to defer this step
+  if (!c->isLaunched()) {
+    WARN << "Need to defer step from " << c;
+    return;
+  }
 
   // Count an emulated step
   stats::emulated_steps++;
@@ -1049,6 +1166,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // The child command will be executed by this build.
   child->setExecuted();
+
+  // The child command is now launched
+  child->setLaunched();
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
