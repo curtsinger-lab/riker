@@ -29,5 +29,5 @@ Clean up
   $ rm -f main.aux main.log main.pdf
   $ cp main-original.tex main.tex
 
-SKIP! This test will not work until we have the ability to skip recognized commands.
+SKIP! This test will only work if we somehow determine that the second invocation of pdflatex is equivalent to the first.
   $ exit 80
