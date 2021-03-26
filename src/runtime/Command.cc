@@ -155,41 +155,47 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MustRun;
 
     // Rule 3: For each command D that produces uncached input V to C: mark D as MustRun
-    for (const auto& weak_producer : previousRun()->_needs_output_from) {
+    for (const auto& [weak_producer, info] : previousRun()->_needs_output_from) {
       auto producer = weak_producer.lock();
+      auto [a, v] = info;
       if (producer->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: output is needed by {}", producer, this);
+        LOGF(rebuild, "{} must run: version {} of {} is needed by {}", producer, v, a, this);
       }
     }
 
     // Rule 4: For each command D that produces input V to C: if D is marked MayRun, mark D as
     // MustRun
-    for (const auto& weak_producer : previousRun()->_uses_output_from) {
+    /*for (const auto& [weak_producer, info] : previousRun()->_uses_output_from) {
       auto producer = weak_producer.lock();
+      auto [a, v] = info;
       if (producer->_marking == RebuildMarking::MayRun) {
         producer->mark(RebuildMarking::MustRun);
-        LOGF(rebuild,
-             "{} must run: may change output needed by {}, which is already marked for run",
-             producer, this);
+        LOGF(
+            rebuild,
+            "{} must run: may change output {} of {} needed by {}, which is already marked for run",
+            producer, v, a, this);
       }
-    }
+    }*/
 
     // Rule 5: For each command D that consumes output V from C: if V is cached mark D as MayRun. If
     // not, mark D as MustRun.
 
     // Mark the MustRun commands first to avoid marking them a second time
-    for (const auto& weak_user : previousRun()->_output_needed_by) {
+    for (const auto& [weak_user, info] : previousRun()->_output_needed_by) {
       auto user = weak_user.lock();
+      auto [a, v] = info;
       if (user->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: uncached input may be changed by {}", user, this);
+        LOGF(rebuild, "{} must run: uncached input {} of {} may be changed by {}", user, v, a,
+             this);
       }
     }
 
     // Now do the MayRun markings
-    for (const auto& weak_user : previousRun()->_output_used_by) {
+    for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
       auto user = weak_user.lock();
+      auto [a, v] = info;
       if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
+        LOGF(rebuild, "{} may run: input {} of {} may be changed by {}", user, v, a, this);
       }
     }
 
@@ -222,30 +228,33 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MayRun;
 
     // Rule 6: For each command D that produces uncached input V to C: mark D as MayRun.
-    for (const auto& weak_producer : previousRun()->_needs_output_from) {
+    for (const auto& [weak_producer, info] : previousRun()->_needs_output_from) {
       auto producer = weak_producer.lock();
+      auto [a, v] = info;
       if (producer->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be needed by {}", producer, this);
+        LOGF(rebuild, "{} may run: version {} of {} may be needed by {}", producer, v, a, this);
       }
     }
 
     // Rule 7: For each command D that consumes output V from C: mark D as MayRun
-    for (const auto& weak_user : previousRun()->_output_used_by) {
+    for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
       auto user = weak_user.lock();
+      auto [a, v] = info;
       if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: input may be changed by {}", user, this);
+        LOGF(rebuild, "{} may run: input {} of {} may be changed by {}", user, v, a, this);
       }
     }
 
     // Rule 8: For each command D that consumes output V from C: if D is marked MustRun, mark C as
     // MustRun
-    for (const auto& weak_user : previousRun()->_output_used_by) {
+    /*for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
       auto user = weak_user.lock();
+      auto [a, v] = info;
       if (user->_marking == RebuildMarking::MustRun) {
         mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output is needed by command {}", this, user);
+        LOGF(rebuild, "{} must run: output {} of {} is needed by command {}", this, v, a, user);
       }
-    }
+    }*/
 
     // Rule c: Mark all of this command's children as MayRun
     /*for (const auto& child : previousRun()->_children) {
@@ -415,20 +424,23 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
                                shared_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
+  // If this command wrote the version there's no need to do any additional tracking
+  if (writer.get() == this) return;
+
   // If this command is running, make sure the metadata is committed
   if (mustRun()) a->commitMetadata();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer);
+    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
 
     // If this is make accessing metadata, we only need to mark in one direction;
     // changing metadata alone does not need to trigger a re-execution of make
     if (isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
-    writer->currentRun()->_output_used_by.emplace(shared_from_this());
+    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
   }
 }
 
@@ -438,19 +450,25 @@ void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
+  // If this command wrote the version there's no need to do any additional tracking
+  if (writer.get() == this) return;
+
+  // If this command wrote the version there's no need to do any additional tracking
+  if (writer.get() == this) return;
+
   // If this command is running, make sure the file is available
   if (mustRun()) a->commitContent();
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer);
-    writer->currentRun()->_output_used_by.emplace(shared_from_this());
+    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
+    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
 
     // Is the version committable? If not, this command NEEDS output from writer
     if (!v->canCommit()) {
-      currentRun()->_needs_output_from.emplace(writer);
-      writer->currentRun()->_output_needed_by.emplace(shared_from_this());
+      currentRun()->_needs_output_from.emplace(writer, std::tuple{a, v});
+      writer->currentRun()->_output_needed_by.emplace(shared_from_this(), std::tuple{a, v});
     }
   }
 }
@@ -467,8 +485,8 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer);
-    writer->currentRun()->_output_used_by.emplace(shared_from_this());
+    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
+    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
   }
 }
 

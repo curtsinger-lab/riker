@@ -158,7 +158,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /****** Types and struct used to track run-specific data ******/
 
-  using WeakCommandSet = std::set<std::weak_ptr<Command>, std::owner_less<std::weak_ptr<Command>>>;
+  // using WeakCommandSet = std::set<std::weak_ptr<Command>,
+  // std::owner_less<std::weak_ptr<Command>>>;
+  using WeakCommandSet = std::map<std::weak_ptr<Command>,
+                                  std::tuple<std::shared_ptr<Artifact>, std::shared_ptr<Version>>,
+                                  std::owner_less<std::weak_ptr<Command>>>;
 
   using InputList =
       std::list<std::tuple<std::shared_ptr<Artifact>,  // The artifact that was accessed
