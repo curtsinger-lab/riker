@@ -44,9 +44,6 @@ class PipeCloseVersion : public PipeWriteVersion {
     return static_cast<bool>(other->as<PipeCloseVersion>());
   }
 
-  /// Pipe closes can always be committed
-  virtual bool canCommit() const noexcept override { return true; }
-
   /// Commit does nothing for pipe closes
   virtual void commit(fs::path path) noexcept override {}
 
