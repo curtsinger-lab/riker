@@ -1,2 +1,2 @@
 #!/bin/sh
-make -j --always-make
+make -j --always-make --quiet

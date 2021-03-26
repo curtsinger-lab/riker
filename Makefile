@@ -20,7 +20,7 @@ CXXFLAGS := -Isrc \
 
 LDFLAGS = $(OPT) -lstdc++fs -lfmt
 
-SRCS := $(shell find src -type f -regextype sed -regex "src/[a-zA-Z0-9/]*\.cc")
+SRCS := $(wildcard src/*/*.cc)
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))
 DEPS := $(patsubst src/%.cc, .obj/%.d, $(SRCS))
 
