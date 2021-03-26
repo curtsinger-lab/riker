@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 
@@ -23,6 +24,9 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
   std::shared_ptr<T> as() noexcept {
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
+
+  /// Get the entry this directory version references, if any
+  virtual std::optional<std::string> getEntry() const noexcept { return std::nullopt; }
 
  private:
   // Declare fields for serialization
@@ -83,6 +87,9 @@ class AddEntry : public DirVersion {
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "+" + std::string(_entry); }
 
+  /// Get the entry this directory version references
+  virtual std::optional<std::string> getEntry() const noexcept override { return _entry; }
+
   /// Print a link version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[dir: link " << _entry << "]";
@@ -103,6 +110,9 @@ class RemoveEntry : public DirVersion {
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override { return "-" + std::string(_entry); }
+
+  /// Get the entry this directory version references, if any
+  virtual std::optional<std::string> getEntry() const noexcept override { return _entry; }
 
   /// Print an unlink version
   virtual std::ostream& print(std::ostream& o) const noexcept override {

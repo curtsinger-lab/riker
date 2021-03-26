@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
+#include "artifacts/DirArtifact.hh"
 #include "tracing/Process.hh"
 #include "ui/options.hh"
 #include "versions/ContentVersion.hh"
@@ -477,10 +478,26 @@ void Command::addContentInput(shared_ptr<Artifact> a,
 void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
                                 std::shared_ptr<DirVersion> v,
                                 std::shared_ptr<Command> writer) noexcept {
+  if (!v) return;
+
   if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the directory version is committed
-  if (mustRun()) a->commitContent();
+  if (mustRun()) {
+    // We'll need to treat the artifact as a DirArtifact
+    auto dir = a->as<DirArtifact>();
+    ASSERT(dir) << "Non-directory artifact " << a << " passed to addDirectoryInput";
+
+    // Does the directory version refer to a specific entry?
+    auto e = v->getEntry();
+    if (e.has_value()) {
+      // Yes. Commit that entry
+      dir->commitEntry(e.value());
+    } else {
+      // No. Just commit the base content
+      a->commitContent();
+    }
+  }
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {

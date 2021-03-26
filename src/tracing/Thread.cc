@@ -265,8 +265,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
     // Check whether the openat call succeeded or failed
     if (fd >= 0) {
       WARN_IF(!ref->isResolved()) << "Model Mismatch: failed to locate artifact for opened file: "
-                                  << filename << " (received " << ref->getResultCode()
-                                  << " from model)";
+                                  << filename << " (received " << ref << " from model)";
 
       // The command observed a successful openat, so add this predicate to the command log
       _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
