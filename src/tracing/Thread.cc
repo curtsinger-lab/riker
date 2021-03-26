@@ -538,7 +538,7 @@ void Thread::_fstatat(at_fd dirfd,
         // The stat succeeded
         _build.traceExpectResult(getCommand(), ref, SUCCESS);
         ASSERT(getCommand()->getRef(ref)->isResolved())
-            << "Unable to locate artifact for stat-ed file " << ref;
+            << "Unable to locate artifact for stat-ed file (" << pathname << ")";
 
         // Record the dependence on the artifact's metadata
         _build.traceMatchMetadata(getCommand(), ref);
