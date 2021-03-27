@@ -44,8 +44,8 @@ class BaseDirVersion : public DirVersion {
   /// Does the base version represent a newly created directory?
   bool getCreated() const noexcept { return _created; }
 
-  /// Commit this base directory version to
-  void commit(fs::path path) noexcept;
+  /// Commit this base directory version
+  void commit(fs::path path, mode_t mode) noexcept;
 
   /// Get the name for this version type
   virtual std::string getTypeName() const noexcept override {

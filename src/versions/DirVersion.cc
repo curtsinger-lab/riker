@@ -20,7 +20,7 @@
 namespace fs = std::filesystem;
 
 // Commit a base directory version
-void BaseDirVersion::commit(fs::path path) noexcept {
+void BaseDirVersion::commit(fs::path path, mode_t mode) noexcept {
   // This directory better be one we've created, otherwise it should have been committed already
   ASSERT(_created) << "An on-disk directory is somehow not committed";
 
@@ -31,7 +31,7 @@ void BaseDirVersion::commit(fs::path path) noexcept {
   if (rc == -1) {
     if (errno == ENOENT) {
       // dir doesn't exist-- go ahead and create it
-      rc = ::mkdir(path.c_str(), 0755);
+      rc = ::mkdir(path.c_str(), mode);
       LOG(artifact) << "Created directory at " << path;
 
       FAIL_IF(rc != 0) << "Failed to create directory " << path << ": " << ERR;

@@ -16,6 +16,7 @@
 #include "versions/ContentVersion.hh"
 #include "versions/DirListVersion.hh"
 #include "versions/DirVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::make_shared;
 using std::shared_ptr;
@@ -74,9 +75,11 @@ const shared_ptr<BaseDirVersion>& DirArtifact::getBaseVersion() const noexcept {
 /// Commit the content of this artifact to a specific path
 void DirArtifact::commitContentTo(fs::path path) noexcept {
   if (_uncommitted_base_version) {
-    _uncommitted_base_version->commit(path);
-    _committed_base_version = nullptr;
-    std::swap(_uncommitted_base_version, _committed_base_version);
+    ASSERT(_uncommitted_metadata) << "Uncommitted directory does not have uncommitted metadata";
+
+    _uncommitted_base_version->commit(path, _uncommitted_metadata->getMode());
+    _committed_base_version = std::move(_uncommitted_base_version);
+    _committed_metadata = std::move(_uncommitted_metadata);
   }
 }
 
