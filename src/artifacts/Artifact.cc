@@ -72,6 +72,8 @@ string Artifact::getName() const noexcept {
 }
 
 void Artifact::rollback() noexcept {
+  ASSERT(_committed_metadata) << "Rolling back artifact " << this << " loses all metadata";
+
   _uncommitted_metadata.reset();
   _metadata_writer.reset();
 }

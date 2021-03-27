@@ -19,7 +19,7 @@ class SymlinkVersion : public ContentVersion {
   virtual std::string getTypeName() const noexcept override { return "symlink"; }
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  void commit(fs::path path) noexcept;
 
   /// Check if this version can be committed to the filesystem
   virtual bool canCommit() const noexcept override { return true; }

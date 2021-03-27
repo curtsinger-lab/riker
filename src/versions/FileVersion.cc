@@ -155,7 +155,7 @@ bool FileVersion::canCommit() const noexcept {
 }
 
 /// Commit this version to the filesystem
-void FileVersion::commit(fs::path path) noexcept {
+void FileVersion::commit(fs::path path, mode_t mode) noexcept {
   // Compare to the on-disk artifact. This is a short-term workaround for lazy builds
   // TODO: Remove this once artifacts track both committed and uncommitted state
   if (options::lazy_builds && !canCommit()) {
@@ -183,14 +183,14 @@ void FileVersion::commit(fs::path path) noexcept {
   // is this an empty file?
   if (_empty) {
     // stage in empty file
-    commitEmptyFile(path);
+    commitEmptyFile(path, mode);
     return;
   }
 
   // did we cache the file?
   if (_cached) {
     // stage in cached file
-    stage(path);
+    stage(path, mode);
     return;
   }
 
@@ -251,7 +251,7 @@ void FileVersion::makeEmptyFingerprint() noexcept {
 /// Restores a file to the given path from the cache.
 /// Returns true if the cache file exists and restoration was successful.
 /// The exact error message can be printed by the caller by inspecting errno.
-bool FileVersion::stage(fs::path path) noexcept {
+bool FileVersion::stage(fs::path path, mode_t mode) noexcept {
   // Make sure we have a hash and that this version is cached
   ASSERT(_hash.has_value()) << "Un-hashed file version " << this << " cannot be staged from cache";
   ASSERT(_cached) << "Attempted to stage un-cached file version " << this << " from cache.";
@@ -270,7 +270,7 @@ bool FileVersion::stage(fs::path path) noexcept {
   // Open source and destination fds
   int src_fd = ::open(hash_file.c_str(), O_RDONLY);
   FAIL_IF(src_fd == -1) << "Unable to open cache file " << hash_file << ": " << ERR;
-  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
+  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, mode);
   FAIL_IF(dst_fd == -1) << "Unable to create stage file " << path << ": " << ERR;
 
   // copy file to cache using non-POSIX fast copy

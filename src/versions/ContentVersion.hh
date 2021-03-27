@@ -30,9 +30,6 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
   /// Save a copy of this version for later reuse. Inform the provided IRSink of the save.
   virtual void cache(fs::path path) noexcept {}
 
-  /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept = 0;
-
   /// Check if this version can be committed
   virtual bool canCommit() const noexcept {
     // Versions are unsaved by default

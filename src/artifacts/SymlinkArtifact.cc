@@ -104,7 +104,19 @@ void SymlinkArtifact::updateContent(const std::shared_ptr<Command>& c,
 void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
   if (!_uncommitted_content) return;
 
+  // Commit the symlink content
   _uncommitted_content->commit(path);
+
+  // Is this commit creating the symlink? (It should be)
+  if (!_committed_content) {
+    ASSERT(_uncommitted_metadata) << "Committing initial content to " << this
+                                  << " does not have metadata to commit";
+
+    // Treat the metadata as committed
+    _committed_metadata = std::move(_uncommitted_metadata);
+  }
+
+  // Remember the committed content now
   _committed_content = std::move(_uncommitted_content);
 }
 

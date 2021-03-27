@@ -44,7 +44,7 @@ class FileVersion final : public ContentVersion {
   bool canCommit() const noexcept override;
 
   /// Commit this version to the filesystem
-  virtual void commit(fs::path path) noexcept override;
+  void commit(fs::path path, mode_t mode = 0) noexcept;
 
   /// Save a fingerprint of this version
   virtual void fingerprint(fs::path path, FingerprintType type) noexcept override;
@@ -69,10 +69,10 @@ class FileVersion final : public ContentVersion {
   bool fingerprints_match(std::shared_ptr<FileVersion> other) const noexcept;
 
   /// Commit this version to the filesystem
-  void commitEmptyFile(fs::path path, mode_t mode = 0600) noexcept;
+  void commitEmptyFile(fs::path path, mode_t mode) noexcept;
 
   /// Restore a cached copy to the given path
-  bool stage(fs::path path) noexcept;
+  bool stage(fs::path path, mode_t mode) noexcept;
 
  private:
   /// Is this an empty file?

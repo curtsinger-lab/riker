@@ -310,12 +310,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// The command that most recently wrote metadata, possibly null
   std::weak_ptr<Command> _metadata_writer;
 
-  /// The most recent metadata version that has not yet been committed
-  std::shared_ptr<MetadataVersion> _uncommitted_metadata;
-
-  /// The current metadata version on the filesystem
-  std::shared_ptr<MetadataVersion> _committed_metadata;
-
   /// A fixed string name assigned to this artifact
   std::string _name;
 
@@ -326,6 +320,12 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   std::optional<fs::path> _temp_path;
 
  protected:
+  /// The most recent metadata version that has not yet been committed
+  std::shared_ptr<MetadataVersion> _uncommitted_metadata;
+
+  /// The current metadata version on the filesystem
+  std::shared_ptr<MetadataVersion> _committed_metadata;
+
   using LinkSet = std::set<std::weak_ptr<DirEntry>, std::owner_less<std::weak_ptr<DirEntry>>>;
 
   /// The set of links to this artifact currently available on the filesystem

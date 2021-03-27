@@ -13,6 +13,7 @@
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/FileVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 using std::make_shared;
 using std::optional;
@@ -41,8 +42,18 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
   // If there's no uncommitted content, do nothing
   if (!_uncommitted_content) return;
 
-  // Commit the uncommitted state
-  _uncommitted_content->commit(path);
+  if (!_committed_content) {
+    ASSERT(_uncommitted_metadata)
+        << "File with no committed content does not have uncommitted metadata";
+
+    // Commit the content with initial metadata
+    _uncommitted_content->commit(path, _uncommitted_metadata->getMode());
+    _committed_metadata = std::move(_uncommitted_metadata);
+
+  } else {
+    // Commit the uncommitted content only
+    _uncommitted_content->commit(path);
+  }
 
   // The artifact content is now committed
   _committed_content = std::move(_uncommitted_content);
