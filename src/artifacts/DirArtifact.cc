@@ -198,11 +198,10 @@ void DirArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
         // are no unlinks in the output directory to commit, so the rmdir call fails.
 
         WARN << "Failed to remove directory " << this << " from " << unlink_path
-             << ". Moving to a temporary location instead.";
+             << ". Cleaning up by force.";
 
-        auto temp_path = assignTemporaryPath();
-        rc = ::rename(unlink_path.c_str(), temp_path.c_str());
-        FAIL_IF(rc != 0) << "Failed to move " << this << " to a temporary location: " << ERR;
+        fs::remove_all(unlink_path);
+
       } else {
         FAIL << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
       }
