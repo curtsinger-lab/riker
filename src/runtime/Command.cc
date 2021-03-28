@@ -91,6 +91,13 @@ string Command::getShortName(size_t limit) const noexcept {
 
       // What is the information value of the argument?
       arg_values[i] = 1.0 / frequency;
+
+      // Is this a possible filename preceded by a two-character flag? (e.g. -c somefile.c)
+      if (_args[i][0] != '-' && _args[i - 1][0] == '-' && _args[i - 1].size() == 2) {
+        // Increase the value of both arguments so we (hopefully) retain them
+        arg_values[i - 1] += 1;
+        arg_values[i] += 1;
+      }
     }
 
     // And the space occupied by including each argument
@@ -150,11 +157,11 @@ string Command::getShortName(size_t limit) const noexcept {
 
       // If the argument before the removed one is short and stuck between two removed args, drop it
       if (remove_index > 2 && !include_arg[remove_index - 2]) {
-        if (_args[remove_index - 1].size() < 6) include_arg[remove_index - 1] = false;
+        if (_args[remove_index - 1].size() <= 6) include_arg[remove_index - 1] = false;
       }
 
       if (remove_index < _args.size() - 2 && !include_arg[remove_index + 2]) {
-        if (_args[remove_index + 1].size() < 6) include_arg[remove_index + 1] = false;
+        if (_args[remove_index + 1].size() <= 6) include_arg[remove_index + 1] = false;
       }
 
       // Compute the new output length
@@ -209,12 +216,6 @@ string Command::getFullName() const noexcept {
 // Is this command the null command?
 bool Command::isNullCommand() const noexcept {
   return _args.size() == 0;
-}
-
-// Is this command a make command?
-bool Command::isMake() const noexcept {
-  fs::path exe_path = _args.front();
-  return exe_path.filename().string() == "make";
 }
 
 // Get the command run data for the current run
@@ -562,10 +563,6 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
   if (writer) {
     // This command uses output from writer
     currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
-
-    // If this is make accessing metadata, we only need to mark in one direction;
-    // changing metadata alone does not need to trigger a re-execution of make
-    if (isMake()) return;
 
     // Otherwise, add this command run to the creator's set of output users
     writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});

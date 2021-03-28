@@ -91,9 +91,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Is this command the null command?
   bool isNullCommand() const noexcept;
 
-  /// Is this command the make build tool?
-  bool isMake() const noexcept;
-
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
 
