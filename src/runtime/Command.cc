@@ -26,6 +26,12 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
+/// Keep track of how many times a possible command line argument has been included
+map<string, size_t> argument_counts;
+
+/// Keep track of the total number of commands with arguments
+size_t command_count = 0;
+
 /// Get a shared pointer to the special null command instance
 const shared_ptr<Command>& Command::getNullCommand() noexcept {
   static shared_ptr<Command> _null_command(new Command());
@@ -35,6 +41,13 @@ const shared_ptr<Command>& Command::getNullCommand() noexcept {
 // Create a command
 Command::Command(vector<string> args) noexcept : _args(args) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
+
+  command_count++;
+
+  // Add each argument (other than the first) to the argument_counts map
+  for (size_t i = 1; i < args.size(); i++) {
+    argument_counts[args[i]]++;
+  }
 }
 
 // Destroy a command. The destructor has to be declared in the .cc file where we have a complete
@@ -46,25 +59,139 @@ string Command::getShortName(size_t limit) const noexcept {
   // A command with no arguments is anonymous. This shouldn't happen, but better to be safe.
   if (_args.size() == 0) return "<anon>";
 
-  // The first argument to the command is its name. Treat it as a path for now
-  fs::path exe_path = _args.front();
-  if (exe_path.is_absolute()) exe_path = exe_path.filename();
+  if (_short_name_command_count < command_count) _short_names.clear();
 
-  // The output starts with the executable name
-  string result = exe_path;
+  // Do we need to create a new abbreviated name for this command?
+  if (!_short_names[limit].has_value()) {
+    // The short command name always starts with the executable filename
+    // After that, we include arguments up to the character limit. Any omitted arguments are
+    // replaced by ellipsis, and the remaining arguments are selected to (approximately) maximize
+    // the "information density" in the abbreviation. The more common an argument is, the less
+    // information it conveys. The density is just that information divided by the space taken up by
+    // the argument. There are a few heuristics to avoid creating short "orphaned" arguments with
+    // ellipsis on both sides.
 
-  // Add arguments up to the length limit
-  size_t index = 1;
-  while (index < _args.size() && result.length() < limit) {
-    result += " " + _args[index];
-    index++;
+    // The first argument to the command is its name. Treat it as a path for now
+    fs::path exe_path = _args.front();
+    if (exe_path.is_absolute()) exe_path = exe_path.filename();
+
+    // The output starts with the executable name
+    string result = exe_path;
+
+    // Which arguments will we include? Initially, all of them except the first.
+    vector<bool> include_arg(_args.size(), true);
+    include_arg[0] = false;
+
+    // We'll also keep track of the value of each argument
+    vector<float> arg_values(_args.size());
+    for (size_t i = 1; i < _args.size(); i++) {
+      // How often does this argument appear?
+      size_t frequency = argument_counts[_args[i]];
+      if (frequency < 1) frequency = 1;
+
+      // What is the information value of the argument?
+      arg_values[i] = 1.0 / frequency;
+    }
+
+    // And the space occupied by including each argument
+    vector<int> arg_space(_args.size());
+    for (size_t i = 1; i < _args.size(); i++) {
+      // Initially each argument occupies space proportional to its length, minus the space required
+      // to print ellipsis in its place
+      arg_space[i] = _args[i].size() - 2;
+    }
+
+    // Loop until the output is short enough to print
+    size_t length = result.size();
+    for (size_t i = 1; i < _args.size(); i++) {
+      length += _args[i].size() + 1;
+    }
+
+    // Remove arguments until the final length is below the limit
+    while (length > limit) {
+      // Find the least information-dense included argument
+      float min_density;
+      size_t remove_index = 0;
+      for (size_t i = 1; i < _args.size(); i++) {
+        // Skip arguments that are already excluded
+        if (!include_arg[i]) continue;
+
+        // Compute the information density of argument i
+        float density = arg_values[i] / arg_space[i];
+
+        // If the density is negative, deleting the argument will cost space. Set it arbitrarily
+        // high
+        if (density <= 0) density = 1.0;
+
+        // Is this a new minimum?
+        if (remove_index == 0 || density < min_density) {
+          min_density = density;
+          remove_index = i;
+        }
+      }
+
+      // If there was no minimum, we're done
+      if (remove_index == 0) break;
+
+      // Exclude the lowest-density argument
+      include_arg[remove_index] = false;
+
+      // If there is a preceding argument, its space requirement increases by the size of the
+      // ellipsis
+      if (remove_index > 1) {
+        arg_space[remove_index - 1] += 2;
+      }
+
+      // If there is a following argument, its space requirement increases by the size of the
+      // ellipsis
+      if (remove_index < _args.size() - 1) {
+        arg_space[remove_index + 1] += 2;
+      }
+
+      // If the argument before the removed one is short and stuck between two removed args, drop it
+      if (remove_index > 2 && !include_arg[remove_index - 2]) {
+        if (_args[remove_index - 1].size() < 6) include_arg[remove_index - 1] = false;
+      }
+
+      if (remove_index < _args.size() - 2 && !include_arg[remove_index + 2]) {
+        if (_args[remove_index + 1].size() < 6) include_arg[remove_index + 1] = false;
+      }
+
+      // Compute the new output length
+      length = result.size();
+      bool ellipsis = false;
+      for (int i = 1; i < _args.size(); i++) {
+        if (include_arg[i]) {
+          length += _args[i].size() + 1;
+          ellipsis = false;
+        } else if (!ellipsis) {
+          length += 2;
+          ellipsis = true;
+        }
+      }
+    }
+
+    // Build the output
+    bool ellipsis = false;
+    for (size_t i = 1; i < _args.size(); i++) {
+      if (include_arg[i]) {
+        result += " " + _args[i];
+        ellipsis = false;
+      } else if (!ellipsis) {
+        result += " …";
+        ellipsis = true;
+      }
+    }
+
+    if (length > limit) {
+      result = result.substr(0, limit - 1) + "…";
+    }
+
+    _short_names[limit] = result;
+    _short_name_command_count = command_count;
   }
 
-  if (limit > 0 && result.length() >= limit) {
-    result = result.substr(0, limit - 3) + "...";
-  }
-
-  return result;
+  return _short_names[limit].value();
 }
 
 // Get a full name for this command

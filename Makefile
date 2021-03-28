@@ -47,7 +47,7 @@ rkr: $(OBJS) $(BLAKE_OBJS)
 
 $(OBJS): .obj/%.o: src/%.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) -MMD -MP $(CXXFLAGS) $< -c -o $@
+	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
 
 rkr-launch: launch/launch.c Makefile
 	$(CC) $(CFLAGS) -o $@ $<

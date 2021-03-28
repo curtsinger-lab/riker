@@ -83,7 +83,7 @@ class Command : public std::enable_shared_from_this<Command> {
   static const std::shared_ptr<Command>& getNullCommand() noexcept;
 
   /// Get a short, printable name for this command
-  std::string getShortName(size_t limit = 20) const noexcept;
+  std::string getShortName(size_t limit = 40) const noexcept;
 
   /// Get the full name for this command
   std::string getFullName() const noexcept;
@@ -360,4 +360,10 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The marking state for this command that determines how the command is run
   RebuildMarking _marking = RebuildMarking::Emulate;
+
+  /// Short names of different lengths for this command
+  mutable std::map<size_t, std::optional<std::string>> _short_names;
+
+  /// The total count of commands the last time the short name was computed
+  mutable size_t _short_name_command_count = 0;
 };
