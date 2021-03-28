@@ -95,8 +95,8 @@ string Command::getShortName(size_t limit) const noexcept {
       // Is this a possible filename preceded by a two-character flag? (e.g. -c somefile.c)
       if (_args[i][0] != '-' && _args[i - 1][0] == '-' && _args[i - 1].size() == 2) {
         // Increase the value of both arguments so we (hopefully) retain them
-        arg_values[i - 1] += 1;
-        arg_values[i] += 1;
+        arg_values[i - 1] += 2;
+        arg_values[i] += 2;
       }
     }
 
