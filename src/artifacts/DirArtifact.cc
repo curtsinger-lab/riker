@@ -333,6 +333,8 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     // The access was allowed. Did the access expect to reach a directory?
     if (flags.type == AccessType::Any || flags.type == AccessType::Dir) {
       return Ref(flags, shared_from_this());
+    } else if (flags.type == AccessType::Symlink) {
+      return EINVAL;
     } else {
       return EISDIR;
     }
