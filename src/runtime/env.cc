@@ -18,6 +18,7 @@
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/FileArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "artifacts/SpecialArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Command.hh"
 #include "ui/stats.hh"
@@ -125,7 +126,12 @@ namespace env {
     return result;
   }
 
-  set<fs::path> ignored_artifacts = {"/dev/null"};
+  /// A map from paths to special artifact parameters. A "true" value means the artifact is treated
+  /// as always changed, and any writes cannot be committed. False means content is treated as if it
+  /// never changes, any any writes from emulated commands can be treated as if they are committed.
+  map<fs::path, bool> special_artifacts = {{"/dev/null", false},  {"/dev/urandom", false},
+                                           {"/dev/tty", false},   {"/dev/pts/0", true},
+                                           {"/dev/pts/1", false}, {"/dev/pts/2", false}};
 
   shared_ptr<Artifact> getFilesystemArtifact(fs::path path) noexcept {
     // Stat the path on the filesystem to get the file type and an inode number
@@ -150,12 +156,7 @@ namespace env {
 
     // Create a new artifact for this inode
     shared_ptr<Artifact> a;
-    if (ignored_artifacts.find(path) != ignored_artifacts.end()) {
-      // The provided path is in our set of ignored paths. For now, just track it as a file.
-      auto cv = make_shared<FileVersion>(info);
-      a = make_shared<FileArtifact>(mv, cv);
-
-    } else if ((info.st_mode & S_IFMT) == S_IFREG) {
+    if ((info.st_mode & S_IFMT) == S_IFREG) {
       // The path refers to a regular file
       auto cv = make_shared<FileVersion>(info);
       a = make_shared<FileArtifact>(mv, cv);
@@ -168,6 +169,9 @@ namespace env {
     } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
       auto sv = make_shared<SymlinkVersion>(readlink(path));
       a = make_shared<SymlinkArtifact>(mv, sv);
+
+    } else if (auto iter = special_artifacts.find(path); iter != special_artifacts.end()) {
+      a = make_shared<SpecialArtifact>(mv, iter->second);
 
     } else {
       // The path refers to something else

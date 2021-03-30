@@ -11,6 +11,7 @@
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/PipeVersion.hh"
+#include "versions/SpecialVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
 using std::make_shared;
@@ -45,6 +46,7 @@ CEREAL_REGISTER_TYPE(DirListVersion);
 CEREAL_REGISTER_TYPE(PipeWriteVersion);
 CEREAL_REGISTER_TYPE(PipeCloseVersion);
 CEREAL_REGISTER_TYPE(PipeReadVersion);
+CEREAL_REGISTER_TYPE(SpecialVersion);
 
 // Read a command from an input trace
 void CommandRecord::handle(InputTrace& input, IRSink& handler) noexcept {
