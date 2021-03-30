@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -26,6 +27,7 @@
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
+#include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Process.hh"
@@ -34,12 +36,14 @@
 #include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/wrappers.hh"
+#include "versions/FileVersion.hh"
 
 using std::list;
 using std::make_shared;
 using std::map;
 using std::nullopt;
 using std::optional;
+using std::set;
 using std::shared_ptr;
 using std::tuple;
 using std::vector;
@@ -170,9 +174,13 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
       }
 
-    } else if (WIFEXITED(wait_status) || WIFSIGNALED(wait_status)) {
+    } else if (WIFEXITED(wait_status)) {
       // Stopped on exit
       handleExit(thread, WEXITSTATUS(wait_status));
+
+    } else if (WIFSIGNALED(wait_status)) {
+      // Killed by a signal
+      handleKilled(thread, WEXITSTATUS(wait_status), WTERMSIG(wait_status));
     }
   }
 }
@@ -224,6 +232,55 @@ void Tracer::handleExit(Thread& t, int exit_status) noexcept {
   _threads.erase(t.getID());
 }
 
+void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
+  // Keep a set of signals that cause a program to dump core
+  static set<int> core_signals = {SIGABRT, SIGBUS,  SIGCONT, SIGFPE,  SIGILL,  SIGIOT,
+                                  SIGQUIT, SIGSEGV, SIGSYS,  SIGTRAP, SIGXCPU, SIGXFSZ};
+
+  // Was the thread killed by a signal that will dump core?
+  if (core_signals.find(term_sig) != core_signals.end()) {
+    // Yes. A core file may exist. If it does exist, we need to add trace events to attribute that
+    // creation to the command that is dying via signal now.
+
+    // Get a reference to the working directory, which is where a core file will be created
+    auto cwd_ref_id = t.getProcess()->getWorkingDir();
+    const auto& cwd_ref = t.getCommand()->getRef(cwd_ref_id);
+    ASSERT(cwd_ref->isResolved()) << t.getProcess() << " is running with an unresolved working dir";
+
+    // Try to get a path to the working directory
+    const auto& cwd = cwd_ref->getArtifact();
+    auto cwd_path = cwd->getCommittedPath();
+
+    // We only have to do work if the working directory has a path
+    if (cwd_path.has_value()) {
+      // Check for a core file
+      auto core_path = cwd_path.value() / "core";
+      struct stat statbuf;
+      if (::stat(core_path.c_str(), &statbuf) == 0) {
+        // Make a reference to the core file that creates it
+        auto core_ref = _build.tracePathRef(t.getCommand(), cwd_ref_id, "core",
+                                            AccessFlags{.w = true, .create = true});
+        auto core = t.getCommand()->getRef(core_ref)->getArtifact();
+
+        // Make sure the reference resolved
+        if (core) {
+          // Create a version to represent the core file
+          auto cv = make_shared<FileVersion>(statbuf);
+
+          // Trace a write to the core file from the command that's exiting
+          _build.traceUpdateContent(t.getCommand(), core_ref, cv);
+
+        } else {
+          WARN << "Model did not allow for creation of a core file at " << core_path;
+        }
+      }
+    }
+  }
+
+  // Finish handling the exit
+  handleExit(t, exit_status);
+}
+
 shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
   auto result = _exited[pid];
   _exited.erase(pid);
@@ -264,8 +321,8 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     ASSERT(ref->isResolved()) << "Tried to launch a command with an unresolved reference in its "
                                  "initial file descriptor table";
 
-    // Get a file descriptor for the reference in the command's initial descriptor table, and record
-    // how it should be re-numbered in the child
+    // Get a file descriptor for the reference in the command's initial descriptor table, and
+    // record how it should be re-numbered in the child
     initial_fds.emplace_back(ref->getFD(), child_fd);
   }
 

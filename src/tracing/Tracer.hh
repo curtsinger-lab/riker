@@ -53,6 +53,9 @@ class Tracer {
   /// Called when a traced process exits
   void handleExit(Thread& t, int exit_status) noexcept;
 
+  /// Called when a traced process is killed by a signal
+  void handleKilled(Thread& t, int exit_status, int term_sig) noexcept;
+
  private:
   /// This tracer is executing commands on behalf of this build
   Build& _build;

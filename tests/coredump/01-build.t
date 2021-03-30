@@ -17,6 +17,3 @@ Run the abort program; riker should eventually print 'core exists' and not die b
 
 Clean up
   $ rm -rf .rkr core abort
-
-SKIP! This test doesn't work yet
-  $ exit 80
