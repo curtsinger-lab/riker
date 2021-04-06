@@ -60,6 +60,14 @@ void Build::runDeferredSteps() noexcept {
 
 /************************ Handle IR steps from a loaded trace ************************/
 
+/// Start a build with the given root command
+void Build::start(const shared_ptr<Command>& c) noexcept {
+  _root_command = c;
+
+  // Pass the root command on to the output
+  _output.start(_root_command);
+}
+
 void Build::finish() noexcept {
   // Wait for all remaining processes to exit
   _tracer.wait();
@@ -68,10 +76,12 @@ void Build::finish() noexcept {
   env::getRootDir()->checkFinalState("/");
 
   // Mark all commands as finished
-  for (auto& c : _commands) {
+  /*for (auto& c : _commands) {
     LOG(exec) << "Finishing " << c;
     c->finishRun();
-  }
+  }*/
+  ASSERT(_root_command) << "No root command for build!";
+  _root_command->finishRun();
 
   // Inform the output trace that it is finished
   _output.finish();
@@ -80,6 +90,9 @@ void Build::finish() noexcept {
   for (auto& c : _commands) {
     c->planBuild();
   }
+
+  // This build no longer has a root command
+  _root_command.reset();
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {

@@ -20,7 +20,9 @@ using std::tuple;
 using std::vector;
 
 void DefaultTrace::sendTo(IRSink& handler) noexcept {
+  // Send the root command
   auto null_cmd = Command::getNullCommand();
+  handler.start(null_cmd);
 
   // Create a reference to stdin
   handler.specialRef(null_cmd, SpecialRef::stdin, Ref::Stdin);

@@ -25,6 +25,9 @@ class IRSink {
  public:
   virtual ~IRSink() noexcept {}
 
+  /// Called when starting a trace. The root command is passed in.
+  virtual void start(const std::shared_ptr<Command>& c) noexcept {}
+
   /// Called when the trace is finished
   virtual void finish() noexcept {}
 

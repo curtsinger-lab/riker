@@ -49,6 +49,9 @@ class Build : public IRSink {
 
   /********** Handle IR steps supplied from a loaded trace **********/
 
+  /// Start a build with the given root command
+  virtual void start(const std::shared_ptr<Command>& c) noexcept override;
+
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
   virtual void specialRef(const std::shared_ptr<Command>& c,
                           SpecialRef entity,
@@ -260,6 +263,9 @@ class Build : public IRSink {
 
   /// The set of commands that were run by this build (both traced and emulated commands included)
   std::set<std::shared_ptr<Command>> _commands;
+
+  /// The root command provided to this Build
+  std::shared_ptr<Command> _root_command;
 
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;

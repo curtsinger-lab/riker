@@ -252,6 +252,11 @@ void Command::finishRun() noexcept {
   }
 
   // Emulate and AlreadyRun markings are left as-is
+
+  // Recursively finish the run for all children
+  for (const auto& child : _last_run->_children) {
+    child->finishRun();
+  }
 }
 
 // Plan the next build based on this command's completed run
