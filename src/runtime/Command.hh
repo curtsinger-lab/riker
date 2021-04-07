@@ -302,6 +302,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /****** Data from the previous run ******/
 
+  /// Add all this command's descendants to a set
+  void getCommands(std::set<std::shared_ptr<Command>>& commands) noexcept;
+
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
 

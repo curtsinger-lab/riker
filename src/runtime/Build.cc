@@ -37,6 +37,7 @@ using std::list;
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::set;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -58,6 +59,14 @@ void Build::runDeferredSteps() noexcept {
   to_run->sendTo(*this);
 }
 
+/// Get the list of commands in this build
+set<shared_ptr<Command>> Build::getCommands() const noexcept {
+  ASSERT(_root_command) << "Build has no root command";
+  set<shared_ptr<Command>> commands;
+  _root_command->getCommands(commands);
+  return commands;
+}
+
 /************************ Handle IR steps from a loaded trace ************************/
 
 /// Start a build with the given root command
@@ -75,24 +84,17 @@ void Build::finish() noexcept {
   // Compare the final state of all artifacts to the actual filesystem
   env::getRootDir()->checkFinalState("/");
 
-  // Mark all commands as finished
-  /*for (auto& c : _commands) {
-    LOG(exec) << "Finishing " << c;
-    c->finishRun();
-  }*/
-  ASSERT(_root_command) << "No root command for build!";
+  // Finish the run of the root command and all descendants (recursively)
   _root_command->finishRun();
 
   // Inform the output trace that it is finished
   _output.finish();
 
-  // Plan the next build
-  for (auto& c : _commands) {
-    c->planBuild();
-  }
+  // Plan the next build, starting with the root command
+  _root_command->planBuild();
 
   // This build no longer has a root command
-  _root_command.reset();
+  //_root_command.reset();
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
@@ -660,9 +662,6 @@ void Build::launch(const shared_ptr<Command>& c,
     child->observeChange(Scenario::PostBuild);
   }
 
-  // Remember that this command was run by the build
-  _commands.insert(child);
-
   // Add the child to the parent command's set of children
   c->addChild(child);
 
@@ -1169,9 +1168,6 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     child = make_shared<Command>(args);
     child->setMarking(RebuildMarking::MustRun);
   }
-
-  // Remember that child command executed
-  _commands.insert(child);
 
   // Add the child to the parent's list of children
   parent->addChild(child);

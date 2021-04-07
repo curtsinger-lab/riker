@@ -42,7 +42,7 @@ class Build : public IRSink {
   void runDeferredSteps() noexcept;
 
   /// Get the list of commands in this build
-  const std::set<std::shared_ptr<Command>>& getCommands() const noexcept { return _commands; }
+  std::set<std::shared_ptr<Command>> getCommands() const noexcept;
 
   /// Print information about this build
   std::ostream& print(std::ostream& o) const noexcept;
@@ -260,9 +260,6 @@ class Build : public IRSink {
 
   /// Deferred trace steps are placed in this buffer for later running
   std::unique_ptr<IRBuffer> _deferred;
-
-  /// The set of commands that were run by this build (both traced and emulated commands included)
-  std::set<std::shared_ptr<Command>> _commands;
 
   /// The root command provided to this Build
   std::shared_ptr<Command> _root_command;

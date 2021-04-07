@@ -233,8 +233,8 @@ const unique_ptr<Command::Run>& Command::previousRun() noexcept {
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
   // Create a new instance of CommandRun in _last_run, then swap them
-  _last_run = make_unique<Command::Run>();
-  std::swap(_run, _last_run);
+  _last_run = std::move(_run);
+  _run = make_unique<Command::Run>();
 
   // Update the command's marking
   if (_marking == RebuildMarking::MayRun) {
@@ -254,7 +254,7 @@ void Command::finishRun() noexcept {
   // Emulate and AlreadyRun markings are left as-is
 
   // Recursively finish the run for all children
-  for (const auto& child : _last_run->_children) {
+  for (const auto& child : previousRun()->_children) {
     child->finishRun();
   }
 }
@@ -267,6 +267,11 @@ void Command::planBuild() noexcept {
     if (mark(RebuildMarking::MustRun)) {
       LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
     }
+  }
+
+  // Recursively call planBuild on all children
+  for (const auto& child : _last_run->_children) {
+    child->planBuild();
   }
 }
 
@@ -666,6 +671,14 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 }
 
 /********************** Previous Run Data ********************/
+
+/// Add all this command's descendants to a set
+void Command::getCommands(std::set<std::shared_ptr<Command>>& commands) noexcept {
+  for (const auto& child : previousRun()->_children) {
+    commands.insert(child);
+    child->getCommands(commands);
+  }
+}
 
 /// Get this command's list of children
 const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {
