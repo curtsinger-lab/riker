@@ -82,8 +82,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     env::rollback();
 
     // Run the build
-    Build build(*output);
-    auto root_cmd = input->sendTo(build);
+    auto root_cmd = input->sendTo(Build(*output));
+
+    // Plan the next build, starting with the root command
+    root_cmd->planBuild();
 
     LOGF(phase, "Finished build phase {}", iteration);
 
@@ -143,22 +145,22 @@ void do_check(vector<string> args) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
-  Build build;
-  trace->sendTo(build);
+  auto root_cmd = trace->sendTo(Build());
+
+  // Plan the next build
+  root_cmd->planBuild();
 
   // Print commands that must run
   bool must_run_header_printed = false;
-  for (const auto& c : build.getCommands()) {
-    if (c->getMarking() == RebuildMarking::MustRun) {
-      // Print the header if necessary
-      if (!must_run_header_printed) {
-        cout << "Commands that must run:" << endl;
-        must_run_header_printed = true;
-      }
-
-      // Print the command
-      cout << "  " << c->getShortName(options::command_length) << endl;
+  for (const auto& c : root_cmd->collectMustRun()) {
+    // Print the header if necessary
+    if (!must_run_header_printed) {
+      cout << "Commands that must run:" << endl;
+      must_run_header_printed = true;
     }
+
+    // Print the command
+    cout << "  " << c->getShortName(options::command_length) << endl;
   }
 
   // If we printed anything, add a newline
@@ -166,14 +168,12 @@ void do_check(vector<string> args) noexcept {
 
   // Print the rebuild plan
   bool may_run_header_printed = false;
-  for (const auto& c : build.getCommands()) {
-    if (c->getMarking() == RebuildMarking::MayRun) {
-      if (!may_run_header_printed) {
-        cout << "Commands that may run:" << endl;
-        may_run_header_printed = true;
-      }
-      cout << "  " << c->getShortName(options::command_length) << endl;
+  for (const auto& c : root_cmd->collectMayRun()) {
+    if (!may_run_header_printed) {
+      cout << "Commands that may run:" << endl;
+      may_run_header_printed = true;
     }
+    cout << "  " << c->getShortName(options::command_length) << endl;
   }
 
   // If we never printed the header, there were no commands to rerun
@@ -221,11 +221,13 @@ void do_graph(vector<string> args,
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
-  Build build;
-  trace->sendTo(build);
+  auto root_cmd = trace->sendTo(Build());
+
+  // Plan the next build
+  root_cmd->planBuild();
 
   Graph graph(show_all);
-  graph.addCommands(build.getCommands());
+  graph.addCommands(root_cmd->collectCommands());
 
   if (no_render) {
     ofstream f(output);
@@ -285,8 +287,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   auto trace = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
-  Build build;
-  trace->sendTo(build);
+  trace->sendTo(Build());
 
   // Print statistics
   cout << "Build Statistics:" << endl;

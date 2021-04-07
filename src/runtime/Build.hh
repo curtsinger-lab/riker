@@ -41,9 +41,6 @@ class Build : public IRSink {
   /// Try to run any steps that were deferred because they came from commands that had not launched
   void runDeferredSteps() noexcept;
 
-  /// Get the list of commands in this build
-  std::set<std::shared_ptr<Command>> getCommands() const noexcept;
-
   /// Print information about this build
   std::ostream& print(std::ostream& o) const noexcept;
 

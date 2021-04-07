@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ using std::list;
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::set;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
@@ -233,7 +235,7 @@ const unique_ptr<Command::Run>& Command::previousRun() noexcept {
 
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
-  // Create a new instance of CommandRun in _last_run, then swap them
+  // The current run becomes the previous run
   _last_run = std::move(_run);
   _run = make_unique<Command::Run>();
 
@@ -290,6 +292,51 @@ bool Command::allFinished() const noexcept {
   }
 
   return true;
+}
+
+// Get a set of all commands including this one and its descendants
+set<shared_ptr<Command>> Command::collectCommands() noexcept {
+  set<shared_ptr<Command>> result;
+  result.insert(shared_from_this());
+  for (const auto& child : getChildren()) {
+    for (const auto& include : child->collectCommands()) {
+      result.insert(include);
+    }
+  }
+
+  return result;
+}
+
+// Get a set of all commands that may run from this command and its descendants
+set<shared_ptr<Command>> Command::collectMayRun() noexcept {
+  set<shared_ptr<Command>> result;
+  if (mayRun()) {
+    result.insert(shared_from_this());
+  }
+
+  for (const auto& child : getChildren()) {
+    for (const auto& include : child->collectMayRun()) {
+      result.insert(include);
+    }
+  }
+
+  return result;
+}
+
+// Get a set of all commands that must run from this command and its descendants
+set<shared_ptr<Command>> Command::collectMustRun() noexcept {
+  set<shared_ptr<Command>> result;
+  if (mustRun()) {
+    result.insert(shared_from_this());
+  }
+
+  for (const auto& child : getChildren()) {
+    for (const auto& include : child->collectMustRun()) {
+      result.insert(include);
+    }
+  }
+
+  return result;
 }
 
 // Assign a marking to this command. Return true if the marking is new.
@@ -688,14 +735,6 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 }
 
 /********************** Previous Run Data ********************/
-
-/// Add all this command's descendants to a set
-void Command::getCommands(std::set<std::shared_ptr<Command>>& commands) noexcept {
-  for (const auto& child : previousRun()->_children) {
-    commands.insert(child);
-    child->getCommands(commands);
-  }
-}
 
 /// Get this command's list of children
 const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {

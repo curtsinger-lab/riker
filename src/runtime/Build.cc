@@ -59,14 +59,6 @@ void Build::runDeferredSteps() noexcept {
   to_run->sendTo(*this);
 }
 
-/// Get the list of commands in this build
-set<shared_ptr<Command>> Build::getCommands() const noexcept {
-  ASSERT(_root_command) << "Build has no root command";
-  set<shared_ptr<Command>> commands;
-  _root_command->getCommands(commands);
-  return commands;
-}
-
 /************************ Handle IR steps from a loaded trace ************************/
 
 /// Start a build with the given root command
@@ -89,9 +81,6 @@ void Build::finish() noexcept {
 
   // Inform the output trace that it is finished
   _output.finish();
-
-  // Plan the next build, starting with the root command
-  _root_command->planBuild();
 
   // This build no longer has a root command
   //_root_command.reset();

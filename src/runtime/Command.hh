@@ -156,6 +156,15 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Does this command or any of its descendants need to run? If not, return true.
   bool allFinished() const noexcept;
 
+  /// Get a set of all commands including this one and its descendants
+  std::set<std::shared_ptr<Command>> collectCommands() noexcept;
+
+  /// Get a set of all commands that may run from this command and its descendants
+  std::set<std::shared_ptr<Command>> collectMayRun() noexcept;
+
+  /// Get a set of all commands that must run from this command and its descendants
+  std::set<std::shared_ptr<Command>> collectMustRun() noexcept;
+
   /****** Types and struct used to track run-specific data ******/
 
   // using WeakCommandSet = std::set<std::weak_ptr<Command>,
@@ -304,9 +313,6 @@ class Command : public std::enable_shared_from_this<Command> {
                      std::shared_ptr<ContentVersion> expected) noexcept;
 
   /****** Data from the previous run ******/
-
-  /// Add all this command's descendants to a set
-  void getCommands(std::set<std::shared_ptr<Command>>& commands) noexcept;
 
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
