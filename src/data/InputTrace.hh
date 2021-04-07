@@ -32,9 +32,6 @@ class InputTrace : public IRSource {
   /// Send the loaded trace to a trace handler
   virtual void sendTo(IRSink& handler) noexcept override;
 
-  /// Send the loaded trace to an r-value trace handler
-  virtual void sendTo(IRSink&& handler) noexcept override { sendTo(handler); }
-
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.
   void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept {

@@ -11,5 +11,5 @@ class IRSource {
   virtual void sendTo(IRSink& handler) noexcept = 0;
 
   /// Accept r-value reference to a trace handler
-  virtual void sendTo(IRSink&& handler) noexcept = 0;
+  void sendTo(IRSink&& handler) noexcept { sendTo(handler); }
 };

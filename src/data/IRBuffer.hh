@@ -28,9 +28,6 @@ class IRBuffer : public IRSource, public IRSink {
     _draining = false;
   }
 
-  /// Send the stored IR trace to an r-value sink
-  virtual void sendTo(IRSink&& handler) noexcept override { sendTo(handler); }
-
   /**** IRSink Methods ****/
 
   /// Start a build with the given root command

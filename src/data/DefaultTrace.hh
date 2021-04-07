@@ -14,9 +14,6 @@ class DefaultTrace : public IRSource {
   /// Send a stream of IR steps to the given handler
   virtual void sendTo(IRSink& handler) noexcept override;
 
-  /// Accept r-value reference to a trace handler
-  virtual void sendTo(IRSink&& handler) noexcept override { sendTo(handler); }
-
  private:
   std::vector<std::string> _args;
 };
