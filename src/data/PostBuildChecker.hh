@@ -36,8 +36,6 @@ class PostBuildChecker : public Next {
       if (command->getRef(ref)->isResolved()) {
         Next::matchMetadata(command, Scenario::PostBuild, ref,
                             command->getRef(ref)->getArtifact()->peekMetadata());
-      } else {
-        // Do we need to make sure the reference is not resolved? Hasn't that already been done?
       }
     }
   }
@@ -55,8 +53,6 @@ class PostBuildChecker : public Next {
       if (command->getRef(ref)->isResolved()) {
         Next::matchContent(command, Scenario::PostBuild, ref,
                            command->getRef(ref)->getArtifact()->peekContent());
-      } else {
-        // Do we need to make sure the reference is not resolved? Hasn't that already been done?
       }
     }
   }
