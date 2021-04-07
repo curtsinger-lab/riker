@@ -83,7 +83,7 @@ void Build::finish() noexcept {
   _output.finish();
 
   // This build no longer has a root command
-  //_root_command.reset();
+  _root_command.reset();
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
@@ -466,13 +466,6 @@ void Build::matchContent(const shared_ptr<Command>& c,
   // Count an emulated step
   stats::emulated_steps++;
 
-  // Is this the same command and reference used for the last write?
-  // If not, clear the record of the last write
-  if (_last_writer.lock() != c || _last_writer_ref != ref_id) {
-    _last_writer.reset();
-    _last_writer_ref = -1;
-  }
-
   // Log the emulated step
   LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
@@ -548,10 +541,6 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // Apply the write
   ref->getArtifact()->updateContent(c, written);
-
-  // Update the record of the last write
-  _last_writer = c;
-  _last_writer_ref = ref_id;
 }
 
 /// Handle an AddEntry IR step
@@ -992,15 +981,6 @@ void Build::traceMatchContent(const shared_ptr<Command>& c,
   // Count a traced step
   stats::traced_steps++;
 
-  // Is this the same command and reference used for the last write?
-  // If so, we can skip it. Otherwise clear the last write.
-  if (_last_writer.lock() == c && _last_writer_ref == ref_id) {
-    return;
-  } else {
-    _last_writer.reset();
-    _last_writer_ref = -1;
-  }
-
   auto ref = c->getRef(ref_id);
 
   // Get the artifact whose content is being accessed
@@ -1044,10 +1024,6 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
 void Build::traceUpdateContent(const shared_ptr<Command>& c,
                                Ref::ID ref_id,
                                shared_ptr<ContentVersion> written) noexcept {
-  // Is this the same command and reference used to perform the last write?
-  // If so, we can skip the write entirely.
-  if (_last_writer.lock() == c && _last_writer_ref == ref_id) return;
-
   // Count a traced step
   stats::traced_steps++;
 
@@ -1065,10 +1041,6 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
 
   // Update the artifact's content
   artifact->updateContent(c, written);
-
-  // Update the record of the last writer
-  _last_writer = c;
-  _last_writer_ref = ref_id;
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};

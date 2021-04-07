@@ -307,6 +307,9 @@ void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) noexce
   // If this artifact does not have a committed version, it can't be cached or fingerprinted
   if (!_committed_content) return;
 
+  // If the reader is also the last writer, there's no need to fingerprint
+  if (reader == _content_writer.lock()) return;
+
   // Get a path to this artifact
   auto path = getCommittedPath();
 

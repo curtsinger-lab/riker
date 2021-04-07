@@ -264,12 +264,6 @@ class Build : public IRSink {
   /// The tracer that will be used to execute any commands that must rerun
   Tracer _tracer;
 
-  /// The last command that updated an artifact's content
-  std::weak_ptr<Command> _last_writer;
-
-  /// The reference ID used by the last command to update an artifact's content
-  Ref::ID _last_writer_ref;
-
   /// The default output is used if a trace handler is not provided during setup
   inline static IRSink _default_output;
 };
