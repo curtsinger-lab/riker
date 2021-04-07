@@ -1,13 +1,19 @@
 #include <memory>
 
 #include "artifacts/Artifact.hh"
-#include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+
+class MetadataVersion;
+class ContentVersion;
 
 /**
  * This class processes a build trace that has already been completed, and adds new predicates to
  * check against the state left at the end of a build.
+ *
+ * The PostBuildChecker class expects a template parameter that is an IRSink, which will receive all
+ * of the original trace steps along with the additional steps for post-build checks. A likely use
+ * case would be to instantiate a PostBuildChecker<IRBuffer>.
  */
 template <class Next>
 class PostBuildChecker : public Next {

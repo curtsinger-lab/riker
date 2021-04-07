@@ -23,6 +23,7 @@
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "data/PostBuildChecker.hh"
+#include "data/WriteCombiner.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/env.hh"
@@ -74,7 +75,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
   bool trace_changed = false;
   while (!done) {
     // Create a buffer to hold the IR output
-    auto output = make_unique<IRBuffer>();
+    auto output = make_unique<WriteCombiner<IRBuffer>>();
 
     LOGF(phase, "Starting build phase {}", iteration);
 

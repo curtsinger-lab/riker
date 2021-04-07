@@ -473,3 +473,26 @@ bool FileVersion::matches(shared_ptr<ContentVersion> other) noexcept {
 
   return false;
 }
+
+bool operator!=(const struct timespec& t1, const struct timespec& t2) noexcept {
+  return t1.tv_sec != t2.tv_sec || t1.tv_nsec != t2.tv_nsec;
+}
+
+/// Can a write of this version be coalesced with another?
+bool FileVersion::canCoalesceWith(std::shared_ptr<ContentVersion> other) const noexcept {
+  // Is the other version a file version? If not, the writes cannot be coalesced
+  auto other_fv = other->as<FileVersion>();
+  if (!other_fv) return false;
+
+  // If one version is empty and the other is not, the writes cannot be coalesced
+  if (_empty != other_fv->_empty) return false;
+
+  // If the versions have different mtimes, the writes cannot be coalesced
+  if (_mtime != other_fv->_mtime) return false;
+
+  // If the versions have different hash values, the writes cannot be coalesced
+  if (_hash != other_fv->_hash) return false;
+
+  // Allow write coalescing
+  return true;
+}

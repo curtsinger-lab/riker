@@ -49,6 +49,11 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
     return false;
   }
 
+  /// Can a write of this version be coalesced with another?
+  virtual bool canCoalesceWith(std::shared_ptr<ContentVersion> other) const noexcept {
+    return false;
+  }
+
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept {
     // do nothing by default
