@@ -30,7 +30,7 @@ class InputTrace : public IRSource {
   InputTrace& operator=(const InputTrace&) = delete;
 
   /// Send the loaded trace to a trace handler
-  virtual void sendTo(IRSink& handler) noexcept override;
+  virtual std::shared_ptr<Command> sendTo(IRSink& handler) noexcept override;
 
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.

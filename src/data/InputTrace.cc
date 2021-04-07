@@ -15,6 +15,7 @@
 
 using std::make_unique;
 using std::map;
+using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -53,7 +54,7 @@ unique_ptr<IRSource> InputTrace::load(string filename, vector<string> args) noex
 }
 
 // Run this trace
-void InputTrace::sendTo(IRSink& handler) noexcept {
+shared_ptr<Command> InputTrace::sendTo(IRSink& handler) noexcept {
   // Send the root command
   handler.start(getCommand(0));
 
@@ -67,4 +68,6 @@ void InputTrace::sendTo(IRSink& handler) noexcept {
   }
 
   handler.finish();
+
+  return getCommand(0);
 }

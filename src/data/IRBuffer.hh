@@ -2,11 +2,13 @@
 
 #include <functional>
 #include <list>
+#include <memory>
 
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
 #include "util/log.hh"
 
+class Command;
 class MetadataVersion;
 
 class IRBuffer : public IRSource, public IRSink {
@@ -14,7 +16,7 @@ class IRBuffer : public IRSource, public IRSink {
   /**** IRSource Methods ****/
 
   /// Send the stored IR trace to a sink
-  virtual void sendTo(IRSink& handler) noexcept override {
+  virtual std::shared_ptr<Command> sendTo(IRSink& handler) noexcept override {
     // Set the buffer to draining mode
     _draining = true;
 
@@ -26,6 +28,8 @@ class IRBuffer : public IRSource, public IRSink {
 
     // Now the buffer can fill again
     _draining = false;
+
+    return std::move(_root_command);
   }
 
   /**** IRSink Methods ****/
@@ -34,6 +38,7 @@ class IRBuffer : public IRSource, public IRSink {
   virtual void start(const std::shared_ptr<Command>& c) noexcept override {
     ASSERT(c) << "IRBuffer::start() called with null root command";
     ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    _root_command = c;
     _steps.emplace_back([=](IRSink& handler) { handler.start(c); });
   }
 
@@ -204,6 +209,9 @@ class IRBuffer : public IRSource, public IRSink {
  private:
   /// Is the buffer currently draining?
   bool _draining = false;
+
+  /// Keep track of the root command
+  std::shared_ptr<Command> _root_command;
 
   /// Keep a list of IR steps as callbacks that take a sink as input
   std::list<std::function<void(IRSink&)>> _steps;

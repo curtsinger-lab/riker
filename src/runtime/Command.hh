@@ -153,6 +153,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// they are launched
   void setMarking(RebuildMarking marking) noexcept { _marking = marking; }
 
+  /// Does this command or any of its descendants need to run? If not, return true.
+  bool allFinished() const noexcept;
+
   /****** Types and struct used to track run-specific data ******/
 
   // using WeakCommandSet = std::set<std::weak_ptr<Command>,

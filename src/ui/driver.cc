@@ -83,23 +83,17 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
 
     // Run the build
     Build build(*output);
-    input->sendTo(build);
+    auto root_cmd = input->sendTo(build);
 
     LOGF(phase, "Finished build phase {}", iteration);
 
-    // Check if any commands must run on the next iteration. If so, we are not done.
-    done = true;
-    for (auto& c : build.getCommands()) {
-      if (c->mustRun()) {
-        done = false;
-        trace_changed = true;
-      }
-    }
-
-    // If we're done, commit all changes
-    if (done) {
-      LOGF(phase, "Committing environment changes from build phase {}", iteration);
-      env::commitAll();
+    // Do any commands have to run?
+    if (root_cmd->allFinished()) {
+      // No. The build is done.
+      done = true;
+    } else {
+      // Yes. We'll have to run another iteration, and the trace will change.
+      trace_changed = true;
     }
 
     // The output becomes the next iteration's input
@@ -110,6 +104,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     gather_stats(stats_log_path, stats, iteration - 1);
     reset_stats();
   }
+
+  // Commit anything left in the environment
+  LOGF(phase, "Committing environment changes from build phase {}", iteration);
+  env::commitAll();
 
   // If any commands had to rerun, run post-build checks and write out a new trace
   if (trace_changed) {

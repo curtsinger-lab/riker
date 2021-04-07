@@ -35,6 +35,7 @@ size_t command_count = 0;
 /// Get a shared pointer to the special null command instance
 const shared_ptr<Command>& Command::getNullCommand() noexcept {
   static shared_ptr<Command> _null_command(new Command());
+  _null_command->_executed = true;
   return _null_command;
 }
 
@@ -273,6 +274,22 @@ void Command::planBuild() noexcept {
   for (const auto& child : _last_run->_children) {
     child->planBuild();
   }
+}
+
+// Does this command or any of its descendants need to run? If not, return true.
+bool Command::allFinished() const noexcept {
+  if (mustRun()) {
+    LOG(rebuild) << this << " must run";
+    return false;
+  }
+
+  if (_last_run) {
+    for (const auto& child : _last_run->_children) {
+      if (!child->allFinished()) return false;
+    }
+  }
+
+  return true;
 }
 
 // Assign a marking to this command. Return true if the marking is new.
