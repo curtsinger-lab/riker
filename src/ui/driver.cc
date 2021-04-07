@@ -22,9 +22,9 @@
 #include "data/IRSource.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
+#include "data/PostBuildChecker.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
-#include "runtime/PostBuildChecker.hh"
 #include "runtime/env.hh"
 #include "ui/Graph.hh"
 #include "ui/TracePrinter.hh"
@@ -116,14 +116,13 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     LOG(phase) << "Starting post-build checks";
 
     // Run the post-build checks
-    IRBuffer post_build_buffer;
-    PostBuildChecker post_build_chcker(post_build_buffer);
+    PostBuildChecker<IRBuffer> post_build_buffer;
 
     // Reset the environment
     env::rollback();
 
     // Run the build
-    Build build(post_build_chcker);
+    Build build(post_build_buffer);
     input->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
