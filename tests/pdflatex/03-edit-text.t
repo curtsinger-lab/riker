@@ -20,14 +20,12 @@ Check for the output pdf
 Copy in a version with edited text (no reference changes)
   $ cp main-edited-text.tex main.tex
 
-Run a rebuild (should just run one pdflatex)
+Run a rebuild. If we could determine that the second pdflatex invocation is equivalent to the first we could skip it, but that's future work.
   $ $RKR --show
+  pdflatex main.tex
   pdflatex main.tex
 
 Clean up
   $ rm -rf .rkr
   $ rm -f main.aux main.log main.pdf
   $ cp main-original.tex main.tex
-
-SKIP! This test will only work if we somehow determine that the second invocation of pdflatex is equivalent to the first.
-  $ exit 80
