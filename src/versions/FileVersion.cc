@@ -48,7 +48,7 @@ static optional<FileVersion::Hash> blake3(fs::path path, struct stat& statbuf) n
   blake3_hasher_init(&hasher);
 
   // read from given file
-  LOG(exec) << "Fingerprinting " << path;
+  LOG(artifact) << "Fingerprinting " << path;
   int fd = ::open(path.c_str(), O_RDONLY);
   if (fd < 0) {
     LOG(artifact) << "Unable to fingerprint file " << path << ": " << ERR;

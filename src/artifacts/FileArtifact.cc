@@ -171,13 +171,15 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
       creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
     }
   }
+
+  fingerprintAndCache(nullptr);
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
 void FileArtifact::applyFinalState(fs::path path) noexcept {
   // Make sure the content is committed
   if (_uncommitted_content) {
-    _uncommitted_content->commit(path);
+    if (_uncommitted_content != _committed_content) _uncommitted_content->commit(path);
     _committed_content = std::move(_uncommitted_content);
   }
 
@@ -241,7 +243,9 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
 // Get this artifact's content version
 shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c) noexcept {
   auto result = _committed_content;
-  if (_uncommitted_content) result = _uncommitted_content;
+  if (_uncommitted_content) {
+    result = _uncommitted_content;
+  }
 
   ASSERT(result) << "Artifact " << this << " has no content version";
 
@@ -292,8 +296,10 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   _content_writer = c;
 
   // Is the writer currently running?
-  if (c->mustRun() || c->alreadyRun()) {
+  if (c->mustRun()) {
     _committed_content = fv;
+    _uncommitted_content.reset();
+  } else if (fv == _committed_content) {
     _uncommitted_content.reset();
   } else {
     _uncommitted_content = fv;

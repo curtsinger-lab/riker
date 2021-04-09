@@ -30,12 +30,11 @@ Change the link destination
   $ unlink link
   $ ln -s GOODBYE link
 
-Rerun the build
+Rerun the build. The Rikerfile command has to run because the child commands change exit status
   $ $RKR --show
   readlink link
   cat link
-  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
-  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
+  Rikerfile
 
 Check the output
   $ cat output1
@@ -45,7 +44,6 @@ Check the output
 
 Rebuild again, which should do nothing
   $ $RKR --show
-  (warning) [Command Rikerfile] should rerun because child [Command cat link] changed exit status.
 
 Check the output again
   $ cat output1

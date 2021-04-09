@@ -325,7 +325,6 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   if (ref->getUserCount() == 0) {
     auto a = ref->getArtifact();
     if (a) {
-      LOG(exec) << c << " closing final ref to " << a << " with flags " << ref->getFlags();
       a->beforeClose(*this, c, ref_id);
     }
   }
@@ -411,8 +410,8 @@ void Build::expectResult(const shared_ptr<Command>& c,
   auto ref = c->getRef(ref_id);
   if (ref->getResultCode() != expected) {
     LOGF(rebuild,
-         "{} changed in scenario {}: {} did not resolve as expected (expected {}, observed {})", c,
-         scenario, ref, expected, ref->getResultCode());
+         "{} changed in scenario {}: r{}={} did not resolve as expected (expected {}, observed {})",
+         c, scenario, ref_id, ref, expected, ref->getResultCode());
     c->observeChange(scenario);
   }
 }
@@ -633,13 +632,6 @@ void Build::launch(const shared_ptr<Command>& c,
     child->setRef(child_ref_id, c->getRef(parent_ref_id));
   }
 
-  // If we're emulating the launch of an unexecuted command, report the change to the command
-  if (!child->hasExecuted()) {
-    LOGF(rebuild, "{} changed: never run", child);
-    child->observeChange(Scenario::Build);
-    child->observeChange(Scenario::PostBuild);
-  }
-
   // Add the child to the parent command's set of children
   c->addChild(child);
 
@@ -649,12 +641,19 @@ void Build::launch(const shared_ptr<Command>& c,
   // Should we print the child command?
   bool print_command = false;
 
+  // Is this command marked for rerun?
   if (child->mustRun()) {
     // Print the command if requested, or if this is a dry run
     if (options::print_on_run || options::dry_run) print_command = true;
 
     // Launch the command if this is not a dry run
     if (!options::dry_run) run_command = true;
+
+  } else if (!child->hasExecuted()) {
+    // The command is not running now, and has never run before. Ensure it is marked.
+    LOGF(rebuild, "{} changed: never run", child);
+    child->observeChange(Scenario::Build);
+    child->observeChange(Scenario::PostBuild);
   }
 
   // Print the command if requested
@@ -677,7 +676,7 @@ void Build::launch(const shared_ptr<Command>& c,
     // Prepare the child command to execute by committing the necessary state from its references
     child->createLaunchDependencies();
 
-    LOG(exec) << c << " launching " << child;
+    LOG(exec) << c << " is launching " << child << " as a traced command";
 
     // Start the child command in the tracer and record it as launched
     const auto& process = _tracer.start(child);
@@ -686,6 +685,8 @@ void Build::launch(const shared_ptr<Command>& c,
   } else {
     // Count the emulated command
     stats::emulated_commands++;
+
+    LOG(exec) << c << " is launching " << child << " as an emulated command";
 
     // The child command has launched with no containing process
     child->setLaunched();
@@ -723,10 +724,9 @@ void Build::join(const shared_ptr<Command>& c,
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
          child, exit_status, child->getExitStatus());
 
-    // TODO: Re-enable this once we have skipping
-    // c->observeChange(Scenario::Build);
-    // c->observeChange(Scenario::PostBuild);
-    WARN << c << " should rerun because child " << child << " changed exit status.";
+    // The command detects a changed exit status from its child, so it must rerun
+    c->observeChange(Scenario::Build);
+    c->observeChange(Scenario::PostBuild);
   }
 }
 
@@ -899,7 +899,6 @@ void Build::traceDoneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexc
     if (ref->getUserCount() == 0) {
       auto a = ref->getArtifact();
       if (a) {
-        LOG(exec) << c << " closing final ref to " << a << " with flags " << ref->getFlags();
         a->beforeClose(*this, c, ref_id);
       }
     }
@@ -1120,14 +1119,12 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
 
   // Did we find a matching command?
-  if (child) {
-    LOG(exec) << "Matched command " << child;
-  } else {
-    LOG(exec) << "No match for command " << child;
-
+  if (!child) {
     // Create a child and mark it as running
     child = make_shared<Command>(args);
     child->setMarking(RebuildMarking::MustRun);
+
+    LOG(exec) << "New command " << child << " did not match any previous command.";
   }
 
   // Add the child to the parent's list of children
@@ -1151,9 +1148,6 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     auto child_ref = child->setRef(parent->getRef(parent_ref));
     child->addInitialFD(fd, child_ref);
     refs.emplace_back(parent_ref, child_ref);
-
-    LOG(exec) << child << " inherits fd " << fd << " from parent ref " << parent_ref
-              << ", now using child ref " << child_ref;
   }
 
   // Prepare the child command to execute by committing the necessary state from its references

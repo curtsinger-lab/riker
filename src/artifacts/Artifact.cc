@@ -308,7 +308,7 @@ void Artifact::updateMetadata(const shared_ptr<Command>& c,
   appendVersion(writing);
 
   // Is the writing command running?
-  if (c->mustRun() || c->alreadyRun()) {
+  if (c->mustRun()) {
     // Yes. The metadata is committed
     _uncommitted_metadata.reset();
     _committed_metadata = writing;

@@ -27,8 +27,7 @@ Run a rebuild
   $ $RKR --show
   rmdir foo
   rmdir: failed to remove 'foo': Directory not empty
-  (warning) [Command Rikerfile] should rerun because child [Command rmdir foo] changed exit status.
-  (warning) [Command Rikerfile] should rerun because child [Command rmdir foo] changed exit status.
+  Rikerfile
 
 The foo directory should be left over
   $ rm foo/c

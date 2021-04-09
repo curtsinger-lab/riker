@@ -303,13 +303,11 @@ void Tracer::handleSyscall(Thread& t) noexcept {
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
 shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcept {
-  LOG(exec) << "Executing " << cmd;
+  LOG(exec) << "Preparing to trace " << cmd;
 
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
   vector<std::pair<int, int>> initial_fds;
-
-  LOG(exec) << "Preparing to launch " << cmd;
 
   // Loop over the initial fds for the command we are launching
   for (const auto& [child_fd, ref_id] : cmd->getInitialFDs()) {
@@ -338,12 +336,10 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     // child fd for one entry matches the parent fd of another).
     for (const auto& [parent_fd, child_fd] : initial_fds) {
       if (parent_fd != child_fd) {
-        LOG(exec) << "Duping fd " << parent_fd << " to " << child_fd << " in child";
         int rc = dup2(parent_fd, child_fd);
 
         FAIL_IF(rc != child_fd) << "Failed to initialize fds: " << ERR;
       } else {
-        LOG(exec) << "Removing cloexec flag from fd " << parent_fd;
         int flags = fcntl(parent_fd, F_GETFD, 0);
         FAIL_IF(flags < 0) << "Failed to get flags for fd " << parent_fd;
 

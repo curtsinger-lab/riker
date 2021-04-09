@@ -33,13 +33,8 @@ enum class RebuildMarking {
            // current build iteration, but the possibility that they might need to run in the future
            // is important for planning the build correctly.
 
-  MustRun,  // The MustRun marking indicates that we are certain a command will need to run, so it
-            // will be executed on the next build iteration.
-
-  AlreadyRun  // The AlreadyRun marking indicates that a command has already executed on some prior
-              // build iteration. Commands with this marking can be emulated using the trace from
-              // their most recent run. We use this marking to ensure that a command is not run
-              // multiple times during a single build.
+  MustRun  // The MustRun marking indicates that we are certain a command will need to run, so it
+           // will be executed on the next build iteration.
 };
 
 /**
@@ -142,9 +137,6 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Check if this command should run on the current build iteration
   bool mustRun() const noexcept { return _marking == RebuildMarking::MustRun; }
-
-  /// Check if this command has already run (according to its marking)
-  bool alreadyRun() const noexcept { return _marking == RebuildMarking::AlreadyRun; }
 
   /// Get the marking for this command
   RebuildMarking getMarking() const noexcept { return _marking; }

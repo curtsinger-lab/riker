@@ -239,22 +239,8 @@ void Command::finishRun() noexcept {
   _last_run = std::move(_run);
   _run = make_unique<Command::Run>();
 
-  // Update the command's marking
-  if (_marking == RebuildMarking::MayRun) {
-    // If this is a lazy build, return MayRun to Emulate so it can be marked later.
-    // If this is an eager build, MayRun commands are executed so change to AlreadyRun.
-    if (options::lazy_builds) {
-      _marking = RebuildMarking::Emulate;
-    } else {
-      _marking = RebuildMarking::AlreadyRun;
-    }
-
-  } else if (_marking == RebuildMarking::MustRun) {
-    // MustRun commands were executed, so update them to AlreadyRun
-    _marking = RebuildMarking::AlreadyRun;
-  }
-
-  // Emulate and AlreadyRun markings are left as-is
+  // At the end of a build phase, all commands return to the Emulate marking
+  _marking = RebuildMarking::Emulate;
 
   // Recursively finish the run for all children
   for (const auto& child : previousRun()->_children) {
@@ -350,7 +336,7 @@ bool Command::mark(RebuildMarking m) noexcept {
   if (m == RebuildMarking::MustRun) {
     // If this command already had an equivalent or higher marking, return false.
     // There's no need to propagate this marking because it is not new.
-    if (_marking == RebuildMarking::MustRun || _marking == RebuildMarking::AlreadyRun) {
+    if (_marking == RebuildMarking::MustRun) {
       return false;
     }
 
@@ -422,8 +408,7 @@ bool Command::mark(RebuildMarking m) noexcept {
   } else if (m == RebuildMarking::MayRun) {
     // If this command already had an equivalent or higher marking, return false.
     // There's no need to propagate this marking becasue it is not new.
-    if (_marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun ||
-        _marking == RebuildMarking::AlreadyRun) {
+    if (_marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun) {
       return false;
     }
 
@@ -488,9 +473,7 @@ void Command::createLaunchDependencies() noexcept {
     if (id == Ref::Cwd) {
       // The current directory has to exist to launch the command
       auto path = ref->getArtifact()->commitPath();
-      if (path.has_value()) {
-        LOG(exec) << "Committed cwd path " << path.value();
-      } else {
+      if (!path.has_value()) {
         WARN << "Failed to commit path to current working directory " << ref->getArtifact();
       }
 
@@ -665,7 +648,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
     writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
 
     // Is the version committable? If not, this command NEEDS output from writer
-    if (!v->canCommit()) {
+    if (a->hasUncommittedContent() && !v->canCommit()) {
       currentRun()->_needs_output_from.emplace(writer, std::tuple{a, v});
       writer->currentRun()->_output_needed_by.emplace(shared_from_this(), std::tuple{a, v});
     }

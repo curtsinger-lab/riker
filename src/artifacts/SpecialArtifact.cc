@@ -172,7 +172,7 @@ void SpecialArtifact::updateContent(const shared_ptr<Command>& c,
   _content_writer = c;
 
   // Is the writer currently running?
-  if (c->mustRun() || c->alreadyRun()) {
+  if (c->mustRun()) {
     _committed_content = sv;
     _uncommitted_content.reset();
   } else {

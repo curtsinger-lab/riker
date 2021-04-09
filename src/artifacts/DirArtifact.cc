@@ -55,7 +55,7 @@ void DirArtifact::createEmptyDir(std::shared_ptr<Command> c) noexcept {
 
   // Set up the base directory version
   auto base = make_shared<BaseDirVersion>(true);
-  if (c->mustRun() || c->alreadyRun()) {
+  if (c->mustRun()) {
     _committed_base_version = base;
   } else {
     _uncommitted_base_version = base;
@@ -587,7 +587,7 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
   c->addDirectoryOutput(_dir.lock(), version);
 
   // Now update the state with the new version
-  if (c->mustRun() || c->alreadyRun()) {
+  if (c->mustRun()) {
     // The command is running or has already run, so all effects are automatically committed
 
     // Is there a committed target? If so, remove its committed link as well

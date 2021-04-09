@@ -134,11 +134,6 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
       // Commands that must run are red
       o << "style=\"filled\" ";
       o << "fillcolor=\"red\" ";
-
-    } else if (c->getMarking() == RebuildMarking::AlreadyRun) {
-      // Commands that were run in the production of the graph are green
-      o << "style=\"filled\" ";
-      o << "fillcolor=\"green\" ";
     }
 
     o << "]\n";
