@@ -27,13 +27,13 @@ namespace env {
   void commitAll() noexcept;
 
   /// Get the standard input pipe
-  std::shared_ptr<PipeArtifact> getStdin(const std::shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<Artifact> getStdin(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the standard output pipe
-  std::shared_ptr<PipeArtifact> getStdout(const std::shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<Artifact> getStdout(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the standard error pipe
-  std::shared_ptr<PipeArtifact> getStderr(const std::shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<Artifact> getStderr(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the root directory
   std::shared_ptr<DirArtifact> getRootDir() noexcept;

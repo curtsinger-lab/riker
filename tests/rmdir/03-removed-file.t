@@ -21,12 +21,11 @@ Recreate the input, but leave out the b file
   $ mkdir foo
   $ touch foo/a
 
-Run a rebuild
+Run a rebuild. The `rm foo/b` command has to run because `foo/b` no longer exists. Its exit code changes, forcing a rerun of `Rikerfile`.
   $ $RKR --show
   rm foo/b
   rm: cannot remove 'foo/b': No such file or directory
-  (warning) [Command Rikerfile] should rerun because child [Command rm foo/b] changed exit status.
-  (warning) [Command Rikerfile] should rerun because child [Command rm foo/b] changed exit status.
+  Rikerfile
 
 Make sure the foo directory does not exist
   $ stat foo

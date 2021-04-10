@@ -44,9 +44,9 @@ namespace env {
   size_t _next_temp_id = 0;
 
   // Special artifacts
-  shared_ptr<PipeArtifact> _stdin;    //< Standard input
-  shared_ptr<PipeArtifact> _stdout;   //< Standard output
-  shared_ptr<PipeArtifact> _stderr;   //< Standard error
+  shared_ptr<Artifact> _stdin;        //< Standard input
+  shared_ptr<Artifact> _stdout;       //< Standard output
+  shared_ptr<Artifact> _stderr;       //< Standard error
   shared_ptr<DirArtifact> _root_dir;  //< The root directory
 
   /// A set of all the artifacts used during the build
@@ -69,30 +69,81 @@ namespace env {
   // Get the set of all artifacts
   const list<weak_ptr<Artifact>>& getArtifacts() noexcept { return _artifacts; }
 
-  shared_ptr<PipeArtifact> getStdin(const shared_ptr<Command>& c) noexcept {
+  shared_ptr<Artifact> getStdin(const shared_ptr<Command>& c) noexcept {
     if (!_stdin) {
-      _stdin = getPipe(c);
-      _stdin->setFDs(0, -1);
-      _stdin->setName("stdin");
+      // Create a manufactured stat buffer for stdin
+      uid_t uid = getuid();
+      gid_t gid = getgid();
+      mode_t mode = S_IFIFO | 0600;
+
+      // Prepare metadata
+      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
+
+      // Create stdin
+      auto a = make_shared<SpecialArtifact>(mv, true);
+      _stdin = a;
+
+      // Set the file descriptor and name
+      a->setFD(0);
+      a->setName("stdin");
+
+      // Record stats for this artifact
+      _artifacts.push_back(_stdin);
+      stats::artifacts++;
     }
+
     return _stdin;
   }
 
-  shared_ptr<PipeArtifact> getStdout(const shared_ptr<Command>& c) noexcept {
+  shared_ptr<Artifact> getStdout(const shared_ptr<Command>& c) noexcept {
     if (!_stdout) {
-      _stdout = getPipe(c);
-      _stdout->setFDs(-1, 1);
-      _stdout->setName("stdout");
+      // Create a manufactured stat buffer for stdin
+      uid_t uid = getuid();
+      gid_t gid = getgid();
+      mode_t mode = S_IFIFO | 0600;
+
+      // Prepare metadata
+      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
+
+      // Create stdin
+      auto a = make_shared<SpecialArtifact>(mv, false);
+      _stdout = a;
+
+      // Set the file descriptor and name
+      a->setFD(1);
+      a->setName("stdout");
+
+      // Record stats for this artifact
+      _artifacts.push_back(_stdout);
+      stats::artifacts++;
     }
+
     return _stdout;
   }
 
-  shared_ptr<PipeArtifact> getStderr(const shared_ptr<Command>& c) noexcept {
+  shared_ptr<Artifact> getStderr(const shared_ptr<Command>& c) noexcept {
     if (!_stderr) {
-      _stderr = getPipe(c);
-      _stderr->setFDs(-1, 2);
-      _stderr->setName("stderr");
+      // Create a manufactured stat buffer for stdin
+      uid_t uid = getuid();
+      gid_t gid = getgid();
+      mode_t mode = S_IFIFO | 0600;
+
+      // Prepare metadata
+      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
+
+      // Create stdin
+      auto a = make_shared<SpecialArtifact>(mv, false);
+      _stderr = a;
+
+      // Set the file descriptor and name
+      a->setFD(2);
+      a->setName("stderr");
+
+      // Record stats for this artifact
+      _artifacts.push_back(_stderr);
+      stats::artifacts++;
     }
+
     return _stderr;
   }
 

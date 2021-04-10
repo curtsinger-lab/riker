@@ -36,6 +36,20 @@ void SpecialArtifact::rollback() noexcept {
   Artifact::rollback();
 }
 
+// Get a file descriptor for this artifact
+int SpecialArtifact::getFD(AccessFlags flags) noexcept {
+  if (_fd >= 0) {
+    return _fd;
+  } else {
+    return Artifact::getFD(flags);
+  }
+}
+
+// Set the file descriptor for this artifact
+void SpecialArtifact::setFD(int fd) noexcept {
+  _fd = fd;
+}
+
 // Commit the content of this artifact to the filesystem
 void SpecialArtifact::commitContentTo(fs::path path) noexcept {}
 

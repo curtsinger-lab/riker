@@ -48,6 +48,12 @@ class SpecialArtifact : public Artifact {
   /// Revert this artifact to its committed state
   virtual void rollback() noexcept override;
 
+  /// Get a file descriptor for this artifact
+  virtual int getFD(AccessFlags flags) noexcept override;
+
+  /// Set the file descriptor for this artifact
+  void setFD(int fd) noexcept;
+
   /************ Path Operations ************/
 
   /// Commit a link to this artifact at the given path
@@ -104,6 +110,9 @@ class SpecialArtifact : public Artifact {
                              std::shared_ptr<ContentVersion> writing) noexcept override;
 
  private:
+  /// The file descriptor for this artifact, if any
+  int _fd = -1;
+
   /// Do comparisons against this always report a change?
   bool _always_changed;
 
