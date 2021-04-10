@@ -42,7 +42,7 @@ class PipeArtifact : public Artifact {
   virtual void commitContentTo(fs::path path) noexcept override {}
 
   /// Does this artifact have any uncommitted content?
-  virtual bool hasUncommittedContent() noexcept override { return !_committed_mode.value_or(true); }
+  virtual bool hasUncommittedContent() noexcept override;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path PathRef) noexcept override {}

@@ -27,6 +27,15 @@ void PipeArtifact::rollback() noexcept {
   Artifact::rollback();
 }
 
+// Does this artifact have any uncommitted content?
+bool PipeArtifact::hasUncommittedContent() noexcept {
+  if (_committed_mode.has_value()) {
+    return !_committed_mode.value();
+  } else {
+    return false;
+  }
+}
+
 /// Commit a link to this artifact at the given path
 void PipeArtifact::commitLink(shared_ptr<DirEntry> entry) noexcept {
   WARN << "Unimplemented PipeArtifact::commitLink()";
@@ -52,8 +61,22 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
 // A traced command just read from this artifact
 void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Make sure there are no uncommitted updates
-  ASSERT(_committed_mode.value_or(true))
-      << "Traced command is reading from " << this << " with uncommitted state";
+  if (!_committed_mode.value_or(true)) {
+    WARN << "Traced command " << c << " is reading from " << this << " with uncommitted state";
+
+    if (_last_read) {
+      WARN << "  Last read: " << _last_read << " by " << _last_reader.lock();
+    } else {
+      WARN << "  No previous read from pipe";
+    }
+
+    WARN << "  Writes:";
+    for (auto& [v, weak_writer] : _writes) {
+      WARN << "    " << v << " by " << weak_writer.lock();
+    }
+
+    FAIL << "Stopping";
+  }
 
   // The reading command depends on the last read
   if (_last_read) {
@@ -107,6 +130,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, _last_read);
     c->inputChanged(shared_from_this(), nullptr, expected, scenario);
+    return;
   }
 
   // The command depends on the last read version

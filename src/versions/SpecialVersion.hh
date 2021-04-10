@@ -13,6 +13,11 @@ class SpecialVersion final : public ContentVersion {
   /// Can this version be committed?
   virtual bool canCommit() const noexcept override { return _can_commit; }
 
+  /// Can a write of this version be coalesced with another?
+  virtual bool canCoalesceWith(std::shared_ptr<ContentVersion> other) const noexcept override {
+    return true;
+  }
+
   /// Get the name for this type of version
   virtual std::string getTypeName() const noexcept override { return "special"; }
 

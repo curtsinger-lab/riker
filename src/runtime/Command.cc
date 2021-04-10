@@ -647,9 +647,14 @@ void Command::addContentInput(shared_ptr<Artifact> a,
     currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
     writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
 
-    // Is the version committable? If not, this command NEEDS output from writer
-    if (a->hasUncommittedContent() && !v->canCommit()) {
-      currentRun()->_needs_output_from.emplace(writer, std::tuple{a, v});
+    // Is the version committable?
+    if (!v->canCommit()) {
+      // No. Is the input uncommitted? If so, the writer must produce it for this command
+      if (a->hasUncommittedContent()) {
+        currentRun()->_needs_output_from.emplace(writer, std::tuple{a, v});
+      }
+
+      // If the writer has to run, the reader must also run.
       writer->currentRun()->_output_needed_by.emplace(shared_from_this(), std::tuple{a, v});
     }
   }

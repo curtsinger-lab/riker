@@ -1153,10 +1153,10 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   // Prepare the child command to execute by committing the necessary state from its references
   child->createLaunchDependencies();
 
-  // The child command will be executed by this build.
-  child->setExecuted();
+  // The command will be executed
+  if (child->mustRun()) child->setExecuted();
 
-  // The child command is now launched
+  // The child command is now launched in the provided process
   child->setLaunched(process);
 
   // Create an IR step and add it to the output trace

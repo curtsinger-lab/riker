@@ -35,9 +35,7 @@ class SpecialArtifact : public Artifact {
   virtual void commitContentTo(fs::path path) noexcept override;
 
   /// Does this artifact have any uncommitted content?
-  virtual bool hasUncommittedContent() noexcept override {
-    return static_cast<bool>(_uncommitted_content);
-  }
+  virtual bool hasUncommittedContent() noexcept override { return false; }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
