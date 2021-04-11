@@ -737,13 +737,50 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        map<int, Ref::ID> fds) noexcept {
   // Loop over this command's children from the last run
   for (auto& child : previousRun()->_children) {
-    // Does the child match the given launch parameters?
-    // TODO: Check more than just arguments
-    if (!child->previousRun()->_matched) {
-      if (child->getArguments() == args) {
-        // Mark the command as matched so we don't match it again
+    // If the child has already been matched, we can't match it again
+    if (child->previousRun()->_matched) continue;
+
+    // TODO: Do we need to match against the exe, cwd, root, and fd references?
+    // Maybe not. If these references are used, they correspond to predicates in the matched
+    // command's trace steps. Those predicates will fail if we make a "bad" match so we'd just rerun
+    // the command.
+
+    // Does the child have the same number of arguments? If not, we can't match it
+    if (child->_args.size() != args.size()) continue;
+
+    // Does the child match the requested arguments? Yes, so far.
+    bool matches = true;
+
+    // Keep track of any substitutions we have to make for tempfile names
+    map<string, string> substitutions;
+
+    // Loop over arguments to check for matches
+    for (size_t i = 0; i < args.size() && matches; i++) {
+      // Are the arguments an exact match? If so, we still have a match
+      if (args[i] == child->_args[i]) continue;
+
+      // Are the mismatched arguments both temporary file paths?
+      if (args[i].find("/tmp/") == 0 && child->_args[i].find("/tmp/") == 0) {
+        // Yes. We can considuer this a match as long as we substitute the new command's temp path
+        substitutions.emplace(child->_args[i], args[i]);
+
+      } else {
+        // No. This child does not match
+        matches = false;
+      }
+    }
+
+    // Did we end up with a match?
+    if (matches) {
+      // Only match if there are no substitutions (for now)
+      if (substitutions.size() == 0) {
         child->previousRun()->_matched = true;
         return child;
+      } else {
+        WARN << "Candidate for tempfile substitution match: " << child;
+        for (const auto& [original, replacement] : substitutions) {
+          WARN << "  " << original << " -> " << replacement;
+        }
       }
     }
   }
