@@ -516,6 +516,16 @@ void Command::setExitStatus(int status) noexcept {
   currentRun()->_exit_status = status;
 }
 
+// Look for a matching path substitution and return the path this command should use
+string Command::substitutePath(string p) noexcept {
+  auto iter = currentRun()->_substitutions.find(p);
+  if (iter == currentRun()->_substitutions.end()) return p;
+
+  LOG(exec) << this << ": Replacing path " << p << " with " << iter->second;
+
+  return iter->second;
+}
+
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Ref::ID id) noexcept {
   ASSERT(id >= 0 && id < currentRun()->_refs.size())
@@ -772,16 +782,22 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 
     // Did we end up with a match?
     if (matches) {
-      // Only match if there are no substitutions (for now)
-      if (substitutions.size() == 0) {
-        child->previousRun()->_matched = true;
-        return child;
-      } else {
-        WARN << "Candidate for tempfile substitution match: " << child;
-        for (const auto& [original, replacement] : substitutions) {
-          WARN << "  " << original << " -> " << replacement;
+      child->_short_names.clear();
+      for (size_t i = 0; i < child->_args.size(); i++) {
+        auto iter = substitutions.find(child->_args[i]);
+        if (iter != substitutions.end()) {
+          child->_args[i] = iter->second;
         }
       }
+
+      // Save the path substitution map
+      child->currentRun()->_substitutions = std::move(substitutions);
+
+      // The child is matched
+      child->previousRun()->_matched = true;
+
+      // Return the matching child
+      return child;
     }
   }
 

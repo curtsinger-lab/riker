@@ -10,6 +10,9 @@ namespace options {
   /// Print commands as they are executed
   inline bool print_on_run = false;
 
+  /// Should full commands be printed instead of abbreviations?
+  inline bool print_full = false;
+
   /// Print commands instead of running them
   inline bool dry_run = false;
 

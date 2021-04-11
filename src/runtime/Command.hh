@@ -197,6 +197,9 @@ class Command : public std::enable_shared_from_this<Command> {
     /// Has this command run already been matched against a new command launch?
     bool _matched = false;
 
+    /// Path substitutions established by matching this command
+    std::map<std::string, std::string> _substitutions;
+
     /// The exit status for this command
     int _exit_status = -1;
 
@@ -244,6 +247,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Set this command's exit status, and record that it has exited
   void setExitStatus(int status) noexcept;
+
+  /// Look for a matching path substitution and return the path this command should use
+  std::string substitutePath(std::string p) noexcept;
 
   /// Get a reference from this command's reference table
   const std::shared_ptr<Ref>& getRef(Ref::ID id) noexcept;

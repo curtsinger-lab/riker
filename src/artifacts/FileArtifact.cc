@@ -51,6 +51,12 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
     _committed_metadata = std::move(_uncommitted_metadata);
 
   } else {
+    if (!_uncommitted_content->canCommit()) {
+      WARN << "Cannot commit version " << _uncommitted_content << " written by "
+           << _content_writer.lock();
+      WARN << "Committed version is " << _committed_content;
+    }
+
     // Commit the uncommitted content only
     _uncommitted_content->commit(path);
   }
@@ -299,6 +305,7 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   if (c->mustRun()) {
     _committed_content = fv;
     _uncommitted_content.reset();
+
   } else if (fv == _committed_content) {
     _uncommitted_content.reset();
   } else {

@@ -409,6 +409,13 @@ int main(int argc, char* argv[]) noexcept {
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
   build->add_flag("--show", options::print_on_run, "Show commands as they are run");
+  build->add_flag_callback(
+      "--show-full",
+      [] {
+        options::print_on_run = true;
+        options::print_full = true;
+      },
+      "Show complete command lines for all commands as they run");
 
   build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
 

@@ -265,17 +265,23 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Count an emulated step
   stats::emulated_steps++;
 
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
-
-  // Create an IR step and add it to the output trace
-  _output.pathRef(c, base, path, flags, output);
-
   // Get the directory where resolution should begin
   auto base_dir = c->getRef(base)->getArtifact();
 
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
+
+  if (base_dir == env::getRootDir()) {
+    string newpath = c->substitutePath("/" + path.string());
+    auto oldpath = path;
+    path = fs::path(newpath.substr(1));
+  }
+
+  // Log the emulated step
+  LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
+
+  // Create an IR step and add it to the output trace
+  _output.pathRef(c, base, path, flags, output);
 
   c->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags)));
 }
@@ -658,7 +664,11 @@ void Build::launch(const shared_ptr<Command>& c,
 
   // Print the command if requested
   if (print_command) {
-    cout << child->getShortName(options::command_length) << endl;
+    if (options::print_full) {
+      cout << child->getFullName() << endl;
+    } else {
+      cout << child->getShortName(options::command_length) << endl;
+    }
   }
 
   // If we're going to actually run the command, mark it as executed now
@@ -1119,7 +1129,10 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
 
   // Did we find a matching command?
-  if (!child) {
+  if (child) {
+    // Nothing to do. We'll just use the child command that matched
+
+  } else {
     // Create a child and mark it as running
     child = make_shared<Command>(args);
     child->setMarking(RebuildMarking::MustRun);
@@ -1164,7 +1177,11 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Print the command if required
   if (child->mustRun() && options::print_on_run) {
-    cout << child->getShortName(options::command_length) << endl;
+    if (options::print_full) {
+      cout << child->getFullName() << endl;
+    } else {
+      cout << child->getShortName(options::command_length) << endl;
+    }
   }
 
   // Log the traced step
