@@ -43,6 +43,7 @@ using std::map;
 using std::ofstream;
 using std::optional;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::stringstream;
 using std::unique_ptr;
@@ -66,54 +67,55 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
   // Reset the statistics counters
   reset_stats();
 
-  // Load a trace, or set up a default build if necessary
-  // Trace is lazy-loaded, so work is not done here
+  // Load the input trace from the database (or use a default if no trace exists)
   unique_ptr<IRSource> input = InputTrace::load(constants::DatabaseFilename, args);
 
+  // Output from this phase goes directly to an IRBuffer
+  auto output = make_unique<IRBuffer>();
+
+  // The root command will be set in the loop
+  shared_ptr<Command> root_cmd;
+
+  // Count build iterations
   size_t iteration = 0;
-  bool done = false;
-  bool trace_changed = false;
-  while (!done) {
-    // Create a buffer to hold the IR output
-    auto output = make_unique<ReadWriteCombiner<IRBuffer>>();
+
+  // Start the build loop
+  do {
+    // Revert the environment to committed state
+    env::rollback();
 
     LOGF(phase, "Starting build phase {}", iteration);
 
-    // Reset the environment
-    env::rollback();
+    // Run the trace and send the new trace to output
+    root_cmd = input->sendTo(Build(*output));
 
-    // Run the build
-    auto root_cmd = input->sendTo(Build(*output));
-
-    // Plan the next build, starting with the root command
+    // Plan the next iteration
     root_cmd->planBuild();
 
     LOGF(phase, "Finished build phase {}", iteration);
 
-    // Do any commands have to run?
-    if (root_cmd->allFinished()) {
-      // No. The build is done.
-      done = true;
-    } else {
-      // Yes. We'll have to run another iteration, and the trace will change.
-      trace_changed = true;
-    }
-
-    // The output becomes the next iteration's input
+    // The output becomes the new input
     input = std::move(output);
-    iteration++;
+
+    // Prepare a new output buffer with read/write combining
+    output = make_unique<ReadWriteCombiner<IRBuffer>>();
 
     // Write stats out to CSV & reset counters
-    gather_stats(stats_log_path, stats, iteration - 1);
+    gather_stats(stats_log_path, stats, iteration);
     reset_stats();
-  }
+
+    // Increment the iteration
+    iteration++;
+
+    // Keep looping as long as there are commands to run
+  } while (!root_cmd->allFinished());
 
   // Commit anything left in the environment
-  LOGF(phase, "Committing environment changes from build phase {}", iteration);
+  LOG(phase) << "Committing environment changes";
   env::commitAll();
 
-  // If any commands had to rerun, run post-build checks and write out a new trace
-  if (trace_changed) {
+  // If more than one phase of the build ran, then we know the trace could have changed
+  if (iteration > 1) {
     LOG(phase) << "Starting post-build checks";
 
     // Run the post-build checks
