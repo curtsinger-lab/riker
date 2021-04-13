@@ -68,13 +68,11 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
   reset_stats();
 
   // Load the input trace from the database (or use a default if no trace exists)
-  unique_ptr<IRSource> input = InputTrace::load(constants::DatabaseFilename, args);
+  // This returns a root command and IRSource
+  auto [root_cmd, input] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Output from this phase goes directly to an IRBuffer
   auto output = make_unique<IRBuffer>();
-
-  // The root command will be set in the loop
-  shared_ptr<Command> root_cmd;
 
   // Count build iterations
   size_t iteration = 0;
@@ -87,7 +85,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Run the trace and send the new trace to output
-    root_cmd = input->sendTo(Build(*output));
+    input->sendTo(Build(*output));
 
     // Plan the next iteration
     root_cmd->planBuild();
@@ -144,10 +142,10 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
  */
 void do_check(vector<string> args) noexcept {
   // Load a build, or set up a default build if necessary
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the loaded trace
-  auto root_cmd = trace->sendTo(Build());
+  trace->sendTo(Build());
 
   // Plan the next build
   root_cmd->planBuild();
@@ -189,11 +187,13 @@ void do_check(vector<string> args) noexcept {
  * \param output    The name of the output file, or "-" for stdout
  */
 void do_trace(vector<string> args, string output) noexcept {
+  auto [_, trace] = InputTrace::load(constants::DatabaseFilename, args);
+
   // Are we printing to stdout or a file?
   if (output == "-") {
-    InputTrace::load(constants::DatabaseFilename, args)->sendTo(TracePrinter(cout));
+    trace->sendTo(TracePrinter(cout));
   } else {
-    InputTrace::load(constants::DatabaseFilename, args)->sendTo(TracePrinter(ofstream(output)));
+    trace->sendTo(TracePrinter(ofstream(output)));
   }
 }
 
@@ -220,10 +220,10 @@ void do_graph(vector<string> args,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the build
-  auto root_cmd = trace->sendTo(Build());
+  trace->sendTo(Build());
 
   // Plan the next build
   root_cmd->planBuild();
@@ -286,7 +286,7 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   reset_stats();
 
   // Load the serialized build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
   trace->sendTo(Build());

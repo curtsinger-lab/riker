@@ -46,6 +46,9 @@ class OutputTrace : public IRSink {
     return _commands.at(cmd);
   }
 
+  /// Trace output is starting
+  virtual void start(const std::shared_ptr<Command>& root) noexcept override;
+
   /// Trace output is finished
   virtual void finish() noexcept override;
 

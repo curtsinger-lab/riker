@@ -17,6 +17,7 @@ using std::make_unique;
 using std::map;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 
@@ -38,23 +39,25 @@ InputTrace::InputTrace(string filename, vector<string> args) :
   }
 
   // Add the null command to the command map
-  _commands.emplace_back(Command::getNullCommand());
+  _commands.emplace_back(Command::createEmptyCommand());
 }
 
-unique_ptr<IRSource> InputTrace::load(string filename, vector<string> args) noexcept {
+tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filename,
+                                                                  vector<string> args) noexcept {
   try {
     // Try to create an input trace and return it
-    unique_ptr<InputTrace> result(new InputTrace(filename, args));
-    return result;
+    unique_ptr<InputTrace> trace(new InputTrace(filename, args));
+    return {trace->getRootCommand(), std::move(trace)};
 
   } catch (cereal::Exception& e) {
     // If there is an exception when loading the trace, revert to a default trace
-    return make_unique<DefaultTrace>(args);
+    auto trace = make_unique<DefaultTrace>(args);
+    return {trace->getRootCommand(), std::move(trace)};
   }
 }
 
 // Run this trace
-shared_ptr<Command> InputTrace::sendTo(IRSink& handler) noexcept {
+void InputTrace::sendTo(IRSink& handler) noexcept {
   // Send the root command
   handler.start(getCommand(0));
 
@@ -68,6 +71,4 @@ shared_ptr<Command> InputTrace::sendTo(IRSink& handler) noexcept {
   }
 
   handler.finish();
-
-  return getCommand(0);
 }

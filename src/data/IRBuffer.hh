@@ -16,7 +16,7 @@ class IRBuffer : public IRSource, public IRSink {
   /**** IRSource Methods ****/
 
   /// Send the stored IR trace to a sink
-  virtual std::shared_ptr<Command> sendTo(IRSink& handler) noexcept override {
+  virtual void sendTo(IRSink& handler) noexcept override {
     // Set the buffer to draining mode
     _draining = true;
 
@@ -28,8 +28,6 @@ class IRBuffer : public IRSource, public IRSink {
 
     // Now the buffer can fill again
     _draining = false;
-
-    return std::move(_root_command);
   }
 
   /**** IRSink Methods ****/

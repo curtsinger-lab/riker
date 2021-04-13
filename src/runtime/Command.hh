@@ -74,8 +74,8 @@ class Command : public std::enable_shared_from_this<Command> {
   Command(Command&&) noexcept = default;
   Command& operator=(Command&&) noexcept = default;
 
-  /// Get a shared pointer to the special null command instance
-  static const std::shared_ptr<Command>& getNullCommand() noexcept;
+  /// Create an empty command suitable for use as the root of a build
+  static std::shared_ptr<Command> createEmptyCommand() noexcept;
 
   /// Get a short, printable name for this command
   std::string getShortName(size_t limit = 40) const noexcept;
@@ -84,7 +84,7 @@ class Command : public std::enable_shared_from_this<Command> {
   std::string getFullName() const noexcept;
 
   /// Is this command the null command?
-  bool isNullCommand() const noexcept;
+  bool isEmptyCommand() const noexcept;
 
   /// Check if this command has ever executed
   bool hasExecuted() const noexcept { return _executed; }
@@ -108,7 +108,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Print a Command to an output stream
   friend std::ostream& operator<<(std::ostream& o, const Command& c) noexcept {
-    if (c.isNullCommand()) {
+    if (c.isEmptyCommand()) {
       return o << "[No Command]";
     } else {
       return o << "[Command " << c.getShortName() << "]";

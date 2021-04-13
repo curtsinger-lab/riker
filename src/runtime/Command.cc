@@ -34,11 +34,11 @@ map<string, size_t> argument_counts;
 /// Keep track of the total number of commands with arguments
 size_t command_count = 0;
 
-/// Get a shared pointer to the special null command instance
-const shared_ptr<Command>& Command::getNullCommand() noexcept {
-  static shared_ptr<Command> _null_command(new Command());
-  _null_command->_executed = true;
-  return _null_command;
+/// Create an empty command for use as the root of a build
+shared_ptr<Command> Command::createEmptyCommand() noexcept {
+  shared_ptr<Command> result(new Command());
+  result->_executed = true;
+  return result;
 }
 
 // Create a command
@@ -216,8 +216,8 @@ string Command::getFullName() const noexcept {
   return result;
 }
 
-// Is this command the null command?
-bool Command::isNullCommand() const noexcept {
+// Is this command empty?
+bool Command::isEmptyCommand() const noexcept {
   return _args.size() == 0;
 }
 
@@ -492,8 +492,8 @@ void Command::addChild(shared_ptr<Command> child) noexcept {
 
 // Check if the latest run of this command has been launched yet
 bool Command::isLaunched() noexcept {
-  // The null command is launched by default
-  return isNullCommand() || currentRun()->_launched;
+  // The empty command is launched by default
+  return isEmptyCommand() || currentRun()->_launched;
 }
 
 // Mark the latest run of this command as launched

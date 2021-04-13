@@ -4,6 +4,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <cereal/archives/binary.hpp>
@@ -22,15 +23,21 @@ class InputTrace : public IRSource {
   InputTrace(std::string filename, std::vector<std::string> args = {});
 
  public:
-  static std::unique_ptr<IRSource> load(std::string filename,
-                                        std::vector<std::string> args = {}) noexcept;
+  /**
+   * Load an IR trace from disk, or create a default trace if no previous trace exists.
+   *
+   * \returns a tuple of the root command from the loaded trace and the IRSource
+   */
+  static std::tuple<std::shared_ptr<Command>, std::unique_ptr<IRSource>> load(
+      std::string filename,
+      std::vector<std::string> args = {}) noexcept;
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
   InputTrace& operator=(const InputTrace&) = delete;
 
   /// Send the loaded trace to a trace handler
-  virtual std::shared_ptr<Command> sendTo(IRSink& handler) noexcept override;
+  virtual void sendTo(IRSink& handler) noexcept override;
 
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.
@@ -46,6 +53,9 @@ class InputTrace : public IRSource {
   const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept {
     return _commands[id];
   }
+
+  /// Get the root command for this trace
+  std::shared_ptr<Command> getRootCommand() const noexcept { return _commands[0]; }
 
   /// Check if this input trace has a command with a given ID
   bool hasCommand(Command::ID id) const noexcept { return id >= 0 && _commands.size() > id; }

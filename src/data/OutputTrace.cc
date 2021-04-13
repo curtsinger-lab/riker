@@ -36,9 +36,12 @@ OutputTrace::OutputTrace(string filename) noexcept :
     _out(filename, std::ios::binary), _archive(_out) {
   // Write out the magic number and version
   _archive(ArchiveMagic, ArchiveVersion);
+}
 
-  // Add the null command to the command map with ID 0
-  _commands.emplace(Command::getNullCommand(), 0);
+/// Trace output is starting
+void OutputTrace::start(const shared_ptr<Command>& root) noexcept {
+  // Add the root command to the command map with ID 0
+  _commands.emplace(root, 0);
 }
 
 /// Add a SpecialRef IR step to the output trace
