@@ -3,8 +3,8 @@
 #include <ostream>
 #include <string>
 
-#include "ui/stats.hh"
 #include "util/serializer.hh"
+#include "util/stats.hh"
 
 class Version {
  public:

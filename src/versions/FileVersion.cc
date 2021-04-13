@@ -15,9 +15,9 @@
 #include <unistd.h>
 
 #include "blake3.h"
-#include "ui/constants.hh"
-#include "ui/options.hh"
+#include "util/constants.hh"
 #include "util/log.hh"
+#include "util/options.hh"
 #include "util/wrappers.hh"
 
 using std::nullopt;

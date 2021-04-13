@@ -27,8 +27,8 @@
 #include "tracing/Flags.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Tracer.hh"
-#include "ui/options.hh"
 #include "util/log.hh"
+#include "util/options.hh"
 #include "util/wrappers.hh"
 #include "versions/MetadataVersion.hh"
 

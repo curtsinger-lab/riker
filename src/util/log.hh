@@ -14,7 +14,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-#include "ui/options.hh"
+#include "util/options.hh"
 #include "util/terminate.hh"
 
 #define NORMAL "\033[00;"

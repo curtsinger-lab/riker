@@ -6,8 +6,8 @@
 #include <sstream>
 #include <string>
 
-#include "ui/options.hh"
 #include "util/log.hh"
+#include "util/options.hh"
 #include "versions/ContentVersion.hh"
 
 using std::set;

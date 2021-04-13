@@ -33,8 +33,8 @@
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"
-#include "ui/stats.hh"
 #include "util/log.hh"
+#include "util/stats.hh"
 #include "util/wrappers.hh"
 #include "versions/FileVersion.hh"
 

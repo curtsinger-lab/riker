@@ -11,7 +11,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "tracing/Process.hh"
-#include "ui/options.hh"
+#include "util/options.hh"
 #include "versions/ContentVersion.hh"
 #include "versions/DirVersion.hh"
 #include "versions/MetadataVersion.hh"

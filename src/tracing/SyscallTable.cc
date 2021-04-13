@@ -8,7 +8,7 @@
 
 #include "tracing/Flags.hh"
 #include "tracing/Thread.hh"
-#include "ui/stats.hh"
+#include "util/stats.hh"
 
 using std::string;
 using std::vector;

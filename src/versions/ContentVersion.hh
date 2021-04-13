@@ -4,9 +4,9 @@
 #include <memory>
 #include <ostream>
 
-#include "ui/stats.hh"
 #include "util/log.hh"
 #include "util/serializer.hh"
+#include "util/stats.hh"
 #include "versions/Version.hh"
 
 namespace fs = std::filesystem;

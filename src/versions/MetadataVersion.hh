@@ -7,8 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "ui/stats.hh"
 #include "util/serializer.hh"
+#include "util/stats.hh"
 #include "versions/Version.hh"
 
 namespace fs = std::filesystem;
