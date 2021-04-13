@@ -13,6 +13,7 @@ BinPackArguments: true
 BinPackParameters: false
 AlignAfterOpenBracket: Align
 AllowAllParametersOfDeclarationOnNextLine: false
+IncludeIsMainRegex: '^(_test)?$'
 
 # Regroup includes by category
 IncludeBlocks: Regroup

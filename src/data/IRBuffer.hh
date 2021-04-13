@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <list>
 #include <memory>
@@ -10,6 +11,8 @@
 
 class Command;
 class MetadataVersion;
+
+namespace fs = std::filesystem;
 
 class IRBuffer : public IRSource, public IRSink {
  public:
