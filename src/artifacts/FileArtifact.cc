@@ -201,6 +201,17 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 }
 
+/// A traced command is about to stat this artifact
+void FileArtifact::beforeStat(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  // Create a dependency on the current content so its size is committed appropriately.
+  getContent(c);
+
+  // TODO: This should really be captured in the trace by including size as part of the metadata.
+  // Committing metadata size changes is tricky because we would need to commit the content to
+  // change the size field. Or, we could modify the result from stat to report the uncommitted size
+  // during tracing. If we go that route, writes need to update both content and metadata.
+}
+
 /// A traced command is about to (possibly) read from this artifact
 void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Do nothing before a read

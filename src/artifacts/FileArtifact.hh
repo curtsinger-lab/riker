@@ -62,6 +62,11 @@ class FileArtifact : public Artifact {
 
   /************ Traced Operations ************/
 
+  /// A traced command is about to stat this artifact
+  virtual void beforeStat(Build& build,
+                          const std::shared_ptr<Command>& c,
+                          Ref::ID ref) noexcept override;
+
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
                           const std::shared_ptr<Command>& c,

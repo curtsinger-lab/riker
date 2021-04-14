@@ -1,5 +1,3 @@
-#include "Artifact.hh"
-
 #include <cerrno>
 #include <map>
 #include <memory>
@@ -9,6 +7,7 @@
 
 #include <fcntl.h>
 
+#include "Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -226,9 +225,11 @@ void Artifact::commitContent() noexcept {
 
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
-  ASSERT(path.has_value()) << "Committing content to an artifact with no path";
-
-  commitContentTo(path.value());
+  if (path.has_value()) {
+    commitContentTo(path.value());
+  } else {
+    // WARN << "Committing content to an artifact with no path";
+  }
 }
 
 void Artifact::commitMetadata() noexcept {

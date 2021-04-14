@@ -1,5 +1,3 @@
-#include "Thread.hh"
-
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
@@ -18,6 +16,7 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
+#include "Thread.hh"
 #include "artifacts/Artifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/IRSink.hh"
@@ -507,6 +506,15 @@ void Thread::_fstatat(at_fd dirfd,
   // If the AT_EMPTY_PATH flag is set, we are statting an already-opened file descriptor
   // Otherwise, this is just a normal stat call
   if (flags.empty_path()) {
+    // Depend on content so the size field is accurate
+    if (_process->hasFD(dirfd.getFD())) {
+      auto ref_id = _process->getFD(dirfd.getFD());
+      auto ref = getCommand()->getRef(ref_id);
+      if (ref->isResolved()) {
+        ref->getArtifact()->beforeStat(_build, getCommand(), ref_id);
+      }
+    }
+
     finishSyscall([=](long rc) {
       resume();
 
@@ -527,7 +535,13 @@ void Thread::_fstatat(at_fd dirfd,
 
   } else {
     // Make the reference
-    auto ref = makePathRef(pathname, AccessFlags::fromAtFlags(flags), dirfd);
+    auto ref_id = makePathRef(pathname, AccessFlags::fromAtFlags(flags), dirfd);
+
+    // Depend on content so the size field is accurate
+    auto ref = getCommand()->getRef(ref_id);
+    if (ref->isResolved()) {
+      ref->getArtifact()->beforeStat(_build, getCommand(), ref_id);
+    }
 
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
@@ -535,16 +549,16 @@ void Thread::_fstatat(at_fd dirfd,
 
       if (rc == 0) {
         // The stat succeeded
-        _build.traceExpectResult(getCommand(), ref, SUCCESS);
-        ASSERT(getCommand()->getRef(ref)->isResolved())
+        _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+        ASSERT(getCommand()->getRef(ref_id)->isResolved())
             << "Unable to locate artifact for stat-ed file (" << pathname << ")";
 
         // Record the dependence on the artifact's metadata
-        _build.traceMatchMetadata(getCommand(), ref);
+        _build.traceMatchMetadata(getCommand(), ref_id);
 
       } else if (rc == -EACCES || rc == -ENOENT || rc == -ENOTDIR) {
         // The stat failed with a filesystem-related error
-        _build.traceExpectResult(getCommand(), ref, -rc);
+        _build.traceExpectResult(getCommand(), ref_id, -rc);
       } else {
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
