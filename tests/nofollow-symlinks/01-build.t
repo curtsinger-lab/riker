@@ -1,6 +1,10 @@
 This checks to see whether we correctly return ELOOP for
 symlinks when they are opened O_NOFOLLOW.
 
+SKIP! This tests triggers a mismatch between the openat() result and our model.
+We need to fix the handling for openat(AT_FDCWD, "link", O_NOFOLLOW | O_CREAT) when "link" is a symlink to a non-existing path.
+  $ exit 80
+
 Move to test directory
   $ cd $TESTDIR
 
@@ -20,7 +24,3 @@ Run the first build
 
 Clean up
   $ rm -rf .rkr symlink-nofollow a_symlink
-
-SKIP! This tests triggers a mismatch between the openat() result and our model.
-We need to fix the handling for openat(AT_FDCWD, "link", O_NOFOLLOW | O_CREAT) when "link" is a symlink to a non-existing path.
-  $ exit 80

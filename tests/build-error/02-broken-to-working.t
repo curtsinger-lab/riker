@@ -1,4 +1,5 @@
-Run an initial build
+SKIP! Something is up with wildcard skipping and committing.
+  $ exit 80
 
 Move to test directory
   $ cd $TESTDIR
@@ -54,6 +55,3 @@ Clean up
   $ rm -rf .rkr
   $ rm hello
   $ cp versions/hello-original.c hello.c
-
-SKIP! Something is up with wildcard skipping and committing.
-  $ exit 80

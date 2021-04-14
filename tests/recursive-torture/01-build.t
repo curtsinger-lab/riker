@@ -2,6 +2,9 @@ This test is intended to check whether we correctly start ancestor commands
 on rebuild and whether we also uniformly treat the outputs of ancsestor
 commands as changed.
 
+SKIP! This test is sensitive to the /proc filesystem. Once we properly exclude these paths this test should work again.
+  $ exit 80
+
 Move to test directory
   $ cd $TESTDIR
 
@@ -26,6 +29,3 @@ Rebuild without changing anything, which should do nothing
 
 Clean up
   $ rm -rf .rkr rm output-*
-
-SKIP! This test is sensitive to the /proc filesystem. Once we properly exclude these paths this test should work again.
-  $ exit 80
