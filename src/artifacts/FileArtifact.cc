@@ -1,9 +1,8 @@
-#include "FileArtifact.hh"
-
 #include <filesystem>
 #include <memory>
 #include <optional>
 
+#include "FileArtifact.hh"
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"
@@ -210,14 +209,12 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  fingerprintAndCache(c);
   build.traceMatchContent(c, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  fingerprintAndCache(c);
   build.traceMatchContent(c, ref, getContent(c));
 }
 
@@ -248,16 +245,23 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
 
 // Get this artifact's content version
 shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c) noexcept {
+  // The version starts off as the committed content
   auto result = _committed_content;
+
+  // Does the artifact have uncommitted content?
   if (_uncommitted_content) {
+    // Yes, the version is uncommitted
     result = _uncommitted_content;
+
+  } else {
+    // No. Fingerprint the committed content if necessary
+    fingerprintAndCache(c);
   }
 
   ASSERT(result) << "Artifact " << this << " has no content version";
 
-  if (c) {
-    c->addContentInput(shared_from_this(), result, _content_writer.lock());
-  }
+  // If there is a reading command, record the input
+  if (c) c->addContentInput(shared_from_this(), result, _content_writer.lock());
 
   return result;
 }
