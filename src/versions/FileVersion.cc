@@ -1,5 +1,3 @@
-#include "FileVersion.hh"
-
 #include <cerrno>
 #include <filesystem>
 #include <iomanip>
@@ -14,6 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "FileVersion.hh"
 #include "blake3.h"
 #include "util/constants.hh"
 #include "util/log.hh"
@@ -397,6 +396,12 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
     return true;
   }
 
+  // Do we have hashes?
+  if (!options::mtime_only && _hash.has_value() && other->_hash.has_value()) {
+    // Yes. Comparing them gives us a definitive answer on the match
+    return _hash.value() == other->_hash.value();
+  }
+
   // Do the mtimes match?
   if (_mtime.has_value() && other->_mtime.has_value()) {
     auto m1 = _mtime.value();
@@ -405,12 +410,6 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
       // Yes. Return a match immediately
       return true;
     }
-  }
-
-  // If fingerprinting is enabled, check to see if we have a hash and the hashes match
-  if (!options::mtime_only && _hash.has_value() && other->_hash.has_value() &&
-      _hash.value() == other->_hash.value()) {
-    return true;
   }
 
   // If fingerprinting is disabled but the hashes match, print some info

@@ -1,6 +1,3 @@
-SKIP! Something is up with wildcard skipping and committing.
-  $ exit 80
-
 Move to test directory
   $ cd $TESTDIR
 

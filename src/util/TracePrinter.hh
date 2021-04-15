@@ -7,6 +7,8 @@
 #include "data/IRSink.hh"
 #include "runtime/Ref.hh"
 #include "util/wrappers.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 namespace fs = std::filesystem;
 

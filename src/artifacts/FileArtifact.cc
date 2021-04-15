@@ -153,8 +153,8 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     bool matches = _uncommitted_content->matches(_committed_content);
 
     // If there was no match, try again with a fingerprint
-    // TODO: Re-enable this once we check for a match between the committed and uncommitted state at
-    // commit time
+    // TODO: Re-enable this once we check for a match between the committed and uncommitted state
+    // at commit time
     /*if (!matches) {
       auto v = _committed_content;
       if (!v) v = make_shared<FileVersion>();
@@ -168,8 +168,8 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     // Were we able to find a match?
     if (matches) {
       // Yes. No work to do here.
-      // TODO: We could possible treat this artifact as already-committed, but we have to make sure
-      // its pending links are committed correctly too.
+      // TODO: We could possible treat this artifact as already-committed, but we have to make
+      // sure its pending links are committed correctly too.
 
     } else {
       // No. The creating command has to rerun.
@@ -208,8 +208,8 @@ void FileArtifact::beforeStat(Build& build, const shared_ptr<Command>& c, Ref::I
 
   // TODO: This should really be captured in the trace by including size as part of the metadata.
   // Committing metadata size changes is tricky because we would need to commit the content to
-  // change the size field. Or, we could modify the result from stat to report the uncommitted size
-  // during tracing. If we go that route, writes need to update both content and metadata.
+  // change the size field. Or, we could modify the result from stat to report the uncommitted
+  // size during tracing. If we go that route, writes need to update both content and metadata.
 }
 
 /// A traced command is about to (possibly) read from this artifact
@@ -236,6 +236,11 @@ void FileArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref::I
 
   // The command wrote to this file
   build.traceUpdateContent(c, ref, writing);
+
+  // For now, just cache all writes. This is excessive.
+  // TODO: Only need to cache writes that are read by other commands(already done) or writes that
+  // remain at the end of the writing command (that's new).
+  fingerprintAndCache(nullptr);
 }
 
 /// A traced command is about to truncate this artifact to length 0

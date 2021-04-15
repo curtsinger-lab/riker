@@ -27,11 +27,11 @@ Check the state of dir1/output
 
 Now change the link to refer to dir2
   $ rm link
+  $ rm -f dir1/output dir2/output
   $ ln -s dir2 link
 
 Run a rebuild
   $ $RKR --show
-  cat input1
   cat input3
 
 Check the stat of dir1/output and dir2/output
