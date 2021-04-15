@@ -201,6 +201,11 @@ void FileArtifact::applyFinalState(fs::path path) noexcept {
   Artifact::applyFinalState(path);
 }
 
+/// Fingerprint and cache the committed state of this artifact
+void FileArtifact::cacheAll(fs::path path) const noexcept {
+  fingerprintAndCache(nullptr);
+}
+
 /// A traced command is about to stat this artifact
 void FileArtifact::beforeStat(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // Create a dependency on the current content so its size is committed appropriately.
@@ -236,11 +241,6 @@ void FileArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref::I
 
   // The command wrote to this file
   build.traceUpdateContent(c, ref, writing);
-
-  // For now, just cache all writes. This is excessive.
-  // TODO: Only need to cache writes that are read by other commands(already done) or writes that
-  // remain at the end of the writing command (that's new).
-  fingerprintAndCache(nullptr);
 }
 
 /// A traced command is about to truncate this artifact to length 0
@@ -336,7 +336,7 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
   c->addContentOutput(shared_from_this(), writing);
 }
 
-void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) noexcept {
+void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) const noexcept {
   // If this artifact does not have a committed version, it can't be cached or fingerprinted
   if (!_committed_content) return;
 

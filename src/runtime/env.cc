@@ -1,5 +1,3 @@
-#include "env.hh"
-
 #include <cstddef>
 #include <filesystem>
 #include <list>
@@ -20,6 +18,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SpecialArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
+#include "env.hh"
 #include "runtime/Command.hh"
 #include "util/log.hh"
 #include "util/stats.hh"
@@ -62,6 +61,9 @@ namespace env {
     _stderr.reset();
     if (_root_dir) _root_dir->rollback();
   }
+
+  // Fingerprint and cache any versions on the filesystem
+  void cacheAll() noexcept { getRootDir()->cacheAll("/"); }
 
   // Commit all changes to the filesystem
   void commitAll() noexcept { getRootDir()->applyFinalState("/"); }

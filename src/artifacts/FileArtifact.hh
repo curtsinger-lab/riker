@@ -49,6 +49,9 @@ class FileArtifact : public Artifact {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
 
+  /// Fingerprint and cache the committed state of this artifact
+  virtual void cacheAll(fs::path path) const noexcept override;
+
   /// Revert this artifact to its committed state
   virtual void rollback() noexcept override;
 
@@ -114,7 +117,7 @@ class FileArtifact : public Artifact {
 
  protected:
   /// Cache and fingerprint this file's content if necessary
-  void fingerprintAndCache(const std::shared_ptr<Command>& reader) noexcept;
+  void fingerprintAndCache(const std::shared_ptr<Command>& reader) const noexcept;
 
  private:
   /// The command that most recently wrote this artifact's content, possibly null

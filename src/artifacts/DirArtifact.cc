@@ -1,5 +1,3 @@
-#include "DirArtifact.hh"
-
 #include <cerrno>
 #include <filesystem>
 #include <memory>
@@ -7,6 +5,7 @@
 #include <string>
 #include <tuple>
 
+#include "DirArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
@@ -246,6 +245,18 @@ void DirArtifact::applyFinalState(fs::path path) noexcept {
 
     // If there is a target, commit its final state
     if (artifact) artifact->applyFinalState(path / name);
+  }
+}
+
+// Fingerprint and cache the committed state of this artifact
+void DirArtifact::cacheAll(fs::path path) const noexcept {
+  // Recursively cache all known entries
+  for (const auto& [name, entry] : _entries) {
+    // Get the targeted artifact
+    auto artifact = entry->peekTarget();
+
+    // If there is a target, commit its final state
+    if (artifact) artifact->cacheAll(path / name);
   }
 }
 

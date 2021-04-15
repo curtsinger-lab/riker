@@ -23,6 +23,9 @@ namespace env {
   /// Reset the environment to match filesystem state
   void rollback() noexcept;
 
+  /// Fingerprint and cache any versions on the filesystem
+  void cacheAll() noexcept;
+
   /// Commit all changes in the environment to the filesystem
   void commitAll() noexcept;
 

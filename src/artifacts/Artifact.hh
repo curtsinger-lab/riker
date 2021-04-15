@@ -115,6 +115,9 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept;
 
+  /// Fingerprint and cache the committed state of this artifact
+  virtual void cacheAll(fs::path path) const noexcept {};
+
   /************ Path Manipulation ************/
 
   /// Model a link to this artifact, but do not commit it to the filesystem

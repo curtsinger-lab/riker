@@ -1,5 +1,3 @@
-#include "Build.hh"
-
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -11,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "Build.hh"
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
@@ -1219,6 +1218,9 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);
+
+  // Cache and fingerprint everything in the environment at the end of this command's run
+  env::cacheAll();
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
