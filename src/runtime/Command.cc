@@ -220,29 +220,17 @@ bool Command::isEmptyCommand() const noexcept {
   return _args.size() == 0;
 }
 
-// Get the command run data for the current run
-const unique_ptr<Command::Run>& Command::currentRun() noexcept {
-  if (!_run) _run = make_unique<Command::Run>();
-  return _run;
-}
-
-// Get the command run data for the previous run
-const unique_ptr<Command::Run>& Command::previousRun() noexcept {
-  if (!_last_run) _last_run = make_unique<Command::Run>();
-  return _last_run;
-}
-
 // Finish the current run and set up for another one
 void Command::finishRun() noexcept {
   // The current run becomes the previous run
-  _last_run = std::move(_run);
-  _run = make_unique<Command::Run>();
+  _previous_run = std::move(_current_run);
+  _current_run = Command::Run();
 
   // At the end of a build phase, all commands return to the Emulate marking
   _marking = RebuildMarking::Emulate;
 
   // Recursively finish the run for all children
-  for (const auto& child : previousRun()->_children) {
+  for (const auto& child : _previous_run._children) {
     child->finishRun();
   }
 }
@@ -251,14 +239,14 @@ void Command::finishRun() noexcept {
 void Command::planBuild() noexcept {
   // See rebuild planning rules in docs/new-rebuild.md
   // Rules 1 & 2: If this command observe a change on its previous run, mark it for rerun
-  if (previousRun()->_changed.size() == 2) {
+  if (_previous_run._changed.size() == 2) {
     if (mark(RebuildMarking::MustRun)) {
       LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
     }
   }
 
   // Recursively call planBuild on all children
-  for (const auto& child : _last_run->_children) {
+  for (const auto& child : _previous_run._children) {
     child->planBuild();
   }
 }
@@ -270,10 +258,8 @@ bool Command::allFinished() const noexcept {
     return false;
   }
 
-  if (_last_run) {
-    for (const auto& child : _last_run->_children) {
-      if (!child->allFinished()) return false;
-    }
+  for (const auto& child : _previous_run._children) {
+    if (!child->allFinished()) return false;
   }
 
   return true;
@@ -343,7 +329,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MustRun;
 
     // Rule 3: For each command D that produces uncached input V to C: mark D as MustRun
-    for (const auto& [weak_producer, info] : previousRun()->_needs_output_from) {
+    for (const auto& [weak_producer, info] : _previous_run._needs_output_from) {
       auto producer = weak_producer.lock();
       auto [a, v] = info;
       if (producer->mark(RebuildMarking::MustRun)) {
@@ -353,7 +339,7 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule 4: For each command D that produces input V to C: if D is marked MayRun, mark D as
     // MustRun
-    /*for (const auto& [weak_producer, info] : previousRun()->_uses_output_from) {
+    /*for (const auto& [weak_producer, info] : _previous_run._uses_output_from) {
       auto producer = weak_producer.lock();
       auto [a, v] = info;
       if (producer->_marking == RebuildMarking::MayRun) {
@@ -369,7 +355,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     // not, mark D as MustRun.
 
     // Mark the MustRun commands first to avoid marking them a second time
-    for (const auto& [weak_user, info] : previousRun()->_output_needed_by) {
+    for (const auto& [weak_user, info] : _previous_run._output_needed_by) {
       auto user = weak_user.lock();
       auto [a, v] = info;
       if (user->mark(RebuildMarking::MustRun)) {
@@ -379,7 +365,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     }
 
     // Now do the MayRun markings
-    for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
+    for (const auto& [weak_user, info] : _previous_run._output_used_by) {
       auto user = weak_user.lock();
       auto [a, v] = info;
       if (user->mark(RebuildMarking::MayRun)) {
@@ -401,7 +387,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     _marking = RebuildMarking::MayRun;
 
     // Rule 6: For each command D that produces uncached input V to C: mark D as MayRun.
-    for (const auto& [weak_producer, info] : previousRun()->_needs_output_from) {
+    for (const auto& [weak_producer, info] : _previous_run._needs_output_from) {
       auto producer = weak_producer.lock();
       auto [a, v] = info;
       if (producer->mark(RebuildMarking::MayRun)) {
@@ -410,7 +396,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     }
 
     // Rule 7: For each command D that consumes output V from C: mark D as MayRun
-    for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
+    for (const auto& [weak_user, info] : _previous_run._output_used_by) {
       auto user = weak_user.lock();
       auto [a, v] = info;
       if (user->mark(RebuildMarking::MayRun)) {
@@ -420,7 +406,7 @@ bool Command::mark(RebuildMarking m) noexcept {
 
     // Rule 8: For each command D that consumes output V from C: if D is marked MustRun, mark C as
     // MustRun
-    /*for (const auto& [weak_user, info] : previousRun()->_output_used_by) {
+    /*for (const auto& [weak_user, info] : _previous_run._output_used_by) {
       auto user = weak_user.lock();
       auto [a, v] = info;
       if (user->_marking == RebuildMarking::MustRun) {
@@ -442,8 +428,8 @@ bool Command::mark(RebuildMarking m) noexcept {
 
 // Prepare this command to execute by creating dependencies and committing state
 void Command::createLaunchDependencies() noexcept {
-  for (Ref::ID id = 0; id < currentRun()->_refs.size(); id++) {
-    const auto& ref = currentRun()->_refs[id];
+  for (Ref::ID id = 0; id < _current_run._refs.size(); id++) {
+    const auto& ref = _current_run._refs[id];
 
     // Is the ref assigned? If not, skip ahead
     if (!ref) continue;
@@ -464,40 +450,40 @@ void Command::createLaunchDependencies() noexcept {
 
 // Record that this command launched a child command
 void Command::addChild(shared_ptr<Command> child) noexcept {
-  currentRun()->_children.push_back(child);
-  child->currentRun()->_parent = shared_from_this();
+  _current_run._children.push_back(child);
+  child->_current_run._parent = shared_from_this();
 }
 
 // Check if the latest run of this command has been launched yet
 bool Command::isLaunched() noexcept {
   // The empty command is launched by default
-  return currentRun()->_launched;
+  return _current_run._launched;
 }
 
 // Mark the latest run of this command as launched
 void Command::setLaunched(shared_ptr<Process> p) noexcept {
-  currentRun()->_launched = true;
-  currentRun()->_process = p;
+  _current_run._launched = true;
+  _current_run._process = p;
 }
 
 const shared_ptr<Process>& Command::getProcess() noexcept {
-  return currentRun()->_process;
+  return _current_run._process;
 }
 
 // Get this command's exit status for the current run
 int Command::getExitStatus() noexcept {
-  return currentRun()->_exit_status;
+  return _current_run._exit_status;
 }
 
 // Set this command's exit status, and record that it has exited
 void Command::setExitStatus(int status) noexcept {
-  currentRun()->_exit_status = status;
+  _current_run._exit_status = status;
 }
 
 // Look for a matching path substitution and return the path this command should use
 string Command::substitutePath(string p) noexcept {
-  auto iter = currentRun()->_substitutions.find(p);
-  if (iter == currentRun()->_substitutions.end()) return p;
+  auto iter = _current_run._substitutions.find(p);
+  if (iter == _current_run._substitutions.end()) return p;
 
   LOG(exec) << this << ": Replacing path " << p << " with " << iter->second;
 
@@ -506,10 +492,10 @@ string Command::substitutePath(string p) noexcept {
 
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Ref::ID id) noexcept {
-  ASSERT(id >= 0 && id < currentRun()->_refs.size())
+  ASSERT(id >= 0 && id < _current_run._refs.size())
       << "Invalid reference ID " << id << " in " << this;
-  ASSERT(currentRun()->_refs[id]) << "Access to null reference ID " << id << " in " << this;
-  return currentRun()->_refs[id];
+  ASSERT(_current_run._refs[id]) << "Access to null reference ID " << id << " in " << this;
+  return _current_run._refs[id];
 }
 
 // Store a reference at a known index of this command's local reference table
@@ -517,21 +503,21 @@ void Command::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
 
   // Are we adding this ref onto the end of the refs list? If so, grow as needed
-  if (id >= currentRun()->_refs.size()) currentRun()->_refs.resize(id + 1);
+  if (id >= _current_run._refs.size()) _current_run._refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  // ASSERT(!currentRun()->_refs[id]) << "Attempted to overwrite reference ID " << id << " in " <<
+  // ASSERT(!_current_run._refs[id]) << "Attempted to overwrite reference ID " << id << " in " <<
   // this
 
   // Save the ref
-  currentRun()->_refs[id] = ref;
+  _current_run._refs[id] = ref;
 }
 
 // Store a reference at the next available index of this command's local reference table
 Ref::ID Command::setRef(shared_ptr<Ref> ref) noexcept {
-  Ref::ID id = currentRun()->_refs.size();
+  Ref::ID id = _current_run._refs.size();
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
-  currentRun()->_refs.push_back(ref);
+  _current_run._refs.push_back(ref);
 
   return id;
 }
@@ -539,15 +525,15 @@ Ref::ID Command::setRef(shared_ptr<Ref> ref) noexcept {
 // Increment this command's use counter for a Ref.
 // Return true if this is the first use by this command.
 bool Command::usingRef(Ref::ID id) noexcept {
-  ASSERT(id >= 0 && id < currentRun()->_refs.size()) << "Invalid ref ID " << id << " in " << this;
+  ASSERT(id >= 0 && id < _current_run._refs.size()) << "Invalid ref ID " << id << " in " << this;
 
   // Expand the use count vector if necessary
-  if (currentRun()->_refs_use_count.size() <= id) currentRun()->_refs_use_count.resize(id + 1);
+  if (_current_run._refs_use_count.size() <= id) _current_run._refs_use_count.resize(id + 1);
 
   // Increment the ref count. Is this the first use of the ref?
-  if (currentRun()->_refs_use_count[id]++ == 0) {
+  if (_current_run._refs_use_count[id]++ == 0) {
     // This was the first use. Increment the user count in the ref, and return true
-    currentRun()->_refs[id]->addUser();
+    _current_run._refs[id]->addUser();
     return true;
   }
 
@@ -557,14 +543,14 @@ bool Command::usingRef(Ref::ID id) noexcept {
 // Decrement this command's use counter for a Ref.
 // Return true if that was the last use by this command.
 bool Command::doneWithRef(Ref::ID id) noexcept {
-  ASSERT(id >= 0 && id < currentRun()->_refs.size()) << "Invalid ref ID " << id << " in " << this;
-  ASSERT(id < currentRun()->_refs_use_count.size() && currentRun()->_refs_use_count[id] > 0)
+  ASSERT(id >= 0 && id < _current_run._refs.size()) << "Invalid ref ID " << id << " in " << this;
+  ASSERT(id < _current_run._refs_use_count.size() && _current_run._refs_use_count[id] > 0)
       << "Attempted to end an unknown use of ref r" << id << " in " << this;
 
   // Decrement the ref count. Was this the last use of the ref?
-  if (--currentRun()->_refs_use_count[id] == 0) {
+  if (--_current_run._refs_use_count[id] == 0) {
     // This was the last use. Decrement the user count in the ref and return true
-    currentRun()->_refs[id]->removeUser();
+    _current_run._refs[id]->removeUser();
     return true;
   }
 
@@ -573,7 +559,7 @@ bool Command::doneWithRef(Ref::ID id) noexcept {
 
 // This command observed a change in a given scenario
 void Command::observeChange(Scenario s) noexcept {
-  currentRun()->_changed.insert(s);
+  _current_run._changed.insert(s);
 }
 
 // An input to this command did not match the expected version
@@ -581,7 +567,7 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
                            shared_ptr<MetadataVersion> observed,
                            shared_ptr<MetadataVersion> expected,
                            Scenario scenario) noexcept {
-  currentRun()->_changed.insert(scenario);
+  _current_run._changed.insert(scenario);
 }
 
 // An input to this command did not match the expected version
@@ -589,14 +575,14 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
                            shared_ptr<ContentVersion> observed,
                            shared_ptr<ContentVersion> expected,
                            Scenario scenario) noexcept {
-  currentRun()->_changed.insert(scenario);
+  _current_run._changed.insert(scenario);
 }
 
 // Add an input to this command
 void Command::addMetadataInput(shared_ptr<Artifact> a,
                                shared_ptr<MetadataVersion> v,
                                shared_ptr<Command> writer) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
+  if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
 
   // If this command wrote the version there's no need to do any additional tracking
   if (writer.get() == this) return;
@@ -607,10 +593,10 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
+    _current_run._uses_output_from.emplace(writer, std::tuple{a, v});
 
     // Otherwise, add this command run to the creator's set of output users
-    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
+    writer->_current_run._output_used_by.emplace(shared_from_this(), std::tuple{a, v});
   }
 }
 
@@ -618,7 +604,7 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
 void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
                               shared_ptr<Command> writer) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
+  if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
 
   // If this command wrote the version there's no need to do any additional tracking
   if (writer.get() == this) return;
@@ -632,18 +618,18 @@ void Command::addContentInput(shared_ptr<Artifact> a,
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
-    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
+    _current_run._uses_output_from.emplace(writer, std::tuple{a, v});
+    writer->_current_run._output_used_by.emplace(shared_from_this(), std::tuple{a, v});
 
     // Is the version committable?
     if (!v->canCommit()) {
       // No. Is the input uncommitted? If so, the writer must produce it for this command
       if (a->hasUncommittedContent()) {
-        currentRun()->_needs_output_from.emplace(writer, std::tuple{a, v});
+        _current_run._needs_output_from.emplace(writer, std::tuple{a, v});
       }
 
       // If the writer has to run, the reader must also run.
-      writer->currentRun()->_output_needed_by.emplace(shared_from_this(), std::tuple{a, v});
+      writer->_current_run._output_needed_by.emplace(shared_from_this(), std::tuple{a, v});
     }
   }
 }
@@ -654,7 +640,7 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
                                 std::shared_ptr<Command> writer) noexcept {
   if (!v) return;
 
-  if (options::track_inputs_outputs) currentRun()->_inputs.emplace_back(a, v, writer);
+  if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
 
   // If this command is running, make sure the directory version is committed
   if (mustRun()) {
@@ -676,24 +662,24 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
   // If the version was created by another command, track the use of that command's output
   if (writer) {
     // This command uses output from writer
-    currentRun()->_uses_output_from.emplace(writer, std::tuple{a, v});
-    writer->currentRun()->_output_used_by.emplace(shared_from_this(), std::tuple{a, v});
+    _current_run._uses_output_from.emplace(writer, std::tuple{a, v});
+    writer->_current_run._output_used_by.emplace(shared_from_this(), std::tuple{a, v});
   }
 }
 
 // Add an output to this command
 void Command::addMetadataOutput(shared_ptr<Artifact> a, shared_ptr<MetadataVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) _current_run._outputs.emplace_back(a, v);
 }
 
 // Add an output to this command
 void Command::addContentOutput(shared_ptr<Artifact> a, shared_ptr<ContentVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) _current_run._outputs.emplace_back(a, v);
 }
 
 // Add an output to this command
 void Command::addDirectoryOutput(shared_ptr<Artifact> a, shared_ptr<DirVersion> v) noexcept {
-  if (options::track_inputs_outputs) currentRun()->_outputs.emplace_back(a, v);
+  if (options::track_inputs_outputs) _current_run._outputs.emplace_back(a, v);
 }
 
 // An output from this command does not match the on-disk state (checked at the end of the build)
@@ -706,15 +692,15 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
   LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})", this,
        artifact, expected, ondisk);
 
-  currentRun()->_changed.insert(Scenario::Build);
-  currentRun()->_changed.insert(Scenario::PostBuild);
+  _current_run._changed.insert(Scenario::Build);
+  _current_run._changed.insert(Scenario::PostBuild);
 }
 
 /********************** Previous Run Data ********************/
 
 /// Get this command's list of children
 const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {
-  return previousRun()->_children;
+  return _previous_run._children;
 }
 
 // Look for a command that matches one of this command's children from the last run
@@ -724,9 +710,9 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds) noexcept {
   // Loop over this command's children from the last run
-  for (auto& child : previousRun()->_children) {
+  for (auto& child : _previous_run._children) {
     // If the child has already been matched, we can't match it again
-    if (child->previousRun()->_matched) continue;
+    if (child->_previous_run._matched) continue;
 
     // TODO: Do we need to match against the exe, cwd, root, and fd references?
     // Maybe not. If these references are used, they correspond to predicates in the matched
@@ -769,10 +755,10 @@ shared_ptr<Command> Command::findChild(vector<string> args,
       }
 
       // Save the path substitution map
-      child->currentRun()->_substitutions = std::move(substitutions);
+      child->_current_run._substitutions = std::move(substitutions);
 
       // The child is matched
-      child->previousRun()->_matched = true;
+      child->_previous_run._matched = true;
 
       // Return the matching child
       return child;
@@ -785,10 +771,10 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 
 /// Get the content inputs to this command
 const Command::InputList& Command::getInputs() noexcept {
-  return previousRun()->_inputs;
+  return _previous_run._inputs;
 }
 
 /// Get the content outputs from this command
 const Command::OutputList& Command::getOutputs() noexcept {
-  return previousRun()->_outputs;
+  return _previous_run._outputs;
 }

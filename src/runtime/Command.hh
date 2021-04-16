@@ -343,12 +343,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
 
-  /// Get the transient data for this command's current run
-  const std::unique_ptr<Run>& currentRun() noexcept;
-
-  /// Get the transient data for this command's previous run
-  const std::unique_ptr<Run>& previousRun() noexcept;
-
  private:
   /// The arguments passed to this command on startup
   std::vector<std::string> _args;
@@ -360,10 +354,10 @@ class Command : public std::enable_shared_from_this<Command> {
   bool _executed = false;
 
   /// Transient data for the current run
-  std::unique_ptr<Run> _run;
+  Run _current_run;
 
   /// Transient data for the last run
-  std::unique_ptr<Run> _last_run;
+  Run _previous_run;
 
   /// The marking state for this command that determines how the command is run
   RebuildMarking _marking = RebuildMarking::Emulate;
