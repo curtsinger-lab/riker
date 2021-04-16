@@ -64,6 +64,9 @@ void Build::runDeferredSteps() noexcept {
 void Build::start(const shared_ptr<Command>& c) noexcept {
   _root_command = c;
 
+  // The root command is launched
+  _root_command->setLaunched();
+
   // Pass the root command on to the output
   _output.start(_root_command);
 }
