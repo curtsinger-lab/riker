@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "commands.hh"
 #include "data/InputTrace.hh"
+#include "ui/commands.hh"
 #include "util/TracePrinter.hh"
 #include "util/constants.hh"
 

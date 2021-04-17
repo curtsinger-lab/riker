@@ -8,9 +8,9 @@
 
 #include <unistd.h>
 
-#include "commands.hh"
 #include "data/InputTrace.hh"
 #include "runtime/Build.hh"
+#include "ui/commands.hh"
 #include "util/Graph.hh"
 #include "util/TracePrinter.hh"
 #include "util/constants.hh"

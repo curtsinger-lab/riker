@@ -5,10 +5,10 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
-#include "commands.hh"
 #include "data/InputTrace.hh"
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
+#include "ui/commands.hh"
 #include "util/Graph.hh"
 #include "util/TracePrinter.hh"
 #include "util/constants.hh"
