@@ -36,7 +36,7 @@ class Tracer {
 
  private:
   /// Get the next available traced event
-  std::optional<std::tuple<pid_t, int>> getEvent(bool block = true) noexcept;
+  std::optional<std::tuple<pid_t, int>> getEvent() noexcept;
 
   /// Launch a command with tracing enabled
   std::shared_ptr<Process> launchTraced(const std::shared_ptr<Command>& cmd) noexcept;

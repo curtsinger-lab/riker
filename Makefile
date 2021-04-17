@@ -33,7 +33,7 @@ BLAKE_SRCS := $(BLAKE3)/blake3.c \
 						 	$(BLAKE3)/blake3_avx512.c
 BLAKE_OBJS := $(patsubst $(BLAKE3)/%.c, .obj/blake3/%.o, $(BLAKE_SRCS))
 
-all: rkr rkr-launch
+all: rkr rkr-launch rkr-inject.so
 
 clean:
 	rm -rf rkr rkr-launch .obj .rkr
@@ -51,6 +51,9 @@ $(OBJS): .obj/%.o: src/%.cc Makefile
 
 rkr-launch: launch/launch.c Makefile
 	$(CC) $(CFLAGS) -o $@ $<
+
+rkr-inject.so: inject/inject.c Makefile
+	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $< -ldl
 
 $(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
 	@mkdir -p `dirname $@`
