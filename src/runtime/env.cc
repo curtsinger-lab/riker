@@ -1,3 +1,5 @@
+#include "env.hh"
+
 #include <cstddef>
 #include <filesystem>
 #include <list>
@@ -18,7 +20,6 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SpecialArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
-#include "env.hh"
 #include "runtime/Command.hh"
 #include "util/log.hh"
 #include "util/stats.hh"

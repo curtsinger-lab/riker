@@ -1,8 +1,9 @@
+#include "FileArtifact.hh"
+
 #include <filesystem>
 #include <memory>
 #include <optional>
 
-#include "FileArtifact.hh"
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Build.hh"

@@ -1,3 +1,5 @@
+#include "Tracer.hh"
+
 #include <cerrno>
 #include <csignal>
 #include <cstddef>
@@ -24,7 +26,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "Tracer.hh"
 #include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"

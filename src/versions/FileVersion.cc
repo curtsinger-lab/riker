@@ -1,3 +1,5 @@
+#include "FileVersion.hh"
+
 #include <cerrno>
 #include <filesystem>
 #include <iomanip>
@@ -12,7 +14,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "FileVersion.hh"
 #include "blake3.h"
 #include "util/constants.hh"
 #include "util/log.hh"

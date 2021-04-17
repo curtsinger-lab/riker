@@ -1,3 +1,5 @@
+#include "Command.hh"
+
 #include <filesystem>
 #include <list>
 #include <map>
@@ -6,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "Command.hh"
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "tracing/Process.hh"

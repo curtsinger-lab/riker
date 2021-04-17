@@ -1,3 +1,5 @@
+#include "Artifact.hh"
+
 #include <cerrno>
 #include <map>
 #include <memory>
@@ -7,7 +9,6 @@
 
 #include <fcntl.h>
 
-#include "Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"

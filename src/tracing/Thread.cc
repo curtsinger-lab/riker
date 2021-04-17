@@ -1,3 +1,5 @@
+#include "Thread.hh"
+
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
@@ -16,7 +18,6 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 
-#include "Thread.hh"
 #include "artifacts/Artifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/IRSink.hh"

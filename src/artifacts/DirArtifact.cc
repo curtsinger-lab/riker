@@ -1,3 +1,5 @@
+#include "DirArtifact.hh"
+
 #include <cerrno>
 #include <filesystem>
 #include <memory>
@@ -5,7 +7,6 @@
 #include <string>
 #include <tuple>
 
-#include "DirArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"

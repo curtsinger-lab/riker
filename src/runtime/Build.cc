@@ -1,3 +1,5 @@
+#include "Build.hh"
+
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -9,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "Build.hh"
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
