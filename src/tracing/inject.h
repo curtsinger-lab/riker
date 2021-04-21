@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <sys/user.h>
 
 // The page that must contain code to issue untraced system calls
 #define SAFE_SYSCALL_PAGE ((void*)0x77770000)
@@ -19,7 +20,22 @@
 #define CHANNEL_STATE_EXIT 4           // The tracee is waiting after exit from the library call
 #define CHANNEL_STATE_EXIT_PROCEED 5   // The tracee can resume running after the library call
 
+// Register meanings on syscall entry
+#define INSTRUCTION_POINTER rip
+#define SYSCALL_NUMBER orig_rax
+#define SYSCALL_RETURN rax
+#define SYSCALL_ARG1 rdi
+#define SYSCALL_ARG2 rsi
+#define SYSCALL_ARG3 rdx
+#define SYSCALL_ARG4 r10
+#define SYSCALL_ARG5 r8
+#define SYSCALL_ARG6 r9
+
 typedef struct tracing_channel {
   uint8_t state;
-  long syscall_number;
+  int tid;
+  struct user_regs_struct regs;
+  long alternate_syscall;
+  long return_value;
+  uintptr_t traced_syscall_ip;
 } tracing_channel_t;

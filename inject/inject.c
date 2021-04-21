@@ -5,6 +5,7 @@
 #include "tracing/inject.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -89,7 +90,7 @@ __attribute__((constructor)) void init() {
   initialized = true;
 }
 
-tracing_channel_t* acquire_channel() {
+tracing_channel_t* channel_acquire() {
   // Spin on the tracing channel state until we can acquire it
   uint8_t expected = CHANNEL_STATE_AVAILABLE;
   while (!__atomic_compare_exchange_n(&channel->state, &expected, CHANNEL_STATE_ACQUIRED, false,
@@ -99,9 +100,36 @@ tracing_channel_t* acquire_channel() {
   return channel;
 }
 
-void enter_channel(tracing_channel_t* c, long syscall_nr) {
-  // Set the syscall number and mark the channel for entry
-  __atomic_store_n(&c->syscall_number, syscall_nr, __ATOMIC_RELEASE);
+void channel_enter(tracing_channel_t* c,
+                   long syscall_nr,
+                   uint64_t arg1,
+                   uint64_t arg2,
+                   uint64_t arg3,
+                   uint64_t arg4,
+                   uint64_t arg5,
+                   uint64_t arg6,
+                   long alternate_syscall_nr) {
+  // Fill in the "registers" to be used for tracing
+  memset(&c->regs, 0, sizeof(c->regs));
+  c->regs.SYSCALL_NUMBER = syscall_nr;
+  c->regs.SYSCALL_ARG1 = arg1;
+  c->regs.SYSCALL_ARG2 = arg2;
+  c->regs.SYSCALL_ARG3 = arg3;
+  c->regs.SYSCALL_ARG4 = arg4;
+  c->regs.SYSCALL_ARG5 = arg5;
+  c->regs.SYSCALL_ARG6 = arg6;
+
+  // Allow an alternate (usually more-general) system call to be traced and skipped while handling
+  // this system call via library tracing
+  c->alternate_syscall = alternate_syscall_nr;
+
+  // Save the traced thread's ID
+  c->tid = safe_syscall(__NR_gettid);
+
+  // Clear data to be written by the tracer
+  c->traced_syscall_ip = 0;
+
+  // Mark the channel for entry
   __atomic_store_n(&c->state, CHANNEL_STATE_ENTRY, __ATOMIC_RELEASE);
 
   // safe_syscall(__NR_write, 2, "entering...\n", 12);
@@ -111,7 +139,28 @@ void enter_channel(tracing_channel_t* c, long syscall_nr) {
   }
 }
 
-void release_channel(tracing_channel_t* c) {
+void channel_exit(tracing_channel_t* c, long rc) {
+  c->return_value = rc;
+
+  // Mark the channel as an exiting library call
+  __atomic_store_n(&c->state, CHANNEL_STATE_EXIT, __ATOMIC_RELEASE);
+
+  // Spin until the tracer allows the tracee to proceed
+  while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_EXIT_PROCEED) {
+  }
+
+  // Was a traced syscall IP set?
+  if (c->traced_syscall_ip != 0) {
+    uint8_t* p = (void*)c->traced_syscall_ip;
+
+    /*char buffer[256];
+    int len = snprintf(buffer, 256, "Traced syscall at %p (0x%x 0x%x)\n",
+                       (void*)c->traced_syscall_ip, p[-2], p[-1]);
+    safe_syscall(__NR_write, 2, buffer, len);*/
+  }
+}
+
+void channel_release(tracing_channel_t* c) {
   // Reset the channel to available
   __atomic_store_n(&c->state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
 }
@@ -122,16 +171,25 @@ int open(const char* pathname, int flags, mode_t mode) {
     // Yes. Wrap the library call
 
     // Find an available channel
-    tracing_channel_t* c = acquire_channel();
+    tracing_channel_t* c = channel_acquire();
 
-    // Enter the channel
-    enter_channel(c, __NR_open);
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_open, (uint64_t)pathname, (uint64_t)flags, (uint64_t)mode, 0, 0, 0,
+                  __NR_openat);
 
     // safe_syscall(__NR_write, 2, "open\n", 5);
     int rc = real_open(pathname, flags, mode);
     // safe_syscall(__NR_write, 1, "done\n", 5);
 
-    release_channel(c);
+    // Inform the tracer that this command is exiting a library call
+    if (rc < 0) {
+      channel_exit(c, -errno);
+    } else {
+      channel_exit(c, rc);
+    }
+
+    // Release the channel for use by another library call
+    channel_release(c);
 
     return rc;
 

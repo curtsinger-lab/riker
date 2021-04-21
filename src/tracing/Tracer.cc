@@ -87,10 +87,21 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   while (true) {
     // Check the shared memory channel
     if (channel != nullptr) {
-      // Is the channel in use?
-      if (__atomic_load_n(&channel->state, __ATOMIC_ACQUIRE) == CHANNEL_STATE_ENTRY) {
-        // Allow the library call to proceed immediately
-        __atomic_store_n(&channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
+      // Get the state of the channel
+      uint8_t state = __atomic_load_n(&channel->state, __ATOMIC_ACQUIRE);
+
+      // Is the channel waiting on entry or exit for a library call?
+      if (state == CHANNEL_STATE_ENTRY) {
+        auto iter = _threads.find(channel->tid);
+        if (iter != _threads.end()) {
+          iter->second.usingChannel(channel);
+        }
+
+      } else if (state == CHANNEL_STATE_EXIT) {
+        auto iter = _threads.find(channel->tid);
+        if (iter != _threads.end()) {
+          iter->second.doneWithChannel(channel);
+        }
       }
     }
 
@@ -310,11 +321,24 @@ void Tracer::handleSyscall(Thread& t) noexcept {
 
   const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
 
-  // WARN << entry.getName() << " call at " << (void*)regs.rip << " in " << t.getCommand();
+  // WARN << entry.getName() << " call at " << (void*)regs.INSTRUCTION_POINTER << " in " <<
+  // t.getCommand();
 
   if (entry.isTraced()) {
     LOG(trace) << t << ": stopped on syscall " << entry.getName();
-    entry.runHandler(t, regs);
+
+    // Can we skip handling this traced syscall? This happens if we're already handling an
+    // equivalent syscall through the shared memory channel
+    if (t.canSkipTrace(regs)) {
+      // WARN << "Could skip tracing syscall " << entry.getName() << " at "
+      //     << (void*)regs.INSTRUCTION_POINTER;
+      // t.resume();
+      int rc = ptrace(PTRACE_CONT, t.getID(), nullptr, 0);
+      FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+
+    } else {
+      entry.runHandler(t, regs);
+    }
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
   }
