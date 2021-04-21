@@ -49,7 +49,7 @@ __attribute__((constructor)) void init() {
   void* p = mmap(SAFE_SYSCALL_PAGE, 0x1000, PROT_READ | PROT_WRITE,
                  MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
   if (p == MAP_FAILED) {
-    fprintf(stderr, "WARNING: injected library failed to map safe syscal page.\n");
+    fprintf(stderr, "WARNING: injected library failed to map safe syscall page.\n");
     return;
   }
 
