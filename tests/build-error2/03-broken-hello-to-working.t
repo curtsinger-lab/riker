@@ -32,7 +32,7 @@ Stage in a working version of the hello.c source file
 
 Run a rebuild. This will rerun `cc1 hello.c`. That will change its exit status, forcing a rerun of `gcc`, which launches a new `as` command, followed by `collect2` and `ld`. The `gcc` command will succeed, which in turn causes a rerun of Rikerfile
 
-This test currently fails for the same reason as test 01, the matching issue where both `as` commands in this run could match (they differ only in a /tmp/___.o file path).
+This test currently fails because the `as` launched by `gcc` after `cc1` (which used to fail) matches against the `as` command that follows the second `cc1`. This is a bad match that should just cause an extra command run, but something more serious is going wrong at the moment. It seems possible that the second `as` is never run (traced or emulated) because of the matching.
   $ $RKR --show
   cc1 * (glob)
   gcc -o hello hello.c world.c
