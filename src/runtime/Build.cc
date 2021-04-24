@@ -1134,6 +1134,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   // Did we find a matching command?
   if (child) {
     // Nothing to do. We'll just use the child command that matched
+    LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {
     // Create a child and mark it as running
