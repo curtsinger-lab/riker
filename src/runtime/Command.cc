@@ -710,12 +710,13 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds) noexcept {
-  size_t pos = 0;
+  shared_ptr<Command> best_match = nullptr;
+  map<string, string> best_match_substitutions;
+
   // Loop over this command's children from the last run
   for (auto& child : _previous_run._children) {
-    pos++;
-    // If we've already matched a child past this position, skip ahead
-    if (pos <= _previous_run._matched_children) {
+    // If the child has already been matched, we can't match it again
+    if (child->_previous_run._matched) {
       continue;
     }
 
@@ -749,30 +750,40 @@ shared_ptr<Command> Command::findChild(vector<string> args,
       }
     }
 
-    // Did we end up with a match?
+    // Did the current child match?
     if (matches) {
-      child->_short_names.clear();
-      for (size_t i = 0; i < child->_args.size(); i++) {
-        auto iter = substitutions.find(child->_args[i]);
-        if (iter != substitutions.end()) {
-          child->_args[i] = iter->second;
-        }
+      LOG(exec) << "Candidate match " << child;
+
+      // Yes. Is it better than the last match? We prefer to match commands marked Emulate over
+      // MayRun, and MayRun over MustRun. Given equal markings, we prefer earlier commands
+      if (!best_match || child->getMarking() < best_match->getMarking()) {
+        best_match = child;
+        best_match_substitutions = std::move(substitutions);
+        LOG(exec) << "  Better than previous best match.";
       }
-
-      // Save the path substitution map
-      child->_current_run._substitutions = std::move(substitutions);
-
-      // The child is matched
-      // child->_previous_run._matched = true;
-      _previous_run._matched_children = pos;
-
-      // Return the matching child
-      return child;
     }
   }
 
-  // No match found
-  return nullptr;
+  // Did we end up with a match?
+  if (best_match) {
+    // Yes. Update the command and save the required temp file substitutions
+    best_match->_short_names.clear();
+    for (size_t i = 0; i < best_match->_args.size(); i++) {
+      auto iter = best_match_substitutions.find(best_match->_args[i]);
+      if (iter != best_match_substitutions.end()) {
+        best_match->_args[i] = iter->second;
+      }
+    }
+
+    // Save the path substitution map
+    best_match->_current_run._substitutions = std::move(best_match_substitutions);
+
+    // The child is matched
+    best_match->_previous_run._matched = true;
+  }
+
+  // Return the best match, if any
+  return best_match;
 }
 
 /// Get the content inputs to this command
