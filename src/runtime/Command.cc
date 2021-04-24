@@ -710,10 +710,14 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds) noexcept {
+  size_t pos = 0;
   // Loop over this command's children from the last run
   for (auto& child : _previous_run._children) {
-    // If the child has already been matched, we can't match it again
-    if (child->_previous_run._matched) continue;
+    pos++;
+    // If we've already matched a child past this position, skip ahead
+    if (pos <= _previous_run._matched_children) {
+      continue;
+    }
 
     // TODO: Do we need to match against the exe, cwd, root, and fd references?
     // Maybe not. If these references are used, they correspond to predicates in the matched
@@ -759,7 +763,8 @@ shared_ptr<Command> Command::findChild(vector<string> args,
       child->_current_run._substitutions = std::move(substitutions);
 
       // The child is matched
-      child->_previous_run._matched = true;
+      // child->_previous_run._matched = true;
+      _previous_run._matched_children = pos;
 
       // Return the matching child
       return child;

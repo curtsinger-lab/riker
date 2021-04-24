@@ -31,7 +31,12 @@ Stage in a broken version of the hello.c source file
   $ cp versions/hello-broken.c hello.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
-This test currently fails because of a command matching issue. The gcc command does not run `as` to process the output from the failed `cc1` command, but when we trace the second `as` launch (the one that processes output from `cc1 world.c`) we match it to that command. To fix this we either need to preserve order when matching (the second `cc1` command has matched, so only commands after that point can be matched) or do some other sort of speculative matching scheme were we maintain a set of possible matches and winnow that set as predicates fail in emulation.
+
+This test used to fail because of a command matching issue. The gcc command does not run `as` to process the output from the failed `cc1` command, but when we traced the second `as` launch (the one that processes output from `cc1 world.c`) we used to match it to that command.
+
+The test has been fixed by preserving matching order. Once we've matched the second `cc1` command from `gcc`, we can no longer go back and match against the first `as` command. It's not clear how this fix could be extended to work with global command matching. A better approach may be to match commands speculatively; we could maintain a set of commands that might be matches, then remove them from that set if emulating them results in any failed predicates.
+
+Or as an alternative: do we get what we want if we prefer matches against commands marked Emulate? That's sort of like the speculative matching approach, except we rely on dependency information from the previous build iteration.
   $ $RKR --show
   cc1 * (glob)
   hello.c: In function 'main':
