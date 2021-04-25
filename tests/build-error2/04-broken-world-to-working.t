@@ -31,7 +31,6 @@ Stage in a working version of the world.c source file
   $ cp versions/world-working.c world.c
 
 Run a rebuild. This will rerun `cc1 hello.c`. That will change its exit status, forcing a rerun of `gcc`, which launches a new `as` command, followed by `collect2` and `ld`. The `gcc` command will succeed, which in turn causes a rerun of Rikerfile
-
   $ $RKR --show
   cc1 * (glob)
   gcc -o hello hello.c world.c

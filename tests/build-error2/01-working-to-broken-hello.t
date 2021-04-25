@@ -31,8 +31,6 @@ Stage in a broken version of the hello.c source file
   $ cp versions/hello-broken.c hello.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
-
-This test used to fail because of a command matching issue. The gcc command does not run `as` to process the output from the failed `cc1` command, but when we traced the second `as` launch (the one that processes output from `cc1 world.c`) we used to match it to that command. Prioritizing matches of commands marked Emulate over MayRun and MayRun over MustRun resolved the issue.
   $ $RKR --show
   cc1 * (glob)
   hello.c: In function 'main':

@@ -710,20 +710,23 @@ shared_ptr<Command> Command::findChild(vector<string> args,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds) noexcept {
+  set<shared_ptr<Command>> older_siblings;
+
   shared_ptr<Command> best_match = nullptr;
   map<string, string> best_match_substitutions;
 
   // Loop over this command's children from the last run
-  for (auto& child : _previous_run._children) {
+  for (auto iter = _previous_run._children.begin(); iter != _previous_run._children.end(); iter++) {
+    // Get the child at the current position
+    auto& child = *iter;
+
     // If the child has already been matched, we can't match it again
-    if (child->_previous_run._matched) {
-      continue;
-    }
+    if (child->_previous_run._matched) continue;
 
     // TODO: Do we need to match against the exe, cwd, root, and fd references?
     // Maybe not. If these references are used, they correspond to predicates in the matched
-    // command's trace steps. Those predicates will fail if we make a "bad" match so we'd just rerun
-    // the command.
+    // command's trace steps. Those predicates will fail if we make a "bad" match so we'd just
+    // rerun the command.
 
     // Does the child have the same number of arguments? If not, we can't match it
     if (child->_args.size() != args.size()) continue;
@@ -750,17 +753,39 @@ shared_ptr<Command> Command::findChild(vector<string> args,
       }
     }
 
-    // Did the current child match?
-    if (matches) {
-      LOG(exec) << "Candidate match " << child;
+    // If the arguments couldn't be made to match with tempfile substitutions, continue
+    if (!matches) continue;
 
-      // Yes. Is it better than the last match? We prefer to match commands marked Emulate over
-      // MayRun, and MayRun over MustRun. Given equal markings, we prefer earlier commands
-      if (!best_match || child->getMarking() < best_match->getMarking()) {
-        best_match = child;
-        best_match_substitutions = std::move(substitutions);
-        LOG(exec) << "  Better than previous best match.";
+    // Look at any older siblings of this command.
+    for (auto sib_iter = _previous_run._children.begin(); sib_iter != iter; sib_iter++) {
+      // Get the sibling command
+      auto& sibling = *sib_iter;
+
+      // If the sibling has been launched, move on
+      if (sibling->isLaunched()) continue;
+
+      // If the sibling hasn't launched, we need to make sure the child does not use output from the
+      // sibling or one of its descendants.
+      // TODO: check descendants. Just looking at the sibling for now
+      for (auto& [weak_producer, _] : child->_previous_run._uses_output_from) {
+        auto producer = weak_producer.lock();
+        if (producer == sibling) {
+          matches = false;
+        }
       }
+    }
+
+    // If the command cannot be a match, continue on
+    if (!matches) continue;
+
+    LOG(exec) << "Candidate match " << child;
+
+    // Yes. Is it better than the last match? We prefer to match commands marked Emulate over
+    // MayRun, and MayRun over MustRun. Given equal markings, we prefer earlier commands
+    if (!best_match || child->getMarking() < best_match->getMarking()) {
+      best_match = child;
+      best_match_substitutions = std::move(substitutions);
+      LOG(exec) << "  Better than previous best match.";
     }
   }
 
