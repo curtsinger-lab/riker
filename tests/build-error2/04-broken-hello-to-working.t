@@ -20,7 +20,7 @@ Run the first build
         |                   ^
         |                   ;
       7 |   print_world();
-        |   ~~~~~~~~~~~    * (glob)
+        |   ~~~~~~~~~~~      
   cc1 * (glob)
   as * (glob)
 

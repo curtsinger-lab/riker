@@ -1,4 +1,4 @@
-Run a build that succeeds, then rebuild after introducing an error in hello.c.
+Run a build that succeeds, then rebuild after introducing errors in both source files.
 
 Move to test directory
   $ cd $TESTDIR
@@ -27,8 +27,9 @@ Check the output
 Run a rebuild, which should do nothing
   $ $RKR --show
 
-Stage in a broken version of the hello.c source file
+Stage in a broken versions of both source files
   $ cp versions/hello-broken.c hello.c
+  $ cp versions/world-broken.c world.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
   $ $RKR --show
@@ -39,7 +40,15 @@ Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The g
         |                   ^
         |                   ;
       7 |   print_world();
-        |   ~~~~~~~~~~~      
+        |   ~~~~~~~~~~~    * (glob)
+  cc1 * (glob)
+  world.c: In function 'print_world':
+  world.c:4:21: error: expected ';' before '}' token
+      4 |   printf("world.\n")
+        |                     ^
+        |                     ;
+      5 | }
+        | ~                    
   gcc -o hello hello.c world.c
   Rikerfile
 
