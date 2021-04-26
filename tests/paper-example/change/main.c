@@ -9,5 +9,6 @@ int main() {
     world();
     printf("!\n");
     foo();
+    printf("\n");
     return 0;
 }
