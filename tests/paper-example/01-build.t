@@ -12,23 +12,27 @@ Run the first build
   rkr-launch
   sh Rikerfile
   gcc -Wall -o program main.c x.c y.c
-  [^ ]*cc1 .* (re)
+  [^ ]*cc1 .* main .* (re)
   [^ ]*as .* (re)
-  [^ ]*cc1 .* (re)
+  [^ ]*cc1 .* x .* (re)
   [^ ]*as .* (re)
-  [^ ]*cc1 .* (re)
+  [^ ]*cc1 .* y .* (re)
   [^ ]*as .* (re)
-  [^ ]*collect2 .* (re)
-  [^ ]*ld .* (re)
+  [^ ]*collect2 .* program .* (re)
+  [^ ]*ld .* program .* (re)
 
-#Run a rebuild
-#  $ $RKR --show
+Add some files to the current directory and alter main.c
+  $ cp change/* .
 
-#Check the output again
-#  $ cat output
-#  Hello
+Run a rebuild
+  $ $RKR --show
+  [^ ]*cc1 .* main .* (re)
+  [^ ]*as .* (re)
+  [^ ]*cc1 .* z .* (re)
+  [^ ]*as .* (re)
+  [^ ]*collect2 .* program .* (re)
+  [^ ]*ld .* program .* (re)
 
 Clean up
   $ rm -rf .rkr program z.*
   $ cp init/main.c main.c
-  $ rm output
