@@ -720,8 +720,8 @@ shared_ptr<Command> Command::findChild(vector<string> args,
     // Get the child at the current position
     auto& child = *iter;
 
-    // If the child has already been matched, we can't match it again
-    if (child->_previous_run._matched) continue;
+    // If the child has already been launched we can't match against it
+    if (child->isLaunched()) continue;
 
     // TODO: Do we need to match against the exe, cwd, root, and fd references?
     // Maybe not. If these references are used, they correspond to predicates in the matched
@@ -802,9 +802,6 @@ shared_ptr<Command> Command::findChild(vector<string> args,
 
     // Save the path substitution map
     best_match->_current_run._substitutions = std::move(best_match_substitutions);
-
-    // The child is matched
-    best_match->_previous_run._matched = true;
   }
 
   // Return the best match, if any

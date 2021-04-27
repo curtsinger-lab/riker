@@ -194,9 +194,6 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The process this command's run was launched in, or nullptr if there is no process
     std::shared_ptr<Process> _process;
 
-    /// Has this command run already been matched against a new command launch?
-    bool _matched = false;
-
     /// Path substitutions established by matching this command
     std::map<std::string, std::string> _substitutions;
 
