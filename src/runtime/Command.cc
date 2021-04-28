@@ -511,10 +511,8 @@ string Command::substitutePath(string p) noexcept {
 
 // Inform this command that it used a temporary file
 void Command::addTempfile(shared_ptr<Artifact> tempfile) noexcept {
-  auto [iter, inserted] = _current_run._tempfiles.emplace(tempfile, false);
-  if (inserted) {
-    // WARN << this << " using tempfile " << tempfile;
-  }
+  // Add the tempfile and mark it as not accessed (the value in the map)
+  _current_run._tempfiles.emplace(tempfile, false);
 }
 
 // Get a reference from this command's reference table
@@ -648,14 +646,10 @@ void Command::addContentInput(shared_ptr<Artifact> a,
         if (path.has_value()) {
           // Record the dependency on the temporary file content
           _current_run._tempfile_expected_content.emplace(path.value().string(), v);
-          // WARN << this << " expects " << a << " to have content " << v;
         }
       }
     }
   }
-
-  // If this command wrote the version there's no need to do any additional tracking
-  if (writer.get() == this) return;
 
   // If this command wrote the version there's no need to do any additional tracking
   if (writer.get() == this) return;
@@ -777,16 +771,11 @@ optional<map<string, string>> Command::tryToMatch(const vector<string>& other_ar
         auto result = env::getRootDir()->resolve(nullptr, other_args[i].substr(1), NoAccess);
 
         // If we didn't get an artifact, bail
-        if (!result.isSuccess()) {
-          // WARN << "Tried to match " << _args[i] << " with " << other_args[i]
-          //     << " but new tempfile does not exist.";
-          return nullopt;
-        }
+        if (!result.isSuccess()) return nullopt;
 
         // Check the content
         if (!expected_iter->second->matches(result.getArtifact()->peekContent())) {
-          // WARN << "Tried to match " << _args[i] << " with " << other_args[i]
-          //     << " but new tempfile does not match expected content.";
+          // The candidate tempfile does not have the content this command expects, so do not match
           return nullopt;
         }
       }

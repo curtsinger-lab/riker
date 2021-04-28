@@ -1177,25 +1177,6 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     // If there was no match, continue
     if (!substitutions.has_value()) continue;
 
-    // Does the candidate command rely on outputs from any other deferred commands?
-    /*const auto& input_producers = candidate->getInputProducers();
-    bool matches = true;
-    for (auto [sibling, sibling_index] : _deferred_commands) {
-      ASSERT(!sibling->isLaunched()) << "A deferred command has been launched!";
-
-      // If the sibling did not launch before this command we don't need to check dependencies
-      if (sibling_index >= index) continue;
-
-      // If the other deferred command produces input to this command we cannot use this match
-      if (input_producers.find(sibling) != input_producers.end()) {
-        matches = false;
-        break;
-      }
-    }
-
-    // If we don't have a match, continue
-    if (!matches) continue;*/
-
     // We have a match. If we made it this far it must be better than the previous match
     child = candidate;
     child_substitutions = std::move(substitutions.value());
