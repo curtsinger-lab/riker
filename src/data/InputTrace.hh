@@ -9,6 +9,7 @@
 
 #include <cereal/archives/binary.hpp>
 
+#include "data/IRLoader.hh"
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
 #include "runtime/Command.hh"
@@ -20,7 +21,7 @@ namespace fs = std::filesystem;
 /**
  * An input trace is a build trace loaded from disk
  */
-class InputTrace : public IRSource {
+class InputTrace : public IRSource, public IRLoader {
  private:
   InputTrace(std::string filename, std::vector<std::string> args = {});
 
@@ -43,7 +44,7 @@ class InputTrace : public IRSource {
 
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.
-  void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept {
+  virtual void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept override {
     // Grow the commands vector if necessary
     if (_commands.size() <= id) _commands.resize(id + 1);
 
@@ -52,12 +53,13 @@ class InputTrace : public IRSource {
   }
 
   /// Get a command from its ID
-  const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept {
+  virtual const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept override {
     return _commands[id];
   }
 
   /// Add a MetadataVersion with a known ID to this input trace
-  void addMetadataVersion(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> mv) noexcept {
+  virtual void addMetadataVersion(MetadataVersion::ID id,
+                                  std::shared_ptr<MetadataVersion> mv) noexcept override {
     // Grow the vector if necessary
     if (_metadata_versions.size() <= id) _metadata_versions.resize(id + 1);
 
@@ -66,13 +68,14 @@ class InputTrace : public IRSource {
   }
 
   /// Get a metadata version from its ID
-  const std::shared_ptr<MetadataVersion>& getMetadataVersion(
-      MetadataVersion::ID id) const noexcept {
+  virtual const std::shared_ptr<MetadataVersion>& getMetadataVersion(
+      MetadataVersion::ID id) const noexcept override {
     return _metadata_versions[id];
   }
 
   /// Add a ContentVersion with a known ID to this input trace
-  void addContentVersion(ContentVersion::ID id, std::shared_ptr<ContentVersion> cv) noexcept {
+  virtual void addContentVersion(ContentVersion::ID id,
+                                 std::shared_ptr<ContentVersion> cv) noexcept override {
     // Grow the vector if necessary
     if (_content_versions.size() <= id) _content_versions.resize(id + 1);
 
@@ -81,7 +84,8 @@ class InputTrace : public IRSource {
   }
 
   /// Get a content version from its ID
-  const std::shared_ptr<ContentVersion>& getContentVersion(ContentVersion::ID id) const noexcept {
+  virtual const std::shared_ptr<ContentVersion>& getContentVersion(
+      ContentVersion::ID id) const noexcept override {
     return _content_versions[id];
   }
 
