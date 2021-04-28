@@ -44,50 +44,26 @@ class InputTrace : public IRSource, public IRLoader {
 
   /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
   /// the original instance will be used and not the new one.
-  virtual void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept override {
-    // Grow the commands vector if necessary
-    if (_commands.size() <= id) _commands.resize(id + 1);
-
-    // If the referenced entry is unset, save the provided cmd
-    if (!_commands[id]) _commands[id] = cmd;
-  }
+  virtual void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept override;
 
   /// Get a command from its ID
-  virtual const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept override {
-    return _commands[id];
-  }
+  virtual const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept override;
 
   /// Add a MetadataVersion with a known ID to this input trace
   virtual void addMetadataVersion(MetadataVersion::ID id,
-                                  std::shared_ptr<MetadataVersion> mv) noexcept override {
-    // Grow the vector if necessary
-    if (_metadata_versions.size() <= id) _metadata_versions.resize(id + 1);
-
-    // If the referenced entry is not set, save the provided version
-    if (!_metadata_versions[id]) _metadata_versions[id] = mv;
-  }
+                                  std::shared_ptr<MetadataVersion> mv) noexcept override;
 
   /// Get a metadata version from its ID
   virtual const std::shared_ptr<MetadataVersion>& getMetadataVersion(
-      MetadataVersion::ID id) const noexcept override {
-    return _metadata_versions[id];
-  }
+      MetadataVersion::ID id) const noexcept override;
 
   /// Add a ContentVersion with a known ID to this input trace
   virtual void addContentVersion(ContentVersion::ID id,
-                                 std::shared_ptr<ContentVersion> cv) noexcept override {
-    // Grow the vector if necessary
-    if (_content_versions.size() <= id) _content_versions.resize(id + 1);
-
-    // If the referenced entry is not set, save the provided version
-    if (!_content_versions[id]) _content_versions[id] = cv;
-  }
+                                 std::shared_ptr<ContentVersion> cv) noexcept override;
 
   /// Get a content version from its ID
   virtual const std::shared_ptr<ContentVersion>& getContentVersion(
-      ContentVersion::ID id) const noexcept override {
-    return _content_versions[id];
-  }
+      ContentVersion::ID id) const noexcept override;
 
   /// Get the root command for this trace
   std::shared_ptr<Command> getRootCommand() const noexcept { return _commands[0]; }
