@@ -47,13 +47,13 @@ namespace fs = std::filesystem;
 
 // Create a build runner
 Build::Build(IRSink& output) noexcept : _output(output), _tracer(*this) {
-  _deferred = make_unique<IRBuffer>();
+  _deferred_steps = make_unique<IRBuffer>();
 }
 
 void Build::runDeferredSteps() noexcept {
   // Create a new deferral buffer and swap it with the existing deferred steps
   auto to_run = make_unique<IRBuffer>();
-  std::swap(to_run, _deferred);
+  std::swap(to_run, _deferred_steps);
 
   // Feed all deferred IR steps back through for emulation
   to_run->sendTo(*this);
@@ -95,8 +95,8 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->specialRef(c, entity, output);
+    _deferred_commands.insert(c);
+    _deferred_steps->specialRef(c, entity, output);
     return;
   }
 
@@ -159,8 +159,8 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->pipeRef(c, read_end, write_end);
+    _deferred_commands.insert(c);
+    _deferred_steps->pipeRef(c, read_end, write_end);
     return;
   }
 
@@ -186,8 +186,8 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->fileRef(c, mode, output);
+    _deferred_commands.insert(c);
+    _deferred_steps->fileRef(c, mode, output);
     return;
   }
 
@@ -211,8 +211,8 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->symlinkRef(c, target, output);
+    _deferred_commands.insert(c);
+    _deferred_steps->symlinkRef(c, target, output);
     return;
   }
 
@@ -237,8 +237,8 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->dirRef(c, mode, output);
+    _deferred_commands.insert(c);
+    _deferred_steps->dirRef(c, mode, output);
     return;
   }
 
@@ -266,8 +266,8 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->pathRef(c, base, path, flags, output);
+    _deferred_commands.insert(c);
+    _deferred_steps->pathRef(c, base, path, flags, output);
     return;
   }
 
@@ -313,8 +313,8 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->usingRef(c, ref);
+    _deferred_commands.insert(c);
+    _deferred_steps->usingRef(c, ref);
     return;
   }
 
@@ -337,8 +337,8 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->doneWithRef(c, ref_id);
+    _deferred_commands.insert(c);
+    _deferred_steps->doneWithRef(c, ref_id);
     return;
   }
 
@@ -374,8 +374,8 @@ void Build::compareRefs(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->compareRefs(c, ref1_id, ref2_id, type);
+    _deferred_commands.insert(c);
+    _deferred_steps->compareRefs(c, ref1_id, ref2_id, type);
     return;
   }
 
@@ -422,8 +422,8 @@ void Build::expectResult(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->expectResult(c, scenario, ref_id, expected);
+    _deferred_commands.insert(c);
+    _deferred_steps->expectResult(c, scenario, ref_id, expected);
     return;
   }
 
@@ -456,8 +456,8 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->matchMetadata(c, scenario, ref_id, expected);
+    _deferred_commands.insert(c);
+    _deferred_steps->matchMetadata(c, scenario, ref_id, expected);
     return;
   }
 
@@ -489,8 +489,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->matchContent(c, scenario, ref_id, expected);
+    _deferred_commands.insert(c);
+    _deferred_steps->matchContent(c, scenario, ref_id, expected);
     return;
   }
 
@@ -521,8 +521,8 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->updateMetadata(c, ref_id, written);
+    _deferred_commands.insert(c);
+    _deferred_steps->updateMetadata(c, ref_id, written);
     return;
   }
 
@@ -553,8 +553,8 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->updateContent(c, ref_id, written);
+    _deferred_commands.insert(c);
+    _deferred_steps->updateContent(c, ref_id, written);
     return;
   }
 
@@ -586,8 +586,8 @@ void Build::addEntry(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->addEntry(c, dir_id, name, target_id);
+    _deferred_commands.insert(c);
+    _deferred_steps->addEntry(c, dir_id, name, target_id);
     return;
   }
 
@@ -620,8 +620,8 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->removeEntry(c, dir_id, name, target_id);
+    _deferred_commands.insert(c);
+    _deferred_steps->removeEntry(c, dir_id, name, target_id);
     return;
   }
 
@@ -653,8 +653,8 @@ void Build::launch(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->launch(c, child, refs);
+    _deferred_commands.insert(c);
+    _deferred_steps->launch(c, child, refs);
     return;
   }
 
@@ -743,8 +743,8 @@ void Build::join(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->join(c, child, exit_status);
+    _deferred_commands.insert(c);
+    _deferred_steps->join(c, child, exit_status);
     return;
   }
 
@@ -778,8 +778,8 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    defer(c);
-    _deferred->exit(c, exit_status);
+    _deferred_commands.insert(c);
+    _deferred_steps->exit(c, exit_status);
     return;
   }
 
@@ -1164,7 +1164,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   map<string, string> child_substitutions;
 
   // Loop over the set of deferred commands
-  for (const auto& [candidate, index] : _deferred_commands) {
+  for (const auto& candidate : _deferred_commands) {
     // Has the candidate been launched already? If so we cannot match it
     if (candidate->isLaunched()) continue;
 
@@ -1292,12 +1292,4 @@ void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
-}
-
-void Build::defer(shared_ptr<Command> c) noexcept {
-  auto iter = _deferred_commands.find(c);
-  if (iter == _deferred_commands.end()) {
-    LOG(exec) << "Deferring " << c;
-    _deferred_commands.emplace_hint(iter, c, _deferred_command_count++);
-  }
 }
