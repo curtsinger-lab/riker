@@ -1154,6 +1154,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   // Matches may require path substitutions for temporary files. Remember those.
   map<string, string> child_substitutions;
 
+  // TODO: Should tempfile substitutions be global? Probably. For now they are unique to each
+  // command, which could cause problems in strange cases.
+
   // Loop over the set of deferred commands
   for (const auto& candidate : _deferred_commands) {
     // Has the candidate been launched already? If so we cannot match it
