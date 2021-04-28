@@ -38,6 +38,24 @@ OutputTrace::OutputTrace(string filename) noexcept :
   _archive(ArchiveMagic, ArchiveVersion);
 }
 
+// Get the ID for a metadata version. Emit a new metadata version record if necessary
+MetadataVersion::ID OutputTrace::getMetadataVersionID(
+    const shared_ptr<MetadataVersion>& mv) noexcept {
+  // Look for the provided metadata version in the map of known versions
+  auto iter = _metadata_versions.find(mv);
+  if (iter == _metadata_versions.end()) {
+    // If the version wasn't found, add it now
+    MetadataVersion::ID id = _metadata_versions.size();
+    iter = _metadata_versions.emplace_hint(iter, mv, id);
+
+    // Emit a record of the metadata version to the archive
+    _archive(unique_ptr<Record>(make_unique<MetadataVersionRecord>(id, mv)));
+  }
+
+  // Return the ID
+  return iter->second;
+}
+
 /// Trace output is starting
 void OutputTrace::start(const shared_ptr<Command>& root) noexcept {
   // Add the root command to the command map with ID 0
@@ -117,8 +135,8 @@ void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
                                 Scenario scenario,
                                 Ref::ID ref,
                                 shared_ptr<MetadataVersion> version) noexcept {
-  _archive(unique_ptr<Record>(
-      make_unique<MatchMetadataRecord>(getCommandID(cmd), scenario, ref, version)));
+  _archive(unique_ptr<Record>(make_unique<MatchMetadataRecord>(getCommandID(cmd), scenario, ref,
+                                                               getMetadataVersionID(version))));
 }
 
 /// Add a MatchContent IR step to the output trace
@@ -137,7 +155,8 @@ void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
 void OutputTrace::updateMetadata(const shared_ptr<Command>& cmd,
                                  Ref::ID ref,
                                  shared_ptr<MetadataVersion> version) noexcept {
-  _archive(unique_ptr<Record>(make_unique<UpdateMetadataRecord>(getCommandID(cmd), ref, version)));
+  _archive(unique_ptr<Record>(
+      make_unique<UpdateMetadataRecord>(getCommandID(cmd), ref, getMetadataVersionID(version))));
 }
 
 /// Add a UpdateContent IR step to the output trace

@@ -19,6 +19,9 @@ class Command;
 
 class MetadataVersion : public Version {
  public:
+  /// The type of a MetadataVersion ID
+  using ID = uint32_t;
+
   /// Create a new metadata version
   MetadataVersion(uid_t uid, gid_t gid, mode_t mode) noexcept : _uid(uid), _gid(gid), _mode(mode) {}
 

@@ -28,6 +28,7 @@
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "versions/MetadataVersion.hh"
 
 class ContentVersion;
 class InputTrace;
@@ -68,6 +69,24 @@ struct CommandRecord : public Record {
   template <class Archive>
   void serialize(Archive& archive) {
     archive(cereal::base_class<Record>(this), _id, _args, _initial_fds, _executed);
+  }
+};
+
+struct MetadataVersionRecord : public Record {
+  MetadataVersion::ID _id;
+  std::shared_ptr<MetadataVersion> _version;
+
+  // Default constructor for serialization
+  MetadataVersionRecord() noexcept = default;
+
+  MetadataVersionRecord(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> version) noexcept :
+      _id(id), _version(version) {}
+
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _id, _version);
   }
 };
 
@@ -269,7 +288,7 @@ struct MatchMetadataRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  std::shared_ptr<MetadataVersion> _version;
+  MetadataVersion::ID _version;
 
   /// Default constructor for serialization
   MatchMetadataRecord() noexcept = default;
@@ -277,7 +296,7 @@ struct MatchMetadataRecord : public Record {
   MatchMetadataRecord(Command::ID cmd,
                       Scenario scenario,
                       Ref::ID ref,
-                      std::shared_ptr<MetadataVersion> version) noexcept :
+                      MetadataVersion::ID version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -314,14 +333,12 @@ struct MatchContentRecord : public Record {
 struct UpdateMetadataRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  std::shared_ptr<MetadataVersion> _version;
+  MetadataVersion::ID _version;
 
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(Command::ID cmd,
-                       Ref::ID ref,
-                       std::shared_ptr<MetadataVersion> version) noexcept :
+  UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, MetadataVersion::ID version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;

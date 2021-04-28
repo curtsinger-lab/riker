@@ -16,8 +16,11 @@
 
 using std::make_shared;
 
-// Record types
+// Record types for entities
 CEREAL_REGISTER_TYPE(CommandRecord);
+CEREAL_REGISTER_TYPE(MetadataVersionRecord);
+
+// Record types for trace steps
 CEREAL_REGISTER_TYPE(SpecialRefRecord);
 CEREAL_REGISTER_TYPE(PipeRefRecord);
 CEREAL_REGISTER_TYPE(FileRefRecord);
@@ -62,6 +65,12 @@ void CommandRecord::handle(InputTrace& input, IRSink& handler) noexcept {
 
     input.addCommand(_id, cmd);
   }
+}
+
+// Read a metadata version from an input trace
+void MetadataVersionRecord::handle(InputTrace& input, IRSink& handler) noexcept {
+  // Add the loaded metadata version to the input trace
+  input.addMetadataVersion(_id, _version);
 }
 
 // Send a SpecialRef IR step from an input trace to a trace handler
@@ -116,7 +125,8 @@ void ExpectResultRecord::handle(InputTrace& input, IRSink& handler) noexcept {
 
 // Send a MatchMetadata IR step from an input trace to a trace handler
 void MatchMetadataRecord::handle(InputTrace& input, IRSink& handler) noexcept {
-  handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref, _version);
+  handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref,
+                        input.getMetadataVersion(_version));
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
@@ -126,7 +136,7 @@ void MatchContentRecord::handle(InputTrace& input, IRSink& handler) noexcept {
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler
 void UpdateMetadataRecord::handle(InputTrace& input, IRSink& handler) noexcept {
-  handler.updateMetadata(input.getCommand(_cmd), _ref, _version);
+  handler.updateMetadata(input.getCommand(_cmd), _ref, input.getMetadataVersion(_version));
 }
 
 // Send an UpdateContent IR step from an input trace to a trace handler
