@@ -1128,12 +1128,55 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   stats::traced_steps++;
   stats::traced_commands++;
 
-  // Look to see if the current command has a matching child command
-  auto child = parent->findChild(args);
+  // We're going to hunt for a command that matches this launch. Keep track of the best match.
+  shared_ptr<Command> child = nullptr;
+
+  // Matches may require path substitutions for temporary files. Remember those.
+  map<string, string> child_substitutions;
+
+  // Loop over the parent's known children
+  const auto& children = parent->getChildren();
+  for (auto iter = children.begin(); iter != children.end(); iter++) {
+    auto& candidate = *iter;
+
+    // Has the candidate been launched already? If so we cannot match it
+    if (candidate->isLaunched()) continue;
+
+    // Prefer matches marked Emulate over MayRun or MustRun
+    if (child && child->getMarking() <= candidate->getMarking()) continue;
+
+    // Try to match the candidate to the given arguments
+    auto substitutions = candidate->tryToMatch(args);
+
+    // If there was no match, continue
+    if (!substitutions.has_value()) continue;
+
+    // Look at any older siblings of the candidate command
+    bool matches = true;
+    for (auto sib_iter = children.begin(); sib_iter != iter && matches; sib_iter++) {
+      // Get the sibling command
+      auto& sibling = *sib_iter;
+
+      // If the sibling has been launched, move on
+      if (sibling->isLaunched()) continue;
+
+      // If the candidate command uses output from the un-launched sibling, there's no match
+      if (candidate->usesOutputFrom(sibling)) matches = false;
+    }
+
+    // If we don't ahve a match, continue
+    if (!matches) continue;
+
+    // We must have a match. Check if it's better than the existing match
+    child = candidate;
+    child_substitutions = std::move(substitutions.value());
+  }
 
   // Did we find a matching command?
   if (child) {
-    // Nothing to do. We'll just use the child command that matched
+    // We found a matching child command. Apply the required substitutions
+    child->applySubstitutions(child_substitutions);
+
     LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {

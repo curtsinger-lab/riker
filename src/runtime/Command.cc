@@ -717,76 +717,16 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 /********************** Previous Run Data ********************/
 
 /// Get this command's list of children
-const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {
+const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
 }
 
-// Look for a command that matches one of this command's children from the last run
-shared_ptr<Command> Command::findChild(vector<string> args) noexcept {
-  set<shared_ptr<Command>> older_siblings;
-
-  shared_ptr<Command> best_match = nullptr;
-  map<string, string> best_match_substitutions;
-
-  // Loop over this command's children from the last run
-  for (auto iter = _previous_run._children.begin(); iter != _previous_run._children.end(); iter++) {
-    // Get the child at the current position
-    auto& child = *iter;
-
-    // If the child has already been launched we can't match against it
-    if (child->isLaunched()) continue;
-
-    // Try to match the child command to these arguments
-    auto substitutions = child->matches(args);
-
-    // If the arguments couldn't be made to match with tempfile substitutions, continue
-    if (!substitutions.has_value()) continue;
-
-    bool matches = true;
-
-    // Look at any older siblings of this command.
-    for (auto sib_iter = _previous_run._children.begin(); sib_iter != iter; sib_iter++) {
-      // Get the sibling command
-      auto& sibling = *sib_iter;
-
-      // If the sibling has been launched, move on
-      if (sibling->isLaunched()) continue;
-
-      // If the sibling hasn't launched, we need to make sure the child does not use output from the
-      // sibling or one of its descendants.
-      // TODO: check descendants. Just looking at the sibling for now
-      for (auto& [weak_producer, _] : child->_previous_run._uses_output_from) {
-        auto producer = weak_producer.lock();
-        if (producer == sibling) {
-          matches = false;
-        }
-      }
-    }
-
-    // If the command cannot be a match, continue on
-    if (!matches) continue;
-
-    LOG(exec) << "Candidate match " << child;
-
-    // Yes. Is it better than the last match? We prefer to match commands marked Emulate over
-    // MayRun, and MayRun over MustRun. Given equal markings, we prefer earlier commands
-    if (!best_match || child->getMarking() < best_match->getMarking()) {
-      best_match = child;
-      best_match_substitutions = std::move(substitutions.value());
-      LOG(exec) << "  Better than previous best match.";
-    }
-  }
-
-  // Did we end up with a match?
-  if (best_match) {
-    best_match->applySubstitutions(best_match_substitutions);
-  }
-
-  // Return the best match, if any
-  return best_match;
+/// Check if this command uses output from a given command
+bool Command::usesOutputFrom(const shared_ptr<Command>& other) const noexcept {
+  return _previous_run._uses_output_from.find(other) != _previous_run._uses_output_from.end();
 }
 
-optional<map<string, string>> Command::matches(vector<string> other_args) const noexcept {
+optional<map<string, string>> Command::tryToMatch(vector<string> other_args) const noexcept {
   // If the argument arrays are different lengths, there cannot be a match
   if (other_args.size() != _args.size()) return nullopt;
 

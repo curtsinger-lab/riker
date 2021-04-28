@@ -317,14 +317,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
 
-  /**
-   * Look through this command's children from the last run to see if there is a child that matches
-   * the given command launch information.
-   *
-   * \param args      The arguments to the child command
-   * \returns A pointer to the matched command, or nullptr if no child matches.
-   */
-  std::shared_ptr<Command> findChild(std::vector<std::string> args) noexcept;
+  /// Check if this command uses output from a given command
+  bool usesOutputFrom(const std::shared_ptr<Command>& other) const noexcept;
 
   /**
    * Does this command match a given set of launch arguments? If so, return a set of substitutions
@@ -334,7 +328,7 @@ class Command : public std::enable_shared_from_this<Command> {
    * \param args  The arguments for the command being launched
    * \returns nullopt if there is not a match, or a map of substitutions required for the match
    */
-  std::optional<std::map<std::string, std::string>> matches(
+  std::optional<std::map<std::string, std::string>> tryToMatch(
       std::vector<std::string> args) const noexcept;
 
   /// Get the content inputs to this command
