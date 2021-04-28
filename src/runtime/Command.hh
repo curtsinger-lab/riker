@@ -195,6 +195,13 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The process this command's run was launched in, or nullptr if there is no process
     std::shared_ptr<Process> _process;
 
+    /// The temporary files used by this command. The value is set to true once the tempfile has
+    /// been accessed
+    std::map<std::shared_ptr<Artifact>, bool> _tempfiles;
+
+    /// The content this command expects to find in temporary files
+    std::map<std::string, std::shared_ptr<ContentVersion>> _tempfile_expected_content;
+
     /// Path substitutions established by matching this command
     std::map<std::string, std::string> _substitutions;
 
@@ -252,6 +259,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Look for a matching path substitution and return the path this command should use
   std::string substitutePath(std::string p) noexcept;
+
+  /// Inform this command that it used a temporary file
+  void addTempfile(std::shared_ptr<Artifact> tempfile) noexcept;
 
   /// Get a reference from this command's reference table
   const std::shared_ptr<Ref>& getRef(Ref::ID id) noexcept;

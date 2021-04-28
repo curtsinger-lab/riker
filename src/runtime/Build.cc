@@ -280,9 +280,13 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  if (base_dir == env::getRootDir()) {
+  // Is this a path to a temporary file?
+  bool is_tempfile = false;
+  if (base_dir == env::getRootDir() && path.string().substr(0, 4) == "tmp/") {
+    is_tempfile = true;
+
+    // The command may be running different temporary file paths. Substitute the path now
     string newpath = c->substitutePath("/" + path.string());
-    auto oldpath = path;
     path = fs::path(newpath.substr(1));
   }
 
@@ -292,7 +296,14 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
 
-  c->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags)));
+  // Resolve the reference
+  shared_ptr<Ref> result = make_shared<Ref>(base_dir->resolve(c, path, flags));
+
+  // If this reference was to a temporary file, inform the command
+  if (result->isSuccess() && is_tempfile) c->addTempfile(result->getArtifact());
+
+  // Assign to the command's reference
+  c->setRef(output, result);
 }
 
 // A command retains a handle to a given Ref
@@ -1167,7 +1178,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     if (!substitutions.has_value()) continue;
 
     // Does the candidate command rely on outputs from any other deferred commands?
-    const auto& input_producers = candidate->getInputProducers();
+    /*const auto& input_producers = candidate->getInputProducers();
     bool matches = true;
     for (auto [sibling, sibling_index] : _deferred_commands) {
       ASSERT(!sibling->isLaunched()) << "A deferred command has been launched!";
@@ -1183,7 +1194,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     }
 
     // If we don't have a match, continue
-    if (!matches) continue;
+    if (!matches) continue;*/
 
     // We have a match. If we made it this far it must be better than the previous match
     child = candidate;

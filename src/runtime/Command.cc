@@ -11,6 +11,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
+#include "runtime/env.hh"
 #include "tracing/Process.hh"
 #include "util/options.hh"
 #include "versions/ContentVersion.hh"
@@ -508,6 +509,14 @@ string Command::substitutePath(string p) noexcept {
   return iter->second;
 }
 
+// Inform this command that it used a temporary file
+void Command::addTempfile(shared_ptr<Artifact> tempfile) noexcept {
+  auto [iter, inserted] = _current_run._tempfiles.emplace(tempfile, false);
+  if (inserted) {
+    // WARN << this << " using tempfile " << tempfile;
+  }
+}
+
 // Get a reference from this command's reference table
 const shared_ptr<Ref>& Command::getRef(Ref::ID id) noexcept {
   ASSERT(id >= 0 && id < _current_run._refs.size())
@@ -622,6 +631,28 @@ void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
                               shared_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
+
+  // Is the artifact one of our temporary files?
+  if (auto iter = _current_run._tempfiles.find(a); iter != _current_run._tempfiles.end()) {
+    // Is this the first access to the temporary file?
+    if (iter->second == false) {
+      // Mark the tempfile as accessed now
+      iter->second = true;
+
+      // Is this an access from a different command, or no command at all?
+      if (writer.get() != this) {
+        // Get a path to the artifact
+        auto path = a->getPath();
+
+        // Do we have a usable path?
+        if (path.has_value()) {
+          // Record the dependency on the temporary file content
+          _current_run._tempfile_expected_content.emplace(path.value().string(), v);
+          // WARN << this << " expects " << a << " to have content " << v;
+        }
+      }
+    }
+  }
 
   // If this command wrote the version there's no need to do any additional tracking
   if (writer.get() == this) return;
@@ -738,7 +769,28 @@ optional<map<string, string>> Command::tryToMatch(const vector<string>& other_ar
     if (other_args[i] == _args[i]) continue;
 
     // Are the mismatched arguments both temporary file paths?
-    if (other_args[i].find("/tmp/") == 0 && _args[i].find("/tmp/") == 0) {
+    if (other_args[i].substr(0, 5) == "/tmp/" && _args[i].substr(0, 5) == "/tmp/") {
+      // Great. Do we expect to find specific content in the temporary file?
+      auto expected_iter = _previous_run._tempfile_expected_content.find(_args[i]);
+      if (expected_iter != _previous_run._tempfile_expected_content.end()) {
+        // Yes. Check to see if there's a match. First try to get the new tempfile artifact
+        auto result = env::getRootDir()->resolve(nullptr, other_args[i].substr(1), NoAccess);
+
+        // If we didn't get an artifact, bail
+        if (!result.isSuccess()) {
+          // WARN << "Tried to match " << _args[i] << " with " << other_args[i]
+          //     << " but new tempfile does not exist.";
+          return nullopt;
+        }
+
+        // Check the content
+        if (!expected_iter->second->matches(result.getArtifact()->peekContent())) {
+          // WARN << "Tried to match " << _args[i] << " with " << other_args[i]
+          //     << " but new tempfile does not match expected content.";
+          return nullopt;
+        }
+      }
+
       // Yes. We can considuer this a match as long as we substitute the new command's temp path
       substitutions.emplace(_args[i], other_args[i]);
 
