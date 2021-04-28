@@ -524,8 +524,7 @@ void Command::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
   if (id >= _current_run._refs.size()) _current_run._refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  // ASSERT(!_current_run._refs[id]) << "Attempted to overwrite reference ID " << id << " in " <<
-  // this
+  ASSERT(!_current_run._refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
 
   // Save the ref
   _current_run._refs[id] = ref;
@@ -754,10 +753,16 @@ optional<map<string, string>> Command::tryToMatch(vector<string> other_args) con
 
 /// Get the content inputs to this command
 const Command::InputList& Command::getInputs() noexcept {
+  ASSERT(options::track_inputs_outputs)
+      << "Requested inputs from command when input/output tracking is off. Set "
+         "options::track_inputs_outputs to true for this command.";
   return _previous_run._inputs;
 }
 
 /// Get the content outputs from this command
 const Command::OutputList& Command::getOutputs() noexcept {
+  ASSERT(options::track_inputs_outputs)
+      << "Requested inputs from command when input/output tracking is off. Set "
+         "options::track_inputs_outputs to true for this command.";
   return _previous_run._outputs;
 }
