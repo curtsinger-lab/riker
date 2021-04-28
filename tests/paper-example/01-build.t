@@ -26,6 +26,8 @@ Add some files to the current directory and alter main.c
 
 Run a rebuild
   $ $RKR --show
+  sh Rikerfile
+  gcc -Wall -o program main.c x.c y.c z.c
   [^ ]*cc1 .* main .* (re)
   [^ ]*as .* (re)
   [^ ]*cc1 .* z .* (re)
