@@ -317,8 +317,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
 
-  /// Check if this command uses output from a given command
-  bool usesOutputFrom(const std::shared_ptr<Command>& other) const noexcept;
+  /// Get the set of commands that produce inputs to this command
+  const WeakCommandSet& getInputProducers() const noexcept;
 
   /**
    * Does this command match a given set of launch arguments? If so, return a set of substitutions

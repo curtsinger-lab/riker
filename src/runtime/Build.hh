@@ -252,11 +252,19 @@ class Build : public IRSink {
   void traceExit(const std::shared_ptr<Command>& c, int exit_status) noexcept;
 
  private:
+  void defer(std::shared_ptr<Command> c) noexcept;
+
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;
 
   /// Deferred trace steps are placed in this buffer for later running
   std::unique_ptr<IRBuffer> _deferred;
+
+  /// The total number of deferred commands
+  size_t _deferred_command_count = 0;
+
+  /// The set of deferred commands with their corresponding launch order as a value
+  std::map<std::shared_ptr<Command>, size_t> _deferred_commands;
 
   /// The root command provided to this Build
   std::shared_ptr<Command> _root_command;

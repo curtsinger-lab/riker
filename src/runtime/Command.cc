@@ -720,9 +720,9 @@ const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
 }
 
-/// Check if this command uses output from a given command
-bool Command::usesOutputFrom(const shared_ptr<Command>& other) const noexcept {
-  return _previous_run._uses_output_from.find(other) != _previous_run._uses_output_from.end();
+// Get the set of commands that produce inputs to this command
+const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
+  return _previous_run._uses_output_from;
 }
 
 optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args) const noexcept {
