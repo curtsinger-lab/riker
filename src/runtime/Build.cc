@@ -1124,9 +1124,8 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds,
                                        shared_ptr<Process> process) noexcept {
-  // Count a traced step and a traced command
+  // Count a traced step
   stats::traced_steps++;
-  stats::traced_commands++;
 
   // We're going to hunt for a command that matches this launch. Keep track of the best match.
   shared_ptr<Command> child = nullptr;
@@ -1221,6 +1220,13 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
+
+  // Does the command have to run? Update the appropriate stats counter
+  if (child->mustRun()) {
+    stats::traced_commands++;
+  } else {
+    stats::emulated_commands++;
+  }
 
   // Print the command if required
   if (child->mustRun() && options::print_on_run) {
