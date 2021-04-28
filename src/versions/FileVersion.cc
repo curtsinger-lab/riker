@@ -291,17 +291,26 @@ bool FileVersion::stage(fs::path path, mode_t mode) noexcept {
   return true;
 }
 
-void fast_copy(fs::path src, fs::path dest) noexcept {
+bool fast_copy(fs::path src, fs::path dest) noexcept {
   // Get the length of the src file
   loff_t len = fileLength(src);
-  FAIL_IF(len == -1) << "Failed to stat " << src << " for fast copy.";
+  if (len == -1) {
+    WARN << "Failed to stat " << src << " for fast copy: " << ERR;
+    return false;
+  }
 
   // Open source and destination fds
   int src_fd = ::open(src.c_str(), O_RDONLY);
-  FAIL_IF(src_fd == -1) << "Unable to open file " << src << " for caching: " << ERR;
+  if (src_fd == -1) {
+    WARN << "Unable to open file " << src << " for caching: " << ERR;
+    return false;
+  }
+
   int dst_fd = ::open(dest.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
-  FAIL_IF(dst_fd == -1) << "Unable to create cache file '" << dest << " for file " << src << ": "
-                        << ERR;
+  if (dst_fd == -1) {
+    WARN << "Unable to create cache file '" << dest << " for file " << src << ": " << ERR;
+    return false;
+  }
 
   // copy file to cache using non-POSIX fast copy
   loff_t bytes_cp;
@@ -316,7 +325,8 @@ void fast_copy(fs::path src, fs::path dest) noexcept {
         use_fallback_copy = true;
         break;
       } else {
-        FAIL << "Could not copy file " << src << " to cache location '" << dest << ": " << ERR;
+        WARN << "Could not copy file " << src << " to cache location '" << dest << ": " << ERR;
+        return false;
       }
     }
 
@@ -334,12 +344,17 @@ void fast_copy(fs::path src, fs::path dest) noexcept {
     int bytes_read;
     while ((bytes_read = ::read(src_fd, buf, 128)) != 0) {
       int rc = ::write(dst_fd, buf, bytes_read);
-      FAIL_IF(rc != bytes_read) << "Write failed during copy: " << ERR;
+      if (rc != bytes_read) {
+        WARN << "Write failed during copy: " << ERR;
+        return false;
+      }
     }
   }
 
   close(src_fd);
   close(dst_fd);
+
+  return true;
 }
 
 void FileVersion::cache(fs::path path) noexcept {
@@ -382,11 +397,10 @@ void FileVersion::cache(fs::path path) noexcept {
   fs::create_directories(hash_dir);
 
   // Copy the file, fast hopefully
-  fast_copy(path, hash_file);
-
-  LOG(artifact) << "Cached file version at path " << path << " in " << hash_file;
-
-  _cached = true;
+  if (fast_copy(path, hash_file)) {
+    LOG(artifact) << "Cached file version at path " << path << " in " << hash_file;
+    _cached = true;
+  }
 }
 
 /// Compare to another fingerprint instance
