@@ -780,6 +780,9 @@ optional<map<string, string>> Command::tryToMatch(const vector<string>& other_ar
         }
       }
 
+      // TODO: Check for expected metadata too. This is less likely to invalidate a match, but could
+      // be helpful.
+
       // Yes. We can considuer this a match as long as we substitute the new command's temp path
       substitutions.emplace(_args[i], other_args[i]);
 
