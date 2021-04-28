@@ -329,7 +329,7 @@ class Command : public std::enable_shared_from_this<Command> {
    * \returns nullopt if there is not a match, or a map of substitutions required for the match
    */
   std::optional<std::map<std::string, std::string>> tryToMatch(
-      std::vector<std::string> args) const noexcept;
+      const std::vector<std::string>& args) const noexcept;
 
   /// Get the content inputs to this command
   const InputList& getInputs() noexcept;

@@ -725,7 +725,7 @@ bool Command::usesOutputFrom(const shared_ptr<Command>& other) const noexcept {
   return _previous_run._uses_output_from.find(other) != _previous_run._uses_output_from.end();
 }
 
-optional<map<string, string>> Command::tryToMatch(vector<string> other_args) const noexcept {
+optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args) const noexcept {
   // If the argument arrays are different lengths, there cannot be a match
   if (other_args.size() != _args.size()) return nullopt;
 
@@ -748,6 +748,7 @@ optional<map<string, string>> Command::tryToMatch(vector<string> other_args) con
     }
   }
 
+  // Return the required temporary file name substitutions
   return substitutions;
 }
 
