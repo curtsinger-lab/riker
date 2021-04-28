@@ -15,6 +15,7 @@
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 namespace fs = std::filesystem;
@@ -49,6 +50,9 @@ class OutputTrace : public IRSink {
 
   /// Get the ID for a metadata version. Emit a new metadata version record if necessary
   MetadataVersion::ID getMetadataVersionID(const std::shared_ptr<MetadataVersion>& mv) noexcept;
+
+  /// Get the ID for a content version. Emit a new content version record if necessary
+  ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& cv) noexcept;
 
   /// Trace output is starting
   virtual void start(const std::shared_ptr<Command>& root) noexcept override;
@@ -165,4 +169,7 @@ class OutputTrace : public IRSink {
 
   /// The map from metadata versions to their IDs in the output trace
   std::map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_versions;
+
+  /// The map from content versions to their IDs in the output trace
+  std::map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_versions;
 };

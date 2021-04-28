@@ -12,6 +12,7 @@
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
 #include "runtime/Command.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 namespace fs = std::filesystem;
@@ -70,6 +71,20 @@ class InputTrace : public IRSource {
     return _metadata_versions[id];
   }
 
+  /// Add a ContentVersion with a known ID to this input trace
+  void addContentVersion(ContentVersion::ID id, std::shared_ptr<ContentVersion> cv) noexcept {
+    // Grow the vector if necessary
+    if (_content_versions.size() <= id) _content_versions.resize(id + 1);
+
+    // If the referenced entry is not set, save the provided version
+    if (!_content_versions[id]) _content_versions[id] = cv;
+  }
+
+  /// Get a content version from its ID
+  const std::shared_ptr<ContentVersion>& getContentVersion(ContentVersion::ID id) const noexcept {
+    return _content_versions[id];
+  }
+
   /// Get the root command for this trace
   std::shared_ptr<Command> getRootCommand() const noexcept { return _commands[0]; }
 
@@ -91,4 +106,7 @@ class InputTrace : public IRSource {
 
   /// The map from metadata version IDs to instances
   std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
+
+  /// The map from content version IDs to instances
+  std::vector<std::shared_ptr<ContentVersion>> _content_versions;
 };

@@ -56,6 +56,23 @@ MetadataVersion::ID OutputTrace::getMetadataVersionID(
   return iter->second;
 }
 
+// Get the ID for a content version. Emit a new metadata version record if necessary
+ContentVersion::ID OutputTrace::getContentVersionID(const shared_ptr<ContentVersion>& cv) noexcept {
+  // Look for the provided content version in the map of known versions
+  auto iter = _content_versions.find(cv);
+  if (iter == _content_versions.end()) {
+    // If the version wasn't found, add it now
+    ContentVersion::ID id = _content_versions.size();
+    iter = _content_versions.emplace_hint(iter, cv, id);
+
+    // Emit a record of the content version to the archive
+    _archive(unique_ptr<Record>(make_unique<ContentVersionRecord>(id, cv)));
+  }
+
+  // Return the ID
+  return iter->second;
+}
+
 /// Trace output is starting
 void OutputTrace::start(const shared_ptr<Command>& root) noexcept {
   // Add the root command to the command map with ID 0
@@ -147,8 +164,8 @@ void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
   // Preserve this version in the cache
   version->gcLink();
 
-  _archive(unique_ptr<Record>(
-      make_unique<MatchContentRecord>(getCommandID(cmd), scenario, ref, version)));
+  _archive(unique_ptr<Record>(make_unique<MatchContentRecord>(getCommandID(cmd), scenario, ref,
+                                                              getContentVersionID(version))));
 }
 
 /// Add a UpdateMetadata IR step to the output trace
@@ -166,7 +183,8 @@ void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
   // Preserve this version in the cache
   version->gcLink();
 
-  _archive(unique_ptr<Record>(make_unique<UpdateContentRecord>(getCommandID(cmd), ref, version)));
+  _archive(unique_ptr<Record>(
+      make_unique<UpdateContentRecord>(getCommandID(cmd), ref, getContentVersionID(version))));
 }
 
 /// Add an AddEntry IR step to the output trace

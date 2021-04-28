@@ -21,6 +21,9 @@ enum class FingerprintType { None, Quick, Full };
 
 class ContentVersion : public Version, public std::enable_shared_from_this<ContentVersion> {
  public:
+  /// The type of a ContentVersion ID
+  using ID = uint32_t;
+
   /// Try to cast this version to one of its subtypes
   template <class T>
   std::shared_ptr<T> as() noexcept {

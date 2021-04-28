@@ -28,6 +28,7 @@
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "versions/ContentVersion.hh"
 #include "versions/MetadataVersion.hh"
 
 class ContentVersion;
@@ -80,6 +81,24 @@ struct MetadataVersionRecord : public Record {
   MetadataVersionRecord() noexcept = default;
 
   MetadataVersionRecord(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> version) noexcept :
+      _id(id), _version(version) {}
+
+  virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this), _id, _version);
+  }
+};
+
+struct ContentVersionRecord : public Record {
+  ContentVersion::ID _id;
+  std::shared_ptr<ContentVersion> _version;
+
+  // Default constructor for serialization
+  ContentVersionRecord() noexcept = default;
+
+  ContentVersionRecord(ContentVersion::ID id, std::shared_ptr<ContentVersion> version) noexcept :
       _id(id), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -311,7 +330,7 @@ struct MatchContentRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  std::shared_ptr<ContentVersion> _version;
+  ContentVersion::ID _version;
 
   /// Default constructor for serialization
   MatchContentRecord() noexcept = default;
@@ -319,7 +338,7 @@ struct MatchContentRecord : public Record {
   MatchContentRecord(Command::ID cmd,
                      Scenario scenario,
                      Ref::ID ref,
-                     std::shared_ptr<ContentVersion> version) noexcept :
+                     ContentVersion::ID version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
@@ -352,14 +371,12 @@ struct UpdateMetadataRecord : public Record {
 struct UpdateContentRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  std::shared_ptr<ContentVersion> _version;
+  ContentVersion::ID _version;
 
   /// Default constructor for serialization
   UpdateContentRecord() noexcept = default;
 
-  UpdateContentRecord(Command::ID cmd,
-                      Ref::ID ref,
-                      std::shared_ptr<ContentVersion> version) noexcept :
+  UpdateContentRecord(Command::ID cmd, Ref::ID ref, ContentVersion::ID version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
   virtual void handle(InputTrace& input, IRSink& handler) noexcept override;
