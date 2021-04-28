@@ -6,6 +6,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -245,6 +246,10 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Set this command's exit status, and record that it has exited
   void setExitStatus(int status) noexcept;
 
+  /// Apply a set of subsitutions to this command's arguments, and save the set for future path
+  /// substitutions
+  void applySubstitutions(std::map<std::string, std::string> substitutions) noexcept;
+
   /// Look for a matching path substitution and return the path this command should use
   std::string substitutePath(std::string p) noexcept;
 
@@ -314,21 +319,23 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /**
    * Look through this command's children from the last run to see if there is a child that matches
-   * the given command launch information. Once a child has been matched, it will not match again.
+   * the given command launch information.
    *
    * \param args      The arguments to the child command
-   * \param exe_ref   This command's reference to the child command's executable
-   * \param cwd_ref   This command's reference to the child command's working directory
-   * \param root_ref  This command's reference to the child command's root directory
-   * \param fds       The child command's initial file descriptors, and the reference (in this
-   *                  command) they are initialized with.
    * \returns A pointer to the matched command, or nullptr if no child matches.
    */
-  std::shared_ptr<Command> findChild(std::vector<std::string> args,
-                                     Ref::ID exe_ref,
-                                     Ref::ID cwd_ref,
-                                     Ref::ID root_ref,
-                                     std::map<int, Ref::ID> fds) noexcept;
+  std::shared_ptr<Command> findChild(std::vector<std::string> args) noexcept;
+
+  /**
+   * Does this command match a given set of launch arguments? If so, return a set of substitutions
+   * required to make the match work. These substitutions should be applied if the match is used,
+   * and paths from the command should be substituted using substitutePath when emulating.
+   *
+   * \param args  The arguments for the command being launched
+   * \returns nullopt if there is not a match, or a map of substitutions required for the match
+   */
+  std::optional<std::map<std::string, std::string>> matches(
+      std::vector<std::string> args) const noexcept;
 
   /// Get the content inputs to this command
   const InputList& getInputs() noexcept;

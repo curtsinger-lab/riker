@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -20,6 +21,8 @@ using std::list;
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -481,6 +484,20 @@ void Command::setExitStatus(int status) noexcept {
   _current_run._exit_status = status;
 }
 
+// Apply a set of substitutions to this command and save the mappings for future paths
+void Command::applySubstitutions(map<string, string> substitutions) noexcept {
+  _short_names.clear();
+  for (size_t i = 0; i < _args.size(); i++) {
+    auto iter = substitutions.find(_args[i]);
+    if (iter != substitutions.end()) {
+      _args[i] = iter->second;
+    }
+  }
+
+  // Save the path substitution map
+  _current_run._substitutions = std::move(substitutions);
+}
+
 // Look for a matching path substitution and return the path this command should use
 string Command::substitutePath(string p) noexcept {
   auto iter = _current_run._substitutions.find(p);
@@ -705,11 +722,7 @@ const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {
 }
 
 // Look for a command that matches one of this command's children from the last run
-shared_ptr<Command> Command::findChild(vector<string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
-                                       map<int, Ref::ID> fds) noexcept {
+shared_ptr<Command> Command::findChild(vector<string> args) noexcept {
   set<shared_ptr<Command>> older_siblings;
 
   shared_ptr<Command> best_match = nullptr;
@@ -723,38 +736,13 @@ shared_ptr<Command> Command::findChild(vector<string> args,
     // If the child has already been launched we can't match against it
     if (child->isLaunched()) continue;
 
-    // TODO: Do we need to match against the exe, cwd, root, and fd references?
-    // Maybe not. If these references are used, they correspond to predicates in the matched
-    // command's trace steps. Those predicates will fail if we make a "bad" match so we'd just
-    // rerun the command.
-
-    // Does the child have the same number of arguments? If not, we can't match it
-    if (child->_args.size() != args.size()) continue;
-
-    // Does the child match the requested arguments? Yes, so far.
-    bool matches = true;
-
-    // Keep track of any substitutions we have to make for tempfile names
-    map<string, string> substitutions;
-
-    // Loop over arguments to check for matches
-    for (size_t i = 0; i < args.size() && matches; i++) {
-      // Are the arguments an exact match? If so, we still have a match
-      if (args[i] == child->_args[i]) continue;
-
-      // Are the mismatched arguments both temporary file paths?
-      if (args[i].find("/tmp/") == 0 && child->_args[i].find("/tmp/") == 0) {
-        // Yes. We can considuer this a match as long as we substitute the new command's temp path
-        substitutions.emplace(child->_args[i], args[i]);
-
-      } else {
-        // No. This child does not match
-        matches = false;
-      }
-    }
+    // Try to match the child command to these arguments
+    auto substitutions = child->matches(args);
 
     // If the arguments couldn't be made to match with tempfile substitutions, continue
-    if (!matches) continue;
+    if (!substitutions.has_value()) continue;
+
+    bool matches = true;
 
     // Look at any older siblings of this command.
     for (auto sib_iter = _previous_run._children.begin(); sib_iter != iter; sib_iter++) {
@@ -784,28 +772,44 @@ shared_ptr<Command> Command::findChild(vector<string> args,
     // MayRun, and MayRun over MustRun. Given equal markings, we prefer earlier commands
     if (!best_match || child->getMarking() < best_match->getMarking()) {
       best_match = child;
-      best_match_substitutions = std::move(substitutions);
+      best_match_substitutions = std::move(substitutions.value());
       LOG(exec) << "  Better than previous best match.";
     }
   }
 
   // Did we end up with a match?
   if (best_match) {
-    // Yes. Update the command and save the required temp file substitutions
-    best_match->_short_names.clear();
-    for (size_t i = 0; i < best_match->_args.size(); i++) {
-      auto iter = best_match_substitutions.find(best_match->_args[i]);
-      if (iter != best_match_substitutions.end()) {
-        best_match->_args[i] = iter->second;
-      }
-    }
-
-    // Save the path substitution map
-    best_match->_current_run._substitutions = std::move(best_match_substitutions);
+    best_match->applySubstitutions(best_match_substitutions);
   }
 
   // Return the best match, if any
   return best_match;
+}
+
+optional<map<string, string>> Command::matches(vector<string> other_args) const noexcept {
+  // If the argument arrays are different lengths, there cannot be a match
+  if (other_args.size() != _args.size()) return nullopt;
+
+  // Keep track of any substitutions we have to make for tempfile names
+  map<string, string> substitutions;
+
+  // Loop over arguments to check for matches
+  for (size_t i = 0; i < other_args.size(); i++) {
+    // Are the arguments an exact match? If so, we still have a match
+    if (other_args[i] == _args[i]) continue;
+
+    // Are the mismatched arguments both temporary file paths?
+    if (other_args[i].find("/tmp/") == 0 && _args[i].find("/tmp/") == 0) {
+      // Yes. We can considuer this a match as long as we substitute the new command's temp path
+      substitutions.emplace(_args[i], other_args[i]);
+
+    } else {
+      // No. This child does not match
+      return nullopt;
+    }
+  }
+
+  return substitutions;
 }
 
 /// Get the content inputs to this command

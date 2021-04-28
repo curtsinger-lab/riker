@@ -1129,7 +1129,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   stats::traced_commands++;
 
   // Look to see if the current command has a matching child command
-  auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
+  auto child = parent->findChild(args);
 
   // Did we find a matching command?
   if (child) {
