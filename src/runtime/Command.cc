@@ -4,12 +4,14 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
+#include "runtime/env.hh"
 #include "tracing/Process.hh"
 #include "util/options.hh"
 #include "versions/ContentVersion.hh"
@@ -20,6 +22,8 @@ using std::list;
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::string;
@@ -481,6 +485,20 @@ void Command::setExitStatus(int status) noexcept {
   _current_run._exit_status = status;
 }
 
+// Apply a set of substitutions to this command and save the mappings for future paths
+void Command::applySubstitutions(map<string, string> substitutions) noexcept {
+  _short_names.clear();
+  for (size_t i = 0; i < _args.size(); i++) {
+    auto iter = substitutions.find(_args[i]);
+    if (iter != substitutions.end()) {
+      _args[i] = iter->second;
+    }
+  }
+
+  // Save the path substitution map
+  _current_run._substitutions = std::move(substitutions);
+}
+
 // Look for a matching path substitution and return the path this command should use
 string Command::substitutePath(string p) noexcept {
   auto iter = _current_run._substitutions.find(p);
@@ -489,6 +507,12 @@ string Command::substitutePath(string p) noexcept {
   LOG(exec) << this << ": Replacing path " << p << " with " << iter->second;
 
   return iter->second;
+}
+
+// Inform this command that it used a temporary file
+void Command::addTempfile(shared_ptr<Artifact> tempfile) noexcept {
+  // Add the tempfile and mark it as not accessed (the value in the map)
+  _current_run._tempfiles.emplace(tempfile, false);
 }
 
 // Get a reference from this command's reference table
@@ -507,8 +531,7 @@ void Command::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
   if (id >= _current_run._refs.size()) _current_run._refs.resize(id + 1);
 
   // Make sure the ref we're assigning to is null
-  // ASSERT(!_current_run._refs[id]) << "Attempted to overwrite reference ID " << id << " in " <<
-  // this
+  ASSERT(!_current_run._refs[id]) << "Attempted to overwrite reference ID " << id << " in " << this;
 
   // Save the ref
   _current_run._refs[id] = ref;
@@ -607,8 +630,26 @@ void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
 
-  // If this command wrote the version there's no need to do any additional tracking
-  if (writer.get() == this) return;
+  // Is the artifact one of our temporary files?
+  if (auto iter = _current_run._tempfiles.find(a); iter != _current_run._tempfiles.end()) {
+    // Is this the first access to the temporary file?
+    if (iter->second == false) {
+      // Mark the tempfile as accessed now
+      iter->second = true;
+
+      // Is this an access from a different command, or no command at all?
+      if (writer.get() != this) {
+        // Get a path to the artifact
+        auto path = a->getPath();
+
+        // Do we have a usable path?
+        if (path.has_value()) {
+          // Record the dependency on the temporary file content
+          _current_run._tempfile_expected_content.emplace(path.value().string(), v);
+        }
+      }
+    }
+  }
 
   // If this command wrote the version there's no need to do any additional tracking
   if (writer.get() == this) return;
@@ -700,82 +741,73 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 /********************** Previous Run Data ********************/
 
 /// Get this command's list of children
-const std::list<std::shared_ptr<Command>>& Command::getChildren() noexcept {
+const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
 }
 
-// Look for a command that matches one of this command's children from the last run
-shared_ptr<Command> Command::findChild(vector<string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
-                                       map<int, Ref::ID> fds) noexcept {
-  // Loop over this command's children from the last run
-  for (auto& child : _previous_run._children) {
-    // If the child has already been matched, we can't match it again
-    if (child->_previous_run._matched) continue;
+// Get the set of commands that produce inputs to this command
+const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
+  return _previous_run._uses_output_from;
+}
 
-    // TODO: Do we need to match against the exe, cwd, root, and fd references?
-    // Maybe not. If these references are used, they correspond to predicates in the matched
-    // command's trace steps. Those predicates will fail if we make a "bad" match so we'd just rerun
-    // the command.
+optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args) const noexcept {
+  // If the argument arrays are different lengths, there cannot be a match
+  if (other_args.size() != _args.size()) return nullopt;
 
-    // Does the child have the same number of arguments? If not, we can't match it
-    if (child->_args.size() != args.size()) continue;
+  // Keep track of any substitutions we have to make for tempfile names
+  map<string, string> substitutions;
 
-    // Does the child match the requested arguments? Yes, so far.
-    bool matches = true;
+  // Loop over arguments to check for matches
+  for (size_t i = 0; i < other_args.size(); i++) {
+    // Are the arguments an exact match? If so, we still have a match
+    if (other_args[i] == _args[i]) continue;
 
-    // Keep track of any substitutions we have to make for tempfile names
-    map<string, string> substitutions;
+    // Are the mismatched arguments both temporary file paths?
+    if (other_args[i].substr(0, 5) == "/tmp/" && _args[i].substr(0, 5) == "/tmp/") {
+      // Great. Do we expect to find specific content in the temporary file?
+      auto expected_iter = _previous_run._tempfile_expected_content.find(_args[i]);
+      if (expected_iter != _previous_run._tempfile_expected_content.end()) {
+        // Yes. Check to see if there's a match. First try to get the new tempfile artifact
+        auto result = env::getRootDir()->resolve(nullptr, other_args[i].substr(1), NoAccess);
 
-    // Loop over arguments to check for matches
-    for (size_t i = 0; i < args.size() && matches; i++) {
-      // Are the arguments an exact match? If so, we still have a match
-      if (args[i] == child->_args[i]) continue;
+        // If we didn't get an artifact, bail
+        if (!result.isSuccess()) return nullopt;
 
-      // Are the mismatched arguments both temporary file paths?
-      if (args[i].find("/tmp/") == 0 && child->_args[i].find("/tmp/") == 0) {
-        // Yes. We can considuer this a match as long as we substitute the new command's temp path
-        substitutions.emplace(child->_args[i], args[i]);
-
-      } else {
-        // No. This child does not match
-        matches = false;
-      }
-    }
-
-    // Did we end up with a match?
-    if (matches) {
-      child->_short_names.clear();
-      for (size_t i = 0; i < child->_args.size(); i++) {
-        auto iter = substitutions.find(child->_args[i]);
-        if (iter != substitutions.end()) {
-          child->_args[i] = iter->second;
+        // Check the content
+        if (!expected_iter->second->matches(result.getArtifact()->peekContent())) {
+          // The candidate tempfile does not have the content this command expects, so do not match
+          return nullopt;
         }
       }
 
-      // Save the path substitution map
-      child->_current_run._substitutions = std::move(substitutions);
+      // TODO: Check for expected metadata too. This is less likely to invalidate a match, but could
+      // be helpful.
 
-      // The child is matched
-      child->_previous_run._matched = true;
+      // Yes. We can considuer this a match as long as we substitute the new command's temp path
+      substitutions.emplace(_args[i], other_args[i]);
 
-      // Return the matching child
-      return child;
+    } else {
+      // No. This child does not match
+      return nullopt;
     }
   }
 
-  // No match found
-  return nullptr;
+  // Return the required temporary file name substitutions
+  return substitutions;
 }
 
 /// Get the content inputs to this command
 const Command::InputList& Command::getInputs() noexcept {
+  ASSERT(options::track_inputs_outputs)
+      << "Requested inputs from command when input/output tracking is off. Set "
+         "options::track_inputs_outputs to true for this command.";
   return _previous_run._inputs;
 }
 
 /// Get the content outputs from this command
 const Command::OutputList& Command::getOutputs() noexcept {
+  ASSERT(options::track_inputs_outputs)
+      << "Requested inputs from command when input/output tracking is off. Set "
+         "options::track_inputs_outputs to true for this command.";
   return _previous_run._outputs;
 }

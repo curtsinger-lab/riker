@@ -31,8 +31,7 @@ Stage in a working version of the source file
   $ cp versions/hello-original.c hello.c
 
 Run a rebuild. This will rerun cc1, which now succeeds. That forces gcc to rerun.
-Currently gcc will then re-launch cc1 with a new tempfile name, which we do not skip. Once we have fuzzy command matching the second cc1 run will disappear.
-The gcc command fails, which forces a rerun of Rikerfile as well.
+The gcc command now succeeds, which forces a rerun of Rikerfile as well.
   $ $RKR --show
   cc1 * (glob)
   gcc -o hello hello.c

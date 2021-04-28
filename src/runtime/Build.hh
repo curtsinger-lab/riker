@@ -256,7 +256,10 @@ class Build : public IRSink {
   IRSink& _output;
 
   /// Deferred trace steps are placed in this buffer for later running
-  std::unique_ptr<IRBuffer> _deferred;
+  std::unique_ptr<IRBuffer> _deferred_steps;
+
+  /// The set of deferred commands
+  std::set<std::shared_ptr<Command>> _deferred_commands;
 
   /// The root command provided to this Build
   std::shared_ptr<Command> _root_command;

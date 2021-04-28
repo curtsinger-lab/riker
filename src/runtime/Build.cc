@@ -47,13 +47,13 @@ namespace fs = std::filesystem;
 
 // Create a build runner
 Build::Build(IRSink& output) noexcept : _output(output), _tracer(*this) {
-  _deferred = make_unique<IRBuffer>();
+  _deferred_steps = make_unique<IRBuffer>();
 }
 
 void Build::runDeferredSteps() noexcept {
   // Create a new deferral buffer and swap it with the existing deferred steps
   auto to_run = make_unique<IRBuffer>();
-  std::swap(to_run, _deferred);
+  std::swap(to_run, _deferred_steps);
 
   // Feed all deferred IR steps back through for emulation
   to_run->sendTo(*this);
@@ -95,7 +95,7 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->specialRef(c, entity, output);
+    _deferred_steps->specialRef(c, entity, output);
     return;
   }
 
@@ -158,7 +158,7 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->pipeRef(c, read_end, write_end);
+    _deferred_steps->pipeRef(c, read_end, write_end);
     return;
   }
 
@@ -184,7 +184,7 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->fileRef(c, mode, output);
+    _deferred_steps->fileRef(c, mode, output);
     return;
   }
 
@@ -208,7 +208,7 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->symlinkRef(c, target, output);
+    _deferred_steps->symlinkRef(c, target, output);
     return;
   }
 
@@ -233,7 +233,7 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->dirRef(c, mode, output);
+    _deferred_steps->dirRef(c, mode, output);
     return;
   }
 
@@ -261,7 +261,7 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->pathRef(c, base, path, flags, output);
+    _deferred_steps->pathRef(c, base, path, flags, output);
     return;
   }
 
@@ -274,9 +274,13 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Resolve the reference and save the result in output
   ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
 
-  if (base_dir == env::getRootDir()) {
+  // Is this a path to a temporary file?
+  bool is_tempfile = false;
+  if (base_dir == env::getRootDir() && path.string().substr(0, 4) == "tmp/") {
+    is_tempfile = true;
+
+    // The command may be running different temporary file paths. Substitute the path now
     string newpath = c->substitutePath("/" + path.string());
-    auto oldpath = path;
     path = fs::path(newpath.substr(1));
   }
 
@@ -286,7 +290,14 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
 
-  c->setRef(output, make_shared<Ref>(base_dir->resolve(c, path, flags)));
+  // Resolve the reference
+  shared_ptr<Ref> result = make_shared<Ref>(base_dir->resolve(c, path, flags));
+
+  // If this reference was to a temporary file, inform the command
+  if (result->isSuccess() && is_tempfile) c->addTempfile(result->getArtifact());
+
+  // Assign to the command's reference
+  c->setRef(output, result);
 }
 
 // A command retains a handle to a given Ref
@@ -296,7 +307,7 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->usingRef(c, ref);
+    _deferred_steps->usingRef(c, ref);
     return;
   }
 
@@ -319,7 +330,7 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->doneWithRef(c, ref_id);
+    _deferred_steps->doneWithRef(c, ref_id);
     return;
   }
 
@@ -355,7 +366,7 @@ void Build::compareRefs(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->compareRefs(c, ref1_id, ref2_id, type);
+    _deferred_steps->compareRefs(c, ref1_id, ref2_id, type);
     return;
   }
 
@@ -402,7 +413,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->expectResult(c, scenario, ref_id, expected);
+    _deferred_steps->expectResult(c, scenario, ref_id, expected);
     return;
   }
 
@@ -435,7 +446,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->matchMetadata(c, scenario, ref_id, expected);
+    _deferred_steps->matchMetadata(c, scenario, ref_id, expected);
     return;
   }
 
@@ -467,7 +478,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->matchContent(c, scenario, ref_id, expected);
+    _deferred_steps->matchContent(c, scenario, ref_id, expected);
     return;
   }
 
@@ -498,7 +509,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->updateMetadata(c, ref_id, written);
+    _deferred_steps->updateMetadata(c, ref_id, written);
     return;
   }
 
@@ -529,7 +540,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->updateContent(c, ref_id, written);
+    _deferred_steps->updateContent(c, ref_id, written);
     return;
   }
 
@@ -561,7 +572,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->addEntry(c, dir_id, name, target_id);
+    _deferred_steps->addEntry(c, dir_id, name, target_id);
     return;
   }
 
@@ -594,7 +605,7 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->removeEntry(c, dir_id, name, target_id);
+    _deferred_steps->removeEntry(c, dir_id, name, target_id);
     return;
   }
 
@@ -622,11 +633,21 @@ void Build::launch(const shared_ptr<Command>& c,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  if (c->mustRun()) {
+    // If the child command doesn't have to run, add it to the deferred command set
+    if (!child->mustRun()) _deferred_commands.insert(child);
+
+    // We're not going to emulate this command because it has to run
+    return;
+  }
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->launch(c, child, refs);
+    // If the child command doesn't have to run, defer it
+    if (!child->mustRun()) _deferred_commands.insert(child);
+
+    // Record the launch step in the trace of deferred steps
+    _deferred_steps->launch(c, child, refs);
     return;
   }
 
@@ -715,7 +736,7 @@ void Build::join(const shared_ptr<Command>& c,
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->join(c, child, exit_status);
+    _deferred_steps->join(c, child, exit_status);
     return;
   }
 
@@ -749,7 +770,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
-    _deferred->exit(c, exit_status);
+    _deferred_steps->exit(c, exit_status);
     return;
   }
 
@@ -1124,16 +1145,46 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
                                        Ref::ID root_ref,
                                        map<int, Ref::ID> fds,
                                        shared_ptr<Process> process) noexcept {
-  // Count a traced step and a traced command
+  // Count a traced step
   stats::traced_steps++;
-  stats::traced_commands++;
 
-  // Look to see if the current command has a matching child command
-  auto child = parent->findChild(args, exe_ref, cwd_ref, root_ref, fds);
+  // We're going to hunt for a command that matches this launch. Keep track of the best match.
+  shared_ptr<Command> child = nullptr;
+
+  // Matches may require path substitutions for temporary files. Remember those.
+  map<string, string> child_substitutions;
+
+  // TODO: Should tempfile substitutions be global? Probably. For now they are unique to each
+  // command, which could cause problems in strange cases.
+
+  // Loop over the set of deferred commands
+  for (const auto& candidate : _deferred_commands) {
+    // Has the candidate been launched already? If so we cannot match it
+    if (candidate->isLaunched()) continue;
+
+    // Prefer matches marked Emulate over MayRun or MustRun
+    if (child && child->getMarking() <= candidate->getMarking()) continue;
+
+    // Try to match the candidate to the given arguments
+    auto substitutions = candidate->tryToMatch(args);
+
+    // If there was no match, continue
+    if (!substitutions.has_value()) continue;
+
+    // We have a match. If we made it this far it must be better than the previous match
+    child = candidate;
+    child_substitutions = std::move(substitutions.value());
+  }
 
   // Did we find a matching command?
   if (child) {
-    // Nothing to do. We'll just use the child command that matched
+    // Remove the child from the deferred command set
+    _deferred_commands.erase(child);
+
+    // We found a matching child command. Apply the required substitutions
+    child->applySubstitutions(child_substitutions);
+
+    LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {
     // Create a child and mark it as running
@@ -1177,6 +1228,13 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
+
+  // Does the command have to run? Update the appropriate stats counter
+  if (child->mustRun()) {
+    stats::traced_commands++;
+  } else {
+    stats::emulated_commands++;
+  }
 
   // Print the command if required
   if (child->mustRun() && options::print_on_run) {
