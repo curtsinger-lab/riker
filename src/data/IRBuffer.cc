@@ -12,15 +12,26 @@ using std::shared_ptr;
 using std::string;
 using std::stringstream;
 
-string open_tempfile() noexcept {
-  char tmpname[] = "/tmp/tmpfileXXXXXX";
-  int fd = mkstemp(tmpname);
-  close(fd);
-  return tmpname;
+static int open_tempfile() noexcept {
+  // Open an anonymous temporary file that cannot be linked to the filesystem
+  int fd = ::open("/tmp", O_RDWR | O_TMPFILE | O_EXCL, 0600);
+  FAIL_IF(fd < 0) << "Failed to create temporary file: " << ERR;
+  return fd;
+}
+
+static string get_fd_path(int fd) {
+  stringstream ss;
+  ss << "/proc/self/fd/" << fd;
+  return ss.str();
 }
 
 // Create an IRBuffer with a temporary file to hold buffered steps
-IRBuffer::IRBuffer() noexcept : _out(open_tempfile(), std::ios::binary), _archive(_out) {}
+IRBuffer::IRBuffer() noexcept :
+    _fd(open_tempfile()), _out(get_fd_path(_fd), std::ios::binary), _archive(_out) {}
+
+IRBuffer::~IRBuffer() noexcept {
+  ::close(_fd);
+}
 
 /// Send the stored IR trace to a sink
 void IRBuffer::sendTo(IRSink& handler) noexcept {

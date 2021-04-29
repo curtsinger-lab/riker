@@ -23,6 +23,8 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
  public:
   IRBuffer() noexcept;
 
+  virtual ~IRBuffer() noexcept;
+
   /**** IRSource Methods ****/
 
   /// Send the stored IR trace to a sink
@@ -216,6 +218,9 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                                  std::shared_ptr<ContentVersion> cv) noexcept override;
 
  private:
+  /// The temporary file descriptor used to hold this buffer's data
+  int _fd;
+
   /// The output file stream
   std::ofstream _out;
 
