@@ -65,6 +65,13 @@ struct CommandRecord : public Record {
                 bool executed) :
       _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
 
+  static std::unique_ptr<Record> create(Command::ID id,
+                                        std::vector<std::string> args,
+                                        std::map<int, Ref::ID> initial_fds,
+                                        bool executed) {
+    return std::make_unique<CommandRecord>(id, args, initial_fds, executed);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -83,6 +90,11 @@ struct MetadataVersionRecord : public Record {
   MetadataVersionRecord(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> version) noexcept :
       _id(id), _version(version) {}
 
+  static std::unique_ptr<Record> create(MetadataVersion::ID id,
+                                        std::shared_ptr<MetadataVersion> version) {
+    return std::make_unique<MetadataVersionRecord>(id, version);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -100,6 +112,11 @@ struct ContentVersionRecord : public Record {
 
   ContentVersionRecord(ContentVersion::ID id, std::shared_ptr<ContentVersion> version) noexcept :
       _id(id), _version(version) {}
+
+  static std::unique_ptr<Record> create(ContentVersion::ID id,
+                                        std::shared_ptr<ContentVersion> version) {
+    return std::make_unique<ContentVersionRecord>(id, version);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -120,6 +137,10 @@ struct SpecialRefRecord : public Record {
   SpecialRefRecord(Command::ID cmd, SpecialRef entity, Ref::ID output) noexcept :
       _cmd(cmd), _entity(entity), _output(output) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, SpecialRef entity, Ref::ID output) {
+    return std::make_unique<SpecialRefRecord>(cmd, entity, output);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -138,6 +159,10 @@ struct PipeRefRecord : public Record {
 
   PipeRefRecord(Command::ID cmd, Ref::ID read_end, Ref::ID write_end) noexcept :
       _cmd(cmd), _read_end(read_end), _write_end(write_end) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID read_end, Ref::ID write_end) {
+    return std::make_unique<PipeRefRecord>(cmd, read_end, write_end);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -158,6 +183,10 @@ struct FileRefRecord : public Record {
   FileRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, mode_t mode, Ref::ID output) {
+    return std::make_unique<FileRefRecord>(cmd, mode, output);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -177,6 +206,10 @@ struct SymlinkRefRecord : public Record {
   SymlinkRefRecord(Command::ID cmd, fs::path target, Ref::ID output) noexcept :
       _cmd(cmd), _target(target), _output(output) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, fs::path target, Ref::ID output) {
+    return std::make_unique<SymlinkRefRecord>(cmd, target, output);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -195,6 +228,10 @@ struct DirRefRecord : public Record {
 
   DirRefRecord(Command::ID cmd, mode_t mode, Ref::ID output) noexcept :
       _cmd(cmd), _mode(mode), _output(output) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd, mode_t mode, Ref::ID output) {
+    return std::make_unique<DirRefRecord>(cmd, mode, output);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -221,6 +258,14 @@ struct PathRefRecord : public Record {
                 Ref::ID output) noexcept :
       _cmd(cmd), _base(base), _path(path), _flags(flags), _output(output) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Ref::ID base,
+                                        fs::path path,
+                                        AccessFlags flags,
+                                        Ref::ID output) {
+    return std::make_unique<PathRefRecord>(cmd, base, path, flags, output);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -238,6 +283,10 @@ struct UsingRefRecord : public Record {
 
   UsingRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref) {
+    return std::make_unique<UsingRefRecord>(cmd, ref);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -254,6 +303,10 @@ struct DoneWithRefRecord : public Record {
   DoneWithRefRecord() noexcept = default;
 
   DoneWithRefRecord(Command::ID cmd, Ref::ID ref) noexcept : _cmd(cmd), _ref(ref) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref) {
+    return std::make_unique<DoneWithRefRecord>(cmd, ref);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -275,6 +328,13 @@ struct CompareRefsRecord : public Record {
   CompareRefsRecord(Command::ID cmd, Ref::ID ref1, Ref::ID ref2, RefComparison type) noexcept :
       _cmd(cmd), _ref1(ref1), _ref2(ref2), _type(type) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Ref::ID ref1,
+                                        Ref::ID ref2,
+                                        RefComparison type) {
+    return std::make_unique<CompareRefsRecord>(cmd, ref1, ref2, type);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -294,6 +354,13 @@ struct ExpectResultRecord : public Record {
 
   ExpectResultRecord(Command::ID cmd, Scenario scenario, Ref::ID ref, int expected) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _expected(expected) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Scenario scenario,
+                                        Ref::ID ref,
+                                        int expected) {
+    return std::make_unique<ExpectResultRecord>(cmd, scenario, ref, expected);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -318,6 +385,13 @@ struct MatchMetadataRecord : public Record {
                       MetadataVersion::ID version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Scenario scenario,
+                                        Ref::ID ref,
+                                        MetadataVersion::ID version) {
+    return std::make_unique<MatchMetadataRecord>(cmd, scenario, ref, version);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -341,6 +415,13 @@ struct MatchContentRecord : public Record {
                      ContentVersion::ID version) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Scenario scenario,
+                                        Ref::ID ref,
+                                        ContentVersion::ID version) {
+    return std::make_unique<MatchContentRecord>(cmd, scenario, ref, version);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -360,6 +441,10 @@ struct UpdateMetadataRecord : public Record {
   UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, MetadataVersion::ID version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref, MetadataVersion::ID version) {
+    return std::make_unique<UpdateMetadataRecord>(cmd, ref, version);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -378,6 +463,10 @@ struct UpdateContentRecord : public Record {
 
   UpdateContentRecord(Command::ID cmd, Ref::ID ref, ContentVersion::ID version) noexcept :
       _cmd(cmd), _ref(ref), _version(version) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref, ContentVersion::ID version) {
+    return std::make_unique<UpdateContentRecord>(cmd, ref, version);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -399,6 +488,13 @@ struct AddEntryRecord : public Record {
   AddEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Ref::ID dir,
+                                        fs::path name,
+                                        Ref::ID target) {
+    return std::make_unique<AddEntryRecord>(cmd, dir, name, target);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -418,6 +514,13 @@ struct RemoveEntryRecord : public Record {
 
   RemoveEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
+
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Ref::ID dir,
+                                        fs::path name,
+                                        Ref::ID target) {
+    return std::make_unique<RemoveEntryRecord>(cmd, dir, name, target);
+  }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
@@ -440,6 +543,12 @@ struct LaunchRecord : public Record {
                std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept :
       _cmd(cmd), _child(child), _refs(refs) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Command::ID child,
+                                        std::list<std::tuple<Ref::ID, Ref::ID>> refs) {
+    return std::make_unique<LaunchRecord>(cmd, child, refs);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -459,6 +568,10 @@ struct JoinRecord : public Record {
   JoinRecord(Command::ID cmd, Command::ID child, int exit_status) noexcept :
       _cmd(cmd), _child(child), _exit_status(exit_status) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, Command::ID child, int exit_status) {
+    return std::make_unique<JoinRecord>(cmd, child, exit_status);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -476,6 +589,10 @@ struct ExitRecord : public Record {
 
   ExitRecord(Command::ID cmd, int exit_status) noexcept : _cmd(cmd), _exit_status(exit_status) {}
 
+  static std::unique_ptr<Record> create(Command::ID cmd, int exit_status) {
+    return std::make_unique<ExitRecord>(cmd, exit_status);
+  }
+
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
@@ -488,6 +605,8 @@ struct EndRecord : public Record {
   EndRecord() noexcept = default;
 
   virtual bool isEnd() const noexcept override { return true; }
+
+  static std::unique_ptr<Record> create() { return std::make_unique<EndRecord>(); }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
