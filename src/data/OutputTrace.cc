@@ -38,6 +38,23 @@ OutputTrace::OutputTrace(string filename) noexcept :
   _archive(ArchiveMagic, ArchiveVersion);
 }
 
+// Get the ID for a command instance. Emit a new command record if necessary
+Command::ID OutputTrace::getCommandID(const std::shared_ptr<Command>& c) noexcept {
+  // Look for the provided command in the map of known commands
+  auto iter = _commands.find(c);
+  if (iter == _commands.end()) {
+    // The command was not found. Add it now
+    Command::ID id = _commands.size();
+    iter = _commands.emplace_hint(iter, c, id);
+
+    // Emit a record of the command
+    _archive(unique_ptr<Record>(
+        make_unique<CommandRecord>(id, c->getArguments(), c->getInitialFDs(), c->hasExecuted())));
+  }
+
+  return iter->second;
+}
+
 // Get the ID for a metadata version. Emit a new metadata version record if necessary
 MetadataVersion::ID OutputTrace::getMetadataVersionID(
     const shared_ptr<MetadataVersion>& mv) noexcept {
@@ -208,12 +225,6 @@ void OutputTrace::removeEntry(const shared_ptr<Command>& cmd,
 void OutputTrace::launch(const shared_ptr<Command>& cmd,
                          const shared_ptr<Command>& child,
                          list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-  // Add the launched command to the set of commands
-  Command::ID child_id = addCommand(child);
-
-  _archive(unique_ptr<Record>(make_unique<CommandRecord>(
-      child_id, child->getArguments(), child->getInitialFDs(), child->hasExecuted())));
-
   // Create the record for the launch IR step
   _archive(
       unique_ptr<Record>(make_unique<LaunchRecord>(getCommandID(cmd), getCommandID(child), refs)));

@@ -36,17 +36,8 @@ class OutputTrace : public IRSink {
   OutputTrace(const OutputTrace&) = delete;
   OutputTrace& operator=(const OutputTrace&) = delete;
 
-  /// Add a new command to the output trace and return its unique ID
-  Command::ID addCommand(const std::shared_ptr<Command>& cmd) noexcept {
-    Command::ID id = _commands.size();
-    _commands.emplace(cmd, id);
-    return id;
-  }
-
-  /// Get the ID for a command instance
-  Command::ID getCommandID(const std::shared_ptr<Command>& cmd) const noexcept {
-    return _commands.at(cmd);
-  }
+  /// Get the ID for a command instance. Emit a new command record if necessary
+  Command::ID getCommandID(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the ID for a metadata version. Emit a new metadata version record if necessary
   MetadataVersion::ID getMetadataVersionID(const std::shared_ptr<MetadataVersion>& mv) noexcept;
