@@ -12,7 +12,10 @@
 #include "data/IRLoader.hh"
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
+#include "runtime/Command.hh"
 #include "util/log.hh"
+#include "versions/ContentVersion.hh"
+#include "versions/MetadataVersion.hh"
 
 class Command;
 class MetadataVersion;
@@ -20,6 +23,8 @@ class MetadataVersion;
 namespace fs = std::filesystem;
 
 class IRBuffer : public IRSource, public IRSink, public IRLoader {
+  enum class Mode { Filling, Draining, Drained };
+
  public:
   IRBuffer() noexcept;
 
@@ -35,14 +40,14 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Start a build with the given root command
   virtual void start(const std::shared_ptr<Command>& c) noexcept override {
     ASSERT(c) << "IRBuffer::start() called with null root command";
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _root_command = c;
     _steps.emplace_back([=](IRSink& handler) { handler.start(c); });
   }
 
   /// Called when the trace is finished
   virtual void finish() noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.finish(); });
   }
 
@@ -50,7 +55,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void specialRef(const std::shared_ptr<Command>& command,
                           SpecialRef entity,
                           Ref::ID output) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.specialRef(command, entity, output); });
   }
 
@@ -58,7 +63,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void pipeRef(const std::shared_ptr<Command>& command,
                        Ref::ID read_end,
                        Ref::ID write_end) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.pipeRef(command, read_end, write_end); });
   }
 
@@ -66,7 +71,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void fileRef(const std::shared_ptr<Command>& command,
                        mode_t mode,
                        Ref::ID output) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.fileRef(command, mode, output); });
   }
 
@@ -74,7 +79,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void symlinkRef(const std::shared_ptr<Command>& command,
                           fs::path target,
                           Ref::ID output) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.symlinkRef(command, target, output); });
   }
 
@@ -82,7 +87,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void dirRef(const std::shared_ptr<Command>& command,
                       mode_t mode,
                       Ref::ID output) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.dirRef(command, mode, output); });
   }
 
@@ -92,20 +97,20 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                        fs::path path,
                        AccessFlags flags,
                        Ref::ID output) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.pathRef(command, base, path, flags, output); });
   }
 
   /// Handle a UsingRef IR step
   virtual void usingRef(const std::shared_ptr<Command>& command, Ref::ID ref) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.usingRef(command, ref); });
   }
 
   /// Handle a DoneWithRef IR step
   virtual void doneWithRef(const std::shared_ptr<Command>& command, Ref::ID ref) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.doneWithRef(command, ref); });
   }
 
@@ -114,7 +119,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                            Ref::ID ref1,
                            Ref::ID ref2,
                            RefComparison type) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.compareRefs(command, ref1, ref2, type); });
   }
 
@@ -123,7 +128,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                             Scenario scenario,
                             Ref::ID ref,
                             int expected) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.expectResult(command, scenario, ref, expected); });
   }
@@ -133,7 +138,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                              Scenario scenario,
                              Ref::ID ref,
                              std::shared_ptr<MetadataVersion> version) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.matchMetadata(command, scenario, ref, version); });
   }
@@ -143,7 +148,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> version) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back(
         [=](IRSink& handler) { handler.matchContent(command, scenario, ref, version); });
   }
@@ -152,7 +157,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
                               std::shared_ptr<MetadataVersion> version) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.updateMetadata(command, ref, version); });
   }
 
@@ -160,7 +165,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void updateContent(const std::shared_ptr<Command>& command,
                              Ref::ID ref,
                              std::shared_ptr<ContentVersion> version) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.updateContent(command, ref, version); });
   }
 
@@ -169,7 +174,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                         Ref::ID dir,
                         fs::path name,
                         Ref::ID target) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.addEntry(command, dir, name, target); });
   }
 
@@ -178,7 +183,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                            Ref::ID dir,
                            fs::path name,
                            Ref::ID target) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.removeEntry(command, dir, name, target); });
   }
 
@@ -186,7 +191,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void launch(const std::shared_ptr<Command>& command,
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.launch(command, child, refs); });
   }
 
@@ -194,13 +199,13 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void join(const std::shared_ptr<Command>& command,
                     const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.join(command, child, exit_status); });
   }
 
   /// Handle an Exit IR step
   virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override {
-    ASSERT(!_draining) << "Cannot add steps to a buffer that is draining";
+    ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _steps.emplace_back([=](IRSink& handler) { handler.exit(command, exit_status); });
   }
 
@@ -217,6 +222,15 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void addContentVersion(ContentVersion::ID id,
                                  std::shared_ptr<ContentVersion> cv) noexcept override;
 
+  /// Get the ID for a command instance
+  Command::ID getCommandID(const std::shared_ptr<Command>& c) noexcept;
+
+  /// Get the ID for a metadata version
+  MetadataVersion::ID getMetadataVersionID(const std::shared_ptr<MetadataVersion>& mv) noexcept;
+
+  /// Get the ID for a content version
+  ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& cv) noexcept;
+
  private:
   /// The temporary file descriptor used to hold this buffer's data
   int _fd;
@@ -227,8 +241,8 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// The cereal archive used to serialize steps
   cereal::BinaryOutputArchive _archive;
 
-  /// Is the buffer currently draining?
-  bool _draining = false;
+  /// What is this buffer's current mode? Is it filling, draining, or drained?
+  Mode _mode = Mode::Filling;
 
   /// Keep track of the root command
   std::shared_ptr<Command> _root_command;
@@ -236,12 +250,12 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Keep a list of IR steps as callbacks that take a sink as input
   std::list<std::function<void(IRSink&)>> _steps;
 
-  /// The map from command IDs to command instances
-  std::vector<std::shared_ptr<Command>> _commands;
+  /// The map from commands to their IDs in the serialized data
+  std::map<std::shared_ptr<Command>, Command::ID> _command_ids;
 
-  /// The map from metadata version IDs to instances
-  std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
+  /// The map from metadata versions to their IDs in the serialized data
+  std::map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_version_ids;
 
-  /// The map from content version IDs to instances
-  std::vector<std::shared_ptr<ContentVersion>> _content_versions;
+  /// The map from content versions to their IDs in the serialized data
+  std::map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_version_ids;
 };

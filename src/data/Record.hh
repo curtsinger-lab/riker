@@ -126,6 +126,26 @@ struct ContentVersionRecord : public Record {
   }
 };
 
+struct StartRecord : public Record {
+  Command::ID _root_command_id;
+
+  // Default constructor for serialization
+  StartRecord() noexcept = default;
+
+  StartRecord(Command::ID root_command_id) noexcept : _root_command_id(root_command_id) {}
+
+  static std::unique_ptr<Record> create(Command::ID root_command_id) {
+    return std::make_unique<StartRecord>(root_command_id);
+  }
+
+  virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
+
+  template <class Archive>
+  void serialize(Archive& archive) {
+    archive(cereal::base_class<Record>(this));
+  }
+};
+
 struct SpecialRefRecord : public Record {
   Command::ID _cmd;
   SpecialRef _entity;
@@ -601,12 +621,12 @@ struct ExitRecord : public Record {
   }
 };
 
-struct EndRecord : public Record {
-  EndRecord() noexcept = default;
+struct FinishRecord : public Record {
+  FinishRecord() noexcept = default;
 
   virtual bool isEnd() const noexcept override { return true; }
 
-  static std::unique_ptr<Record> create() { return std::make_unique<EndRecord>(); }
+  static std::unique_ptr<Record> create() { return std::make_unique<FinishRecord>(); }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 

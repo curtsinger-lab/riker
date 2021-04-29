@@ -58,9 +58,6 @@ tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filenam
 
 // Run this trace
 void InputTrace::sendTo(IRSink& handler) noexcept {
-  // Send the root command
-  handler.start(getCommand(0));
-
   // Loop until we hit the end of the trace
   bool done = false;
   while (!done) {
@@ -69,6 +66,4 @@ void InputTrace::sendTo(IRSink& handler) noexcept {
     done = record->isEnd();
     record->handle(*this, handler);
   }
-
-  handler.finish();
 }

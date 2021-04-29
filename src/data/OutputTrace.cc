@@ -91,8 +91,8 @@ ContentVersion::ID OutputTrace::getContentVersionID(const shared_ptr<ContentVers
 
 /// Trace output is starting
 void OutputTrace::start(const shared_ptr<Command>& root) noexcept {
-  // Add the root command to the command map with ID 0
   _commands.emplace(root, 0);
+  _archive(StartRecord::create(0));
 }
 
 /// Add a SpecialRef IR step to the output trace
@@ -237,7 +237,7 @@ void OutputTrace::exit(const shared_ptr<Command>& cmd, int exit_status) noexcept
 
 void OutputTrace::finish() noexcept {
   // Mark the end of the trace
-  _archive(EndRecord::create());
+  _archive(FinishRecord::create());
 
   // Close the output filestream
   _out.close();

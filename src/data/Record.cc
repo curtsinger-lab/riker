@@ -23,6 +23,7 @@ CEREAL_REGISTER_TYPE(MetadataVersionRecord);
 CEREAL_REGISTER_TYPE(ContentVersionRecord);
 
 // Record types for trace steps
+CEREAL_REGISTER_TYPE(StartRecord);
 CEREAL_REGISTER_TYPE(SpecialRefRecord);
 CEREAL_REGISTER_TYPE(PipeRefRecord);
 CEREAL_REGISTER_TYPE(FileRefRecord);
@@ -42,7 +43,7 @@ CEREAL_REGISTER_TYPE(RemoveEntryRecord);
 CEREAL_REGISTER_TYPE(LaunchRecord);
 CEREAL_REGISTER_TYPE(JoinRecord);
 CEREAL_REGISTER_TYPE(ExitRecord);
-CEREAL_REGISTER_TYPE(EndRecord);
+CEREAL_REGISTER_TYPE(FinishRecord);
 
 // Versions
 CEREAL_REGISTER_TYPE(FileVersion);
@@ -76,6 +77,11 @@ void MetadataVersionRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 void ContentVersionRecord::handle(IRLoader& input, IRSink& handler) noexcept {
   // Add the loaded content version to the input trace
   input.addContentVersion(_id, _version);
+}
+
+// Send a start call to the handler
+void StartRecord::handle(IRLoader& input, IRSink& handler) noexcept {
+  handler.start(input.getCommand(_root_command_id));
 }
 
 // Send a SpecialRef IR step from an input trace to a trace handler
@@ -175,4 +181,6 @@ void ExitRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 }
 
 // Handle a record that marks the end of an input trace
-void EndRecord::handle(IRLoader& input, IRSink& handler) noexcept {}
+void FinishRecord::handle(IRLoader& input, IRSink& handler) noexcept {
+  handler.finish();
+}
