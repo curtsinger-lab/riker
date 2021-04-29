@@ -42,34 +42,8 @@ class InputTrace : public IRSource, public IRLoader {
   /// Send the loaded trace to a trace handler
   virtual void sendTo(IRSink& handler) noexcept override;
 
-  /// Add a command with a known ID to this input trace. If the command ID has already been loaded,
-  /// the original instance will be used and not the new one.
-  virtual void addCommand(Command::ID id, std::shared_ptr<Command> cmd) noexcept override;
-
-  /// Get a command from its ID
-  virtual const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept override;
-
-  /// Add a MetadataVersion with a known ID to this input trace
-  virtual void addMetadataVersion(MetadataVersion::ID id,
-                                  std::shared_ptr<MetadataVersion> mv) noexcept override;
-
-  /// Get a metadata version from its ID
-  virtual const std::shared_ptr<MetadataVersion>& getMetadataVersion(
-      MetadataVersion::ID id) const noexcept override;
-
-  /// Add a ContentVersion with a known ID to this input trace
-  virtual void addContentVersion(ContentVersion::ID id,
-                                 std::shared_ptr<ContentVersion> cv) noexcept override;
-
-  /// Get a content version from its ID
-  virtual const std::shared_ptr<ContentVersion>& getContentVersion(
-      ContentVersion::ID id) const noexcept override;
-
   /// Get the root command for this trace
-  std::shared_ptr<Command> getRootCommand() const noexcept { return _commands[0]; }
-
-  /// Check if this input trace has a command with a given ID
-  bool hasCommand(Command::ID id) const noexcept { return id >= 0 && _commands.size() > id; }
+  std::shared_ptr<Command> getRootCommand() const noexcept { return IRLoader::getCommand(0); }
 
  private:
   /// The input stream this trace is read from
@@ -80,13 +54,4 @@ class InputTrace : public IRSource, public IRLoader {
 
   /// Any extra arguments a user may supply to a buildfile
   std::vector<std::string> _args;
-
-  /// The map from command IDs to command instances
-  std::vector<std::shared_ptr<Command>> _commands;
-
-  /// The map from metadata version IDs to instances
-  std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
-
-  /// The map from content version IDs to instances
-  std::vector<std::shared_ptr<ContentVersion>> _content_versions;
 };

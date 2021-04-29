@@ -38,8 +38,8 @@ InputTrace::InputTrace(string filename, vector<string> args) :
     throw cereal::Exception("Wrong version");
   }
 
-  // Add the null command to the command map
-  _commands.emplace_back(Command::createEmptyCommand());
+  // Add the root command to the command map
+  IRLoader::addCommand(0, Command::createEmptyCommand());
 }
 
 tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filename,
@@ -71,50 +71,4 @@ void InputTrace::sendTo(IRSink& handler) noexcept {
   }
 
   handler.finish();
-}
-
-/// Add a command with a known ID to this input trace. If the command ID has already been loaded,
-/// the original instance will be used and not the new one.
-void InputTrace::addCommand(Command::ID id, shared_ptr<Command> cmd) noexcept {
-  // Grow the commands vector if necessary
-  if (_commands.size() <= id) _commands.resize(id + 1);
-
-  // If the referenced entry is unset, save the provided cmd
-  if (!_commands[id]) _commands[id] = cmd;
-}
-
-/// Get a command from its ID
-const shared_ptr<Command>& InputTrace::getCommand(Command::ID id) const noexcept {
-  return _commands[id];
-}
-
-/// Add a MetadataVersion with a known ID to this input trace
-void InputTrace::addMetadataVersion(MetadataVersion::ID id,
-                                    shared_ptr<MetadataVersion> mv) noexcept {
-  // Grow the vector if necessary
-  if (_metadata_versions.size() <= id) _metadata_versions.resize(id + 1);
-
-  // If the referenced entry is not set, save the provided version
-  if (!_metadata_versions[id]) _metadata_versions[id] = mv;
-}
-
-/// Get a metadata version from its ID
-const shared_ptr<MetadataVersion>& InputTrace::getMetadataVersion(
-    MetadataVersion::ID id) const noexcept {
-  return _metadata_versions[id];
-}
-
-/// Add a ContentVersion with a known ID to this input trace
-void InputTrace::addContentVersion(ContentVersion::ID id, shared_ptr<ContentVersion> cv) noexcept {
-  // Grow the vector if necessary
-  if (_content_versions.size() <= id) _content_versions.resize(id + 1);
-
-  // If the referenced entry is not set, save the provided version
-  if (!_content_versions[id]) _content_versions[id] = cv;
-}
-
-/// Get a content version from its ID
-const shared_ptr<ContentVersion>& InputTrace::getContentVersion(
-    ContentVersion::ID id) const noexcept {
-  return _content_versions[id];
 }

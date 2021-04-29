@@ -1,10 +1,15 @@
 #pragma once
 
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <list>
 #include <memory>
+#include <string>
 
+#include <cereal/archives/binary.hpp>
+
+#include "data/IRLoader.hh"
 #include "data/IRSink.hh"
 #include "data/IRSource.hh"
 #include "util/log.hh"
@@ -14,24 +19,14 @@ class MetadataVersion;
 
 namespace fs = std::filesystem;
 
-class IRBuffer : public IRSource, public IRSink {
+class IRBuffer : public IRSource, public IRSink, public IRLoader {
  public:
+  IRBuffer() noexcept;
+
   /**** IRSource Methods ****/
 
   /// Send the stored IR trace to a sink
-  virtual void sendTo(IRSink& handler) noexcept override {
-    // Set the buffer to draining mode
-    _draining = true;
-
-    // Send steps while the list is not empty
-    while (!_steps.empty()) {
-      _steps.front()(handler);
-      _steps.pop_front();
-    }
-
-    // Now the buffer can fill again
-    _draining = false;
-  }
+  virtual void sendTo(IRSink& handler) noexcept override;
 
   /**** IRSink Methods ****/
 
@@ -207,7 +202,26 @@ class IRBuffer : public IRSource, public IRSink {
     _steps.emplace_back([=](IRSink& handler) { handler.exit(command, exit_status); });
   }
 
+  /**** IRLoader Methods ****/
+
+  /// Identify a command with a given ID
+  virtual void addCommand(Command::ID id, std::shared_ptr<Command> c) noexcept override;
+
+  /// Identify a metadata version with a given ID
+  virtual void addMetadataVersion(MetadataVersion::ID id,
+                                  std::shared_ptr<MetadataVersion> mv) noexcept override;
+
+  /// Identify a content version with a given ID
+  virtual void addContentVersion(ContentVersion::ID id,
+                                 std::shared_ptr<ContentVersion> cv) noexcept override;
+
  private:
+  /// The output file stream
+  std::ofstream _out;
+
+  /// The cereal archive used to serialize steps
+  cereal::BinaryOutputArchive _archive;
+
   /// Is the buffer currently draining?
   bool _draining = false;
 
@@ -216,4 +230,13 @@ class IRBuffer : public IRSource, public IRSink {
 
   /// Keep a list of IR steps as callbacks that take a sink as input
   std::list<std::function<void(IRSink&)>> _steps;
+
+  /// The map from command IDs to command instances
+  std::vector<std::shared_ptr<Command>> _commands;
+
+  /// The map from metadata version IDs to instances
+  std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
+
+  /// The map from content version IDs to instances
+  std::vector<std::shared_ptr<ContentVersion>> _content_versions;
 };

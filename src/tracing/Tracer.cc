@@ -305,6 +305,20 @@ void Tracer::handleSyscall(Thread& t) noexcept {
 shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcept {
   LOG(exec) << "Preparing to trace " << cmd;
 
+  // First mark all FDs as close-on-exec
+  for (auto& entry : fs::directory_iterator("/proc/self/fd")) {
+    int fd = std::stoi(entry.path().filename());
+    int flags = fcntl(fd, F_GETFD, 0);
+    WARN_IF(flags < 0) << "Failed to get flags for fd " << fd;
+
+    // If the flags do not include the cloexec bit, turn it on
+    if ((flags & FD_CLOEXEC) == 0) {
+      flags |= FD_CLOEXEC;
+      int rc = fcntl(fd, F_SETFD, flags);
+      WARN_IF(rc < 0) << "Failed to set flags for fd " << fd;
+    }
+  }
+
   // Fill this vector in with {parent_fd, child_fd} pairs
   // The launched child will dup2 these into place
   vector<std::pair<int, int>> initial_fds;
