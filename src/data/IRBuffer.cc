@@ -8,9 +8,11 @@
 
 #include "util/log.hh"
 
+using std::ifstream;
 using std::shared_ptr;
 using std::string;
 using std::stringstream;
+using std::unique_ptr;
 
 static int open_tempfile() noexcept {
   // Open an anonymous temporary file that cannot be linked to the filesystem
@@ -41,10 +43,18 @@ void IRBuffer::sendTo(IRSink& handler) noexcept {
   // Set the buffer to draining mode
   _mode = IRBuffer::Mode::Draining;
 
-  // Send steps while the list is not empty
-  while (!_steps.empty()) {
-    _steps.front()(handler);
-    _steps.pop_front();
+  _out.close();
+
+  // Create a binary input archive to read steps
+  ::lseek(_fd, 0, SEEK_SET);
+  ifstream in(get_fd_path(_fd), std::ios::binary);
+  cereal::BinaryInputArchive in_archive(in);
+
+  // Send steps to the given handler
+  for (size_t i = 0; i < _steps; i++) {
+    unique_ptr<Record> record;
+    in_archive(record);
+    record->handle(*this, handler);
   }
 
   // Now the buffer is drained
