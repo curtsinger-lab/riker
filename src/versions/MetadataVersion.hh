@@ -36,7 +36,7 @@ class MetadataVersion : public Version {
   std::shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
 
   /// Check if a given access is allowed by the mode bits in this metadata record
-  bool checkAccess(std::shared_ptr<Artifact> artifact, AccessFlags flags) noexcept;
+  bool checkAccess(AccessFlags flags) noexcept;
 
   /// Get the mode field from this metadata version
   mode_t getMode() const noexcept;
@@ -54,9 +54,6 @@ class MetadataVersion : public Version {
   virtual std::ostream& print(std::ostream& o) const noexcept override;
 
  private:
-  /// The command that created this version
-  std::weak_ptr<Command> _creator;
-
   /// The user id for this metadata version
   uid_t _uid;
 

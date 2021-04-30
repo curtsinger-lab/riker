@@ -35,7 +35,7 @@ shared_ptr<MetadataVersion> MetadataVersion::chmod(mode_t mode) noexcept {
   return make_shared<MetadataVersion>(_uid, _gid, (_mode & S_IFMT) | mode);
 }
 
-bool MetadataVersion::checkAccess(shared_ptr<Artifact> artifact, AccessFlags flags) noexcept {
+bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
   // TODO: Currently checking against the rkr process' effective user and group(s). This check
   // should instead use the user and group(s) of the emulated process/command. Such attributes
   // should probably be stored within the reference.

@@ -178,7 +178,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  return getMetadata(c)->checkAccess(shared_from_this(), flags);
+  return getMetadata(c)->checkAccess(flags);
 }
 
 optional<fs::path> Artifact::commitPath() noexcept {
