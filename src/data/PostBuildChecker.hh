@@ -18,6 +18,10 @@ class ContentVersion;
 template <class Next>
 class PostBuildChecker : public Next {
  public:
+  /// The constructor for a post-build checker passes any arguments along to the next layer
+  template <typename... Args>
+  PostBuildChecker(Args&&... args) noexcept : Next(std::forward<Args>(args)...) {}
+
   /// Handle an ExpectResult IR step
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,

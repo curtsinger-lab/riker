@@ -86,21 +86,17 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
   if (iteration > 1) {
     LOG(phase) << "Starting post-build checks";
 
-    // Run the post-build checks
-    PostBuildChecker<IRBuffer> post_build_buffer;
+    // Run the post-build checks and send the resulting trace directly to output
+    PostBuildChecker<OutputTrace> output(constants::DatabaseFilename);
 
     // Reset the environment
     env::rollback();
 
     // Run the build
-    Build build(post_build_buffer);
+    Build build(output);
     input->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
-
-    // Write the final trace to disk
-    OutputTrace output(constants::DatabaseFilename);
-    post_build_buffer.sendTo(output);
   }
 
   gather_stats(stats_log_path, stats, iteration);
