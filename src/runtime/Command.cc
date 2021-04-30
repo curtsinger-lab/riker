@@ -244,7 +244,7 @@ void Command::finishRun() noexcept {
 void Command::planBuild() noexcept {
   // See rebuild planning rules in docs/new-rebuild.md
   // Rules 1 & 2: If this command observe a change on its previous run, mark it for rerun
-  if (_previous_run._changed.size() == 2) {
+  if (_previous_run._changed == Scenario::Both) {
     if (mark(RebuildMarking::MustRun)) {
       LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
     }
@@ -577,7 +577,7 @@ bool Command::doneWithRef(Ref::ID id) noexcept {
 
 // This command observed a change in a given scenario
 void Command::observeChange(Scenario s) noexcept {
-  _current_run._changed.insert(s);
+  _current_run._changed |= s;
 }
 
 // An input to this command did not match the expected version
@@ -585,7 +585,7 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
                            shared_ptr<MetadataVersion> observed,
                            shared_ptr<MetadataVersion> expected,
                            Scenario scenario) noexcept {
-  _current_run._changed.insert(scenario);
+  _current_run._changed |= scenario;
 }
 
 // An input to this command did not match the expected version
@@ -593,7 +593,7 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
                            shared_ptr<ContentVersion> observed,
                            shared_ptr<ContentVersion> expected,
                            Scenario scenario) noexcept {
-  _current_run._changed.insert(scenario);
+  _current_run._changed |= scenario;
 }
 
 // Add an input to this command
@@ -728,8 +728,7 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
   LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})", this,
        artifact, expected, ondisk);
 
-  _current_run._changed.insert(Scenario::Build);
-  _current_run._changed.insert(Scenario::PostBuild);
+  _current_run._changed |= Scenario::Both;
 }
 
 /********************** Previous Run Data ********************/

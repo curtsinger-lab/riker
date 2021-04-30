@@ -23,9 +23,14 @@ class PostBuildChecker : public Next {
                             Scenario scenario,
                             Ref::ID ref,
                             int expected) noexcept override {
-    if (scenario == Scenario::Build) {
-      Next::expectResult(command, Scenario::Build, ref, expected);
-      Next::expectResult(command, Scenario::PostBuild, ref, command->getRef(ref)->getResultCode());
+    if (scenario & Scenario::Build) {
+      auto post_build = command->getRef(ref)->getResultCode();
+      if (post_build == expected) {
+        Next::expectResult(command, Scenario::Both, ref, expected);
+      } else {
+        Next::expectResult(command, Scenario::Build, ref, expected);
+        Next::expectResult(command, Scenario::PostBuild, ref, post_build);
+      }
     }
   }
 
@@ -34,14 +39,24 @@ class PostBuildChecker : public Next {
                              Scenario scenario,
                              Ref::ID ref,
                              std::shared_ptr<MetadataVersion> expected) noexcept override {
-    if (scenario == Scenario::Build) {
-      // Emit the predicate from the original build phase
-      Next::matchMetadata(command, Scenario::Build, ref, expected);
-
-      // Now also emit a predicate to check for the post-build state
+    if (scenario & Scenario::Build) {
+      // Did the reference resolve in the post-build state?
       if (command->getRef(ref)->isResolved()) {
-        Next::matchMetadata(command, Scenario::PostBuild, ref,
-                            command->getRef(ref)->getArtifact()->peekMetadata());
+        // Yes. Grab the outcome from the post-build match.
+        const auto& post_build = command->getRef(ref)->getArtifact()->peekMetadata();
+
+        // Is the post-build version match the version from during the build?
+        if (post_build->matches(expected)) {
+          // Yes. Emit a single predicate for both scenarios
+          Next::matchMetadata(command, Scenario::Both, ref, expected);
+        } else {
+          // No. Emit separate predicates for each scenario
+          Next::matchMetadata(command, Scenario::Build, ref, expected);
+          Next::matchMetadata(command, Scenario::PostBuild, ref, post_build);
+        }
+      } else {
+        // The reference did not resolve post build, so just emit a Build predicate
+        Next::matchMetadata(command, Scenario::Build, ref, expected);
       }
     }
   }
@@ -51,14 +66,25 @@ class PostBuildChecker : public Next {
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
-    if (scenario == Scenario::Build) {
-      // Emit the predicate from the original build phase
-      Next::matchContent(command, Scenario::Build, ref, expected);
-
-      // Now also emit a predicate to check for the post-build state
+    if (scenario & Scenario::Build) {
+      // Did the reference resolve in the post-build state?
       if (command->getRef(ref)->isResolved()) {
-        Next::matchContent(command, Scenario::PostBuild, ref,
-                           command->getRef(ref)->getArtifact()->peekContent());
+        // Yes. Grab the outcome from the post-build match
+        const auto& post_build = command->getRef(ref)->getArtifact()->peekContent();
+
+        // Does the post-build version match the version from during the build?
+        if (post_build->matches(expected)) {
+          // Yes. Emit a single predicate for both scenarios
+          Next::matchContent(command, Scenario::Both, ref, expected);
+
+        } else {
+          // No. Emit separate predicates for each scenario
+          Next::matchContent(command, Scenario::Build, ref, expected);
+          Next::matchContent(command, Scenario::PostBuild, ref, post_build);
+        }
+      } else {
+        // The reference did not resolve post build, so just emit a Build predicate
+        Next::matchContent(command, Scenario::Build, ref, expected);
       }
     }
   }

@@ -48,8 +48,7 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
 
   /// Check if this version matches another
   virtual bool matches(std::shared_ptr<ContentVersion> other) noexcept {
-    FAIL << "Unsupported call to matches() on version " << this;
-    return false;
+    return other.get() == this;
   }
 
   /// Can a write of this version be coalesced with another?

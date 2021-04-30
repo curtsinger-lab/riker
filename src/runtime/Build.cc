@@ -387,16 +387,14 @@ void Build::compareRefs(const shared_ptr<Command>& c,
     if (ref1->getArtifact() != ref2->getArtifact()) {
       LOGF(rebuild, "{} changed: expected {} and {} to refer to the same artifact", c, ref1, ref2);
 
-      c->observeChange(Scenario::Build);
-      c->observeChange(Scenario::PostBuild);
+      c->observeChange(Scenario::Both);
     }
   } else if (type == RefComparison::DifferentInstances) {
     if (ref1->getArtifact() == ref2->getArtifact()) {
       LOGF(rebuild, "{} changed: expected {} and {} to refer to different artifacts", c, ref1,
            ref2);
 
-      c->observeChange(Scenario::Build);
-      c->observeChange(Scenario::PostBuild);
+      c->observeChange(Scenario::Both);
     }
   } else {
     FAIL << "Unknown reference comparison type";
@@ -682,8 +680,7 @@ void Build::launch(const shared_ptr<Command>& c,
   } else if (!child->hasExecuted()) {
     // The command is not running now, and has never run before. Ensure it is marked.
     LOGF(rebuild, "{} changed: never run", child);
-    child->observeChange(Scenario::Build);
-    child->observeChange(Scenario::PostBuild);
+    child->observeChange(Scenario::Both);
   }
 
   // Print the command if requested
@@ -759,8 +756,7 @@ void Build::join(const shared_ptr<Command>& c,
          child, exit_status, child->getExitStatus());
 
     // The command detects a changed exit status from its child, so it must rerun
-    c->observeChange(Scenario::Build);
-    c->observeChange(Scenario::PostBuild);
+    c->observeChange(Scenario::Both);
   }
 }
 

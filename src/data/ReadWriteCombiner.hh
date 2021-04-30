@@ -41,7 +41,7 @@ class MetadataReadCombiner : public Next {
                              Ref::ID ref,
                              std::shared_ptr<MetadataVersion> expected) noexcept override {
     // Post-build checks should be emitted as-is
-    if (scenario == Scenario::PostBuild) {
+    if (scenario & Scenario::PostBuild) {
       Next::matchMetadata(command, scenario, ref, expected);
       return;
     }
@@ -172,7 +172,7 @@ class ContentReadCombiner : public Next {
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
-    if (scenario == Scenario::PostBuild) {
+    if (scenario & Scenario::PostBuild) {
       Next::matchContent(command, scenario, ref, expected);
       return;
     }

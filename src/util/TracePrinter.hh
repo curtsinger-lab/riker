@@ -16,12 +16,16 @@ class Command;
 class Ref;
 
 inline static std::ostream& operator<<(std::ostream& o, Scenario s) {
-  if (s == Scenario::Build) {
-    return o << "<build>";
+  if (s == Scenario::None) {
+    return o << "[no scenario]";
+  } else if (s == Scenario::Build) {
+    return o << "[build]";
   } else if (s == Scenario::PostBuild) {
-    return o << "<post-build>";
+    return o << "[post-build]";
+  } else if (s == Scenario::Both) {
+    return o << "[build, post-build]";
   } else {
-    return o << "<unknown>";
+    return o << "[unknown scenario]";
   }
 }
 

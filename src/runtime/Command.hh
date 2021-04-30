@@ -44,7 +44,36 @@ enum class RebuildMarking {
  * If all of a command's predicates in the Build scenario evaluate to true, the command does not
  * directly observe any change. The same is true for the PostBuild scenario.
  */
-enum class Scenario { Build, PostBuild };
+enum class Scenario : uint8_t { None = 0, Build = 1, PostBuild = 2, Both = 3 };
+
+inline bool operator&(Scenario s1, Scenario s2) noexcept {
+  return (static_cast<uint8_t>(s1) & static_cast<uint8_t>(s2)) != 0;
+}
+
+inline Scenario operator|(Scenario s1, Scenario s2) noexcept {
+  if (s1 == Scenario::None) {
+    return s2;
+  } else if (s1 == Scenario::Build) {
+    if (s2 == Scenario::None || s2 == Scenario::Build) {
+      return Scenario::Build;
+    } else {
+      return Scenario::Both;
+    }
+  } else if (s1 == Scenario::PostBuild) {
+    if (s2 == Scenario::None || s2 == Scenario::PostBuild) {
+      return Scenario::PostBuild;
+    } else {
+      return Scenario::Both;
+    }
+  } else {
+    return Scenario::Both;
+  }
+}
+
+inline Scenario& operator|=(Scenario& lhs, Scenario rhs) noexcept {
+  lhs = lhs | rhs;
+  return lhs;
+}
 
 /**
  * Representation of a command that runs as part of the build.
@@ -205,7 +234,7 @@ class Command : public std::enable_shared_from_this<Command> {
     int _exit_status = -1;
 
     /// Keep track of the scenarios where this command has observed a change
-    std::set<Scenario> _changed;
+    Scenario _changed = Scenario::None;
 
     /// Inputs to this command
     InputList _inputs;
