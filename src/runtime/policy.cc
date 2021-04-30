@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+#include <sys/stat.h>
+
 #include "util/log.hh"
 #include "util/options.hh"
 #include "versions/ContentVersion.hh"
@@ -105,17 +107,24 @@ namespace policy {
       return false;
     }
 
+    struct stat statbuf;
+    if (::stat(path.c_str(), &statbuf)) {
+      return false;
+    }
+
     bool is_fingerprintable = chooseFingerprintType(reader, writer, path) != FingerprintType::None;
     bool has_creator = writer != nullptr;
+    bool not_too_big = statbuf.st_size < options::max_cached_file_size;
     bool cache_enabled = options::enable_cache;
 
     // we cache if v is fingerprintable, was created by a build command, and caching is enabled
-    bool do_cache = is_fingerprintable && writer && options::enable_cache;
+    bool do_cache = is_fingerprintable && writer && not_too_big && options::enable_cache;
 
     LOG(cache) << "Policy: for path " << path << (do_cache ? " should" : " should not")
                << " be cached because it"
                << (is_fingerprintable ? " is fingerprintable," : " is not fingerprintable,")
-               << (has_creator ? " has a creator," : " has no creator,") << " and"
+               << (has_creator ? " has a creator," : " has no creator,")
+               << (not_too_big ? " is not too big," : " is too big,") << " and"
                << (cache_enabled ? " cache is enabled" : " cache is disabled") << ".";
 
     return do_cache;

@@ -341,20 +341,24 @@ void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) const 
   // If this artifact does not have a committed version, it can't be cached or fingerprinted
   if (!_committed_content) return;
 
+  // If this artifact has uncommitted state its writer is not associated with the committed version
+  if (_uncommitted_content) return;
+
+  auto writer = _content_writer.lock();
+
   // If the reader is also the last writer, there's no need to fingerprint
-  if (reader == _content_writer.lock()) return;
+  if (reader == writer) return;
 
   // Get a path to this artifact
   auto path = getCommittedPath();
 
   // If the artifact has a committed path, we may fingerprint or cache it
   if (path.has_value()) {
-    auto fingerprint_type =
-        policy::chooseFingerprintType(reader, _content_writer.lock(), path.value());
+    auto fingerprint_type = policy::chooseFingerprintType(reader, writer, path.value());
     _committed_content->fingerprint(path.value(), fingerprint_type);
 
     // cache?
-    if (policy::isCacheable(reader, _content_writer.lock(), path.value())) {
+    if (!_committed_content->canCommit() && policy::isCacheable(reader, writer, path.value())) {
       _committed_content->cache(path.value());
     }
   }

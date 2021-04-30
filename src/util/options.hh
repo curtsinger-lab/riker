@@ -38,4 +38,7 @@ namespace options {
   /// Run only commands that MUST run, then re-evaluate and execute others as needed
   inline bool lazy_builds = true;  // PAPER
 
+  /// The maximum file size to consider for caching
+  inline size_t max_cached_file_size = 1024 * 1024 * 10;
+
 }
