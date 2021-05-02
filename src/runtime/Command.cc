@@ -743,9 +743,15 @@ const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
   return _previous_run._uses_output_from;
 }
 
-optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args) const noexcept {
+optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args,
+                                                  const map<int, Ref::ID>& fds) const noexcept {
   // If the argument arrays are different lengths, there cannot be a match
   if (other_args.size() != _args.size()) return nullopt;
+
+  // Do the initial FDs cover all the FDs this command needs?
+  for (const auto& [fd, _] : _initial_fds) {
+    if (fds.find(fd) == fds.end()) return nullopt;
+  }
 
   // Keep track of any substitutions we have to make for tempfile names
   map<string, string> substitutions;

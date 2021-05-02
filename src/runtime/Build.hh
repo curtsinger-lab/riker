@@ -240,7 +240,7 @@ class Build : public IRSink {
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
-                                       std::map<int, Ref::ID> fds,
+                                       const std::map<int, Ref::ID>& fds,
                                        std::shared_ptr<Process> process) noexcept;
 
   /// A command is joining with a child command

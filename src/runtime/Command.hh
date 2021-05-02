@@ -134,6 +134,9 @@ class Command : public std::enable_shared_from_this<Command> {
     _initial_fds.emplace(fd, ref);
   }
 
+  /// Set the initial file descriptors for this command
+  void setInitialFDs(std::map<int, Ref::ID> fds) noexcept { _initial_fds = fds; }
+
   /****** Utility Methods ******/
 
   /// Print a Command to an output stream
@@ -364,7 +367,8 @@ class Command : public std::enable_shared_from_this<Command> {
    * \returns nullopt if there is not a match, or a map of substitutions required for the match
    */
   std::optional<std::map<std::string, std::string>> tryToMatch(
-      const std::vector<std::string>& args) const noexcept;
+      const std::vector<std::string>& args,
+      const std::map<int, Ref::ID>& fds) const noexcept;
 
   /// Get the content inputs to this command
   const InputList& getInputs() noexcept;
