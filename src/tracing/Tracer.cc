@@ -159,7 +159,9 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         int rc = ptrace(PTRACE_GETSIGINFO, child, nullptr, &info);
         if (rc == -1 && errno == EINVAL) {
           LOG(trace) << thread << " in group-stop";
-          ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+          if (thread.getID() == thread.getProcess()->getID()) {
+            ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+          }
 
         } else {
           LOG(trace) << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))

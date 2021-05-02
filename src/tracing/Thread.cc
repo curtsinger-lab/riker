@@ -870,27 +870,37 @@ void Thread::_ftruncate(int fd, long length) noexcept {
 void Thread::_tee(int fd_in, int fd_out) noexcept {
   LOGF(trace, "{}: tee({}, {})", this, fd_in, fd_out);
 
-  // Get the descriptors
-  auto in_ref_id = _process->getFD(fd_in);
-  const auto& in_ref = getCommand()->getRef(in_ref_id);
+  // Does the process have the input FD?
+  if (_process->hasFD(fd_in)) {
+    // Get the descriptors
+    auto in_ref_id = _process->getFD(fd_in);
+    const auto& in_ref = getCommand()->getRef(in_ref_id);
 
-  auto out_ref_id = _process->getFD(fd_out);
-  const auto& out_ref = getCommand()->getRef(out_ref_id);
+    auto out_ref_id = _process->getFD(fd_out);
+    const auto& out_ref = getCommand()->getRef(out_ref_id);
 
-  // We are abou to read from in_ref and write to out_ref
-  in_ref->getArtifact()->beforeRead(_build, getCommand(), in_ref_id);
-  out_ref->getArtifact()->beforeWrite(_build, getCommand(), out_ref_id);
+    // We are abou to read from in_ref and write to out_ref
+    in_ref->getArtifact()->beforeRead(_build, getCommand(), in_ref_id);
+    out_ref->getArtifact()->beforeWrite(_build, getCommand(), out_ref_id);
 
-  // Finish the syscall and resume
-  finishSyscall([=](long rc) {
-    resume();
+    // Finish the syscall and resume
+    finishSyscall([=](long rc) {
+      resume();
 
-    // If the call succeeds, record the read and write
-    if (rc >= 0) {
-      in_ref->getArtifact()->afterRead(_build, getCommand(), in_ref_id);
-      out_ref->getArtifact()->afterWrite(_build, getCommand(), out_ref_id);
-    }
-  });
+      // If the call succeeds, record the read and write
+      if (rc >= 0) {
+        in_ref->getArtifact()->afterRead(_build, getCommand(), in_ref_id);
+        out_ref->getArtifact()->afterWrite(_build, getCommand(), out_ref_id);
+      }
+    });
+  } else {
+    // No matching FD. Just make sure the syscall fails.
+    finishSyscall([=](long rc) {
+      resume();
+
+      ASSERT(rc < 0) << "Tee of unknown fd " << fd_in << " succeeded in " << this;
+    });
+  }
 }
 
 /************************ Directory Operations ************************/
