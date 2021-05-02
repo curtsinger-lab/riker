@@ -8,9 +8,9 @@ Prepare for a clean run. Create an empty output file for now, so rebuilding work
   $ cp init/main.c main.c
 
 Run the first build
-  $ $RKR --show
+  $ $RKR --show-full
   rkr-launch
-  sh Rikerfile
+  Rikerfile
   gcc -Wall -o program main.c x.c y.c
   [^ ]*cc1 .* main .* (re)
   [^ ]*as .* (re)
@@ -25,8 +25,8 @@ Add some files to the current directory and alter main.c
   $ cp change/* .
 
 Run a rebuild
-  $ $RKR --show
-  sh Rikerfile
+  $ $RKR --show-full
+  Rikerfile
   gcc -Wall -o program main.c x.c y.c z.c
   [^ ]*cc1 .* main .* (re)
   [^ ]*as .* (re)

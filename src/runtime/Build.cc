@@ -271,9 +271,6 @@ void Build::pathRef(const shared_ptr<Command>& c,
   // Get the directory where resolution should begin
   auto base_dir = c->getRef(base)->getArtifact();
 
-  // Resolve the reference and save the result in output
-  ASSERT(base_dir) << "Cannot resolve a path relative to an unresolved base reference.";
-
   // Is this a path to a temporary file?
   bool is_tempfile = false;
   if (base_dir == env::getRootDir() && path.string().substr(0, 4) == "tmp/") {
@@ -289,6 +286,12 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
+
+  // Is the base directory available?
+  if (!base_dir) {
+    c->observeChange(Scenario::Both);
+    return;
+  }
 
   // Resolve the reference
   shared_ptr<Ref> result = make_shared<Ref>(base_dir->resolve(c, path, flags));

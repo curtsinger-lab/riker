@@ -97,10 +97,10 @@ string Command::getShortName(size_t limit) const noexcept {
       if (frequency < 1) frequency = 1;
 
       // What is the information value of the argument?
-      arg_values[i] = 1.0 / frequency;
+      arg_values[i] = 1.0 / (frequency * frequency);
 
       // Is this a possible filename preceded by a two-character flag? (e.g. -c somefile.c)
-      if (_args[i][0] != '-' && _args[i - 1][0] == '-' && _args[i - 1].size() == 2) {
+      if (_args[i][0] != '-' && _args[i - 1] == "-c") {
         // Increase the value of both arguments so we (hopefully) retain them
         arg_values[i - 1] += 4;
         arg_values[i] += 4;
