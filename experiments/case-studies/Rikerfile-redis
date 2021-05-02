@@ -4,7 +4,12 @@
 cd src
 
 # Regenerate the release.h file
-./mkreleasehdr.sh > /dev/null
+GIT_SHA1=`(git show-ref --head --hash=8 2> /dev/null || echo 00000000) | head -n1`
+GIT_DIRTY=`git diff --no-ext-diff 2> /dev/null | wc -l`
+BUILD_ID=`uname -n`"-"`date +%s`
+echo "#define REDIS_GIT_SHA1 \"$GIT_SHA1\"" > release.h
+echo "#define REDIS_GIT_DIRTY \"$GIT_DIRTY\"" >> release.h
+echo "#define REDIS_BUILD_ID \"$BUILD_ID\"" >> release.h
 
 CFLAGS="-pedantic -DREDIS_STATIC= -std=c11 -Wall -W -Wno-missing-field-initializers -O2 -g -ggdb -I../deps/hiredis -I../deps/linenoise -I../deps/lua/src -I../deps/hdr_histogram -DUSE_JEMALLOC -I../deps/jemalloc/include"
 LDFLAGS="-g -ggdb -rdynamic ../deps/hiredis/libhiredis.a ../deps/lua/src/liblua.a ../deps/hdr_histogram/hdr_histogram.o ../deps/linenoise/linenoise.o ../deps/jemalloc/lib/libjemalloc.a -lm -lpthread -ldl"
