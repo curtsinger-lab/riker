@@ -157,7 +157,7 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         // signal information. That call will fail for group-stop signals.
         siginfo_t info;
         int rc = ptrace(PTRACE_GETSIGINFO, child, nullptr, &info);
-        if (rc == -1) {
+        if (rc == -1 && errno == EINVAL) {
           LOG(trace) << thread << " in group-stop";
           ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
 

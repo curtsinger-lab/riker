@@ -114,7 +114,8 @@ namespace policy {
 
     bool is_fingerprintable = chooseFingerprintType(reader, writer, path) != FingerprintType::None;
     bool has_creator = writer != nullptr;
-    bool not_too_big = statbuf.st_size < options::max_cached_file_size;
+    // bool not_too_big = statbuf.st_size < options::max_cached_file_size;
+    bool not_too_big = true;
     bool cache_enabled = options::enable_cache;
 
     // we cache if v is fingerprintable, was created by a build command, and caching is enabled

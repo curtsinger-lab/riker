@@ -658,6 +658,10 @@ void Build::launch(const shared_ptr<Command>& c,
   // Assign references in the child command
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
     child->setRef(child_ref_id, c->getRef(parent_ref_id));
+
+    // The child will have access to the artifact's content, so create a dependency if needed
+    auto a = c->getRef(parent_ref_id)->getArtifact();
+    if (a) a->getContent(child);
   }
 
   // Add the child to the parent command's set of children
