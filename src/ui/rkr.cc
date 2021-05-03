@@ -138,6 +138,9 @@ int main(int argc, char* argv[]) noexcept {
       // Hide the --lazy flag if lazy builds are enabled by default
       ->group(options::lazy_builds ? "" : "Options");
 
+  /************* Audit Subcommand *************/
+  auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
+
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
@@ -178,6 +181,8 @@ int main(int argc, char* argv[]) noexcept {
 
   // build subcommand
   build->final_callback([&] { do_build(args, stats_log); });
+  // audit subcommand
+  audit->final_callback([&] { do_audit(args); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand

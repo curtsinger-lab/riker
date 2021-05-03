@@ -9,6 +9,8 @@ namespace fs = std::filesystem;
 
 void do_build(std::vector<std::string> args, std::optional<fs::path> stats_log_path) noexcept;
 
+void do_audit(std::vector<std::string> args) noexcept;
+
 void do_check(std::vector<std::string> args) noexcept;
 
 void do_trace(std::vector<std::string> args, std::string output) noexcept;
