@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make --always-make --quiet -j
+rm -f *.o
