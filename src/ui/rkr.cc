@@ -138,8 +138,15 @@ int main(int argc, char* argv[]) noexcept {
       // Hide the --lazy flag if lazy builds are enabled by default
       ->group(options::lazy_builds ? "" : "Options");
 
+  string command_output = "-";
+  build->add_option("-o,--output", command_output,
+                    "Output file where commands should be printed (default: -)");
+
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
+
+  audit->add_option("-o,--output", command_output,
+                    "Output file where commands should be printed (default: -)");
 
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
@@ -180,9 +187,9 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] { do_build(args, stats_log); });
+  build->final_callback([&] { do_build(args, stats_log, command_output); });
   // audit subcommand
-  audit->final_callback([&] { do_audit(args); });
+  audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand

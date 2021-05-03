@@ -1,4 +1,6 @@
 #include <filesystem>
+#include <fstream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -16,20 +18,32 @@
 
 namespace fs = std::filesystem;
 
+using std::make_shared;
 using std::make_unique;
+using std::ofstream;
 using std::optional;
+using std::ostream;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
 /**
  * Run the `build` subcommand.
  */
-void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
+void do_build(vector<string> args,
+              optional<fs::path> stats_log_path,
+              string command_output) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
 
   // Also ensure that the cache directory exists
   fs::create_directory(constants::CacheDir);
+
+  // Set up an ostream to print to if necessary
+  shared_ptr<ostream> print_to;
+  if (command_output != "-") {
+    print_to = make_shared<ofstream>(command_output);
+  }
 
   // Build stats
   optional<string> stats;
@@ -55,7 +69,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Run the trace and send the new trace to output
-    input->sendTo(Build(*output));
+    input->sendTo(Build(*output, print_to));
 
     // Plan the next iteration
     root_cmd->planBuild();
@@ -93,7 +107,7 @@ void do_build(vector<string> args, optional<fs::path> stats_log_path) noexcept {
     env::rollback();
 
     // Run the build
-    Build build(output);
+    Build build(output, print_to);
     input->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";

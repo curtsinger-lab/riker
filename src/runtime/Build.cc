@@ -46,7 +46,8 @@ using std::vector;
 namespace fs = std::filesystem;
 
 // Create a build runner
-Build::Build(IRSink& output) noexcept : _output(output), _tracer(*this) {
+Build::Build(IRSink& output, std::shared_ptr<std::ostream> print_to) noexcept :
+    _output(output), _tracer(*this), _print_to(print_to) {
   _deferred_steps = make_unique<IRBuffer>();
 }
 
@@ -693,9 +694,17 @@ void Build::launch(const shared_ptr<Command>& c,
   // Print the command if requested
   if (print_command) {
     if (options::print_full) {
-      cout << child->getFullName() << endl;
+      if (_print_to) {
+        (*_print_to) << child->getFullName() << endl;
+      } else {
+        cout << child->getFullName() << endl;
+      }
     } else {
-      cout << child->getShortName(options::command_length) << endl;
+      if (_print_to) {
+        (*_print_to) << child->getShortName(options::command_length) << endl;
+      } else {
+        cout << child->getShortName(options::command_length) << endl;
+      }
     }
   }
 
@@ -1245,9 +1254,17 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   // Print the command if required
   if (child->mustRun() && options::print_on_run) {
     if (options::print_full) {
-      cout << child->getFullName() << endl;
+      if (_print_to) {
+        (*_print_to) << child->getFullName() << endl;
+      } else {
+        cout << child->getFullName() << endl;
+      }
     } else {
-      cout << child->getShortName(options::command_length) << endl;
+      if (_print_to) {
+        (*_print_to) << child->getShortName(options::command_length) << endl;
+      } else {
+        cout << child->getShortName(options::command_length) << endl;
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
@@ -32,7 +33,11 @@ class Process;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(IRSink& output = _default_output) noexcept;
+  Build(IRSink& output, std::shared_ptr<std::ostream> print_to = nullptr) noexcept;
+
+  /// Create a build runner that uses the default output IRSink
+  Build(std::shared_ptr<std::ostream> print_to = nullptr) noexcept :
+      Build(_default_output, print_to) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -269,4 +274,7 @@ class Build : public IRSink {
 
   /// The default output is used if a trace handler is not provided during setup
   inline static IRSink _default_output;
+
+  /// The stream where commands should be printed, if at all
+  std::shared_ptr<std::ostream> _print_to;
 };
