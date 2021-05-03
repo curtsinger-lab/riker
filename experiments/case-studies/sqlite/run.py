@@ -6,7 +6,7 @@ import sys
 RKR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'rkr'))
 REPO = 'https://github.com/sqlite/sqlite'
 END_COMMIT = 'c1cace0832fa2af5ab8315e217d708c09d586425' # Tagged release 3.35.5
-COMMIT_COUNT = 30
+COMMIT_COUNT = 100
 
 def setup(path, commit):
   print('Setting up working directory at {}'.format(path))
