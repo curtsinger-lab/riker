@@ -6,7 +6,7 @@ RKR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 
 
 def checkout(path, commit):
   # Check out the requested commit
-  rc = os.system('cd {}; git checkout -q {}'.format(path, commit))
+  rc = os.system('cd {}; git checkout -f -q {}'.format(path, commit))
   if rc != 0:
     print('Failed to check out commit {}'.format(commit))
     exit(1)
@@ -38,7 +38,7 @@ def setup(path, repo, commit, copy_files={}, setup_cmds=[]):
   for src_name, dest_name in copy_files.items():
     src = os.path.join(os.path.dirname(__file__), src_name)
     dest = os.path.join(path, dest_name)
-    rc = os.system('cp {} {}'.format(src, dest))
+    rc = os.system('cp -r {} {}'.format(src, dest))
     if rc != 0:
       print('Failed to copy {} to {}'.format(src, dest))
       exit(1)
@@ -156,14 +156,7 @@ def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, set
   csv = open('rkr.csv', 'w')
   print('build,commands,runtime,db_size,cache_size,cache_count', file=csv)
 
-  # Run the full build
-  print('Running full build at commit {}'.format(commit))
-  cmds_path = os.path.join('rkr-commands', 'full')
-  (runtime, db_size, cache_size, cache_count) = rkr_build(project_path, cmds_path)
-  commands = count_lines(cmds_path)
-  print('0,{},{},{},{},{}'.format(commands, runtime, db_size, cache_size, cache_count), file=csv)
-
-  for i in range(1, commit_count + 1):
+  for i in range(0, commit_count + 1):
     # Check out the next revision
     commit_distance = commit_count - i
     commit = '{}~{}'.format(end_commit, commit_distance)

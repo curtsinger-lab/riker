@@ -7,11 +7,26 @@ REPO = 'https://github.com/xz-mirror/xz'
 END_COMMIT = '2327a461e1afce862c22269b80d3517801103c1b'
 COMMIT_COUNT = 100
 
-RKR_COPY_FILES = {'Rikerfile': 'Rikerfile'}
+RKR_COPY_FILES = {'files/Rikerfile': 'Rikerfile'}
 
-MAKE_SETUP_CMDS = ['cmake -G "Unix Makefiles" . > /dev/null', 'make clean']
-MAKE_COPY_FILES = {'Rikerfile-make': 'Rikerfile'}
-MAKE_FILTER_CMDS = ['rkr-launch', 'Rikerfile', '/bin/sh -c', 'make -f', '/usr/bin/cmake']
+MAKE_SETUP_CMDS = [
+  'cmake -G "Unix Makefiles" . > /dev/null',
+  'make clean'
+]
+
+MAKE_COPY_FILES = {
+  'files/Rikerfile-make': 'Rikerfile',
+  'files/CMakeLists.txt': 'CMakeLists.txt',
+  'files/cmake': 'cmake'
+}
+
+MAKE_FILTER_CMDS = [
+  'rkr-launch',
+  'Rikerfile',
+  '/bin/sh -c',
+  'make -f',
+  '/usr/bin/cmake'
+]
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
