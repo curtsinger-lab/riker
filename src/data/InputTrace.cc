@@ -58,6 +58,14 @@ tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filenam
 
 // Run this trace
 void InputTrace::sendTo(IRSink& handler) noexcept {
+  // Make sure the file stream is at the start of the file
+  _input.clear();
+  _input.seekg(0);
+
+  size_t magic;
+  size_t version;
+  _archive(magic, version);
+
   // Loop until we hit the end of the trace
   bool done = false;
   while (!done) {

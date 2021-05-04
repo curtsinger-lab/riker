@@ -69,18 +69,24 @@ void do_build(vector<string> args,
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Run the trace and send the new trace to output
-    input->sendTo(Build(*output, print_to));
+    if (iteration == 0) {
+      input->sendTo(Build(print_to));
+    } else {
+      input->sendTo(Build(*output, print_to));
+    }
 
     // Plan the next iteration
     root_cmd->planBuild();
 
     LOGF(phase, "Finished build phase {}", iteration);
 
-    // The output becomes the new input
-    input = std::move(output);
+    if (iteration > 0) {
+      // The output becomes the new input
+      input = std::move(output);
 
-    // Prepare a new output buffer with read/write combining
-    output = make_unique<ReadWriteCombiner<IRBuffer>>();
+      // Prepare a new output buffer with read/write combining
+      output = make_unique<ReadWriteCombiner<IRBuffer>>();
+    }
 
     // Write stats out to CSV & reset counters
     gather_stats(stats_log_path, stats, iteration);

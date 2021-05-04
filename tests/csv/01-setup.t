@@ -16,6 +16,7 @@ Look at the first column of the output
   "0"
   "1"
   "2"
+  "3"
 
 Run a rebuild
   $ $RKR --show --stats stats.csv
@@ -26,6 +27,7 @@ Look at the first column of the output again
   "0"
   "1"
   "2"
+  "3"
   "0"
   "1"
 
