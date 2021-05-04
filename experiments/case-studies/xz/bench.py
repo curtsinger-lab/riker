@@ -38,7 +38,7 @@ def setup(path, repo, commit, copy_files={}, setup_cmds=[]):
   for src_name, dest_name in copy_files.items():
     src = os.path.join(os.path.dirname(__file__), src_name)
     dest = os.path.join(path, dest_name)
-    rc = os.system('cp -r {} {}'.format(src, dest))
+    rc = os.system('rm -rf {}; cp -r {} {}'.format(dest, src, dest))
     if rc != 0:
       print('Failed to copy {} to {}'.format(src, dest))
       exit(1)

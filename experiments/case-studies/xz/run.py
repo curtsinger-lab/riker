@@ -36,7 +36,7 @@ if __name__ == '__main__':
   project_path = sys.argv[1]
 
   # Run the riker build experiment
-  bench.rkr_experiment(project_path, REPO, END_COMMIT, COMMIT_COUNT, RKR_COPY_FILES)
+  #bench.rkr_experiment(project_path, REPO, END_COMMIT, COMMIT_COUNT, RKR_COPY_FILES)
 
   # Run the make build experiment
   bench.make_experiment(project_path, REPO, END_COMMIT, COMMIT_COUNT, MAKE_COPY_FILES, MAKE_SETUP_CMDS, MAKE_FILTER_CMDS)
