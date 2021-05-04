@@ -87,20 +87,24 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   while (true) {
     // Check the shared memory channel
     if (channel != nullptr) {
-      // Get the state of the channel
-      uint8_t state = __atomic_load_n(&channel->state, __ATOMIC_ACQUIRE);
+      for (int i = 0; i < TRACING_CHANNEL_COUNT; i++) {
+        tracing_channel_t* c = &channel[i];
 
-      // Is the channel waiting on entry or exit for a library call?
-      if (state == CHANNEL_STATE_ENTRY) {
-        auto iter = _threads.find(channel->tid);
-        if (iter != _threads.end()) {
-          iter->second.usingChannel(channel);
-        }
+        // Get the state of the channel
+        uint8_t state = __atomic_load_n(&c->state, __ATOMIC_ACQUIRE);
 
-      } else if (state == CHANNEL_STATE_EXIT) {
-        auto iter = _threads.find(channel->tid);
-        if (iter != _threads.end()) {
-          iter->second.doneWithChannel(channel);
+        // Is the channel waiting on entry or exit for a library call?
+        if (state == CHANNEL_STATE_ENTRY) {
+          auto iter = _threads.find(c->tid);
+          if (iter != _threads.end()) {
+            iter->second.usingChannel(c);
+          }
+
+        } else if (state == CHANNEL_STATE_EXIT) {
+          auto iter = _threads.find(c->tid);
+          if (iter != _threads.end()) {
+            iter->second.doneWithChannel(c);
+          }
         }
       }
     }
@@ -355,6 +359,10 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   // First mark all FDs as close-on-exec
   for (auto& entry : fs::directory_iterator("/proc/self/fd")) {
     int fd = std::stoi(entry.path().filename());
+
+    // Skip the shared memory channel fd
+    if (fd == TRACING_CHANNEL_FD) continue;
+
     int flags = fcntl(fd, F_GETFD, 0);
     WARN_IF(flags < 0) << "Failed to get flags for fd " << fd;
 
@@ -386,7 +394,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   }
 
   // Is the trace channel temporary file not yet initialized?
-  if (trace_channel_fd == -1) {
+  if (options::inject_tracing_lib && trace_channel_fd == -1) {
     // Set up the trace channel fd now
     int fd = open("/tmp/", O_RDWR | O_TMPFILE, 0600);
     FAIL_IF(fd < 0) << "Failed to create temporary file for shared tracing channel.";
@@ -554,11 +562,14 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     args.push_back(nullptr);
 
     // Add the injected library to the environment
-    std::string ld_preload = (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
-    if (char* old_ld_preload = getenv("LD_PRELOAD"); old_ld_preload != NULL) {
-      ld_preload += ":" + std::string(old_ld_preload);
+    if (options::inject_tracing_lib) {
+      std::string ld_preload =
+          (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
+      if (char* old_ld_preload = getenv("LD_PRELOAD"); old_ld_preload != NULL) {
+        ld_preload += ":" + std::string(old_ld_preload);
+      }
+      setenv("LD_PRELOAD", ld_preload.c_str(), 1);
     }
-    setenv("LD_PRELOAD", ld_preload.c_str(), 1);
 
     // TODO: explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();

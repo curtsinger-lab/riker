@@ -41,4 +41,6 @@ namespace options {
   /// The maximum file size to consider for caching
   // inline size_t max_cached_file_size = 1024 * 1024 * 10;
 
+  /// Inject the shared memory tracing library
+  inline bool inject_tracing_lib = false;
 }

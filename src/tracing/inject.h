@@ -9,8 +9,11 @@
 // The known file descriptor used to map the tracing channel shared memory
 #define TRACING_CHANNEL_FD 77
 
-// The size of the tracing channel shared mappy
+// The size of the tracing channel shared mapping
 #define TRACING_CHANNEL_SIZE 0x1000
+
+// The number of tracing channel entries
+#define TRACING_CHANNEL_COUNT 10
 
 // Define channel states used to coordinate between tracer and tracee
 #define CHANNEL_STATE_AVAILABLE 0      // The channel is available for use by any process

@@ -602,10 +602,6 @@ void Thread::_fstatat(at_fd dirfd,
       }
     }
 
-#ifdef NDEBUG
-    resume();
-    _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()));
-#else
     finishSyscall([=](long rc) {
       resume();
 
@@ -618,7 +614,6 @@ void Thread::_fstatat(at_fd dirfd,
         // do nothing.
       }
     });
-#endif
 
   } else if (pathname.empty()) {
     // fstatat does not allow empty paths if AT_EMPTY_PATH is not passed. No need to trace the
@@ -636,13 +631,6 @@ void Thread::_fstatat(at_fd dirfd,
       ref->getArtifact()->beforeStat(_build, getCommand(), ref_id);
     }
 
-#ifdef NDEBUG
-    resume();
-    _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
-    if (ref->isResolved()) {
-      _build.traceMatchMetadata(getCommand(), ref_id);
-    }
-#else
     // Finish the syscall to see if the reference succeeds
     finishSyscall([=](long rc) {
       resume();
@@ -663,7 +651,6 @@ void Thread::_fstatat(at_fd dirfd,
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
     });
-#endif
   }
 }
 
@@ -811,21 +798,6 @@ void Thread::_read(int fd) noexcept {
   // Inform the artifact that we are about to read
   ref->getArtifact()->beforeRead(_build, getCommand(), ref_id);
 
-#ifdef NDEBUG
-  if (ref->getArtifact()->as<PipeArtifact>()) {
-    finishSyscall([=](long rc) {
-      resume();
-
-      if (rc >= 0) {
-        // Inform the artifact that the read succeeded
-        ref->getArtifact()->afterRead(_build, getCommand(), ref_id);
-      }
-    });
-  } else {
-    resume();
-    ref->getArtifact()->afterRead(_build, getCommand(), ref_id);
-  }
-#else
   // Finish the syscall and resume
   finishSyscall([=](long rc) {
     resume();
@@ -835,7 +807,6 @@ void Thread::_read(int fd) noexcept {
       ref->getArtifact()->afterRead(_build, getCommand(), ref_id);
     }
   });
-#endif
 }
 
 void Thread::_write(int fd) noexcept {
@@ -848,11 +819,6 @@ void Thread::_write(int fd) noexcept {
   // Inform the artifact that we are about to write
   ref->getArtifact()->beforeWrite(_build, getCommand(), ref_id);
 
-#ifdef NDEBUG
-  resume();
-  ref->getArtifact()->afterWrite(_build, getCommand(), ref_id);
-
-#else
   // Finish the syscall and resume the process
   finishSyscall([=](long rc) {
     resume();
@@ -863,7 +829,6 @@ void Thread::_write(int fd) noexcept {
     // Inform the artifact that it was written
     ref->getArtifact()->afterWrite(_build, getCommand(), ref_id);
   });
-#endif
 }
 
 void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept {

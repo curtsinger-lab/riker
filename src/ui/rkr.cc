@@ -138,6 +138,9 @@ int main(int argc, char* argv[]) noexcept {
       // Hide the --lazy flag if lazy builds are enabled by default
       ->group(options::lazy_builds ? "" : "Options");
 
+  build->add_flag("--inject", options::inject_tracing_lib,
+                  "Inject a shared library for shared memory tracing");
+
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");

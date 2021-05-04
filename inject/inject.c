@@ -35,6 +35,13 @@ static long (*safe_syscall)(long nr, ...) = syscall;
 
 // Pointers to real library functions wrapped in this library
 static int (*real_open)(const char* pathname, int flags, mode_t mode) = NULL;
+static int (*real_xstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
+static int (*real_lxstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
+static int (*real_fxstat)(int ver, int fd, struct stat* statbuf) = NULL;
+static int (
+    *real_fxstatat)(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) = NULL;
+static long (*real_read)(int fd, void* data, size_t count);
+static long (*real_write)(int fd, const void* data, size_t count);
 
 // Has the injected library been initialized?
 static bool initialized = false;
@@ -43,9 +50,6 @@ static bool initialized = false;
 static tracing_channel_t* channel = NULL;
 
 __attribute__((constructor)) void init() {
-  // Populate the pointers to wrapped libc functions
-  real_open = dlsym(RTLD_NEXT, "open");
-
   // Map space at a fixed address for safe system calls
   void* p = mmap(SAFE_SYSCALL_PAGE, 0x1000, PROT_READ | PROT_WRITE,
                  MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
@@ -92,12 +96,18 @@ __attribute__((constructor)) void init() {
 
 tracing_channel_t* channel_acquire() {
   // Spin on the tracing channel state until we can acquire it
-  uint8_t expected = CHANNEL_STATE_AVAILABLE;
-  while (!__atomic_compare_exchange_n(&channel->state, &expected, CHANNEL_STATE_ACQUIRED, false,
-                                      __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-  }
+  size_t index = 0;
+  while (true) {
+    tracing_channel_t* c = &channel[index];
+    uint8_t expected = CHANNEL_STATE_AVAILABLE;
+    if (__atomic_compare_exchange_n(&c->state, &expected, CHANNEL_STATE_ACQUIRED, false,
+                                    __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+      return c;
+    }
 
-  return channel;
+    index++;
+    if (index >= TRACING_CHANNEL_COUNT) index = 0;
+  }
 }
 
 void channel_enter(tracing_channel_t* c,
@@ -173,29 +183,222 @@ int open(const char* pathname, int flags, mode_t mode) {
     // Find an available channel
     tracing_channel_t* c = channel_acquire();
 
-    // Inform the tracer that this command is entering a library call
+    // Inform the tracer that this command is entering a syscall
     channel_enter(c, __NR_open, (uint64_t)pathname, (uint64_t)flags, (uint64_t)mode, 0, 0, 0,
                   __NR_openat);
 
-    // safe_syscall(__NR_write, 2, "open\n", 5);
-    int rc = real_open(pathname, flags, mode);
-    // safe_syscall(__NR_write, 1, "done\n", 5);
+    // Issue the syscall
+    int rc = safe_syscall(__NR_open, pathname, flags, mode);
 
-    // Inform the tracer that this command is exiting a library call
-    if (rc < 0) {
-      channel_exit(c, -errno);
-    } else {
-      channel_exit(c, rc);
-    }
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, rc);
 
     // Release the channel for use by another library call
     channel_release(c);
 
-    return rc;
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
 
   } else {
     // No. Just move along to the library
+    if (!real_open) real_open = dlsym(RTLD_NEXT, "open");
     return real_open(pathname, flags, mode);
+  }
+}
+
+int __xstat(int ver, const char* pathname, struct stat* statbuf) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_stat, pathname, statbuf);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_xstat) real_xstat = dlsym(RTLD_NEXT, "__xstat");
+    return real_xstat(ver, pathname, statbuf);
+  }
+}
+
+int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_lstat, pathname, statbuf);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_lxstat) real_lxstat = dlsym(RTLD_NEXT, "__lxstat");
+    return real_lxstat(ver, pathname, statbuf);
+  }
+}
+
+int __fxstat(int ver, int fd, struct stat* statbuf) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_fstat, fd, statbuf);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_fxstat) real_fxstat = dlsym(RTLD_NEXT, "__fxstat");
+    return real_fxstat(ver, fd, statbuf);
+  }
+}
+
+int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_newfstatat, dfd, (uint64_t)pathname, (uint64_t)statbuf, flags, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_fxstatat) real_fxstatat = dlsym(RTLD_NEXT, "__fxstatat");
+    return real_fxstatat(ver, dfd, pathname, statbuf, flags);
+  }
+}
+
+long read(int fd, void* data, size_t count) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_read, fd, data, count);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_read) real_read = dlsym(RTLD_NEXT, "read");
+    return real_read(fd, data, count);
+  }
+}
+
+long write(int fd, const void* data, size_t count) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0, -1);
+
+    int rc = safe_syscall(__NR_write, fd, data, count);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_write) real_write = dlsym(RTLD_NEXT, "write");
+    return real_write(fd, data, count);
   }
 }
 

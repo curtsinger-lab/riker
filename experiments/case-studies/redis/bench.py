@@ -58,11 +58,15 @@ def setup(path, repo, commit, copy_files={}, setup_cmds=[]):
       print('Failed to run setup command {}'.format(cmd))
       exit(1)
 
-def rkr_build(path, commands_file):
+def rkr_build(path, commands_file, inject):
   commands_file = os.path.abspath(commands_file)
 
+  inject_flag = ''
+  if inject:
+    inject_flag = '--inject'
+
   start_time = time.perf_counter()
-  rc = os.system('cd {}; {} --show-full -o {} 2> /dev/null'.format(path, RKR, commands_file))
+  rc = os.system('cd {}; {} --show-full {} -o {} 2> /dev/null'.format(path, RKR, inject_flag, commands_file))
   end_time = time.perf_counter()
   if rc != 0:
     print('Build failed')
@@ -138,7 +142,7 @@ def count_lines_filtered(path, filter):
       count += 1
   return count
 
-def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, setup_cmds=[]):
+def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, setup_cmds=[], inject=True):
   # Set up the repository for our first build
   commit = '{}~{}'.format(end_commit, commit_count)
   setup(project_path, repo, commit, copy_files, setup_cmds)
@@ -168,7 +172,7 @@ def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, set
     # Run the incremental build
     print('Running incremental build at commit {}'.format(commit))
     cmds_path = os.path.join('rkr-commands', '{:0>3}'.format(i))
-    (runtime, db_size, cache_size, cache_count) = rkr_build(project_path, cmds_path)
+    (runtime, db_size, cache_size, cache_count) = rkr_build(project_path, cmds_path, inject)
     commands = count_lines(cmds_path)
     print('{},{},{},{},{},{}'.format(i, commands, runtime, db_size, cache_size, cache_count), file=csv)
 
