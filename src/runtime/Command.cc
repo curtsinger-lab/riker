@@ -212,9 +212,16 @@ string Command::getShortName(size_t limit) const noexcept {
 string Command::getFullName() const noexcept {
   string result;
   bool first = true;
-  for (const string& arg : _args) {
+  for (string arg : _args) {
     if (!first) result += " ";
     first = false;
+
+    // Escape newlines in the argument if there are any
+    size_t pos = 0;
+    while ((pos = arg.find('\n', pos)) != string::npos) {
+      arg.replace(pos, 1, "\\n");
+    }
+
     result += arg;
   }
   return result;
