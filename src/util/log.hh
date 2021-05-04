@@ -157,9 +157,7 @@ class null_logger {
 
 // NDEBUG-controlled ASSERT macro
 #ifdef NDEBUG
-#define ASSERT(cond)                               \
-  __builtin_expect(static_cast<bool>(cond), true); \
-  null_logger()
+#define ASSERT(cond) null_logger()
 #else
 #define ASSERT(cond) FAIL_UNLESS(cond)
 #endif

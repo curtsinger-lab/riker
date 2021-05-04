@@ -5,7 +5,7 @@ MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
 BLAKE3 := deps/BLAKE3/c
 
-OPT = -O3
+OPT = -O3 -flto
 CFLAGS := $(OPT)
 CXXFLAGS := -Isrc \
 					 	-Ideps/cereal/include \
@@ -15,8 +15,7 @@ CXXFLAGS := -Isrc \
 					 	-Wfatal-errors \
 					 	$(OPT) \
 						--std=c++17 \
-						-g \
-					 	-fstandalone-debug
+						-DNDEBUG
 
 LDFLAGS = $(OPT) -lstdc++fs -lfmt
 
@@ -44,6 +43,7 @@ clean:
 
 rkr: $(OBJS) $(BLAKE_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
+	strip $@
 
 $(OBJS): .obj/%.o: src/%.cc Makefile
 	@mkdir -p `dirname $@`
@@ -51,6 +51,7 @@ $(OBJS): .obj/%.o: src/%.cc Makefile
 
 rkr-launch: launch/launch.c Makefile
 	$(CC) $(CFLAGS) -o $@ $<
+	strip $@
 
 $(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
 	@mkdir -p `dirname $@`
