@@ -12,3 +12,4 @@ out.png
 tests/*/*.t.err
 **/core
 benchmark.local
+rkr-inject.so

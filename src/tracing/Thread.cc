@@ -40,6 +40,56 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
+/// This thread is tracing with the provided shared memory channel
+void Thread::usingChannel(tracing_channel_t* channel) noexcept {
+  ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
+  _channel = channel;
+
+  auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
+  // WARN << "Handling " << entry.getName() << " via shared memory channel";
+  entry.runHandler(*this, _channel->regs);
+}
+
+/// Check if a ptrace stop can be skipped because a shared memory channel is in use
+bool Thread::canSkipTrace(user_regs_struct& regs) const noexcept {
+  // If there's no shared memory channel, we definitely cannot skip
+  if (_channel == nullptr) return false;
+
+  // Does the channel have a matching syscall? If not, issue a warning and do not skip
+  if (_channel->regs.SYSCALL_NUMBER != regs.SYSCALL_NUMBER &&
+      _channel->alternate_syscall != regs.SYSCALL_NUMBER) {
+    WARN << "Nested syscall " << regs.SYSCALL_NUMBER
+         << " while using shared memory channel for syscall " << _channel->regs.SYSCALL_NUMBER;
+    return false;
+  }
+
+  // Was a syscall IP already recorded?
+  if (_channel->traced_syscall_ip != 0) {
+    WARN << "Traced multiple syscalls for a single shared memory channel trace";
+    return false;
+  }
+
+  // Save the syscall IP and allow the skip!
+  _channel->traced_syscall_ip = regs.INSTRUCTION_POINTER;
+  return true;
+}
+
+/// This thread is done tracing with its shared memory channel
+void Thread::doneWithChannel(tracing_channel_t* channel) noexcept {
+  ASSERT(_channel == channel) << this
+                              << " cannot finish using a channel it was not previously using ("
+                              << channel << " vs " << _channel << ")";
+  // If there's a post-syscall handler, grab it and run it now
+  function<void(long)> handler;
+  _post_syscall_handler.swap(handler);
+
+  if (handler) {
+    handler(channel->return_value);
+  }
+
+  _channel = nullptr;
+}
+
 fs::path Thread::getPath(at_fd fd) const noexcept {
   if (fd.isCWD()) {
     auto cwd_ref = _process->getWorkingDir();
@@ -72,6 +122,10 @@ Ref::ID Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
+  if (_channel) {
+    return _channel->regs;
+  }
+
   struct user_regs_struct regs;
   FAIL_IF(ptrace(PTRACE_GETREGS, _tid, nullptr, &regs))
       << "Failed to get registers (for PID " << _tid << "): " << ERR;
@@ -79,12 +133,29 @@ user_regs_struct Thread::getRegisters() noexcept {
 }
 
 void Thread::setRegisters(user_regs_struct& regs) noexcept {
+  if (_channel) {
+    WARN << "Setting registers through the shared memory channel is not supported yet";
+    _channel->regs = regs;
+    return;
+  }
+
   FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
 }
 
 void Thread::resume() noexcept {
-  int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
-  FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+  // Is this thread blocked on the shared memory channel?
+  if (_channel) {
+    if (_channel->state == CHANNEL_STATE_ENTRY) {
+      __atomic_store_n(&_channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
+    } else if (_channel->state == CHANNEL_STATE_EXIT) {
+      __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
+    } else {
+      FAIL << "Channel is not blocked";
+    }
+  } else {
+    int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
+    FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+  }
 }
 
 void Thread::finishSyscall(function<void(long)> handler) noexcept {
@@ -93,13 +164,25 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
   // Set the post-syscall handler
   _post_syscall_handler = handler;
 
-  // Allow the tracee to resume until its syscall finishes
-  int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
-  FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+  // Is this thread blocked on the shared memory channel?
+  if (_channel) {
+    if (_channel->state == CHANNEL_STATE_ENTRY) {
+      __atomic_store_n(&_channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
+    } else {
+      FAIL << "Channel is not blocked on syscall entry";
+    }
+  } else {
+    // Allow the tracee to resume until its syscall finishes
+    int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
+    FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+  }
 }
 
 void Thread::syscallFinished() noexcept {
-  ASSERT(_post_syscall_handler) << "Process does not have a post-syscall handler";
+  // If the shared memory channel is in use, just return immediately
+  if (_channel) return;
+
+  ASSERT(_post_syscall_handler) << "Thread does not have a post-syscall handler";
 
   // Set up an empty handler
   function<void(long)> handler;
@@ -119,6 +202,8 @@ void Thread::syscallFinished() noexcept {
 }
 
 unsigned long Thread::getEventMessage() noexcept {
+  FAIL_IF(_channel) << "The getEventMessage function only works for ptrace stops";
+
   // Get the id of the new process
   unsigned long message;
   FAIL_IF(ptrace(PTRACE_GETEVENTMSG, _tid, nullptr, &message))
@@ -233,8 +318,8 @@ vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
 void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept {
   LOGF(trace, "{}: openat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, flags, mode);
 
-  // If the O_CREAT was specified and filename has a trailing slash, the result is EISDIR and we do
-  // not need to trace any interaction here
+  // If the O_CREAT was specified and filename has a trailing slash, the result is EISDIR and we
+  // do not need to trace any interaction here
   if (flags.creat() && filename.filename().empty()) {
     resume();
     return;
@@ -1424,8 +1509,8 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
         // Not sure why, but exec returns -38 on success. Make sure that's what we get.
         ASSERT(rc == -38) << "Outcome of exec call did not match expected behavior.";
 
-        // The child command depends on the contents of its executable. First, we need to know what
-        // the actual executable is. Read /proc/<pid>/exe to find it
+        // The child command depends on the contents of its executable. First, we need to know
+        // what the actual executable is. Read /proc/<pid>/exe to find it
         auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
 
         // Now make the reference and expect success

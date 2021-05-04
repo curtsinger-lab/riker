@@ -20,6 +20,7 @@
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -33,6 +34,7 @@
 #include "tracing/Process.hh"
 #include "tracing/SyscallTable.hh"
 #include "tracing/Thread.hh"
+#include "tracing/inject.h"
 #include "util/log.hh"
 #include "util/stats.hh"
 #include "util/wrappers.hh"
@@ -50,6 +52,12 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
+// The file descriptor used for the shared tracing channel, or -1 if it hasn't been set up yet
+static int trace_channel_fd = -1;
+
+// The shared mapping of the trace channel struct
+static tracing_channel_t* channel = nullptr;
+
 // Stub for the seccomp syscall
 int seccomp(unsigned int operation, unsigned int flags, void* args) {
   return syscall(__NR_seccomp, operation, flags, args);
@@ -60,7 +68,7 @@ shared_ptr<Process> Tracer::start(const shared_ptr<Command>& cmd) noexcept {
   return launchTraced(cmd);
 }
 
-optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
+optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   // Check if any queued events are ready to be processed
   for (auto iter = _event_queue.cbegin(); iter != _event_queue.cend(); iter++) {
     auto [child, wait_status] = *iter;
@@ -75,33 +83,54 @@ optional<tuple<pid_t, int>> Tracer::getEvent(bool block) noexcept {
     }
   }
 
-  // If blocking is not allowed, there is no event to return
-  if (!block) return nullopt;
-
   // Wait for an event from ptrace
   while (true) {
-    int wait_status;
-    pid_t child = ::wait(&wait_status);
+    // Check the shared memory channel
+    if (channel != nullptr) {
+      // Get the state of the channel
+      uint8_t state = __atomic_load_n(&channel->state, __ATOMIC_ACQUIRE);
 
-    // Handle errors
+      // Is the channel waiting on entry or exit for a library call?
+      if (state == CHANNEL_STATE_ENTRY) {
+        auto iter = _threads.find(channel->tid);
+        if (iter != _threads.end()) {
+          iter->second.usingChannel(channel);
+        }
+
+      } else if (state == CHANNEL_STATE_EXIT) {
+        auto iter = _threads.find(channel->tid);
+        if (iter != _threads.end()) {
+          iter->second.doneWithChannel(channel);
+        }
+      }
+    }
+
+    // Check for a child, but do not block
+    int wait_status;
+    pid_t child = ::waitpid(-1, &wait_status, WNOHANG);
+
+    // Did waitpid return an error?
     if (child == -1) {
       // If errno is ECHILD, we're done and can return with no event
       if (errno == ECHILD)
         return nullopt;
       else
         FAIL << "Error while waiting: " << ERR;
-    }
 
-    // Count the ptrace stop for this event
-    stats::ptrace_stops++;
+    } else if (child > 0) {
+      // A child responded to waitpid. Handle its event now
 
-    // Does this event refer to a process we don't know about yet?
-    if (_threads.find(child) == _threads.end()) {
-      // Yes. Queue the event so we can try another one.
-      _event_queue.emplace_back(child, wait_status);
-    } else {
-      // No. The event is for a known process. Return it now.
-      return tuple{child, wait_status};
+      // Count the ptrace stop for this event
+      stats::ptrace_stops++;
+
+      // Does this event refer to a process we don't know about yet?
+      if (_threads.find(child) == _threads.end()) {
+        // Yes. Queue the event so we can try another one.
+        _event_queue.emplace_back(child, wait_status);
+      } else {
+        // No. The event is for a known process. Return it now.
+        return tuple{child, wait_status};
+      }
     }
   }
 }
@@ -293,9 +322,25 @@ void Tracer::handleSyscall(Thread& t) noexcept {
   auto regs = t.getRegisters();
 
   const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
+
+  // WARN << entry.getName() << " call at " << (void*)regs.INSTRUCTION_POINTER << " in " <<
+  // t.getCommand();
+
   if (entry.isTraced()) {
     LOG(trace) << t << ": stopped on syscall " << entry.getName();
-    entry.runHandler(t, regs);
+
+    // Can we skip handling this traced syscall? This happens if we're already handling an
+    // equivalent syscall through the shared memory channel
+    if (t.canSkipTrace(regs)) {
+      // WARN << "Could skip tracing syscall " << entry.getName() << " at "
+      //     << (void*)regs.INSTRUCTION_POINTER;
+      // t.resume();
+      int rc = ptrace(PTRACE_CONT, t.getID(), nullptr, 0);
+      FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+
+    } else {
+      entry.runHandler(t, regs);
+    }
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
   }
@@ -340,6 +385,44 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     initial_fds.emplace_back(ref->getFD(), child_fd);
   }
 
+  // Is the trace channel temporary file not yet initialized?
+  if (trace_channel_fd == -1) {
+    // Set up the trace channel fd now
+    int fd = open("/tmp/", O_RDWR | O_TMPFILE, 0600);
+    FAIL_IF(fd < 0) << "Failed to create temporary file for shared tracing channel.";
+
+    // Extend the channel to the requested size
+    FAIL_IF(ftruncate(fd, TRACING_CHANNEL_SIZE))
+        << "Failed to extend shared tracing channel to requested size.";
+
+    // Now dup the file descriptor to the expected number
+    FAIL_IF(dup2(fd, TRACING_CHANNEL_FD) != TRACING_CHANNEL_FD)
+        << "Failed to shift tracing channel fd to known index: " << ERR;
+
+    // Close the original fd
+    close(fd);
+
+    // Save the fd
+    trace_channel_fd = TRACING_CHANNEL_FD;
+
+    // Try to mmap the channel
+    void* p =
+        mmap(NULL, TRACING_CHANNEL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, trace_channel_fd, 0);
+    if (p == MAP_FAILED) {
+      WARN << "Failed to mmap shared memory channel in tracer: " << ERR;
+
+      // Close the trace channel fd so the tracee doesn't use it
+      close(trace_channel_fd);
+
+    } else {
+      // Set the shared channel global pointer
+      channel = (tracing_channel_t*)p;
+
+      // Zero out the tracing channel data
+      memset(channel, 0, TRACING_CHANNEL_SIZE);
+    }
+  }
+
   // Launch a child process
   pid_t child_pid = fork();
   FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
@@ -382,6 +465,30 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
 
     vector<struct sock_filter> filter;
+
+    // Compute the offset of the instruction pointer in the seccomp_data struct
+    uint32_t ip_offset = offsetof(struct seccomp_data, instruction_pointer);
+
+    // Load the lower four bytes of the instruction pointer
+    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset));
+
+    uint32_t safe_page_lower = ((intptr_t)SAFE_SYSCALL_PAGE) & 0xFFFFFFFF;
+    uint32_t safe_page_upper = ((intptr_t)SAFE_SYSCALL_PAGE) >> 32;
+
+    // If the lower four bytes are less than the safe syscall page, jump ahead
+    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower, 0, 4));
+
+    // If the lower four bytes are greater than or equal to 0x77771000, jump ahead
+    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower + 0x1000, 3, 0));
+
+    // Load the upper four bytes of the instruction pointer
+    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset + 4));
+
+    // If the upper four bytes are not zero, jump ahead
+    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, safe_page_upper, 0, 1));
+
+    // If we hit this point, this is an allowed syscall
+    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
 
     // Load the syscall number
     filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
@@ -445,6 +552,13 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // Null-terminate the args array
     args.push_back(nullptr);
+
+    // Add the injected library to the environment
+    std::string ld_preload = (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
+    if (char* old_ld_preload = getenv("LD_PRELOAD"); old_ld_preload != NULL) {
+      ld_preload += ":" + std::string(old_ld_preload);
+    }
+    setenv("LD_PRELOAD", ld_preload.c_str(), 1);
 
     // TODO: explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();

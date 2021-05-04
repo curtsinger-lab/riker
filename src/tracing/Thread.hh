@@ -18,6 +18,7 @@
 #include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
+#include "tracing/inject.h"
 #include "util/log.hh"
 
 namespace fs = std::filesystem;
@@ -40,6 +41,15 @@ class Thread {
 
   /// Get the thread ID
   pid_t getID() const noexcept { return _tid; }
+
+  /// This thread is tracing with the provided shared memory channel
+  void usingChannel(tracing_channel_t* channel) noexcept;
+
+  /// Check if a ptrace stop can be skipped because a shared memory channel is in use
+  bool canSkipTrace(user_regs_struct& regs) const noexcept;
+
+  /// This thread is done tracing with its shared memory channel
+  void doneWithChannel(tracing_channel_t* channel) noexcept;
 
   /// Resume a traced thread that is currently stopped
   void resume() noexcept;
@@ -301,4 +311,7 @@ class Thread {
 
   /// The handler function that should run when the next system call is finished
   std::function<void(long)> _post_syscall_handler;
+
+  /// The shared memory channel being used to trace this thread
+  tracing_channel_t* _channel = nullptr;
 };
