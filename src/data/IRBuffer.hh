@@ -6,6 +6,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include <cereal/archives/binary.hpp>
 
@@ -271,11 +272,11 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   size_t _steps = 0;
 
   /// The map from commands to their IDs in the serialized data
-  std::map<std::shared_ptr<Command>, Command::ID> _command_ids;
+  std::unordered_map<std::shared_ptr<Command>, Command::ID> _command_ids;
 
   /// The map from metadata versions to their IDs in the serialized data
-  std::map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_version_ids;
+  std::unordered_map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_version_ids;
 
   /// The map from content versions to their IDs in the serialized data
-  std::map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_version_ids;
+  std::unordered_map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_version_ids;
 };

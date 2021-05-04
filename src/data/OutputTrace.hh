@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 
 #include <sys/types.h>
 
@@ -156,11 +157,11 @@ class OutputTrace : public IRSink {
   cereal::BinaryOutputArchive _archive;
 
   /// The map from commands to their IDs in the output trace
-  std::map<std::shared_ptr<Command>, Command::ID> _commands;
+  std::unordered_map<std::shared_ptr<Command>, Command::ID> _commands;
 
   /// The map from metadata versions to their IDs in the output trace
-  std::map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_versions;
+  std::unordered_map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_versions;
 
   /// The map from content versions to their IDs in the output trace
-  std::map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_versions;
+  std::unordered_map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_versions;
 };

@@ -5,7 +5,7 @@ MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
 BLAKE3 := deps/BLAKE3/c
 
-OPT = -O3 -flto
+OPT = -O3 -flto -g
 CFLAGS := $(OPT)
 CXXFLAGS := -Isrc \
 					 	-Ideps/cereal/include \
@@ -43,7 +43,6 @@ clean:
 
 rkr: $(OBJS) $(BLAKE_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
-	strip $@
 
 $(OBJS): .obj/%.o: src/%.cc Makefile
 	@mkdir -p `dirname $@`
