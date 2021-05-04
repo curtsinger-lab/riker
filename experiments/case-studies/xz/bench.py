@@ -20,12 +20,14 @@ def setup(path, repo, commit, copy_files={}, setup_cmds=[]):
 
   # Clone the repository if it doesn't already exist
   if not os.path.isdir(path):
+    print('Cloning {} to {}'.format(repo, path))
     rc = os.system('git clone -q {} {}'.format(repo, path))
     if rc != 0:
       print('Failed to clone git repository to {}'.format(path))
       exit(1)
 
   else:
+    print('Resetting repository at {}'.format(path))
     rc = os.system('cd {}; git reset --hard -q'.format(path))
     if rc != 0:
       print('Failed to reset git repository at {}'.format(path))
