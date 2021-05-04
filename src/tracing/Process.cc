@@ -120,9 +120,7 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-const shared_ptr<Command>& Process::exec(Ref::ID exe_ref,
-                                         vector<string> args,
-                                         vector<string> env) noexcept {
+const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
