@@ -5,7 +5,7 @@ import bench
 
 REPO = 'git@github.com:curtsinger-lab/riker'
 END_COMMIT = 'fbfef5653abe3c44c496ab23fadf233157091ae1'
-COMMIT_COUNT = 3
+COMMIT_COUNT = 100
 
 RKR_SETUP_CMDS = [
   'git submodule init',
