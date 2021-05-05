@@ -107,7 +107,6 @@ tracing_channel_t* channel_acquire() {
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
     if (__atomic_compare_exchange_n(&c->state, &expected, CHANNEL_STATE_ACQUIRED, false,
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-      safe_syscall(__NR_write, 2, "got it\n", 7);
       return c;
     }
 
