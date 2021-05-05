@@ -16,6 +16,10 @@
 #include <syscall.h>
 #include <unistd.h>
 
+#ifndef AT_FDCWD
+#define AT_FDCWD -100
+#endif
+
 static uint8_t safe_syscall_code[] = {
     0xf3, 0x0f, 0x1e, 0xfa,        // endbr64
     0x48, 0x89, 0xf8,              // mov %rdi, %rax
@@ -35,6 +39,8 @@ static long (*safe_syscall)(long nr, ...) = syscall;
 
 // Pointers to real library functions wrapped in this library
 static int (*real_open)(const char* pathname, int flags, mode_t mode) = NULL;
+static int (*real_openat)(const char* pathname, int flags, mode_t mode) = NULL;
+static int (*real_close)(int fd) = NULL;
 static int (*real_xstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
 static int (*real_lxstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
 static int (*real_fxstat)(int ver, int fd, struct stat* statbuf) = NULL;
@@ -117,8 +123,7 @@ void channel_enter(tracing_channel_t* c,
                    uint64_t arg3,
                    uint64_t arg4,
                    uint64_t arg5,
-                   uint64_t arg6,
-                   long alternate_syscall_nr) {
+                   uint64_t arg6) {
   // Fill in the "registers" to be used for tracing
   memset(&c->regs, 0, sizeof(c->regs));
   c->regs.SYSCALL_NUMBER = syscall_nr;
@@ -128,10 +133,6 @@ void channel_enter(tracing_channel_t* c,
   c->regs.SYSCALL_ARG4 = arg4;
   c->regs.SYSCALL_ARG5 = arg5;
   c->regs.SYSCALL_ARG6 = arg6;
-
-  // Allow an alternate (usually more-general) system call to be traced and skipped while handling
-  // this system call via library tracing
-  c->alternate_syscall = alternate_syscall_nr;
 
   // Save the traced thread's ID
   c->tid = safe_syscall(__NR_gettid);
@@ -175,7 +176,7 @@ void channel_release(tracing_channel_t* c) {
   __atomic_store_n(&c->state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
 }
 
-int open(const char* pathname, int flags, mode_t mode) {
+int openat(int dfd, const char* pathname, int flags, mode_t mode) {
   // Has the injected library been initialized?
   if (initialized) {
     // Yes. Wrap the library call
@@ -184,11 +185,10 @@ int open(const char* pathname, int flags, mode_t mode) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a syscall
-    channel_enter(c, __NR_open, (uint64_t)pathname, (uint64_t)flags, (uint64_t)mode, 0, 0, 0,
-                  __NR_openat);
+    channel_enter(c, __NR_openat, dfd, (uint64_t)pathname, (uint64_t)flags, (uint64_t)mode, 0, 0);
 
     // Issue the syscall
-    int rc = safe_syscall(__NR_open, pathname, flags, mode);
+    int rc = safe_syscall(__NR_openat, dfd, pathname, flags, mode);
 
     // Inform the tracer that this command is exiting a syscall
     channel_exit(c, rc);
@@ -205,8 +205,46 @@ int open(const char* pathname, int flags, mode_t mode) {
 
   } else {
     // No. Just move along to the library
-    if (!real_open) real_open = dlsym(RTLD_NEXT, "open");
-    return real_open(pathname, flags, mode);
+    if (!real_openat) real_openat = dlsym(RTLD_NEXT, "openat");
+    return real_openat(pathname, flags, mode);
+  }
+}
+
+int open(const char* pathname, int flags, mode_t mode) {
+  return openat(AT_FDCWD, pathname, flags, mode);
+}
+
+int close(int fd) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    // Inform the tracer that this command is entering a syscall
+    channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
+
+    // Issue the syscall
+    int rc = safe_syscall(__NR_close, fd);
+
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just move along to the library
+    if (!real_close) real_close = dlsym(RTLD_NEXT, "close");
+    return real_close(fd);
   }
 }
 
@@ -218,7 +256,7 @@ int __xstat(int ver, const char* pathname, struct stat* statbuf) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+    channel_enter(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0);
 
     int rc = safe_syscall(__NR_stat, pathname, statbuf);
 
@@ -250,7 +288,7 @@ int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+    channel_enter(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0);
 
     int rc = safe_syscall(__NR_lstat, pathname, statbuf);
 
@@ -282,7 +320,7 @@ int __fxstat(int ver, int fd, struct stat* statbuf) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0, -1);
+    channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
 
     int rc = safe_syscall(__NR_fstat, fd, statbuf);
 
@@ -314,7 +352,7 @@ int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_newfstatat, dfd, (uint64_t)pathname, (uint64_t)statbuf, flags, 0, 0, -1);
+    channel_enter(c, __NR_newfstatat, dfd, (uint64_t)pathname, (uint64_t)statbuf, flags, 0, 0);
 
     int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
 
@@ -346,7 +384,7 @@ long read(int fd, void* data, size_t count) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0, -1);
+    channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
     int rc = safe_syscall(__NR_read, fd, data, count);
 
@@ -378,7 +416,7 @@ long write(int fd, const void* data, size_t count) {
     tracing_channel_t* c = channel_acquire();
 
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0, -1);
+    channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
 
     int rc = safe_syscall(__NR_write, fd, data, count);
 

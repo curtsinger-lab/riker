@@ -13,7 +13,7 @@
 #define TRACING_CHANNEL_SIZE 0x1000
 
 // The number of tracing channel entries
-#define TRACING_CHANNEL_COUNT 10
+#define TRACING_CHANNEL_COUNT 3
 
 // Define channel states used to coordinate between tracer and tracee
 #define CHANNEL_STATE_AVAILABLE 0      // The channel is available for use by any process
@@ -38,7 +38,6 @@ typedef struct tracing_channel {
   uint8_t state;
   int tid;
   struct user_regs_struct regs;
-  long alternate_syscall;
   long return_value;
   uintptr_t traced_syscall_ip;
 } tracing_channel_t;

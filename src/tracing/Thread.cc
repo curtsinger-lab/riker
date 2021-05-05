@@ -56,8 +56,7 @@ bool Thread::canSkipTrace(user_regs_struct& regs) const noexcept {
   if (_channel == nullptr) return false;
 
   // Does the channel have a matching syscall? If not, issue a warning and do not skip
-  if (_channel->regs.SYSCALL_NUMBER != regs.SYSCALL_NUMBER &&
-      _channel->alternate_syscall != regs.SYSCALL_NUMBER) {
+  if (_channel->regs.SYSCALL_NUMBER != regs.SYSCALL_NUMBER) {
     WARN << "Nested syscall " << regs.SYSCALL_NUMBER
          << " while using shared memory channel for syscall " << _channel->regs.SYSCALL_NUMBER;
     return false;
@@ -433,7 +432,7 @@ void Thread::_close(int fd) noexcept {
   LOGF(trace, "{}: close({})", this, fd);
 
   // Resume the process
-  resume();
+  finishSyscall([=](long rc) { resume(); });
 
   // Try to close the FD
   _process->tryCloseFD(fd);
