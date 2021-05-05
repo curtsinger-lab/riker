@@ -107,7 +107,6 @@ tracing_channel_t* channel_acquire() {
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
     if (__atomic_compare_exchange_n(&c->state, &expected, CHANNEL_STATE_ACQUIRED, false,
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-      safe_syscall(__NR_write, 2, "got it\n", 7);
       return c;
     }
 
@@ -275,7 +274,7 @@ int __xstat(int ver, const char* pathname, struct stat* statbuf) {
     int rc = safe_syscall(__NR_stat, pathname, statbuf);
 
     // Inform the tracer that this command is exiting a library call
-    channel_exit(c, rc);
+    // channel_exit(c, rc);
 
     // Release the channel for use by another library call
     channel_release(c);
@@ -315,7 +314,7 @@ int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
     int rc = safe_syscall(__NR_lstat, pathname, statbuf);
 
     // Inform the tracer that this command is exiting a library call
-    channel_exit(c, rc);
+    // channel_exit(c, rc);
 
     // Release the channel for use by another library call
     channel_release(c);
@@ -347,7 +346,7 @@ int __fxstat(int ver, int fd, struct stat* statbuf) {
     int rc = safe_syscall(__NR_fstat, fd, statbuf);
 
     // Inform the tracer that this command is exiting a library call
-    channel_exit(c, rc);
+    // channel_exit(c, rc);
 
     // Release the channel for use by another library call
     channel_release(c);
@@ -387,7 +386,7 @@ int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int
     int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
 
     // Inform the tracer that this command is exiting a library call
-    channel_exit(c, rc);
+    // channel_exit(c, rc);
 
     // Release the channel for use by another library call
     channel_release(c);

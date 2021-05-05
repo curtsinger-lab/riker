@@ -146,6 +146,7 @@ void Thread::resume() noexcept {
   if (_channel) {
     if (_channel->state == CHANNEL_STATE_ENTRY) {
       __atomic_store_n(&_channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
+      _channel = nullptr;
     } else if (_channel->state == CHANNEL_STATE_EXIT) {
       __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
     } else {
@@ -601,7 +602,7 @@ void Thread::_fstatat(at_fd dirfd,
       }
     }
 
-    finishSyscall([=](long rc) {
+    /*finishSyscall([=](long rc) {
       resume();
 
       if (rc == 0) {
@@ -612,7 +613,9 @@ void Thread::_fstatat(at_fd dirfd,
         WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
         // do nothing.
       }
-    });
+    });*/
+    resume();
+    _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()));
 
   } else if (pathname.empty()) {
     // fstatat does not allow empty paths if AT_EMPTY_PATH is not passed. No need to trace the
@@ -630,8 +633,12 @@ void Thread::_fstatat(at_fd dirfd,
       ref->getArtifact()->beforeStat(_build, getCommand(), ref_id);
     }
 
+    resume();
+
+    _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
+
     // Finish the syscall to see if the reference succeeds
-    finishSyscall([=](long rc) {
+    /*finishSyscall([=](long rc) {
       resume();
 
       if (rc == 0) {
@@ -649,7 +656,10 @@ void Thread::_fstatat(at_fd dirfd,
       } else {
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
-    });
+    });*/
+    if (ref->isResolved()) {
+      _build.traceMatchMetadata(getCommand(), ref_id);
+    }
   }
 }
 
