@@ -108,7 +108,7 @@ void DirArtifact::commitAll() noexcept {
 }
 
 /// Commit a specific entry in this directory
-void DirArtifact::commitEntry(fs::path name) noexcept {
+void DirArtifact::commitEntry(string name) noexcept {
   auto iter = _entries.find(name);
   if (iter != _entries.end()) {
     iter->second->commit();
@@ -474,7 +474,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
 // Add a directory entry to this artifact
 void DirArtifact::addEntry(const shared_ptr<Command>& c,
-                           fs::path name,
+                           string name,
                            shared_ptr<Artifact> target) noexcept {
   // Make sure we have a record of this entry
   auto iter = _entries.find(name);
@@ -492,7 +492,7 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
 
 // Remove a directory entry from this artifact
 void DirArtifact::removeEntry(const shared_ptr<Command>& c,
-                              fs::path name,
+                              string name,
                               shared_ptr<Artifact> target) noexcept {
   // Make sure we have a record of this entry
   auto iter = _entries.find(name);
@@ -508,7 +508,7 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
   appendVersion(written);
 }
 
-DirEntry::DirEntry(shared_ptr<DirArtifact> dir, fs::path name) noexcept : _dir(dir), _name(name) {}
+DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir), _name(name) {}
 
 // Set the committed state for this entry. Only used for initial state
 void DirEntry::setCommittedState(std::shared_ptr<Artifact> target,

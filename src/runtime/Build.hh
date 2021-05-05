@@ -129,13 +129,13 @@ class Build : public IRSink {
   /// A command adds an entry to a directory
   virtual void addEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept override;
 
   /// A command removes an entry from a directory
   virtual void removeEntry(const std::shared_ptr<Command>& command,
                            Ref::ID dir,
-                           fs::path name,
+                           std::string name,
                            Ref::ID target) noexcept override;
 
   /**

@@ -231,14 +231,14 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// Add a directory entry to this artifact
   virtual void addEntry(const std::shared_ptr<Command>& c,
-                        fs::path name,
+                        std::string name,
                         std::shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to add an entry to non-directory artifact " << this;
   }
 
   /// Remove a directory entry from this artifact
   virtual void removeEntry(const std::shared_ptr<Command>& c,
-                           fs::path name,
+                           std::string name,
                            std::shared_ptr<Artifact> target) noexcept {
     WARN << c << ": tried to remove an entry from non-directory artifact " << this;
   }

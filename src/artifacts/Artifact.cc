@@ -55,11 +55,11 @@ string Artifact::getName() const noexcept {
     // Generate a nice name for this artifact using the entry
     string new_name;
     if (parent_name == ".") {
-      new_name = entry->getName().string();
+      new_name = entry->getName();
     } else if (parent_name == "/") {
-      new_name = "/" + entry->getName().string();
+      new_name = "/" + entry->getName();
     } else {
-      new_name = parent_name + "/" + entry->getName().string();
+      new_name = parent_name + "/" + entry->getName();
     }
 
     // Update the shortest name

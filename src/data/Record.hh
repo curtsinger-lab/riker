@@ -499,18 +499,18 @@ struct UpdateContentRecord : public Record {
 struct AddEntryRecord : public Record {
   Command::ID _cmd;
   Ref::ID _dir;
-  fs::path _name;
+  std::string _name;
   Ref::ID _target;
 
   /// Default constructor for serialization
   AddEntryRecord() noexcept = default;
 
-  AddEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
+  AddEntryRecord(Command::ID cmd, Ref::ID dir, std::string name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   static std::unique_ptr<Record> create(Command::ID cmd,
                                         Ref::ID dir,
-                                        fs::path name,
+                                        std::string name,
                                         Ref::ID target) {
     return std::make_unique<AddEntryRecord>(cmd, dir, name, target);
   }
@@ -526,18 +526,18 @@ struct AddEntryRecord : public Record {
 struct RemoveEntryRecord : public Record {
   Command::ID _cmd;
   Ref::ID _dir;
-  fs::path _name;
+  std::string _name;
   Ref::ID _target;
 
   /// Default constructor for serialization
   RemoveEntryRecord() noexcept = default;
 
-  RemoveEntryRecord(Command::ID cmd, Ref::ID dir, fs::path name, Ref::ID target) noexcept :
+  RemoveEntryRecord(Command::ID cmd, Ref::ID dir, std::string name, Ref::ID target) noexcept :
       _cmd(cmd), _dir(dir), _name(name), _target(target) {}
 
   static std::unique_ptr<Record> create(Command::ID cmd,
                                         Ref::ID dir,
-                                        fs::path name,
+                                        std::string name,
                                         Ref::ID target) {
     return std::make_unique<RemoveEntryRecord>(cmd, dir, name, target);
   }

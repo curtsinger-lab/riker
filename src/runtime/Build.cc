@@ -567,7 +567,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
 /// Handle an AddEntry IR step
 void Build::addEntry(const shared_ptr<Command>& c,
                      Ref::ID dir_id,
-                     fs::path name,
+                     string name,
                      Ref::ID target_id) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
@@ -600,7 +600,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
 /// Handle a RemoveEntry IR step
 void Build::removeEntry(const shared_ptr<Command>& c,
                         Ref::ID dir_id,
-                        fs::path name,
+                        string name,
                         Ref::ID target_id) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;

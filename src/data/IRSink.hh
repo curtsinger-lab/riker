@@ -106,13 +106,13 @@ class IRSink {
   /// Handle an AddEntry IR step
   virtual void addEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept {}
 
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(const std::shared_ptr<Command>& command,
                            Ref::ID dir,
-                           fs::path name,
+                           std::string name,
                            Ref::ID target) noexcept {}
 
   /// Handle a Launch IR step

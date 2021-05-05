@@ -202,7 +202,7 @@ void OutputTrace::updateContent(const shared_ptr<Command>& cmd,
 /// Add an AddEntry IR step to the output trace
 void OutputTrace::addEntry(const shared_ptr<Command>& cmd,
                            Ref::ID dir,
-                           fs::path name,
+                           string name,
                            Ref::ID target) noexcept {
   _archive(AddEntryRecord::create(getCommandID(cmd), dir, name, target));
 }
@@ -210,7 +210,7 @@ void OutputTrace::addEntry(const shared_ptr<Command>& cmd,
 /// Add a RemoveEntry IR step to the output trace
 void OutputTrace::removeEntry(const shared_ptr<Command>& cmd,
                               Ref::ID dir,
-                              fs::path name,
+                              string name,
                               Ref::ID target) noexcept {
   _archive(RemoveEntryRecord::create(getCommandID(cmd), dir, name, target));
 }

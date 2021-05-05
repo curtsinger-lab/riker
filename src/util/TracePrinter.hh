@@ -127,7 +127,7 @@ class TracePrinter : public IRSink {
   /// Handle an AddEntry IR step
   virtual void addEntry(const std::shared_ptr<Command>& c,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept override {
     _out << AddEntryPrinter{c, dir, name, target} << std::endl;
   }
@@ -135,7 +135,7 @@ class TracePrinter : public IRSink {
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(const std::shared_ptr<Command>& c,
                            Ref::ID dir,
-                           fs::path name,
+                           std::string name,
                            Ref::ID target) noexcept override {
     _out << RemoveEntryPrinter{c, dir, name, target} << std::endl;
   }
@@ -358,11 +358,11 @@ class TracePrinter : public IRSink {
   struct AddEntryPrinter {
     std::shared_ptr<Command> c;
     Ref::ID dir;
-    fs::path name;
+    std::string name;
     Ref::ID target;
 
     friend std::ostream& operator<<(std::ostream& o, const AddEntryPrinter& p) noexcept {
-      return o << p.c << ": AddEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
+      return o << p.c << ": AddEntry(r" << p.dir << ", \"" << p.name << "\", r" << p.target << ")";
     }
   };
 
@@ -370,11 +370,12 @@ class TracePrinter : public IRSink {
   struct RemoveEntryPrinter {
     std::shared_ptr<Command> c;
     Ref::ID dir;
-    fs::path name;
+    std::string name;
     Ref::ID target;
 
     friend std::ostream& operator<<(std::ostream& o, const RemoveEntryPrinter& p) noexcept {
-      return o << p.c << ": RemoveEntry(r" << p.dir << ", " << p.name << ", r" << p.target << ")";
+      return o << p.c << ": RemoveEntry(r" << p.dir << ", \"" << p.name << "\", r" << p.target
+               << ")";
     }
   };
 

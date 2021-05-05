@@ -127,13 +127,13 @@ class OutputTrace : public IRSink {
   /// Add an AddEntry IR step to the output trace
   virtual void addEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept override;
 
   /// Add a RemoveEntry IR step to the output trace
   virtual void removeEntry(const std::shared_ptr<Command>& command,
                            Ref::ID dir,
-                           fs::path name,
+                           std::string name,
                            Ref::ID target) noexcept override;
 
   /// Add a Launch IR step to the output trace

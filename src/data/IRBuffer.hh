@@ -188,7 +188,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Handle an AddEntry IR step
   virtual void addEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _archive(AddEntryRecord::create(getCommandID(command), dir, name, target));
@@ -198,7 +198,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Handle a RemoveEntry IR step
   virtual void removeEntry(const std::shared_ptr<Command>& command,
                            Ref::ID dir,
-                           fs::path name,
+                           std::string name,
                            Ref::ID target) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _archive(RemoveEntryRecord::create(getCommandID(command), dir, name, target));

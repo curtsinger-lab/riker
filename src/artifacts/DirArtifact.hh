@@ -47,7 +47,7 @@ class DirArtifact final : public Artifact {
   void commitAll() noexcept;
 
   /// Commit a specific entry in this directory
-  void commitEntry(fs::path name) noexcept;
+  void commitEntry(std::string name) noexcept;
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
@@ -99,12 +99,12 @@ class DirArtifact final : public Artifact {
 
   /// Add a directory entry to this artifact
   virtual void addEntry(const std::shared_ptr<Command>& c,
-                        fs::path name,
+                        std::string name,
                         std::shared_ptr<Artifact> target) noexcept override;
 
   /// Remove a directory entry from this artifact
   virtual void removeEntry(const std::shared_ptr<Command>& c,
-                           fs::path name,
+                           std::string name,
                            std::shared_ptr<Artifact> target) noexcept override;
 
   // Un-hide the shorthand version of resolve()
@@ -123,7 +123,7 @@ class DirArtifact final : public Artifact {
 
  private:
   /// A map of entries in this directory
-  std::map<fs::path, std::shared_ptr<DirEntry>> _entries;
+  std::map<std::string, std::shared_ptr<DirEntry>> _entries;
 
   /// The base directory version is the backstop for all resolution queries. The base version can
   /// only be uncommitted if it is an empty directory.
@@ -144,7 +144,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * \param dir   The directory that contains this entry
    * \param name  The name of this entry in the containing directory
    */
-  DirEntry(std::shared_ptr<DirArtifact> dir, fs::path name) noexcept;
+  DirEntry(std::shared_ptr<DirArtifact> dir, std::string name) noexcept;
 
   // Disallow copying
   DirEntry(const DirEntry&) = delete;
@@ -194,14 +194,14 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   std::shared_ptr<DirArtifact> getDir() const noexcept { return _dir.lock(); }
 
   /// Get the name of this entry in its containing directory
-  fs::path getName() const noexcept { return _name; }
+  std::string getName() const noexcept { return _name; }
 
  private:
   /// The directory that contains this entry
   std::weak_ptr<DirArtifact> _dir;
 
   /// The name of this entry in the containing directory
-  fs::path _name;
+  std::string _name;
 
   /// The artifact reachable through this entry that is not linked on the filesystem
   std::shared_ptr<Artifact> _uncommitted_target;
