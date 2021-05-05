@@ -15,7 +15,7 @@ RKR_SETUP_CMDS = [
 
 # Copy these files over to the checkout directory before the rkr experiment
 RKR_COPY_FILES = {
-  'files/Rikerfile-make-all': 'Rikerfile'
+  'files/Rikerfile': 'Rikerfile'
 }
 
 # Run these commands in the checkout directory before the make experiment
@@ -27,6 +27,7 @@ MAKE_SETUP_CMDS = [
 
 # Copy these files over to the checkout directory before the make experiment
 MAKE_COPY_FILES = {
+  'files/Makefile': 'Makefile',
   'files/Rikerfile-make': 'Rikerfile',
 }
 

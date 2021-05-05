@@ -2,7 +2,7 @@
 
 BLAKE3=deps/BLAKE3/c
 
-OPT="-O3 -flto"
+OPT="-O3"
 CFLAGS="$OPT -Isrc -Ideps/cereal/include -Ideps/CLI11/include -I$BLAKE3 -Wall -Wfatal-errors"
 CXXFLAGS="$CFLAGS --std=c++17"
 
