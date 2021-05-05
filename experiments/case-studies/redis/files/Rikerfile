@@ -11,20 +11,25 @@ echo "#define REDIS_GIT_SHA1 \"$GIT_SHA1\"" > release.h
 echo "#define REDIS_GIT_DIRTY \"$GIT_DIRTY\"" >> release.h
 echo "#define REDIS_BUILD_ID \"$BUILD_ID\"" >> release.h
 
-CFLAGS="-pedantic -DREDIS_STATIC= -std=c11 -Wall -W -Wno-missing-field-initializers -O2 -g -ggdb -I../deps/hiredis -I../deps/linenoise -I../deps/lua/src -I../deps/hdr_histogram -DUSE_JEMALLOC -I../deps/jemalloc/include"
-LDFLAGS="-g -ggdb -rdynamic ../deps/hiredis/libhiredis.a ../deps/lua/src/liblua.a ../deps/hdr_histogram/hdr_histogram.o ../deps/linenoise/linenoise.o ../deps/jemalloc/lib/libjemalloc.a -lm -lpthread -ldl"
+CFLAGS="-g -ggdb -pedantic -DREDIS_STATIC= -std=c11 -Wall -W -Wno-missing-field-initializers -O2 -g -ggdb -I../deps/hiredis -I../deps/linenoise -I../deps/lua/src -I../deps/hdr_histogram -DUSE_JEMALLOC -I../deps/jemalloc/include"
+LDFLAGS="-rdynamic ../deps/hiredis/libhiredis.a ../deps/lua/src/liblua.a ../deps/hdr_histogram/hdr_histogram.o ../deps/linenoise/linenoise.o ../deps/jemalloc/lib/libjemalloc.a -lm -lpthread -ldl"
+
+# Build all source files
+ALL_SRC="adlist.c quicklist.c ae.c anet.c dict.c server.c sds.c zmalloc.c lzf_c.c lzf_d.c pqsort.c zipmap.c sha1.c ziplist.c release.c networking.c util.c object.c db.c replication.c rdb.c t_string.c t_list.c t_set.c t_zset.c t_hash.c config.c aof.c pubsub.c multi.c debug.c sort.c intset.c syncio.c cluster.c crc16.c endianconv.c slowlog.c scripting.c bio.c rio.c rand.c memtest.c crcspeed.c crc64.c bitops.c sentinel.c notify.c setproctitle.c blocked.c hyperloglog.c latency.c sparkline.c redis-check-rdb.c redis-check-aof.c geo.c lazyfree.c module.c evict.c expire.c geohash.c geohash_helper.c childinfo.c defrag.c siphash.c rax.c t_stream.c listpack.c localtime.c lolwut.c lolwut5.c lolwut6.c acl.c gopher.c tracking.c connection.c tls.c sha256.c timeout.c setcpuaffinity.c monotonic.c mt19937-64.c cli_common.c redis-cli.c redis-benchmark.c"
+gcc $CFLAGS -c $ALL_SRC
 
 # Build redis-server
-SRC="adlist.c quicklist.c ae.c anet.c dict.c server.c sds.c zmalloc.c lzf_c.c lzf_d.c pqsort.c zipmap.c sha1.c ziplist.c release.c networking.c util.c object.c db.c replication.c rdb.c t_string.c t_list.c t_set.c t_zset.c t_hash.c config.c aof.c pubsub.c multi.c debug.c sort.c intset.c syncio.c cluster.c crc16.c endianconv.c slowlog.c scripting.c bio.c rio.c rand.c memtest.c crcspeed.c crc64.c bitops.c sentinel.c notify.c setproctitle.c blocked.c hyperloglog.c latency.c sparkline.c redis-check-rdb.c redis-check-aof.c geo.c lazyfree.c module.c evict.c expire.c geohash.c geohash_helper.c childinfo.c defrag.c siphash.c rax.c t_stream.c listpack.c localtime.c lolwut.c lolwut5.c lolwut6.c acl.c gopher.c tracking.c connection.c tls.c sha256.c timeout.c setcpuaffinity.c monotonic.c mt19937-64.c"
-gcc $CFLAGS -o redis-server $SRC $LDFLAGS
+OBJ="adlist.o quicklist.o ae.o anet.o dict.o server.o sds.o zmalloc.o lzf_c.o lzf_d.o pqsort.o zipmap.o sha1.o ziplist.o release.o networking.o util.o object.o db.o replication.o rdb.o t_string.o t_list.o t_set.o t_zset.o t_hash.o config.o aof.o pubsub.o multi.o debug.o sort.o intset.o syncio.o cluster.o crc16.o endianconv.o slowlog.o scripting.o bio.o rio.o rand.o memtest.o crcspeed.o crc64.o bitops.o sentinel.o notify.o setproctitle.o blocked.o hyperloglog.o latency.o sparkline.o redis-check-rdb.o redis-check-aof.o geo.o lazyfree.o module.o evict.o expire.o geohash.o geohash_helper.o childinfo.o defrag.o siphash.o rax.o t_stream.o listpack.o localtime.o lolwut.o lolwut5.o lolwut6.o acl.o gopher.o tracking.o connection.o tls.o sha256.o timeout.o setcpuaffinity.o monotonic.o mt19937-64.o"
+gcc $CFLAGS -o redis-server $OBJ $LDFLAGS
+
+# Build redis-cli
+OBJ="anet.o adlist.o dict.o redis-cli.o zmalloc.o release.o ae.o crcspeed.o crc64.o siphash.o crc16.o monotonic.o cli_common.o mt19937-64.o"
+gcc $CFLAGS -o redis-cli $OBJ $LDFLAGS
+
+# Build redis-benchmark
+OBJ="ae.o anet.o redis-benchmark.o adlist.o dict.o zmalloc.o release.o crcspeed.o crc64.o siphash.o crc16.o monotonic.o cli_common.o mt19937-64.o"
+gcc $CFLAGS -o redis-benchmark $OBJ $LDFLAGS
+
 install redis-server redis-sentinel
 install redis-server redis-check-aof
 install redis-server redis-check-rdb
-
-# Build redis-cli
-SRC="anet.c adlist.c dict.c redis-cli.c zmalloc.c release.c ae.c crcspeed.c crc64.c siphash.c crc16.c monotonic.c cli_common.c mt19937-64.c"
-gcc $CFLAGS -o redis-cli $SRC $LDFLAGS
-
-# Build redis-benchmark
-SRC="ae.c anet.c redis-benchmark.c adlist.c dict.c zmalloc.c release.c crcspeed.c crc64.c siphash.c crc16.c monotonic.c cli_common.c mt19937-64.c"
-gcc $CFLAGS -o redis-benchmark $SRC $LDFLAGS
