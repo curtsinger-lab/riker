@@ -1194,7 +1194,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     _deferred_commands.erase(child);
 
     // Update the initial FDs for the child, which might point to different references now
-    child->setInitialFDs(fds);
+    // child->setInitialFDs(fds);
 
     // We found a matching child command. Apply the required substitutions
     child->applySubstitutions(child_substitutions);
