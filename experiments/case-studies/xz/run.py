@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
   # Run the riker build experiment
   if mode == 'rkr' or mode == 'all':
-    bench.rkr_experiment(project_path, REPO, END_COMMIT, COMMIT_COUNT, RKR_COPY_FILES)
+    bench.rkr_experiment(project_path, REPO, END_COMMIT, COMMIT_COUNT, RKR_COPY_FILES, inject=True)
 
   # Run the make build experiment
   if mode == 'make' or mode == 'all':

@@ -142,7 +142,7 @@ def count_lines_filtered(path, filter):
       count += 1
   return count
 
-def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, setup_cmds=[], inject=True):
+def rkr_experiment(project_path, repo, end_commit, commit_count, copy_files, setup_cmds=[], inject=False):
   # Set up the repository for our first build
   commit = '{}~{}'.format(end_commit, commit_count)
   setup(project_path, repo, commit, copy_files, setup_cmds)
