@@ -15,6 +15,12 @@
 // The number of tracing channel entries
 #define TRACING_CHANNEL_COUNT 3
 
+// The size of a data buffer available in each tracing channel
+#define TRACING_CHANNEL_BUFFER_SIZE 512
+
+// A special pointer value that indicates the tracing channel buffer should be used
+#define TRACING_CHANNEL_BUFFER_PTR -77
+
 // Define channel states used to coordinate between tracer and tracee
 #define CHANNEL_STATE_AVAILABLE 0      // The channel is available for use by any process
 #define CHANNEL_STATE_ACQUIRED 1       // The channel is claimed by a process
@@ -40,4 +46,5 @@ typedef struct tracing_channel {
   struct user_regs_struct regs;
   long return_value;
   uintptr_t traced_syscall_ip;
+  char buffer[TRACING_CHANNEL_BUFFER_SIZE];
 } tracing_channel_t;

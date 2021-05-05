@@ -47,7 +47,7 @@ void Thread::usingChannel(tracing_channel_t* channel) noexcept {
 
   auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
   // WARN << "Handling " << entry.getName() << " via shared memory channel";
-  entry.runHandler(*this, _channel->regs);
+  entry.runHandler(*this, _channel->regs, channel);
 }
 
 /// Check if a ptrace stop can be skipped because a shared memory channel is in use

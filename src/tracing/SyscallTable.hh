@@ -6,13 +6,16 @@
 #include <sys/user.h>
 #include <syscall.h>
 
+#include "tracing/inject.h"
+
 class Thread;
 
 /// The type of a system call handler
-typedef void (*handler_t)(Thread& __thr, user_regs_struct& __regs);
+typedef void (*handler_t)(Thread& __thr, user_regs_struct& __regs, tracing_channel_t* channel);
 
 /// The default handler
-constexpr handler_t default_handler = [](Thread& t, user_regs_struct& regs) {};
+constexpr handler_t default_handler =
+    [](Thread& t, user_regs_struct& regs, tracing_channel_t* channel) {};
 
 /**
  * A system call entry records the name of a system call, whether or not it should be traced, and
@@ -38,7 +41,9 @@ class SyscallEntry {
   bool isTraced() const { return _traced; }
 
   /// Run the handler for this system call
-  void runHandler(Thread& t, user_regs_struct& regs) const { _handler(t, regs); }
+  void runHandler(Thread& t, user_regs_struct& regs, tracing_channel_t* channel = nullptr) const {
+    _handler(t, regs, channel);
+  }
 
  private:
   const char* _name;

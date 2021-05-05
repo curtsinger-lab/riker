@@ -184,8 +184,16 @@ int openat(int dfd, const char* pathname, int flags, mode_t mode) {
     // Find an available channel
     tracing_channel_t* c = channel_acquire();
 
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
     // Inform the tracer that this command is entering a syscall
-    channel_enter(c, __NR_openat, dfd, (uint64_t)pathname, (uint64_t)flags, (uint64_t)mode, 0, 0);
+    channel_enter(c, __NR_openat, dfd, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0);
 
     // Issue the syscall
     int rc = safe_syscall(__NR_openat, dfd, pathname, flags, mode);
@@ -255,8 +263,16 @@ int __xstat(int ver, const char* pathname, struct stat* statbuf) {
     // Find an available channel
     tracing_channel_t* c = channel_acquire();
 
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0);
+    channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
 
     int rc = safe_syscall(__NR_stat, pathname, statbuf);
 
@@ -287,8 +303,16 @@ int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
     // Find an available channel
     tracing_channel_t* c = channel_acquire();
 
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0);
+    channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
 
     int rc = safe_syscall(__NR_lstat, pathname, statbuf);
 
@@ -351,8 +375,16 @@ int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int
     // Find an available channel
     tracing_channel_t* c = channel_acquire();
 
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
     // Inform the tracer that this command is entering a library call
-    channel_enter(c, __NR_newfstatat, dfd, (uint64_t)pathname, (uint64_t)statbuf, flags, 0, 0);
+    channel_enter(c, __NR_newfstatat, dfd, pathname_arg, (uint64_t)statbuf, flags, 0, 0);
 
     int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
 
