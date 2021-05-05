@@ -61,7 +61,20 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
     // do nothing by default
   }
 
+  std::optional<ContentVersion::ID> getID(size_t buffer_id) {
+    if (_buffer_id == buffer_id) return _id;
+    return std::nullopt;
+  }
+
+  void setID(size_t buffer_id, ContentVersion::ID id) {
+    _buffer_id = buffer_id;
+    _id = id;
+  }
+
  protected:
   // Declare fields for serialization
   SERIALIZE_EMPTY();
+
+  ContentVersion::ID _id;
+  size_t _buffer_id;
 };

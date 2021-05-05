@@ -252,7 +252,11 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Get the ID for a content version
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& cv) noexcept;
 
+  static size_t getNextID() noexcept { return _next_id++; }
+
  private:
+  size_t _id;
+
   /// The temporary file descriptor used to hold this buffer's data
   int _fd;
 
@@ -279,4 +283,6 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
 
   /// The map from content versions to their IDs in the serialized data
   std::unordered_map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_version_ids;
+
+  inline static size_t _next_id = 999;
 };

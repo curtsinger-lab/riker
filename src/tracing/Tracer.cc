@@ -87,23 +87,25 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   while (true) {
     // Check the shared memory channel
     if (channel != nullptr) {
-      for (int i = 0; i < TRACING_CHANNEL_COUNT; i++) {
-        tracing_channel_t* c = &channel[i];
+      for (int loop = 0; loop < 10; loop++) {
+        for (int i = 0; i < TRACING_CHANNEL_COUNT; i++) {
+          tracing_channel_t* c = &channel[i];
 
-        // Get the state of the channel
-        uint8_t state = __atomic_load_n(&c->state, __ATOMIC_ACQUIRE);
+          // Get the state of the channel
+          uint8_t state = __atomic_load_n(&c->state, __ATOMIC_ACQUIRE);
 
-        // Is the channel waiting on entry or exit for a library call?
-        if (state == CHANNEL_STATE_ENTRY) {
-          auto iter = _threads.find(c->tid);
-          if (iter != _threads.end()) {
-            iter->second.usingChannel(c);
-          }
+          // Is the channel waiting on entry or exit for a library call?
+          if (state == CHANNEL_STATE_ENTRY) {
+            auto iter = _threads.find(c->tid);
+            if (iter != _threads.end()) {
+              iter->second.usingChannel(c);
+            }
 
-        } else if (state == CHANNEL_STATE_EXIT) {
-          auto iter = _threads.find(c->tid);
-          if (iter != _threads.end()) {
-            iter->second.doneWithChannel(c);
+          } else if (state == CHANNEL_STATE_EXIT) {
+            auto iter = _threads.find(c->tid);
+            if (iter != _threads.end()) {
+              iter->second.doneWithChannel(c);
+            }
           }
         }
       }

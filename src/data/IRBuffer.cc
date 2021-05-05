@@ -29,7 +29,10 @@ static string get_fd_path(int fd) {
 
 // Create an IRBuffer with a temporary file to hold buffered steps
 IRBuffer::IRBuffer() noexcept :
-    _fd(open_tempfile()), _out(get_fd_path(_fd), std::ios::binary), _archive(_out) {}
+    _id(getNextID()),
+    _fd(open_tempfile()),
+    _out(get_fd_path(_fd), std::ios::binary),
+    _archive(_out) {}
 
 IRBuffer::~IRBuffer() noexcept {
   ::close(_fd);
@@ -78,6 +81,9 @@ void IRBuffer::addContentVersion(ContentVersion::ID id, shared_ptr<ContentVersio
 
 /// Get the ID for a command instance
 Command::ID IRBuffer::getCommandID(const std::shared_ptr<Command>& c) noexcept {
+  auto id = c->getID(_id);
+  if (id.has_value()) return id.value();
+
   auto iter = _command_ids.find(c);
   if (iter == _command_ids.end()) {
     // Assign an ID for the new command
@@ -90,12 +96,16 @@ Command::ID IRBuffer::getCommandID(const std::shared_ptr<Command>& c) noexcept {
     IRLoader::addCommand(id, c);
   }
 
+  c->setID(_id, iter->second);
   return iter->second;
 }
 
 /// Get the ID for a metadata version
 MetadataVersion::ID IRBuffer::getMetadataVersionID(
     const std::shared_ptr<MetadataVersion>& mv) noexcept {
+  auto id = mv->getID(_id);
+  if (id.has_value()) return id.value();
+
   auto iter = _metadata_version_ids.find(mv);
   if (iter == _metadata_version_ids.end()) {
     // Assign an ID for the new command
@@ -108,12 +118,16 @@ MetadataVersion::ID IRBuffer::getMetadataVersionID(
     IRLoader::addMetadataVersion(id, mv);
   }
 
+  mv->setID(_id, iter->second);
   return iter->second;
 }
 
 /// Get the ID for a content version
 ContentVersion::ID IRBuffer::getContentVersionID(
     const std::shared_ptr<ContentVersion>& cv) noexcept {
+  auto id = cv->getID(_id);
+  if (id.has_value()) return id.value();
+
   auto iter = _content_version_ids.find(cv);
   if (iter == _content_version_ids.end()) {
     // Assign an ID for the new command
@@ -126,5 +140,6 @@ ContentVersion::ID IRBuffer::getContentVersionID(
     IRLoader::addContentVersion(id, cv);
   }
 
+  cv->setID(_id, iter->second);
   return iter->second;
 }

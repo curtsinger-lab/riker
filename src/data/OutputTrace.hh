@@ -150,6 +150,8 @@ class OutputTrace : public IRSink {
   virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override;
 
  private:
+  size_t _id;
+
   /// The output file stream
   std::ofstream _out;
 

@@ -376,6 +376,16 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the outputs from this command
   const OutputList& getOutputs() noexcept;
 
+  std::optional<Command::ID> getID(size_t buffer_id) {
+    if (_buffer_id == buffer_id) return _id;
+    return std::nullopt;
+  }
+
+  void setID(size_t buffer_id, Command::ID id) {
+    _buffer_id = buffer_id;
+    _id = id;
+  }
+
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
@@ -404,4 +414,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// The total count of commands the last time the short name was computed
   mutable size_t _short_name_command_count = 0;
+
+  // ID for this command and the buffer it is identified in
+  Command::ID _id;
+  size_t _buffer_id;
 };

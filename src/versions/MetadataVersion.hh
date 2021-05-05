@@ -53,6 +53,16 @@ class MetadataVersion : public Version {
   /// Print this metadata version
   virtual std::ostream& print(std::ostream& o) const noexcept override;
 
+  std::optional<MetadataVersion::ID> getID(size_t buffer_id) {
+    if (_buffer_id == buffer_id) return _id;
+    return std::nullopt;
+  }
+
+  void setID(size_t buffer_id, MetadataVersion::ID id) {
+    _buffer_id = buffer_id;
+    _id = id;
+  }
+
  private:
   /// The user id for this metadata version
   uid_t _uid;
@@ -66,4 +76,7 @@ class MetadataVersion : public Version {
   friend class cereal::access;
   MetadataVersion() noexcept = default;
   SERIALIZE(_uid, _gid, _mode);
+
+  MetadataVersion::ID _id;
+  size_t _buffer_id;
 };

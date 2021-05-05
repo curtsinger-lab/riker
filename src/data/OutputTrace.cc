@@ -11,6 +11,7 @@
 #include <cereal/archives/binary.hpp>
 
 #include "data/AccessFlags.hh"
+#include "data/IRBuffer.hh"
 #include "data/Record.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -33,13 +34,16 @@ class MetadataVersion;
 
 // Create a trace at the given path
 OutputTrace::OutputTrace(string filename) noexcept :
-    _out(filename, std::ios::binary), _archive(_out) {
+    _id(IRBuffer::getNextID()), _out(filename, std::ios::binary), _archive(_out) {
   // Write out the magic number and version
   _archive(ArchiveMagic, ArchiveVersion);
 }
 
 // Get the ID for a command instance. Emit a new command record if necessary
 Command::ID OutputTrace::getCommandID(const std::shared_ptr<Command>& c) noexcept {
+  auto id = c->getID(_id);
+  if (id.has_value()) return id.value();
+
   // Look for the provided command in the map of known commands
   auto iter = _commands.find(c);
   if (iter == _commands.end()) {
@@ -51,12 +55,16 @@ Command::ID OutputTrace::getCommandID(const std::shared_ptr<Command>& c) noexcep
     _archive(CommandRecord::create(id, c->getArguments(), c->getInitialFDs(), c->hasExecuted()));
   }
 
+  c->setID(_id, iter->second);
   return iter->second;
 }
 
 // Get the ID for a metadata version. Emit a new metadata version record if necessary
 MetadataVersion::ID OutputTrace::getMetadataVersionID(
     const shared_ptr<MetadataVersion>& mv) noexcept {
+  auto id = mv->getID(_id);
+  if (id.has_value()) return id.value();
+
   // Look for the provided metadata version in the map of known versions
   auto iter = _metadata_versions.find(mv);
   if (iter == _metadata_versions.end()) {
@@ -69,11 +77,15 @@ MetadataVersion::ID OutputTrace::getMetadataVersionID(
   }
 
   // Return the ID
+  mv->setID(_id, iter->second);
   return iter->second;
 }
 
 // Get the ID for a content version. Emit a new metadata version record if necessary
 ContentVersion::ID OutputTrace::getContentVersionID(const shared_ptr<ContentVersion>& cv) noexcept {
+  auto id = cv->getID(_id);
+  if (id.has_value()) return id.value();
+
   // Look for the provided content version in the map of known versions
   auto iter = _content_versions.find(cv);
   if (iter == _content_versions.end()) {
@@ -86,6 +98,7 @@ ContentVersion::ID OutputTrace::getContentVersionID(const shared_ptr<ContentVers
   }
 
   // Return the ID
+  cv->setID(_id, iter->second);
   return iter->second;
 }
 

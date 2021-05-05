@@ -39,7 +39,7 @@ static long (*safe_syscall)(long nr, ...) = syscall;
 
 // Pointers to real library functions wrapped in this library
 static int (*real_open)(const char* pathname, int flags, mode_t mode) = NULL;
-static int (*real_openat)(const char* pathname, int flags, mode_t mode) = NULL;
+static int (*real_openat)(int dfd, const char* pathname, int flags, mode_t mode) = NULL;
 static int (*real_close)(int fd) = NULL;
 static int (*real_xstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
 static int (*real_lxstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
@@ -214,7 +214,7 @@ int openat(int dfd, const char* pathname, int flags, mode_t mode) {
   } else {
     // No. Just move along to the library
     if (!real_openat) real_openat = dlsym(RTLD_NEXT, "openat");
-    return real_openat(pathname, flags, mode);
+    return real_openat(dfd, pathname, flags, mode);
   }
 }
 
