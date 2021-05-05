@@ -220,13 +220,13 @@ class Build : public IRSink {
   /// Handle an AddEntry IR step
   void traceAddEntry(const std::shared_ptr<Command>& command,
                      Ref::ID dir,
-                     fs::path name,
+                     std::string name,
                      Ref::ID target) noexcept;
 
   /// Handle a RemoveEntry IR step
   void traceRemoveEntry(const std::shared_ptr<Command>& command,
                         Ref::ID dir,
-                        fs::path name,
+                        std::string name,
                         Ref::ID target) noexcept;
 
   /**

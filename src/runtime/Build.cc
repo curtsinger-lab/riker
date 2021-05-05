@@ -1094,7 +1094,7 @@ void Build::traceUpdateContent(const shared_ptr<Command>& c,
 // A traced command is adding an entry to a directory
 void Build::traceAddEntry(const shared_ptr<Command>& c,
                           Ref::ID dir_id,
-                          fs::path name,
+                          string name,
                           Ref::ID target_id) noexcept {
   // Count a traced step
   stats::traced_steps++;
@@ -1123,7 +1123,7 @@ void Build::traceAddEntry(const shared_ptr<Command>& c,
 // A traced command is removing an entry from a directory
 void Build::traceRemoveEntry(const shared_ptr<Command>& c,
                              Ref::ID dir_id,
-                             fs::path name,
+                             string name,
                              Ref::ID target_id) noexcept {
   // Count a traced step
   stats::traced_steps++;
