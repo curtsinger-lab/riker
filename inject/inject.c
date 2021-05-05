@@ -46,8 +46,6 @@ static int (*real_lxstat)(int ver, const char* pathname, struct stat* statbuf) =
 static int (*real_fxstat)(int ver, int fd, struct stat* statbuf) = NULL;
 static int (
     *real_fxstatat)(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) = NULL;
-static long (*real_read)(int fd, void* data, size_t count);
-static long (*real_write)(int fd, const void* data, size_t count);
 
 // Has the injected library been initialized?
 static bool initialized = false;
@@ -81,6 +79,7 @@ __attribute__((constructor)) void init() {
   long rc = safe_syscall(__NR_fstat, TRACING_CHANNEL_FD, &statbuf);
   if (rc) {
     fprintf(stderr, "WARNING: tracee does not have the expected tracing channel fd.\n");
+    return;
   }
 
   // Map the tracing channel shared page
@@ -108,6 +107,7 @@ tracing_channel_t* channel_acquire() {
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
     if (__atomic_compare_exchange_n(&c->state, &expected, CHANNEL_STATE_ACQUIRED, false,
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+      safe_syscall(__NR_write, 2, "got it\n", 7);
       return c;
     }
 
@@ -142,8 +142,6 @@ void channel_enter(tracing_channel_t* c,
 
   // Mark the channel for entry
   __atomic_store_n(&c->state, CHANNEL_STATE_ENTRY, __ATOMIC_RELEASE);
-
-  // safe_syscall(__NR_write, 2, "entering...\n", 12);
 
   // Spin until the tracer allows the tracee to proceed
   while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_ENTRY_PROCEED) {
@@ -418,7 +416,7 @@ long read(int fd, void* data, size_t count) {
     // Inform the tracer that this command is entering a library call
     channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
-    int rc = safe_syscall(__NR_read, fd, data, count);
+    long rc = safe_syscall(__NR_read, fd, data, count);
 
     // Inform the tracer that this command is exiting a library call
     channel_exit(c, rc);
@@ -434,9 +432,14 @@ long read(int fd, void* data, size_t count) {
     }
 
   } else {
-    // No. Just move along to the library
-    if (!real_read) real_read = dlsym(RTLD_NEXT, "read");
-    return real_read(fd, data, count);
+    // No. Just issue the syscall
+    long rc = syscall(__NR_read, fd, data, count);
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
   }
 }
 
@@ -450,7 +453,7 @@ long write(int fd, const void* data, size_t count) {
     // Inform the tracer that this command is entering a library call
     channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
 
-    int rc = safe_syscall(__NR_write, fd, data, count);
+    long rc = safe_syscall(__NR_write, fd, data, count);
 
     // Inform the tracer that this command is exiting a library call
     channel_exit(c, rc);
@@ -466,9 +469,14 @@ long write(int fd, const void* data, size_t count) {
     }
 
   } else {
-    // No. Just move along to the library
-    if (!real_write) real_write = dlsym(RTLD_NEXT, "write");
-    return real_write(fd, data, count);
+    // No. Just issue the syscall
+    long rc = syscall(__NR_write, fd, data, count);
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
   }
 }
 
