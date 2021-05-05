@@ -58,6 +58,9 @@ static int trace_channel_fd = -1;
 // The shared mapping of the trace channel struct
 static tracing_channel_t* channel = nullptr;
 
+// The BPF program (initialized on first use)
+vector<struct sock_filter> bpf;
+
 // Stub for the seccomp syscall
 int seccomp(unsigned int operation, unsigned int flags, void* args) {
   return syscall(__NR_seccomp, operation, flags, args);
@@ -433,6 +436,67 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     }
   }
 
+  // If the bpf program hasn't been generated yet, do that now
+  if (bpf.size() == 0) {
+    // Compute the offset of the instruction pointer in the seccomp_data struct
+    uint32_t ip_offset = offsetof(struct seccomp_data, instruction_pointer);
+
+    // Load the lower four bytes of the instruction pointer
+    bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset));
+
+    uint32_t safe_page_lower = ((intptr_t)SAFE_SYSCALL_PAGE) & 0xFFFFFFFF;
+    uint32_t safe_page_upper = ((intptr_t)SAFE_SYSCALL_PAGE) >> 32;
+
+    // If the lower four bytes are less than the safe syscall page, jump ahead
+    bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower, 0, 4));
+
+    // If the lower four bytes are greater than or equal to 0x77771000, jump ahead
+    bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower + 0x1000, 3, 0));
+
+    // Load the upper four bytes of the instruction pointer
+    bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset + 4));
+
+    // If the upper four bytes are not zero, jump ahead
+    bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, safe_page_upper, 0, 1));
+
+    // If we hit this point, this is an allowed syscall
+    bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+
+    // Load the syscall number
+    bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
+
+    // Loop over syscalls
+    for (uint32_t i = 0; i < SyscallTable::size(); i++) {
+      // Is this the mmap syscall entry?
+      if (i == __NR_mmap) {
+        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 4));
+
+        // Load the fd argument
+        bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[4])));
+
+        // If fd is -1, allow the syscall. Otherwise trace it.
+        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 1));
+        bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+        bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+
+      } else {
+        if (SyscallTable::get(i).isTraced()) {
+          // Check if the syscall matches the current entry. If it matches, trace the syscall.
+          bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
+          bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
+
+        } else {
+          // Check if the syscall matches the current entry. If it does, allow the syscall.
+          bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
+          bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+        }
+      }
+    }
+
+    // Default case allows the syscall
+    bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
+  }
+
   // Launch a child process
   pid_t child_pid = fork();
   FAIL_IF(child_pid == -1) << "Failed to fork: " << ERR;
@@ -474,70 +538,9 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     // use seccomp without special permissions
     FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
 
-    vector<struct sock_filter> filter;
-
-    // Compute the offset of the instruction pointer in the seccomp_data struct
-    uint32_t ip_offset = offsetof(struct seccomp_data, instruction_pointer);
-
-    // Load the lower four bytes of the instruction pointer
-    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset));
-
-    uint32_t safe_page_lower = ((intptr_t)SAFE_SYSCALL_PAGE) & 0xFFFFFFFF;
-    uint32_t safe_page_upper = ((intptr_t)SAFE_SYSCALL_PAGE) >> 32;
-
-    // If the lower four bytes are less than the safe syscall page, jump ahead
-    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower, 0, 4));
-
-    // If the lower four bytes are greater than or equal to 0x77771000, jump ahead
-    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, safe_page_lower + 0x1000, 3, 0));
-
-    // Load the upper four bytes of the instruction pointer
-    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, ip_offset + 4));
-
-    // If the upper four bytes are not zero, jump ahead
-    filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, safe_page_upper, 0, 1));
-
-    // If we hit this point, this is an allowed syscall
-    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-
-    // Load the syscall number
-    filter.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
-
-    // Loop over syscalls
-    for (uint32_t i = 0; i < SyscallTable::size(); i++) {
-      // Is this the mmap syscall entry?
-      if (i == __NR_mmap) {
-        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 4));
-
-        // Load the fd argument
-        filter.push_back(
-            BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[4])));
-
-        // If fd is -1, allow the syscall. Otherwise trace it.
-        filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 1));
-        filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-        filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
-
-      } else {
-        if (SyscallTable::get(i).isTraced()) {
-          // Check if the syscall matches the current entry. If it matches, trace the syscall.
-          filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
-          filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
-
-        } else {
-          // Check if the syscall matches the current entry. If it does, allow the syscall.
-          filter.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
-          filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-        }
-      }
-    }
-
-    // Default case allows the syscall
-    filter.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-
     struct sock_fprog bpf_program;
-    bpf_program.filter = filter.data();
-    bpf_program.len = filter.size();
+    bpf_program.filter = bpf.data();
+    bpf_program.len = bpf.size();
 
     // Actually enable the filter
     FAIL_IF(seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_SPEC_ALLOW, &bpf_program) != 0)
