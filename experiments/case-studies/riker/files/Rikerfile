@@ -16,6 +16,5 @@ clang $CFLAGS -mavx2 -o .blake3obj/blake3_avx2.o -c $BLAKE3/blake3_avx2.c
 clang $CFLAGS -mavx512f -mavx512vl -o .blake3obj/blake3_avx512.o -c $BLAKE3/blake3_avx512.c
 
 clang++ $CXXFLAGS -o rkr src/*/*.cc .blake3obj/*.o -lstdc++fs -lfmt
-rm -rf .blake3obj
 
 clang $CFLAGS -o rkr-launch launch/launch.c

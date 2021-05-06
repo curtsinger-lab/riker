@@ -41,14 +41,14 @@ clean:
 rkr: $(OBJS) $(BLAKE_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-$(OBJS): .obj/%.o: src/%.cc Makefile
+$(OBJS): .obj/%.o: src/%.cc
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
 
-rkr-launch: launch/launch.c Makefile
+rkr-launch: launch/launch.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
+$(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ -c $<
 
