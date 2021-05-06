@@ -36,7 +36,9 @@ MAKE_FILTER_CMDS = [
   'rkr-launch',
   'Rikerfile',
   '/bin/sh -c',
-  'make -f'
+  'make -f',
+  'dirname',
+  'mkdir -p'
 ]
 
 if __name__ == '__main__':
