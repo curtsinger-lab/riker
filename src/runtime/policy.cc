@@ -52,15 +52,15 @@ namespace policy {
                                         fs::path path) {
     // If the fingerprinting policy is None, always collect quick fingerprints
     if (options::fingerprint_level == FingerprintLevel::None) {
-      LOG(cache) << "Selected quick fingerprint for path " << path
-                 << " because fingerprint level is set to None.";
+      // LOG(cache) << "Selected quick fingerprint for path " << path
+      //           << " because fingerprint level is set to None.";
       return FingerprintType::Quick;
     }
 
     // If the fingerprinting policy is All, always collect full fingerprints
     if (options::fingerprint_level == FingerprintLevel::All) {
-      LOG(cache) << "Selected full fingerprint for path " << path
-                 << " because fingerprint level is set to All.";
+      // LOG(cache) << "Selected full fingerprint for path " << path
+      //           << " because fingerprint level is set to All.";
 
       return FingerprintType::Full;
     }
@@ -72,14 +72,14 @@ namespace policy {
       // Yes. If the reader and creator are the same command, we don't collect a fingerprint
       // Otherwise take a full fingerprint
       if (writer == reader) {
-        LOG(cache) << "Selected no fingerprint for path " << path
-                   << " because the version is read by its writer.";
+        // LOG(cache) << "Selected no fingerprint for path " << path
+        //           << " because the version is read by its writer.";
 
         return FingerprintType::None;
 
       } else {
-        LOG(cache) << "Selected full fingerprint for path " << path
-                   << " because it is an intermediate file.";
+        // LOG(cache) << "Selected full fingerprint for path " << path
+        //           << " because it is an intermediate file.";
 
         return FingerprintType::Full;
       }
@@ -87,12 +87,12 @@ namespace policy {
     } else {
       // Missing a reader or creator. We only fingerprint the file if its path is local
       if (localPath(path)) {
-        LOG(cache) << "Selected full fingerprint for path " << path << " because path is local.";
+        // LOG(cache) << "Selected full fingerprint for path " << path << " because path is local.";
         return FingerprintType::Full;
 
       } else {
-        LOG(cache) << "Selected quick fingerprint for path " << path
-                   << " because path is not local.";
+        // LOG(cache) << "Selected quick fingerprint for path " << path
+        //           << " because path is not local.";
         return FingerprintType::Quick;
       }
     }
@@ -101,13 +101,19 @@ namespace policy {
   bool isCacheable(const shared_ptr<Command>& reader,
                    const shared_ptr<Command>& writer,
                    fs::path path) {
+    if (!options::enable_cache) return false;
+
+    if (!writer || writer == reader) return false;
+
     // is this a special file?
     if (never_cache.find(path.string()) != never_cache.end()) {
       LOG(cache) << "Policy: versions for file " << path << " are never cached.";
       return false;
     }
 
-    struct stat statbuf;
+    return true;
+
+    /*struct stat statbuf;
     if (::stat(path.c_str(), &statbuf)) {
       return false;
     }
@@ -128,6 +134,6 @@ namespace policy {
                << (not_too_big ? " is not too big," : " is too big,") << " and"
                << (cache_enabled ? " cache is enabled" : " cache is disabled") << ".";
 
-    return do_cache;
+    return do_cache;*/
   }
 }

@@ -272,7 +272,8 @@ shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c
 
   } else {
     // No. Fingerprint the committed content if necessary
-    fingerprintAndCache(c);
+    // fingerprintAndCache(c);
+    // Not actually required. We'll fingerprint and cache when the content is matched.
   }
 
   ASSERT(result) << "Artifact " << this << " has no content version";

@@ -236,6 +236,8 @@ void FileVersion::fingerprint(fs::path path, FingerprintType type) noexcept {
     // if file is a not regular file, bail
     if (!(statbuf.st_mode & S_IFREG)) return;
 
+    // WARN << "Fingerprinting " << path;
+
     // finally save hash
     _hash = blake3(path, statbuf);
 
