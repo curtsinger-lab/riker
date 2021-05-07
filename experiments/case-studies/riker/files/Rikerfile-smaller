@@ -1,0 +1,11 @@
+#!/bin/sh
+
+CFLAGS="-O3 -Isrc -Ideps/cereal/include -Ideps/CLI11/include -Ideps/BLAKE3/c"
+
+BLAKE3=deps/BLAKE3/c
+clang -fPIC -shared -O3 -o libblake3.so $BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S
+
+clang++ $CFLAGS --std=c++17 -o rkr src/*/*.cc -L. -lblake3 -lstdc++fs -lfmt
+
+clang $CFLAGS -o rkr-launch launch/launch.c
+
