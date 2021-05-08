@@ -5,17 +5,17 @@ MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
 BLAKE3 := deps/BLAKE3/c
 
-OPT = -O3 -flto
-CFLAGS := $(OPT)
-CXXFLAGS := -Isrc \
-					 	-Ideps/cereal/include \
-					 	-Ideps/CLI11/include \
-					 	-I$(BLAKE3) \
-					 	-Wall \
-					 	-Wfatal-errors \
-					 	$(OPT) \
+OPT = -O3
+CFLAGS := $(OPT) \
+          -Wall \
+          -Wfatal-errors \
+          -Isrc \
+          -I$(BLAKE3)
+
+CXXFLAGS := $(CFLAGS) \
 						--std=c++17 \
-						-DNDEBUG
+					 	-Ideps/cereal/include \
+					 	-Ideps/CLI11/include
 
 LDFLAGS = $(OPT) -lstdc++fs -lfmt
 

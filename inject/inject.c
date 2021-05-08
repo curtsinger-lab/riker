@@ -38,7 +38,6 @@ static uint8_t safe_syscall_code[] = {
 static long (*safe_syscall)(long nr, ...) = syscall;
 
 // Pointers to real library functions wrapped in this library
-static int (*real_open)(const char* pathname, int flags, mode_t mode) = NULL;
 static int (*real_openat)(int dfd, const char* pathname, int flags, mode_t mode) = NULL;
 static int (*real_close)(int fd) = NULL;
 static int (*real_xstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
@@ -157,15 +156,15 @@ void channel_exit(tracing_channel_t* c, long rc) {
   while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_EXIT_PROCEED) {
   }
 
-  // Was a traced syscall IP set?
-  if (c->traced_syscall_ip != 0) {
-    uint8_t* p = (void*)c->traced_syscall_ip;
-
-    /*char buffer[256];
-    int len = snprintf(buffer, 256, "Traced syscall at %p (0x%x 0x%x)\n",
-                       (void*)c->traced_syscall_ip, p[-2], p[-1]);
-    safe_syscall(__NR_write, 2, buffer, len);*/
-  }
+  // Was a traced syscall IP set? We will eventually redirect it.
+  // if (c->traced_syscall_ip != 0) {
+  //  uint8_t* p = (void*)c->traced_syscall_ip;
+  //
+  //  char buffer[256];
+  //  int len = snprintf(buffer, 256, "Traced syscall at %p (0x%x 0x%x)\n",
+  //                    (void*)c->traced_syscall_ip, p[-2], p[-1]);
+  //  safe_syscall(__NR_write, 2, buffer, len);
+  //}
 }
 
 void channel_release(tracing_channel_t* c) {
@@ -263,7 +262,7 @@ int __xstat(int ver, const char* pathname, struct stat* statbuf) {
     uint64_t pathname_arg = (uint64_t)pathname;
 
     // If we the pathname will fit in the channel's buffer, put it there
-    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+    if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
       strcpy(c->buffer, pathname);
       pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
     }
@@ -303,7 +302,7 @@ int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
     uint64_t pathname_arg = (uint64_t)pathname;
 
     // If we the pathname will fit in the channel's buffer, put it there
-    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+    if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
       strcpy(c->buffer, pathname);
       pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
     }
@@ -375,7 +374,7 @@ int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int
     uint64_t pathname_arg = (uint64_t)pathname;
 
     // If we the pathname will fit in the channel's buffer, put it there
-    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+    if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
       strcpy(c->buffer, pathname);
       pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
     }
