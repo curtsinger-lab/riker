@@ -64,7 +64,7 @@ Command::~Command() noexcept = default;
 // Get a short, length-limited name for this command
 string Command::getShortName(size_t limit) const noexcept {
   // A command with no arguments is anonymous. This shouldn't happen, but better to be safe.
-  if (_args.size() == 0) return "<anon>";
+  if (_args.size() == 0) return "rkr";
 
   if (_short_name_command_count < command_count) _short_names.clear();
 
