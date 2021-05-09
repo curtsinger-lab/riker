@@ -150,8 +150,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                              Ref::ID ref,
                              std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
-    _archive(MatchMetadataRecord::create(getCommandID(command), scenario, ref,
-                                         getMetadataVersionID(version)));
+    _archive(MatchMetadataRecord::create(getCommandID(command), scenario, ref, version));
     _steps++;
   }
 
@@ -171,8 +170,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                               Ref::ID ref,
                               std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
-    _archive(
-        UpdateMetadataRecord::create(getCommandID(command), ref, getMetadataVersionID(version)));
+    _archive(UpdateMetadataRecord::create(getCommandID(command), ref, version));
     _steps++;
   }
 
@@ -235,19 +233,12 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   /// Identify a command with a given ID
   virtual void addCommand(Command::ID id, std::shared_ptr<Command> c) noexcept override;
 
-  /// Identify a metadata version with a given ID
-  virtual void addMetadataVersion(MetadataVersion::ID id,
-                                  std::shared_ptr<MetadataVersion> mv) noexcept override;
-
   /// Identify a content version with a given ID
   virtual void addContentVersion(ContentVersion::ID id,
                                  std::shared_ptr<ContentVersion> cv) noexcept override;
 
   /// Get the ID for a command instance
   Command::ID getCommandID(const std::shared_ptr<Command>& c) noexcept;
-
-  /// Get the ID for a metadata version
-  MetadataVersion::ID getMetadataVersionID(const std::shared_ptr<MetadataVersion>& mv) noexcept;
 
   /// Get the ID for a content version
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& cv) noexcept;
@@ -277,9 +268,6 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
 
   /// The map from commands to their IDs in the serialized data
   std::unordered_map<std::shared_ptr<Command>, Command::ID> _command_ids;
-
-  /// The map from metadata versions to their IDs in the serialized data
-  std::unordered_map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_version_ids;
 
   /// The map from content versions to their IDs in the serialized data
   std::unordered_map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_version_ids;

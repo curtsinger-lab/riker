@@ -59,28 +59,6 @@ Command::ID OutputTrace::getCommandID(const std::shared_ptr<Command>& c) noexcep
   return iter->second;
 }
 
-// Get the ID for a metadata version. Emit a new metadata version record if necessary
-MetadataVersion::ID OutputTrace::getMetadataVersionID(
-    const shared_ptr<MetadataVersion>& mv) noexcept {
-  auto id = mv->getID(_id);
-  if (id.has_value()) return id.value();
-
-  // Look for the provided metadata version in the map of known versions
-  auto iter = _metadata_versions.find(mv);
-  if (iter == _metadata_versions.end()) {
-    // If the version wasn't found, add it now
-    MetadataVersion::ID id = _metadata_versions.size();
-    iter = _metadata_versions.emplace_hint(iter, mv, id);
-
-    // Emit a record of the metadata version to the archive
-    _archive(MetadataVersionRecord::create(id, mv));
-  }
-
-  // Return the ID
-  mv->setID(_id, iter->second);
-  return iter->second;
-}
-
 // Get the ID for a content version. Emit a new metadata version record if necessary
 ContentVersion::ID OutputTrace::getContentVersionID(const shared_ptr<ContentVersion>& cv) noexcept {
   auto id = cv->getID(_id);
@@ -179,8 +157,7 @@ void OutputTrace::matchMetadata(const shared_ptr<Command>& cmd,
                                 Scenario scenario,
                                 Ref::ID ref,
                                 shared_ptr<MetadataVersion> version) noexcept {
-  _archive(
-      MatchMetadataRecord::create(getCommandID(cmd), scenario, ref, getMetadataVersionID(version)));
+  _archive(MatchMetadataRecord::create(getCommandID(cmd), scenario, ref, version));
 }
 
 /// Add a MatchContent IR step to the output trace
@@ -199,7 +176,7 @@ void OutputTrace::matchContent(const shared_ptr<Command>& cmd,
 void OutputTrace::updateMetadata(const shared_ptr<Command>& cmd,
                                  Ref::ID ref,
                                  shared_ptr<MetadataVersion> version) noexcept {
-  _archive(UpdateMetadataRecord::create(getCommandID(cmd), ref, getMetadataVersionID(version)));
+  _archive(UpdateMetadataRecord::create(getCommandID(cmd), ref, version));
 }
 
 /// Add a UpdateContent IR step to the output trace

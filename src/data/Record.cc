@@ -19,7 +19,6 @@ using std::make_shared;
 
 // Record types for entities
 CEREAL_REGISTER_TYPE(CommandRecord);
-CEREAL_REGISTER_TYPE(MetadataVersionRecord);
 CEREAL_REGISTER_TYPE(ContentVersionRecord);
 
 // Record types for trace steps
@@ -65,12 +64,6 @@ void CommandRecord::handle(IRLoader& input, IRSink& handler) noexcept {
   }
 
   input.addCommand(_id, cmd);
-}
-
-// Read a metadata version from an input trace
-void MetadataVersionRecord::handle(IRLoader& input, IRSink& handler) noexcept {
-  // Add the loaded metadata version to the input trace
-  input.addMetadataVersion(_id, _version);
 }
 
 // Read a content version from an input trace
@@ -137,7 +130,7 @@ void ExpectResultRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 // Send a MatchMetadata IR step from an input trace to a trace handler
 void MatchMetadataRecord::handle(IRLoader& input, IRSink& handler) noexcept {
   handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref,
-                        input.getMetadataVersion(_version));
+                        std::make_shared<MetadataVersion>(_version));
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
@@ -147,7 +140,7 @@ void MatchContentRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler
 void UpdateMetadataRecord::handle(IRLoader& input, IRSink& handler) noexcept {
-  handler.updateMetadata(input.getCommand(_cmd), _ref, input.getMetadataVersion(_version));
+  handler.updateMetadata(input.getCommand(_cmd), _ref, std::make_shared<MetadataVersion>(_version));
 }
 
 // Send an UpdateContent IR step from an input trace to a trace handler

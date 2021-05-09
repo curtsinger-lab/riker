@@ -27,22 +27,6 @@ class IRLoader {
     return _commands[id];
   }
 
-  /// Identify a metadata version with a given ID
-  virtual void addMetadataVersion(MetadataVersion::ID id,
-                                  std::shared_ptr<MetadataVersion> mv) noexcept {
-    // Grow the vector if necessary
-    if (_metadata_versions.size() <= id) _metadata_versions.resize(id + 1);
-
-    // If the referenced entry is not set, save the provided version
-    if (!_metadata_versions[id]) _metadata_versions[id] = mv;
-  }
-
-  /// Get a metadata version from its ID
-  virtual const std::shared_ptr<MetadataVersion>& getMetadataVersion(
-      MetadataVersion::ID id) const noexcept {
-    return _metadata_versions[id];
-  }
-
   /// Identify a content version with a given ID
   virtual void addContentVersion(ContentVersion::ID id,
                                  std::shared_ptr<ContentVersion> cv) noexcept {
@@ -62,9 +46,6 @@ class IRLoader {
  private:
   /// The map from command IDs to command instances
   std::vector<std::shared_ptr<Command>> _commands;
-
-  /// The map from metadata version IDs to instances
-  std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
 
   /// The map from content version IDs to instances
   std::vector<std::shared_ptr<ContentVersion>> _content_versions;

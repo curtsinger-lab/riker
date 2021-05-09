@@ -40,9 +40,6 @@ class OutputTrace : public IRSink {
   /// Get the ID for a command instance. Emit a new command record if necessary
   Command::ID getCommandID(const std::shared_ptr<Command>& c) noexcept;
 
-  /// Get the ID for a metadata version. Emit a new metadata version record if necessary
-  MetadataVersion::ID getMetadataVersionID(const std::shared_ptr<MetadataVersion>& mv) noexcept;
-
   /// Get the ID for a content version. Emit a new content version record if necessary
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& cv) noexcept;
 
@@ -160,9 +157,6 @@ class OutputTrace : public IRSink {
 
   /// The map from commands to their IDs in the output trace
   std::unordered_map<std::shared_ptr<Command>, Command::ID> _commands;
-
-  /// The map from metadata versions to their IDs in the output trace
-  std::unordered_map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_versions;
 
   /// The map from content versions to their IDs in the output trace
   std::unordered_map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _content_versions;

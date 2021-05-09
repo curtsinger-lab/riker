@@ -14,14 +14,6 @@ class Version {
   // Default virtual destructor in case a subclass wants to override the destructor
   virtual ~Version() noexcept = default;
 
-  // Disallow Copy
-  Version(const Version&) = delete;
-  Version& operator=(const Version&) = delete;
-
-  // Allow Move
-  Version(Version&&) noexcept = default;
-  Version& operator=(Version&&) noexcept = default;
-
   /// Try to cast this version to some subtype
   template <class T>
   bool is_a() const noexcept {

@@ -69,11 +69,6 @@ void IRBuffer::addCommand(Command::ID id, shared_ptr<Command> cmd) noexcept {
   FAIL << "Command records should not be used in the IRBuffer data file";
 }
 
-/// Add a MetadataVersion with a known ID to this input trace
-void IRBuffer::addMetadataVersion(MetadataVersion::ID id, shared_ptr<MetadataVersion> mv) noexcept {
-  FAIL << "MetadataVersion records should not be used in the IRBuffer data file";
-}
-
 /// Add a ContentVersion with a known ID to this input trace
 void IRBuffer::addContentVersion(ContentVersion::ID id, shared_ptr<ContentVersion> cv) noexcept {
   FAIL << "ContentVersion records should not be used in the IRBuffer data file";
@@ -97,28 +92,6 @@ Command::ID IRBuffer::getCommandID(const std::shared_ptr<Command>& c) noexcept {
   }
 
   c->setID(_id, iter->second);
-  return iter->second;
-}
-
-/// Get the ID for a metadata version
-MetadataVersion::ID IRBuffer::getMetadataVersionID(
-    const std::shared_ptr<MetadataVersion>& mv) noexcept {
-  auto id = mv->getID(_id);
-  if (id.has_value()) return id.value();
-
-  auto iter = _metadata_version_ids.find(mv);
-  if (iter == _metadata_version_ids.end()) {
-    // Assign an ID for the new command
-    MetadataVersion::ID id = _metadata_version_ids.size();
-
-    // Add the command to the map from commands to IDs
-    iter = _metadata_version_ids.emplace_hint(iter, mv, id);
-
-    // Also record the command in the map from IDs to commands
-    IRLoader::addMetadataVersion(id, mv);
-  }
-
-  mv->setID(_id, iter->second);
   return iter->second;
 }
 

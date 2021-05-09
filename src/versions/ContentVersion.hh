@@ -24,6 +24,17 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
   /// The type of a ContentVersion ID
   using ID = uint32_t;
 
+  // Default constructor
+  ContentVersion() noexcept = default;
+
+  // Disallow Copy
+  ContentVersion(const ContentVersion&) = delete;
+  ContentVersion& operator=(const ContentVersion&) = delete;
+
+  // Allow Move
+  ContentVersion(ContentVersion&&) noexcept = default;
+  ContentVersion& operator=(ContentVersion&&) noexcept = default;
+
   /// Try to cast this version to one of its subtypes
   template <class T>
   std::shared_ptr<T> as() noexcept {

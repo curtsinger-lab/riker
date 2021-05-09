@@ -80,29 +80,6 @@ struct CommandRecord : public Record {
   }
 };
 
-struct MetadataVersionRecord : public Record {
-  MetadataVersion::ID _id;
-  std::shared_ptr<MetadataVersion> _version;
-
-  // Default constructor for serialization
-  MetadataVersionRecord() noexcept = default;
-
-  MetadataVersionRecord(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> version) noexcept :
-      _id(id), _version(version) {}
-
-  static std::unique_ptr<Record> create(MetadataVersion::ID id,
-                                        std::shared_ptr<MetadataVersion> version) {
-    return std::make_unique<MetadataVersionRecord>(id, version);
-  }
-
-  virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
-
-  template <class Archive>
-  void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _id, _version);
-  }
-};
-
 struct ContentVersionRecord : public Record {
   ContentVersion::ID _id;
   std::shared_ptr<ContentVersion> _version;
@@ -394,7 +371,7 @@ struct MatchMetadataRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  MetadataVersion::ID _version;
+  MetadataVersion _version;
 
   /// Default constructor for serialization
   MatchMetadataRecord() noexcept = default;
@@ -402,13 +379,13 @@ struct MatchMetadataRecord : public Record {
   MatchMetadataRecord(Command::ID cmd,
                       Scenario scenario,
                       Ref::ID ref,
-                      MetadataVersion::ID version) noexcept :
-      _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
+                      std::shared_ptr<MetadataVersion> version) noexcept :
+      _cmd(cmd), _scenario(scenario), _ref(ref), _version(*version) {}
 
   static std::unique_ptr<Record> create(Command::ID cmd,
                                         Scenario scenario,
                                         Ref::ID ref,
-                                        MetadataVersion::ID version) {
+                                        std::shared_ptr<MetadataVersion> version) {
     return std::make_unique<MatchMetadataRecord>(cmd, scenario, ref, version);
   }
 
@@ -453,15 +430,19 @@ struct MatchContentRecord : public Record {
 struct UpdateMetadataRecord : public Record {
   Command::ID _cmd;
   Ref::ID _ref;
-  MetadataVersion::ID _version;
+  MetadataVersion _version;
 
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, MetadataVersion::ID version) noexcept :
-      _cmd(cmd), _ref(ref), _version(version) {}
+  UpdateMetadataRecord(Command::ID cmd,
+                       Ref::ID ref,
+                       std::shared_ptr<MetadataVersion> version) noexcept :
+      _cmd(cmd), _ref(ref), _version(*version) {}
 
-  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref, MetadataVersion::ID version) {
+  static std::unique_ptr<Record> create(Command::ID cmd,
+                                        Ref::ID ref,
+                                        std::shared_ptr<MetadataVersion> version) {
     return std::make_unique<UpdateMetadataRecord>(cmd, ref, version);
   }
 
