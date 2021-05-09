@@ -82,6 +82,7 @@
   },
   "files.watcherExclude": {
     "**/benchmark.local/**": true,
+    "**/tests/**": true
   },
   "search.exclude": {
     "**/benchmark.local/**": true,
