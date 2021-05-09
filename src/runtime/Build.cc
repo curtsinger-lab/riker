@@ -1188,6 +1188,9 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     child_substitutions = std::move(substitutions.value());
   }
 
+  // Build a mapping from parent refs to child refs to emit to the IR layer
+  list<tuple<Ref::ID, Ref::ID>> refs;
+
   // Did we find a matching command?
   if (child) {
     // Remove the child from the deferred command set
@@ -1201,36 +1204,50 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
     LOG(exec) << "Matched launch of " << child << " by " << parent;
 
+    // Add standard references to the child and record them in the refs list
+    child->setRef(Ref::Root, parent->getRef(root_ref));
+    refs.emplace_back(root_ref, Ref::Root);
+
+    child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
+    refs.emplace_back(cwd_ref, Ref::Cwd);
+
+    child->setRef(Ref::Exe, parent->getRef(exe_ref));
+    refs.emplace_back(exe_ref, Ref::Exe);
+
+    // Set references for initial file descriptors
+    for (const auto& [fd, child_ref] : child->getInitialFDs()) {
+      auto parent_ref = fds.at(fd);
+      child->setRef(child_ref, parent->getRef(parent_ref));
+      refs.emplace_back(parent_ref, child_ref);
+    }
+
   } else {
     // Create a child and mark it as running
     child = make_shared<Command>(args);
     child->setMarking(RebuildMarking::MustRun);
 
     LOG(exec) << "New command " << child << " did not match any previous command.";
+
+    // Add standard references to the child and record them in the refs list
+    child->setRef(Ref::Root, parent->getRef(root_ref));
+    refs.emplace_back(root_ref, Ref::Root);
+
+    child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
+    refs.emplace_back(cwd_ref, Ref::Cwd);
+
+    child->setRef(Ref::Exe, parent->getRef(exe_ref));
+    refs.emplace_back(exe_ref, Ref::Exe);
+
+    // Add references for initial file descriptors
+    for (const auto& [fd, parent_ref] : fds) {
+      auto child_ref = child->setRef(parent->getRef(parent_ref));
+      child->addInitialFD(fd, child_ref);
+      refs.emplace_back(parent_ref, child_ref);
+    }
   }
 
   // Add the child to the parent's list of children
   parent->addChild(child);
-
-  // Build a mapping from parent refs to child refs to emit to the IR layer
-  list<tuple<Ref::ID, Ref::ID>> refs;
-
-  // Add standard references to the child and record them in the refs list
-  child->setRef(Ref::Root, parent->getRef(root_ref));
-  refs.emplace_back(root_ref, Ref::Root);
-
-  child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
-  refs.emplace_back(cwd_ref, Ref::Cwd);
-
-  child->setRef(Ref::Exe, parent->getRef(exe_ref));
-  refs.emplace_back(exe_ref, Ref::Exe);
-
-  // Add references for initial file descriptors
-  for (const auto& [fd, parent_ref] : fds) {
-    auto child_ref = child->setRef(parent->getRef(parent_ref));
-    child->addInitialFD(fd, child_ref);
-    refs.emplace_back(parent_ref, child_ref);
-  }
 
   // Prepare the child command to execute by committing the necessary state from its references
   child->createLaunchDependencies();
