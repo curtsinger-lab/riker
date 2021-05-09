@@ -78,7 +78,7 @@
   "C_Cpp.clang_format_path": "/usr/bin/clang-format",
   "files.exclude": {
     "**.obj": true,
-    "**benchmark.local/**": true,
+    "**/benchmark.local/**": true,
   },
   "files.watcherExclude": {
     "**/benchmark.local/**": true,
