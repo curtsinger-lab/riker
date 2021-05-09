@@ -5,7 +5,7 @@ MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 
 BLAKE3 := deps/BLAKE3/c
 
-OPT = -O3
+OPT = -O3 -g -fstandalone-debug
 CFLAGS := $(OPT) \
           -Wall \
           -Wfatal-errors \
