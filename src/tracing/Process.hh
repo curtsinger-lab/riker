@@ -3,6 +3,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -26,7 +27,8 @@ class Process : public std::enable_shared_from_this<Process> {
           pid_t pid,
           Ref::ID cwd,
           Ref::ID root,
-          std::map<int, FileDescriptor> fds) noexcept;
+          std::map<int, FileDescriptor> fds,
+          std::optional<mode_t> umask = std::nullopt) noexcept;
 
   /// Get the process ID
   pid_t getID() const noexcept { return _pid; }
@@ -66,6 +68,12 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// Has this process exited?
   bool hasExited() const noexcept { return _exited; }
+
+  /// Set the process umask
+  void setUmask(mode_t mask) noexcept { _umask = mask; }
+
+  /// Get the process umask
+  mode_t getUmask() const noexcept { return _umask; }
 
   /// This process forked off a child process
   std::shared_ptr<Process> fork(pid_t child_pid) noexcept;
@@ -112,6 +120,9 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// A reference to the process' current root directory
   Ref::ID _root;
+
+  /// The current umask for the process
+  mode_t _umask;
 
   /// The process' file descriptor table
   std::map<int, FileDescriptor> _fds;

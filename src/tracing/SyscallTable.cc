@@ -263,7 +263,7 @@ constexpr SyscallTable::SyscallTable() {
   /* 092 */ TRACE(chown);
   /* 093 */ TRACE(fchown);
   /* 094 */ TRACE(lchown);
-  /* 095 */  // skip umask
+  /* 095 */ TRACE(umask);
   /* 096 */  // skip gettimeofday
   /* 097 */  // skip getrlimit
   /* 098 */  // skip getrusage

@@ -269,6 +269,7 @@ class Thread {
   void _socketpair(int domain, int type, int protocol, int sv[2]) noexcept;
 
   // Process State Operations
+  void _umask(mode_t mask) noexcept;
   void _chdir(fs::path filename) noexcept;
   void _chroot(fs::path filename) noexcept;
   void _pivot_root(fs::path new_root, fs::path put_old) noexcept;

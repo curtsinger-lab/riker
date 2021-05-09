@@ -334,7 +334,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
   // Get a reference from the given path
   // Attempt to get an artifact using this reference *BEFORE* running the syscall.
   // This will ensure the environment knows whether or not this artifact is created
-  auto ref_flags = AccessFlags::fromOpen(flags, mode);
+  auto ref_flags = AccessFlags::fromOpen(flags, mode, getProcess()->getUmask());
   auto ref_id = makePathRef(filename, ref_flags, dfd);
   auto ref = getCommand()->getRef(ref_id);
 
@@ -358,7 +358,8 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.tmpfile()) {
-        auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode());
+        auto mask = getProcess()->getUmask();
+        auto anon_ref_id = _build.traceFileRef(getCommand(), mode.getMode() & ~mask);
 
         // Record the reference in the process' file descriptor table
         _process->addFD(fd, anon_ref_id, flags.cloexec());
@@ -1028,7 +1029,8 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
       _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
-      auto dir_ref = _build.traceDirRef(getCommand(), mode.getMode());
+      auto mask = getProcess()->getUmask();
+      auto dir_ref = _build.traceDirRef(getCommand(), mode.getMode() & ~mask);
 
       // Link the directory into the parent dir
       _build.traceAddEntry(getCommand(), parent_ref, entry, dir_ref);
@@ -1391,6 +1393,13 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
 }
 
 /************************ Process State Operations ************************/
+
+void Thread::_umask(mode_t mask) noexcept {
+  LOGF(trace, "{}: umask({:o})", this, mask);
+  resume();
+
+  getProcess()->setUmask(mask);
+}
 
 void Thread::_chdir(fs::path filename) noexcept {
   LOGF(trace, "{}: chdir({})", this, filename);

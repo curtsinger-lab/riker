@@ -283,14 +283,10 @@ namespace env {
   }
 
   shared_ptr<DirArtifact> getDir(const shared_ptr<Command>& c, mode_t mode) noexcept {
-    // Get the current umask
-    auto mask = umask(0);
-    umask(mask);
-
     // Create uid, gid, and mode values for this new directory
     uid_t uid = getuid();
     gid_t gid = getgid();
-    mode_t stat_mode = S_IFDIR | (mode & ~mask);
+    mode_t stat_mode = S_IFDIR | (mode & 0777);
 
     // Create a directory artifact
     auto dir = make_shared<DirArtifact>();
@@ -308,14 +304,10 @@ namespace env {
   }
 
   shared_ptr<Artifact> createFile(const shared_ptr<Command>& c, mode_t mode) noexcept {
-    // Get the current umask
-    auto mask = umask(0);
-    umask(mask);
-
     // Create uid, gid, and mode values for this new file
     uid_t uid = getuid();
     gid_t gid = getgid();
-    mode_t stat_mode = S_IFREG | (mode & ~mask);
+    mode_t stat_mode = S_IFREG | (mode & 0777);
 
     // Create an initial content version
     auto cv = make_shared<FileVersion>();

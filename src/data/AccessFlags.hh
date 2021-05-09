@@ -39,7 +39,7 @@ class AccessFlags {
   }
 
   /// Create an AccessFlags instance from the flags parameter to the open syscall
-  static AccessFlags fromOpen(o_flags flags, mode_flags mode) noexcept {
+  static AccessFlags fromOpen(o_flags flags, mode_flags mode, mode_t umask) noexcept {
     AccessFlags f;
     f.r = flags.readable();
     f.w = flags.writable();
@@ -57,7 +57,7 @@ class AccessFlags {
       f.type = AccessType::File;
     }
 
-    f.mode = mode.getMode();
+    f.mode = mode.getMode() & ~umask;
     return f;
   }
 

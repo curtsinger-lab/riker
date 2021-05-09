@@ -3,9 +3,13 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Build.hh"
@@ -16,6 +20,7 @@
 using std::function;
 using std::make_shared;
 using std::map;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -25,8 +30,17 @@ Process::Process(Build& build,
                  pid_t pid,
                  Ref::ID cwd,
                  Ref::ID root,
-                 map<int, FileDescriptor> fds) noexcept :
+                 map<int, FileDescriptor> fds,
+                 optional<mode_t> umask) noexcept :
     _build(build), _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
+  // Set the process' default umask if one was not provided
+  if (!umask.has_value()) {
+    _umask = ::umask(0);
+    ::umask(_umask);
+  } else {
+    _umask = umask.value();
+  }
+
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
@@ -116,7 +130,7 @@ void Process::setCloexec(int fd, bool cloexec) noexcept {
 // The process is creating a new child
 shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
   // Return the child process object
-  return make_shared<Process>(_build, _command, child_pid, _cwd, _root, _fds);
+  return make_shared<Process>(_build, _command, child_pid, _cwd, _root, _fds, _umask);
 }
 
 // The process is executing a new file
