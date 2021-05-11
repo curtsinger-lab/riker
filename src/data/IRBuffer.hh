@@ -150,7 +150,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                              Ref::ID ref,
                              std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
-    _archive(MatchMetadataRecord::create(getCommandID(command), scenario, ref, version));
+    _archive(MatchMetadataRecord::create(getCommandID(command), scenario, ref, *version));
     _steps++;
   }
 
@@ -170,7 +170,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
                               Ref::ID ref,
                               std::shared_ptr<MetadataVersion> version) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
-    _archive(UpdateMetadataRecord::create(getCommandID(command), ref, version));
+    _archive(UpdateMetadataRecord::create(getCommandID(command), ref, *version));
     _steps++;
   }
 

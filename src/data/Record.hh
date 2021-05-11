@@ -379,13 +379,13 @@ struct MatchMetadataRecord : public Record {
   MatchMetadataRecord(Command::ID cmd,
                       Scenario scenario,
                       Ref::ID ref,
-                      std::shared_ptr<MetadataVersion> version) noexcept :
-      _cmd(cmd), _scenario(scenario), _ref(ref), _version(*version) {}
+                      MetadataVersion version) noexcept :
+      _cmd(cmd), _scenario(scenario), _ref(ref), _version(version) {}
 
   static std::unique_ptr<Record> create(Command::ID cmd,
                                         Scenario scenario,
                                         Ref::ID ref,
-                                        std::shared_ptr<MetadataVersion> version) {
+                                        MetadataVersion version) {
     return std::make_unique<MatchMetadataRecord>(cmd, scenario, ref, version);
   }
 
@@ -435,14 +435,10 @@ struct UpdateMetadataRecord : public Record {
   /// Default constructor for serialization
   UpdateMetadataRecord() noexcept = default;
 
-  UpdateMetadataRecord(Command::ID cmd,
-                       Ref::ID ref,
-                       std::shared_ptr<MetadataVersion> version) noexcept :
-      _cmd(cmd), _ref(ref), _version(*version) {}
+  UpdateMetadataRecord(Command::ID cmd, Ref::ID ref, MetadataVersion version) noexcept :
+      _cmd(cmd), _ref(ref), _version(version) {}
 
-  static std::unique_ptr<Record> create(Command::ID cmd,
-                                        Ref::ID ref,
-                                        std::shared_ptr<MetadataVersion> version) {
+  static std::unique_ptr<Record> create(Command::ID cmd, Ref::ID ref, MetadataVersion version) {
     return std::make_unique<UpdateMetadataRecord>(cmd, ref, version);
   }
 
