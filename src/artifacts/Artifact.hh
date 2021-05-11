@@ -14,6 +14,7 @@
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "util/log.hh"
+#include "versions/MetadataVersion.hh"
 
 namespace fs = std::filesystem;
 
@@ -22,7 +23,6 @@ class ContentVersion;
 class DirArtifact;
 class DirEntry;
 class DirVersion;
-class MetadataVersion;
 class Version;
 
 /**
@@ -45,7 +45,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
    * that exist on the filesystem.
    * \param v The new artifact's committed metadata version
    */
-  Artifact(std::shared_ptr<MetadataVersion> v) noexcept;
+  Artifact(MetadataVersion v) noexcept;
 
   // Required virtual destructor
   virtual ~Artifact() noexcept = default;
@@ -153,19 +153,18 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  std::shared_ptr<MetadataVersion> getMetadata(const std::shared_ptr<Command>& c) noexcept;
+  MetadataVersion getMetadata(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the current metadata without recording any dependencies
-  std::shared_ptr<MetadataVersion> peekMetadata() noexcept;
+  MetadataVersion peekMetadata() noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
   void matchMetadata(const std::shared_ptr<Command>& c,
                      Scenario scenario,
-                     std::shared_ptr<MetadataVersion> expected) noexcept;
+                     MetadataVersion expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  void updateMetadata(const std::shared_ptr<Command>& c,
-                      std::shared_ptr<MetadataVersion> writing) noexcept;
+  void updateMetadata(const std::shared_ptr<Command>& c, MetadataVersion writing) noexcept;
 
   /************ Traced Operations ************/
 
@@ -327,10 +326,10 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
  protected:
   /// The most recent metadata version that has not yet been committed
-  std::shared_ptr<MetadataVersion> _uncommitted_metadata;
+  std::optional<MetadataVersion> _uncommitted_metadata;
 
   /// The current metadata version on the filesystem
-  std::shared_ptr<MetadataVersion> _committed_metadata;
+  std::optional<MetadataVersion> _committed_metadata;
 
   using LinkSet = std::set<std::weak_ptr<DirEntry>, std::owner_less<std::weak_ptr<DirEntry>>>;
 

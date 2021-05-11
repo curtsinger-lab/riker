@@ -18,6 +18,7 @@
 #include "versions/MetadataVersion.hh"
 #include "versions/PipeVersion.hh"
 
+using std::make_shared;
 using std::map;
 using std::nullopt;
 using std::optional;
@@ -27,10 +28,7 @@ using std::tuple;
 
 Artifact::Artifact() noexcept {}
 
-Artifact::Artifact(shared_ptr<MetadataVersion> v) noexcept {
-  appendVersion(v);
-  _committed_metadata = v;
-}
+Artifact::Artifact(MetadataVersion v) noexcept : _committed_metadata(v) {}
 
 string Artifact::getName() const noexcept {
   // If a fixed name was assigned, return it
@@ -72,7 +70,8 @@ string Artifact::getName() const noexcept {
 }
 
 void Artifact::rollback() noexcept {
-  ASSERT(_committed_metadata) << "Rolling back artifact " << this << " loses all metadata";
+  ASSERT(_committed_metadata.has_value())
+      << "Rolling back artifact " << this << " loses all metadata";
 
   _uncommitted_metadata.reset();
   _metadata_writer.reset();
@@ -178,7 +177,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  return getMetadata(c)->checkAccess(flags);
+  return getMetadata(c).checkAccess(flags);
 }
 
 optional<fs::path> Artifact::commitPath() noexcept {
@@ -234,7 +233,7 @@ void Artifact::commitContent() noexcept {
 }
 
 void Artifact::commitMetadata() noexcept {
-  if (!_uncommitted_metadata) return;
+  if (!_uncommitted_metadata.has_value()) return;
 
   // Get a committed path to this artifact, possibly by committing links above it in the path
   auto path = commitPath();
@@ -244,17 +243,15 @@ void Artifact::commitMetadata() noexcept {
 }
 
 void Artifact::commitMetadataTo(fs::path path) noexcept {
-  if (!_uncommitted_metadata) return;
-
   // If this artifact still has uncommitted metadata, commit it
-  if (_uncommitted_metadata) {
-    _uncommitted_metadata->commit(path);
+  if (_uncommitted_metadata.has_value()) {
+    _uncommitted_metadata.value().commit(path);
     _committed_metadata = std::move(_uncommitted_metadata);
   }
 }
 
 void Artifact::setMetadataCommitted() noexcept {
-  if (_uncommitted_metadata) _committed_metadata = std::move(_uncommitted_metadata);
+  if (_uncommitted_metadata.has_value()) _committed_metadata = std::move(_uncommitted_metadata);
 }
 
 // Commit any pending versions and save fingerprints for this artifact
@@ -263,34 +260,36 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// Get the current metadata version for this artifact
-shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c) noexcept {
-  auto result = _committed_metadata;
-  if (_uncommitted_metadata) result = _uncommitted_metadata;
+MetadataVersion Artifact::getMetadata(const shared_ptr<Command>& c) noexcept {
+  ASSERT(_uncommitted_metadata.has_value() || _committed_metadata.has_value())
+      << "Artifact " << this << " has no metadata version";
 
-  ASSERT(result) << "Artifact " << this << " has no metadata version";
+  auto result = _uncommitted_metadata.has_value() ? _uncommitted_metadata.value()
+                                                  : _committed_metadata.value();
 
   // Notify the build of the input
   if (c) {
-    c->addMetadataInput(shared_from_this(), result, _metadata_writer.lock());
+    c->addMetadataInput(shared_from_this(), make_shared<MetadataVersion>(result),
+                        _metadata_writer.lock());
   }
 
   return result;
 }
 
 /// Get the current metadata for this artifact without creating any dependencies
-shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
+MetadataVersion Artifact::peekMetadata() noexcept {
   return getMetadata(nullptr);
 }
 
 /// Check to see if this artifact's metadata matches a known version
 void Artifact::matchMetadata(const shared_ptr<Command>& c,
                              Scenario scenario,
-                             shared_ptr<MetadataVersion> expected) noexcept {
+                             MetadataVersion expected) noexcept {
   // Get the current metadata
   auto observed = getMetadata(c);
 
   // Compare versions
-  if (!observed->matches(expected)) {
+  if (!observed.matches(expected)) {
     // Report the mismatch
     LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, observed);
@@ -299,15 +298,12 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 }
 
 /// Apply a new metadata version to this artifact
-void Artifact::updateMetadata(const shared_ptr<Command>& c,
-                              shared_ptr<MetadataVersion> writing) noexcept {
-  ASSERT(writing) << "Attempted to write a null metadata version to " << this;
-
+void Artifact::updateMetadata(const shared_ptr<Command>& c, MetadataVersion writing) noexcept {
   // Remember which command wrote the metadata
   _metadata_writer = c;
 
   // Remember this metadata version
-  appendVersion(writing);
+  appendVersion(make_shared<MetadataVersion>(writing));
 
   // Is the writing command running?
   if (c->mustRun()) {
@@ -320,7 +316,7 @@ void Artifact::updateMetadata(const shared_ptr<Command>& c,
   }
 
   // Report the output to the build
-  c->addMetadataOutput(shared_from_this(), writing);
+  c->addMetadataOutput(shared_from_this(), make_shared<MetadataVersion>(writing));
 }
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {

@@ -24,7 +24,7 @@ class SpecialArtifact : public Artifact {
    * type is useful for special devices like /dev/urandom or /dev/tty. Specific handling for special
    * devices is specified in the implementation of env::getFilesystemArtifact().
    */
-  SpecialArtifact(std::shared_ptr<MetadataVersion> mv, bool always_changed) noexcept;
+  SpecialArtifact(MetadataVersion mv, bool always_changed) noexcept;
 
   /************ Core Artifact Operations ************/
 

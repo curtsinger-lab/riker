@@ -28,7 +28,7 @@ namespace fs = std::filesystem;
 class Command;
 class MetadataVersion;
 
-DirArtifact::DirArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<BaseDirVersion> dv) noexcept :
+DirArtifact::DirArtifact(MetadataVersion mv, shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(mv) {
   _committed_base_version = dv;
   appendVersion(dv);

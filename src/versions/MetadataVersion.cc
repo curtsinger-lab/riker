@@ -26,13 +26,13 @@ using std::string;
 namespace fs = std::filesystem;
 
 /// Create a new metadata version by changing the owner and/or group in this one
-shared_ptr<MetadataVersion> MetadataVersion::chown(uid_t user, gid_t group) noexcept {
-  return make_shared<MetadataVersion>(user, group, _mode);
+MetadataVersion MetadataVersion::chown(uid_t user, gid_t group) const noexcept {
+  return MetadataVersion(user, group, _mode);
 }
 
 /// Create a new metadata version by changing the mode bits in this one
-shared_ptr<MetadataVersion> MetadataVersion::chmod(mode_t mode) noexcept {
-  return make_shared<MetadataVersion>(_uid, _gid, (_mode & S_IFMT) | mode);
+MetadataVersion MetadataVersion::chmod(mode_t mode) const noexcept {
+  return MetadataVersion(_uid, _gid, (_mode & S_IFMT) | mode);
 }
 
 bool MetadataVersion::checkAccess(AccessFlags flags) noexcept {
@@ -106,21 +106,15 @@ void MetadataVersion::commit(fs::path path) noexcept {
 }
 
 // Compare two metadata versions
-bool MetadataVersion::matches(shared_ptr<MetadataVersion> other) const noexcept {
-  // If the other version is null, return a mismatch
-  if (!other) return false;
-
-  // If the other version is the same instance as this one, they match
-  if (other.get() == this) return true;
-
+bool MetadataVersion::matches(MetadataVersion other) const noexcept {
   // Compare uids
-  if (_uid != other->_uid) return false;
+  if (_uid != other._uid) return false;
 
   // Compare gids
-  if (_gid != other->_gid) return false;
+  if (_gid != other._gid) return false;
 
   // Compare types
-  if ((_mode & S_IFMT) != (other->_mode & S_IFMT)) return false;
+  if ((_mode & S_IFMT) != (other._mode & S_IFMT)) return false;
 
   // Note: We are not comparing permission bits. This is intentional. We only care about permission
   // changes that influence path resolution, which is modeled separately

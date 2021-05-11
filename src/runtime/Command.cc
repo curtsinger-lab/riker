@@ -589,8 +589,8 @@ void Command::observeChange(Scenario s) noexcept {
 
 // An input to this command did not match the expected version
 void Command::inputChanged(shared_ptr<Artifact> artifact,
-                           shared_ptr<MetadataVersion> observed,
-                           shared_ptr<MetadataVersion> expected,
+                           MetadataVersion observed,
+                           MetadataVersion expected,
                            Scenario scenario) noexcept {
   _current_run._changed |= scenario;
 }

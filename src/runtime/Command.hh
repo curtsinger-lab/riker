@@ -311,8 +311,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// An input to this command did not match the expected version
   void inputChanged(std::shared_ptr<Artifact> artifact,
-                    std::shared_ptr<MetadataVersion> observed,
-                    std::shared_ptr<MetadataVersion> expected,
+                    MetadataVersion observed,
+                    MetadataVersion expected,
                     Scenario scenario) noexcept;
 
   /// An input to this command did not match the expected version

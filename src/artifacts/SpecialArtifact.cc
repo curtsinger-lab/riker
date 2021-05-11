@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-SpecialArtifact::SpecialArtifact(shared_ptr<MetadataVersion> mv, bool always_changed) noexcept :
+SpecialArtifact::SpecialArtifact(MetadataVersion mv, bool always_changed) noexcept :
     Artifact(mv), _always_changed(always_changed) {
   _committed_content = make_shared<SpecialVersion>(!always_changed);
   appendVersion(_committed_content);

@@ -79,11 +79,8 @@ namespace env {
       gid_t gid = getgid();
       mode_t mode = S_IFIFO | 0600;
 
-      // Prepare metadata
-      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-
       // Create stdin
-      auto a = make_shared<SpecialArtifact>(mv, true);
+      auto a = make_shared<SpecialArtifact>(MetadataVersion(uid, gid, mode), true);
       _stdin = a;
 
       // Set the file descriptor and name
@@ -105,11 +102,8 @@ namespace env {
       gid_t gid = getgid();
       mode_t mode = S_IFIFO | 0600;
 
-      // Prepare metadata
-      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-
-      // Create stdin
-      auto a = make_shared<SpecialArtifact>(mv, false);
+      // Create stdout
+      auto a = make_shared<SpecialArtifact>(MetadataVersion(uid, gid, mode), false);
       _stdout = a;
 
       // Set the file descriptor and name
@@ -131,11 +125,8 @@ namespace env {
       gid_t gid = getgid();
       mode_t mode = S_IFIFO | 0600;
 
-      // Prepare metadata
-      auto mv = make_shared<MetadataVersion>(uid, gid, mode);
-
-      // Create stdin
-      auto a = make_shared<SpecialArtifact>(mv, false);
+      // Create stderr
+      auto a = make_shared<SpecialArtifact>(MetadataVersion(uid, gid, mode), false);
       _stderr = a;
 
       // Set the file descriptor and name
@@ -206,32 +197,30 @@ namespace env {
       _inodes.erase(inode_iter);
     }
 
-    auto mv = make_shared<MetadataVersion>(info);
-
     // Create a new artifact for this inode
     shared_ptr<Artifact> a;
     if ((info.st_mode & S_IFMT) == S_IFREG) {
       // The path refers to a regular file
       auto cv = make_shared<FileVersion>(info);
-      a = make_shared<FileArtifact>(mv, cv);
+      a = make_shared<FileArtifact>(MetadataVersion(info), cv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFDIR) {
       // The path refers to a directory
       auto dv = make_shared<BaseDirVersion>(false);
-      a = make_shared<DirArtifact>(mv, dv);
+      a = make_shared<DirArtifact>(MetadataVersion(info), dv);
 
     } else if ((info.st_mode & S_IFMT) == S_IFLNK) {
       auto sv = make_shared<SymlinkVersion>(readlink(path));
-      a = make_shared<SymlinkArtifact>(mv, sv);
+      a = make_shared<SymlinkArtifact>(MetadataVersion(info), sv);
 
     } else if (auto iter = special_artifacts.find(path); iter != special_artifacts.end()) {
-      a = make_shared<SpecialArtifact>(mv, iter->second);
+      a = make_shared<SpecialArtifact>(MetadataVersion(info), iter->second);
 
     } else {
       // The path refers to something else
       WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
       auto cv = make_shared<FileVersion>(info);
-      a = make_shared<FileArtifact>(mv, cv);
+      a = make_shared<FileArtifact>(MetadataVersion(info), cv);
     }
 
     // Add the new artifact to the inode map
@@ -255,7 +244,7 @@ namespace env {
     auto pipe = make_shared<PipeArtifact>();
 
     // Set the pipe's metadata on behalf of the command
-    pipe->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
+    pipe->updateMetadata(c, MetadataVersion(uid, gid, mode));
 
     _artifacts.push_back(pipe);
     stats::artifacts++;
@@ -273,7 +262,7 @@ namespace env {
     auto symlink = make_shared<SymlinkArtifact>();
 
     // Set the metadata for the new symlink artifact
-    symlink->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
+    symlink->updateMetadata(c, MetadataVersion(uid, gid, mode));
     symlink->updateContent(c, make_shared<SymlinkVersion>(target));
 
     _artifacts.push_back(symlink);
@@ -295,7 +284,7 @@ namespace env {
     dir->createEmptyDir(c);
 
     // Set the metadata for the new directory artifact
-    dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
+    dir->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
 
     _artifacts.push_back(dir);
     stats::artifacts++;
@@ -317,7 +306,7 @@ namespace env {
     auto artifact = make_shared<FileArtifact>();
 
     // Set the metadata and content for the new file artifact
-    artifact->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
+    artifact->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
     artifact->updateContent(c, cv);
 
     // Observe output to metadata and content for the new file

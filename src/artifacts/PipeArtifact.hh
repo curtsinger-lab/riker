@@ -31,7 +31,7 @@ class PipeArtifact : public Artifact {
   /**
    * Create a pipe artifact with existing metadata
    */
-  PipeArtifact(std::shared_ptr<MetadataVersion> mv) noexcept : Artifact(mv) {}
+  PipeArtifact(MetadataVersion mv) noexcept : Artifact(mv) {}
 
   /************ Core Artifact Operations ************/
 

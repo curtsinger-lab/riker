@@ -30,7 +30,7 @@ class SymlinkArtifact : public Artifact {
   /**
    * Create a SymlinkArtifact that represents an existing symlink on the filesystem.
    */
-  SymlinkArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<SymlinkVersion> sv) noexcept;
+  SymlinkArtifact(MetadataVersion mv, std::shared_ptr<SymlinkVersion> sv) noexcept;
 
   /************ Core Artifact Operations ************/
 

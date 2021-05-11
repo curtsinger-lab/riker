@@ -30,10 +30,10 @@ class MetadataVersion : public Version {
       MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
   /// Create a new metadata version by changing the owner and/or group in this one
-  std::shared_ptr<MetadataVersion> chown(uid_t user, gid_t group) noexcept;
+  MetadataVersion chown(uid_t user, gid_t group) const noexcept;
 
   /// Create a new metadata version by changing the mode bits in this one
-  std::shared_ptr<MetadataVersion> chmod(mode_t mode) noexcept;
+  MetadataVersion chmod(mode_t mode) const noexcept;
 
   /// Check if a given access is allowed by the mode bits in this metadata record
   bool checkAccess(AccessFlags flags) noexcept;
@@ -45,7 +45,7 @@ class MetadataVersion : public Version {
   void commit(fs::path path) noexcept;
 
   /// Compare this version to another version
-  bool matches(std::shared_ptr<MetadataVersion> other) const noexcept;
+  bool matches(MetadataVersion other) const noexcept;
 
   /// Get the name for the type of version this is
   virtual std::string getTypeName() const noexcept override { return "metadata"; }

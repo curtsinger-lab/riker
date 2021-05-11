@@ -23,8 +23,7 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-FileArtifact::FileArtifact(shared_ptr<MetadataVersion> mv, shared_ptr<FileVersion> cv) noexcept :
-    Artifact(mv) {
+FileArtifact::FileArtifact(MetadataVersion mv, shared_ptr<FileVersion> cv) noexcept : Artifact(mv) {
   _committed_content = cv;
   appendVersion(cv);
 }

@@ -34,6 +34,7 @@
 #include "versions/MetadataVersion.hh"
 
 using std::function;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -681,7 +682,7 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), ref, old_metadata->chown(user, group));
+    _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chown(user, group));
   });
 }
 
@@ -701,14 +702,8 @@ void Thread::_fchownat(at_fd dfd,
   }
 
   // Get a reference to the artifact being chowned
-  auto ref = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
-
-  // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
-  // values)
-  shared_ptr<MetadataVersion> old_metadata;
-  if (getCommand()->getRef(ref)->isResolved()) {
-    old_metadata = _build.traceMatchMetadata(getCommand(), ref);
-  }
+  auto ref_id = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
+  auto ref = getCommand()->getRef(ref_id);
 
   // Finish the syscall and then resume the process
   finishSyscall([=](long rc) {
@@ -716,17 +711,19 @@ void Thread::_fchownat(at_fd dfd,
 
     // Did the call succeed?
     if (rc >= 0) {
-      // Yes. Record the successful reference
-      _build.traceExpectResult(getCommand(), ref, SUCCESS);
+      // Match the old metadata
+      auto old_metadata = _build.traceMatchMetadata(getCommand(), ref_id);
 
-      ASSERT(getCommand()->getRef(ref)->isResolved()) << "Failed to get artifact";
+      // Yes. Record the successful reference
+      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
 
       // We've now set the artifact's metadata
-      _build.traceUpdateMetadata(getCommand(), ref, old_metadata->chown(user, group));
+      _build.traceUpdateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
 
     } else {
       // No. Record the failure
-      _build.traceExpectResult(getCommand(), ref, -rc);
+      _build.traceExpectResult(getCommand(), ref_id, -rc);
+      WARN_IF(ref->isResolved()) << "Model mismatch: failed to chown through resolved reference";
     }
   });
 }
@@ -737,9 +734,6 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
   // Get the file descriptor entry
   const auto& ref = _process->getFD(fd);
 
-  // The command depends on the old metadata
-  auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
-
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
     resume();
@@ -747,8 +741,10 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
     // If the syscall failed, there's nothing to do
     if (rc) return;
 
+    auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
+
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), ref, old_metadata->chmod(mode.getMode()));
+    _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chmod(mode.getMode()));
   });
 }
 
@@ -765,13 +761,6 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
   // Get a reference to the artifact being chmoded
   auto ref = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
 
-  // If the artifact exists, we depend on its metadata (chmod does not replace all metadata
-  // values)
-  shared_ptr<MetadataVersion> old_metadata;
-  if (getCommand()->getRef(ref)->isResolved()) {
-    old_metadata = _build.traceMatchMetadata(getCommand(), ref);
-  }
-
   // Finish the syscall and then resume the process
   finishSyscall([=](long rc) {
     resume();
@@ -783,8 +772,10 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 
       ASSERT(getCommand()->getRef(ref)->isResolved()) << "Failed to get artifact";
 
+      auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
+
       // We've now set the artifact's metadata
-      _build.traceUpdateMetadata(getCommand(), ref, old_metadata->chmod(mode.getMode()));
+      _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chmod(mode.getMode()));
 
     } else {
       // No. Record the failure

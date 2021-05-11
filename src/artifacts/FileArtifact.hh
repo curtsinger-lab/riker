@@ -28,7 +28,7 @@ class FileArtifact : public Artifact {
    * Create a new FileArtifact with existing metadata and content versions. This only appropriate
    * for artifacts that exist on the filesystem.
    */
-  FileArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<FileVersion> cv) noexcept;
+  FileArtifact(MetadataVersion mv, std::shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 

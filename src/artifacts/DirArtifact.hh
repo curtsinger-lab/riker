@@ -30,7 +30,7 @@ class DirArtifact final : public Artifact {
   DirArtifact() noexcept = default;
 
   /// Create a DirArtifact with existing committed metadata and content
-  DirArtifact(std::shared_ptr<MetadataVersion> mv, std::shared_ptr<BaseDirVersion> dv) noexcept;
+  DirArtifact(MetadataVersion mv, std::shared_ptr<BaseDirVersion> dv) noexcept;
 
   /************ Core Artifact Operations ************/
 

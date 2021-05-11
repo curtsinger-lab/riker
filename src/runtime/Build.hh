@@ -199,8 +199,7 @@ class Build : public IRSink {
                          int expected = -1) noexcept;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
-  std::shared_ptr<MetadataVersion> traceMatchMetadata(const std::shared_ptr<Command>& c,
-                                                      Ref::ID ref) noexcept;
+  MetadataVersion traceMatchMetadata(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept;
 
   /// A command accesses content for an artifact and expects to find a particular version
   void traceMatchContent(const std::shared_ptr<Command>& c,
@@ -210,7 +209,7 @@ class Build : public IRSink {
   /// A command modifies the metadata for an artifact
   void traceUpdateMetadata(const std::shared_ptr<Command>& c,
                            Ref::ID ref,
-                           std::shared_ptr<MetadataVersion> written) noexcept;
+                           MetadataVersion written) noexcept;
 
   /// A command writes a new version to an artifact
   void traceUpdateContent(const std::shared_ptr<Command>& c,
