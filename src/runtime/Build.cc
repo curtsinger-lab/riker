@@ -442,7 +442,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
 void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
                           Ref::ID ref_id,
-                          shared_ptr<MetadataVersion> expected) noexcept {
+                          MetadataVersion expected) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
@@ -467,7 +467,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   if (!ref->isResolved()) return;
 
   // Perform the comparison
-  ref->getArtifact()->matchMetadata(c, scenario, expected);
+  ref->getArtifact()->matchMetadata(c, scenario, make_shared<MetadataVersion>(expected));
 }
 
 // Command c accesses an artifact's content
@@ -505,7 +505,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
 // Command c modifies an artifact
 void Build::updateMetadata(const shared_ptr<Command>& c,
                            Ref::ID ref_id,
-                           shared_ptr<MetadataVersion> written) noexcept {
+                           MetadataVersion written) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
@@ -530,7 +530,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   if (!ref->isResolved()) return;
 
   // Apply the write
-  ref->getArtifact()->updateMetadata(c, written);
+  ref->getArtifact()->updateMetadata(c, make_shared<MetadataVersion>(written));
 }
 
 // Command c modifies an artifact
@@ -1011,10 +1011,10 @@ shared_ptr<MetadataVersion> Build::traceMatchMetadata(const shared_ptr<Command>&
   ASSERT(expected) << "Unable to get metadata from " << artifact;
 
   // Create an IR step and add it to the output trace
-  _output.matchMetadata(c, Scenario::Build, ref_id, expected);
+  _output.matchMetadata(c, Scenario::Build, ref_id, *expected);
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
+  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, *expected};
 
   return expected;
 }
@@ -1059,10 +1059,10 @@ void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
   artifact->updateMetadata(c, written);
 
   // Create an IR step and add it to the output trace
-  _output.updateMetadata(c, ref_id, written);
+  _output.updateMetadata(c, ref_id, *written);
 
   // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
+  LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, *written};
 }
 
 // Command c modifies an artifact

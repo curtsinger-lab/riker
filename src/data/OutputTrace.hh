@@ -103,7 +103,7 @@ class OutputTrace : public IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             std::shared_ptr<MetadataVersion> version) noexcept override;
+                             MetadataVersion version) noexcept override;
 
   /// Add a MatchContent IR step to the output trace
   virtual void matchContent(const std::shared_ptr<Command>& command,
@@ -114,7 +114,7 @@ class OutputTrace : public IRSink {
   /// Add a UpdateMetadata IR step to the output trace
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              std::shared_ptr<MetadataVersion> version) noexcept override;
+                              MetadataVersion version) noexcept override;
 
   /// Add a UpdateContent IR step to the output trace
   virtual void updateContent(const std::shared_ptr<Command>& command,

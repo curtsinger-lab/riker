@@ -108,7 +108,7 @@ class Build : public IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& c,
                              Scenario scenario,
                              Ref::ID ref,
-                             std::shared_ptr<MetadataVersion> expected) noexcept override;
+                             MetadataVersion expected) noexcept override;
 
   /// A command accesses content for an artifact and expects to find a particular version
   virtual void matchContent(const std::shared_ptr<Command>& c,
@@ -119,7 +119,7 @@ class Build : public IRSink {
   /// A command modifies the metadata for an artifact
   virtual void updateMetadata(const std::shared_ptr<Command>& c,
                               Ref::ID,
-                              std::shared_ptr<MetadataVersion> written) noexcept override;
+                              MetadataVersion written) noexcept override;
 
   /// A command writes a new version to an artifact
   virtual void updateContent(const std::shared_ptr<Command>& c,

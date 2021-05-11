@@ -129,8 +129,7 @@ void ExpectResultRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 
 // Send a MatchMetadata IR step from an input trace to a trace handler
 void MatchMetadataRecord::handle(IRLoader& input, IRSink& handler) noexcept {
-  handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref,
-                        std::make_shared<MetadataVersion>(_version));
+  handler.matchMetadata(input.getCommand(_cmd), _scenario, _ref, _version);
 }
 
 // Send a MatchContent IR step from an input trace to a trace handler
@@ -140,7 +139,7 @@ void MatchContentRecord::handle(IRLoader& input, IRSink& handler) noexcept {
 
 // Send an UpdateMetadata IR step from an input trace to a trace handler
 void UpdateMetadataRecord::handle(IRLoader& input, IRSink& handler) noexcept {
-  handler.updateMetadata(input.getCommand(_cmd), _ref, std::make_shared<MetadataVersion>(_version));
+  handler.updateMetadata(input.getCommand(_cmd), _ref, _version);
 }
 
 // Send an UpdateContent IR step from an input trace to a trace handler
