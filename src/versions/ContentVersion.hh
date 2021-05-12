@@ -41,20 +41,10 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
     return std::dynamic_pointer_cast<T>(shared_from_this());
   }
 
-  /// Save a copy of this version for later reuse. Inform the provided IRSink of the save.
-  virtual void cache(fs::path path) noexcept {}
-
   /// Check if this version can be committed
   virtual bool canCommit() const noexcept {
     // Versions are unsaved by default
     return false;
-  }
-
-  /// Save a fingerprint of this version for later comparison. If a new fingerprint is saved, inform
-  /// the provided IRSink.
-  virtual void fingerprint(fs::path path, FingerprintType type) noexcept {
-    // By default, fingerprinting a version just saves it
-    cache(path);
   }
 
   /// Check if this version matches another

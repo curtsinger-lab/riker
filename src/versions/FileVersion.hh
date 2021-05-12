@@ -47,7 +47,7 @@ class FileVersion final : public ContentVersion {
   void commit(fs::path path, mode_t mode = 0) noexcept;
 
   /// Save a fingerprint of this version
-  virtual void fingerprint(fs::path path, FingerprintType type) noexcept override;
+  void fingerprint(fs::path path, FingerprintType type) noexcept;
 
   /// Save an empty fingerprint of this version
   void makeEmptyFingerprint() noexcept;
@@ -62,7 +62,7 @@ class FileVersion final : public ContentVersion {
   virtual std::ostream& print(std::ostream& o) const noexcept override;
 
   /// Store a copy on disk
-  virtual void cache(fs::path path) noexcept override;
+  void cache(fs::path path) noexcept;
 
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept override;

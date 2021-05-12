@@ -298,18 +298,18 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
     // If the observed content version is on disk, try to fingerprint it and try the match again
     if (_content.isCommitted()) {
       // Get the content version and writer
-      auto [committed_content, weak_committed_writer] = _content.getLatest();
-      auto committed_writer = weak_committed_writer.lock();
+      auto [version, weak_writer] = _content.getLatest();
+      auto writer = weak_writer.lock();
 
       // Get a path
       auto path = getCommittedPath();
 
       // Try the match
-      auto fingerprint_type = policy::chooseFingerprintType(c, committed_writer, path.value());
-      observed->fingerprint(path.value(), fingerprint_type);
+      auto fingerprint_type = policy::chooseFingerprintType(c, writer, path.value());
+      version->fingerprint(path.value(), fingerprint_type);
 
       // Try the comparison again. If it succeeds, we can return
-      if (observed->matches(expected)) return;
+      if (version->matches(expected)) return;
     }
 
     LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
