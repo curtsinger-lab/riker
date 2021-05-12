@@ -8,6 +8,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Ref.hh"
+#include "runtime/VersionState.hh"
 
 namespace fs = std::filesystem;
 
@@ -41,9 +42,7 @@ class SymlinkArtifact : public Artifact {
   virtual void commitContentTo(fs::path path) noexcept override;
 
   /// Does this artifact have any uncommitted content?
-  virtual bool hasUncommittedContent() noexcept override {
-    return static_cast<bool>(_uncommitted_content);
-  }
+  virtual bool hasUncommittedContent() noexcept override { return _content.isUncommitted(); }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
@@ -105,12 +104,6 @@ class SymlinkArtifact : public Artifact {
   }
 
  private:
-  /// The command that most recently wrote this artifact's content, possibly null
-  std::weak_ptr<Command> _content_writer;
-
-  /// The current uncommitted content, if any
-  std::shared_ptr<SymlinkVersion> _uncommitted_content;
-
-  /// The on-filesystem version of this artifact's content
-  std::shared_ptr<SymlinkVersion> _committed_content;
+  /// The content of this artifact, both committed and uncommitted
+  VersionState<SymlinkVersion> _content;
 };

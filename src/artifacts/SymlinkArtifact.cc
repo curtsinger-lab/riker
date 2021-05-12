@@ -23,15 +23,13 @@ class MetadataVersion;
 
 SymlinkArtifact::SymlinkArtifact(MetadataVersion mv, shared_ptr<SymlinkVersion> sv) noexcept :
     Artifact(mv) {
-  _committed_content = sv;
+  _content.update(sv);
   appendVersion(sv);
 }
 
 /// Revert this artifact to its committed state
 void SymlinkArtifact::rollback() noexcept {
-  _uncommitted_content.reset();
-  _content_writer.reset();
-
+  _content.rollback();
   Artifact::rollback();
 }
 
@@ -48,16 +46,9 @@ void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref:
 
 // Get this artifact's current content
 shared_ptr<ContentVersion> SymlinkArtifact::getContent(const shared_ptr<Command>& c) noexcept {
-  auto result = _committed_content;
-  if (_uncommitted_content) result = _uncommitted_content;
-
-  ASSERT(result) << "Artifact " << this << " has no content version";
-
-  if (c) {
-    c->addContentInput(shared_from_this(), result, _content_writer.lock());
-  }
-
-  return result;
+  auto [version, weak_writer] = _content.getLatest();
+  if (c) c->addContentInput(shared_from_this(), version, weak_writer.lock());
+  return version;
 }
 
 /// Check to see if this artifact's content matches a known version
@@ -79,35 +70,24 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
 // Set the destination of this symlink
 void SymlinkArtifact::updateContent(const std::shared_ptr<Command>& c,
                                     std::shared_ptr<ContentVersion> writing) noexcept {
-  if (_committed_content || _uncommitted_content) {
-    WARN << "Updating destination of symlink " << this << " is not supported by the OS";
-  }
-
-  // Set the last writer
-  _content_writer = c;
-
   // Make sure the written version is a SymlinkVersion
   auto sv = writing->as<SymlinkVersion>();
-
   FAIL_IF(!sv) << "Attempted to apply version " << writing << " to symlink artifact " << this;
 
-  // Set the appropriate content version
-  if (c->mustRun()) {
-    _committed_content = sv;
-  } else {
-    _uncommitted_content = sv;
-  }
+  // Update the content
+  _content.update(c, sv);
 }
 
 // Commit the content of this artifact to the filesystem
 void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
-  if (!_uncommitted_content) return;
+  if (_content.isCommitted()) return;
 
   // Commit the symlink content
-  _uncommitted_content->commit(path);
+  auto [version, writer] = _content.getLatest();
+  version->commit(path);
 
   // Is this commit creating the symlink? (It should be)
-  if (!_committed_content) {
+  if (!_content.hasCommittedState()) {
     ASSERT(_uncommitted_metadata) << "Committing initial content to " << this
                                   << " does not have metadata to commit";
 
@@ -115,8 +95,8 @@ void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
     _committed_metadata = std::move(_uncommitted_metadata);
   }
 
-  // Remember the committed content now
-  _committed_content = std::move(_uncommitted_content);
+  // The content is now committed
+  _content.setCommitted();
 }
 
 /// Commit a link to this artifact at the given path
@@ -201,7 +181,7 @@ void SymlinkArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
 
 // Compare all final versions of this artifact to the filesystem state
 void SymlinkArtifact::checkFinalState(fs::path path) noexcept {
-  if (_uncommitted_content) {
+  if (!_content.isCommitted()) {
     // TODO: Compare to on-disk symlink state here
   }
 }
@@ -211,10 +191,7 @@ void SymlinkArtifact::applyFinalState(fs::path path) noexcept {
   // Symlinks are always saved, so no need to fingerprint
 
   // Make sure this symlink is committed
-  if (_uncommitted_content) {
-    _uncommitted_content->commit(path);
-    _committed_content = std::move(_uncommitted_content);
-  }
+  commitContentTo(path);
 
   // TODO: commit ownership but not permissions from metadata
 }
