@@ -157,23 +157,20 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
     bool matches = version->matches(committed_version);
 
     // If there was no match, try again with a fingerprint
-    // TODO: Re-enable this once we check for a match between the committed and uncommitted state
-    // at commit time
-    /*if (!matches) {
-      auto v = _committed_content;
-      if (!v) v = make_shared<FileVersion>();
-      auto fingerprint_type = policy::chooseFingerprintType(nullptr, nullptr, path);
-      v->fingerprint(path, fingerprint_type);
-
-      matches = _uncommitted_content->matches(v);
-      _committed_content = v;
-    }*/
+    if (!matches && committed_version) {
+      auto fingerprint_type =
+          policy::chooseFingerprintType(nullptr, committed_creator.lock(), path);
+      committed_version->fingerprint(path, fingerprint_type);
+      matches = version->matches(committed_version);
+    }
 
     // Were we able to find a match?
     if (matches) {
-      // Yes. No work to do here.
-      // TODO: We could possible treat this artifact as already-committed, but we have to make
-      // sure its pending links are committed correctly too.
+      // Yes. We can treat the content as committed now
+      _content.setCommitted();
+
+      // TODO: What happens if the artifact has no committed links? That shouldn't happen because we
+      // need a link to reach this function.
 
     } else {
       // No. The creating command has to rerun.
