@@ -189,8 +189,8 @@ void DirArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
         // modeled state matches the committed state exactly, but we still need to commit it. There
         // are no unlinks in the output directory to commit, so the rmdir call fails.
 
-        WARN << "Failed to remove directory " << this << " from " << unlink_path
-             << ". Cleaning up by force.";
+        // WARN << "Failed to remove directory " << this << " from " << unlink_path
+        //      << ". Cleaning up by force.";
 
         fs::remove_all(unlink_path);
 

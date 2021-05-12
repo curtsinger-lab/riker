@@ -35,6 +35,7 @@ using std::map;
 using std::pair;
 using std::set;
 using std::shared_ptr;
+using std::string;
 using std::weak_ptr;
 
 namespace fs = std::filesystem;
@@ -174,9 +175,13 @@ namespace env {
   /// A map from paths to special artifact parameters. A "true" value means the artifact is treated
   /// as always changed, and any writes cannot be committed. False means content is treated as if it
   /// never changes, any any writes from emulated commands can be treated as if they are committed.
-  map<fs::path, bool> special_artifacts = {{"/dev/null", false},  {"/dev/urandom", false},
-                                           {"/dev/tty", false},   {"/dev/pts/0", true},
-                                           {"/dev/pts/1", false}, {"/dev/pts/2", false}};
+  map<string, bool> special_artifacts = {{"/dev/null", false},
+                                         {"/dev/urandom", false},
+                                         {"/dev/tty", false}};
+
+  /// A map from paths ot special artifact parameters, where any path that falls under the given
+  /// directory is treated as a special artifact with the given flag.
+  map<string, bool> special_artifact_dirs = {{"/dev/pts/", false}};
 
   shared_ptr<Artifact> getFilesystemArtifact(fs::path path) noexcept {
     // Stat the path on the filesystem to get the file type and an inode number
@@ -213,14 +218,26 @@ namespace env {
       auto sv = make_shared<SymlinkVersion>(readlink(path));
       a = make_shared<SymlinkArtifact>(MetadataVersion(info), sv);
 
-    } else if (auto iter = special_artifacts.find(path); iter != special_artifacts.end()) {
-      a = make_shared<SpecialArtifact>(MetadataVersion(info), iter->second);
-
     } else {
+      // Does the exact artifact path appear in the special artifacts map?
+      if (auto iter = special_artifacts.find(path); iter != special_artifacts.end()) {
+        a = make_shared<SpecialArtifact>(MetadataVersion(info), iter->second);
+      }
+
+      // Does the path begin with one of the special artifact directories?
+      for (auto [prefix, always_changed] : special_artifact_dirs) {
+        if (path.string().substr(0, prefix.size()) == prefix) {
+          a = make_shared<SpecialArtifact>(MetadataVersion(info), always_changed);
+          break;
+        }
+      }
+
       // The path refers to something else
-      WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
-      auto cv = make_shared<FileVersion>(info);
-      a = make_shared<FileArtifact>(MetadataVersion(info), cv);
+      if (!a) {
+        WARN << "Unexpected filesystem node type at " << path << ". Treating it as a file.";
+        auto cv = make_shared<FileVersion>(info);
+        a = make_shared<FileArtifact>(MetadataVersion(info), cv);
+      }
     }
 
     // Add the new artifact to the inode map
