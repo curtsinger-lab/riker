@@ -92,7 +92,7 @@ void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
                                   << " does not have metadata to commit";
 
     // Treat the metadata as committed
-    _committed_metadata = std::move(_uncommitted_metadata);
+    Artifact::setMetadataCommitted();
   }
 
   // The content is now committed

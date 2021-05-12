@@ -79,7 +79,7 @@ void DirArtifact::commitContentTo(fs::path path) noexcept {
 
     _uncommitted_base_version->commit(path, _uncommitted_metadata->getMode());
     _committed_base_version = std::move(_uncommitted_base_version);
-    _committed_metadata = std::move(_uncommitted_metadata);
+    Artifact::setMetadataCommitted();
   }
 }
 

@@ -56,7 +56,7 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
     // Commit the content with initial metadata
     auto [version, writer] = _content.getLatest();
     version->commit(path, _uncommitted_metadata->getMode());
-    _committed_metadata = std::move(_uncommitted_metadata);
+    Artifact::setMetadataCommitted();
   }
 
   // The artifact content is now committed
