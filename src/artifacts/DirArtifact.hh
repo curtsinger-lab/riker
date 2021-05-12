@@ -22,6 +22,7 @@ class ContentVersion;
 class DirEntry;
 class DirListVersion;
 class DirVersion;
+class DirEntryVersion;
 class MetadataVersion;
 
 class DirArtifact final : public Artifact {
@@ -150,8 +151,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * \param target  The artifact this entry links to (possibly nullptr)
    * \param version The version responsible for this entry's state
    */
-  void setCommittedState(std::shared_ptr<Artifact> target,
-                         std::shared_ptr<DirVersion> version) noexcept;
+  void setCommittedState(std::shared_ptr<DirEntryVersion> version) noexcept;
 
   /// Commit this entry's modeled state to the filesystem
   void commit() noexcept;
@@ -170,7 +170,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
                                            std::shared_ptr<Artifact> target) noexcept;
 
   /// Peek at the target of this entry without creating a dependency
-  const std::shared_ptr<Artifact>& peekTarget() const noexcept;
+  std::shared_ptr<Artifact> peekTarget() const noexcept;
 
   /**
    * Get the artifact linked at this entry on behalf of command c
@@ -178,7 +178,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * \param c   The command reading the entry
    * \returns   The artifact reachable through this entry, or nullptr if it has been unlinked
    */
-  const std::shared_ptr<Artifact>& getTarget(std::shared_ptr<Command> c) const noexcept;
+  std::shared_ptr<Artifact> getTarget(std::shared_ptr<Command> c) const noexcept;
 
   /// Get the directory this entry appears in
   std::shared_ptr<DirArtifact> getDir() const noexcept { return _dir.lock(); }
@@ -193,17 +193,11 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   /// The name of this entry in the containing directory
   std::string _name;
 
-  /// The artifact reachable through this entry that is not linked on the filesystem
-  std::shared_ptr<Artifact> _uncommitted_target;
-
   /// The latest uncommitted version that updated this entry
-  std::shared_ptr<DirVersion> _uncommitted_version;
-
-  /// The artifact reachable through this entry as reachable through the filesystem
-  std::shared_ptr<Artifact> _committed_target;
+  std::shared_ptr<DirEntryVersion> _uncommitted_version;
 
   /// The version associated with the filesystem state of this entry
-  std::shared_ptr<DirVersion> _committed_version;
+  std::shared_ptr<DirEntryVersion> _committed_version;
 
   /// The last command to update this entry
   std::weak_ptr<Command> _writer;

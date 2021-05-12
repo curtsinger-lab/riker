@@ -421,7 +421,9 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
       // Add the entry to this directory's map of entries
       auto entry_object = make_shared<DirEntry>(this->as<DirArtifact>(), entry);
-      entry_object->setCommittedState(artifact, base);
+      auto entry_version = make_shared<DirEntryVersion>(entry, artifact);
+      appendVersion(entry_version);
+      entry_object->setCommittedState(entry_version);
       _entries.emplace_hint(entries_iter, entry, entry_object);
     }
   }
@@ -510,13 +512,11 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
 DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir), _name(name) {}
 
 // Set the committed state for this entry. Only used for initial state
-void DirEntry::setCommittedState(std::shared_ptr<Artifact> target,
-                                 std::shared_ptr<DirVersion> version) noexcept {
-  _committed_target = target;
+void DirEntry::setCommittedState(std::shared_ptr<DirEntryVersion> version) noexcept {
   _committed_version = version;
 
   // If there is an initial target, inform it of its link
-  if (target) {
+  if (auto target = version->getTarget(); target) {
     target->addLink(shared_from_this());
     target->addCommittedLink(shared_from_this());
   }
@@ -528,17 +528,16 @@ void DirEntry::commit() noexcept {
   if (!_uncommitted_version) return;
 
   // Is there an existing committed target?
-  if (_committed_target) {
-    _committed_target->commitUnlink(shared_from_this());
+  if (_committed_version && _committed_version->getTarget()) {
+    _committed_version->getTarget()->commitUnlink(shared_from_this());
   }
 
   // Is there an uncommitted target? There may not be if this is just an unlink.
-  if (_uncommitted_target) {
-    _uncommitted_target->commitLink(shared_from_this());
+  if (_uncommitted_version && _uncommitted_version->getTarget()) {
+    _uncommitted_version->getTarget()->commitLink(shared_from_this());
   }
 
   // The uncommitted state becomes the committed state
-  _committed_target = std::move(_uncommitted_target);
   _committed_version = std::move(_uncommitted_version);
 }
 
@@ -550,18 +549,23 @@ void DirEntry::rollback() noexcept {
   // Is there an uncommitted version?
   if (_uncommitted_version) {
     // If there is an uncommitted target, it loses this link
-    if (_uncommitted_target) _uncommitted_target->removeLink(shared_from_this());
+    if (_uncommitted_version->getTarget()) {
+      _uncommitted_version->getTarget()->removeLink(shared_from_this());
+    }
 
     // Clear the uncommitted state
     _uncommitted_version.reset();
-    _uncommitted_target.reset();
 
     // If there is a committed target, it regains this link and should be rolled back
-    if (_committed_target) _committed_target->addLink(shared_from_this());
+    if (_committed_version && _committed_version->getTarget()) {
+      _committed_version->getTarget()->addLink(shared_from_this());
+    }
   }
 
   // If there is a committed target, roll it back
-  if (_committed_target) _committed_target->rollback();
+  if (_committed_version && _committed_version->getTarget()) {
+    _committed_version->getTarget()->rollback();
+  }
 }
 
 // Update this entry to reach a new target artifact on behalf of a command
@@ -580,10 +584,14 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
   // Next, update records of uncommitted links
   if (_uncommitted_version) {
     // The uncommitted target is going to lose its link (if there is one)
-    if (_uncommitted_target) _uncommitted_target->removeLink(shared_from_this());
+    if (_uncommitted_version->getTarget()) {
+      _uncommitted_version->getTarget()->removeLink(shared_from_this());
+    }
   } else {
     // The committed target loses its link (if there is one)
-    if (_committed_target) _committed_target->removeLink(shared_from_this());
+    if (_committed_version && _committed_version->getTarget()) {
+      _committed_version->getTarget()->removeLink(shared_from_this());
+    }
   }
 
   // Create a version to represent the update
@@ -597,7 +605,9 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
     // The command is running or has already run, so all effects are automatically committed
 
     // Is there a committed target? If so, remove its committed link as well
-    if (_committed_target) _committed_target->removeCommittedLink(shared_from_this());
+    if (_committed_version && _committed_version->getTarget()) {
+      _committed_version->getTarget()->removeCommittedLink(shared_from_this());
+    }
 
     // Inform the artifact of its new link
     if (target) {
@@ -605,12 +615,10 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
       target->addCommittedLink(shared_from_this());
     }
 
-    // There is no longer an uncommitted target or version
-    _uncommitted_target.reset();
+    // There is no longer an uncommitted version
     _uncommitted_version.reset();
 
-    // Update the committed target and version
-    _committed_target = target;
+    // Update the committed version
     _committed_version = version;
 
   } else {
@@ -618,7 +626,6 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
     if (target) target->addLink(shared_from_this());
 
     // Update the uncommitted state. All links have already been updated
-    _uncommitted_target = target;
     _uncommitted_version = version;
   }
 
@@ -630,13 +637,13 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
 }
 
 // Peek at the target of this entry without creating a dependency
-const shared_ptr<Artifact>& DirEntry::peekTarget() const noexcept {
-  if (_uncommitted_version) return _uncommitted_target;
-  return _committed_target;
+shared_ptr<Artifact> DirEntry::peekTarget() const noexcept {
+  if (_uncommitted_version) return _uncommitted_version->getTarget();
+  return _committed_version->getTarget();
 }
 
 // Get the artifact linked at this entry on behalf of command c
-const shared_ptr<Artifact>& DirEntry::getTarget(shared_ptr<Command> c) const noexcept {
+shared_ptr<Artifact> DirEntry::getTarget(shared_ptr<Command> c) const noexcept {
   // Does this entry have an uncommitted update?
   if (_uncommitted_version) {
     // Yes. Record the command's input
@@ -644,9 +651,9 @@ const shared_ptr<Artifact>& DirEntry::getTarget(shared_ptr<Command> c) const noe
 
     // Reporting the input might have committed the state, so check to see if it's still uncommitted
     if (_uncommitted_version) {
-      return _uncommitted_target;
+      return _uncommitted_version->getTarget();
     } else {
-      return _committed_target;
+      return _committed_version->getTarget();
     }
 
   } else {
@@ -656,6 +663,6 @@ const shared_ptr<Artifact>& DirEntry::getTarget(shared_ptr<Command> c) const noe
     }
 
     // Return the committed target
-    return _committed_target;
+    return _committed_version->getTarget();
   }
 }
