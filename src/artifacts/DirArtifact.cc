@@ -484,11 +484,12 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
     iter = _entries.emplace_hint(iter, name, entry);
   }
 
-  // Update the entry's target
-  auto written = iter->second->updateTarget(c, target);
+  // Create a version to represent this update
+  auto version = make_shared<DirEntryVersion>(name, target);
+  appendVersion(version);
 
-  // Record this version in the artifact
-  appendVersion(written);
+  // Update the entry
+  iter->second->updateEntry(c, version);
 }
 
 // Remove a directory entry from this artifact
@@ -502,11 +503,12 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
     iter = _entries.emplace_hint(iter, name, entry);
   }
 
-  // Update the entry's target
-  auto written = iter->second->updateTarget(c, nullptr);
+  // Create a version to represent this update
+  auto version = make_shared<DirEntryVersion>(name, nullptr);
+  appendVersion(version);
 
-  // Record this version in the artifact
-  appendVersion(written);
+  // Update the entry
+  iter->second->updateEntry(c, version);
 }
 
 DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir), _name(name) {}
@@ -568,9 +570,9 @@ void DirEntry::rollback() noexcept {
   }
 }
 
-// Update this entry to reach a new target artifact on behalf of a command
-shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
-                                              shared_ptr<Artifact> target) noexcept {
+// Update this entry with a new version
+shared_ptr<DirVersion> DirEntry::updateEntry(shared_ptr<Command> c,
+                                             shared_ptr<DirEntryVersion> version) noexcept {
   // If there is uncommitted state and command c is running, commit first
   if (_uncommitted_version && c->mustRun()) commit();
 
@@ -594,9 +596,6 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
     }
   }
 
-  // Create a version to represent the update
-  auto version = make_shared<DirEntryVersion>(_name, target);
-
   // Record the version as output from command c
   c->addDirectoryOutput(_dir.lock(), version);
 
@@ -610,6 +609,7 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
     }
 
     // Inform the artifact of its new link
+    auto target = version->getTarget();
     if (target) {
       target->addLink(shared_from_this());
       target->addCommittedLink(shared_from_this());
@@ -623,6 +623,7 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
 
   } else {
     // Inform the artifact of its new link
+    auto target = version->getTarget();
     if (target) target->addLink(shared_from_this());
 
     // Update the uncommitted state. All links have already been updated

@@ -163,11 +163,11 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * Update this entry to reach a new target artifact on behalf of a command
    *
    * \param c       The command updating this entry
-   * \param target  The artifact this entry should link to (or nullptr to unlink)
+   * \param version The latest version to apply to this entry
    * \returns the version that was just written to this entry
    */
-  std::shared_ptr<DirVersion> updateTarget(std::shared_ptr<Command> c,
-                                           std::shared_ptr<Artifact> target) noexcept;
+  std::shared_ptr<DirVersion> updateEntry(std::shared_ptr<Command> c,
+                                          std::shared_ptr<DirEntryVersion> version) noexcept;
 
   /// Peek at the target of this entry without creating a dependency
   std::shared_ptr<Artifact> peekTarget() const noexcept;
