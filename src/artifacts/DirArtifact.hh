@@ -164,10 +164,8 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    *
    * \param c       The command updating this entry
    * \param version The latest version to apply to this entry
-   * \returns the version that was just written to this entry
    */
-  std::shared_ptr<DirVersion> updateEntry(std::shared_ptr<Command> c,
-                                          std::shared_ptr<DirEntryVersion> version) noexcept;
+  void updateEntry(std::shared_ptr<Command> c, std::shared_ptr<DirEntryVersion> version) noexcept;
 
   /// Peek at the target of this entry without creating a dependency
   std::shared_ptr<Artifact> peekTarget() const noexcept;
@@ -193,12 +191,6 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   /// The name of this entry in the containing directory
   std::string _name;
 
-  /// The latest uncommitted version that updated this entry
-  std::shared_ptr<DirEntryVersion> _uncommitted_version;
-
-  /// The version associated with the filesystem state of this entry
-  std::shared_ptr<DirEntryVersion> _committed_version;
-
-  /// The last command to update this entry
-  std::weak_ptr<Command> _writer;
+  /// The committed and uncommitted state of this entry
+  VersionState<DirEntryVersion> _state;
 };

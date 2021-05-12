@@ -515,7 +515,8 @@ DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir
 
 // Set the committed state for this entry. Only used for initial state
 void DirEntry::setCommittedState(std::shared_ptr<DirEntryVersion> version) noexcept {
-  _committed_version = version;
+  // Set the committed state of this entry
+  _state.update(version);
 
   // If there is an initial target, inform it of its link
   if (auto target = version->getTarget(); target) {
@@ -527,73 +528,60 @@ void DirEntry::setCommittedState(std::shared_ptr<DirEntryVersion> version) noexc
 // Commit this entry's modeled state to the filesystem
 void DirEntry::commit() noexcept {
   // If this entry has no uncommitted state, just return immediately
-  if (!_uncommitted_version) return;
+  if (_state.isCommitted()) return;
 
   // Is there an existing committed target?
-  if (_committed_version && _committed_version->getTarget()) {
-    _committed_version->getTarget()->commitUnlink(shared_from_this());
+  if (auto [v, _] = _state.getCommitted(); v && v->getTarget()) {
+    v->getTarget()->commitUnlink(shared_from_this());
   }
 
   // Is there an uncommitted target? There may not be if this is just an unlink.
-  if (_uncommitted_version && _uncommitted_version->getTarget()) {
-    _uncommitted_version->getTarget()->commitLink(shared_from_this());
+  if (auto [v, _] = _state.getUncommitted(); v && v->getTarget()) {
+    v->getTarget()->commitLink(shared_from_this());
   }
 
   // The uncommitted state becomes the committed state
-  _committed_version = std::move(_uncommitted_version);
+  _state.setCommitted();
 }
 
 /// Reset this entry to its committed state
 void DirEntry::rollback() noexcept {
-  // Clear the writer
-  _writer.reset();
+  // Get the committed and uncommitted versions of this entry
+  auto [committed_v, _] = _state.getCommitted();
+  auto [uncommitted_v, __] = _state.getUncommitted();
 
   // Is there an uncommitted version?
-  if (_uncommitted_version) {
+  if (uncommitted_v) {
     // If there is an uncommitted target, it loses this link
-    if (_uncommitted_version->getTarget()) {
-      _uncommitted_version->getTarget()->removeLink(shared_from_this());
-    }
+    if (uncommitted_v->getTarget()) uncommitted_v->getTarget()->removeLink(shared_from_this());
 
-    // Clear the uncommitted state
-    _uncommitted_version.reset();
-
-    // If there is a committed target, it regains this link and should be rolled back
-    if (_committed_version && _committed_version->getTarget()) {
-      _committed_version->getTarget()->addLink(shared_from_this());
+    // If there is a committed target, it regains an entry from this link
+    if (committed_v && committed_v->getTarget()) {
+      committed_v->getTarget()->addLink(shared_from_this());
     }
   }
 
   // If there is a committed target, roll it back
-  if (_committed_version && _committed_version->getTarget()) {
-    _committed_version->getTarget()->rollback();
+  if (committed_v && committed_v->getTarget()) {
+    committed_v->getTarget()->rollback();
   }
+
+  // Discard uncommitted state
+  _state.rollback();
 }
 
 // Update this entry with a new version
-shared_ptr<DirVersion> DirEntry::updateEntry(shared_ptr<Command> c,
-                                             shared_ptr<DirEntryVersion> version) noexcept {
+void DirEntry::updateEntry(shared_ptr<Command> c, shared_ptr<DirEntryVersion> version) noexcept {
   // If there is uncommitted state and command c is running, commit first
-  if (_uncommitted_version && c->mustRun()) commit();
+  if (_state.isUncommitted() && c->mustRun()) commit();
 
-  // First, create an input to command c from the current version
-  if (_uncommitted_version) {
-    c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock());
-  } else {
-    c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock());
-  }
+  // Is there a version in place already? There may not be if this is a brand new entry.
+  if (auto [v, writer] = _state.getLatest(); v) {
+    // The command depends on the prior state of the entry
+    c->addDirectoryInput(_dir.lock(), v, writer.lock());
 
-  // Next, update records of uncommitted links
-  if (_uncommitted_version) {
-    // The uncommitted target is going to lose its link (if there is one)
-    if (_uncommitted_version->getTarget()) {
-      _uncommitted_version->getTarget()->removeLink(shared_from_this());
-    }
-  } else {
-    // The committed target loses its link (if there is one)
-    if (_committed_version && _committed_version->getTarget()) {
-      _committed_version->getTarget()->removeLink(shared_from_this());
-    }
+    // If the latest version has a target artifact, that artifact is about to lose its link
+    if (v->getTarget()) v->getTarget()->removeLink(shared_from_this());
   }
 
   // Record the version as output from command c
@@ -604,8 +592,9 @@ shared_ptr<DirVersion> DirEntry::updateEntry(shared_ptr<Command> c,
     // The command is running or has already run, so all effects are automatically committed
 
     // Is there a committed target? If so, remove its committed link as well
-    if (_committed_version && _committed_version->getTarget()) {
-      _committed_version->getTarget()->removeCommittedLink(shared_from_this());
+    auto [committed_v, _] = _state.getCommitted();
+    if (committed_v && committed_v->getTarget()) {
+      committed_v->getTarget()->removeCommittedLink(shared_from_this());
     }
 
     // Inform the artifact of its new link
@@ -615,55 +604,29 @@ shared_ptr<DirVersion> DirEntry::updateEntry(shared_ptr<Command> c,
       target->addCommittedLink(shared_from_this());
     }
 
-    // There is no longer an uncommitted version
-    _uncommitted_version.reset();
-
-    // Update the committed version
-    _committed_version = version;
+    // Update the versioned state
+    _state.update(c, version);
 
   } else {
     // Inform the artifact of its new link
-    auto target = version->getTarget();
-    if (target) target->addLink(shared_from_this());
+    if (version->getTarget()) version->getTarget()->addLink(shared_from_this());
 
-    // Update the uncommitted state. All links have already been updated
-    _uncommitted_version = version;
+    // Update the versioned state
+    _state.update(c, version);
   }
-
-  // Remember that command c last wrote this entry
-  _writer = c;
-
-  // Return the version that was just written to this entry
-  return version;
 }
 
 // Peek at the target of this entry without creating a dependency
 shared_ptr<Artifact> DirEntry::peekTarget() const noexcept {
-  if (_uncommitted_version) return _uncommitted_version->getTarget();
-  return _committed_version->getTarget();
+  auto [v, _] = _state.getLatest();
+  return v->getTarget();
 }
 
 // Get the artifact linked at this entry on behalf of command c
 shared_ptr<Artifact> DirEntry::getTarget(shared_ptr<Command> c) const noexcept {
-  // Does this entry have an uncommitted update?
-  if (_uncommitted_version) {
-    // Yes. Record the command's input
-    if (c) c->addDirectoryInput(_dir.lock(), _uncommitted_version, _writer.lock());
+  // Record the input to c, which may commit this entry
+  auto [version, writer] = _state.getLatest();
+  if (c) c->addDirectoryInput(_dir.lock(), version, writer.lock());
 
-    // Reporting the input might have committed the state, so check to see if it's still uncommitted
-    if (_uncommitted_version) {
-      return _uncommitted_version->getTarget();
-    } else {
-      return _committed_version->getTarget();
-    }
-
-  } else {
-    // No. Use the committed state
-    if (c) {
-      c->addDirectoryInput(_dir.lock(), _committed_version, _writer.lock());
-    }
-
-    // Return the committed target
-    return _committed_version->getTarget();
-  }
+  return version->getTarget();
 }
