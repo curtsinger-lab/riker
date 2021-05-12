@@ -8,7 +8,7 @@
 #include "tracing/Flags.hh"
 #include "util/serializer.hh"
 
-enum class AccessType { Any, Dir, NotDir, Symlink, File };
+enum class AccessType { Any, Dir, NotDir, Symlink, NotSymlink, File };
 
 /// This struct encodes the flags specified when making an access to a particular reference
 class AccessFlags {
@@ -55,6 +55,11 @@ class AccessFlags {
     // these flags specifically state that they only apply to regular files
     if (flags.creat() || flags.append() || (flags.writable() && flags.trunc())) {
       f.type = AccessType::File;
+    }
+
+    // If nofollow is specified the final entity cannot be a symlink
+    if (flags.nofollow() && !flags.directory()) {
+      f.type = AccessType::NotSymlink;
     }
 
     f.mode = mode.getMode() & ~umask;

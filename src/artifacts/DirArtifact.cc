@@ -7,6 +7,7 @@
 #include <string>
 #include <tuple>
 
+#include "artifacts/SymlinkArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
@@ -342,7 +343,8 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     if (!checkAccess(c, flags)) return EACCES;
 
     // The access was allowed. Did the access expect to reach a directory?
-    if (flags.type == AccessType::Any || flags.type == AccessType::Dir) {
+    if (flags.type == AccessType::Any || flags.type == AccessType::Dir ||
+        flags.type == AccessType::NotSymlink) {
       return Ref(flags, shared_from_this());
     } else if (flags.type == AccessType::Symlink) {
       return EINVAL;
@@ -432,11 +434,6 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   // this is the last part of the path, or if there is more path left to resolve.
   if (current == end) {
     // This is the last entry in the resolution path
-
-    // Was the artifact opened O_NOFOLLOW and is it a symlink?
-    // if (flags.nofollow && res.getArtifact()->getTypeName() == "Symlink") {
-    //   return ELOOP;
-    // }
 
     // Was the reference required to create this entry?
     if (flags.create && flags.exclusive && res.getResultCode() == SUCCESS) return EEXIST;

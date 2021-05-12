@@ -211,6 +211,8 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
       return ENOTDIR;
     } else if (flags.type == AccessType::File) {
       return ELOOP;
+    } else if (flags.type == AccessType::NotSymlink) {
+      return ELOOP;
     } else {
       return Ref(flags, shared_from_this());
     }
