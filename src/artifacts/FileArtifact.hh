@@ -7,6 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Ref.hh"
+#include "runtime/VersionState.hh"
 
 namespace fs = std::filesystem;
 
@@ -39,9 +40,7 @@ class FileArtifact : public Artifact {
   virtual void commitContentTo(fs::path path) noexcept override;
 
   /// Does this artifact have any uncommitted content?
-  virtual bool hasUncommittedContent() noexcept override {
-    return static_cast<bool>(_uncommitted_content);
-  }
+  virtual bool hasUncommittedContent() noexcept override { return !_content.isCommitted(); }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
@@ -120,12 +119,6 @@ class FileArtifact : public Artifact {
   void fingerprintAndCache(const std::shared_ptr<Command>& reader) const noexcept;
 
  private:
-  /// The command that most recently wrote this artifact's content, possibly null
-  std::weak_ptr<Command> _content_writer;
-
-  /// The current uncommitted content, if any
-  std::shared_ptr<FileVersion> _uncommitted_content;
-
-  /// The on-filesystem version of this artifact's content
-  std::shared_ptr<FileVersion> _committed_content;
+  /// The committed and uncommitted state that represent this file's content
+  VersionState<FileVersion> _content;
 };

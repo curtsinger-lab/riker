@@ -24,44 +24,43 @@ namespace fs = std::filesystem;
 class MetadataVersion;
 
 FileArtifact::FileArtifact(MetadataVersion mv, shared_ptr<FileVersion> cv) noexcept : Artifact(mv) {
-  _committed_content = cv;
+  _content.update(cv);
   appendVersion(cv);
 }
 
 /// Revert this artifact to its committed state
 void FileArtifact::rollback() noexcept {
-  _uncommitted_content.reset();
-  _content_writer.reset();
-
+  _content.rollback();
   Artifact::rollback();
 }
 
 // Commit the content of this artifact to the filesystem
 void FileArtifact::commitContentTo(fs::path path) noexcept {
-  // If there's no uncommitted content, do nothing
-  if (!_uncommitted_content) return;
+  // If content is already committed, do nothing
+  if (_content.isCommitted()) return;
 
-  if (!_committed_content) {
+  // Does this artifact already have committed content?
+  if (_content.hasCommittedState()) {
+    // Yes. Just commit the content version
+    auto [version, writer] = _content.getLatest();
+    ASSERT(version->canCommit()) << "Cannot commit content " << _content;
+
+    // Commit the uncommitted content only
+    version->commit(path);
+
+  } else {
+    // No committed content yet. Commit metadata along with the content
     ASSERT(_uncommitted_metadata)
         << "File with no committed content does not have uncommitted metadata";
 
     // Commit the content with initial metadata
-    _uncommitted_content->commit(path, _uncommitted_metadata->getMode());
+    auto [version, writer] = _content.getLatest();
+    version->commit(path, _uncommitted_metadata->getMode());
     _committed_metadata = std::move(_uncommitted_metadata);
-
-  } else {
-    if (!_uncommitted_content->canCommit()) {
-      WARN << "Cannot commit version " << _uncommitted_content << " written by "
-           << _content_writer.lock();
-      WARN << "Committed version is " << _committed_content;
-    }
-
-    // Commit the uncommitted content only
-    _uncommitted_content->commit(path);
   }
 
   // The artifact content is now committed
-  _committed_content = std::move(_uncommitted_content);
+  _content.setCommitted();
 }
 
 /// Commit a link to this artifact at the given path
@@ -144,13 +143,17 @@ void FileArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
 /// Compare all final versions of this artifact to the filesystem state
 void FileArtifact::checkFinalState(fs::path path) noexcept {
   // Get the command that wrote this file. If there was no writer, no need to check
-  auto creator = _content_writer.lock();
+  auto [version, weak_creator] = _content.getLatest();
+  auto creator = weak_creator.lock();
   if (!creator) return;
 
   // Is there an uncommitted update to this file?
-  if (_uncommitted_content) {
+  if (_content.isUncommitted()) {
+    // Get the committed state
+    auto [committed_version, committed_creator] = _content.getCommitted();
+
     // Does the uncommitted version match what's on the filesystem?
-    bool matches = _uncommitted_content->matches(_committed_content);
+    bool matches = version->matches(committed_version);
 
     // If there was no match, try again with a fingerprint
     // TODO: Re-enable this once we check for a match between the committed and uncommitted state
@@ -173,7 +176,7 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
 
     } else {
       // No. The creating command has to rerun.
-      creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
+      creator->outputChanged(shared_from_this(), committed_version, version);
     }
   }
 
@@ -182,19 +185,33 @@ void FileArtifact::checkFinalState(fs::path path) noexcept {
 
 /// Commit any pending versions and save fingerprints for this artifact
 void FileArtifact::applyFinalState(fs::path path) noexcept {
+  // Get the content version and creator
+  auto [version, weak_creator] = _content.getLatest();
+  auto creator = weak_creator.lock();
+
   // Make sure the content is committed
-  if (_uncommitted_content) {
-    if (_uncommitted_content != _committed_content) _uncommitted_content->commit(path);
-    _committed_content = std::move(_uncommitted_content);
+  if (_content.isUncommitted()) {
+    auto [committed_version, committed_creator] = _content.getCommitted();
+
+    // Does the uncommitted version match the committed version?
+    if (version->matches(committed_version)) {
+      // Yes.
+      // TODO: Treat the uncommitted version as committed?
+
+    } else {
+      // No. Commit now
+      version->commit(path);
+      _content.setCommitted();
+    }
   }
 
   // If we don't already have a content fingerprint, take one
-  auto fingerprint_type = policy::chooseFingerprintType(nullptr, _content_writer.lock(), path);
-  _committed_content->fingerprint(path, fingerprint_type);
+  auto fingerprint_type = policy::chooseFingerprintType(nullptr, creator, path);
+  version->fingerprint(path, fingerprint_type);
 
   // Cache the contents
-  if (policy::isCacheable(nullptr, _content_writer.lock(), path)) {
-    _committed_content->cache(path);
+  if (policy::isCacheable(nullptr, creator, path)) {
+    version->cache(path);
   }
 
   // Call up to fingerprint metadata as well
@@ -261,26 +278,14 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
 
 // Get this artifact's content version
 shared_ptr<ContentVersion> FileArtifact::getContent(const shared_ptr<Command>& c) noexcept {
-  // The version starts off as the committed content
-  auto result = _committed_content;
-
-  // Does the artifact have uncommitted content?
-  if (_uncommitted_content) {
-    // Yes, the version is uncommitted
-    result = _uncommitted_content;
-
-  } else {
-    // No. Fingerprint the committed content if necessary
-    // fingerprintAndCache(c);
-    // Not actually required. We'll fingerprint and cache when the content is matched.
-  }
-
-  ASSERT(result) << "Artifact " << this << " has no content version";
+  // Get the latest version and writer
+  auto [version, weak_writer] = _content.getLatest();
+  auto writer = weak_writer.lock();
 
   // If there is a reading command, record the input
-  if (c) c->addContentInput(shared_from_this(), result, _content_writer.lock());
+  if (c) c->addContentInput(shared_from_this(), version, writer);
 
-  return result;
+  return version;
 }
 
 /// Check to see if this artifact's content matches a known version
@@ -293,10 +298,16 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
   // Compare the current content version to the expected version
   if (!observed->matches(expected)) {
     // If the observed content version is on disk, try to fingerprint it and try the match again
-    if (observed == _committed_content) {
+    if (_content.isCommitted()) {
+      // Get the content version and writer
+      auto [committed_content, weak_committed_writer] = _content.getLatest();
+      auto committed_writer = weak_committed_writer.lock();
+
+      // Get a path
       auto path = getCommittedPath();
-      auto fingerprint_type =
-          policy::chooseFingerprintType(c, _content_writer.lock(), path.value());
+
+      // Try the match
+      auto fingerprint_type = policy::chooseFingerprintType(c, committed_writer, path.value());
       observed->fingerprint(path.value(), fingerprint_type);
 
       // Try the comparison again. If it succeeds, we can return
@@ -319,34 +330,21 @@ void FileArtifact::updateContent(const shared_ptr<Command>& c,
 
   FAIL_IF(!fv) << "Attempted to apply version " << writing << " to file artifact " << this;
 
-  // Mark the creator of the written version
-  _content_writer = c;
-
-  // Is the writer currently running?
-  if (c->mustRun()) {
-    _committed_content = fv;
-    _uncommitted_content.reset();
-
-  } else if (fv == _committed_content) {
-    _uncommitted_content.reset();
-  } else {
-    _uncommitted_content = fv;
-  }
+  // Update the content version(s)
+  _content.update(c, fv);
 
   // Report the output to the build
   c->addContentOutput(shared_from_this(), writing);
 }
 
 void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) const noexcept {
-  // If this artifact does not have a committed version, it can't be cached or fingerprinted
-  if (!_committed_content) return;
+  // If this artifact is not committed in its latest state, we can't fingerprint or cache it
+  if (!_content.isCommitted()) return;
 
-  // If this artifact has uncommitted state its writer is not associated with the committed version
-  if (_uncommitted_content) return;
+  auto [version, weak_writer] = _content.getLatest();
+  auto writer = weak_writer.lock();
 
-  auto writer = _content_writer.lock();
-
-  // If the reader is also the last writer, there's no need to fingerprint
+  // If the reader is also the last writer, there's no need to fingerprint or cache
   if (reader == writer) return;
 
   // Get a path to this artifact
@@ -355,11 +353,11 @@ void FileArtifact::fingerprintAndCache(const shared_ptr<Command>& reader) const 
   // If the artifact has a committed path, we may fingerprint or cache it
   if (path.has_value()) {
     auto fingerprint_type = policy::chooseFingerprintType(reader, writer, path.value());
-    _committed_content->fingerprint(path.value(), fingerprint_type);
+    version->fingerprint(path.value(), fingerprint_type);
 
     // cache?
-    if (!_committed_content->canCommit() && policy::isCacheable(reader, writer, path.value())) {
-      _committed_content->cache(path.value());
+    if (!version->canCommit() && policy::isCacheable(reader, writer, path.value())) {
+      version->cache(path.value());
     }
   }
 }
