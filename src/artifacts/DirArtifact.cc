@@ -587,12 +587,7 @@ shared_ptr<DirVersion> DirEntry::updateTarget(shared_ptr<Command> c,
   }
 
   // Create a version to represent the update
-  shared_ptr<DirVersion> version;
-  if (target) {
-    version = make_shared<AddEntry>(_name);
-  } else {
-    version = make_shared<RemoveEntry>(_name);
-  }
+  auto version = make_shared<DirEntryVersion>(_name, target);
 
   // Record the version as output from command c
   c->addDirectoryOutput(_dir.lock(), version);

@@ -34,8 +34,9 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
 };
 
 /**
- * A BaseDirVersion encodes the starting state for a directory artifact. Every directory has exactly
- * one of these versions. Any updates to the directory are layered on top of the base version.
+ * A BaseDirVersion encodes the starting state for a directory artifact. Every directory has
+ * exactly one of these versions. Any updates to the directory are layered on top of the base
+ * version.
  */
 class BaseDirVersion : public DirVersion {
  public:
@@ -75,51 +76,33 @@ class BaseDirVersion : public DirVersion {
   SERIALIZE(BASE(DirVersion), _created);
 };
 
-/// An AddEntry version updates a directory with a new entry
-class AddEntry : public DirVersion {
+/// An DirEntryVersion version updates a directory with a new entry
+class DirEntryVersion : public DirVersion {
  public:
   /// Create a new version of a directory that adds a named entry to the directory
-  AddEntry(std::string entry) noexcept : _entry(entry) {}
+  DirEntryVersion(std::string entry, std::shared_ptr<Artifact> target) noexcept :
+      _entry(entry), _target(target) {}
 
   /// Get the name of the entry this version links
   std::string getEntryName() const noexcept { return _entry; }
 
   /// Get the name for this version type
-  virtual std::string getTypeName() const noexcept override { return "+" + std::string(_entry); }
+  virtual std::string getTypeName() const noexcept override {
+    return (_target ? "+" : "-") + std::string(_entry);
+  }
 
   /// Get the entry this directory version references
   virtual std::optional<std::string> getEntry() const noexcept override { return _entry; }
 
-  /// Print a link version
+  /// Get the target of this entry
+  std::shared_ptr<Artifact> getTarget() const noexcept { return _target; }
+
+  /// Print a the version
   virtual std::ostream& print(std::ostream& o) const noexcept override {
-    return o << "[dir: link " << _entry << "]";
+    return o << "[dir: " << (_target ? "link" : "unlink") << " " << _entry << "]";
   }
 
  private:
   std::string _entry;
-};
-
-/// A RemoveEntry version updates a directory so it no longer has a specific entry
-class RemoveEntry : public DirVersion {
- public:
-  /// Create a new version of a directory that removes an entry from a directory
-  RemoveEntry(std::string entry) noexcept : _entry(entry) {}
-
-  /// Get the name of the entry this version removes
-  std::string getEntryName() const noexcept { return _entry; }
-
-  /// Get the name for this version type
-  virtual std::string getTypeName() const noexcept override { return "-" + std::string(_entry); }
-
-  /// Get the entry this directory version references, if any
-  virtual std::optional<std::string> getEntry() const noexcept override { return _entry; }
-
-  /// Print an unlink version
-  virtual std::ostream& print(std::ostream& o) const noexcept override {
-    return o << "[dir: unlink " << _entry << "]";
-  }
-
- private:
-  /// The name of the entry this version removes
-  std::string _entry;
+  std::shared_ptr<Artifact> _target;
 };
