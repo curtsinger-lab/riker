@@ -24,15 +24,15 @@ class MetadataVersion;
 
 SpecialArtifact::SpecialArtifact(MetadataVersion mv, bool always_changed) noexcept :
     Artifact(mv), _always_changed(always_changed) {
-  _committed_content = make_shared<SpecialVersion>(!always_changed);
-  appendVersion(_committed_content);
+  // Create an initial committed version
+  auto cv = make_shared<SpecialVersion>(!always_changed);
+  _content.update(cv);
+  appendVersion(cv);
 }
 
 /// Revert this artifact to its committed state
 void SpecialArtifact::rollback() noexcept {
-  _uncommitted_content.reset();
-  _content_writer.reset();
-
+  _content.rollback();
   Artifact::rollback();
 }
 
@@ -81,21 +81,21 @@ void SpecialArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
 
 /// Compare all final versions of this artifact to the filesystem state
 void SpecialArtifact::checkFinalState(fs::path path) noexcept {
-  // Get the command that wrote this file. If there was no writer, no need to check
-  auto creator = _content_writer.lock();
-  if (!creator) return;
+  // If _always_changed is true then any uncommitted state is treated as a change
+  if (_always_changed && _content.isUncommitted()) {
+    auto [version, weak_creator] = _content.getUncommitted();
+    auto creator = weak_creator.lock();
 
-  if (_uncommitted_content && _always_changed) {
-    creator->outputChanged(shared_from_this(), _committed_content, _uncommitted_content);
+    auto [committed_version, _] = _content.getCommitted();
+
+    creator->outputChanged(shared_from_this(), committed_version, version);
   }
 }
 
 /// Commit any pending versions and save fingerprints for this artifact
 void SpecialArtifact::applyFinalState(fs::path path) noexcept {
-  // Make sure the content is committed
-  if (_uncommitted_content) {
-    _committed_content = std::move(_uncommitted_content);
-  }
+  // Just set everything as committed
+  _content.setCommitted();
 
   // Call up to fingerprint metadata as well
   Artifact::applyFinalState(path);
@@ -148,16 +148,9 @@ void SpecialArtifact::afterTruncate(Build& build,
 
 // Get this artifact's content version
 shared_ptr<ContentVersion> SpecialArtifact::getContent(const shared_ptr<Command>& c) noexcept {
-  auto result = _committed_content;
-  if (_uncommitted_content) result = _uncommitted_content;
-
-  ASSERT(result) << "Artifact " << this << " has no content version";
-
-  if (c) {
-    c->addContentInput(shared_from_this(), result, _content_writer.lock());
-  }
-
-  return result;
+  auto [version, writer] = _content.getLatest();
+  if (c) c->addContentInput(shared_from_this(), version, writer.lock());
+  return version;
 }
 
 /// Check to see if this artifact's content matches a known version
@@ -182,16 +175,8 @@ void SpecialArtifact::updateContent(const shared_ptr<Command>& c,
 
   FAIL_IF(!sv) << "Attempted to apply version " << writing << " to special artifact " << this;
 
-  // Mark the creator of the written version
-  _content_writer = c;
-
-  // Is the writer currently running?
-  if (c->mustRun()) {
-    _committed_content = sv;
-    _uncommitted_content.reset();
-  } else {
-    _uncommitted_content = sv;
-  }
+  // Update the content
+  _content.update(c, sv);
 
   // Report the output to the build
   c->addContentOutput(shared_from_this(), writing);

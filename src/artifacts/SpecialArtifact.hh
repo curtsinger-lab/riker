@@ -7,6 +7,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Ref.hh"
+#include "runtime/VersionState.hh"
 
 namespace fs = std::filesystem;
 
@@ -114,12 +115,6 @@ class SpecialArtifact : public Artifact {
   /// Do comparisons against this always report a change?
   bool _always_changed;
 
-  /// The command that most recently wrote this artifact's content, possibly null
-  std::weak_ptr<Command> _content_writer;
-
-  /// The current uncommitted content, if any
-  std::shared_ptr<SpecialVersion> _uncommitted_content;
-
-  /// The on-filesystem version of this artifact's content
-  std::shared_ptr<SpecialVersion> _committed_content;
+  /// The content of this artifact
+  VersionState<SpecialVersion> _content;
 };
