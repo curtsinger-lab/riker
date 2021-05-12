@@ -30,14 +30,13 @@ class MetadataVersion;
 
 DirArtifact::DirArtifact(MetadataVersion mv, shared_ptr<BaseDirVersion> dv) noexcept :
     Artifact(mv) {
-  _committed_base_version = dv;
+  _base.update(dv);
   appendVersion(dv);
 }
 
 /// Revert this artifact to its committed state
 void DirArtifact::rollback() noexcept {
-  _uncommitted_base_version.reset();
-  _creator.reset();
+  _base.rollback();
 
   for (const auto& [name, entry] : _entries) {
     entry->rollback();
@@ -50,44 +49,36 @@ void DirArtifact::rollback() noexcept {
 void DirArtifact::createEmptyDir(std::shared_ptr<Command> c) noexcept {
   FAIL_IF(!c) << "A directory cannot be created by a null command";
 
-  // Record the command that created this directory
-  _creator = c;
-
   // Set up the base directory version
-  auto base = make_shared<BaseDirVersion>(true);
-  if (c->mustRun()) {
-    _committed_base_version = base;
-  } else {
-    _uncommitted_base_version = base;
-  }
+  auto v = make_shared<BaseDirVersion>(true);
+  _base.update(c, v);
+  appendVersion(v);
 
-  // Add the base version to the creating command's outputs
-  c->addDirectoryOutput(shared_from_this(), base);
-
-  appendVersion(base);
-}
-
-const shared_ptr<BaseDirVersion>& DirArtifact::getBaseVersion() const noexcept {
-  if (_uncommitted_base_version) return _uncommitted_base_version;
-  return _committed_base_version;
+  // Add the base version to the command's outputs
+  c->addDirectoryOutput(shared_from_this(), v);
 }
 
 /// Commit the content of this artifact to a specific path
 void DirArtifact::commitContentTo(fs::path path) noexcept {
-  if (_uncommitted_base_version) {
-    ASSERT(_metadata.isUncommitted()) << "Uncommitted directory does not have uncommitted metadata";
+  // If the base version is committed there is no work to do
+  if (_base.isCommitted()) return;
 
-    auto [metadata_version, _] = _metadata.getLatest();
-    _uncommitted_base_version->commit(path, metadata_version->getMode());
-    _committed_base_version = std::move(_uncommitted_base_version);
-    _metadata.setCommitted();
-  }
+  // Make sure we have metadata for this uncommitted directory as well
+  ASSERT(_metadata.isUncommitted()) << "Uncommitted directory does not have uncommitted metadata";
+
+  // Get the base version and commit it with the appropriate metadata
+  auto [version, _] = _base.getLatest();
+  auto [metadata_version, __] = _metadata.getLatest();
+  version->commit(path, metadata_version->getMode());
+
+  // Mark the base version and metadata as committed
+  _base.setCommitted();
+  _metadata.setCommitted();
 }
 
 // Does this artifact have any uncommitted content?
 bool DirArtifact::hasUncommittedContent() noexcept {
-  if (_uncommitted_base_version) return true;
-  return false;
+  return _base.isUncommitted();
 }
 
 // Commit all final versions of this artifact to the filesystem
@@ -278,8 +269,13 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   // Create a DirListVersion to hold the list of directory entries
   auto result = make_shared<DirListVersion>();
 
-  // If this directory was NOT created, get the list of entries from the filesystem
-  if (_committed_base_version && !_committed_base_version->getCreated()) {
+  // Get the committed base version (if there is one)
+  auto [committed_base, weak_committed_creator] = _base.getCommitted();
+
+  // If this directory has committed state and was not created during the build, list it.
+  // This is to handle the case where only a subset of a pre-existing directories entries are in the
+  // artifact's entries map.
+  if (committed_base && !weak_committed_creator.lock()) {
     // Get a committed path to this directory
     auto path = getCommittedPath();
     ASSERT(path.has_value()) << "Existing directory somehow has no committed path";
@@ -292,10 +288,12 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
     }
   }
 
-  const auto& base = getBaseVersion();
+  // Get the latest version
+  auto [base, weak_creator] = _base.getLatest();
+  auto creator = weak_creator.lock();
 
   // The command listing this directory depends on its base version
-  if (c) c->addDirectoryInput(shared_from_this(), base, _creator.lock());
+  if (c) c->addDirectoryInput(shared_from_this(), base, creator);
 
   for (const auto& [name, entry] : _entries) {
     // Get the artifact targeted by this entry. This access records a dependency on the entry.
@@ -394,8 +392,8 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
   } else {
     // Add a path resolution input from the base version
-    const auto& base = getBaseVersion();
-    c->addDirectoryInput(shared_from_this(), base, _creator.lock());
+    auto [base, creator] = _base.getLatest();
+    c->addDirectoryInput(shared_from_this(), base, creator.lock());
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (base->getCreated()) {

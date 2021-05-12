@@ -10,6 +10,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "runtime/Ref.hh"
+#include "runtime/VersionState.hh"
 
 namespace fs = std::filesystem;
 
@@ -117,23 +118,12 @@ class DirArtifact final : public Artifact {
                       AccessFlags flags,
                       size_t symlink_limit) noexcept override;
 
- protected:
-  /// Get the base version for this directory artifact, which may or may not be committed
-  const std::shared_ptr<BaseDirVersion>& getBaseVersion() const noexcept;
-
  private:
   /// A map of entries in this directory
   std::map<std::string, std::shared_ptr<DirEntry>> _entries;
 
-  /// The base directory version is the backstop for all resolution queries. The base version can
-  /// only be uncommitted if it is an empty directory.
-  std::shared_ptr<BaseDirVersion> _uncommitted_base_version;
-
-  /// The committed base directory version is committed ot the filesystem
-  std::shared_ptr<BaseDirVersion> _committed_base_version;
-
-  /// The command that created this directory, or nullptr
-  std::weak_ptr<Command> _creator;
+  /// The base directory content is the backstop for all resolution queries
+  VersionState<BaseDirVersion> _base;
 };
 
 class DirEntry : public std::enable_shared_from_this<DirEntry> {
