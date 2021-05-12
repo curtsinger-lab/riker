@@ -13,6 +13,7 @@
 #include "data/AccessFlags.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "runtime/VersionState.hh"
 #include "util/log.hh"
 #include "versions/MetadataVersion.hh"
 
@@ -296,9 +297,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// Commit this artifact's metadata to a specific path
   virtual void commitMetadataTo(fs::path path) noexcept;
 
-  /// Mark this artifact's metadata as committed without doing anything
-  void setMetadataCommitted() noexcept;
-
   /// Set a temporary path for this artifact and return it
   fs::path assignTemporaryPath() noexcept;
 
@@ -312,9 +310,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// If true, this artifact is the root directory and has path "/"
   bool _root_dir = false;
 
-  /// The command that most recently wrote metadata, possibly null
-  std::weak_ptr<Command> _metadata_writer;
-
   /// A fixed string name assigned to this artifact
   std::string _name;
 
@@ -325,11 +320,8 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   std::optional<fs::path> _temp_path;
 
  protected:
-  /// The most recent metadata version that has not yet been committed
-  std::optional<MetadataVersion> _uncommitted_metadata;
-
-  /// The current metadata version on the filesystem
-  std::optional<MetadataVersion> _committed_metadata;
+  /// The committed and uncommitted metadata for this artifact
+  VersionState<MetadataVersion> _metadata;
 
   using LinkSet = std::set<std::weak_ptr<DirEntry>, std::owner_less<std::weak_ptr<DirEntry>>>;
 

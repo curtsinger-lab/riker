@@ -88,11 +88,11 @@ void SymlinkArtifact::commitContentTo(fs::path path) noexcept {
 
   // Is this commit creating the symlink? (It should be)
   if (!_content.hasCommittedState()) {
-    ASSERT(_uncommitted_metadata) << "Committing initial content to " << this
-                                  << " does not have metadata to commit";
+    ASSERT(_metadata.isUncommitted())
+        << "Committing initial content to " << this << " does not have metadata to commit";
 
     // Treat the metadata as committed
-    Artifact::setMetadataCommitted();
+    _metadata.setCommitted();
   }
 
   // The content is now committed

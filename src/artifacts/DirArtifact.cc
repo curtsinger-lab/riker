@@ -75,11 +75,12 @@ const shared_ptr<BaseDirVersion>& DirArtifact::getBaseVersion() const noexcept {
 /// Commit the content of this artifact to a specific path
 void DirArtifact::commitContentTo(fs::path path) noexcept {
   if (_uncommitted_base_version) {
-    ASSERT(_uncommitted_metadata) << "Uncommitted directory does not have uncommitted metadata";
+    ASSERT(_metadata.isUncommitted()) << "Uncommitted directory does not have uncommitted metadata";
 
-    _uncommitted_base_version->commit(path, _uncommitted_metadata->getMode());
+    auto [metadata_version, _] = _metadata.getLatest();
+    _uncommitted_base_version->commit(path, metadata_version->getMode());
     _committed_base_version = std::move(_uncommitted_base_version);
-    Artifact::setMetadataCommitted();
+    _metadata.setCommitted();
   }
 }
 

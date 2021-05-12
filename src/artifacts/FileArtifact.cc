@@ -50,13 +50,14 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
 
   } else {
     // No committed content yet. Commit metadata along with the content
-    ASSERT(_uncommitted_metadata)
+    ASSERT(_metadata.isUncommitted())
         << "File with no committed content does not have uncommitted metadata";
 
     // Commit the content with initial metadata
     auto [version, writer] = _content.getLatest();
-    version->commit(path, _uncommitted_metadata->getMode());
-    Artifact::setMetadataCommitted();
+    auto [metadata_version, _] = _metadata.getLatest();
+    version->commit(path, metadata_version->getMode());
+    _metadata.setCommitted();
   }
 
   // The artifact content is now committed

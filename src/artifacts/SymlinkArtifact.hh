@@ -99,9 +99,7 @@ class SymlinkArtifact : public Artifact {
 
  protected:
   /// Skip committing metadata to symlinks
-  virtual void commitMetadataTo(fs::path path) noexcept override {
-    Artifact::setMetadataCommitted();
-  }
+  virtual void commitMetadataTo(fs::path path) noexcept override { _metadata.setCommitted(); }
 
  private:
   /// The content of this artifact, both committed and uncommitted

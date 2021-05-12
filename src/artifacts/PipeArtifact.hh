@@ -112,12 +112,10 @@ class PipeArtifact : public Artifact {
 
  protected:
   /// Skip committing metadata to pipes
-  virtual void commitMetadata() noexcept override { Artifact::setMetadataCommitted(); }
+  virtual void commitMetadata() noexcept override { _metadata.setCommitted(); }
 
   /// Skip committing metadata to pipes
-  virtual void commitMetadataTo(fs::path path) noexcept override {
-    Artifact::setMetadataCommitted();
-  }
+  virtual void commitMetadataTo(fs::path path) noexcept override { _metadata.setCommitted(); }
 
  private:
   /// The last command to read from this pipe
