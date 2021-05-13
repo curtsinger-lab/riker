@@ -343,13 +343,10 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     if (!checkAccess(c, flags)) return EACCES;
 
     // The access was allowed. Did the access expect to reach a directory?
-    if (flags.type == AccessType::Any || flags.type == AccessType::Dir ||
-        flags.type == AccessType::NotSymlink) {
-      return Ref(flags, shared_from_this());
-    } else if (flags.type == AccessType::Symlink) {
-      return EINVAL;
+    if (auto rc = flags.type.getResult(ArtifactType::Dir); rc != SUCCESS) {
+      return rc;
     } else {
-      return EISDIR;
+      return Ref(flags, shared_from_this());
     }
   }
 

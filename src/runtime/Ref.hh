@@ -13,9 +13,6 @@
 
 class Artifact;
 
-// Add a success constant so we don't have to keep returning 0 as a magic number
-enum : int8_t { SUCCESS = 0 };
-
 /***
  * A Ref instance is a bit like a register; it is serialized as the destination where a
  * resolved reference will be saved. An IR Step that resolves a reference will also have a Ref

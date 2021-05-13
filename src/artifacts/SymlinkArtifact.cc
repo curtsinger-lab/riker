@@ -207,12 +207,8 @@ Ref SymlinkArtifact::resolve(const shared_ptr<Command>& c,
   // If this is the end of the path and the nofollow flag is set, return this symlink
   if (current == end && flags.nofollow) {
     // Did the access expect to get a symlink?
-    if (flags.type == AccessType::Dir) {
-      return ENOTDIR;
-    } else if (flags.type == AccessType::File) {
-      return ELOOP;
-    } else if (flags.type == AccessType::NotSymlink) {
-      return ELOOP;
+    if (auto rc = flags.type.getResult(ArtifactType::Symlink); rc != SUCCESS) {
+      return rc;
     } else {
       return Ref(flags, shared_from_this());
     }

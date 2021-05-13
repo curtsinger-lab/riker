@@ -312,10 +312,8 @@ Ref Artifact::resolve(const shared_ptr<Command>& c,
     if (!checkAccess(c, flags)) return EACCES;
 
     // Access is allowed. Did the access expect a specific type of artifact?
-    if (flags.type == AccessType::Dir) {
-      return ENOTDIR;
-    } else if (flags.type == AccessType::Symlink) {
-      return EINVAL;
+    if (auto rc = flags.type.getResult(ArtifactType::File); rc != SUCCESS) {
+      return rc;
     } else {
       return Ref(flags, shared_from_this());
     }
