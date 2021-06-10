@@ -2,6 +2,9 @@
 
 import subprocess, sys, tempfile
 
+supported_flags = ["-D", "-f", "-I", "-l", "-L", "-o", "-shared", "-W", "-Wl"]
+           
+
 def clang_wrapper(args):
     # Initialize arrays
     subprocess_arr = []
@@ -22,6 +25,8 @@ def clang_wrapper(args):
             link = False
         elif arg == output_name:
             continue
+        elif any(flag in arg for flag in supported_flags):
+            flags.append(arg)
         else:
             print("Unrecognized flag: " + arg + "\n")
             subprocess.call(args[1:])
@@ -37,7 +42,7 @@ def clang_wrapper(args):
     exit_codes = [p.wait() for p in subprocess_arr]
     # Linking all files
     if link:
-        link_args = ["clang", "-o", output_name] + o_file_arr
+        link_args = ["clang", "-o", output_name] + o_file_arr + flags
         subprocess.call(link_args)
     
         

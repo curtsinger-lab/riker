@@ -12,7 +12,7 @@ mv src/liblzma/check/crc64_tablegen.c src/liblzma/check/crc64_tablegen.c.exclude
 mv src/liblzma/rangecoder/price_tablegen.c src/liblzma/rangecoder/price_tablegen.c.exclude
 
 # Build liblzma.so.5.3.1
-/usr/bin/cc -fPIC -Wl,--version-script=/home/curtsinger/Projects/xz/src/liblzma/liblzma.map -shared -Wl,-soname,liblzma.so.5 -o liblzma.so.5.3.1 $CFLAGS src/common/*.c src/liblzma/*/*.c $INCLUDES
+/usr/bin/cc -fPIC -Wl,--version-script=$PWD/src/liblzma/liblzma.map -shared -Wl,-soname,liblzma.so.5 -o liblzma.so.5.3.1 $CFLAGS src/common/*.c src/liblzma/*/*.c $INCLUDES
 
 # Restore the unbuilt files
 mv src/liblzma/check/crc32_small.c.exclude src/liblzma/check/crc32_small.c
