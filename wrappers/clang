@@ -1,48 +1,73 @@
 #!/usr/bin/env python3
 
-import subprocess, sys, tempfile
+import subprocess, sys, tempfile, os
 
-supported_flags = ["-D", "-f", "-I", "-l", "-L", "-o", "-shared", "-W", "-Wl"]
-           
+supported_flags = ["-D", "-f", "-I", "-l", "-o", "-W", "-pthread"]
+supported_compile_flags = ["-Wl"]
+supported_linker_flags = ["-L", "-shared"]
 
 def clang_wrapper(args):
     # Initialize arrays
     subprocess_arr = []
     c_file_arr = []
     o_file_arr = []
-    flags = []
+    compiler_flags = []
+    linker_flags = []
     link = True
+    temp = True
+    output_name = None
     # Reading the arguments
     for i in range(2, len(args)):
         arg = args[i]
         if arg == "-o":
             output_name = args[i+1]
+            if ".o" in output_name:
+                temp = False
+                link = False
         elif ".c" in arg:
             c_file_arr.append(arg)
         elif ".o" in arg:
             o_file_arr.append(arg)
         elif arg == "-c":
             link = False
-        elif arg == output_name:
+        elif (output_name is not None) and (arg == output_name):
             continue
+        elif any(flag in arg for flag in supported_compile_flags):
+            compiler_flags.append(arg) 
+        elif any(flag in arg for flag in supported_linker_flags):
+            linker_flags.append(arg)
         elif any(flag in arg for flag in supported_flags):
-            flags.append(arg)
+            # for cflag in supported_compile_flags:
+            #     if cflag in arg:
+            #         continue
+            # for lflag in supported_linker_flags:
+            #     if lflag in arg:
+            #         continue
+            compiler_flags.append(arg)
+            linker_flags.append(arg)
+        
         else:
+            path = os.environ['PATH']
+            path.split(":", 1)
+            os.environ['PATH'] = path
             print("Unrecognized flag: " + arg + "\n")
             subprocess.call(args[1:])
             quit
     # Compiling c files 
-    tmp = tempfile.TemporaryDirectory()
+    if temp:
+        tmp = tempfile.TemporaryDirectory()
     for arg in c_file_arr:
         o_file = arg
-        o_file = tmp.name + '/' + o_file[0:-1] + 'o'
+        o_file = o_file[0:-1] + 'o'
+        if temp:
+            o_file = tempfile.mkstemp(suffix=".o", dir=tmp.name)[1]
         o_file_arr.append(o_file)
-        compile_args = ["clang", "-c", "-o", o_file, arg] + flags
+        compile_args = ["clang", "-c", "-o", o_file, arg, "-fPIC"] + compiler_flags
         subprocess_arr.append(subprocess.Popen(compile_args))
     exit_codes = [p.wait() for p in subprocess_arr]
     # Linking all files
     if link:
-        link_args = ["clang", "-o", output_name] + o_file_arr + flags
+        link_args = ["clang", "-o", output_name] + o_file_arr + linker_flags
         subprocess.call(link_args)
     
         
