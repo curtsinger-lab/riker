@@ -24,9 +24,9 @@ def clang_wrapper(args):
             if ".o" in output_name:
                 temp = False
                 link = False
-        elif ".c" in arg:
+        elif ".c" == arg[-2:]:
             c_file_arr.append(arg)
-        elif ".o" in arg:
+        elif ".o" == arg[-2:]:
             o_file_arr.append(arg)
         elif arg == "-c":
             link = False
