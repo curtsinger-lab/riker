@@ -7,10 +7,10 @@ supported_compile_flags = []
 supported_linker_flags = ["-L", "-shared", "-Wl", "-l"]
 
 def clang_wrapper(args):
-    print("Using our Clang wrapper.")
+    print("Using our Clang++ wrapper.")
     # Initialize arrays
     subprocess_arr = []
-    c_file_arr = []
+    cpp_file_arr = []
     o_file_arr = []
     compiler_flags = []
     linker_flags = []
@@ -24,8 +24,8 @@ def clang_wrapper(args):
             if ".o" in output_name:
                 temp = False
                 link = False
-        elif ".c" == arg[-2:]:
-            c_file_arr.append(arg)
+        elif (".cc" == arg[-3:]) or (".cpp" == arg[-4:]) or (".c++" == arg[-4:]):
+            cpp_file_arr.append(arg)
         elif (output_name is not None) and (arg == output_name):
             continue
         elif ".o" == arg[-2:]:
@@ -56,13 +56,13 @@ def clang_wrapper(args):
     # Compiling c files 
     if temp:
         tmp = tempfile.TemporaryDirectory()
-    for arg in c_file_arr:
+    for arg in cpp_file_arr:
         o_file = arg
         o_file = o_file[0:-1] + 'o'
         if temp:
             o_file = tempfile.mkstemp(suffix=".o", dir=tmp.name)[1]
         o_file_arr.append(o_file)
-        compile_args = ["clang", "-c", "-o", o_file, arg] + compiler_flags
+        compile_args = ["clang++", "-c", "-o", o_file, arg] + compiler_flags
         #print(compile_args)
         subprocess_arr.append(subprocess.Popen(compile_args))
     exit_codes = any((p.wait() != 0) for p in subprocess_arr)
@@ -71,7 +71,7 @@ def clang_wrapper(args):
         print(exit_codes)
     else:
         if link:
-            link_args = ["clang", "-o", output_name] + o_file_arr + linker_flags
+            link_args = ["clang++", "-o", output_name] + o_file_arr + linker_flags
             subprocess.call(link_args)
     
         
