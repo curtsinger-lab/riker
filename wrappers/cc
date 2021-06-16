@@ -2,16 +2,22 @@
 
 import subprocess, sys, tempfile, os
 
-supported_flags = ["-D", "-f", "-I", "-o", "-W", "-pthread"]
+paths = os.environ['PATH']
+path_arr = paths.split(":")
+for path in path_arr:
+    if "wrappers" in path: 
+        path_arr.remove(path)
+#print(":".join(path_arr))
+os.environ['PATH'] = ":".join(path_arr)
+
+supported_flags = ["-D", "-f", "-I", "-o", "-W", "-pthread", "-g", "-M", "-O", "-std", "--std", "-pedantic", "-m"]
 supported_compile_flags = []
-supported_linker_flags = ["-L", "-shared", "-Wl", "-l"]
+supported_linker_flags = ["-L", "-shared", "-Wl", "-l", "-r", "../deps/"]
 
 def clang_wrapper(args):
     # print("Using our Clang wrapper.")
     # Determine compiler and whether we are using C++
     compiler = args[0].split("/")[-1]
-    #print(compiler)
-    #quit()
     is_cpp = False
     if compiler == "clang" or compiler == "gcc" or compiler == "cc":
         is_cpp = False
@@ -32,18 +38,11 @@ def clang_wrapper(args):
     for i in range(1, len(args)):
         arg = args[i]
         if arg == "-nowrapper":
-            paths = os.environ['PATH']
-            path_arr = paths.split(":")
-            for path in path_arr:
-                if "wrappers" in path: 
-                    path_arr.remove(path)
-            os.environ['PATH'] = ":".join(path_arr)
             # print("Not using wrapper.")
             mod_args = [compiler] + args[1:]
             mod_args.remove("-nowrapper")
-            # print(mod_args)
             subprocess.call(mod_args)
-            quit
+            quit()
         elif arg == "-o":
             output_name = args[i+1]
             if ".o" in output_name:
@@ -74,24 +73,11 @@ def clang_wrapper(args):
             linker_flags.append(arg)
         
         else:
-            paths = os.environ['PATH']
-            path_arr = paths.split(":")
-            for path in path_arr:
-                if "wrappers" in path: 
-                    path_arr.remove(path)
-            #print(":".join(path_arr))
-            os.environ['PATH'] = ":".join(path_arr)
             print("Unrecognized flag: " + arg + "\n")
-            subprocess.call(args)
-            quit
+            mod_args = [compiler] + args[1:]
+            subprocess.call(mod_args)
+            quit()
     # Compiling c files 
-    paths = os.environ['PATH']
-    path_arr = paths.split(":")
-    for path in path_arr:
-        if "wrappers" in path: 
-            path_arr.remove(path)
-    #print(":".join(path_arr))
-    os.environ['PATH'] = ":".join(path_arr)
     if temp:
         tmp = tempfile.TemporaryDirectory()
     for arg in c_file_arr:
@@ -101,7 +87,6 @@ def clang_wrapper(args):
             o_file = tempfile.mkstemp(suffix=".o", dir=tmp.name)[1]
         o_file_arr.append(o_file)
         compile_args = [compiler, "-c", "-o", o_file, arg] + compiler_flags
-        #print(compile_args)
         subprocess_arr.append(subprocess.Popen(compile_args))
     exit_codes = any((p.wait() != 0) for p in subprocess_arr)
     # Linking all files
