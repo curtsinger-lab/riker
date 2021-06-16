@@ -568,14 +568,19 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // Add the injected library to the environment
     if (options::inject_tracing_lib) {
-      std::string ld_preload =
-          (readlink("/proc/self/exe").parent_path() / "clang").string();
-      ld_preload += (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
+      std::string ld_preload = (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
       if (char* old_ld_preload = getenv("LD_PRELOAD"); old_ld_preload != NULL) {
         ld_preload += ":" + std::string(old_ld_preload);
       }
       setenv("LD_PRELOAD", ld_preload.c_str(), 1);
     }
+
+    std::string path =
+      (readlink("/proc/self/exe").parent_path() / "wrappers").string();
+    if (char* old_path = getenv("PATH"); old_path != NULL) {
+      path += ":" + std::string(old_path);
+    }
+    setenv("PATH", path.c_str(), 1);
 
     // TODO: explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();
