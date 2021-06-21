@@ -50,7 +50,7 @@ class AccessType {
     }
   }
 
-  constexpr AccessType intersect(const AccessType& other) const noexcept {
+  AccessType intersect(const AccessType& other) const noexcept {
     ASSERT(_rc_file == SUCCESS || other._rc_file == SUCCESS || _rc_file == other._rc_file)
         << "Conflicting outcomes for file artifact";
 

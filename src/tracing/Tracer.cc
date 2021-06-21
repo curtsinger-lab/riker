@@ -569,7 +569,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     // Add the injected library to the environment
     if (options::inject_tracing_lib) {
       std::string ld_preload =
-          (readlink("/proc/self/exe").parent_path() / "rkr-inject.so").string();
+          (readlink("/proc/self/exe").parent_path() / "share/rkr/rkr-inject.so").string();
       if (char* old_ld_preload = getenv("LD_PRELOAD"); old_ld_preload != NULL) {
         ld_preload += ":" + std::string(old_ld_preload);
       }
