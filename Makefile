@@ -35,9 +35,9 @@ BLAKE_OBJS := $(patsubst $(BLAKE3)/%.c, .obj/blake3/%.o, $(BLAKE_SRCS))
 all: rkr rkr-launch rkr-inject.so
 
 clean:
-	rm -rf rkr rkr-launch .obj .rkr
+	rm -rf rkr rkr-launch rkr-inject.so .obj .rkr
 
-.PHONY: all clean test selftest
+.PHONY: all clean test
 
 .SUFFIXES:
 
@@ -50,7 +50,6 @@ $(OBJS): .obj/%.o: src/%.cc Makefile
 
 rkr-launch: launch/launch.c Makefile
 	$(CC) $(CFLAGS) -o $@ $<
-	strip $@
 
 rkr-inject.so: inject/inject.c Makefile
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $< -ldl
@@ -66,10 +65,5 @@ $(BLAKE_OBJS):: .obj/blake3/%.o: $(BLAKE3)/%.c Makefile
 
 test: rkr rkr-launch
 	@./runtests.py
-
-selftest: rkr
-	@echo "Running self test"
-	@rm -f .rkr
-	./rkr
 
 -include $(DEPS)
