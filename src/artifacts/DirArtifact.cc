@@ -256,7 +256,8 @@ void DirArtifact::cacheAll(fs::path path) const noexcept {
 
 /// A traced command is about to (possibly) read from this artifact
 void DirArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  // Do nothing before a read
+  // Create a dependency on the content of this directory
+  getContent(c);
 }
 
 /// A traced command just read from this artifact
