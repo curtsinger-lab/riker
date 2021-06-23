@@ -87,11 +87,11 @@ $(RKR_DEBUG_OBJS) $(RKR_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
 
-$(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: launch/launch.c Makefile
+$(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: src/rkr-launch/launch.c Makefile
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: inject/inject.c Makefile
+$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: src/inject/inject.c Makefile
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $< -ldl
 
