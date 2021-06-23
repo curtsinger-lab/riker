@@ -6,7 +6,7 @@ Clean up any leftover state
   $ cp input1 input
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ((sort)|(uniq)) (re)
@@ -22,7 +22,7 @@ Now remove the output file
   $ rm output
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat output
@@ -31,7 +31,7 @@ Check the output
   c
 
 Rebuild again, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the output is unchanged
   $ cat output

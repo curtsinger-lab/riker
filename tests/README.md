@@ -67,7 +67,7 @@ You will see test output printed directly in the console:
 +++ tests/buildfile/01-sh-Rikerfile.t.err
 @@ -41,8 +41,8 @@
  Run a build, which should fail
-   $ $RKR --show
+   $ rkr --show
    rkr-launch
 -  Unable to access Rikerfile.
 -    This file must be directly executable or runnable with /bin/sh.
@@ -128,7 +128,7 @@ Currently, `rkr` prints out all commands it runs to `stdout`. This may change (a
 
 ```
 Run a rebuild. We should compile to assembly, then stop.
-  $ $RKR
+  $ rkr
   .*/cc1 .* (re)
   rm .*\.s (re)
 ```
@@ -140,7 +140,7 @@ We will expect `rkr` to fail in some test cases. To check for this, you can writ
 
 ```
 Check for error when missing Rikerfile
-  $ $RKR
+  $ rkr
   Unable to access Rikerfile, which is required for the build.
   See http://riker.sh for instructions.
   [1]

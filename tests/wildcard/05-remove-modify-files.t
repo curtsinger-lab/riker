@@ -10,7 +10,7 @@ Prepare for a clean run
   $ cp versions/c-original.c c.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o program a.c b.c c.c main.c
@@ -37,7 +37,7 @@ Remove a.c and modify b.c
   $ cp versions/b-modified.c b.c
 
 Run a rebuild. This should reinvoke Rikerfile and gcc to capture the change in directory contents, then rebuild b.c and relink
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   gcc -o program b.c c.c main.c
   cc1 * (glob)
@@ -52,14 +52,14 @@ Check the output
   Hello from c.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now modify both b.c and c.c
   $ cp versions/b-original.c b.c
   $ cp versions/c-modified.c c.c
 
 Run a rebuild. This should recompile b.c and c.c, then relink
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   cc1 * (glob)
   as * (glob)
@@ -73,14 +73,14 @@ Check the output
   Goodbye from c.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now remove c.c and modify b.c again
   $ cp versions/b-modified.c b.c
   $ rm c.c
 
 Run a rebuild. This should rerun Rikerfile and gcc to capture the change in wildcard match. Then recompile b.c and relink.
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   gcc -o program b.c main.c
   cc1 * (glob)
@@ -94,7 +94,7 @@ Check the output
   Goodbye from b.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

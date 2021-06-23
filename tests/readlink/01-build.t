@@ -15,7 +15,7 @@ Make sure link is a symlink to "HELLO"
   $ ln -s HELLO link
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   readlink link
@@ -28,7 +28,7 @@ Check the output
   $ cat output2
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output1

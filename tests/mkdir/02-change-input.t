@@ -8,7 +8,7 @@ Prepare for a clean run. Create an empty output file for now, so rebuilding work
   $ echo "Hello" > input
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   mkdir foo
@@ -24,7 +24,7 @@ Change the input file
   $ echo "Goodbye" > input
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   cat input
 
 Check the output
@@ -32,7 +32,7 @@ Check the output
   Goodbye
 
 Run an additional rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

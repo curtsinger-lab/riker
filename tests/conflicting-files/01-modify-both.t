@@ -11,7 +11,7 @@ Clean up any leftover state
   $ cp versions/goodbye-original.c goodbye.c
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c goodbye.c
@@ -28,7 +28,7 @@ Run the hello executable
   Goodbye.
 
 Run a rebuild, which should do nothing.
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the hello executable still works
   $ ./hello
@@ -40,7 +40,7 @@ Now modify both .c files
   $ cp versions/goodbye-modified.c goodbye.c
 
 Now run a rebuild, which should rerun both cc1 commands, both as commands, and the linker
-  $ $RKR --show
+  $ rkr --show
   [^ ]*cc1 .* (re)
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)

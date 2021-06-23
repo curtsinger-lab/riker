@@ -9,7 +9,7 @@ Set up the inptu file
   $ echo "Hello" > input
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ln -s input A
@@ -23,7 +23,7 @@ Make sure the output is in place
   Hello
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

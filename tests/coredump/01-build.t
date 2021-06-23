@@ -8,7 +8,7 @@ Prepare for a clean run
   $ clang -g -o abort abort.c
 
 Run the abort program; riker should eventually print 'core exists' and not die beforehand
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./abort

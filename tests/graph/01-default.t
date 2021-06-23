@@ -5,10 +5,10 @@ Clean up any previous build
   $ rm -rf .rkr output out.png
 
 Run a build
-  $ $RKR
+  $ rkr
 
 Generate graph output
-  $ $RKR graph
+  $ rkr graph
 
 Check for the rendered build graph
   $ file out.png

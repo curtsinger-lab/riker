@@ -8,7 +8,7 @@ Prepare for a clean run. Create an empty output file for now, so rebuilding work
   $ echo "Hello" > input
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   mkdir foo
@@ -25,14 +25,14 @@ Change the output file. Sleep first to make sure the output file's mtime changes
   $ echo "OUTPUT" > output
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat output
   Hello
 
 Run an additional rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

@@ -6,7 +6,7 @@ Prepare for a clean run
   $ cp versions/hello-original.c hello.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c
@@ -24,7 +24,7 @@ Stage in a broken version of the source file
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun.
 The gcc command fails, which forces a rerun of Rikerfile as well.
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:4:27: error: expected ';' before 'return'
@@ -41,7 +41,7 @@ Stage in a working version of the source file
 
 Run a rebuild. This will rerun cc1, which now succeeds. That forces gcc to rerun.
 The gcc command now succeeds, which forces a rerun of Rikerfile as well.
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c
   as * (glob)
@@ -54,7 +54,7 @@ Run the target
   Hello world.
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

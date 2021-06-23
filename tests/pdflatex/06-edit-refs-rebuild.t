@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $RKR --show --fingerprint all
+  $ rkr --show --fingerprint all
   rkr-launch
   Rikerfile
   pdflatex main.tex
@@ -21,12 +21,12 @@ Copy in a version with edited text (no reference changes)
   $ cp main-edited-ref.tex main.tex
 
 Run a rebuild. Both pdflatexs must run because references changed.
-  $ $RKR --show --fingerprint all
+  $ rkr --show --fingerprint all
   pdflatex main.tex
   pdflatex main.tex
 
 Run a rebuild (should do nothing)
-  $ $RKR --show --fingerprint all
+  $ rkr --show --fingerprint all
 
 Clean up
   $ rm -rf .rkr

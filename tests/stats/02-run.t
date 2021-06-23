@@ -2,7 +2,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./A
@@ -11,7 +11,7 @@ Run the build
   cat inputB
 
 Verify the output is correct
-  $ $RKR stats
+  $ rkr stats
   Build Statistics: (re)
     Commands: [0-9]+ (re)
     Steps: [0-9]+ (re)
@@ -19,7 +19,7 @@ Verify the output is correct
     Artifact Versions: [0-9]+ (re)
 
 Verify the -a output is correct
-  $ $RKR stats -a | head -n 8
+  $ rkr stats -a | head -n 8
   Build Statistics:
     Commands: [0-9]+ (re)
     Steps: [0-9]+ (re)

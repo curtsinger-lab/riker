@@ -15,7 +15,7 @@ Make sure link is a symlink to "HELLO"
   $ ln -s HELLO link
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   readlink link
@@ -32,7 +32,7 @@ Change the link destination
   $ ln -s ADIOS link
 
 Rerun the build
-  $ $RKR --show
+  $ rkr --show
   readlink link
 
 Check the output
@@ -41,7 +41,7 @@ Check the output
   $ cat output2
 
 Rebuild again, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output1

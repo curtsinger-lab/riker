@@ -14,7 +14,7 @@ Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -c -o hello.o hello.c
@@ -32,7 +32,7 @@ Edit the source file
   $ cp file_versions/hello-modified.c hello.c
 
 Run a rebuild, which should rerun cc1, as, and ld
-  $ $RKR --show
+  $ rkr --show
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
   [^ ]*ld .* (re)
@@ -42,7 +42,7 @@ Make sure the hello executable has been updated
   Goodbye world
 
 Run an additional rebuild, which should now do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr hello.o hello Rikerfile

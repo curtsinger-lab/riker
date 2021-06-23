@@ -9,7 +9,7 @@ Set up the inptu file
   $ echo "Hello" > input
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ln -s input A
@@ -26,7 +26,7 @@ Now change input
   $ echo "Goodbye" > input
 
 Run a rebuild, which only needs to rerun cat
-  $ $RKR --show
+  $ rkr --show
   cat A
 
 Check the output

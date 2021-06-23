@@ -10,7 +10,7 @@ Prepare for a clean run
   $ make clean all > /dev/null
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./parent
@@ -26,7 +26,7 @@ Change the parent's input
   $ echo "Goodbye parent" > parent_input
 
 Run a rebuild, which should run only the parent command
-  $ $RKR --show
+  $ rkr --show
   ./parent
 
 Check the output
@@ -36,7 +36,7 @@ Check the output
   Hello child
 
 Run a rebuild again
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat parent_output

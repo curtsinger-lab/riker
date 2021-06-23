@@ -20,7 +20,7 @@ do
     mkdir test
     cp Rikerfile stress test/
     cd test
-    $RKR --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-empty.txt 2>&1
+    rkr --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-empty.txt 2>&1
     cd ..
     rm -rf test
     
@@ -29,7 +29,7 @@ do
     cp Rikerfile stress test/
     cd test
     touch file
-    $RKR --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-file.txt 2>&1
+    rkr --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-file.txt 2>&1
     cd ..
     rm -rf test
 
@@ -38,7 +38,7 @@ do
     cp Rikerfile stress test/
     cd test
     mkdir file
-    $RKR --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-dir.txt 2>&1
+    rkr --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-dir.txt 2>&1
     cd ..
     rm -rf test
 
@@ -48,7 +48,7 @@ do
     cd test
     touch phile
     ln -s phile file
-    $RKR --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-symlink.txt 2>&1
+    rkr --debug --log trace,ir --args $i > ../$LOGDIR/log-$i-symlink.txt 2>&1
     cd ..
     rm -rf test
 done

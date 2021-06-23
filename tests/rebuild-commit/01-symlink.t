@@ -11,7 +11,7 @@ Setup
   $ cp Rikerfile-1 Rikerfile
 
 Run riker
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   touch a_file
@@ -29,7 +29,7 @@ Check the output
    Birth:.* (re)
 
 Run a rebuild, which should do nothing, and more importantly, not die
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr a_file a_link Rikerfile

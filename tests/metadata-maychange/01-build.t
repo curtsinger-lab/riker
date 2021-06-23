@@ -14,14 +14,14 @@ Compile a and b
   $ clang -o b b.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./a
   ./b
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr a b

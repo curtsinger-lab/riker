@@ -12,7 +12,7 @@ Prepare for a clean run
   $ umask 002
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./creat-dir-open
@@ -32,7 +32,7 @@ Remove outcome
   $ rm outcome
 
 Run the second build
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr creat-dir-open outcome

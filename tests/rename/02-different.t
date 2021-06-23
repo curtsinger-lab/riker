@@ -13,7 +13,7 @@ Create file1 and file2
   $ touch file1 file2
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./test

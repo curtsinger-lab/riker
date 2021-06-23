@@ -14,7 +14,7 @@ Create file1 and file2
   $ touch file1 file2
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./test
@@ -25,7 +25,7 @@ Recreate file1 and file2
   $ touch file1 file2
 
 Run another build
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr file1 file2 test

@@ -9,7 +9,7 @@ Prepare for a clean run
   $ mkdir -p mydir
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./openat-directory

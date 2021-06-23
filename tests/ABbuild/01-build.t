@@ -9,7 +9,7 @@ Prepare for a clean run
   $ echo " world" > inputB
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./A
@@ -22,7 +22,7 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat myfile

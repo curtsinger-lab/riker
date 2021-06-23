@@ -7,7 +7,7 @@ Prepare for a clean run
   $ rm -rf .rkr f
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   touch f
@@ -19,7 +19,7 @@ Remove the output
   $ rm f
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat f

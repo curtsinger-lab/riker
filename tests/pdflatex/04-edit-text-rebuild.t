@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   pdflatex main.tex
@@ -21,12 +21,12 @@ Copy in a version with edited text (no reference changes)
   $ cp main-edited-text.tex main.tex
 
 Run a rebuild. If we could determine that the second pdflatex invocation is equivalent to the first we could skip it, but that's future work.
-  $ $RKR --show
+  $ rkr --show
   pdflatex main.tex
   pdflatex main.tex
 
 Run a rebuild (should do nothing)
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

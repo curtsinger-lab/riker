@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $RKR --fingerprint all --show
+  $ rkr --fingerprint all --show
   rkr-launch
   Rikerfile
   pdflatex main.tex
@@ -18,7 +18,7 @@ Check for the output pdf
   main.pdf: PDF document, * (glob)
 
 Run a rebuild (should do nothing)
-  $ $RKR --fingerprint all --show
+  $ rkr --fingerprint all --show
 
 Clean up
   $ rm -rf .rkr

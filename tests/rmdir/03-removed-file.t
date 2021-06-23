@@ -10,7 +10,7 @@ Prepare for a clean run
   $ touch foo/b
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   rm foo/a
@@ -22,7 +22,7 @@ Recreate the input, but leave out the b file
   $ touch foo/a
 
 Run a rebuild. The `rm foo/b` command has to run because `foo/b` no longer exists. Its exit code changes, forcing a rerun of `Rikerfile`.
-  $ $RKR --show
+  $ rkr --show
   rm foo/b
   rm: cannot remove 'foo/b': No such file or directory
   Rikerfile

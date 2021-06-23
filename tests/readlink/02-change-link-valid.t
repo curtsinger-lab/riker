@@ -14,7 +14,7 @@ Make sure link is a symlink to "HELLO"
   $ ln -s HELLO link
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   readlink link
@@ -31,7 +31,7 @@ Change the link destination
   $ ln -s GOODBYE link
 
 Rerun the build. The Rikerfile command has to run because the child commands change exit status
-  $ $RKR --show
+  $ rkr --show
   readlink link
   cat link
   Rikerfile
@@ -43,7 +43,7 @@ Check the output
   FAREWELL
 
 Rebuild again, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output1

@@ -5,7 +5,7 @@ Cleanup
   $ rm -rf myfile stats.csv .rkr
 
 Run riker
-  $ $RKR --show --stats stats.csv
+  $ rkr --show --stats stats.csv
   rkr-launch
   Rikerfile
   touch myfile
@@ -19,7 +19,7 @@ Look at the first column of the output
   "3"
 
 Run a rebuild
-  $ $RKR --show --stats stats.csv
+  $ rkr --show --stats stats.csv
 
 Look at the first column of the output again
   $ awk -F "," '{ print $1 }' stats.csv

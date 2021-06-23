@@ -9,7 +9,7 @@ Prepare for a clean run
   $ echo world > world.txt
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cat hello.txt world.txt
@@ -23,7 +23,7 @@ Now remove the output file
   $ rm output
 
 Run a rebuild, which should copy the output file from cache
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat output
@@ -34,7 +34,7 @@ Remove the output again
   $ rm output
 
 Run a rebuild, this time without caching
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
   cat hello.txt world.txt
 
 Check the output
@@ -43,7 +43,7 @@ Check the output
   world
 
 Run a final rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 And check the final output
   $ cat output

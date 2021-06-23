@@ -8,7 +8,7 @@ Prepare for a clean run
   $ rm -f a.c b.c c.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o program main.c
@@ -25,7 +25,7 @@ Add a.c
   $ cp versions/a-original.c a.c
 
 Run a rebuild. This should reinvoke Rikerfile and gcc to capture the new file.
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   gcc -o program a.c main.c
   cc1 * (glob)
@@ -39,7 +39,7 @@ Check the output
   Hello from a.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now modify a.c and add b.c and c.c
   $ cp versions/a-modified.c a.c
@@ -47,7 +47,7 @@ Now modify a.c and add b.c and c.c
   $ cp versions/c-original.c c.c
 
 Run a rebuild. This should rerun Rikerfile and gcc to capture the new files, recompile a.c, and add cc1 and as invokations for b.c and c.c
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   gcc -o program a.c b.c c.c main.c
   cc1 * (glob)
@@ -67,14 +67,14 @@ Check the output
   Hello from c.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now modify b.c and c.c
   $ cp versions/b-modified.c b.c
   $ cp versions/c-modified.c c.c
 
 Run a rebuild. This should just recompile b.c and c.c, then relink
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   cc1 * (glob)
   as * (glob)
@@ -89,7 +89,7 @@ Check the output
   Goodbye from c.
 
 Rebuilding should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

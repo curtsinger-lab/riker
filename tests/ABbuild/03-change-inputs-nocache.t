@@ -9,7 +9,7 @@ Prepare for a clean run
   $ echo " world" > inputB
 
 Run the first build
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
   rkr-launch
   Rikerfile
   ./A
@@ -22,7 +22,7 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
 
 Check the output
   $ cat myfile
@@ -32,7 +32,7 @@ Change inputA
   $ echo -n "goodbye" > inputA
 
 Run a rebuild
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
   cat inputA
   cat inputB
 
@@ -41,13 +41,13 @@ Check the output
   goodbye world
 
 Run another rebuild, which should do nothing now
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
 
 Change inputB
   $ echo " frodo" > inputB
 
 Run a rebuild
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
   cat inputA
   cat inputB
 
@@ -56,7 +56,7 @@ Check the output
   goodbye frodo
 
 Run another rebuild, which should do nothing
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
 
 Check the output again
   $ cat myfile

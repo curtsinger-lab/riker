@@ -9,7 +9,7 @@ Prepare for a clean run
   $ echo " world" > inputB
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./A
@@ -22,7 +22,7 @@ Check the output
   hello world
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat myfile
@@ -32,7 +32,7 @@ Remove the output file
   $ rm myfile
 
 Run a rebuild, which should do nothing except restore the file from the cache
-  $ $RKR --show
+  $ rkr --show
 
 The output file should be back (from the cache)
   $ cat myfile

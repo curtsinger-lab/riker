@@ -8,7 +8,7 @@ Prepare for a clean run
   $ echo Hello > input
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   mkdir working_dir
@@ -24,7 +24,7 @@ Remove the output file
   $ rm output
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat output
@@ -34,7 +34,7 @@ Remove the output file again
   $ rm output
 
 Run a rebuild without caching
-  $ $RKR --show --no-caching
+  $ rkr --show --no-caching
   cat ../input
 
 Check the output
@@ -43,7 +43,7 @@ Check the output
 
 Run an additional rebuild, which will need to rerun cat ../input
 TODO: Falling back to a hash of the committed state breaks because we don't compare hashes at commit time. Once that's working this run should do nothing.
-  $ $RKR --show
+  $ rkr --show
   cat ../input
 
 Check the output again
@@ -51,7 +51,7 @@ Check the output again
   Hello
 
 Run one additional rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

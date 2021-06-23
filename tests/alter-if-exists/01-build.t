@@ -12,7 +12,7 @@ Prepare for a clean run
   $ clang conditional-maker.c -o conditional-maker
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./conditional-maker
@@ -23,7 +23,7 @@ Check the contents of a_file
   hello
 
 Run the second build
-  $ $RKR --show
+  $ rkr --show
 
 Check the contents of the file
   $ cat a_file

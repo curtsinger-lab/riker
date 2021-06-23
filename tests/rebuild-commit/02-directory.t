@@ -11,7 +11,7 @@ Setup
   $ cp Rikerfile-2 Rikerfile
 
 Run riker
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   mkdir a_dir
@@ -28,7 +28,7 @@ Check the output
    Birth:.* (re)
 
 Run a rebuild, which should do nothing, and more importantly, not die
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr a_dir Rikerfile

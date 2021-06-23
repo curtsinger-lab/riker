@@ -9,7 +9,7 @@ Prepare for a clean run
   $ echo world > world.txt
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cat hello.txt world.txt
@@ -23,7 +23,7 @@ Now change an input file
   $ echo goodbye > hello.txt
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   cat hello.txt world.txt
 
 Check the output
@@ -32,7 +32,7 @@ Check the output
   world
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

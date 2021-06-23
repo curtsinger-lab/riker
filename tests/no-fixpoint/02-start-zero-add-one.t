@@ -8,7 +8,7 @@ Prepare for a clean run
   $ rm -rf .rkr *.num
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
@@ -20,7 +20,7 @@ Now create an additional file, which changes an input to the build
   $ touch 1.num
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
   ((ls -1)|(grep \.num)|(wc -l)) (re)
@@ -28,7 +28,7 @@ Run a rebuild
   touch 2.num
 
 Run an additional rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr *.num

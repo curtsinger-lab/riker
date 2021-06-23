@@ -15,7 +15,7 @@ Set up the file1 and file2 links
   $ ln file1 file2
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./test
@@ -25,7 +25,7 @@ Recreate file2 as a hard link to file1
   $ ln file1 file2
 
 Run another build
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr file1 file2 test

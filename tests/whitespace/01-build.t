@@ -11,7 +11,7 @@ This step is necessary because gcc stores input file names in assembler output
   $ cp hello.no_ws.c hello.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cc1 .* (re)
@@ -24,7 +24,7 @@ Prepare for the second run
   $ cp hello.ws.c hello.c
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   cc1 .* (re)
 
 The two files should be the same

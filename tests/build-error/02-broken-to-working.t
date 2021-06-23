@@ -6,7 +6,7 @@ Prepare for a clean run
   $ cp versions/hello-broken.c hello.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c
@@ -25,14 +25,14 @@ Check the output
   [1]
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Stage in a working version of the source file
   $ cp versions/hello-original.c hello.c
 
 Run a rebuild. This will rerun cc1, which now succeeds. That forces gcc to rerun.
 The gcc command now succeeds, which forces a rerun of Rikerfile as well.
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c
   as * (glob)
@@ -45,7 +45,7 @@ Run the target
   Hello world.
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

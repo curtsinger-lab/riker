@@ -5,24 +5,24 @@ Clean up any previous build
   $ rm -rf .rkr output out.png out.pdf out.jpg
 
 Run a build
-  $ $RKR
+  $ rkr
 
 Generate graph output in png format
-  $ $RKR graph --type png
+  $ rkr graph --type png
 
 Check for the rendered build graph
   $ file out.png
   out.png: PNG image.* (re)
 
 Generate graph output in pdf form
-  $ $RKR graph --type pdf
+  $ rkr graph --type pdf
 
 Check for the rendered build graph
   $ file out.pdf
   out.pdf: PDF document.* (re)
 
 Generate graph output in jpg form
-  $ $RKR graph --type jpg
+  $ rkr graph --type jpg
 
 Check for the rendered build graph
   $ file out.jpg

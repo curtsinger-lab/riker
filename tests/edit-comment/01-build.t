@@ -8,7 +8,7 @@ Prepare for a full build
   $ cp versions/hello-original.c hello.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c
@@ -22,7 +22,7 @@ Check the output
   Hello world!
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ ./hello
@@ -32,7 +32,7 @@ Edit the file, modifying only a comment
   $ cp versions/hello-comment1.c hello.c
 
 Run a rebuild, which should run cc1 and then stop
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
 
 Check the output
@@ -40,7 +40,7 @@ Check the output
   Hello world!
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ ./hello
@@ -50,7 +50,7 @@ Edit the comment a second time
   $ cp versions/hello-comment2.c hello.c
 
 Run a rebuild, which should run cc1 and then stop
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
 
 Check the output
@@ -58,7 +58,7 @@ Check the output
   Hello world!
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ ./hello

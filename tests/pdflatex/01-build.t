@@ -7,7 +7,7 @@ Clean up any leftover state
   $ cp main-original.tex main.tex
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   pdflatex main.tex

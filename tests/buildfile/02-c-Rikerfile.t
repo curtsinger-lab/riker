@@ -8,7 +8,7 @@ Prepare for a the build
   $ gcc -o Rikerfile c-Rikerfile.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
 
@@ -17,13 +17,13 @@ Check the output
   Hello from C
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now make the build file unreadable as well
   $ chmod a-rx Rikerfile
 
 Run a build, which should fail
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Unable to launch build file Rikerfile.
     Write build steps in a file named `Rikerfile`.
@@ -33,7 +33,7 @@ Make the Rikerfile readable and executable again
   $ chmod u+rx Rikerfile
 
 Run a build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
 
@@ -42,7 +42,7 @@ Check the output
   Hello from C
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr output Rikerfile

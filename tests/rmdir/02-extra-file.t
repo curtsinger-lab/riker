@@ -10,7 +10,7 @@ Prepare for a clean run
   $ touch foo/b
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   rm foo/a
@@ -24,7 +24,7 @@ Recreate the input, but add an extra file
   $ touch foo/c
 
 Run a rebuild. The `rm foo/a` and `rm foo/b` commands are emulated and committed, but then `rmdir foo` fails. That forces a rerun of `Rikerfile`. When re-emulating `rm foo/a` and `rm foo/b` these commands both have changed predicates and must rerun. They also change error codes and force a second run of Rikerfile.
-  $ $RKR --show
+  $ rkr --show
   rmdir foo
   rmdir: failed to remove 'foo': Directory not empty
   Rikerfile

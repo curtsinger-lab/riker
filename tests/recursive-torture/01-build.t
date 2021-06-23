@@ -12,7 +12,7 @@ Clean up any leftover state
   $ rm -rf .rkr output-*
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   python3 Rikerfile
@@ -25,7 +25,7 @@ Run the build
   [^ ]*python3 build 0 /tmp/cramtests.*/tmp/tmp.* (re)
 
 Rebuild without changing anything, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr rm output-*

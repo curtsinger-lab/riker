@@ -11,7 +11,7 @@ Stage in a broken versions of both source files
   $ cp versions/world-broken.c world.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c world.c
@@ -33,14 +33,14 @@ Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The g
         | ~                    
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Stage in a working versions of both source files
   $ cp versions/hello-working.c hello.c
   $ cp versions/world-working.c world.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   cc1 * (glob)
   gcc -o hello hello.c world.c
@@ -55,7 +55,7 @@ Check the output
   Hello world.
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

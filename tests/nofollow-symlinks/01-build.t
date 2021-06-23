@@ -9,7 +9,7 @@ Prepare for a clean run
   $ clang++ symlink-nofollow.cpp -o symlink-nofollow
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./symlink-nofollow

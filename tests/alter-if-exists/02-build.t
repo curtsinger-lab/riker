@@ -13,7 +13,7 @@ Prepare for a clean run
   $ echo "hello" > a_file
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./conditional-maker
@@ -25,7 +25,7 @@ Check the contents of a_file
   world
 
 Run the second build
-  $ $RKR --show
+  $ rkr --show
 
 Check the contents of the file
   $ cat a_file

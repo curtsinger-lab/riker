@@ -70,10 +70,14 @@ clean-release:
 test: test-debug
 
 test-debug: debug
-	@RKR=$(PWD)/$(DEBUG_DIR)/bin/rkr ./runtests.py
+	@PATH=$(PWD)/$(DEBUG_DIR)/bin:$(PATH) \
+		LD_LIBRARY_PATH=$(PWD)/$(DEBUG_DIR)/lib:$(LD_LIBRARY_PATH) \
+		./runtests.py
 
 test-release: release
-	@RKR=$(PWD)/$(RELEASE_DIR)/bin/rkr ./runtests.py
+	@PATH=$(PWD)/$(RELEASE_DIR)/bin:$(PATH) \
+		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib \
+		./runtests.py
 
 $(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
 $(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_OBJS)

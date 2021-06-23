@@ -9,13 +9,13 @@ Clean up any leftover state
   $ rm -rf .rkr A
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   date
 
 Run the build again (nothing should happen)
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

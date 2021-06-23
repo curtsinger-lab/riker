@@ -9,7 +9,7 @@ Prepare for a the build
   $ chmod u+x Rikerfile
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
 
@@ -18,13 +18,13 @@ Check the output
   Hello
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Make the build file non-executable
   $ chmod a-x Rikerfile
 
 Run a build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
 
@@ -33,13 +33,13 @@ Check the output
   Hello
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Now make the build file unreadable as well
   $ chmod a-r Rikerfile
 
 Run a build, which should fail
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Unable to launch build file Rikerfile.
     Write build steps in a file named `Rikerfile`.
@@ -49,7 +49,7 @@ Make the Rikerfile readable and executable again
   $ chmod u+rx Rikerfile
 
 Run a build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
 
@@ -58,7 +58,7 @@ Check the output
   Hello
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr output Rikerfile

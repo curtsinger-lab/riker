@@ -15,7 +15,7 @@ Set up the file1 and file2 links
   $ ln file1 file2
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./test
@@ -25,7 +25,7 @@ Create file2 as a distinct file
   $ touch file2
 
 Run another build
-  $ $RKR --show
+  $ rkr --show
   ./test
   rename("file1", "file1") failed
   rename("file2", "file2") failed

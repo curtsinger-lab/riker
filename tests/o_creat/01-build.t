@@ -9,7 +9,7 @@ Setup
   $ echo "first" > input
 
 Run riker
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   File created with fd = 4
@@ -19,13 +19,13 @@ Check the output
   Hello world!
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Edit the input file to trigger a rebuild
   $ echo "second" > input
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   Rikerfile
   Error: File exists
 

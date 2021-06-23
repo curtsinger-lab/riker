@@ -8,7 +8,7 @@ Copy in the original version of hello.c
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   make --always-make --quiet
   gcc -o hello hello.c
@@ -22,7 +22,7 @@ Run the hello executable
   Hello world
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the output still works
   $ ./hello

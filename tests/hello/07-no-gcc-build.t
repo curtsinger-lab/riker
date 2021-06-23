@@ -14,7 +14,7 @@ Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cpp hello.c hello.i
@@ -29,7 +29,7 @@ Run the hello executable
   Hello world
 
 Run a rebuild, which should do nothing.
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the hello executable still works
   $ ./hello

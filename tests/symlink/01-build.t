@@ -13,7 +13,7 @@ Make sure link is a symlink to dir1
   $ ln -s dir1 link
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cat input1
@@ -26,7 +26,7 @@ Check the state of dir1/output
   Appended to dir1/output
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat dir1/output

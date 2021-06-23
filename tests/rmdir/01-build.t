@@ -10,7 +10,7 @@ Prepare for a clean run
   $ touch foo/b
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   rm foo/a
@@ -23,7 +23,7 @@ Recreate the input
   $ touch foo/b
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the foo directory does not exist
   $ stat foo

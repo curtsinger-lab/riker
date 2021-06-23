@@ -19,7 +19,7 @@ Stage in working versions of both source files
   $ cp versions/world-working.c world.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c world.c
@@ -31,7 +31,7 @@ Run the first build
   ld * (glob)
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ ./hello
@@ -39,7 +39,7 @@ Check the output
 
 Both working -> Broken hello.c
   $ cp versions/hello-broken.c hello.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:6:19: error: expected ';' before 'print_world'
@@ -54,7 +54,7 @@ Both working -> Broken hello.c
 Broken hello.c -> Broken world.c
   $ cp versions/hello-working.c hello.c
   $ cp versions/world-broken.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   cc1 * (glob)
   world.c: In function 'print_world':
@@ -69,7 +69,7 @@ Broken hello.c -> Broken world.c
 
 Broken world.c -> Both broken
   $ cp versions/hello-broken.c hello.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:6:19: error: expected ';' before 'print_world'
@@ -83,7 +83,7 @@ Broken world.c -> Both broken
 Both broken -> Both working
   $ cp versions/hello-working.c hello.c
   $ cp versions/world-working.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   cc1 * (glob)
   gcc -o hello hello.c world.c
@@ -99,7 +99,7 @@ Check the output
 
 Both working -> Broken world.c
   $ cp versions/world-broken.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   world.c: In function 'print_world':
   world.c:4:21: error: expected ';' before '}' token
@@ -114,7 +114,7 @@ Both working -> Broken world.c
 Broken world.c -> Broken hello.c
   $ cp versions/hello-broken.c hello.c
   $ cp versions/world-working.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:6:19: error: expected ';' before 'print_world'
@@ -129,7 +129,7 @@ Broken world.c -> Broken hello.c
 
 Broken hello.c -> Both broken
   $ cp versions/world-broken.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   world.c: In function 'print_world':
   world.c:4:21: error: expected ';' before '}' token
@@ -142,14 +142,14 @@ Broken hello.c -> Both broken
 
 Both broken -> Broken hello.c
   $ cp versions/world-working.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c world.c
   as * (glob)
 
 Broken hello.c -> Both working
   $ cp versions/hello-working.c hello.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c world.c
   as * (glob)
@@ -164,7 +164,7 @@ Check the output
 Both working -> Both broken
   $ cp versions/hello-broken.c hello.c
   $ cp versions/world-broken.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:6:19: error: expected ';' before 'print_world'
@@ -186,14 +186,14 @@ Both working -> Both broken
 
 Both broken -> Broken world.c
   $ cp versions/hello-working.c hello.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c world.c
   as * (glob)
 
 Broken world.c -> Both working
   $ cp versions/world-working.c world.c
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   gcc -o hello hello.c world.c
   as * (glob)

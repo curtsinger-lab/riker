@@ -5,10 +5,10 @@ Clean up any previous build
   $ rm -rf .rkr output out.dot out.png
 
 Run a build
-  $ $RKR
+  $ rkr
 
 Generate graph output in unrendered dot format
-  $ $RKR graph --no-render
+  $ rkr graph --no-render
 
 Now render the graph with graphviz
   $ dot -Tpng out.dot > out.png

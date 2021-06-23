@@ -10,7 +10,7 @@ Prepare for a clean run
   $ make clean all > /dev/null
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./parent
@@ -23,7 +23,7 @@ Check the output
   Hello child
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output
   $ cat parent_output

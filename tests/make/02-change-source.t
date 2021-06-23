@@ -8,7 +8,7 @@ Copy in the original version of hello.c
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   make --always-make --quiet
   gcc -o hello hello.c
@@ -25,7 +25,7 @@ Edit the hello.c file
   $ cp file_versions/hello-modified.c hello.c
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   as * (glob)
   ld * (glob)
@@ -35,7 +35,7 @@ Make sure the build worked
   Goodbye world
 
 Run another rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Make sure the output is still there
   $ ./hello

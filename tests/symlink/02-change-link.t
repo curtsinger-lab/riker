@@ -13,7 +13,7 @@ Make sure link is a symlink to dir1
   $ ln -s dir1 link
 
 Run the build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   cat input1
@@ -31,7 +31,7 @@ Now change the link to refer to dir2
   $ ln -s dir2 link
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
   cat input3
 
 Check the stat of dir1/output and dir2/output

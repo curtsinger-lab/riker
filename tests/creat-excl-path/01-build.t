@@ -11,7 +11,7 @@ Prepare for a clean run
   $ touch file
 
 Run a build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./stress 8328

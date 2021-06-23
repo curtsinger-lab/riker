@@ -9,7 +9,7 @@ Prepare for a clean run
   $ touch 0.num
 
 Run the first build (note that commands in (re) below race)
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ((ls -1)|(grep \.num)|(wc -l)) (re)
@@ -18,7 +18,7 @@ Run the first build (note that commands in (re) below race)
   touch 1.num
 
 Run the second build-- since nothing WAS changed, nothing SHOULD change
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr *.num

@@ -14,7 +14,7 @@ Create file1 and file2
   $ touch file1 file2
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   sh Rikerfile
   ./test
@@ -26,7 +26,7 @@ Recreate file1 and file2, but this time as links to the same inode
   $ ln file1 file2
 
 Run another build
-  $ $RKR --show
+  $ rkr --show
   ./test
   rename("file2", "file2") failed
 

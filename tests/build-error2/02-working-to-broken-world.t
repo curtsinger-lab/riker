@@ -9,7 +9,7 @@ Prepare for a clean run
   $ cp versions/world-working.c world.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   gcc -o hello hello.c world.c
@@ -25,13 +25,13 @@ Check the output
   Hello world.
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Stage in a broken version of the world.c source file
   $ cp versions/world-broken.c world.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
-  $ $RKR --show
+  $ rkr --show
   cc1 * (glob)
   world.c: In function 'print_world':
   world.c:4:21: error: expected ';' before '}' token
@@ -44,7 +44,7 @@ Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The g
   Rikerfile
 
 Run a rebuild, which should do nothing
-  $ $RKR --show
+  $ rkr --show
 
 Clean up
   $ rm -rf .rkr

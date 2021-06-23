@@ -8,7 +8,7 @@ Prepare for a clean run
   $ echo Hello > input
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   mkdir working_dir
@@ -21,7 +21,7 @@ Check the output
   Hello
 
 Run a rebuild
-  $ $RKR --show
+  $ rkr --show
 
 Check the output again
   $ cat output

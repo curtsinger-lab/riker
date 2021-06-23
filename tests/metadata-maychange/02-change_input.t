@@ -14,7 +14,7 @@ Compile a and b
   $ clang -o b b.c
 
 Run the first build
-  $ $RKR --show
+  $ rkr --show
   rkr-launch
   Rikerfile
   ./a
@@ -24,7 +24,7 @@ Change the contents of a_input
   $ echo "goodbye" > a_input
 
 Check the rebuild plan. We know a must rerun, but b may have to run because a changes its input metadata
-  $ $RKR check
+  $ rkr check
   Commands that must run:
     ./a
   
@@ -32,7 +32,7 @@ Check the rebuild plan. We know a must rerun, but b may have to run because a ch
     ./b
 
 Now run the build. The b command does not need to run because ./a does not change the metadata
-  $ $RKR --show
+  $ rkr --show
   ./a
 
 Clean up
