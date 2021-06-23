@@ -1465,6 +1465,14 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
   LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", this, dfd, getPath(dfd), filename,
        fmt::join(args, "\", \""));
 
+  // If the parent executable is the rkr-wrapper program, do not create a new command.
+  // TODO: Mark the command instead of calling readlink() on every execve attempt.
+  auto parent_exe = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
+  if (parent_exe.parent_path().filename() == "wrappers") {
+    finishSyscall([=](long rc) { resume(); });
+    return;
+  }
+
   // The parent command needs execute access to the exec-ed path
   auto exe_ref_id = makePathRef(filename, ExecAccess, dfd);
 
