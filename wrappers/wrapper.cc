@@ -247,10 +247,10 @@ int clang_wrapper(vector<string> args) {
         for (string linker_flag : linker_flags) {
             link_vec.push_back(linker_flag);
         }
+        vector<char*> link_args;
+        transform(link_vec.begin(), link_vec.end(), back_inserter(link_args), convert);
         if (!print) {
             int stat;
-            vector<char*> link_args;
-            transform(link_vec.begin(), link_vec.end(), back_inserter(link_args), convert);
             if(fork() == 0){
                 std::cout << "start linking" << endl;
                 execv(compiler,  &link_args[0]);
@@ -267,14 +267,17 @@ int clang_wrapper(vector<string> args) {
             }
             //system(&linkstr[0]);
         } else {
-            string linkstr = compiler_str + " -o " + output_name;
-            for (string o_file : o_file_arr) {
-                linkstr += (" " + o_file);
-            } for (string linker_flag : linker_flags) {
-                linkstr += (" " + linker_flag);
+            // string linkstr = compiler_str + " -o " + output_name;
+            // for (string o_file : o_file_arr) {
+            //     linkstr += (" " + o_file);
+            // } for (string linker_flag : linker_flags) {
+            //     linkstr += (" " + linker_flag);
+            // }
+            // //printf("TEST PRINT: %s\n", &linkstr[0]);
+            // std::cout << "TEST PRINT:" << &linkstr[0] << endl;
+            for (char* command : link_args) {
+                std::cout << command << endl;
             }
-            //printf("TEST PRINT: %s\n", &linkstr[0]);
-            std::cout << "TEST PRINT:" << &linkstr[0] << endl;
         }
     }
     for (string o_file : o_file_arr)
@@ -289,7 +292,6 @@ int main(int argc, char* argv[]){
     // Remove wrappers from the PATH
     char * pathC = getenv("PATH");
     vector<string> path_arr;
-    // todo: account for null path
     if (pathC != NULL) {
         string paths = string(pathC);
         // split path into vector using delimiter ':'
