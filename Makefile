@@ -76,7 +76,7 @@ test-debug: debug
 
 test-release: release
 	@PATH=$(PWD)/$(RELEASE_DIR)/bin:$(PATH) \
-		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib \
+		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib:$(LD_LIBRARY_PATH) \
 		./runtests.py
 
 $(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
