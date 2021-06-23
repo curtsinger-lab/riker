@@ -6,7 +6,7 @@ MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 BLAKE3 := deps/BLAKE3/c
 
 # Flags shared by both debug and release builds
-COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc -I$(BLAKE3)
+COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3)
 COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include
 COMMON_LDFLAGS := -lstdc++fs -lfmt
 
@@ -22,12 +22,12 @@ RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS)
 RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS)
 RELEASE_LDFLAGS := -O3 -flto $(COMMON_LDFLAGS)
 
-# Set up variables used for the bild
-SRCS := $(wildcard src/*/*.cc)
-DEBUG_OBJS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.o, $(SRCS))
-DEBUG_DEPS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.d, $(SRCS))
-RELEASE_OBJS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.o, $(SRCS))
-RELEASE_DEPS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.d, $(SRCS))
+# Set up variables used for the build
+RKR_SRCS := $(wildcard src/rkr/*/*.cc)
+RKR_DEBUG_OBJS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.o, $(RKR_SRCS))
+RKR_DEBUG_DEPS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.d, $(RKR_SRCS))
+RKR_RELEASE_OBJS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.o, $(RKR_SRCS))
+RKR_RELEASE_DEPS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.d, $(RKR_SRCS))
 
 BLAKE_SRCS := $(BLAKE3)/blake3.c \
 						 	$(BLAKE3)/blake3_dispatch.c \
@@ -75,15 +75,15 @@ test-debug: debug
 test-release: release
 	@RKR=$(PWD)/$(RELEASE_DIR)/bin/rkr ./runtests.py
 
-$(DEBUG_DIR)/bin/rkr: $(DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
-$(RELEASE_DIR)/bin/rkr: $(RELEASE_OBJS) $(BLAKE_RELEASE_OBJS)
+$(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
+$(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_OBJS)
 $(DEBUG_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr:
 	@mkdir -p `dirname $@`
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-$(DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile
-$(RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile
-$(DEBUG_OBJS) $(RELEASE_OBJS):
+$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile
+$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile
+$(RKR_DEBUG_OBJS) $(RKR_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
 
