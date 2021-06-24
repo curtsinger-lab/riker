@@ -17,8 +17,29 @@ longest = max(map(len, testdirs))
 # Set up an environment map to run the tests
 testenv = os.environ.copy()
 
+# Remove make flags from the test environment (this may be set if tests are run from make)
 if 'MAKEFLAGS' in testenv:
   del testenv['MAKEFLAGS']
+
+# Make sure PATH is set
+if 'PATH' not in testenv:
+  print('PATH environment variable is not set. Stopping tests now.')
+  sys.exit(1)
+
+# Make sure we can find an executable rkr somewhere in PATH
+found_rkr_in = None
+for p in testenv['PATH'].split(':'):
+  if os.access(os.path.join(p, 'rkr'), os.X_OK):
+    found_rkr_in = p
+    break
+
+# Bail if there's no rkr
+if not found_rkr_in:
+  print('An executable rkr command was not found. Make sure it is available in the PATH (e.g. set PATH=$PWD/debug/bin:$PATH).')
+  sys.exit(1)
+else:
+  print('Running tests using rkr in {}'.format(found_rkr_in))
+  print()
 
 # If any test run exits with a non-zero code, remember it here
 exitcode = 0
