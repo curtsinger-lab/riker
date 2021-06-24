@@ -36,10 +36,10 @@ for p in testenv['PATH'].split(':'):
 # Bail if there's no rkr
 if not found_rkr_in:
   print('An executable rkr command was not found. Make sure it is available in the PATH (e.g. set PATH=$PWD/debug/bin:$PATH).')
+  print('You might just want to run `make test-debug` or `make test-release` instead.')
   sys.exit(1)
 else:
   print('Running tests using rkr in {}'.format(found_rkr_in))
-  print()
 
 # If any test run exits with a non-zero code, remember it here
 exitcode = 0
