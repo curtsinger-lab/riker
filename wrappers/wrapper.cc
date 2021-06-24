@@ -6,6 +6,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <list>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,121 +16,157 @@
 
 using namespace std;
 
-// Helper function for converting vector of strings to array of char*
-char* convert(const string& s) {
+// Initialize Global variables
+vector<string> subprocess_arr, c_file_arr, o_file_arr, a_file_arr, compiler_flags, linker_flags;
+bool link_bool = true, temp = true, print = false;
+string output_name, include_path, compiler_str;
+const char* compiler;
+
+// Helper function for convert
+char* convert_helper(const string& s) {
   char* pc = new char[s.size() + 1];
   strcpy(pc, s.c_str());
   return pc;
 }
 
-// Main function that divides up the work
-int clang_wrapper(vector<string> args) {
-  // std::cout << "Start of clang wrapper" << endl;
+// This function convert a vector of strings to a vector of char*
+vector<char*> convert(vector<string> vs) {
+  vector<char*> vc;
+  transform(vs.begin(), vs.end(), back_inserter(vc), convert_helper);
+  return vc;
+}
+
+// This function erase the first element of vec and return the new vector
+vector<string> pop_front(vector<string> vec) {
+  vec.erase(vec.begin());
+  return vec;
+}
+
+// Remove the wrappers folder from the PATH environment variable
+void path_update(char* pathC) {
+  vector<string> path_arr;
+  string paths = string(pathC);
+
+  // split path into vector using delimiter ':'
+  string tmp;
+  stringstream ss(paths);
+  while (getline(ss, tmp, ':')) path_arr.push_back(tmp);
+  for (vector<string>::iterator it = path_arr.begin(); it != path_arr.end();) {
+    if ((*it).find("wrappers") != string::npos) {
+      it = path_arr.erase(it);
+    } else
+      ++it;
+    }
+  paths.clear();
+
+  // combine vector of strings back into a single path string
+  for (const auto& path : path_arr) paths += path + ":";
+  setenv("PATH", paths.c_str(), 1);
+}
+
+// This function works though the argument command 
+void parse_args(vector<string> args) {
+  //std::cout << "Start of Arg Parsing." << endl;
+
+  if (!(!strcmp(compiler, "clang") || !strcmp(compiler, "gcc") || !strcmp(compiler, "cc") || 
+      !strcmp(compiler, "clang++") || !strcmp(compiler, "g++") || !strcmp(compiler, "c++"))) {
+    // If not using an accepted compiler
+    std::cout << "Error - unrecognized compiler:" << compiler << endl;
+    exit(0);
+  }
+
   vector<string> supported_flags = {"-print", "-D", "-f", "-o", "-W","-pthread", "-g", "-M", "-O", "-std", "--std", "-pedantic", "-m"};
   vector<string> supported_compile_flags = {};
   vector<string> supported_linker_flags = {"-L", "-shared", "-Wl", "-l", "-r"};
 
-  // Determine compiler and whether we are using C++
-  string compiler_str = args.front();
-  const char* compiler = compiler_str.c_str();
-  const char* last = strrchr(compiler, '/');
-  if (last != NULL) {
-    compiler = last + 1;
-  }
-  // std::cout << "Compiler: " << compiler << endl;
-  bool is_cpp = false;
-  if (!strcmp(compiler, "clang") || !strcmp(compiler, "gcc") || !strcmp(compiler, "cc")) {
-    is_cpp = false;
-  } else if (!strcmp(compiler, "clang++") || !strcmp(compiler, "g++") || !strcmp(compiler, "c++")) {
-    is_cpp = true;
-  } else {
-    std::cout << "Error - unrecognized compiler:" << compiler << endl;
-    return 1;
-  }
-
-  // Initialize arrays
-  vector<string> subprocess_arr, c_file_arr, o_file_arr, a_file_arr, compiler_flags, linker_flags;
-  bool link = true, temp = true, print = false;
-  string output_name, include_path;
-
-  // Work through the command
-  for (int i = 1; i < args.size(); i++) {
-    string argstr = args[i];
-    const char* arg = argstr.c_str();
-    if (!strcmp(arg, "-nowrapper")) {
+  // preserve a copy of the original command in case we need to call it
+  vector<string> command = args;
+  int i = 0;   // counter for removing the -nowrapper flag
+  args = pop_front(args);  // take out the compiler 
+  while (args.size() > 0) {
+    string argstr = args[0].data();
+    i++;
+    
+    //std::cout << "arg: " << argstr << endl;
+    if (argstr.rfind("-nowrapper", 0) == 0) {
       // Call subprocess
-      args.erase(args.begin() + i);
-      // args.erase(args.begin());
-      vector<char*> vc;
-      transform(args.begin(), args.end(), back_inserter(vc), convert);
-      cout << compiler << " " << &vc[0] << endl;
-      if (execvp(compiler, &vc[0]) == -1) std::cout << "nowrapper failed" << endl;
-      return 1;
-    } else if (!strcmp(arg, "-print")) {
+      command.erase(command.begin() + i);
+      vector<char*> vc = convert(args);
+      if (execvp(compiler, vc.data()) == -1) {
+        std::cout << "nowrapper failed" << endl;
+      }
+    } else if (argstr.rfind("-print", 0) == 0) {
       print = true;
-    } else if (!strcmp(arg, "-o")) {
-      // printf("checking -o\n");
-      output_name = args[i + 1].c_str();
+      args = pop_front(args);
+    } else if (argstr.rfind("-o", 0) == 0) {
+      output_name = args[1].data();
       if (output_name.find(".o") != string::npos) {
         temp = false;
-        link = false;
+        link_bool = false;
+        o_file_arr.push_back(output_name);
       }
-    } else if (!is_cpp && strrchr(arg, '.') && !strcmp(strrchr(arg, '.'), ".c")) {
-      // printf("checking .c\n");
+      args = pop_front(args);
+      args = pop_front(args);
+    } else if ((argstr.size() > 2) && 
+               (0 == argstr.compare(argstr.size() - 2, 2, ".c"))) {
       c_file_arr.push_back(argstr);
-    } else if (is_cpp && strrchr(arg, '.') &&
-               (!strcmp(strrchr(arg, '.'), ".cc") || !strcmp(strrchr(arg, '.'), ".cpp") ||
-                !strcmp(strrchr(arg, '.'), ".c++"))) {
-      // printf(".cc/cpp/c++ file found");
+      args = pop_front(args);
+    } else if ((argstr.size() > 3) &&
+               ((0 == argstr.compare(argstr.size() - 3, 3, ".cc")))) {
       c_file_arr.push_back(argstr);
-    } else if (!output_name.empty() && (argstr == output_name)) {
-      // printf("checking output name\n");
-      continue;
-    } else if (!include_path.empty() && (argstr == include_path)) {
-      include_path.clear();
-      continue;
-    } else if (strrchr(arg, '.') && strcmp(strrchr(arg, '.'), ".o") == 0) {
+      args = pop_front(args);
+    } else if ((argstr.size() > 4) &&
+               ((0 == argstr.compare(argstr.size() - 4, 4, ".cpp")) ||
+               (0 == argstr.compare(argstr.size() - 4, 4, ".c++")))) {
+      c_file_arr.push_back(argstr);
+      args = pop_front(args);
+    } else if ((argstr.size() > 2) && (0 == argstr.compare(argstr.size() - 2, 2, ".o"))) {
       //std::cout << ".o file found: " << argstr << endl;
       o_file_arr.push_back(argstr);
-    } else if (strrchr(arg, '.') && strcmp(strrchr(arg, '.'), ".a") == 0) {
+      args = pop_front(args);
+    } else if ((argstr.size() > 2) && (0 == argstr.compare(argstr.size() - 2, 2, ".a"))) {
       // std::cout << ".a file found: " << argstr << endl;
       a_file_arr.push_back(argstr);
-    } else if (!strcmp(arg, "-c")) {
-      link = false;
+      args = pop_front(args);
+    } else if (argstr == "-c") {
+      link_bool = false;
       temp = false;
+      args = pop_front(args);
     } else if (argstr.find("-I") != string::npos) {
       compiler_flags.push_back(argstr);
       linker_flags.push_back(argstr);
-      if (i != args.size() - 1 && args[i + 1].at(0) != '-') {
-        include_path = args[i+1];
+      if ( args.size() > 1 && args[1].at(0) != '-') {
+        include_path = args[1].data();
         compiler_flags.push_back(include_path);
         linker_flags.push_back(include_path);
+        args = pop_front(args);
       }
+      args = pop_front(args);
     } else if (std::any_of(supported_compile_flags.begin(), supported_compile_flags.end(),
                            [&](string flag) { return argstr.rfind(flag, 0) == 0; })) {
-      // checking compiler flags
       compiler_flags.push_back(argstr);
+      args = pop_front(args);
     } else if (std::any_of(supported_linker_flags.begin(), supported_linker_flags.end(),
                            [&](string flag) { return argstr.rfind(flag, 0) == 0; })) {
-      // checking linker flags
       linker_flags.push_back(argstr);
+      args = pop_front(args);
     } else if (std::any_of(supported_flags.begin(), supported_flags.end(),
                            [&](string flag) { return argstr.rfind(flag, 0) == 0; })) {
-      // checking supported flags
       compiler_flags.push_back(argstr);
       linker_flags.push_back(argstr);
+      args = pop_front(args);
     } else {
       // Call subprocess
-      std::cout << "Unrecognized flag: " << arg << endl;
-      args.erase(args.begin() + i);
-      // args.erase(args.begin());
-      vector<char*> vc;
-      transform(args.begin(), args.end(), back_inserter(vc), convert);
-      cout << compiler << " " << &vc[0] << endl;
-      if (execvp(compiler, &vc[0]) == -1) std::cout << "unrecognized flag exec failed" << endl;
-      return 1;
+      std::cout << "Unrecognized flag: " << argstr << endl;
+      command.erase(command.begin() + i);
+      vector<char*> vc = convert(command);
+      if (execvp(compiler, vc.data()) == -1) std::cout << "unrecognized flag exec failed" << endl;
     }
   }
+}
+
+// This function do the compilation in multiple threads
+void compile() {  
   string tmp;
   if (temp) {
     tmp = filesystem::temp_directory_path();
@@ -138,41 +175,38 @@ int clang_wrapper(vector<string> args) {
   vector<pid_t> threads_arr;
   
   // Compile each .cc file
-  // std::cout << "Compiling c files" << endl;
+  //std::cout << "Compiling c files" << endl;
   for (string arg : c_file_arr) {
-    // std::cout << "arg: " << arg.c_str() << endl;
+    //std::cout << "arg: " << arg << endl;
     string o_file_str;
     if (temp) {
       // create temp .o file
       string tem = tmp + "/XXXXXX.o";
 
-      char* writable_template = strdup(tem.c_str());
+      char* writable_template = tem.data();
       int rc = mkstemps(writable_template, 2);
       if (rc == -1) {
         std::cout << "Could not create temporary file." << endl;
       }
-
       o_file_str = string(writable_template);
-      free(writable_template);
+
     } else {
       auto suffix_pos = arg.rfind('.');
       o_file_str = arg.substr(0, suffix_pos) + ".o";
     }
+
     o_file_arr.push_back(o_file_str);
-    // std::cout << "o_file named: " << o_file_str.c_str() << endl;
+    // std::cout << ".o file named: " << o_file_str << endl;
+
     vector<string> compile_args = {compiler_str, "-c", "-o", o_file_str, arg};
-
     compile_args.insert(compile_args.end(), compiler_flags.begin(), compiler_flags.end());
-
-    vector<char*> thread_args;
-    transform(compile_args.begin(), compile_args.end(), back_inserter(thread_args), convert);
+    vector<char*> thread_args = convert(compile_args);
     thread_args.push_back(NULL);
     
     if (!print) {
       pid_t cpid;
       if ((cpid = fork()) == 0) {
-        // std::cout << compiler << " " << thread_args.data() << endl;
-        if(execvp(compiler, thread_args.data()) == -1){
+        if (execvp(compiler, thread_args.data()) == -1){
           std::cout << "Compile failed: " << arg << endl;
         }
         exit(1);
@@ -187,83 +221,80 @@ int clang_wrapper(vector<string> args) {
     }
   }
   // std::cout << "Waiting for threads to join" << endl;
+  
+  while (waitpid(-1, NULL, 0) > 0);
+  
+  // std::cout << "Finish waiting threads" << endl;
+}
 
-  for (int i = 0; i < threads_arr.size(); i++) {
-    while (waitpid(threads_arr[i], NULL, 0) > 0)
-      ;
+// This function link the compiled files in a single thread
+void linking() {
+  vector<string> link_vec = {compiler_str, "-o", output_name};
+  for (string o_file : o_file_arr) {
+    link_vec.push_back(o_file);
+  } 
+  for (string a_file : a_file_arr) {
+    link_vec.push_back(a_file);
+  }
+  for (string linker_flag : linker_flags) {
+    link_vec.push_back(linker_flag);
+  }
+  vector<char*> link_args = convert(link_vec);
+  link_args.push_back(NULL);
+  if (!print) {
+    int stat;
+    if (fork() == 0){
+      if (execvp(compiler_str.c_str(), link_args.data()) == -1) {
+        std::cout << "Linking failed." << endl;
+      }
+      exit(1);
+    } else {
+      wait(&stat);
+    }
+    if (WIFSIGNALED(stat)){
+      psignal(WTERMSIG(stat), "Exit signal");
+      exit(0);
+    }
+  } else {
+    for (char* command : link_args) {
+      std::cout << command << endl;
+    }
+  }
+}
+
+// Main function that divides up the work
+int clang_wrapper(vector<string> args) {
+  // std::cout << "Start of clang wrapper" << endl;
+
+  // Determine compiler 
+  compiler_str = args[0].data();
+  compiler = compiler_str.c_str();
+  const char* last = strrchr(compiler, '/');
+  if (last != NULL) {
+    compiler = last + 1;
   }
 
+  // Work through the command
+  parse_args(args);
+  // std::cout << compiler << endl;
+
+  compile();  // Compile .c files
+  
   // Link .o files.
-  // std::cout << "Linking all files" << endl;
-  if (link){
-    vector<string> link_vec = {compiler, "-o", output_name};
-    for (string o_file : o_file_arr) {
-      link_vec.push_back(o_file);
-    } 
-    for (string a_file : a_file_arr) {
-      link_vec.push_back(a_file);
-    }
-    for (string linker_flag : linker_flags) {
-      link_vec.push_back(linker_flag);
-    }
-    vector<char*> link_args;
-    transform(link_vec.begin(), link_vec.end(), back_inserter(link_args), convert);
-    link_args.push_back(NULL);
-    if (!print) {
-      int stat;
-      if(fork() == 0){
-        // std::cout << "Linking started." << endl;
-        if(execvp(compiler,  link_args.data()) == -1) {
-          std::cout << "Linking failed." << endl;
-        } else {
-          // std::cout << "Done linking." << endl;
-        }
-        exit(1);
-      } else {
-        wait(&stat);
-      }
-      if (WIFEXITED(stat)) {
-        //printf("Exit status: %d\n", WEXITSTATUS(stat));
-      }
-      else if (WIFSIGNALED(stat)){
-        psignal(WTERMSIG(stat), "Exit signal");
-      }
-    } else {
-      for (char* command : link_args) {
-        std::cout << command << endl;
-      }
-    }
-  }  
-  // if (temp)
-  //   for (string o_file : o_file_arr) unlink(o_file.c_str());
-  // std::cout << "Build complete!" << endl;
+  if (link_bool){
+    linking();
+  }
+  
   return 1;
 }
 
 int main(int argc, char* argv[]) {
   // std::cout << "Using our CLANG" << endl;
+  
   // Remove wrappers from the PATH
   char* pathC = getenv("PATH");
-  vector<string> path_arr;
-  // todo: account for null path
   if (pathC != NULL) {
-    string paths = string(pathC);
-    // split path into vector using delimiter ':'
-    string tmp;
-    stringstream ss(paths);
-    while (getline(ss, tmp, ':')) path_arr.push_back(tmp);
-    for (vector<string>::iterator it = path_arr.begin(); it != path_arr.end();) {
-      if ((*it).find("wrappers") != string::npos) {
-        it = path_arr.erase(it);
-      } else
-        ++it;
-    }
-    paths.clear();
-
-    for (const auto& path : path_arr) paths += path + ":";
-
-    // std::cout << "new path: " << paths.c_str() << endl;
-    setenv("PATH", paths.c_str(), 1);
+    path_update(pathC);
   }
 
   vector<string> args(argv, argv + argc);

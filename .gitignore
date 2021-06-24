@@ -13,3 +13,4 @@ tests/*/*.t.err
 **/core
 benchmark.local
 rkr-inject.so
+.blake3obj
