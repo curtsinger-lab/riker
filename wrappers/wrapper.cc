@@ -56,7 +56,7 @@ void path_update(char* pathC) {
       it = path_arr.erase(it);
     } else
       ++it;
-    }
+  }
   paths.clear();
 
   // combine vector of strings back into a single path string
