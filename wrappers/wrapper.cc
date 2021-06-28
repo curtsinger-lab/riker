@@ -78,7 +78,7 @@ void parse_args(vector<string> args) {
   }
 
   vector<string> supported_flags = {"-print", "-D", "-f",   "-o",    "-W",        "-pthread", "-g",
-                                    "-M",     "-O", "-std", "--std", "-pedantic", "-m"};
+                                    "-M",     "-O", "-std", "--std", "-pedantic", "-m", "-U"};
   vector<string> supported_compile_flags = {};
   vector<string> supported_linker_flags = {"-L", "-shared", "-Wl", "-l", "-r"};
 
