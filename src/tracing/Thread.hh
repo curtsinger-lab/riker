@@ -279,10 +279,15 @@ class Thread {
   void _clone(void* fn, void* stack, int flags) noexcept;
   void _exit(int status) noexcept;
   void _exit_group(int status) noexcept;
-  void _execve(fs::path filename, std::vector<std::string> args) noexcept {
-    _execveat(at_fd::cwd(), filename, args);
+  void _execve(fs::path filename,
+               std::vector<std::string> args,
+               std::vector<std::string> env) noexcept {
+    _execveat(at_fd::cwd(), filename, args, env);
   }
-  void _execveat(at_fd dfd, fs::path filename, std::vector<std::string> args) noexcept;
+  void _execveat(at_fd dfd,
+                 fs::path filename,
+                 std::vector<std::string> args,
+                 std::vector<std::string> env) noexcept;
   void _wait4(pid_t pid, int* wstatus, int options) noexcept;
   void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 

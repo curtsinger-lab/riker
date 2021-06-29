@@ -1461,7 +1461,10 @@ void Thread::_exit_group(int status) noexcept {
   resume();
 }
 
-void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexcept {
+void Thread::_execveat(at_fd dfd,
+                       fs::path filename,
+                       vector<string> args,
+                       vector<string> env) noexcept {
   LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", this, dfd, getPath(dfd), filename,
        fmt::join(args, "\", \""));
 
