@@ -279,7 +279,7 @@ int clang_wrapper(vector<string> args) {
 }
 
 int main(int argc, char* argv[]) {
-  // std::cout << "Using our CLANG" << endl;
+  std::cout << "Using our CLANG" << endl;
 
   // Remove wrappers from the PATH
   char* pathC = getenv("PATH");

@@ -5,7 +5,6 @@
 cd src 
 
 CFLAGS="-std=gnu99 -O2 -Wall -Wextra -DLUA_COMPAT_5_3 -DLUA_USE_LINUX"
-LDFLAGS="-std=gnu99 -lm -Wl,-E -ldl"
 
 gcc $CFLAGS -c `ls *.c | grep -v lua_`
 
@@ -13,6 +12,6 @@ ar rcu liblua.a lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o lle
 ranlib liblua.a
 
 gcc $CFLAGS -c -o lua.o lua.c
-gcc $LDFLAGS -o lua   lua.o liblua.a
+gcc -std=gnu99 -o lua   lua.o liblua.a -lm -Wl,-E -ldl
 gcc $CFLAGS -c -o luac.o luac.c
-gcc $LDFLAGS -o luac   luac.o liblua.a
+gcc -std=gnu99 -o luac   luac.o liblua.a -lm -Wl,-E -ldl
