@@ -559,12 +559,19 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     raise(SIGSTOP);
 
     vector<const char*> args;
+    vector<const char*> envar;
+
     for (const auto& s : cmd->getArguments()) {
       args.push_back(s.c_str());
+    }
+    for (const auto& s : cmd->getEnvironment()) {
+      envar.push_back(s.c_str());
     }
 
     // Null-terminate the args array
     args.push_back(nullptr);
+    // Null-terminate the envar array
+    envar.push_back(nullptr);
 
     // Add the injected library to the environment
     if (options::inject_tracing_lib) {
@@ -580,7 +587,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();
     auto exe_path = exe->getCommittedPath();
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
-    execv(exe_path.value().c_str(), (char* const*)args.data());
+    execve(exe_path.value().c_str(), (char* const*)args.data(), (char* const*)envar.data());
 
     // This is unreachable, unless execv fails
     FAIL << "Failed to start traced program: " << ERR;

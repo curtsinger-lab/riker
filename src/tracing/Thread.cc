@@ -1464,7 +1464,7 @@ void Thread::_exit_group(int status) noexcept {
 void Thread::_execveat(at_fd dfd,
                        fs::path filename,
                        vector<string> args,
-                       vector<string> env) noexcept {
+                       vector<string> envar) noexcept {
   LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", this, dfd, getPath(dfd), filename,
        fmt::join(args, "\", \""));
 
@@ -1475,7 +1475,7 @@ void Thread::_execveat(at_fd dfd,
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
     _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-    const auto& child = _process->exec(exe_ref_id, args);
+    const auto& child = _process->exec(exe_ref_id, args, envar);
 
     // Does the child command need to run?
     if (child->mustRun()) {

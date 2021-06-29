@@ -91,7 +91,7 @@ class Command : public std::enable_shared_from_this<Command> {
   using ID = uint32_t;
 
   /// Create a new command
-  Command(std::vector<std::string> args) noexcept;
+  Command(std::vector<std::string> args, std::vector<std::string> envar) noexcept;
 
   /// Declare a destructor
   ~Command() noexcept;
@@ -124,6 +124,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the list of arguments this command was started with
   const std::vector<std::string>& getArguments() const noexcept { return _args; }
+
+  /// Get the list of environment variables this command was in
+  const std::vector<std::string>& getEnvironment() const noexcept { return _envar; }
 
   /// Get the set of file descriptors set up at the start of this command's run
   const std::map<int, Ref::ID>& getInitialFDs() const noexcept { return _initial_fds; }
@@ -393,6 +396,9 @@ class Command : public std::enable_shared_from_this<Command> {
  private:
   /// The arguments passed to this command on startup
   std::vector<std::string> _args;
+
+  /// The environment this command ran in (and should run in for future calls)
+  std::vector<std::string> _envar;
 
   /// The file descriptor entries populated at the start of this command's execution
   std::map<int, Ref::ID> _initial_fds;

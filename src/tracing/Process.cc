@@ -134,7 +134,9 @@ shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
 }
 
 // The process is executing a new file
-const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) noexcept {
+const shared_ptr<Command>& Process::exec(Ref::ID exe_ref,
+                                         vector<string> args,
+                                         vector<string> envar) noexcept {
   // Build a map of the initial file descriptors for the child command
   // As we build this map, keep track of which file descriptors have to be erased from the
   // process' current map of file descriptors.
@@ -148,8 +150,8 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   }
 
   // Inform the build of the launch action
-  auto child =
-      _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds, shared_from_this());
+  auto child = _build.traceLaunch(_command, args, envar, exe_ref, _cwd, _root, inherited_fds,
+                                  shared_from_this());
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);

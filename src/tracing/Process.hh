@@ -79,7 +79,9 @@ class Process : public std::enable_shared_from_this<Process> {
   std::shared_ptr<Process> fork(pid_t child_pid) noexcept;
 
   /// This process is executing a new file
-  const std::shared_ptr<Command>& exec(Ref::ID exe_ref, std::vector<std::string> args) noexcept;
+  const std::shared_ptr<Command>& exec(Ref::ID exe_ref,
+                                       std::vector<std::string> args,
+                                       std::vector<std::string> envar) noexcept;
 
   /// This process is exiting
   void exit(int exit_status) noexcept;

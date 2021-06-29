@@ -46,8 +46,9 @@ shared_ptr<Command> Command::createEmptyCommand() noexcept {
 }
 
 // Create a command
-Command::Command(vector<string> args) noexcept : _args(args) {
+Command::Command(vector<string> args, vector<string> envar) noexcept : _args(args), _envar(envar) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
+  ASSERT(envar.size() > 0) << "Attempted to create a command with no environment";
 
   command_count++;
 

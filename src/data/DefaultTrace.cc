@@ -20,6 +20,8 @@ using std::string;
 using std::tuple;
 using std::vector;
 
+extern char** environ;
+
 // Create a source for a default starting trace
 DefaultTrace::DefaultTrace(vector<string> args) noexcept :
     _root_command(Command::createEmptyCommand()), _args(args) {}
@@ -55,7 +57,13 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
   // Create a rkr-build command
   auto cmd_args = vector<string>{"rkr-launch"};
   cmd_args.insert(cmd_args.end(), _args.begin(), _args.end());
-  auto rkr_build_cmd = make_shared<Command>(cmd_args);
+
+  // Loop over every char* in environ, append to envar
+  vector<string> envar;
+  for (int i = 0; environ[i] != nullptr; i++) {
+    envar.push_back(environ[i]);
+  }
+  auto rkr_build_cmd = make_shared<Command>(cmd_args, envar);
 
   // Add initial FDs to the root command
   rkr_build_cmd->addInitialFD(STDIN_FILENO, Ref::Stdin);

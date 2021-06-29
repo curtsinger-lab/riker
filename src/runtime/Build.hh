@@ -241,6 +241,7 @@ class Build : public IRSink {
    */
   std::shared_ptr<Command> traceLaunch(const std::shared_ptr<Command>& c,
                                        std::vector<std::string> args,
+                                       std::vector<std::string> envar,
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,

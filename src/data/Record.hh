@@ -53,6 +53,7 @@ struct Record {
 struct CommandRecord : public Record {
   Command::ID _id;
   std::vector<std::string> _args;
+  std::vector<std::string> _envar;
   std::map<int, Ref::ID> _initial_fds;
   bool _executed;
 
@@ -61,22 +62,24 @@ struct CommandRecord : public Record {
 
   CommandRecord(Command::ID id,
                 std::vector<std::string> args,
+                std::vector<std::string> envar,
                 std::map<int, Ref::ID> initial_fds,
                 bool executed) :
-      _id(id), _args(args), _initial_fds(initial_fds), _executed(executed) {}
+      _id(id), _args(args), _envar(envar), _initial_fds(initial_fds), _executed(executed) {}
 
   static std::unique_ptr<Record> create(Command::ID id,
                                         std::vector<std::string> args,
+                                        std::vector<std::string> envar,
                                         std::map<int, Ref::ID> initial_fds,
                                         bool executed) {
-    return std::make_unique<CommandRecord>(id, args, initial_fds, executed);
+    return std::make_unique<CommandRecord>(id, args, envar, initial_fds, executed);
   }
 
   virtual void handle(IRLoader& input, IRSink& handler) noexcept override;
 
   template <class Archive>
   void serialize(Archive& archive) {
-    archive(cereal::base_class<Record>(this), _id, _args, _initial_fds, _executed);
+    archive(cereal::base_class<Record>(this), _id, _args, _envar, _initial_fds, _executed);
   }
 };
 

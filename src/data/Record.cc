@@ -56,7 +56,7 @@ CEREAL_REGISTER_TYPE(SpecialVersion);
 // Read a command from an input trace
 void CommandRecord::handle(IRLoader& input, IRSink& handler) noexcept {
   // Create a command and add it to the trace
-  auto cmd = make_shared<Command>(_args);
+  auto cmd = make_shared<Command>(_args, _envar);
   if (_executed) cmd->setExecuted();
 
   for (auto [fd, ref_id] : _initial_fds) {

@@ -1149,6 +1149,7 @@ void Build::traceRemoveEntry(const shared_ptr<Command>& c,
 // This command launches a child command
 shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
                                        vector<string> args,
+                                       vector<string> envar,
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
@@ -1220,7 +1221,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   } else {
     // Create a child and mark it as running
-    child = make_shared<Command>(args);
+    child = make_shared<Command>(args, envar);
     child->setMarking(RebuildMarking::MustRun);
 
     LOG(exec) << "New command " << child << " did not match any previous command.";
