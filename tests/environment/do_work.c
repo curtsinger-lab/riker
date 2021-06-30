@@ -25,10 +25,16 @@ int main() {
 
   // Try to get the value of the EXTRA_MESSAGE environment variable
   char* extra_message = getenv("EXTRA_MESSAGE");
+  char* extra_extra_message = getenv("EXTRA_EXTRA_MESSAGE");
 
   // If there is an extra message, write it to the output
   if (extra_message != NULL) {
     write(out_fd, extra_message, strlen(extra_message));
+    write(out_fd, "\n", 1);
+  }
+  // If there is an extra message, write it to the output
+  if (extra_extra_message != NULL) {
+    write(out_fd, extra_extra_message, strlen(extra_extra_message));
     write(out_fd, "\n", 1);
   }
 

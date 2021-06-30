@@ -583,7 +583,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
       setenv("LD_PRELOAD", ld_preload.c_str(), 1);
     }
 
-    // TODO: explicitly handle the environment
+    // explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();
     auto exe_path = exe->getCommittedPath();
     ASSERT(exe_path.has_value()) << "Executable has no committed path";
