@@ -46,6 +46,9 @@ enum class RebuildMarking {
  */
 enum class Scenario : uint8_t { None = 0, Build = 1, PostBuild = 2, Both = 3 };
 
+// Enum for the action used for the difference in environment.
+enum Action { ADD, REPLACE, DELETE };
+
 inline bool operator&(Scenario s1, Scenario s2) noexcept {
   return (static_cast<uint8_t>(s1) & static_cast<uint8_t>(s2)) != 0;
 }
@@ -90,6 +93,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The type of a command ID
   using ID = uint32_t;
 
+  static std::unordered_map<std::string, std::string> default_envar;
+
   /// Create a new command
   Command(std::vector<std::string> args, std::vector<std::string> envar) noexcept;
 
@@ -125,9 +130,6 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the list of arguments this command was started with
   const std::vector<std::string>& getArguments() const noexcept { return _args; }
 
-  /// Get the list of environment variables this command was in
-  const std::vector<std::string>& getEnvironment() const noexcept { return _envar; }
-
   /// Get the set of file descriptors set up at the start of this command's run
   const std::map<int, Ref::ID>& getInitialFDs() const noexcept { return _initial_fds; }
 
@@ -156,6 +158,19 @@ class Command : public std::enable_shared_from_this<Command> {
     if (c == nullptr) return o << "<null Command>";
     return o << *c;
   }
+
+  /// Struct used to store how a command's environment differs from the default environment
+  struct diff {
+    std::string key;
+    std::string value;
+    int action;
+  };
+
+  /// Get the difference between current environment and the default environment
+  std::vector<Command::diff> getDifference() { return _envDiffs; }
+
+  /// Get the list of environment variables this command was in
+  std::vector<std::string> getEnvironment();
 
   /****** Rebuild Planning ******/
 
@@ -393,12 +408,16 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
 
+  /// Compares the given environment variables with the default one and return a vector
+  /// of differences between the two
+  std::vector<diff> getEnvDiff(std::vector<std::string> envar);
+
  private:
   /// The arguments passed to this command on startup
   std::vector<std::string> _args;
 
   /// The environment this command ran in (and should run in for future calls)
-  std::vector<std::string> _envar;
+  std::vector<Command::diff> _envDiffs;
 
   /// The file descriptor entries populated at the start of this command's execution
   std::map<int, Ref::ID> _initial_fds;

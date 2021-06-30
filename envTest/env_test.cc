@@ -20,6 +20,37 @@ struct diff {
   int action;
 };
 
+vector<string> getEnvironment(vector<diff> difference) {
+  vector<string> to_return;
+  unordered_map<string, string> default_envar_copy(default_envar);
+
+  for (diff change : difference) {
+    switch (change.action) {
+      case ADD:
+        // Add a new environment variable
+        default_envar_copy.insert({change.key, change.value});
+        break;
+      case REPLACE:
+        // Replace value for existing var with new key
+        default_envar_copy[change.key] = change.value;
+        break;
+      case DELETE:
+        default_envar_copy.erase(change.key);
+        break;
+    }
+  }
+
+  auto it = default_envar_copy.begin();
+  while (it != default_envar_copy.end()) {
+    string var = it->first + "=" + it->second;
+    to_return.push_back(var);
+    ++it;
+  }
+  return to_return;
+}
+
+// This function compares the given environment variables with the default one and return a vector
+// of differences between the two
 vector<diff> getEnvDiff(vector<string> envar) {
   // unordered_map<string, string> envar_map;
   vector<diff> to_return;
@@ -67,11 +98,15 @@ int main() {
   //   cout << pair.first << "=" << pair.second << endl;
   // }
 
-  vector<string> envar = {"USER=chovanak"};
+  vector<string> envar;
   vector<diff> difference = getEnvDiff(envar);
-  for (vector<diff>::const_iterator i = difference.begin(); i != difference.end(); ++i) {
-    cout << i->key << "=" << i->value << " " << i->action << endl;
-  }
+  //   for (vector<diff>::const_iterator i = difference.begin(); i != difference.end(); ++i) {
+  //     cout << i->key << "=" << i->value << " " << i->action << endl;
+  //   }
 
+  vector<string> env = getEnvironment(difference);
+  for (string s : env) {
+    cout << s << endl;
+  }
   return 1;
 }

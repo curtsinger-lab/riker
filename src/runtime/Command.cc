@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "artifacts/Artifact.hh"
@@ -28,6 +29,7 @@ using std::set;
 using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
+using std::unordered_map;
 using std::vector;
 
 namespace fs = std::filesystem;
@@ -46,7 +48,8 @@ shared_ptr<Command> Command::createEmptyCommand() noexcept {
 }
 
 // Create a command
-Command::Command(vector<string> args, vector<string> envar) noexcept : _args(args), _envar(envar) {
+Command::Command(vector<string> args, vector<string> envar) noexcept :
+    _args(args), _envDiffs(getEnvDiff(envar)) {
   ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
   ASSERT(envar.size() > 0) << "Attempted to create a command with no environment";
 
@@ -56,6 +59,8 @@ Command::Command(vector<string> args, vector<string> envar) noexcept : _args(arg
   for (size_t i = 1; i < args.size(); i++) {
     argument_counts[args[i]]++;
   }
+
+  //_envDiffs = getEnvDiff(envar);
 }
 
 // Destroy a command. The destructor has to be declared in the .cc file where we have a complete
@@ -231,6 +236,35 @@ string Command::getFullName() const noexcept {
 // Is this command empty?
 bool Command::isEmptyCommand() const noexcept {
   return _args.size() == 0;
+}
+
+vector<string> Command::getEnvironment() {
+  vector<string> to_return;
+  unordered_map<string, string> default_envar_copy(default_envar);
+  vector<Command::diff> difference = getDifference();
+  for (Command::diff change : difference) {
+    switch (change.action) {
+      case Action::ADD:
+        // Add a new environment variable
+        default_envar_copy.insert({change.key, change.value});
+        break;
+      case Action::REPLACE:
+        // Replace value for existing var with new key
+        default_envar_copy[change.key] = change.value;
+        break;
+      case Action::DELETE:
+        default_envar_copy.erase(change.key);
+        break;
+    }
+  }
+
+  auto it = default_envar_copy.begin();
+  while (it != default_envar_copy.end()) {
+    string var = it->first + "=" + it->second;
+    to_return.push_back(var);
+    ++it;
+  }
+  return to_return;
 }
 
 // Finish the current run and set up for another one
@@ -429,6 +463,43 @@ bool Command::mark(RebuildMarking m) noexcept {
     // Emulate and AlreadyRun are never new markings
     return false;
   }
+}
+
+// This function compares the given environment variables with the default one and returns a vector
+// of differences between the two
+vector<Command::diff> Command::getEnvDiff(vector<string> envar) {
+  // unordered_map<string, string> envar_map;
+  vector<diff> to_return;
+  unordered_map<string, string> default_envar_copy(default_envar);
+  for (string value : envar) {
+    string key = value.substr(0, value.find("="));
+    value.erase(0, value.find("=") + 1);
+    string default_value;
+    unordered_map<string, string>::const_iterator it;
+    // Checking if the key is present in default_envar
+    if ((it = default_envar_copy.find(key)) == default_envar_copy.end()) {
+      // key is not present, so we are adding new key
+      diff added_var = {key, value, ADD};
+      to_return.push_back(added_var);
+    } else {
+      // Key is present
+      default_value = default_envar_copy[key];
+      // If the corresponding values are not the same, record diff
+      if (default_value.compare(value) != 0) {
+        diff changed_var = {key, value, REPLACE};
+        to_return.push_back(changed_var);
+      }
+      default_envar_copy.erase(it);
+    }
+  }
+  // Loop over all remaining elements in default_envar_copy
+  auto it = default_envar_copy.begin();
+  while (it != default_envar_copy.end()) {
+    diff deleted_var = {it->first, it->second, DELETE};
+    to_return.push_back(deleted_var);
+    it = default_envar_copy.erase(it);
+  }
+  return to_return;
 }
 
 /******************** Current Run Data ********************/
