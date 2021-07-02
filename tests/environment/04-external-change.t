@@ -6,6 +6,10 @@ SKIP! This test doesn't work because riker doesn't rerun commands in response to
 Move to test directory
   $ cd $TESTDIR
 
+Copy in the add Rikerfile and make sure it is executable
+  $ cp add-Rikerfile Rikerfile
+  $ chmod u+x Rikerfile
+
 Prepare for a clean run
   $ rm -rf .rkr output
   $ echo "hello" > input
@@ -35,4 +39,4 @@ Check output file
   goodnight
 
 Clean up
-  $ rm -rf .rkr output do_work
+  $ rm -rf .rkr output do_work Rikerfile

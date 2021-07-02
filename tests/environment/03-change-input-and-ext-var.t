@@ -1,7 +1,11 @@
-Test using environment variables that change during a build. This time we change the input file and make sure the build updates output correctly.
+Test using environment variables that change during a build. This time we change the input file and add an extra variable outside the build.
 
 Move to test directory
   $ cd $TESTDIR
+
+Copy in the add Rikerfile and make sure it is executable
+  $ cp add-Rikerfile Rikerfile
+  $ chmod u+x Rikerfile
 
 Prepare for a clean run
   $ rm -rf .rkr output
@@ -33,5 +37,5 @@ Check output file
   goodbye
   goodnight
 
-Clean up
-  $ rm -rf .rkr output do_work
+Clean up 
+  $ rm -rf .rkr output do_work Rikerfile

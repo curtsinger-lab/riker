@@ -3,6 +3,10 @@ Test using environment variables that change during a build. This time we change
 Move to test directory
   $ cd $TESTDIR
 
+Copy in the add Rikerfile and make sure it is executable
+  $ cp add-Rikerfile Rikerfile
+  $ chmod u+x Rikerfile
+
 Prepare for a clean run
   $ rm -rf .rkr output
   $ echo "hello" > input
@@ -32,4 +36,4 @@ Check output file
   goodbye
 
 Clean up
-  $ rm -rf .rkr output do_work
+  $ rm -rf .rkr output do_work Rikerfile

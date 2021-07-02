@@ -1,3 +1,0 @@
-#!/bin/sh
-
-EXTRA_MESSAGE=goodbye ./do_work
