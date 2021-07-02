@@ -565,7 +565,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
       args.push_back(s.c_str());
     }
     for (const auto& s : cmd->getEnvironment()) {
-      envar.push_back(s.c_str());
+      envar.push_back(strdup(s.c_str()));
       // WARN << s;
     }
 

@@ -499,7 +499,7 @@ vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
     if ((it = default_envar_copy.find(key)) == default_envar_copy.end()) {
       // key is not present, so we are adding new key
       diff added_var = {key, value, diff::ADD};
-      WARN << "add" << num << ": " << added_var.key << "=" << added_var.value;
+      // WARN << "add" << num << ": " << added_var.key << "=" << added_var.value;
 
       to_return.push_back(added_var);
     } else {
@@ -525,7 +525,7 @@ vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
     it = default_envar_copy.erase(it);
   }
   for (diff d : to_return) {
-    WARN << d.key << "=" << d.value << " " << d.action;
+    // WARN << d.key << "=" << d.value << " " << d.action;
   }
   return to_return;
 }
