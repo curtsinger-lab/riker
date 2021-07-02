@@ -59,8 +59,19 @@ Command::Command(vector<string> args, vector<string> envar) noexcept :
   for (size_t i = 1; i < args.size(); i++) {
     argument_counts[args[i]]++;
   }
+}
 
-  //_envDiffs = getEnvDiff(envar);
+// Create a command with the differences in environment
+Command::Command(vector<string> args, vector<Command::diff> envDiffs) noexcept :
+    _args(args), _envDiffs(envDiffs) {
+  ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
+
+  command_count++;
+
+  // Add each argument (other than the first) to the argument_counts map
+  for (size_t i = 1; i < args.size(); i++) {
+    argument_counts[args[i]]++;
+  }
 }
 
 // Destroy a command. The destructor has to be declared in the .cc file where we have a complete
@@ -238,21 +249,21 @@ bool Command::isEmptyCommand() const noexcept {
   return _args.size() == 0;
 }
 
-vector<string> Command::getEnvironment() {
+vector<string> Command::getEnvironment() noexcept {
   vector<string> to_return;
-  unordered_map<string, string> default_envar_copy(default_envar);
+  unordered_map<string, string> default_envar_copy(getDefaultEnv());
   vector<Command::diff> difference = getDifference();
   for (Command::diff change : difference) {
     switch (change.action) {
-      case Action::ADD:
+      case diff::ADD:
         // Add a new environment variable
         default_envar_copy.insert({change.key, change.value});
         break;
-      case Action::REPLACE:
+      case diff::REPLACE:
         // Replace value for existing var with new key
         default_envar_copy[change.key] = change.value;
         break;
-      case Action::DELETE:
+      case diff::DELETE:
         default_envar_copy.erase(change.key);
         break;
     }
@@ -467,37 +478,54 @@ bool Command::mark(RebuildMarking m) noexcept {
 
 // This function compares the given environment variables with the default one and returns a vector
 // of differences between the two
-vector<Command::diff> Command::getEnvDiff(vector<string> envar) {
+vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
   // unordered_map<string, string> envar_map;
+  // for (string s : envar) {
+  //   WARN << "input envar: " << s;
+  // }
   vector<diff> to_return;
-  unordered_map<string, string> default_envar_copy(default_envar);
+  unordered_map<string, string> default_envar_copy(getDefaultEnv());
+  // default_envar_copy.insert(getDefaultEnv().begin(), getDefaultEnv().end());
+  int num = 1;
   for (string value : envar) {
+    // WARN << num << " " << value;
     string key = value.substr(0, value.find("="));
     value.erase(0, value.find("=") + 1);
+    // WARN << num << " " << value;
+    num++;
     string default_value;
     unordered_map<string, string>::const_iterator it;
     // Checking if the key is present in default_envar
     if ((it = default_envar_copy.find(key)) == default_envar_copy.end()) {
       // key is not present, so we are adding new key
-      diff added_var = {key, value, ADD};
+      diff added_var = {key, value, diff::ADD};
+      WARN << "add" << num << ": " << added_var.key << "=" << added_var.value;
+
       to_return.push_back(added_var);
     } else {
+      // WARN << "Key found: " << key;
       // Key is present
       default_value = default_envar_copy[key];
       // If the corresponding values are not the same, record diff
       if (default_value.compare(value) != 0) {
-        diff changed_var = {key, value, REPLACE};
+        diff changed_var = {key, value, diff::REPLACE};
         to_return.push_back(changed_var);
       }
       default_envar_copy.erase(it);
     }
   }
+  num = 1;
   // Loop over all remaining elements in default_envar_copy
   auto it = default_envar_copy.begin();
   while (it != default_envar_copy.end()) {
-    diff deleted_var = {it->first, it->second, DELETE};
+    diff deleted_var = {it->first, it->second, diff::DELETE};
+    // WARN << "delete" << num << ": " << deleted_var.key << "=" << deleted_var.value;
+    num++;
     to_return.push_back(deleted_var);
     it = default_envar_copy.erase(it);
+  }
+  for (diff d : to_return) {
+    WARN << d.key << "=" << d.value << " " << d.action;
   }
   return to_return;
 }

@@ -52,7 +52,7 @@ Command::ID OutputTrace::getCommandID(const std::shared_ptr<Command>& c) noexcep
     iter = _commands.emplace_hint(iter, c, id);
 
     // Emit a record of the command
-    _archive(CommandRecord::create(id, c->getArguments(), c->getEnvironment(), c->getInitialFDs(),
+    _archive(CommandRecord::create(id, c->getArguments(), c->getDifference(), c->getInitialFDs(),
                                    c->hasExecuted()));
   }
 

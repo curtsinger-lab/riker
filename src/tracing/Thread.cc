@@ -1461,6 +1461,7 @@ void Thread::_exit_group(int status) noexcept {
   resume();
 }
 
+extern char** environ;
 void Thread::_execveat(at_fd dfd,
                        fs::path filename,
                        vector<string> args,
@@ -1475,7 +1476,11 @@ void Thread::_execveat(at_fd dfd,
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
     _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-    const auto& child = _process->exec(exe_ref_id, args, envar);
+    vector<string> envar2;
+    for (int i = 0; environ[i] != nullptr; i++) {
+      envar2.push_back(environ[i]);
+    }
+    const auto& child = _process->exec(exe_ref_id, args, envar2);
 
     // Does the child command need to run?
     if (child->mustRun()) {

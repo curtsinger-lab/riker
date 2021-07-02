@@ -58,6 +58,22 @@ inline const std::set<gid_t>& getgroups() noexcept {
   return _groups.value();
 }
 
+extern char** environ;
+inline std::unordered_map<std::string, std::string> getDefaultEnv() noexcept {
+  static std::unordered_map<std::string, std::string> default_envar;
+
+  if (default_envar.empty()) {
+    for (int i = 0; environ[i] != nullptr; i++) {
+      std::string variable = std::string(environ[i]);
+      std::string key = variable.substr(0, variable.find("="));
+      variable.erase(0, variable.find("=") + 1);
+      default_envar.insert({key, variable});
+    }
+  }
+  
+  return default_envar;
+}
+
 inline std::string getSignalName(int sig) {
   static std::map<int, std::string> signals{
       {SIGHUP, "SIGHUP"},       {SIGINT, "SIGINT"},       {SIGQUIT, "SIGQUIT"},

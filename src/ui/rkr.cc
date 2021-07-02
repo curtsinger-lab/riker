@@ -13,7 +13,7 @@
 
 #include <CLI/CLI.hpp>
 
-#include "runtime/Command.hh"
+// #include "runtime/Command.hh"
 #include "ui/commands.hh"
 #include "util/log.hh"
 #include "util/options.hh"
@@ -33,21 +33,21 @@ static bool stderr_supports_colors() noexcept {
   return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
 }
 
-static void setDefaultEnvironment() noexcept {
-  extern char** environ;
-  for (int i = 0; environ[i] != nullptr; i++) {
-    string variable = string(environ[i]);
-    string key = variable.substr(0, variable.find("="));
-    variable.erase(0, variable.find("=") + 1);
-    Command::default_envar.insert({key, variable});
-  }
-}
+// static void setDefaultEnvironment() noexcept {
+//   extern char** environ;
+//   for (int i = 0; environ[i] != nullptr; i++) {
+//     string variable = string(environ[i]);
+//     string key = variable.substr(0, variable.find("="));
+//     variable.erase(0, variable.find("=") + 1);
+//     Command::default_envar.insert({key, variable});
+//   }
+// }
 
 /**
  * This is the entry point for the rkr command line tool
  */
 int main(int argc, char* argv[]) noexcept {
-  setDefaultEnvironment();
+  // setDefaultEnvironment();
 
   // Set color output based on TERM setting (can be overridden with command line option)
   if (!stderr_supports_colors()) options::disable_color = true;

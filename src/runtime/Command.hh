@@ -13,6 +13,7 @@
 
 #include "runtime/Ref.hh"
 #include "util/log.hh"
+#include "util/serializer.hh"
 
 namespace fs = std::filesystem;
 
@@ -45,9 +46,6 @@ enum class RebuildMarking {
  * directly observe any change. The same is true for the PostBuild scenario.
  */
 enum class Scenario : uint8_t { None = 0, Build = 1, PostBuild = 2, Both = 3 };
-
-// Enum for the action used for the difference in environment.
-enum Action { ADD, REPLACE, DELETE };
 
 inline bool operator&(Scenario s1, Scenario s2) noexcept {
   return (static_cast<uint8_t>(s1) & static_cast<uint8_t>(s2)) != 0;
@@ -93,10 +91,25 @@ class Command : public std::enable_shared_from_this<Command> {
   /// The type of a command ID
   using ID = uint32_t;
 
-  static std::unordered_map<std::string, std::string> default_envar;
+  // static std::unordered_map<std::string, std::string> default_envar;
+
+  /// Struct used to store how a command's environment differs from the default environment
+  struct diff {
+    // Enum for the action used for the difference in environment.
+    enum { ADD, REPLACE, DELETE };
+    std::string key;
+    std::string value;
+    int action;
+
+    // Specify fields to be serialized
+    SERIALIZE(key, value, action);
+  };
 
   /// Create a new command
   Command(std::vector<std::string> args, std::vector<std::string> envar) noexcept;
+
+  /// Create a new command
+  Command(std::vector<std::string> args, std::vector<diff> envDiffs) noexcept;
 
   /// Declare a destructor
   ~Command() noexcept;
@@ -159,18 +172,11 @@ class Command : public std::enable_shared_from_this<Command> {
     return o << *c;
   }
 
-  /// Struct used to store how a command's environment differs from the default environment
-  struct diff {
-    std::string key;
-    std::string value;
-    int action;
-  };
-
   /// Get the difference between current environment and the default environment
   std::vector<Command::diff> getDifference() { return _envDiffs; }
 
   /// Get the list of environment variables this command was in
-  std::vector<std::string> getEnvironment();
+  std::vector<std::string> getEnvironment() noexcept;
 
   /****** Rebuild Planning ******/
 
@@ -410,7 +416,7 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Compares the given environment variables with the default one and return a vector
   /// of differences between the two
-  std::vector<diff> getEnvDiff(std::vector<std::string> envar);
+  std::vector<diff> getEnvDiff(std::vector<std::string> envar) noexcept;
 
  private:
   /// The arguments passed to this command on startup
