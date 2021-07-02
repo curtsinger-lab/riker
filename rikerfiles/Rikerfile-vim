@@ -1,25 +1,23 @@
 #!/bin/sh
 cd src
 
+CFLAGS='-I. -Ilibvterm/include -Iproto -DHAVE_CONFIG_H -g -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -DINLINE= -DVSNPRINTF=vim_vsnprintf -DSNPRINTF=vim_snprintf -DIS_COMBINING_FUNCTION=utf_iscomposing_uint -DWCWIDTH_FUNCTION=utf_uint2cells'
 
-CFLAGS="-I. -Ilibvterm/include -Iproto -DHAVE_CONFIG_H -DFEAT_GUI_GTK  -pthread -I/usr/include/gtk-2.0 -I/usr/lib/x86_64-linux-gnu/gtk-2.0/include -I/usr/include/pango-1.0 -I/usr/include/atk-1.0 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/pango-1.0 -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/uuid -I/usr/include/freetype2 -I/usr/include/libpng16   -g -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1        -DINLINE="" -DVSNPRINTF=vim_vsnprintf -DSNPRINTF=vim_snprintf -DIS_COMBINING_FUNCTION=utf_iscomposing_uint -DWCWIDTH_FUNCTION=utf_uint2cells -Wno-deprecated-declarations"
+LFLAGS='-L/usr/local/lib -Wl,--as-needed'
 
-SRC="arabic.c arglist.c autocmd.c beval.c buffer.c change.c blob.c blowfish.c cindent.c clientserver.c clipboard.c cmdexpand.c cmdhist.c crypt.c crypt_zip.c debugger.c dict.c diff.c digraph.c drawline.c drawscreen.c edit.c eval.c evalbuffer.c evalfunc.c evalvars.c evalwindow.c ex_cmds.c ex_cmds2.c ex_docmd.c ex_eval.c ex_getln.c fileio.c filepath.c findfile.c float.c fold.c getchar.c gui_xim.c hardcopy.c hashtab.c help.c highlight.c if_cscope.c if_xcmdsrv.c indent.c insexpand.c list.c locale.c map.c mark.c match.c mbyte.c memline.c menu.c misc1.c misc2.c mouse.c move.c normal.c ops.c option.c optionstr.c os_unix.c auto/pathdef.c popupmenu.c popupwin.c profiler.c pty.c quickfix.c regexp.c register.c screen.c scriptfile.c search.c session.c sha256.c sign.c sound.c spell.c spellfile.c spellsuggest.c syntax.c tag.c term.c terminal.c testing.c textformat.c textobject.c textprop.c time.c typval.c ui.c undo.c usercmd.c userfunc.c version.c vim9compile.c vim9execute.c vim9script.c vim9type.c viminfo.c window.c bufwrite.c gui.c gui_gtk.c gui_gtk_x11.c gui_gtk_f.c gui_beval.c auto/gui_gtk_gresources.c libvterm/src/encoding.c libvterm/src/keyboard.c libvterm/src/mouse.c libvterm/src/parser.c libvterm/src/pen.c libvterm/src/screen.c libvterm/src/state.c libvterm/src/unicode.c libvterm/src/vterm.c         netbeans.c job.c channel.c xdiff/xdiffi.c xdiff/xemit.c xdiff/xprepare.c xdiff/xutils.c xdiff/xhistogram.c xdiff/xpatience.c  charset.c json.c main.c memfile.c message.c"
+LIBS='-lSM -lICE -lXt -lX11 -lXdmcp -lSM -lICE -lm -ltinfo -lselinux -ldl'
 
-LFLAGS="-lgtk-x11-2.0 -lgdk-x11-2.0 -lpangocairo-1.0 -latk-1.0 -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lpangoft2-1.0 -lpango-1.0 -lgobject-2.0 -lglib-2.0 -lharfbuzz -lfontconfig -lfreetype -lSM -lICE -lXt -lX11 -lXdmcp -lSM -lICE  -lm -ltinfo -lelf  -lselinux -lacl -lattr -ldl"
+SRC="arabic.c arglist.c autocmd.c beval.c buffer.c change.c blob.c blowfish.c cindent.c clientserver.c clipboard.c cmdexpand.c cmdhist.c crypt.c crypt_zip.c debugger.c dict.c diff.c digraph.c drawline.c drawscreen.c edit.c eval.c evalbuffer.c evalfunc.c evalvars.c evalwindow.c ex_cmds.c ex_cmds2.c ex_docmd.c ex_eval.c ex_getln.c fileio.c filepath.c findfile.c float.c fold.c getchar.c gui_xim.c hardcopy.c hashtab.c help.c highlight.c if_cscope.c if_xcmdsrv.c indent.c insexpand.c list.c locale.c map.c mark.c match.c mbyte.c memline.c menu.c misc1.c misc2.c mouse.c move.c normal.c ops.c option.c optionstr.c os_unix.c auto/pathdef.c popupmenu.c popupwin.c profiler.c pty.c quickfix.c regexp.c register.c screen.c scriptfile.c search.c session.c sha256.c sign.c sound.c spell.c spellfile.c spellsuggest.c syntax.c tag.c term.c terminal.c testing.c textformat.c textobject.c textprop.c time.c typval.c ui.c undo.c usercmd.c userfunc.c vim9compile.c vim9execute.c vim9script.c vim9type.c viminfo.c window.c bufwrite.c netbeans.c job.c channel.c xdiff/xdiffi.c xdiff/xemit.c xdiff/xprepare.c xdiff/xutils.c xdiff/xhistogram.c xdiff/xpatience.c charset.c json.c main.c memfile.c message.c version.c libvterm/src/encoding.c libvterm/src/keyboard.c libvterm/src/mouse.c libvterm/src/parser.c libvterm/src/pen.c libvterm/src/screen.c libvterm/src/state.c libvterm/src/unicode.c libvterm/src/vterm.c"
 
-
-CC="gcc $CFLAGS" srcdir=. sh ./osdef.sh
-
-echo creating auto/pathdef.c
+# Generate auto/pathdef.c
 echo '/* pathdef.c */' > auto/pathdef.c
 echo '/* This file is automatically created by Makefile' >> auto/pathdef.c
 echo ' * DO NOT EDIT!  Change Makefile only. */' >> auto/pathdef.c
 echo '#include "vim.h"' >> auto/pathdef.c
 echo 'char_u *default_vim_dir = (char_u *)"/usr/local/share/vim";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >> auto/pathdef.c
 echo 'char_u *default_vimruntime_dir = (char_u *)"";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >> auto/pathdef.c
-echo 'char_u *all_cflags = (char_u *)"gcc -c -I. -Iproto -DHAVE_CONFIG_H -DFEAT_GUI_GTK  -pthread -I/usr/include/gtk-2.0 -I/usr/lib/x86_64-linux-gnu/gtk-2.0/include -I/usr/include/pango-1.0 -I/usr/include/atk-1.0 -I/usr/include/gdk-pixbuf-2.0 -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/pango-1.0 -I/usr/include/fribidi -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/harfbuzz -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/uuid -I/usr/include/freetype2 -I/usr/include/libpng16   -g -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1       ";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >>  auto/pathdef.c
-echo 'char_u *all_lflags = (char_u *)"gcc   -L/usr/local/lib -Wl,--as-needed -o vim   -lgtk-x11-2.0 -lgdk-x11-2.0 -lpangocairo-1.0 -latk-1.0 -lcairo -lgdk_pixbuf-2.0 -lgio-2.0 -lpangoft2-1.0 -lpango-1.0 -lgobject-2.0 -lglib-2.0 -lharfbuzz -lfontconfig -lfreetype -lSM -lICE -lXt -lX11 -lXdmcp -lSM -lICE  -lm -ltinfo -lelf  -lselinux -lacl -lattr -ldl           ";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >>  auto/pathdef.c
+echo 'char_u *all_cflags = (char_u *)"'$CFLAGS'";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >>  auto/pathdef.c
+echo 'char_u *all_lflags = (char_u *)"gcc '$LFLAGS' -o vim '$LIBS'";' | sed -e 's/[\\"]/\\&/g' -e 's/\\"/"/' -e 's/\\";$/";/' -e 's/  */ /g' >>  auto/pathdef.c
 echo 'char_u *compiled_user = (char_u *)"' | tr -d "\\012" >> auto/pathdef.c
 if test -n ""; then \
 	echo "" | tr -d "\\012" >> auto/pathdef.c; \
@@ -30,10 +28,8 @@ if test -z ""; then hostname | tr -d "\\012" >> auto/pathdef.c; fi
 echo '";' >> auto/pathdef.c
 sh ./pathdef.sh
 
-if test -z "/usr/bin/glib-compile-resources"; then touch auto/gui_gtk_gresources.h; else \
-	/usr/bin/glib-compile-resources --target=auto/gui_gtk_gresources.h --sourcedir=../pixmaps --generate --c-name=gui_gtk --manual-register gui_gtk_res.xml; \
-fi
+# Generate osdef.h
+CC="gcc $CFLAGS" srcdir=. sh ./osdef.sh
 
-/usr/bin/glib-compile-resources --target=auto/gui_gtk_gresources.c --sourcedir=../pixmaps --generate --c-name=gui_gtk --manual-register gui_gtk_res.xml
-
-gcc -L/usr/local/lib -Wl,--as-needed -o vim $CFLAGS $SRC $LFLAGS
+# Run the build
+gcc $LFLAGS $CFLAGS -o vim $SRC $LIBS
