@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <climits>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -15,7 +16,7 @@ using std::vector;
 
 extern char** environ;
 
-enum { ADD, REPLACE, DELETE };
+enum { ADD, REPLACE, DELETE, APPEND, PREPEND, POP, DEQUEUE };
 unordered_map<string, string> default_envar;
 
 struct diff {
@@ -95,11 +96,12 @@ vector<vector<int>> LevenshteinDistance(const vector<string> before_tokens,
                                         const vector<string> after_tokens) {
   // for all i and j, d[i,j] will hold the Levenshtein distance between
   // the first i characters of s and the first j characters of t
-  /*       m
+  /*       j
+           m
       b e f o r e
     a
     f
-  n t
+i n t
     e
     r
 
@@ -107,26 +109,26 @@ vector<vector<int>> LevenshteinDistance(const vector<string> before_tokens,
   int m = before_tokens.size();
   int n = after_tokens.size();
 
-  vector<vector<int>> d(n, vector<int>(m, 0));
+  vector<vector<int>> d(n + 1, vector<int>(m + 1, 0));
 
   // set each element in d to zero
 
   // source prefixes can be transformed into empty string by
   // dropping all characters
-  for (int i = 1; i < m; i++) {
+  for (int i = 1; i <= n; i++) {
     d[i][0] = i;
   }
 
   // target prefixes can be reached from empty source prefix
   // by inserting every character
-  for (int j = 1; j < n; j++) {
+  for (int j = 1; j <= m; j++) {
     d[0][j] = j;
   }
 
   int substitutionCost;
-  for (int j = 1; j < n; j++) {
-    for (int i = 1; i < m; i++) {
-      if (before_tokens[i] == after_tokens[j]) {
+  for (int j = 1; j <= m; j++) {
+    for (int i = 1; i <= n; i++) {
+      if (after_tokens[i - 1] == before_tokens[j - 1]) {
         substitutionCost = 0;
       } else {
         substitutionCost = 1;
@@ -141,9 +143,7 @@ vector<vector<int>> LevenshteinDistance(const vector<string> before_tokens,
   return d;
 }
 
-void analyzeChanges(string before, string after, char delimiter) {
-  // vector<string> before_tokens =  before.substr(0, before.find(delimiter));
-
+vector<diff> analyzeChanges(string before, string after, char delimiter, string key) {
   // Split before string into vector of tokens
   string tmp;
   stringstream ssb(before);
@@ -158,23 +158,107 @@ void analyzeChanges(string before, string after, char delimiter) {
     after_tokens.push_back(tmp);
   }
 
-  vector<string> to_prepend;
-  vector<string> to_append;
-  vector<string> to_dequeue;
-  vector<string> to_pop;
-  // bool match_found = false;
+  // vector<string> to_prepend;
+  // vector<string> to_append;
+  // vector<string> to_dequeue;
+  // vector<string> to_pop;
 
-  // for (string atoken : after_tokens) {
-  //   for (string btoken : before_tokens) {
-  //     if (atoken.compare(btoken) == 0) {
-  //       match_found = true;
-  //     } else if (!match_found) {
-  //       to_prepend.push_back(atoken);
-  //     } else {
-  //       to_append.push_back(atoken);
-  //     }
-  //   }
-  // }
+  int m = before_tokens.size();
+  int n = after_tokens.size();
+
+  vector<vector<int>> dist(LevenshteinDistance(before_tokens, after_tokens));
+  cout << "    ";
+  for (string s : before_tokens) {
+    cout << s << " ";
+  }
+  cout << endl;
+  for (int i = 0; i <= n; i++) {
+    if (i != 0) {
+      cout << after_tokens[i - 1] << " ";
+    } else {
+      cout << "  ";
+    }
+    for (int j = 0; j <= m; j++) {
+      cout << dist[i][j] << " ";
+    }
+    cout << endl;
+  }
+  cout << endl << endl;
+  int i = n, j = m;
+  int up, left, diagonal, minimum;
+  vector<diff> to_return;
+  int switches = 0;
+  bool previous_matched = false;
+  diff changed_var;
+  while (!(i == 0 && j == 0)) {
+    // cout << "i=" << i << " j=" << j << " before[j]=" << before_tokens[j - 1]
+    //     << " after[i]=" << after_tokens[i - 1] << endl;
+    if (i == 0) {
+      left = dist[i][j - 1];
+      diagonal = INT_MAX;
+      up = INT_MAX;
+      minimum = left;
+    }
+    if (j == 0) {
+      up = dist[i - 1][j];
+      diagonal = INT_MAX;
+      left = INT_MAX;
+      minimum = up;
+    }
+    if (i != 0 && j != 0) {
+      up = dist[i - 1][j];
+      left = dist[i][j - 1];
+      diagonal = dist[i - 1][j - 1];
+      minimum = min({up, left, diagonal});
+    }
+
+    if (minimum == diagonal) {
+      if (diagonal == dist[i][j] && switches < 2) {
+        if (!previous_matched) {
+          switches++;
+          previous_matched = true;
+        }
+        i--;
+        j--;
+      } else {
+        // cannot append/prepend changes.
+        // return the REPLACE diff
+        to_return.clear();
+        diff changed_var = {key, after, REPLACE};
+        to_return.push_back(changed_var);
+        return to_return;
+      }
+    } else if (minimum == up) {
+      if (switches == 0) {
+        changed_var = {key, after_tokens[i - 1], APPEND};
+      } else {
+        if (previous_matched) {
+          switches++;
+          previous_matched = false;
+        }
+        changed_var = {key, after_tokens[i - 1], PREPEND};
+      }
+      to_return.push_back(changed_var);
+      i--;
+    } else {
+      // to_return.clear();
+      diff changed_var = {key, after, REPLACE};
+      to_return.push_back(changed_var);
+      return to_return;
+      // if (switches == 0) {
+      //   changed_var = {key, before_tokens[j], POP};
+      // } else {
+      //   if (previous_matched) {
+      //     switches++;
+      //     previous_matched = false;
+      //   }
+      //   changed_var = {key, before_tokens[j], DEQUEUE};
+      // }
+      // to_return.push_back(changed_var);
+      // j--;
+    }
+  }
+  return to_return;
 }
 
 int main() {
@@ -184,16 +268,24 @@ int main() {
     variable.erase(0, variable.find("=") + 1);
     default_envar.insert({key, variable});
   }
+  string before = "e:f:g";
+  string after = "c:d:e:f:g:h";
 
-  vector<string> envar;
-  vector<diff> difference = getEnvDiff(envar);
+  vector<diff> diffs = analyzeChanges(before, after, ':', "testkey");
+
+  for (diff d : diffs) {
+    cout << d.key << " " << d.value << " " << d.action << endl;
+  }
+
+  // vector<string> envar;
+  // vector<diff> difference = getEnvDiff(envar);
   //   for (vector<diff>::const_iterator i = difference.begin(); i != difference.end(); ++i) {
   //     cout << i->key << "=" << i->value << " " << i->action << endl;
   //   }
 
-  vector<string> env = getEnvironment(difference);
-  for (string s : env) {
-    cout << s << endl;
-  }
+  // vector<string> env = getEnvironment(difference);
+  // for (string s : env) {
+  //   cout << s << endl;
+  // }
   return 1;
 }
