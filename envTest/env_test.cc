@@ -1,11 +1,15 @@
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 using std::cout;
 using std::endl;
+using std::min;
 using std::string;
+using std::stringstream;
 using std::unordered_map;
 using std::vector;
 
@@ -70,6 +74,7 @@ vector<diff> getEnvDiff(vector<string> envar) {
       default_value = default_envar_copy[key];
       // If the corresponding values are not the same, record diff
       if (default_value.compare(value) != 0) {
+        // Analyze the difference to see if it is appending or prepending
         diff changed_var = {key, value, REPLACE};
         to_return.push_back(changed_var);
       }
@@ -86,6 +91,92 @@ vector<diff> getEnvDiff(vector<string> envar) {
   return to_return;
 }
 
+vector<vector<int>> LevenshteinDistance(const vector<string> before_tokens,
+                                        const vector<string> after_tokens) {
+  // for all i and j, d[i,j] will hold the Levenshtein distance between
+  // the first i characters of s and the first j characters of t
+  /*       m
+      b e f o r e
+    a
+    f
+  n t
+    e
+    r
+
+  */
+  int m = before_tokens.size();
+  int n = after_tokens.size();
+
+  vector<vector<int>> d(n, vector<int>(m, 0));
+
+  // set each element in d to zero
+
+  // source prefixes can be transformed into empty string by
+  // dropping all characters
+  for (int i = 1; i < m; i++) {
+    d[i][0] = i;
+  }
+
+  // target prefixes can be reached from empty source prefix
+  // by inserting every character
+  for (int j = 1; j < n; j++) {
+    d[0][j] = j;
+  }
+
+  int substitutionCost;
+  for (int j = 1; j < n; j++) {
+    for (int i = 1; i < m; i++) {
+      if (before_tokens[i] == after_tokens[j]) {
+        substitutionCost = 0;
+      } else {
+        substitutionCost = 1;
+      }
+
+      d[i][j] = min({d[i - 1][j] + 1,                       // deletion
+                     d[i][j - 1] + 1,                       // insertion
+                     d[i - 1][j - 1] + substitutionCost});  // substitution
+    }
+  }
+
+  return d;
+}
+
+void analyzeChanges(string before, string after, char delimiter) {
+  // vector<string> before_tokens =  before.substr(0, before.find(delimiter));
+
+  // Split before string into vector of tokens
+  string tmp;
+  stringstream ssb(before);
+  vector<string> before_tokens;
+  while (getline(ssb, tmp, delimiter)) {
+    before_tokens.push_back(tmp);
+  }
+  // Split after string into vector of tokens
+  stringstream ssa(after);
+  vector<string> after_tokens;
+  while (getline(ssa, tmp, delimiter)) {
+    after_tokens.push_back(tmp);
+  }
+
+  vector<string> to_prepend;
+  vector<string> to_append;
+  vector<string> to_dequeue;
+  vector<string> to_pop;
+  // bool match_found = false;
+
+  // for (string atoken : after_tokens) {
+  //   for (string btoken : before_tokens) {
+  //     if (atoken.compare(btoken) == 0) {
+  //       match_found = true;
+  //     } else if (!match_found) {
+  //       to_prepend.push_back(atoken);
+  //     } else {
+  //       to_append.push_back(atoken);
+  //     }
+  //   }
+  // }
+}
+
 int main() {
   for (int i = 0; environ[i] != nullptr; i++) {
     string variable = string(environ[i]);
@@ -93,10 +184,6 @@ int main() {
     variable.erase(0, variable.find("=") + 1);
     default_envar.insert({key, variable});
   }
-
-  // for (auto const& pair : default_envar) {
-  //   cout << pair.first << "=" << pair.second << endl;
-  // }
 
   vector<string> envar;
   vector<diff> difference = getEnvDiff(envar);
