@@ -1,0 +1,4 @@
+#!/bin/sh
+
+EXTRA_EXTRA_MESSAGE=$EXTRA_EXTRA_MESSAGE:goodmorning
+./do_work

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+unset EXTRA_EXTRA_MESSAGE 
+./do_work
