@@ -96,7 +96,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Struct used to store how a command's environment differs from the default environment
   struct diff {
     // Enum for the action used for the difference in environment.
-    enum { ADD, REPLACE, DELETE };
+    enum { ADD, REPLACE, DELETE, APPEND, PREPEND, POP, DEQUEUE };
     std::string key;
     std::string value;
     int action;
@@ -413,6 +413,15 @@ class Command : public std::enable_shared_from_this<Command> {
  private:
   /// Assign a marking to this command for the next build. Returns true if this is a new marking.
   bool mark(RebuildMarking marking) noexcept;
+
+  std::vector<std::vector<int>> LevenshteinDistance(
+      const std::vector<std::string> before_tokens,
+      const std::vector<std::string> after_tokens) noexcept;
+
+  std::vector<diff> analyzeChanges(std::string before,
+                                   std::string after,
+                                   char delimiter,
+                                   std::string key) noexcept;
 
   /// Compares the given environment variables with the default one and return a vector
   /// of differences between the two

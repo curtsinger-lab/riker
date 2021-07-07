@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -23,11 +24,13 @@ using std::list;
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::min;
 using std::nullopt;
 using std::optional;
 using std::set;
 using std::shared_ptr;
 using std::string;
+using std::stringstream;
 using std::unique_ptr;
 using std::unordered_map;
 using std::vector;
@@ -253,6 +256,7 @@ vector<string> Command::getEnvironment() noexcept {
   vector<string> to_return;
   unordered_map<string, string> default_envar_copy(getDefaultEnv());
   vector<Command::diff> difference = getDifference();
+  string value;
   for (Command::diff change : difference) {
     switch (change.action) {
       case diff::ADD:
@@ -265,6 +269,19 @@ vector<string> Command::getEnvironment() noexcept {
         break;
       case diff::DELETE:
         default_envar_copy.erase(change.key);
+        break;
+      case diff::POP:
+        value = default_envar_copy.at(change.key);
+        value.erase(value.length() - change.value.length() - 1);
+        break;
+      case diff::DEQUEUE:
+        default_envar_copy.at(change.key).erase(0, change.value.length() + 1);
+        break;
+      case diff::APPEND:
+        default_envar_copy.at(change.key).append(":").append(change.value);
+        break;
+      case diff::PREPEND:
+        default_envar_copy.at(change.key).insert(0, 1, ':').insert(0, change.value);
         break;
     }
   }
@@ -476,6 +493,178 @@ bool Command::mark(RebuildMarking m) noexcept {
   }
 }
 
+vector<vector<int>> Command::LevenshteinDistance(const vector<string> before_tokens,
+                                                 const vector<string> after_tokens) noexcept {
+  // for all i and j, d[i,j] will hold the Levenshtein distance between
+  // the first i characters of s and the first j characters of t
+  /*       j
+           m
+      b e f o r e
+    a
+    f
+i n t
+    e
+    r
+
+  */
+  int m = before_tokens.size();
+  int n = after_tokens.size();
+
+  vector<vector<int>> d(n + 1, vector<int>(m + 1, 0));
+
+  // set each element in d to zero
+
+  // source prefixes can be transformed into empty string by
+  // dropping all characters
+  for (int i = 1; i <= n; i++) {
+    d[i][0] = i;
+  }
+
+  // target prefixes can be reached from empty source prefix
+  // by inserting every character
+  for (int j = 1; j <= m; j++) {
+    d[0][j] = j;
+  }
+
+  int substitutionCost;
+  for (int j = 1; j <= m; j++) {
+    for (int i = 1; i <= n; i++) {
+      if (after_tokens[i - 1] == before_tokens[j - 1]) {
+        substitutionCost = 0;
+      } else {
+        substitutionCost = 1;
+      }
+
+      d[i][j] = min({d[i - 1][j] + 1,                       // deletion
+                     d[i][j - 1] + 1,                       // insertion
+                     d[i - 1][j - 1] + substitutionCost});  // substitution
+    }
+  }
+
+  return d;
+}
+
+vector<Command::diff> Command::analyzeChanges(string before,
+                                              string after,
+                                              char delimiter,
+                                              string key) noexcept {
+  // Split before string into vector of tokens
+  string tmp;
+  stringstream ssb(before);
+  vector<string> before_tokens;
+  while (getline(ssb, tmp, delimiter)) {
+    before_tokens.push_back(tmp);
+  }
+  // Split after string into vector of tokens
+  stringstream ssa(after);
+  vector<string> after_tokens;
+  while (getline(ssa, tmp, delimiter)) {
+    after_tokens.push_back(tmp);
+  }
+
+  // vector<string> to_prepend;
+  // vector<string> to_append;
+  // vector<string> to_dequeue;
+  // vector<string> to_pop;
+
+  int m = before_tokens.size();
+  int n = after_tokens.size();
+
+  vector<vector<int>> dist(LevenshteinDistance(before_tokens, after_tokens));
+  // cout << "    ";
+  // for (string s : before_tokens) {
+  //   cout << s << " ";
+  // }
+  // cout << endl;
+  // for (int i = 0; i <= n; i++) {
+  //   if (i != 0) {
+  //     cout << after_tokens[i - 1] << " ";
+  //   } else {
+  //     cout << "  ";
+  //   }
+  //   for (int j = 0; j <= m; j++) {
+  //     cout << dist[i][j] << " ";
+  //   }
+  //   cout << endl;
+  // }
+  // cout << endl << endl;
+  int i = n, j = m;
+  int up, left, diagonal, minimum;
+  vector<Command::diff> to_return;
+  int switches = 0;
+  bool previous_matched = false;
+  Command::diff changed_var;
+  while (!(i == 0 && j == 0)) {
+    // cout << "i=" << i << " j=" << j << " before[j]=" << before_tokens[j - 1]
+    //     << " after[i]=" << after_tokens[i - 1] << endl;
+    if (i == 0) {
+      left = dist[i][j - 1];
+      diagonal = INT_MAX;
+      up = INT_MAX;
+      minimum = left;
+    }
+    if (j == 0) {
+      up = dist[i - 1][j];
+      diagonal = INT_MAX;
+      left = INT_MAX;
+      minimum = up;
+    }
+    if (i != 0 && j != 0) {
+      up = dist[i - 1][j];
+      left = dist[i][j - 1];
+      diagonal = dist[i - 1][j - 1];
+      minimum = min({up, left, diagonal});
+    }
+
+    if (minimum == diagonal) {
+      if (diagonal == dist[i][j] && switches < 2) {
+        if (!previous_matched) {
+          switches++;
+          previous_matched = true;
+        }
+        i--;
+        j--;
+      } else {
+        // cannot append/prepend changes.
+        // return the REPLACE diff
+        to_return.clear();
+        Command::diff changed_var = {key, after, Command::diff::REPLACE};
+        to_return.push_back(changed_var);
+        return to_return;
+      }
+    } else if (minimum == up) {
+      if (switches == 0) {
+        changed_var = {key, after_tokens[i - 1], Command::diff::APPEND};
+      } else {
+        if (previous_matched) {
+          switches++;
+          previous_matched = false;
+        }
+        changed_var = {key, after_tokens[i - 1], Command::diff::PREPEND};
+      }
+      to_return.push_back(changed_var);
+      i--;
+    } else {
+      // to_return.clear();
+      // diff changed_var = {key, after, REPLACE};
+      // to_return.push_back(changed_var);
+      // return to_return;
+      if (switches == 0) {
+        changed_var = {key, before_tokens[j - 1], Command::diff::POP};
+      } else {
+        if (previous_matched) {
+          switches++;
+          previous_matched = false;
+        }
+        changed_var = {key, before_tokens[j - 1], Command::diff::DEQUEUE};
+      }
+      to_return.push_back(changed_var);
+      j--;
+    }
+  }
+  return to_return;
+}
+
 // This function compares the given environment variables with the default one and returns a vector
 // of differences between the two
 vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
@@ -486,13 +675,13 @@ vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
   vector<diff> to_return;
   unordered_map<string, string> default_envar_copy(getDefaultEnv());
   // default_envar_copy.insert(getDefaultEnv().begin(), getDefaultEnv().end());
-  int num = 1;
+  // int num = 1;
   for (string value : envar) {
     // WARN << num << " " << value;
     string key = value.substr(0, value.find("="));
     value.erase(0, value.find("=") + 1);
     // WARN << num << " " << value;
-    num++;
+    // num++;
     string default_value;
     unordered_map<string, string>::const_iterator it;
     // Checking if the key is present in default_envar
@@ -508,19 +697,21 @@ vector<Command::diff> Command::getEnvDiff(vector<string> envar) noexcept {
       default_value = default_envar_copy[key];
       // If the corresponding values are not the same, record diff
       if (default_value.compare(value) != 0) {
-        diff changed_var = {key, value, diff::REPLACE};
-        to_return.push_back(changed_var);
+        // Analyze the difference to see if it is appending or prepending
+        vector<diff> changed_vars = analyzeChanges(default_value, value, ':', key);
+        // diff changed_var = {key, value, REPLACE};
+        to_return.insert(to_return.end(), changed_vars.begin(), changed_vars.end());
       }
       default_envar_copy.erase(it);
     }
   }
-  num = 1;
+  // num = 1;
   // Loop over all remaining elements in default_envar_copy
   auto it = default_envar_copy.begin();
   while (it != default_envar_copy.end()) {
     diff deleted_var = {it->first, it->second, diff::DELETE};
     // WARN << "delete" << num << ": " << deleted_var.key << "=" << deleted_var.value;
-    num++;
+    // num++;
     to_return.push_back(deleted_var);
     it = default_envar_copy.erase(it);
   }
