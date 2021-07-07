@@ -14,4 +14,3 @@ tests/*/*.t.err
 benchmark.local
 rkr-inject.so
 .blake3obj/
-.vscode/

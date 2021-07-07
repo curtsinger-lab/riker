@@ -1,0 +1,38 @@
+{
+  "configurations": [
+      {
+          "name": "Linux",
+          "includePath": [
+              "${workspaceFolder}/src",
+              "${workspaceFolder}/deps/cereal/include",
+              "${workspaceFolder}/deps/CLI11/include",
+              "${workspaceFolder}/deps/BLAKE3/c"
+          ],
+          "intelliSenseMode": "clang-x64",
+          "compilerPath": "/usr/bin/clang",
+          "cStandard": "c11",
+          "cppStandard": "c++17"
+      },
+      {
+          "name": "Mac",
+          "includePath": [
+              "${workspaceFolder}/**"
+          ],
+          "defines": [],
+          "compilerPath": "/usr/bin/clang",
+          "cStandard": "c11",
+          "intelliSenseMode": "clang-x64"
+      },
+      {
+          "name": "Linux?",
+          "includePath": [
+              "${workspaceFolder}/**"
+          ],
+          "defines": [],
+          "compilerPath": "/usr/bin/clang",
+          "cStandard": "c11",
+          "intelliSenseMode": "clang-x64"
+      }
+  ],
+  "version": 4
+}
