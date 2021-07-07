@@ -1,0 +1,26 @@
+#!/bin/sh   
+
+CFLAGS="-DPACKAGE_NAME=\"tmux\" -DPACKAGE_TARNAME=\"tmux\" -DPACKAGE_VERSION=\"next-3.3\" -DPACKAGE_STRING=\"tmux\next-3.3\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE_URL=\"\" -DPACKAGE=\"tmux\" -DVERSION=\"next-3.3\" -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -D__EXTENSIONS__=1 -D_ALL_SOURCE=1 -D_GNU_SOURCE=1 -D_POSIX_PTHREAD_SEMANTICS=1 -D_TANDEM_SOURCE=1 -DHAVE_DIRENT_H=1 -DHAVE_FCNTL_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_PATHS_H=1 -DHAVE_PTY_H=1 -DHAVE_STDINT_H=1 -DHAVE_SYS_DIR_H=1 -DHAVE_LIBM=1 -DHAVE_DIRFD=1 -DHAVE_FLOCK=1 -DHAVE_PRCTL=1 -DHAVE_SYSCONF=1 -DHAVE_ASPRINTF=1 -DHAVE_CFMAKERAW=1 -DHAVE_CLOCK_GETTIME=1 -DHAVE_EXPLICIT_BZERO=1 -DHAVE_GETDTABLESIZE=1 -DHAVE_GETLINE=1 -DHAVE_MEMMEM=1 -DHAVE_SETENV=1 -DHAVE_STRCASESTR=1 -DHAVE_STRNDUP=1 -DHAVE_STRSEP=1 -DHAVE_EVENT2_EVENT_H=1 -DHAVE_NCURSES_H=1 -DHAVE_B64_NTOP=1 -DHAVE_MALLOC_TRIM=1 -DHAVE_DAEMON=1 -DHAVE_FORKPTY=1 -DHAVE___PROGNAME=1 -DHAVE_PROGRAM_INVOCATION_SHORT_NAME=1 -DHAVE_PR_SET_NAME=1 -DHAVE_PROC_PID=1 -I.  -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=600 -DTMUX_VERSION='\"next-3.3\"' -DTMUX_CONF='\"/etc/tmux.conf:~/.tmux.conf:$XDG_CONFIG_HOME/tmux/tmux.conf:~/.config/tmux/tmux.conf\"' -DDEBUG -iquote.       -std=gnu99 -O2 -g -Wno-long-long -Wall -W -Wformat=2 -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations -Wwrite-strings -Wshadow -Wpointer-arith -Wsign-compare -Wundef -Wbad-function-cast -Winline -Wcast-align -Wdeclaration-after-statement -Wno-pointer-sign -Wno-attributes -Wno-unused-result -Wno-format-y2k"
+
+while read filename; do
+  depbase=`echo $filename.o | sed 's|[^/]*$|.deps/&|;s|\.o$||'`;\
+  gcc $CFLAGS   -MT $filename.o -MD -MP -MF $depbase.Tpo -c -o $filename.o $filename.c &&\
+  mv -f $depbase.Tpo $depbase.Po
+done <tmux_filenames
+
+./etc/ylwrap cmd-parse.y y.tab.c cmd-parse.c y.tab.h `echo cmd-parse.c | sed -e s/cc$/hh/ -e s/cpp$/hpp/ -e s/cxx$/hxx/ -e s/c++$/h++/ -e s/c$/h/` y.output cmd-parse.output -- yacc  
+depbase=`echo cmd-parse.o | sed 's|[^/]*$|.deps/&|;s|\.o$||'`;\
+gcc $CFLAGS   -MT cmd-parse.o -MD -MP -MF $depbase.Tpo -c -o cmd-parse.o cmd-parse.c &&\
+mv -f $depbase.Tpo $depbase.Po
+
+/usr/bin/mkdir -p compat/
+: > compat/.dirstamp
+
+while read filename; do
+  depbase=`echo compat/$filename.o | sed 's|[^/]*$|.deps/&|;s|\.o$||'`;\
+  gcc $CFLAGS   -MT compat/$filename.o -MD -MP -MF $depbase.Tpo -c -o compat/$filename.o compat/$filename.c &&\
+  mv -f $depbase.Tpo $depbase.Po
+done <tmux_compat_filenames
+
+rm -f tmux
+gcc -std=gnu99 -O2 -g -Wno-long-long -Wall -W -Wformat=2 -Wmissing-prototypes -Wstrict-prototypes -Wmissing-declarations -Wwrite-strings -Wshadow -Wpointer-arith -Wsign-compare -Wundef -Wbad-function-cast -Winline -Wcast-align -Wdeclaration-after-statement -Wno-pointer-sign -Wno-attributes -Wno-unused-result -Wno-format-y2k     -o tmux alerts.o arguments.o attributes.o cfg.o client.o cmd-attach-session.o cmd-bind-key.o cmd-break-pane.o cmd-capture-pane.o cmd-choose-tree.o cmd-command-prompt.o cmd-confirm-before.o cmd-copy-mode.o cmd-detach-client.o cmd-display-menu.o cmd-display-message.o cmd-display-panes.o cmd-find-window.o cmd-find.o cmd-if-shell.o cmd-join-pane.o cmd-kill-pane.o cmd-kill-server.o cmd-kill-session.o cmd-kill-window.o cmd-list-buffers.o cmd-list-clients.o cmd-list-keys.o cmd-list-panes.o cmd-list-sessions.o cmd-list-windows.o cmd-load-buffer.o cmd-lock-server.o cmd-move-window.o cmd-new-session.o cmd-new-window.o cmd-parse.o cmd-paste-buffer.o cmd-pipe-pane.o cmd-queue.o cmd-refresh-client.o cmd-rename-session.o cmd-rename-window.o cmd-resize-pane.o cmd-resize-window.o cmd-respawn-pane.o cmd-respawn-window.o cmd-rotate-window.o cmd-run-shell.o cmd-save-buffer.o cmd-select-layout.o cmd-select-pane.o cmd-select-window.o cmd-send-keys.o cmd-set-buffer.o cmd-set-environment.o cmd-set-option.o cmd-show-environment.o cmd-show-messages.o cmd-show-options.o cmd-show-prompt-history.o cmd-source-file.o cmd-split-window.o cmd-swap-pane.o cmd-swap-window.o cmd-switch-client.o cmd-unbind-key.o cmd-wait-for.o cmd.o colour.o control-notify.o control.o environ.o file.o format.o format-draw.o grid-reader.o grid-view.o grid.o input-keys.o input.o job.o key-bindings.o key-string.o layout-custom.o layout-set.o layout.o log.o menu.o mode-tree.o names.o notify.o options-table.o options.o paste.o popup.o proc.o regsub.o resize.o screen-redraw.o screen-write.o screen.o server-client.o server-fn.o server.o session.o spawn.o status.o style.o tmux.o tty-acs.o tty-features.o tty-keys.o tty-term.o tty.o utf8.o window-buffer.o window-client.o window-clock.o window-copy.o window-customize.o window-tree.o window.o xmalloc.o osdep-linux.o   compat/closefrom.o compat/fgetln.o compat/freezero.o compat/getdtablecount.o compat/getprogname.o compat/setproctitle.o compat/strlcat.o compat/strlcpy.o compat/strtonum.o compat/recallocarray.o compat/getopt.o compat/imsg.o compat/imsg-buffer.o compat/vis.o compat/unvis.o compat/fdforkpty.o -lutil -Wl,-Bsymbolic-functions -ltinfo -levent_core -lm  -lresolv

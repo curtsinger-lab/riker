@@ -1,0 +1,16 @@
+closefrom
+fgetln
+freezero
+getdtablecount
+getprogname
+setproctitle
+strlcat
+strlcpy
+strtonum
+recallocarray
+getopt
+imsg
+imsg-buffer
+vis
+unvis
+fdforkpty

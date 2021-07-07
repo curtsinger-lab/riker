@@ -17,7 +17,8 @@
 using namespace std;
 
 // Initialize Global variables
-vector<string> subprocess_arr, c_file_arr, o_file_arr, a_file_arr, compiler_flags, linker_flags;
+vector<string> subprocess_arr, c_file_arr, o_file_arr, a_file_arr, dep_file_arr, compiler_flags,
+    linker_flags, dep_flags;
 bool link_bool = true, temp = true, print = false;
 string output_name, include_path, compiler_str;
 const char* compiler;
@@ -77,10 +78,12 @@ void parse_args(vector<string> args) {
     exit(0);
   }
 
-  vector<string> supported_flags = {"-print", "-D", "-f",   "-o",    "-W",        "-pthread", "-g",
-                                    "-M",     "-O", "-std", "--std", "-pedantic", "-m", "-U"};
+  vector<string> supported_flags = {"-print",   "-D",        "-f", "-o", "-W",
+                                    "-pthread", "-g",        "-M", "-O", "-std",
+                                    "--std",    "-pedantic", "-m", "-U", "-iquote"};
   vector<string> supported_compile_flags = {};
   vector<string> supported_linker_flags = {"-L", "-shared", "-Wl", "-l", "-r"};
+  vector<string> supported_dep_flags = {"-MD", "-MF", "-MG", "-MP", "-MQ", "-MT"};
 
   // preserve a copy of the original command in case we need to call it
   vector<string> command = args;
@@ -102,6 +105,15 @@ void parse_args(vector<string> args) {
         o_file_arr.push_back(output_name);
       }
       args = pop_front(args);
+      args = pop_front(args);
+    } else if (std::any_of(supported_dep_flags.begin(), supported_dep_flags.end(),
+                           [&](string flag) { return argstr.rfind(flag, 0) == 0; })) {
+      dep_flags.push_back(argstr);
+      output_name = args[1].data();
+      if (output_name.find(".") != string::npos) {
+        dep_flags.push_back(output_name);
+        args = pop_front(args);
+      }
       args = pop_front(args);
     } else if ((argstr.size() > 2) && (0 == argstr.compare(argstr.size() - 2, 2, ".c"))) {
       c_file_arr.push_back(argstr);
@@ -222,6 +234,9 @@ void compile() {
 // This function link the compiled files in a single thread
 void linking() {
   vector<string> link_vec = {compiler_str, "-o", output_name};
+  for (string dep_file : dep_file_arr) {
+    link_vec.push_back(dep_file);
+  }
   for (string o_file : o_file_arr) {
     link_vec.push_back(o_file);
   }
