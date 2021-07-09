@@ -179,6 +179,12 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
+  /************* Dependency Subcommand ********/
+  auto gen_deps = app.add_subcommand(
+      "generate-deps", "Generate .rkr-deps that contains all the necessary dependencies");
+  auto install_deps = app.add_subcommand("install-deps", "Install all missing dependencies");
+  auto check_deps = app.add_subcommand("check-deps", "Check all the necessary dependencies");
+
   /************* Rikerfile Arguments ***********/
   vector<string> args;
   app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
@@ -201,6 +207,10 @@ int main(int argc, char* argv[]) noexcept {
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand
   stats->final_callback([&] { do_stats(args, list_artifacts); });
+  // dependency subcommand
+  gen_deps->final_callback([&] { do_gen_deps(args); });
+  install_deps->final_callback([&] { do_install_deps(args); });
+  check_deps->final_callback([&] { do_check_deps(args); });
 
   /************* Argument Parsing *************/
 
