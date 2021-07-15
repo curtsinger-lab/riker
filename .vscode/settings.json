@@ -70,7 +70,14 @@
     "typeindex": "cpp",
     "typeinfo": "cpp",
     "valarray": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "csetjmp": "cpp",
+    "any": "cpp",
+    "strstream": "cpp",
+    "cfenv": "cpp",
+    "charconv": "cpp",
+    "cuchar": "cpp",
+    "scoped_allocator": "cpp"
   },
   "C_Cpp.default.cppStandard": "c++17",
   "C_Cpp.intelliSenseMemoryLimit": 512,
