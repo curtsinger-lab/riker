@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -17,17 +18,20 @@ using std::array;
 using std::cout;
 using std::endl;
 using std::ifstream;
+using std::nullopt;
 using std::ofstream;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+
+// std::mutex fm;
 
 /**
  * Run the 'gen_deps' subcommand
  */
 void do_gen_deps(vector<string> args) noexcept {
   // Turn on input/output tracking
-  options::track_inputs_outputs = true;
+  // options::track_inputs_outputs = true;
 
   // Load the serialized build trace
   auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
@@ -40,10 +44,13 @@ void do_gen_deps(vector<string> args) noexcept {
 
   // list of packages needed
   vector<string> packages;
+  vector<pid_t> threads_arr;
 
   // Iterate through each artifact
   for (const auto& weak_artifact : env::getArtifacts()) {
     auto a = weak_artifact.lock();
+
+    cout << a->getTypeName() << ": " << a->getName() << endl;
 
     // If a is a null pointer, then skip
     if (!a) continue;
@@ -67,15 +74,19 @@ void do_gen_deps(vector<string> args) noexcept {
     if (a->getName().find("locale-archive") != string::npos) continue;
     // Remove proc/filesystems
     if (a->getName().find("proc/filesystems") != string::npos) continue;
+    // Remove temporary files
+    if (a->getName().find("tmp") != string::npos) continue;
+    // Skip files without committed path
+    if (a->getCommittedPath() == nullopt) continue;
 
     string path = a->getCommittedPath().value().string();
-    if (path == "/usr/bin/ls") {
-      path.erase(0, 4);
-    } else if (path.find("include") == string::npos) {
-      if (path.find("/usr/") != string::npos) path.erase(0, 4);
+    if (path.find("include") == string::npos) {
+      if (path.find("/usr/") != string::npos) {
+        path.erase(0, 4);
+      }
       path = "'*" + path + "'";
     }
-    // myfile << a->getTypeName() << ": " << path << endl;
+    myfile << a->getTypeName() << ": " << path << endl;
     string command = "dpkg -S " + path + " 2>&1";
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
@@ -86,14 +97,16 @@ void do_gen_deps(vector<string> args) noexcept {
     while (fgets(buffer.data(), buffer.size(), pipe) != NULL) {
       result += buffer.data();
     }
-    string package = result.substr(0, result.find(" "));
-    package.pop_back();
-    if (find(packages.begin(), packages.end(), package) == packages.end()) {
-      packages.push_back(package);
-      myfile << package << endl;
-    }
+    myfile << result << endl;
+    // string package = result.substr(0, result.find(" "));
+    // package.pop_back();
+    // if (find(packages.begin(), packages.end(), package) == packages.end()) {
+    //   packages.push_back(package);
+    //   myfile << package << endl;
+    // }
     pclose(pipe);
   }
+
   myfile.close();
 }
 
