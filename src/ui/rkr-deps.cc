@@ -26,6 +26,21 @@ using std::vector;
 
 // std::mutex fm;
 
+string getPackage(string path) {
+  string command = "dpkg -S " + path + " 2>&1";
+  FILE* pipe = popen(command.c_str(), "r");
+  if (!pipe) {
+    exit(EXIT_FAILURE);
+  }
+  array<char, 128> buffer;
+  string result;
+  while (fgets(buffer.data(), buffer.size(), pipe) != NULL) {
+    result += buffer.data();
+  }
+  pclose(pipe);
+  return result;
+}
+
 /**
  * Run the 'gen_deps' subcommand
  */
@@ -80,22 +95,36 @@ void do_gen_deps(vector<string> args) noexcept {
     if (a->getCommittedPath() == nullopt) continue;
 
     string path = a->getCommittedPath().value().string();
-    if (path.find("include") == string::npos) {
-      if (path.find("/usr/") != string::npos) {
-        path.erase(0, 4);
-      }
-      path = "'*" + path + "'";
-    }
+    // if (path.find("include") == string::npos) {
+    //   if (path.find("/usr/") != string::npos) {
+    //     path.erase(0, 4);
+    //   }
+    //   path = "'*" + path + "'";
+    // }
     myfile << a->getTypeName() << ": " << path << endl;
-    string command = "dpkg -S " + path + " 2>&1";
-    FILE* pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-      exit(EXIT_FAILURE);
-    }
-    array<char, 128> buffer;
-    string result;
-    while (fgets(buffer.data(), buffer.size(), pipe) != NULL) {
-      result += buffer.data();
+    string result = getPackage(path);
+    if (result.find("no path found") != string::npos) {
+      int fd_original, fd_alt;
+      string alternative;
+      if (path.find("/usr/") == string::npos)
+        alternative = "/usr" + path;
+      else
+        alternative = path.substr(4, string::npos);
+      fd_original = open(path.c_str(), O_RDONLY);
+      fd_alt = open(alternative.c_str(), O_RDONLY);
+      if (fd_original < 0 || fd_alt < 0) {
+        perror("Error opening the files");
+      }
+      struct stat file_stat_original, file_stat_alt;
+      int ret;
+      ret = fstat(fd_original, &file_stat_original);
+      if (ret < 0) perror("Error getting original file stat");
+      ret = fstat(fd_alt, &file_stat_alt);
+      if (ret < 0) perror("Error getting alternative file stat");
+      if (file_stat_original.st_ino == file_stat_alt.st_ino &&
+          file_stat_original.st_dev == file_stat_alt.st_dev) {
+        result = getPackage(alternative);
+      }
     }
     myfile << result << endl;
     // string package = result.substr(0, result.find(" "));
@@ -104,7 +133,6 @@ void do_gen_deps(vector<string> args) noexcept {
     //   packages.push_back(package);
     //   myfile << package << endl;
     // }
-    pclose(pipe);
   }
 
   myfile.close();
