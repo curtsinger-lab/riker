@@ -31,17 +31,20 @@ using std::string;
 using std::unique_ptr;
 using std::vector;
 
+// class wrapper for output file for synchronized writing among threads
 class SynchronizedFile {
  public:
   SynchronizedFile(const string& path) : _path(path) { myfile.open(path); }
 
   ~SynchronizedFile() { myfile.close(); }
 
+  // Write to the file
   void write(const string& dataToWrite) {
     lock_guard<mutex> lock(_writerMutex);
     myfile << dataToWrite << endl;
   }
 
+  // Add a package dependency and write to the file
   void addPackage(const string& package) {
     lock_guard<mutex> lock(_writerMutex);
     if (find(packages.begin(), packages.end(), package) == packages.end()) {
@@ -57,28 +60,39 @@ class SynchronizedFile {
   vector<string> packages;
 };
 
+// Given the path to a file, return the pacakge managing that file
 string getPackage(string path) {
+  // Shell command that searches for the package
   string command = "dpkg -S " + path + " 2>&1";
+
+  // Open a pipe that redirect the output of the command
   FILE* pipe = popen(command.c_str(), "r");
   if (!pipe) {
     exit(EXIT_FAILURE);
   }
+
+  // Read the output of the command
   array<char, 128> buffer;
   string result;
   while (fgets(buffer.data(), buffer.size(), pipe) != NULL) {
     result += buffer.data();
   }
   pclose(pipe);
+
   return result;
 }
 
+// Arguments for each child thread include pointer to the path of file and pointer to the output
+// file
 struct thread_data {
   // string path_arg;
   shared_ptr<Artifact> path_ptr;
   shared_ptr<SynchronizedFile> file_ptr;
 };
 
+// Each thread check one artifact and try to find its package
 void* myThread(void* threadarg) {
+  // Grab the arguments
   struct thread_data* my_data;
   my_data = (struct thread_data*)threadarg;
   // auto path = my_data->path_arg;
@@ -93,8 +107,8 @@ void* myThread(void* threadarg) {
   if (a->getTypeName() == "Dir") pthread_exit(NULL);
   // If a is special, skip
   if (a->getTypeName() == "Special") pthread_exit(NULL);
-  // Remove all files in source folder
-  if (a->getName().find("src") != string::npos) pthread_exit(NULL);
+  // Remove all files in current directory
+  if (a->getName().at(0) != '/') pthread_exit(NULL);
   // Remove Riker related files
   if (a->getName().find("riker") != string::npos) pthread_exit(NULL);
   // Remove Rikerfile
@@ -105,13 +119,18 @@ void* myThread(void* threadarg) {
   if (a->getName().find("ld.so.cache") != string::npos) pthread_exit(NULL);
   // Remove locale-archive
   if (a->getName().find("locale-archive") != string::npos) pthread_exit(NULL);
-  // Remove proc/filesystems
-  if (a->getName().find("proc/filesystems") != string::npos) pthread_exit(NULL);
+  // Remove /proc directory
+  if (a->getName().rfind("/proc/") == 0) pthread_exit(NULL);
   // Remove temporary files
   if (a->getName().find("tmp") != string::npos) pthread_exit(NULL);
   // Skip files without committed path
   if (a->getCommittedPath() == nullopt) pthread_exit(NULL);
+  // Remove .gitconfig
+  if (a->getName().find(".gitconfig") != string::npos) pthread_exit(NULL);
+  // Remove /etc folder
+  if (a->getName().rfind("/etc/") == 0) pthread_exit(NULL);
 
+  // Get the path of that artifact
   string path = a->getCommittedPath().value().string();
   // cout << path << endl;
 
@@ -123,32 +142,51 @@ void* myThread(void* threadarg) {
   // }
   // file->write(a->getTypeName() + ": " + path);
   // myfile << a->getTypeName() << ": " << path << endl;
+
+  // Get the package for the artifact
   string result = getPackage(path);
   if (result.find("no path found") != string::npos) {
-    int fd_original, fd_alt;
-    string alternative;
-    if (path.find("/usr/") == string::npos)
-      alternative = "/usr" + path;
-    else
-      alternative = path.substr(4, string::npos);
-    fd_original = open(path.c_str(), O_RDONLY);
-    fd_alt = open(alternative.c_str(), O_RDONLY);
-    if (fd_original < 0 || fd_alt < 0) {
-      perror("Error opening the files");
-    }
-    struct stat file_stat_original, file_stat_alt;
-    int ret;
-    ret = fstat(fd_original, &file_stat_original);
-    if (ret < 0) perror("Error getting original file stat");
-    ret = fstat(fd_alt, &file_stat_alt);
-    if (ret < 0) perror("Error getting alternative file stat");
-    if (file_stat_original.st_ino == file_stat_alt.st_ino &&
-        file_stat_original.st_dev == file_stat_alt.st_dev) {
-      result = getPackage(alternative);
+    // Account for the situation where dpkg needs specific path but a hard link is provided
+    if (path.rfind("/bin/") == 0 || path.rfind("/lib/") == 0 || path.rfind("/usr/") == 0) {
+      int fd_original, fd_alt;
+      string alternative;
+      // Store the original file in alternative
+      if (path.find("/usr/") == string::npos)
+        alternative = "/usr" + path;
+      else
+        alternative = path.substr(4, string::npos);
+      fd_original = open(path.c_str(), O_RDONLY);
+      fd_alt = open(alternative.c_str(), O_RDONLY);
+      // Check if the alternative exists
+      if (fd_original < 0) {
+        perror("Error opening the files");
+      }
+      if (fd_alt < 0) {
+        cout << alternative << " doesn't exist" << endl;
+        pthread_exit(NULL);
+      }
+      // Check the device and inode number to make sure alternative and path are the same file
+      struct stat file_stat_original, file_stat_alt;
+      int ret;
+      ret = fstat(fd_original, &file_stat_original);
+      if (ret < 0) perror("Error getting original file stat");
+      ret = fstat(fd_alt, &file_stat_alt);
+      if (ret < 0) perror("Error getting alternative file stat");
+      // If they are the same file, get the package of alternative
+      if (file_stat_original.st_ino == file_stat_alt.st_ino &&
+          file_stat_original.st_dev == file_stat_alt.st_dev) {
+        result = getPackage(alternative);
+      }
+    } else {
+      cout << "No path found for " << path << endl;
+      cout << a->getName() << endl;
+      pthread_exit(NULL);
     }
   }
   // file->write(result);
   // myfile << result << endl;
+
+  // Clean up the package name and append it to the output file
   string package = result.substr(0, result.find(" "));
   package.pop_back();
   // if (find(packages.begin(), packages.end(), package) == packages.end()) {
@@ -193,6 +231,7 @@ void do_gen_deps(vector<string> args) noexcept {
     // cout << a->getTypeName() << ": " << a->getName() << endl;
 
     // cout << "test" << endl;
+    // Initilize thread arguments
     tds[i].path_ptr = a;
     tds[i].file_ptr = synchronizedFile;
     // struct thread_data td = {a, synchronizedFile};
@@ -208,6 +247,7 @@ void do_gen_deps(vector<string> args) noexcept {
 
   void* status;
 
+  // Join all the threads
   for (i = 0; i < num_threads; i++) {
     rc = pthread_join(threads[i], &status);
     if (rc) {
@@ -221,6 +261,7 @@ void do_gen_deps(vector<string> args) noexcept {
 }
 
 void do_install_deps(vector<string> args) noexcept {
+  // Open file and check if each package is installed
   array<char, 128> buffer;
   string result, package;
   ifstream myfile(".rkr-deps");
@@ -245,6 +286,7 @@ void do_install_deps(vector<string> args) noexcept {
 }
 
 void do_check_deps(vector<string> args) noexcept {
+  // Open file and print everything
   ifstream f(".rkr-deps");
   if (f.is_open()) {
     cout << f.rdbuf();
