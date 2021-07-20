@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+#include <pthread.h>
+#include <unistd.h>
+
 #include "artifacts/Artifact.hh"
 #include "data/InputTrace.hh"
 #include "runtime/Build.hh"
@@ -18,13 +21,32 @@ using std::array;
 using std::cout;
 using std::endl;
 using std::ifstream;
+using std::lock_guard;
+using std::make_shared;
+using std::mutex;
 using std::nullopt;
 using std::ofstream;
+using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
 
-// std::mutex fm;
+class SynchronizedFile {
+ public:
+  SynchronizedFile(const string& path) : _path(path) { myfile.open(path); }
+
+  ~SynchronizedFile() { myfile.close(); }
+
+  void write(const string& dataToWrite) {
+    lock_guard<mutex> lock(_writerMutex);
+    myfile << dataToWrite << endl;
+  }
+
+ private:
+  string _path;
+  ofstream myfile;
+  mutex _writerMutex;
+};
 
 string getPackage(string path) {
   string command = "dpkg -S " + path + " 2>&1";
@@ -41,6 +63,63 @@ string getPackage(string path) {
   return result;
 }
 
+struct thread_data {
+  string path_arg;
+  shared_ptr<Artifact> path_ptr;
+  shared_ptr<SynchronizedFile> file_ptr;
+};
+
+void* myThread(void* threadarg) {
+  struct thread_data* my_data;
+  my_data = (struct thread_data*)threadarg;
+  auto path = my_data->path_arg;
+  auto file = my_data->file_ptr;
+  auto a = my_data->path_ptr;
+
+  // if (path.find("include") == string::npos) {
+  //   if (path.find("/usr/") != string::npos) {
+  //     path.erase(0, 4);
+  //   }
+  //   path = "'*" + path + "'";
+  // }
+  file->write(a->getTypeName() + ": " + path);
+  // myfile << a->getTypeName() << ": " << path << endl;
+  string result = getPackage(path);
+  if (result.find("no path found") != string::npos) {
+    int fd_original, fd_alt;
+    string alternative;
+    if (path.find("/usr/") == string::npos)
+      alternative = "/usr" + path;
+    else
+      alternative = path.substr(4, string::npos);
+    fd_original = open(path.c_str(), O_RDONLY);
+    fd_alt = open(alternative.c_str(), O_RDONLY);
+    if (fd_original < 0 || fd_alt < 0) {
+      perror("Error opening the files");
+    }
+    struct stat file_stat_original, file_stat_alt;
+    int ret;
+    ret = fstat(fd_original, &file_stat_original);
+    if (ret < 0) perror("Error getting original file stat");
+    ret = fstat(fd_alt, &file_stat_alt);
+    if (ret < 0) perror("Error getting alternative file stat");
+    if (file_stat_original.st_ino == file_stat_alt.st_ino &&
+        file_stat_original.st_dev == file_stat_alt.st_dev) {
+      result = getPackage(alternative);
+    }
+  }
+  file->write(result);
+  // myfile << result << endl;
+  // string package = result.substr(0, result.find(" "));
+  // package.pop_back();
+  // if (find(packages.begin(), packages.end(), package) == packages.end()) {
+  //   packages.push_back(package);
+  //   myfile << package << endl;
+  // }
+
+  pthread_exit(NULL);
+}
+
 /**
  * Run the 'gen_deps' subcommand
  */
@@ -54,12 +133,14 @@ void do_gen_deps(vector<string> args) noexcept {
   // Emulate the trace
   trace->sendTo(Build());
 
-  ofstream myfile;
-  myfile.open(".rkr-deps");
+  // ofstream myfile;
+  // myfile.open(".rkr-deps");
+  auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
 
   // list of packages needed
   vector<string> packages;
-  vector<pid_t> threads_arr;
+  vector<pthread_t> threads;
+  int rc, i = 0;
 
   // Iterate through each artifact
   for (const auto& weak_artifact : env::getArtifacts()) {
@@ -95,47 +176,29 @@ void do_gen_deps(vector<string> args) noexcept {
     if (a->getCommittedPath() == nullopt) continue;
 
     string path = a->getCommittedPath().value().string();
-    // if (path.find("include") == string::npos) {
-    //   if (path.find("/usr/") != string::npos) {
-    //     path.erase(0, 4);
-    //   }
-    //   path = "'*" + path + "'";
-    // }
-    myfile << a->getTypeName() << ": " << path << endl;
-    string result = getPackage(path);
-    if (result.find("no path found") != string::npos) {
-      int fd_original, fd_alt;
-      string alternative;
-      if (path.find("/usr/") == string::npos)
-        alternative = "/usr" + path;
-      else
-        alternative = path.substr(4, string::npos);
-      fd_original = open(path.c_str(), O_RDONLY);
-      fd_alt = open(alternative.c_str(), O_RDONLY);
-      if (fd_original < 0 || fd_alt < 0) {
-        perror("Error opening the files");
-      }
-      struct stat file_stat_original, file_stat_alt;
-      int ret;
-      ret = fstat(fd_original, &file_stat_original);
-      if (ret < 0) perror("Error getting original file stat");
-      ret = fstat(fd_alt, &file_stat_alt);
-      if (ret < 0) perror("Error getting alternative file stat");
-      if (file_stat_original.st_ino == file_stat_alt.st_ino &&
-          file_stat_original.st_dev == file_stat_alt.st_dev) {
-        result = getPackage(alternative);
-      }
+    struct thread_data td = {path, a, synchronizedFile};
+    pthread_t pid;
+    threads.push_back(pid);
+    rc = pthread_create(&threads[i], NULL, myThread, (void*)&td);
+
+    if (rc) {
+      cout << "Error: unable to create thread," << rc << endl;
+      exit(-1);
     }
-    myfile << result << endl;
-    // string package = result.substr(0, result.find(" "));
-    // package.pop_back();
-    // if (find(packages.begin(), packages.end(), package) == packages.end()) {
-    //   packages.push_back(package);
-    //   myfile << package << endl;
-    // }
   }
 
-  myfile.close();
+  void* status;
+
+  for (i = 0; i < threads.size(); i++) {
+    rc = pthread_join(threads[i], &status);
+    if (rc) {
+      cout << "Error: unable to join," << rc << endl;
+      exit(-1);
+    }
+    cout << "Main: completed thread id:" << i;
+    cout << " exiting with status:" << status << endl;
+  }
+  pthread_exit(NULL);
 }
 
 void do_install_deps(vector<string> args) noexcept {

@@ -17,7 +17,7 @@ CXXFLAGS := $(CFLAGS) \
 					 	-Ideps/cereal/include \
 					 	-Ideps/CLI11/include
 
-LDFLAGS = $(OPT) -lstdc++fs -lfmt
+LDFLAGS = $(OPT) -lstdc++fs -lfmt -pthread
 
 SRCS := $(wildcard src/*/*.cc)
 OBJS := $(patsubst src/%.cc, .obj/%.o, $(SRCS))
