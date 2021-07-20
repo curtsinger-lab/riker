@@ -101,37 +101,30 @@ void* myThread(void* threadarg) {
 
   // If a is a null pointer, then skip
   if (!a) pthread_exit(NULL);
+  // Skip files without committed path
+  if (a->getCommittedPath() == nullopt) pthread_exit(NULL);
   // If a is an anonymous artifact, skip
   if (a->getName().empty()) pthread_exit(NULL);
   // If a is a directory, skip
   if (a->getTypeName() == "Dir") pthread_exit(NULL);
   // If a is special, skip
   if (a->getTypeName() == "Special") pthread_exit(NULL);
-  // Remove all files in current directory
-  if (a->getName().at(0) != '/') pthread_exit(NULL);
-  // Remove Riker related files
-  if (a->getName().find("riker") != string::npos) pthread_exit(NULL);
-  // Remove Rikerfile
-  if (a->getName() == "Rikerfile") pthread_exit(NULL);
   // Remove Symlink
   if (a->getTypeName() == "Symlink") pthread_exit(NULL);
-  // Remove ld.so.cache
-  if (a->getName().find("ld.so.cache") != string::npos) pthread_exit(NULL);
-  // Remove locale-archive
-  if (a->getName().find("locale-archive") != string::npos) pthread_exit(NULL);
-  // Remove /proc directory
-  if (a->getName().rfind("/proc/") == 0) pthread_exit(NULL);
-  // Remove temporary files
-  if (a->getName().find("tmp") != string::npos) pthread_exit(NULL);
-  // Skip files without committed path
-  if (a->getCommittedPath() == nullopt) pthread_exit(NULL);
-  // Remove .gitconfig
-  if (a->getName().find(".gitconfig") != string::npos) pthread_exit(NULL);
-  // Remove /etc folder
-  if (a->getName().rfind("/etc/") == 0) pthread_exit(NULL);
 
   // Get the path of that artifact
   string path = a->getCommittedPath().value().string();
+  // Remove all files in current directory
+  if (path.rfind(get_current_dir_name()) == 0) pthread_exit(NULL);
+  // Remove Riker related files
+  if (path.find("riker") != string::npos) pthread_exit(NULL);
+  // Remove Rikerfile
+  if (path == "Rikerfile") pthread_exit(NULL);
+  // Remove /proc directory
+  if (path.rfind("/proc/") == 0) pthread_exit(NULL);
+  // Remove .gitconfig
+  if (path.find(".gitconfig") != string::npos) pthread_exit(NULL);
+
   // cout << path << endl;
 
   // if (path.find("include") == string::npos) {
@@ -146,40 +139,75 @@ void* myThread(void* threadarg) {
   // Get the package for the artifact
   string result = getPackage(path);
   if (result.find("no path found") != string::npos) {
+    // At least three different leaf directories: bin, lib
+    // Different possible root directories: /, /usr/, /usr/local/
+
     // Account for the situation where dpkg needs specific path but a hard link is provided
     if (path.rfind("/bin/") == 0 || path.rfind("/lib/") == 0 || path.rfind("/usr/") == 0) {
-      int fd_original, fd_alt;
-      string alternative;
+      string alternative1, alternative2;
       // Store the original file in alternative
-      if (path.find("/usr/") == string::npos)
-        alternative = "/usr" + path;
-      else
-        alternative = path.substr(4, string::npos);
-      fd_original = open(path.c_str(), O_RDONLY);
-      fd_alt = open(alternative.c_str(), O_RDONLY);
-      // Check if the alternative exists
-      if (fd_original < 0) {
-        perror("Error opening the files");
+      if (path.find("/usr/") == string::npos) {
+        alternative1 = "/usr" + path;
+        alternative2 = "/usr/local" + path;
+      } else if (path.rfind("/usr/local") == 0) {
+        alternative1 = path.substr(10, string::npos);
+        alternative2 = "/usr" + alternative1;
+      } else {
+        alternative1 = path.substr(4, string::npos);
+        alternative2 = "/usr/local" + alternative1;
       }
-      if (fd_alt < 0) {
-        cout << alternative << " doesn't exist" << endl;
+      // fd_original = open(path.c_str(), O_RDONLY);
+      // fd_alt = open(alternative.c_str(), O_RDONLY);
+      // // Check if the alternative exists
+      // if (fd_original < 0) {
+      //   perror("Error opening the files");
+      // }
+      // if (fd_alt < 0) {
+      //   cout << alternative << " doesn't exist" << endl;
+      //   pthread_exit(NULL);
+      // }
+      // Check the device and inode number to make sure alternative and path are the same file
+      struct stat file_stat_original, file_stat_alt1, file_stat_alt2;
+      int ret_original, ret_alt1, ret_alt2;
+      ret_original = stat(path.c_str(), &file_stat_original);
+      ret_alt1 = stat(alternative1.c_str(), &file_stat_alt1);
+      ret_alt2 = stat(alternative2.c_str(), &file_stat_alt2);
+      if (ret_original < 0) {
+        perror("Error getting original file stat");
         pthread_exit(NULL);
       }
-      // Check the device and inode number to make sure alternative and path are the same file
-      struct stat file_stat_original, file_stat_alt;
-      int ret;
-      ret = fstat(fd_original, &file_stat_original);
-      if (ret < 0) perror("Error getting original file stat");
-      ret = fstat(fd_alt, &file_stat_alt);
-      if (ret < 0) perror("Error getting alternative file stat");
-      // If they are the same file, get the package of alternative
-      if (file_stat_original.st_ino == file_stat_alt.st_ino &&
-          file_stat_original.st_dev == file_stat_alt.st_dev) {
-        result = getPackage(alternative);
+      if (ret_alt1 < 0) {
+        if (ret_alt2 < 0) {
+          perror("Alternative files don't exist");
+          pthread_exit(NULL);
+        } else {
+          // If they are the same file, get the package of alternative
+          if (file_stat_original.st_ino == file_stat_alt2.st_ino &&
+              file_stat_original.st_dev == file_stat_alt2.st_dev) {
+            result = getPackage(alternative2);
+          }
+        }
+      } else {
+        if (ret_alt2 < 0) {
+          if (file_stat_original.st_ino == file_stat_alt1.st_ino &&
+              file_stat_original.st_dev == file_stat_alt1.st_dev) {
+            result = getPackage(alternative1);
+          }
+        } else {
+          if (file_stat_original.st_ino == file_stat_alt1.st_ino &&
+              file_stat_original.st_dev == file_stat_alt1.st_dev) {
+            result = getPackage(alternative1);
+          }
+          if (file_stat_original.st_ino == file_stat_alt2.st_ino &&
+              file_stat_original.st_dev == file_stat_alt2.st_dev) {
+            result = getPackage(alternative2);
+          }
+        }
       }
     } else {
       cout << "No path found for " << path << endl;
       cout << a->getName() << endl;
+      // file->write("No path found for " + path);
       pthread_exit(NULL);
     }
   }
