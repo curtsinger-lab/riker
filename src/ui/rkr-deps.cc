@@ -42,10 +42,19 @@ class SynchronizedFile {
     myfile << dataToWrite << endl;
   }
 
+  void addPackage(const string& package) {
+    lock_guard<mutex> lock(_writerMutex);
+    if (find(packages.begin(), packages.end(), package) == packages.end()) {
+      packages.push_back(package);
+      myfile << package << endl;
+    }
+  }
+
  private:
   string _path;
   ofstream myfile;
   mutex _writerMutex;
+  vector<string> packages;
 };
 
 string getPackage(string path) {
@@ -64,7 +73,7 @@ string getPackage(string path) {
 }
 
 struct thread_data {
-  string path_arg;
+  // string path_arg;
   shared_ptr<Artifact> path_ptr;
   shared_ptr<SynchronizedFile> file_ptr;
 };
@@ -72,9 +81,39 @@ struct thread_data {
 void* myThread(void* threadarg) {
   struct thread_data* my_data;
   my_data = (struct thread_data*)threadarg;
-  auto path = my_data->path_arg;
+  // auto path = my_data->path_arg;
   auto file = my_data->file_ptr;
   auto a = my_data->path_ptr;
+
+  // If a is a null pointer, then skip
+  if (!a) pthread_exit(NULL);
+  // If a is an anonymous artifact, skip
+  if (a->getName().empty()) pthread_exit(NULL);
+  // If a is a directory, skip
+  if (a->getTypeName() == "Dir") pthread_exit(NULL);
+  // If a is special, skip
+  if (a->getTypeName() == "Special") pthread_exit(NULL);
+  // Remove all files in source folder
+  if (a->getName().find("src") != string::npos) pthread_exit(NULL);
+  // Remove Riker related files
+  if (a->getName().find("riker") != string::npos) pthread_exit(NULL);
+  // Remove Rikerfile
+  if (a->getName() == "Rikerfile") pthread_exit(NULL);
+  // Remove Symlink
+  if (a->getTypeName() == "Symlink") pthread_exit(NULL);
+  // Remove ld.so.cache
+  if (a->getName().find("ld.so.cache") != string::npos) pthread_exit(NULL);
+  // Remove locale-archive
+  if (a->getName().find("locale-archive") != string::npos) pthread_exit(NULL);
+  // Remove proc/filesystems
+  if (a->getName().find("proc/filesystems") != string::npos) pthread_exit(NULL);
+  // Remove temporary files
+  if (a->getName().find("tmp") != string::npos) pthread_exit(NULL);
+  // Skip files without committed path
+  if (a->getCommittedPath() == nullopt) pthread_exit(NULL);
+
+  string path = a->getCommittedPath().value().string();
+  // cout << path << endl;
 
   // if (path.find("include") == string::npos) {
   //   if (path.find("/usr/") != string::npos) {
@@ -82,7 +121,7 @@ void* myThread(void* threadarg) {
   //   }
   //   path = "'*" + path + "'";
   // }
-  file->write(a->getTypeName() + ": " + path);
+  // file->write(a->getTypeName() + ": " + path);
   // myfile << a->getTypeName() << ": " << path << endl;
   string result = getPackage(path);
   if (result.find("no path found") != string::npos) {
@@ -108,14 +147,16 @@ void* myThread(void* threadarg) {
       result = getPackage(alternative);
     }
   }
-  file->write(result);
+  // file->write(result);
   // myfile << result << endl;
-  // string package = result.substr(0, result.find(" "));
-  // package.pop_back();
+  string package = result.substr(0, result.find(" "));
+  package.pop_back();
   // if (find(packages.begin(), packages.end(), package) == packages.end()) {
   //   packages.push_back(package);
-  //   myfile << package << endl;
+  //   file->write(package);
+  // myfile << package << endl;
   // }
+  file->addPackage(package);
 
   pthread_exit(NULL);
 }
@@ -138,67 +179,45 @@ void do_gen_deps(vector<string> args) noexcept {
   auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
 
   // list of packages needed
-  vector<string> packages;
-  vector<pthread_t> threads;
+  // vector<string> packages;
+
+  int num_threads = env::getArtifacts().size();
+  pthread_t threads[num_threads];
+  struct thread_data tds[num_threads];
   int rc, i = 0;
 
   // Iterate through each artifact
   for (const auto& weak_artifact : env::getArtifacts()) {
     auto a = weak_artifact.lock();
 
-    cout << a->getTypeName() << ": " << a->getName() << endl;
+    // cout << a->getTypeName() << ": " << a->getName() << endl;
 
-    // If a is a null pointer, then skip
-    if (!a) continue;
-    // If a is an anonymous artifact, skip
-    if (a->getName().empty()) continue;
-    // If a is a directory, skip
-    if (a->getTypeName() == "Dir") continue;
-    // If a is special, skip
-    if (a->getTypeName() == "Special") continue;
-    // Remove all files in source folder
-    if (a->getName().find("src") != string::npos) continue;
-    // Remove Riker related files
-    if (a->getName().find("riker") != string::npos) continue;
-    // Remove Rikerfile
-    if (a->getName() == "Rikerfile") continue;
-    // Remove Symlink
-    if (a->getTypeName() == "Symlink") continue;
-    // Remove ld.so.cache
-    if (a->getName().find("ld.so.cache") != string::npos) continue;
-    // Remove locale-archive
-    if (a->getName().find("locale-archive") != string::npos) continue;
-    // Remove proc/filesystems
-    if (a->getName().find("proc/filesystems") != string::npos) continue;
-    // Remove temporary files
-    if (a->getName().find("tmp") != string::npos) continue;
-    // Skip files without committed path
-    if (a->getCommittedPath() == nullopt) continue;
-
-    string path = a->getCommittedPath().value().string();
-    struct thread_data td = {path, a, synchronizedFile};
-    pthread_t pid;
-    threads.push_back(pid);
-    rc = pthread_create(&threads[i], NULL, myThread, (void*)&td);
+    // cout << "test" << endl;
+    tds[i].path_ptr = a;
+    tds[i].file_ptr = synchronizedFile;
+    // struct thread_data td = {a, synchronizedFile};
+    // pthread_t pid;
+    rc = pthread_create(&threads[i], NULL, myThread, (void*)&tds[i]);
 
     if (rc) {
       cout << "Error: unable to create thread," << rc << endl;
       exit(-1);
     }
+    i++;
   }
 
   void* status;
 
-  for (i = 0; i < threads.size(); i++) {
+  for (i = 0; i < num_threads; i++) {
     rc = pthread_join(threads[i], &status);
     if (rc) {
       cout << "Error: unable to join," << rc << endl;
       exit(-1);
     }
-    cout << "Main: completed thread id:" << i;
-    cout << " exiting with status:" << status << endl;
+    // cout << "Main: completed thread id:" << i;
+    // cout << " exiting with status:" << status << endl;
   }
-  pthread_exit(NULL);
+  // pthread_exit(NULL);
 }
 
 void do_install_deps(vector<string> args) noexcept {
