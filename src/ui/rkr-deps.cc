@@ -241,16 +241,15 @@ void do_gen_deps(vector<string> args) noexcept {
   // Turn on input/output tracking
   // options::track_inputs_outputs = true;
 
+  struct stat buffer;
+  if (stat(".rkr", &buffer) != 0) cout << "Please build the program with riker first" << endl;
+
   // Load the serialized build trace
   auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
   trace->sendTo(Build());
 
-  if (env::getArtifacts().empty()) {
-    cout << "Please build the program with riker first" << endl;
-    return;
-  }
   // ofstream myfile;
   // myfile.open(".rkr-deps");
   auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
@@ -296,6 +295,7 @@ void do_gen_deps(vector<string> args) noexcept {
     // cout << "Main: completed thread id:" << i;
     // cout << " exiting with status:" << status << endl;
   }
+
   // pthread_exit(NULL);
 }
 

@@ -15,6 +15,6 @@ clang $CFLAGS -msse4.1 -o .blake3obj/blake3_sse41.o -c $BLAKE3/blake3_sse41.c
 clang $CFLAGS -mavx2 -o .blake3obj/blake3_avx2.o -c $BLAKE3/blake3_avx2.c
 clang $CFLAGS -mavx512f -mavx512vl -o .blake3obj/blake3_avx512.o -c $BLAKE3/blake3_avx512.c
 
-clang++ $CXXFLAGS -o rkr src/*/*.cc .blake3obj/*.o -lstdc++fs -lfmt
+clang++ $CXXFLAGS -o rkr src/*/*.cc .blake3obj/*.o -lstdc++fs -lfmt -pthread
 
 clang $CFLAGS -o rkr-launch launch/launch.c
