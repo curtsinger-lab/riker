@@ -310,7 +310,7 @@ void do_install_deps(vector<string> args) noexcept {
       }
       if (result.find("no packages found matching") != string::npos) {
         cout << "Installing" << package << endl;
-        cmd = "dpkg -i " + package;
+        cmd = "sudo dpkg -i " + package;
         system(cmd.c_str());
       } else {
         cout << package << " is already installed" << endl;
