@@ -30,3 +30,5 @@ void do_gen_deps(std::vector<std::string> args) noexcept;
 void do_install_deps(std::vector<std::string> args) noexcept;
 
 void do_check_deps(std::vector<std::string> args) noexcept;
+
+void do_gen_container(std::vector<std::string> args) noexcept;

@@ -184,6 +184,9 @@ int main(int argc, char* argv[]) noexcept {
       "generate-deps", "Generate .rkr-deps that contains all the necessary dependencies");
   auto install_deps = app.add_subcommand("install-deps", "Install all missing dependencies");
   auto check_deps = app.add_subcommand("check-deps", "Check all the necessary dependencies");
+  auto gen_container = app.add_subcommand(
+      "create-container",
+      "Generate a Dockerfile in the .devcontainer folder that is compatible with vscode");
 
   /************* Rikerfile Arguments ***********/
   vector<string> args;
@@ -211,6 +214,7 @@ int main(int argc, char* argv[]) noexcept {
   gen_deps->final_callback([&] { do_gen_deps(args); });
   install_deps->final_callback([&] { do_install_deps(args); });
   check_deps->final_callback([&] { do_check_deps(args); });
+  gen_container->final_callback([&] { do_gen_container(args); });
 
   /************* Argument Parsing *************/
 

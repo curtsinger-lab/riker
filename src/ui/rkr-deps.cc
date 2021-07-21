@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -9,6 +10,8 @@
 #include <vector>
 
 #include <pthread.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "artifacts/Artifact.hh"
@@ -16,8 +19,10 @@
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
 #include "util/constants.hh"
+#include <bits/stdc++.h>
 
 using std::array;
+using std::cerr;
 using std::cout;
 using std::endl;
 using std::ifstream;
@@ -321,4 +326,45 @@ void do_check_deps(vector<string> args) noexcept {
   if (f.is_open()) {
     cout << f.rdbuf();
   }
+}
+
+void do_gen_container(vector<string> args) noexcept {
+  ifstream deps(".rkr-deps");
+  if (deps.is_open()) {
+    if (mkdir(".devcontainer", 0777) == 0) {
+      ofstream settings(".devcontainer/devcontainer.json");
+      ofstream dockerfile(".devcontainer/Dockerfile");
+      // if (!dockerfile.is_open()) std::cerr << "Failed to open file : " << errno << endl;
+
+      settings
+          << "{\n  \"name\": \"Container\",\n  \"dockerFile\": \"Dockerfile\",\n  \"settings\": "
+             "{\n    \"terminal.integrated.shell.linux\": \"/bin/bash\"\n  },\n  \"remoteUser\": "
+             "\"vscode\",\n}"
+          << endl;
+
+      dockerfile << "FROM ubuntu:20.04\nARG USERNAME=vscode\nARG USER_UID=1000\nARG "
+                    "USER_GID=$USER_UID\nENV DEBIAN_FRONTEND=noninteractive\nRUN apt-get update && "
+                    "apt-get -y install --no-install-recommends  \\"
+                 << endl;
+
+      string package;
+
+      while (getline(deps, package)) {
+        dockerfile << "  " << package << "   \\" << endl;
+      }
+      dockerfile
+          << "  && apt-get autoremove -y  \\\n  && apt-get clean -y \\\n  && rm -rf "
+             "/var/lib/apt/lists/*\nRUN touch /usr/bin/docker && chmod +x /usr/bin/docker\nENV "
+             "DEBIAN_FRONTEND=dialog"
+          << endl;
+
+      dockerfile.close();
+      settings.close();
+    } else {
+      cerr << "Error: " << strerror(errno) << endl;
+    }
+  } else {
+    cout << "Please generate dependencies first" << endl;
+  }
+  deps.close();
 }
