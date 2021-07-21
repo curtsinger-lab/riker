@@ -111,7 +111,8 @@ $(BLAKE_DEBUG_OBJS) $(BLAKE_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ -c $<
 
--include $(DEPS)
+-include $(RKR_DEBUG_DEPS)
+-include $(RKR_RELEASE_DEPS)
 
 .PHONY: all debug release clean clean-debug clean-release test test-debug test-release
 
