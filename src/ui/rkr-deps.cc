@@ -247,6 +247,10 @@ void do_gen_deps(vector<string> args) noexcept {
   // Emulate the trace
   trace->sendTo(Build());
 
+  if (env::getArtifacts().empty()) {
+    cout << "Please build the program with riker first" << endl;
+    return;
+  }
   // ofstream myfile;
   // myfile.open(".rkr-deps");
   auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
