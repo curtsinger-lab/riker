@@ -39,9 +39,7 @@ static long (*safe_syscall)(long nr, ...) = syscall;
 
 // Pointers to real library functions wrapped in this library
 static int (*real_openat)(int dfd, const char* pathname, int flags, mode_t mode) = NULL;
-static int (*real_close)(int fd) = NULL;
 static int (*real_xstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
-static int (*real_lxstat)(int ver, const char* pathname, struct stat* statbuf) = NULL;
 static int (*real_fxstat)(int ver, int fd, struct stat* statbuf) = NULL;
 static int (
     *real_fxstatat)(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) = NULL;
@@ -52,10 +50,60 @@ static bool initialized = false;
 // The shared tracing channel
 static tracing_channel_t* channel = NULL;
 
-__attribute__((constructor)) void init() {
+void riker_init();
+
+typedef struct jump {
+  volatile uint16_t farjmp;
+  volatile uint32_t offset;
+  volatile uint64_t addr;
+} __attribute__((__packed__)) jump_t;
+
+typedef int (*main_t)(int, char**, char**);
+typedef int (*start_main_t)(main_t, int, char**, void (*)(), void (*)(), void (*)(), void*);
+
+// The program's real main function
+main_t real_main;
+
+int wrapped_main(int argc, char** argv, char** envp) {
+  riker_init();
+
+  return real_main(argc, argv, envp);
+}
+
+// Interpose on __libc_start_main, and send calls to wrapped_libc_start_main
+int __libc_start_main(main_t, int, char**, void (*)(), void (*)(), void (*)(), void*)
+    __attribute__((weak, alias("wrapped_libc_start_main")));
+
+// Called on startup
+int wrapped_libc_start_main(main_t main_fn,
+                            int argc,
+                            char** argv,
+                            void (*init)(),
+                            void (*fini)(),
+                            void (*rtld_fini)(),
+                            void* stack_end) {
+  // Call the real libc_start_main, but pass in the wrapped main function
+  start_main_t real_libc_start_main = dlsym(RTLD_NEXT, "__libc_start_main");
+  real_main = main_fn;
+  return real_libc_start_main(wrapped_main, argc, argv, init, fini, rtld_fini, stack_end);
+}
+
+void riker_init() {
+  void* lxstat_fn = dlsym(RTLD_NEXT, "__lxstat");
+  if (lxstat_fn != NULL) {
+    uintptr_t base = (uintptr_t)lxstat_fn;
+    base -= base % 0x1000;
+    mprotect((void*)base, 0x1000, PROT_WRITE);
+    jump_t* j = (jump_t*)lxstat_fn;
+    j->farjmp = 0x25ff;
+    j->offset = 0;
+    j->addr = (uint64_t)__lxstat;
+    mprotect((void*)base, 0x1000, PROT_READ | PROT_EXEC);
+  }
+
   // Map space at a fixed address for safe system calls
-  void* p = mmap(SAFE_SYSCALL_PAGE, 0x1000, PROT_READ | PROT_WRITE,
-                 MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
+  void* p = (void*)syscall(__NR_mmap, SAFE_SYSCALL_PAGE, 0x1000, PROT_READ | PROT_WRITE,
+                           MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, -1, 0);
   if (p == MAP_FAILED) {
     fprintf(stderr, "WARNING: injected library failed to map safe syscall page.\n");
     return;
@@ -215,7 +263,48 @@ int openat(int dfd, const char* pathname, int flags, mode_t mode) {
 }
 
 int open(const char* pathname, int flags, mode_t mode) {
-  return openat(AT_FDCWD, pathname, flags, mode);
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
+    // Inform the tracer that this command is entering a syscall
+    channel_enter(c, __NR_open, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0, 0);
+
+    // Issue the syscall
+    int rc = safe_syscall(__NR_open, pathname, flags, mode);
+
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    int rc = syscall(__NR_open, pathname, flags, mode);
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      errno = 0;
+      return rc;
+    }
+  }
 }
 
 int close(int fd) {
@@ -246,9 +335,14 @@ int close(int fd) {
     }
 
   } else {
-    // No. Just move along to the library
-    if (!real_close) real_close = dlsym(RTLD_NEXT, "close");
-    return real_close(fd);
+    int rc = syscall(__NR_close, fd);
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      errno = 0;
+      return rc;
+    }
   }
 }
 
@@ -326,9 +420,8 @@ int __lxstat(int ver, const char* pathname, struct stat* statbuf) {
     }
 
   } else {
-    // No. Just move along to the library
-    if (!real_lxstat) real_lxstat = dlsym(RTLD_NEXT, "__lxstat");
-    return real_lxstat(ver, pathname, statbuf);
+    // No. Just issue the lstat syscall
+    return syscall(__NR_lstat, pathname, statbuf);
   }
 }
 
@@ -401,6 +494,51 @@ int __fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int
     // No. Just move along to the library
     if (!real_fxstatat) real_fxstatat = dlsym(RTLD_NEXT, "__fxstatat");
     return real_fxstatat(ver, dfd, pathname, statbuf, flags);
+  }
+}
+
+int access(const char* pathname, int mode) {
+  // Has the injected library been initialized?
+  if (initialized) {
+    // Yes. Wrap the library call
+    // Find an available channel
+    tracing_channel_t* c = channel_acquire();
+
+    uint64_t pathname_arg = (uint64_t)pathname;
+
+    // If we the pathname will fit in the channel's buffer, put it there
+    if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+      strcpy(c->buffer, pathname);
+      pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+    }
+
+    // Inform the tracer that this command is entering a library call
+    channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
+
+    int rc = safe_syscall(__NR_access, pathname, mode);
+
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
+
+  } else {
+    // No. Just issue the syscall
+    long rc = syscall(__NR_access, pathname, mode);
+    if (rc < 0) {
+      errno = -rc;
+      return -1;
+    } else {
+      return rc;
+    }
   }
 }
 
@@ -496,16 +634,17 @@ long write(int fd, const void* data, size_t count) {
  * then detour that system call through the safe syscall wrapper.
  *
  * Traced processes will hold the lock associated with this type of syscall entry for the entire
- * system call, so we probably need more than one. A page full of these channels should work just
- * fine. The library just has to scan through the array to find a free entry. It could start at a
- * random index (or its TID modulo the array size) and scan forward to find the first free entry.
- * Then just reuse that entry as long as it remains free.
+ * system call, so we probably need more than one. A page full of these channels should work
+ * just fine. The library just has to scan through the array to find a free entry. It could
+ * start at a random index (or its TID modulo the array size) and scan forward to find the first
+ * free entry. Then just reuse that entry as long as it remains free.
  *
  * Messages:
  * 1. tracee claims a channel by locking it
  * 2. tracee indicates to rkr that it is ready to enter a syscall-issuing libc function
  * 3. rkr allows tracee to proceed to libc function
  * 4. tracee indicates to rkr that it has finished libc function
- * 5. rkr allows trace to resume after libc function---may include information about a syscall ip
+ * 5. rkr allows trace to resume after libc function---may include information about a syscall
+ * ip
  * 6. tracee releases a channel by unlocking it
  */
