@@ -110,7 +110,7 @@ void* myThread(void* threadarg) {
   // If a is special, skip
   if (a->getTypeName() == "Special") pthread_exit(NULL);
   // Remove Symlink
-  if (a->getTypeName() == "Symlink") pthread_exit(NULL);
+  // if (a->getTypeName() == "Symlink") pthread_exit(NULL);
 
   // Get the path of that artifact
   string path = a->getCommittedPath().value().string();
@@ -204,7 +204,8 @@ void* myThread(void* threadarg) {
           }
         }
       }
-    } else {
+    }
+    if (result.find("no path found") != string::npos) {
       cout << "No path found for " << path << endl;
       cout << a->getName() << endl;
       // file->write("No path found for " + path);
@@ -222,6 +223,7 @@ void* myThread(void* threadarg) {
   //   file->write(package);
   // myfile << package << endl;
   // }
+  // if (package == "dpkg-query") cout << path << endl;
   file->addPackage(package);
 
   pthread_exit(NULL);
