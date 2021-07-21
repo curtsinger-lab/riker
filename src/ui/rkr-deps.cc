@@ -331,38 +331,43 @@ void do_check_deps(vector<string> args) noexcept {
 void do_gen_container(vector<string> args) noexcept {
   ifstream deps(".rkr-deps");
   if (deps.is_open()) {
-    if (mkdir(".devcontainer", 0777) == 0) {
-      ofstream settings(".devcontainer/devcontainer.json");
-      ofstream dockerfile(".devcontainer/Dockerfile");
-      // if (!dockerfile.is_open()) std::cerr << "Failed to open file : " << errno << endl;
+    // if (mkdir(".devcontainer", 0777) == 0) {
+    mkdir(".devcontainer", 0777);
+    ofstream settings(".devcontainer/devcontainer.json");
+    ofstream dockerfile(".devcontainer/Dockerfile");
+    // if (!dockerfile.is_open()) std::cerr << "Failed to open file : " << errno << endl;
 
-      settings
-          << "{\n  \"name\": \"Container\",\n  \"dockerFile\": \"Dockerfile\",\n  \"settings\": "
-             "{\n    \"terminal.integrated.shell.linux\": \"/bin/bash\"\n  },\n  \"remoteUser\": "
-             "\"vscode\",\n}"
-          << endl;
+    settings
+        << "{\n  \"name\": \"Container\",\n  \"dockerFile\": \"Dockerfile\",\n  \"settings\": "
+           "{\n    \"terminal.integrated.shell.linux\": \"/bin/bash\"\n  },\n  \"remoteUser\": "
+           "\"vscode\",\n}"
+        << endl;
 
-      dockerfile << "FROM ubuntu:20.04\nARG USERNAME=vscode\nARG USER_UID=1000\nARG "
-                    "USER_GID=$USER_UID\nENV DEBIAN_FRONTEND=noninteractive\nRUN apt-get update && "
-                    "apt-get -y install --no-install-recommends  \\"
-                 << endl;
+    dockerfile << "FROM ubuntu:20.04\nARG USERNAME=vscode\nARG USER_UID=1000\nARG "
+                  "USER_GID=$USER_UID\nENV DEBIAN_FRONTEND=noninteractive\nRUN apt-get update && "
+                  "apt-get -y install --no-install-recommends  \\"
+               << endl;
 
-      string package;
+    string package;
 
-      while (getline(deps, package)) {
-        dockerfile << "  " << package << "   \\" << endl;
-      }
-      dockerfile
-          << "  && apt-get autoremove -y  \\\n  && apt-get clean -y \\\n  && rm -rf "
-             "/var/lib/apt/lists/*\nRUN touch /usr/bin/docker && chmod +x /usr/bin/docker\nENV "
-             "DEBIAN_FRONTEND=dialog"
-          << endl;
-
-      dockerfile.close();
-      settings.close();
-    } else {
-      cerr << "Error: " << strerror(errno) << endl;
+    while (getline(deps, package)) {
+      dockerfile << "  " << package << "   \\" << endl;
     }
+    dockerfile
+        << "  && groupadd --gid $USER_GID $USERNAME  \\\n  && useradd -s /bin/bash --uid "
+           "$USER_UID --gid $USER_GID -m $USERNAME \\\n  && apt-get install -y sudo  \\\n  && "
+           "echo $USERNAME ALL=\\(root\\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \\\n  && chmod "
+           "0440 /etc/sudoers.d/$USERNAME  \\\n"
+           "  && apt-get autoremove -y  \\\n  && apt-get clean -y \\\n  && rm -rf "
+           "/var/lib/apt/lists/*\nRUN touch /usr/bin/docker && chmod +x /usr/bin/docker\nENV "
+           "DEBIAN_FRONTEND=dialog"
+        << endl;
+
+    dockerfile.close();
+    settings.close();
+    // } else {
+    // cerr << "Error: " << strerror(errno) << endl;
+    // }
   } else {
     cout << "Please generate dependencies first" << endl;
   }
