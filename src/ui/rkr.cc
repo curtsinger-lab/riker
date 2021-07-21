@@ -179,6 +179,10 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
+  /************* Generate Subcommand *************/
+
+  auto generate = app.add_subcommand("generate", "Generate a Rikerfile");
+
   /************* Rikerfile Arguments ***********/
   vector<string> args;
   app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
@@ -201,6 +205,8 @@ int main(int argc, char* argv[]) noexcept {
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand
   stats->final_callback([&] { do_stats(args, list_artifacts); });
+  // generate subcommand
+  generate->final_callback([&] { do_generate(args); });
 
   /************* Argument Parsing *************/
 
