@@ -302,19 +302,21 @@ void do_gen_deps(vector<string> args) noexcept {
 void do_install_deps(vector<string> args) noexcept {
   // Open file and check if each package is installed
   array<char, 128> buffer;
-  string result, package;
+  string package;
   ifstream myfile(".rkr-deps");
   if (myfile.is_open()) {
     while (getline(myfile, package)) {
+      string result;
       string cmd = "dpkg-query -W " + package;
       unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
       if (!pipe) exit(EXIT_FAILURE);
       while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
       }
-      if (result.find("no packages found matching") != string::npos) {
+      // cout << result.substr(12, 2) << endl;
+      if (result.size() == 0) {
         cout << "Installing" << package << endl;
-        cmd = "sudo dpkg -i " + package;
+        cmd = "sudo apt-get install " + package;
         system(cmd.c_str());
       } else {
         cout << package << " is already installed" << endl;
