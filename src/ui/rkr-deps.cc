@@ -315,7 +315,7 @@ void do_install_deps(vector<string> args) noexcept {
       }
       // cout << result.substr(12, 2) << endl;
       if (result.size() == 0) {
-        cout << "Installing" << package << endl;
+        cout << "Installing " << package << endl;
         cmd = "sudo apt-get install " + package;
         system(cmd.c_str());
       } else {
