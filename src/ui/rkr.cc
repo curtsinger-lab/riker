@@ -180,13 +180,17 @@ int main(int argc, char* argv[]) noexcept {
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
   /************* Dependency Subcommand ********/
+  bool create_container = false;
   auto gen_deps = app.add_subcommand(
       "generate-deps", "Generate .rkr-deps that contains all the necessary dependencies");
   auto install_deps = app.add_subcommand("install-deps", "Install all missing dependencies");
   auto check_deps = app.add_subcommand("check-deps", "Check all the necessary dependencies");
-  auto gen_container = app.add_subcommand(
-      "create-container",
+  gen_deps->add_flag(
+      "-c,--container", create_container,
       "Generate a Dockerfile in the .devcontainer folder that is compatible with vscode");
+  // auto gen_container = app.add_subcommand(
+  //     "create-container",
+  //     "Generate a Dockerfile in the .devcontainer folder that is compatible with vscode");
 
   /************* Rikerfile Arguments ***********/
   vector<string> args;
@@ -211,10 +215,10 @@ int main(int argc, char* argv[]) noexcept {
   // stats subcommand
   stats->final_callback([&] { do_stats(args, list_artifacts); });
   // dependency subcommand
-  gen_deps->final_callback([&] { do_gen_deps(args); });
+  gen_deps->final_callback([&] { do_gen_deps(args, create_container); });
   install_deps->final_callback([&] { do_install_deps(args); });
   check_deps->final_callback([&] { do_check_deps(args); });
-  gen_container->final_callback([&] { do_gen_container(args); });
+  // gen_container->final_callback([&] { do_gen_container(args); });
 
   /************* Argument Parsing *************/
 

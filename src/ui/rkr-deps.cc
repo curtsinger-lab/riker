@@ -87,6 +87,52 @@ string getPackage(string path) {
   return result;
 }
 
+void gen_container() noexcept {
+  ifstream deps(".rkr-deps");
+  if (deps.is_open()) {
+    // if (mkdir(".devcontainer", 0777) == 0) {
+    mkdir(".devcontainer", 0777);
+    ofstream settings(".devcontainer/devcontainer.json");
+    ofstream dockerfile(".devcontainer/Dockerfile");
+    // if (!dockerfile.is_open()) std::cerr << "Failed to open file : " << errno << endl;
+
+    settings
+        << "{\n  \"name\": \"Container\",\n  \"dockerFile\": \"Dockerfile\",\n  \"settings\": "
+           "{\n    \"terminal.integrated.shell.linux\": \"/bin/bash\"\n  },\n  \"remoteUser\": "
+           "\"vscode\",\n}"
+        << endl;
+
+    dockerfile << "FROM ubuntu:20.04\nARG USERNAME=vscode\nARG USER_UID=1000\nARG "
+                  "USER_GID=$USER_UID\nENV DEBIAN_FRONTEND=noninteractive\nRUN apt-get update && "
+                  "apt-get -y install --no-install-recommends  \\"
+               << endl;
+
+    string package;
+
+    while (getline(deps, package)) {
+      dockerfile << "  " << package << "   \\" << endl;
+    }
+    dockerfile
+        << "  && groupadd --gid $USER_GID $USERNAME  \\\n  && useradd -s /bin/bash --uid "
+           "$USER_UID --gid $USER_GID -m $USERNAME \\\n  && apt-get install -y sudo  \\\n  && "
+           "echo $USERNAME ALL=\\(root\\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \\\n  && chmod "
+           "0440 /etc/sudoers.d/$USERNAME  \\\n"
+           "  && apt-get autoremove -y  \\\n  && apt-get clean -y \\\n  && rm -rf "
+           "/var/lib/apt/lists/*\nRUN touch /usr/bin/docker && chmod +x /usr/bin/docker\nENV "
+           "DEBIAN_FRONTEND=dialog"
+        << endl;
+
+    dockerfile.close();
+    settings.close();
+    // } else {
+    // cerr << "Error: " << strerror(errno) << endl;
+    // }
+  } else {
+    cout << "Please generate dependencies first" << endl;
+  }
+  deps.close();
+}
+
 // Arguments for each child thread include pointer to the path of file and pointer to the output
 // file
 struct thread_data {
@@ -237,7 +283,7 @@ void* myThread(void* threadarg) {
 /**
  * Run the 'gen_deps' subcommand
  */
-void do_gen_deps(vector<string> args) noexcept {
+void do_gen_deps(vector<string> args, bool create_container) noexcept {
   // Turn on input/output tracking
   // options::track_inputs_outputs = true;
 
@@ -250,51 +296,54 @@ void do_gen_deps(vector<string> args) noexcept {
   // Emulate the trace
   trace->sendTo(Build());
 
-  // ofstream myfile;
-  // myfile.open(".rkr-deps");
-  auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
+  {
+    // ofstream myfile;
+    // myfile.open(".rkr-deps");
+    auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
 
-  // list of packages needed
-  // vector<string> packages;
+    // list of packages needed
+    // vector<string> packages;
 
-  int num_threads = env::getArtifacts().size();
-  pthread_t threads[num_threads];
-  struct thread_data tds[num_threads];
-  int rc, i = 0;
+    int num_threads = env::getArtifacts().size();
+    pthread_t threads[num_threads];
+    struct thread_data tds[num_threads];
+    int rc, i = 0;
 
-  // Iterate through each artifact
-  for (const auto& weak_artifact : env::getArtifacts()) {
-    auto a = weak_artifact.lock();
+    // Iterate through each artifact
+    for (const auto& weak_artifact : env::getArtifacts()) {
+      auto a = weak_artifact.lock();
 
-    // cout << a->getTypeName() << ": " << a->getName() << endl;
+      // cout << a->getTypeName() << ": " << a->getName() << endl;
 
-    // cout << "test" << endl;
-    // Initilize thread arguments
-    tds[i].path_ptr = a;
-    tds[i].file_ptr = synchronizedFile;
-    // struct thread_data td = {a, synchronizedFile};
-    // pthread_t pid;
-    rc = pthread_create(&threads[i], NULL, myThread, (void*)&tds[i]);
+      // cout << "test" << endl;
+      // Initilize thread arguments
+      tds[i].path_ptr = a;
+      tds[i].file_ptr = synchronizedFile;
+      // struct thread_data td = {a, synchronizedFile};
+      // pthread_t pid;
+      rc = pthread_create(&threads[i], NULL, myThread, (void*)&tds[i]);
 
-    if (rc) {
-      cout << "Error: unable to create thread," << rc << endl;
-      exit(-1);
+      if (rc) {
+        cout << "Error: unable to create thread," << rc << endl;
+        exit(-1);
+      }
+      i++;
     }
-    i++;
-  }
 
-  void* status;
+    void* status;
 
-  // Join all the threads
-  for (i = 0; i < num_threads; i++) {
-    rc = pthread_join(threads[i], &status);
-    if (rc) {
-      cout << "Error: unable to join," << rc << endl;
-      exit(-1);
+    // Join all the threads
+    for (i = 0; i < num_threads; i++) {
+      rc = pthread_join(threads[i], &status);
+      if (rc) {
+        cout << "Error: unable to join," << rc << endl;
+        exit(-1);
+      }
+      // cout << "Main: completed thread id:" << i;
+      // cout << " exiting with status:" << status << endl;
     }
-    // cout << "Main: completed thread id:" << i;
-    // cout << " exiting with status:" << status << endl;
   }
+  if (create_container) gen_container();
 
   // pthread_exit(NULL);
 }
@@ -332,50 +381,4 @@ void do_check_deps(vector<string> args) noexcept {
   if (f.is_open()) {
     cout << f.rdbuf();
   }
-}
-
-void do_gen_container(vector<string> args) noexcept {
-  ifstream deps(".rkr-deps");
-  if (deps.is_open()) {
-    // if (mkdir(".devcontainer", 0777) == 0) {
-    mkdir(".devcontainer", 0777);
-    ofstream settings(".devcontainer/devcontainer.json");
-    ofstream dockerfile(".devcontainer/Dockerfile");
-    // if (!dockerfile.is_open()) std::cerr << "Failed to open file : " << errno << endl;
-
-    settings
-        << "{\n  \"name\": \"Container\",\n  \"dockerFile\": \"Dockerfile\",\n  \"settings\": "
-           "{\n    \"terminal.integrated.shell.linux\": \"/bin/bash\"\n  },\n  \"remoteUser\": "
-           "\"vscode\",\n}"
-        << endl;
-
-    dockerfile << "FROM ubuntu:20.04\nARG USERNAME=vscode\nARG USER_UID=1000\nARG "
-                  "USER_GID=$USER_UID\nENV DEBIAN_FRONTEND=noninteractive\nRUN apt-get update && "
-                  "apt-get -y install --no-install-recommends  \\"
-               << endl;
-
-    string package;
-
-    while (getline(deps, package)) {
-      dockerfile << "  " << package << "   \\" << endl;
-    }
-    dockerfile
-        << "  && groupadd --gid $USER_GID $USERNAME  \\\n  && useradd -s /bin/bash --uid "
-           "$USER_UID --gid $USER_GID -m $USERNAME \\\n  && apt-get install -y sudo  \\\n  && "
-           "echo $USERNAME ALL=\\(root\\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \\\n  && chmod "
-           "0440 /etc/sudoers.d/$USERNAME  \\\n"
-           "  && apt-get autoremove -y  \\\n  && apt-get clean -y \\\n  && rm -rf "
-           "/var/lib/apt/lists/*\nRUN touch /usr/bin/docker && chmod +x /usr/bin/docker\nENV "
-           "DEBIAN_FRONTEND=dialog"
-        << endl;
-
-    dockerfile.close();
-    settings.close();
-    // } else {
-    // cerr << "Error: " << strerror(errno) << endl;
-    // }
-  } else {
-    cout << "Please generate dependencies first" << endl;
-  }
-  deps.close();
 }
