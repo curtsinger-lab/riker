@@ -20,18 +20,9 @@
 #define AT_FDCWD -100
 #endif
 
-static uint8_t safe_syscall_code[] = {
-    0xf3, 0x0f, 0x1e, 0xfa,        // endbr64
-    0x48, 0x89, 0xf8,              // mov %rdi, %rax
-    0x48, 0x89, 0xf7,              // mov %rsi, %rdi
-    0x48, 0x89, 0xd6,              // mov %rdx, %rsi
-    0x48, 0x89, 0xca,              // mov %rcx, %rdx
-    0x4d, 0x89, 0xc2,              // mov %r8, %r10
-    0x4d, 0x89, 0xc8,              // mov %r9, %r8
-    0x4c, 0x8b, 0x4c, 0x24, 0x08,  // mov 0x8(%rsp), %r9
-    0x0f, 0x05,                    // syscall
-    0xc3                           // retq
-};
+// These symbols are provided by the assembly implementation of the safe syscall function
+extern void safe_syscall_start;
+extern void safe_syscall_end;
 
 // Create a function pointer for safe, untraced system calls. Initially this will just call the
 // usual traced system call wrapper
@@ -110,7 +101,7 @@ void riker_init() {
   }
 
   // Copy over the bytes for the syscall entry code
-  memcpy(p, safe_syscall_code, sizeof(safe_syscall_code));
+  memcpy(p, &safe_syscall_start, (intptr_t)&safe_syscall_end - (intptr_t)&safe_syscall_start);
 
   // Make the syscall entry code executable
   if (mprotect(p, 0x1000, PROT_READ | PROT_EXEC)) {

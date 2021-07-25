@@ -29,6 +29,9 @@ RKR_DEBUG_DEPS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.d, $(RKR_SRCS))
 RKR_RELEASE_OBJS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.o, $(RKR_SRCS))
 RKR_RELEASE_DEPS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.d, $(RKR_SRCS))
 
+# TODO: Don't hard-code the architecture-specific assembly file
+RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
+
 BLAKE_SRCS := $(BLAKE3)/blake3.c \
 						 	$(BLAKE3)/blake3_dispatch.c \
 						 	$(BLAKE3)/blake3_portable.c \
@@ -95,9 +98,9 @@ $(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: src/rkr-launch/launch
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: src/inject/inject.c Makefile
+$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(RKR_INJECT_SRCS) Makefile
 	@mkdir -p `dirname $@`
-	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $< -ldl
+	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl
 
 # Set file-specific flags for blake3 build
 %/.obj/blake3/blake3_sse2.o: CFLAGS += -msse2
