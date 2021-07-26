@@ -376,7 +376,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   Ref res;
 
   // Check the map of known entries for a match
-  auto entries_iter = _entries.find(entry);
+  auto entries_iter = _entries.find(entry_str);
   if (entries_iter != _entries.end()) {
     // Found a match.
 
