@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <list>
 #include <map>
 #include <memory>
@@ -40,6 +41,7 @@
 #include "util/wrappers.hh"
 #include "versions/FileVersion.hh"
 
+using std::ifstream;
 using std::list;
 using std::make_shared;
 using std::map;
@@ -47,6 +49,7 @@ using std::nullopt;
 using std::optional;
 using std::set;
 using std::shared_ptr;
+using std::string;
 using std::tuple;
 using std::vector;
 
@@ -327,6 +330,53 @@ shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
   return result;
 }
 
+string findLibraryOffset(pid_t pid, uintptr_t ptr) {
+  ifstream maps("/proc/" + std::to_string(pid) + "/maps");
+
+  while (maps.good() && !maps.eof()) {
+    uintptr_t base, limit;
+    char perms[5];
+    size_t offset;
+    size_t dev_major, dev_minor;
+    uintptr_t inode;
+    string path;
+
+    // Skip over whitespace
+    maps >> std::skipws;
+
+    // Read in "<base>-<limit> <perms> <offset> <dev_major>:<dev_minor> <inode>"
+    maps >> std::hex >> base;
+    if (maps.get() != '-') break;
+    maps >> std::hex >> limit;
+
+    if (maps.get() != ' ') break;
+    maps.get(perms, 5);
+
+    maps >> std::hex >> offset;
+    maps >> std::hex >> dev_major;
+    if (maps.get() != ':') break;
+    maps >> std::hex >> dev_minor;
+    maps >> std::dec >> inode;
+
+    // Skip over spaces and tabs
+    while (maps.peek() == ' ' || maps.peek() == '\t') {
+      maps.ignore(1);
+    }
+
+    // Read out the mapped file's path
+    getline(maps, path);
+
+    // Does the queried pointer fall in bounds?
+    if (!path.empty() && ptr >= base && ptr < limit) {
+      std::stringstream ss;
+      ss << path << " + " << std::hex << (ptr - base + offset);
+      return ss.str();
+    }
+  }
+
+  return "unknown";
+}
+
 void Tracer::handleSyscall(Thread& t) noexcept {
   auto regs = t.getRegisters();
 
@@ -337,6 +387,14 @@ void Tracer::handleSyscall(Thread& t) noexcept {
 
   if (entry.isTraced()) {
     LOG(trace) << t << ": stopped on syscall " << entry.getName();
+
+    if (options::syscall_stats) {
+      std::stringstream ss;
+      ss << entry.getName() << " (ptrace "
+         << findLibraryOffset(t.getProcess()->getID(), regs.INSTRUCTION_POINTER) << ")";
+      Tracer::syscall_counts[ss.str()]++;
+      Tracer::ptrace_syscall_count++;
+    }
 
     // Can we skip handling this traced syscall? This happens if we're already handling an
     // equivalent syscall through the shared memory channel
@@ -631,4 +689,23 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   proc->setPrimary();
 
   return proc;
+}
+
+void Tracer::printSyscallStats() noexcept {
+  vector<std::pair<std::string, size_t>> sorted(Tracer::syscall_counts.begin(),
+                                                Tracer::syscall_counts.end());
+  std::sort(sorted.begin(), sorted.end(),
+            [](const auto& a, const auto& b) { return a.second > b.second; });
+
+  std::cout << "System Call Stats:" << std::endl;
+  for (const auto& [name, count] : sorted) {
+    if (count > 100) std::cout << "  " << name << ": " << count << std::endl;
+  }
+
+  std::cout << std::endl;
+
+  size_t total_syscalls = Tracer::fast_syscall_count + Tracer::ptrace_syscall_count;
+  size_t percent_fast = (100 * Tracer::fast_syscall_count) / total_syscalls;
+  std::cout << Tracer::fast_syscall_count << "/" << total_syscalls << " (" << percent_fast
+            << "%) syscalls handed by fast tracing" << std::endl;
 }

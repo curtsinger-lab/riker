@@ -141,6 +141,8 @@ int main(int argc, char* argv[]) noexcept {
   build->add_flag("--inject", options::inject_tracing_lib,
                   "Inject a shared library for shared memory tracing");
 
+  build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
+
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");

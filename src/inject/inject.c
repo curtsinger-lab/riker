@@ -39,7 +39,9 @@ static int fast_openat(int dfd, const char* pathname, int flags, mode_t mode);
 static int fast_close(int fd);
 static void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset);
 static long fast_read(int fd, void* data, size_t count);
+static long fast_pread(int fd, void* data, size_t count, off_t offset);
 static long fast_write(int fd, const void* data, size_t count);
+static ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz);
 static int fast_access(const char* pathname, int mode);
 static int fast_xstat(int ver, const char* pathname, struct stat* statbuf);
 static int fast_lxstat(int ver, const char* pathname, struct stat* statbuf);
@@ -149,11 +151,17 @@ void rkr_inject_init() {
 
   // Detour functions to fast traced implementations
   rkr_detour("open", fast_open);
+  rkr_detour("__open64_nocancel", fast_open);
   rkr_detour("openat", fast_openat);
   rkr_detour("close", fast_close);
+  rkr_detour("__close_nocancel", fast_close);
   rkr_detour("mmap", fast_mmap);
   rkr_detour("read", fast_read);
+  rkr_detour("__read_nocancel", fast_read);
+  rkr_detour("pread", fast_pread);
   rkr_detour("write", fast_write);
+  rkr_detour("__write_nocancel", fast_write);
+  rkr_detour("readlink", fast_readlink);
   rkr_detour("access", fast_access);
   rkr_detour("__xstat", fast_xstat);
   rkr_detour("__lxstat", fast_lxstat);
@@ -449,6 +457,37 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
   }
 }
 
+ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
+  // Find an available channel
+  tracing_channel_t* c = channel_acquire();
+
+  uint64_t pathname_arg = (uint64_t)pathname;
+
+  // If we the pathname will fit in the channel's buffer, put it there
+  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
+    strcpy(c->buffer, pathname);
+    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
+  }
+
+  // Inform the tracer that this command is entering a library call
+  channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
+
+  int rc = safe_syscall(__NR_readlink, pathname, buf, bufsiz);
+
+  // Inform the tracer that this command is exiting a library call
+  channel_exit(c, rc);
+
+  // Release the channel for use by another library call
+  channel_release(c);
+
+  if (rc < 0) {
+    errno = -rc;
+    return -1;
+  } else {
+    return rc;
+  }
+}
+
 int fast_access(const char* pathname, int mode) {
   // Find an available channel
   tracing_channel_t* c = channel_acquire();
@@ -488,6 +527,29 @@ long fast_read(int fd, void* data, size_t count) {
   channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
   long rc = safe_syscall(__NR_read, fd, data, count);
+
+  // Inform the tracer that this command is exiting a library call
+  channel_exit(c, rc);
+
+  // Release the channel for use by another library call
+  channel_release(c);
+
+  if (rc < 0) {
+    errno = -rc;
+    return -1;
+  } else {
+    return rc;
+  }
+}
+
+ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
+  // Find an available channel
+  tracing_channel_t* c = channel_acquire();
+
+  // Inform the tracer that this command is entering a library call
+  channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
+
+  long rc = safe_syscall(__NR_pread64, fd, buf, count, offset);
 
   // Inform the tracer that this command is exiting a library call
   channel_exit(c, rc);

@@ -56,6 +56,13 @@ class Tracer {
   /// Called when a traced process is killed by a signal
   void handleKilled(Thread& t, int exit_status, int term_sig) noexcept;
 
+ public:
+  inline static std::map<std::string, size_t> syscall_counts;
+  inline static size_t ptrace_syscall_count = 0;
+  inline static size_t fast_syscall_count = 0;
+
+  static void printSyscallStats() noexcept;
+
  private:
   /// This tracer is executing commands on behalf of this build
   Build& _build;

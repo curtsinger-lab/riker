@@ -12,6 +12,7 @@
 #include "data/ReadWriteCombiner.hh"
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
+#include "tracing/Tracer.hh"
 #include "ui/commands.hh"
 #include "util/constants.hh"
 #include "util/stats.hh"
@@ -121,4 +122,8 @@ void do_build(vector<string> args,
 
   gather_stats(stats_log_path, stats, iteration);
   write_stats(stats_log_path, stats);
+
+  if (options::syscall_stats) {
+    Tracer::printSyscallStats();
+  }
 }

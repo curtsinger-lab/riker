@@ -48,6 +48,12 @@ void Thread::usingChannel(tracing_channel_t* channel) noexcept {
 
   auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
   // WARN << "Handling " << entry.getName() << " via shared memory channel";
+
+  if (options::syscall_stats) {
+    Tracer::syscall_counts[string(entry.getName()) + " (fast)"]++;
+    Tracer::fast_syscall_count++;
+  }
+
   entry.runHandler(*this, _channel->regs, channel);
 }
 
@@ -1251,7 +1257,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
   if (pathname.string().find("/proc/self") != string::npos) {
-    resume();
+    finishSyscall([=](long rc) { resume(); });
     return;
   }
 
