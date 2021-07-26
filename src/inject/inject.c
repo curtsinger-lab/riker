@@ -156,7 +156,7 @@ void rkr_inject_init() {
   rkr_detour("close", fast_close);
   rkr_detour("__close_nocancel", fast_close);
   rkr_detour("mmap", fast_mmap);
-  rkr_detour("read", fast_read);
+  rkr_detour("__read", fast_read);
   rkr_detour("__read_nocancel", fast_read);
   rkr_detour("pread", fast_pread);
   rkr_detour("write", fast_write);
@@ -171,7 +171,7 @@ void rkr_inject_init() {
 
 tracing_channel_t* channel_acquire() {
   // Spin on the tracing channel state until we can acquire it
-  size_t index = 0;
+  static __thread size_t index = 0;
   while (true) {
     tracing_channel_t* c = &channel[index];
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
