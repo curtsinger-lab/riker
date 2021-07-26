@@ -147,7 +147,7 @@ void Thread::resume() noexcept {
   // Is this thread blocked on the shared memory channel?
   if (_channel) {
     if (_channel->state == CHANNEL_STATE_ENTRY) {
-      __atomic_store_n(&_channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
+      __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
       _channel = nullptr;
     } else if (_channel->state == CHANNEL_STATE_EXIT) {
       __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
@@ -436,7 +436,7 @@ void Thread::_close(int fd) noexcept {
   LOGF(trace, "{}: close({})", this, fd);
 
   // Resume the process
-  finishSyscall([=](long rc) { resume(); });
+  resume();
 
   // Try to close the FD
   _process->tryCloseFD(fd);
@@ -841,7 +841,7 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
   // NOTE: The BPF program currently excludes these
   if (fd < 0) {
     LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
-    finishSyscall([=](long rc) { resume(); });
+    resume();
     return;
   }
 
@@ -1257,7 +1257,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
   if (pathname.string().find("/proc/self") != string::npos) {
-    finishSyscall([=](long rc) { resume(); });
+    resume();
     return;
   }
 
