@@ -63,14 +63,9 @@ bool Thread::canSkipTrace(user_regs_struct& regs) const noexcept {
     return false;
   }
 
-  // Was a syscall IP already recorded?
-  if (_channel->traced_syscall_ip != 0) {
-    WARN << "Traced multiple syscalls for a single shared memory channel trace";
-    return false;
-  }
+  // NOTE: We can safe the address of a traced syscall and pass it back to the injected library
+  // if necessary. That hasn't been required so far, but it may be useful at some point.
 
-  // Save the syscall IP and allow the skip!
-  _channel->traced_syscall_ip = regs.INSTRUCTION_POINTER;
   return true;
 }
 
@@ -840,7 +835,7 @@ void Thread::_mmap(void* addr, size_t len, int prot, int flags, int fd, off_t of
   // NOTE: The BPF program currently excludes these
   if (fd < 0) {
     LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
-    resume();
+    finishSyscall([=](long rc) { resume(); });
     return;
   }
 

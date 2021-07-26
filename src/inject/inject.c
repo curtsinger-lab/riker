@@ -37,6 +37,7 @@ void rkr_inject_init();
 static int fast_open(const char* pathname, int flags, mode_t mode);
 static int fast_openat(int dfd, const char* pathname, int flags, mode_t mode);
 static int fast_close(int fd);
+static void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset);
 static long fast_read(int fd, void* data, size_t count);
 static long fast_write(int fd, const void* data, size_t count);
 static int fast_access(const char* pathname, int mode);
@@ -87,13 +88,17 @@ void rkr_detour(const char* name, void* dest) {
   if (fn != NULL) {
     uintptr_t base = (uintptr_t)fn;
     base -= base % 0x1000;
-    mprotect((void*)base, 0x1000, PROT_WRITE);
+    mprotect((void*)base, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC);
     jump_t* j = (jump_t*)fn;
     j->farjmp = 0x25ff;
     j->offset = 0;
     j->addr = (uint64_t)dest;
     mprotect((void*)base, 0x1000, PROT_READ | PROT_EXEC);
-  }
+  } /* else {
+     char buf[256];
+     snprintf(buf, 256, "Symbol %s not found\n", name);
+     safe_syscall(__NR_write, 2, buf, strlen(buf));
+   }*/
 }
 
 // Initialize the injected library
@@ -146,6 +151,7 @@ void rkr_inject_init() {
   rkr_detour("open", fast_open);
   rkr_detour("openat", fast_openat);
   rkr_detour("close", fast_close);
+  rkr_detour("mmap", fast_mmap);
   rkr_detour("read", fast_read);
   rkr_detour("write", fast_write);
   rkr_detour("access", fast_access);
@@ -190,10 +196,7 @@ void channel_enter(tracing_channel_t* c,
   c->regs.SYSCALL_ARG6 = arg6;
 
   // Save the traced thread's ID
-  c->tid = safe_syscall(__NR_gettid);
-
-  // Clear data to be written by the tracer
-  c->traced_syscall_ip = 0;
+  c->tid = gettid();
 
   // Mark the channel for entry
   __atomic_store_n(&c->state, CHANNEL_STATE_ENTRY, __ATOMIC_RELEASE);
@@ -304,6 +307,29 @@ int fast_close(int fd) {
     return -1;
   } else {
     return rc;
+  }
+}
+
+void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+  // Find an available channel
+  tracing_channel_t* c = channel_acquire();
+
+  // Inform the tracer that this command is entering a library call
+  channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
+
+  long rc = safe_syscall(__NR_mmap, addr, length, prot, flags, fd, offset);
+
+  // Inform the tracer that this command is exiting a library call
+  channel_exit(c, rc);
+
+  // Release the channel for use by another library call
+  channel_release(c);
+
+  if (rc < 0) {
+    errno = -rc;
+    return MAP_FAILED;
+  } else {
+    return (void*)rc;
   }
 }
 

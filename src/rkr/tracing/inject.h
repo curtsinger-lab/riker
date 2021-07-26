@@ -45,6 +45,5 @@ typedef struct tracing_channel {
   int tid;
   struct user_regs_struct regs;
   long return_value;
-  uintptr_t traced_syscall_ip;
   char buffer[TRACING_CHANNEL_BUFFER_SIZE];
 } tracing_channel_t;
