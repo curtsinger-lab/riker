@@ -88,12 +88,12 @@ void rkr_detour(const char* name, void* dest) {
   if (fn != NULL) {
     uintptr_t base = (uintptr_t)fn;
     base -= base % 0x1000;
-    mprotect((void*)base, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC);
+    safe_syscall(__NR_mprotect, base, 0x1000, PROT_WRITE);
     jump_t* j = (jump_t*)fn;
     j->farjmp = 0x25ff;
     j->offset = 0;
     j->addr = (uint64_t)dest;
-    mprotect((void*)base, 0x1000, PROT_READ | PROT_EXEC);
+    safe_syscall(__NR_mprotect, base, 0x1000, PROT_READ | PROT_EXEC);
   } /* else {
      char buf[256];
      snprintf(buf, 256, "Symbol %s not found\n", name);
