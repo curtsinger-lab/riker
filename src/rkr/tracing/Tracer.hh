@@ -97,8 +97,8 @@ class Tracer {
   std::list<std::tuple<pid_t, int>> _event_queue;
 
   /// The file descriptor for the shared memory tracing channels
-  inline static int _trace_channel_fd = -1;
+  inline static int _trace_data_fd = -1;
 
   /// A pointer to the shared memory tracing data
-  inline static tracing_channel_t* _channel = nullptr;
+  inline static struct shared_tracing_data* _shmem = nullptr;
 };

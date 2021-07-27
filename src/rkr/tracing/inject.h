@@ -13,9 +13,6 @@
 // The number of tracing channel entries
 #define TRACING_CHANNEL_COUNT 10
 
-// The size of the tracing channel shared mapping
-#define TRACING_CHANNEL_SIZE (sizeof(tracing_channel_t) * TRACING_CHANNEL_COUNT)
-
 // The size of a data buffer available in each tracing channel
 #define TRACING_CHANNEL_BUFFER_SIZE 512
 

@@ -28,7 +28,7 @@ static long (*safe_syscall)(long nr, ...) = syscall;
 static bool initialized = false;
 
 // The shared tracing channel
-static tracing_channel_t* channel = NULL;
+static struct shared_tracing_data* shmem = NULL;
 
 // The function to initialize the injected library
 void rkr_inject_init();
@@ -140,8 +140,8 @@ void rkr_inject_init() {
   }
 
   // Map the tracing channel shared page
-  rc = safe_syscall(__NR_mmap, NULL, TRACING_CHANNEL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-                    TRACING_CHANNEL_FD, 0LLU);
+  rc = safe_syscall(__NR_mmap, NULL, sizeof(struct shared_tracing_data), PROT_READ | PROT_WRITE,
+                    MAP_SHARED, TRACING_CHANNEL_FD, 0LLU);
 
   // Make sure the mmap succeeded
   if (rc < 0) {
@@ -149,8 +149,8 @@ void rkr_inject_init() {
     return;
   }
 
-  // Set the global tracing channel
-  channel = (tracing_channel_t*)rc;
+  // Set the global tracing data pointer
+  shmem = (struct shared_tracing_data*)rc;
 
   // Mark the library as initialized
   initialized = true;
@@ -182,9 +182,10 @@ size_t channel_acquire() {
   static __thread size_t index = 0;
   while (true) {
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
-    if (__atomic_compare_exchange_n(&channel[index].state, &expected, CHANNEL_STATE_ACQUIRED, false,
-                                    __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-      channel[index].tid = gettid();
+    if (__atomic_compare_exchange_n(&shmem->channels[index].state, &expected,
+                                    CHANNEL_STATE_ACQUIRED, false, __ATOMIC_ACQUIRE,
+                                    __ATOMIC_RELAXED)) {
+      shmem->channels[index].tid = gettid();
       return index;
     }
 
@@ -195,7 +196,7 @@ size_t channel_acquire() {
 
 void channel_release(size_t c) {
   // Reset the channel to available
-  __atomic_store_n(&channel[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
 }
 
 /// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
@@ -209,31 +210,31 @@ bool channel_enter(size_t c,
                    uint64_t arg5,
                    uint64_t arg6) {
   // Fill in the "registers" to be used for tracing
-  channel[c].regs.SYSCALL_NUMBER = syscall_nr;
-  channel[c].regs.SYSCALL_ARG1 = arg1;
-  channel[c].regs.SYSCALL_ARG2 = arg2;
-  channel[c].regs.SYSCALL_ARG3 = arg3;
-  channel[c].regs.SYSCALL_ARG4 = arg4;
-  channel[c].regs.SYSCALL_ARG5 = arg5;
-  channel[c].regs.SYSCALL_ARG6 = arg6;
+  shmem->channels[c].regs.SYSCALL_NUMBER = syscall_nr;
+  shmem->channels[c].regs.SYSCALL_ARG1 = arg1;
+  shmem->channels[c].regs.SYSCALL_ARG2 = arg2;
+  shmem->channels[c].regs.SYSCALL_ARG3 = arg3;
+  shmem->channels[c].regs.SYSCALL_ARG4 = arg4;
+  shmem->channels[c].regs.SYSCALL_ARG5 = arg5;
+  shmem->channels[c].regs.SYSCALL_ARG6 = arg6;
 
   // The channel is in syscall entry mode
-  channel[c].syscall_entry = true;
+  shmem->channels[c].syscall_entry = true;
 
   // Clear the exit_instead flag in case it was left set by a previous use of this channel
-  channel[c].exit_instead = false;
+  shmem->channels[c].exit_instead = false;
 
   // Begin waiting on the channel
-  __atomic_store_n(&channel[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&channel[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
   }
 
   // Was the tracee asked to exit instead of proceeding?
-  if (channel[c].exit_instead) {
+  if (shmem->channels[c].exit_instead) {
     // Grab the exit status from the registers struct
-    int exit_status = channel[c].regs.SYSCALL_ARG1;
+    int exit_status = shmem->channels[c].regs.SYSCALL_ARG1;
 
     // Release the channel
     channel_release(c);
@@ -242,19 +243,19 @@ bool channel_enter(size_t c,
     safe_syscall(__NR_exit, exit_status);
   }
 
-  return channel[c].stop_on_exit;
+  return shmem->channels[c].stop_on_exit;
 }
 
 void channel_exit(size_t c, long syscall_nr, long rc) {
-  channel[c].regs.SYSCALL_NUMBER = syscall_nr;
-  channel[c].syscall_entry = false;
-  channel[c].return_value = rc;
+  shmem->channels[c].regs.SYSCALL_NUMBER = syscall_nr;
+  shmem->channels[c].syscall_entry = false;
+  shmem->channels[c].return_value = rc;
 
   // Begin waiting on the channel
-  __atomic_store_n(&channel[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&channel[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
   }
 }
 
@@ -262,7 +263,7 @@ uint64_t channel_buffer_string(size_t c, const char* str) {
   // Will the string fit in the channel's data buffer?
   if (str != NULL && strlen(str) < TRACING_CHANNEL_BUFFER_SIZE) {
     // Yes. Copy the string into the buffer
-    strcpy(channel[c].buffer, str);
+    strcpy(shmem->channels[c].buffer, str);
     return TRACING_CHANNEL_BUFFER_PTR;
 
   } else {
@@ -280,7 +281,7 @@ uint64_t channel_buffer_argv(size_t c, char* const* argv) {
   // Will the argv array fit in the buffer?
   if ((count + 1) * sizeof(char*) <= TRACING_CHANNEL_BUFFER_SIZE) {
     // Yes. Copy it and return the special pointer value
-    memcpy(channel[c].buffer, argv, (count + 1) * sizeof(char*));
+    memcpy(shmem->channels[c].buffer, argv, (count + 1) * sizeof(char*));
     return TRACING_CHANNEL_BUFFER_PTR;
 
   } else {
