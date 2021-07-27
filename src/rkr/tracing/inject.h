@@ -49,3 +49,11 @@ typedef struct tracing_channel {
   long return_value;
   char buffer[TRACING_CHANNEL_BUFFER_SIZE];
 } tracing_channel_t;
+
+struct shared_tracing_data {
+  uint64_t in_use;
+  uint64_t _padding1[7];
+  uint64_t waiting;
+  uint64_t _padding2[7];
+  tracing_channel_t channels[TRACING_CHANNEL_COUNT];
+};

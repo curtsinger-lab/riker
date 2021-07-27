@@ -177,15 +177,15 @@ void rkr_inject_init() {
   rkr_detour("execve", fast_execve);
 }
 
-tracing_channel_t* channel_acquire() {
+size_t channel_acquire() {
   // Spin on the tracing channel state until we can acquire it
   static __thread size_t index = 0;
   while (true) {
-    tracing_channel_t* c = &channel[index];
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
-    if (__atomic_compare_exchange_n(&c->state, &expected, CHANNEL_STATE_ACQUIRED, false,
+    if (__atomic_compare_exchange_n(&channel[index].state, &expected, CHANNEL_STATE_ACQUIRED, false,
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-      return c;
+      channel[index].tid = gettid();
+      return index;
     }
 
     index++;
@@ -193,9 +193,14 @@ tracing_channel_t* channel_acquire() {
   }
 }
 
+void channel_release(size_t c) {
+  // Reset the channel to available
+  __atomic_store_n(&channel[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+}
+
 /// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
 /// wait again after the syscall completes.
-bool channel_enter(tracing_channel_t* c,
+bool channel_enter(size_t c,
                    long syscall_nr,
                    uint64_t arg1,
                    uint64_t arg2,
@@ -204,63 +209,92 @@ bool channel_enter(tracing_channel_t* c,
                    uint64_t arg5,
                    uint64_t arg6) {
   // Fill in the "registers" to be used for tracing
-  c->regs.SYSCALL_NUMBER = syscall_nr;
-  c->regs.SYSCALL_ARG1 = arg1;
-  c->regs.SYSCALL_ARG2 = arg2;
-  c->regs.SYSCALL_ARG3 = arg3;
-  c->regs.SYSCALL_ARG4 = arg4;
-  c->regs.SYSCALL_ARG5 = arg5;
-  c->regs.SYSCALL_ARG6 = arg6;
-
-  // Save the traced thread's ID
-  c->tid = gettid();
+  channel[c].regs.SYSCALL_NUMBER = syscall_nr;
+  channel[c].regs.SYSCALL_ARG1 = arg1;
+  channel[c].regs.SYSCALL_ARG2 = arg2;
+  channel[c].regs.SYSCALL_ARG3 = arg3;
+  channel[c].regs.SYSCALL_ARG4 = arg4;
+  channel[c].regs.SYSCALL_ARG5 = arg5;
+  channel[c].regs.SYSCALL_ARG6 = arg6;
 
   // The channel is in syscall entry mode
-  c->syscall_entry = true;
+  channel[c].syscall_entry = true;
 
   // Clear the exit_instead flag in case it was left set by a previous use of this channel
-  c->exit_instead = false;
+  channel[c].exit_instead = false;
 
   // Begin waiting on the channel
-  __atomic_store_n(&c->state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  __atomic_store_n(&channel[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&channel[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
   }
 
-  return c->stop_on_exit;
+  // Was the tracee asked to exit instead of proceeding?
+  if (channel[c].exit_instead) {
+    // Grab the exit status from the registers struct
+    int exit_status = channel[c].regs.SYSCALL_ARG1;
+
+    // Release the channel
+    channel_release(c);
+
+    // Exit now
+    safe_syscall(__NR_exit, exit_status);
+  }
+
+  return channel[c].stop_on_exit;
 }
 
-void channel_exit(tracing_channel_t* c, long syscall_nr, long rc) {
-  c->regs.SYSCALL_NUMBER = syscall_nr;
-  c->tid = gettid();
-  c->syscall_entry = false;
-  c->return_value = rc;
+void channel_exit(size_t c, long syscall_nr, long rc) {
+  channel[c].regs.SYSCALL_NUMBER = syscall_nr;
+  channel[c].syscall_entry = false;
+  channel[c].return_value = rc;
 
   // Begin waiting on the channel
-  __atomic_store_n(&c->state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  __atomic_store_n(&channel[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&channel[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
   }
 }
 
-void channel_release(tracing_channel_t* c) {
-  // Reset the channel to available
-  __atomic_store_n(&c->state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+uint64_t channel_buffer_string(size_t c, const char* str) {
+  // Will the string fit in the channel's data buffer?
+  if (str != NULL && strlen(str) < TRACING_CHANNEL_BUFFER_SIZE) {
+    // Yes. Copy the string into the buffer
+    strcpy(channel[c].buffer, str);
+    return TRACING_CHANNEL_BUFFER_PTR;
+
+  } else {
+    // No. Just return the pointer as-is but cast to a uint64_t
+    return (uint64_t)str;
+  }
+}
+
+uint64_t channel_buffer_argv(size_t c, char* const* argv) {
+  int count = 0;
+  while (argv[count] != NULL) {
+    count++;
+  }
+
+  // Will the argv array fit in the buffer?
+  if ((count + 1) * sizeof(char*) <= TRACING_CHANNEL_BUFFER_SIZE) {
+    // Yes. Copy it and return the special pointer value
+    memcpy(channel[c].buffer, argv, (count + 1) * sizeof(char*));
+    return TRACING_CHANNEL_BUFFER_PTR;
+
+  } else {
+    // No. Just return the existing pointer.
+    return (uint64_t)argv;
+  }
 }
 
 int fast_open(const char* pathname, int flags, mode_t mode) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a syscall
   bool stop_on_exit =
@@ -290,15 +324,10 @@ int fast_open(const char* pathname, int flags, mode_t mode) {
 
 int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (pathname != NULL && strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a syscall
   bool stop_on_exit =
@@ -327,7 +356,7 @@ int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
 
 int fast_close(int fd) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a syscall
   bool stop_on_exit = channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
@@ -355,7 +384,7 @@ int fast_close(int fd) {
 
 void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
@@ -382,15 +411,10 @@ void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t of
 
 int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
@@ -417,15 +441,10 @@ int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
 
 int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
@@ -452,7 +471,7 @@ int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
 
 int fast_fxstat(int ver, int fd, struct stat* statbuf) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
@@ -479,15 +498,10 @@ int fast_fxstat(int ver, int fd, struct stat* statbuf) {
 
 int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit =
@@ -515,15 +529,10 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
 
 ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
@@ -550,15 +559,10 @@ ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
 
 int fast_access(const char* pathname, int mode) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t pathname_arg = (uint64_t)pathname;
-
-  // If we the pathname will fit in the channel's buffer, put it there
-  if (strlen(pathname) < TRACING_CHANNEL_BUFFER_SIZE) {
-    strcpy(c->buffer, pathname);
-    pathname_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the pathname argument in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
@@ -585,7 +589,7 @@ int fast_access(const char* pathname, int mode) {
 
 long fast_read(int fd, void* data, size_t count) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
@@ -614,7 +618,7 @@ long fast_read(int fd, void* data, size_t count) {
 
 ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
@@ -641,7 +645,7 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
 
 long fast_write(int fd, const void* data, size_t count) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
@@ -668,41 +672,28 @@ long fast_write(int fd, const void* data, size_t count) {
 
 int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   // Find an available channel
-  tracing_channel_t* c = channel_acquire();
+  size_t c = channel_acquire();
 
-  uint64_t argv_arg = (uint64_t)argv;
-  int argc = 0;
-  while (argv[argc] != NULL) {
-    argc++;
-  }
-
-  if (argc * sizeof(char*) <= TRACING_CHANNEL_BUFFER_SIZE) {
-    memcpy(c->buffer, argv, (argc + 1) * sizeof(char*));
-    argv_arg = TRACING_CHANNEL_BUFFER_PTR;
-  }
+  // Try to pass the argv array in the channel's data buffer
+  uint64_t argv_arg = channel_buffer_argv(c, argv);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit =
       channel_enter(c, __NR_execve, (uint64_t)pathname, argv_arg, (uint64_t)envp, 0, 0, 0);
 
-  bool exit_instead = c->exit_instead;
-  int exit_status = c->regs.SYSCALL_ARG1;
-
   channel_release(c);
-
-  if (exit_instead) {
-    safe_syscall(__NR_exit, exit_status);
-  }
 
   long rc = safe_syscall(__NR_execve, pathname, argv, envp);
 
-  c = channel_acquire();
+  if (stop_on_exit) {
+    c = channel_acquire();
 
-  // Inform the tracer that this command is exiting a library call
-  if (stop_on_exit) channel_exit(c, __NR_execve, rc);
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_execve, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
