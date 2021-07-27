@@ -65,7 +65,18 @@ class SyscallArgWrapper {
   }
 
   // Read a vector of strings from the thread's memory
-  operator vector<string>() { return _thread.readArgvArray(_val); }
+  operator vector<string>() {
+    if (_val == TRACING_CHANNEL_BUFFER_PTR) {
+      uintptr_t* src = (uintptr_t*)_channel->buffer;
+      vector<string> result;
+      while (src[result.size()] != 0) {
+        result.push_back(_thread.readString(src[result.size()]));
+      }
+      return result;
+    } else {
+      return _thread.readArgvArray(_val);
+    }
+  }
 
   // Cast directly to pointer types
   template <typename T>

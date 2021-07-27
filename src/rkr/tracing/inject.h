@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/user.h>
 
@@ -22,12 +23,10 @@
 #define TRACING_CHANNEL_BUFFER_PTR -77
 
 // Define channel states used to coordinate between tracer and tracee
-#define CHANNEL_STATE_AVAILABLE 0      // The channel is available for use by any process
-#define CHANNEL_STATE_ACQUIRED 1       // The channel is claimed by a process
-#define CHANNEL_STATE_ENTRY 2          // The tracee is waiting before entry to the library call
-#define CHANNEL_STATE_ENTRY_PROCEED 3  // The tracee can proceed with the library call
-#define CHANNEL_STATE_EXIT 4           // The tracee is waiting after exit from the library call
-#define CHANNEL_STATE_EXIT_PROCEED 5   // The tracee can resume running after the library call
+#define CHANNEL_STATE_AVAILABLE 0  // The channel is available for use by any tracee
+#define CHANNEL_STATE_ACQUIRED 1   // The channel is claimed
+#define CHANNEL_STATE_WAITING 2    // The tracee is waiting on this channel
+#define CHANNEL_STATE_PROCEED 3    // The tracee may proceed
 
 // Register meanings on syscall entry
 #define INSTRUCTION_POINTER rip
@@ -42,6 +41,8 @@
 
 typedef struct tracing_channel {
   uint8_t state;
+  bool syscall_entry;
+  bool stop_on_exit;
   int tid;
   struct user_regs_struct regs;
   long return_value;

@@ -42,14 +42,14 @@ class Thread {
   /// Get the thread ID
   pid_t getID() const noexcept { return _tid; }
 
-  /// This thread is tracing with the provided shared memory channel
-  void usingChannel(tracing_channel_t* channel) noexcept;
+  /// Traced entry to a system call through the provided shared memory channel
+  void syscallEntryChannel(tracing_channel_t* channel) noexcept;
+
+  /// Traced exit from a system call through the provided shared memory channel
+  void syscallExitChannel(tracing_channel_t* channel) noexcept;
 
   /// Check if a ptrace stop can be skipped because a shared memory channel is in use
   bool canSkipTrace(user_regs_struct& regs) const noexcept;
-
-  /// This thread is done tracing with its shared memory channel
-  void doneWithChannel(tracing_channel_t* channel) noexcept;
 
   /// Resume a traced thread that is currently stopped
   void resume() noexcept;

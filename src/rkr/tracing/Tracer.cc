@@ -100,17 +100,15 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
           // Get the state of the channel
           uint8_t state = __atomic_load_n(&c->state, __ATOMIC_ACQUIRE);
 
-          // Is the channel waiting on entry or exit for a library call?
-          if (state == CHANNEL_STATE_ENTRY) {
+          // Is the tracee waiting on this channel?
+          if (state == CHANNEL_STATE_WAITING) {
             auto iter = _threads.find(c->tid);
             if (iter != _threads.end()) {
-              iter->second.usingChannel(c);
-            }
-
-          } else if (state == CHANNEL_STATE_EXIT) {
-            auto iter = _threads.find(c->tid);
-            if (iter != _threads.end()) {
-              iter->second.doneWithChannel(c);
+              if (c->syscall_entry) {
+                iter->second.syscallEntryChannel(c);
+              } else {
+                iter->second.syscallExitChannel(c);
+              }
             }
           }
         }

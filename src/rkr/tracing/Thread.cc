@@ -41,20 +41,45 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-/// This thread is tracing with the provided shared memory channel
-void Thread::usingChannel(tracing_channel_t* channel) noexcept {
+// Traced entry to a system call through the provided shared memory channel
+void Thread::syscallEntryChannel(tracing_channel_t* channel) noexcept {
   ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
   _channel = channel;
 
   auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
-  // WARN << "Handling " << entry.getName() << " via shared memory channel";
 
   if (options::syscall_stats) {
     Tracer::syscall_counts[string(entry.getName()) + " (fast)"]++;
     Tracer::fast_syscall_count++;
   }
 
+  LOG(trace) << this << " handling " << entry.getName() << " entry via shared memory channel";
+
   entry.runHandler(*this, _channel->regs, channel);
+
+  //_channel = nullptr;
+}
+
+// Traced exit from a system call through the provided shared memory channel
+void Thread::syscallExitChannel(tracing_channel_t* channel) noexcept {
+  // ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
+  _channel = channel;
+
+  // If there's a post-syscall handler, grab it and run it now
+  function<void(long)> handler;
+  _post_syscall_handler.swap(handler);
+
+  auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
+  LOG(trace) << this << " handling " << entry.getName() << " exit via shared memory channel";
+
+  // If there's a post-syscall handler, run it. Otherwise just resume the thread.
+  if (handler) {
+    handler(channel->return_value);
+  } else {
+    resume();
+  }
+
+  _channel = nullptr;
 }
 
 /// Check if a ptrace stop can be skipped because a shared memory channel is in use
@@ -64,31 +89,15 @@ bool Thread::canSkipTrace(user_regs_struct& regs) const noexcept {
 
   // Does the channel have a matching syscall? If not, issue a warning and do not skip
   if (_channel->regs.SYSCALL_NUMBER != regs.SYSCALL_NUMBER) {
-    WARN << "Nested syscall " << regs.SYSCALL_NUMBER
+    WARN << this << " Nested syscall " << regs.SYSCALL_NUMBER
          << " while using shared memory channel for syscall " << _channel->regs.SYSCALL_NUMBER;
     return false;
   }
 
-  // NOTE: We can safe the address of a traced syscall and pass it back to the injected library
+  // NOTE: We can save the address of a traced syscall and pass it back to the injected library
   // if necessary. That hasn't been required so far, but it may be useful at some point.
 
   return true;
-}
-
-/// This thread is done tracing with its shared memory channel
-void Thread::doneWithChannel(tracing_channel_t* channel) noexcept {
-  ASSERT(_channel == channel) << this
-                              << " cannot finish using a channel it was not previously using ("
-                              << channel << " vs " << _channel << ")";
-  // If there's a post-syscall handler, grab it and run it now
-  function<void(long)> handler;
-  _post_syscall_handler.swap(handler);
-
-  if (handler) {
-    handler(channel->return_value);
-  }
-
-  _channel = nullptr;
 }
 
 fs::path Thread::getPath(at_fd fd) const noexcept {
@@ -146,14 +155,10 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
 void Thread::resume() noexcept {
   // Is this thread blocked on the shared memory channel?
   if (_channel) {
-    if (_channel->state == CHANNEL_STATE_ENTRY) {
-      __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
-      _channel = nullptr;
-    } else if (_channel->state == CHANNEL_STATE_EXIT) {
-      __atomic_store_n(&_channel->state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
-    } else {
-      FAIL << "Channel is not blocked";
-    }
+    ASSERT(_channel->state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+    _channel->stop_on_exit = false;
+    __atomic_store_n(&_channel->state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+    _channel = nullptr;
   } else {
     int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
@@ -168,11 +173,13 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
 
   // Is this thread blocked on the shared memory channel?
   if (_channel) {
-    if (_channel->state == CHANNEL_STATE_ENTRY) {
-      __atomic_store_n(&_channel->state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
-    } else {
-      FAIL << "Channel is not blocked on syscall entry";
-    }
+    ASSERT(_channel->state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+    ASSERT(_channel->syscall_entry) << "Channel is not stopped on syscall entry";
+
+    _channel->stop_on_exit = true;
+
+    // Allow the tracee to proceed
+    __atomic_store_n(&_channel->state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
   } else {
     // Allow the tracee to resume until its syscall finishes
     int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
