@@ -9,6 +9,7 @@
 #include <sys/types.h>
 
 #include "tracing/Thread.hh"
+#include "tracing/inject.h"
 
 class Build;
 class Command;
@@ -76,4 +77,10 @@ class Tracer {
   /// Some tracing events appear before we can process them (e.g. in a child process before we've
   /// seen its creation. Store them here.
   std::list<std::tuple<pid_t, int>> _event_queue;
+
+  /// The file descriptor for the shared memory tracing channels
+  inline static int _trace_channel_fd = -1;
+
+  /// A pointer to the shared memory tracing data
+  inline static tracing_channel_t* _channel = nullptr;
 };

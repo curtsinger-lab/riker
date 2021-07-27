@@ -55,12 +55,6 @@ using std::vector;
 
 namespace fs = std::filesystem;
 
-// The file descriptor used for the shared tracing channel, or -1 if it hasn't been set up yet
-static int trace_channel_fd = -1;
-
-// The shared mapping of the trace channel struct
-static tracing_channel_t* channel = nullptr;
-
 // The BPF program (initialized on first use)
 vector<struct sock_filter> bpf;
 
@@ -92,10 +86,10 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   // Wait for an event from ptrace
   while (true) {
     // Check the shared memory channel
-    if (channel != nullptr) {
+    if (_channel != nullptr) {
       for (int loop = 0; loop < 10; loop++) {
         for (int i = 0; i < TRACING_CHANNEL_COUNT; i++) {
-          tracing_channel_t* c = &channel[i];
+          tracing_channel_t* c = &_channel[i];
 
           // Get the state of the channel
           uint8_t state = __atomic_load_n(&c->state, __ATOMIC_ACQUIRE);
@@ -442,7 +436,7 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   }
 
   // Is the trace channel temporary file not yet initialized?
-  if (options::inject_tracing_lib && trace_channel_fd == -1) {
+  if (options::inject_tracing_lib && _trace_channel_fd == -1) {
     // Set up the trace channel fd now
     int fd = open("/tmp/", O_RDWR | O_TMPFILE, 0600);
     FAIL_IF(fd < 0) << "Failed to create temporary file for shared tracing channel.";
@@ -459,23 +453,23 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     close(fd);
 
     // Save the fd
-    trace_channel_fd = TRACING_CHANNEL_FD;
+    _trace_channel_fd = TRACING_CHANNEL_FD;
 
     // Try to mmap the channel
     void* p =
-        mmap(NULL, TRACING_CHANNEL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, trace_channel_fd, 0);
+        mmap(NULL, TRACING_CHANNEL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, _trace_channel_fd, 0);
     if (p == MAP_FAILED) {
       WARN << "Failed to mmap shared memory channel in tracer: " << ERR;
 
       // Close the trace channel fd so the tracee doesn't use it
-      close(trace_channel_fd);
+      close(_trace_channel_fd);
 
     } else {
       // Set the shared channel global pointer
-      channel = (tracing_channel_t*)p;
+      _channel = (tracing_channel_t*)p;
 
       // Zero out the tracing channel data
-      memset(channel, 0, TRACING_CHANNEL_SIZE);
+      memset(_channel, 0, TRACING_CHANNEL_SIZE);
     }
   }
 
