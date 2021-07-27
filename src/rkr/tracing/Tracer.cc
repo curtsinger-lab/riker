@@ -87,23 +87,26 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   while (true) {
     // Check the shared memory channel
     if (_shmem != nullptr) {
-      for (int loop = 0; loop < 10; loop++) {
-        for (ssize_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
-          // Get the state of the channel
-          uint8_t state = __atomic_load_n(&_shmem->channels[i].state, __ATOMIC_ACQUIRE);
+      // Load the bit-set that indicates which channels have waiting tracees
+      uint64_t waiters = __atomic_load_n(&_shmem->waiting, __ATOMIC_ACQUIRE);
 
-          // Is the tracee waiting on this channel?
-          if (state == CHANNEL_STATE_WAITING) {
-            auto iter = _threads.find(_shmem->channels[i].tid);
-            if (iter != _threads.end()) {
-              if (_shmem->channels[i].syscall_entry) {
-                iter->second.syscallEntryChannel(i);
-              } else {
-                iter->second.syscallExitChannel(i);
-              }
-            }
+      // Loop as long as there are waiting tracees
+      while (waiters > 0) {
+        // Get the index of the lowest-numbered waiter (e.g. the number of trailing zeros)
+        size_t i = __builtin_ctzl(waiters);
+
+        // Find the thread using this channel
+        auto iter = _threads.find(_shmem->channels[i].tid);
+        if (iter != _threads.end()) {
+          if (_shmem->channels[i].syscall_entry) {
+            iter->second.syscallEntryChannel(i);
+          } else {
+            iter->second.syscallExitChannel(i);
           }
         }
+
+        // Remove i from the set of waiters
+        waiters &= ~(1LLU << i);
       }
     }
 
@@ -621,7 +624,8 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   FAIL_IF(ptrace(PTRACE_SEIZE, child_pid, nullptr, options))
       << "Failed to seize child pid: " << ERR;
 
-  // The tracee will stop a few times as it issues system calls captured via seccomp. Ignore these.
+  // The tracee will stop a few times as it issues system calls captured via seccomp. Ignore
+  // these.
   int wstatus;
   waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
   while (WIFSTOPPED(wstatus) && (wstatus >> 8) == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
@@ -671,33 +675,33 @@ void Tracer::printSyscallStats() noexcept {
 
 // Get the system call being traced through the specified shared memory channel
 long Tracer::getSyscallNumber(ssize_t i) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   return _shmem->channels[i].regs.SYSCALL_NUMBER;
 }
 
 // Get the register state for a specified shared memory channel
 const user_regs_struct& Tracer::getRegisters(ssize_t i) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   return _shmem->channels[i].regs;
 }
 
 // Get the result of the system call being traced through a shared memory channel
 long Tracer::getSyscallResult(ssize_t i) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   return _shmem->channels[i].return_value;
 }
 
 // Allow a tracee blocked on a shared memory channel to proceed
 void Tracer::channelProceed(ssize_t i, bool stop_on_exit) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   ASSERT(_shmem->channels[i].syscall_entry || !stop_on_exit)
       << "Cannot request stop on exit after a syscall is finished";
   _shmem->channels[i].stop_on_exit = stop_on_exit;
-  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  __atomic_fetch_and(&_shmem->waiting, ~(1LLU << i), __ATOMIC_RELEASE);
 }
 
 void Tracer::channelForceExit(ssize_t i, int exit_status) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   ASSERT(_shmem->channels[i].syscall_entry) << "Channel is not blocked on syscall entry";
   ASSERT(getSyscallNumber(i) == __NR_execve)
       << "Attempted to force exit with syscall " << getSyscallNumber(i);
@@ -707,6 +711,6 @@ void Tracer::channelForceExit(ssize_t i, int exit_status) noexcept {
 }
 
 void* Tracer::channelGetBuffer(ssize_t i) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_shmem->waiting & (1LLU << i)) << "Channel is not blocked";
   return _shmem->channels[i].buffer;
 }

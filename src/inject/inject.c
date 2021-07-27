@@ -188,7 +188,7 @@ size_t channel_acquire() {
 
   while (true) {
     // Try to claim all channels at once
-    uint64_t old_state = __atomic_fetch_or(&shmem->in_use, all_bits, __ATOMIC_ACQUIRE);
+    uint64_t old_state = __atomic_fetch_or(&shmem->in_use, all_bits, __ATOMIC_ACQ_REL);
 
     // Did we get any?
     uint64_t changed_bits = old_state ^ all_bits;
@@ -202,8 +202,10 @@ size_t channel_acquire() {
       // Release the extra channels claimed by turning off the extra bits
       __atomic_fetch_and(&shmem->in_use, ~changed_bits, __ATOMIC_RELEASE);
 
-      // Set the thread ID in the claimed channel and return its index
-      shmem->channels[claimed].tid = gettid();
+      // Set the thread ID in the claimed channel
+      __atomic_store_n(&shmem->channels[claimed].tid, gettid(), __ATOMIC_RELEASE);
+
+      // Return the index of the claimed channel
       return claimed;
     }
   }
@@ -211,7 +213,6 @@ size_t channel_acquire() {
 
 void channel_release(size_t c) {
   // Reset the channel to available
-  //__atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
   uint64_t mask = ~(1LLU << c);
   __atomic_fetch_and(&shmem->in_use, mask, __ATOMIC_RELEASE);
 }
@@ -241,11 +242,11 @@ bool channel_enter(size_t c,
   // Clear the exit_instead flag in case it was left set by a previous use of this channel
   shmem->channels[c].exit_instead = false;
 
-  // Begin waiting on the channel
-  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  // Set the c-th bit in the waiting bit-set
+  __atomic_fetch_or(&shmem->waiting, 1LLU << c, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&shmem->waiting, __ATOMIC_ACQUIRE) & (1LLU << c)) {
   }
 
   // Was the tracee asked to exit instead of proceeding?
@@ -268,11 +269,11 @@ void channel_exit(size_t c, long syscall_nr, long rc) {
   shmem->channels[c].syscall_entry = false;
   shmem->channels[c].return_value = rc;
 
-  // Begin waiting on the channel
-  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
+  // Set the c-th bit in the waiting bit-set
+  __atomic_fetch_or(&shmem->waiting, 1LLU << c, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
+  while (__atomic_load_n(&shmem->waiting, __ATOMIC_ACQUIRE) & (1LLU << c)) {
   }
 }
 
