@@ -19,7 +19,6 @@
 #include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
-#include "tracing/inject.h"
 #include "util/log.hh"
 
 namespace fs = std::filesystem;
@@ -44,10 +43,10 @@ class Thread {
   pid_t getID() const noexcept { return _tid; }
 
   /// Traced entry to a system call through the provided shared memory channel
-  void syscallEntryChannel(tracing_channel_t* channel) noexcept;
+  void syscallEntryChannel(ssize_t channel) noexcept;
 
   /// Traced exit from a system call through the provided shared memory channel
-  void syscallExitChannel(tracing_channel_t* channel) noexcept;
+  void syscallExitChannel(ssize_t channel) noexcept;
 
   /// Traced exit from a system call using ptrace
   void syscallExitPtrace() noexcept;
@@ -319,6 +318,6 @@ class Thread {
   /// during a blocked system call (e.g. SIGCHLD is sent to bash while it is reading)
   std::stack<std::function<void(long)>> _post_syscall_handlers;
 
-  /// The shared memory tracing channel currently in use by this thread
-  tracing_channel_t* _channel = nullptr;
+  /// Which channel is this thread using for the current trace event? Set to -1 if not using one.
+  ssize_t _channel = -1;
 };

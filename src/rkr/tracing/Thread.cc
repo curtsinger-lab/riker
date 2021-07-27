@@ -42,11 +42,11 @@ using std::vector;
 namespace fs = std::filesystem;
 
 // Traced entry to a system call through the provided shared memory channel
-void Thread::syscallEntryChannel(tracing_channel_t* channel) noexcept {
-  ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
+void Thread::syscallEntryChannel(ssize_t channel) noexcept {
+  ASSERT(_channel == -1) << this << " is already using a shared memory channel";
   _channel = channel;
 
-  auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
+  auto& entry = SyscallTable::get(Tracer::getSyscallNumber(_channel));
 
   if (options::syscall_stats) {
     Tracer::syscall_counts[string(entry.getName()) + " (fast)"]++;
@@ -55,29 +55,30 @@ void Thread::syscallEntryChannel(tracing_channel_t* channel) noexcept {
 
   LOG(trace) << this << " handling " << entry.getName() << " entry via shared memory channel";
 
-  entry.runHandler(*this, _channel->regs, channel);
+  entry.runHandler(*this, Tracer::getRegisters(_channel), _channel);
 
-  _channel = nullptr;
+  _channel = -1;
 }
 
 // Traced exit from a system call through the provided shared memory channel
-void Thread::syscallExitChannel(tracing_channel_t* channel) noexcept {
-  ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
+void Thread::syscallExitChannel(ssize_t channel) noexcept {
+  ASSERT(_channel == -1) << this << " is already using a shared memory channel";
   _channel = channel;
 
   ASSERT(!_post_syscall_handlers.empty())
       << "Stopped on syscall exit with no available post-syscall handlers";
 
-  LOG(trace) << this << " handling " << SyscallTable::get(_channel->regs.SYSCALL_NUMBER).getName()
+  LOG(trace) << this << " handling "
+             << SyscallTable::get(Tracer::getSyscallNumber(_channel)).getName()
              << " exit via shared memory channel";
 
   // Run the post-syscall handler
-  _post_syscall_handlers.top()(_channel->return_value);
+  _post_syscall_handlers.top()(Tracer::getSyscallResult(_channel));
 
   // Remove the used post-syscall handler
   _post_syscall_handlers.pop();
 
-  _channel = nullptr;
+  _channel = -1;
 }
 
 void Thread::syscallExitPtrace() noexcept {
@@ -127,8 +128,8 @@ Ref::ID Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
 }
 
 user_regs_struct Thread::getRegisters() noexcept {
-  if (_channel) {
-    return _channel->regs;
+  if (_channel >= 0) {
+    return Tracer::getRegisters(_channel);
   }
 
   struct user_regs_struct regs;
@@ -138,16 +139,14 @@ user_regs_struct Thread::getRegisters() noexcept {
 }
 
 void Thread::setRegisters(user_regs_struct& regs) noexcept {
-  ASSERT(!_channel) << "Cannot set registers when tracing through the shared memory channel";
+  ASSERT(_channel == -1) << "Cannot set registers when tracing through the shared memory channel";
   FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
 }
 
 void Thread::resume() noexcept {
   // Is this thread blocked on the shared memory channel?
-  if (_channel) {
-    ASSERT(_channel->state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
-    _channel->stop_on_exit = false;
-    __atomic_store_n(&_channel->state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  if (_channel >= 0) {
+    Tracer::channelProceed(_channel, false);
   } else {
     int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
@@ -158,14 +157,9 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
   _post_syscall_handlers.push(handler);
 
   // Is this thread blocked on the shared memory channel?
-  if (_channel) {
-    ASSERT(_channel->state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
-    ASSERT(_channel->syscall_entry) << "Channel is not stopped on syscall entry";
+  if (_channel >= 0) {
+    Tracer::channelProceed(_channel, true);
 
-    _channel->stop_on_exit = true;
-
-    // Allow the tracee to proceed
-    __atomic_store_n(&_channel->state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
   } else {
     // Allow the tracee to resume until its syscall finishes
     int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
@@ -175,12 +169,8 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
 
 void Thread::forceExit(int exit_status) noexcept {
   // Is the thread blocked on a shared memory channel?
-  if (_channel) {
-    auto syscall_nr = _channel->regs.SYSCALL_NUMBER;
-    ASSERT(syscall_nr == __NR_execve) << "Attempted to force exit with syscall " << syscall_nr;
-
-    _channel->exit_instead = true;
-    _channel->regs.SYSCALL_ARG1 = exit_status;
+  if (_channel >= 0) {
+    Tracer::channelForceExit(_channel, exit_status);
 
   } else {
     auto regs = getRegisters();
@@ -194,7 +184,7 @@ void Thread::forceExit(int exit_status) noexcept {
 }
 
 unsigned long Thread::getEventMessage() noexcept {
-  FAIL_IF(_channel) << "The getEventMessage function only works for ptrace stops";
+  FAIL_IF(_channel >= 0) << "The getEventMessage function only works for ptrace stops";
 
   // Get the id of the new process
   unsigned long message;

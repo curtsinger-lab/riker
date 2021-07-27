@@ -8,6 +8,7 @@
 
 #include "tracing/Flags.hh"
 #include "tracing/Thread.hh"
+#include "tracing/Tracer.hh"
 #include "tracing/inject.h"
 #include "util/stats.hh"
 
@@ -22,7 +23,7 @@ namespace fs = std::filesystem;
  */
 class SyscallArgWrapper {
  public:
-  SyscallArgWrapper(Thread& t, unsigned long val, tracing_channel_t* channel) :
+  SyscallArgWrapper(Thread& t, unsigned long val, ssize_t channel) :
       _thread(t), _val(val), _channel(channel) {}
 
   // Use static cast for most types
@@ -49,7 +50,7 @@ class SyscallArgWrapper {
   // Read a string from the thread's memory
   operator string() {
     if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      return string(_channel->buffer);
+      return string((const char*)Tracer::channelGetBuffer(_channel));
     } else {
       return _thread.readString(_val);
     }
@@ -58,7 +59,7 @@ class SyscallArgWrapper {
   // Get an fs::path from the thread's memory
   operator fs::path() {
     if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      return fs::path(_channel->buffer);
+      return fs::path((const char*)Tracer::channelGetBuffer(_channel));
     } else {
       return _thread.readPath(_val);
     }
@@ -67,7 +68,7 @@ class SyscallArgWrapper {
   // Read a vector of strings from the thread's memory
   operator vector<string>() {
     if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      uintptr_t* src = (uintptr_t*)_channel->buffer;
+      uintptr_t* src = (uintptr_t*)Tracer::channelGetBuffer(_channel);
       vector<string> result;
       while (src[result.size()] != 0) {
         result.push_back(_thread.readString(src[result.size()]));
@@ -87,14 +88,14 @@ class SyscallArgWrapper {
  private:
   Thread& _thread;
   unsigned long _val;
-  tracing_channel_t* _channel;
+  ssize_t _channel;
 };
 
 // Invoke a no-argument syscall handler
 void invoke_handler(void (Thread::*handler)(),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))();
 }
 
@@ -102,8 +103,8 @@ void invoke_handler(void (Thread::*handler)(),
 template <class T1>
 void invoke_handler(void (Thread::*handler)(T1 a1),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel));
 }
 
@@ -111,8 +112,8 @@ void invoke_handler(void (Thread::*handler)(T1 a1),
 template <class T1, class T2>
 void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel));
 }
@@ -121,8 +122,8 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2),
 template <class T1, class T2, class T3>
 void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel));
@@ -132,8 +133,8 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3),
 template <class T1, class T2, class T3, class T4>
 void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
@@ -144,8 +145,8 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
 template <class T1, class T2, class T3, class T4, class T5>
 void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
@@ -157,8 +158,8 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
 template <class T1, class T2, class T3, class T4, class T5, class T6>
 void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
                     Thread& thread,
-                    user_regs_struct& regs,
-                    tracing_channel_t* channel) {
+                    const user_regs_struct& regs,
+                    ssize_t channel) {
   (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
@@ -168,11 +169,11 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T
 }
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                    \
-  _syscalls[__NR_##name] = SyscallEntry(                                               \
-      #name, [](Thread& __thr, user_regs_struct& __regs, tracing_channel_t* channel) { \
-        stats::syscalls++;                                                             \
-        invoke_handler(&Thread::_##name, __thr, __regs, channel);                      \
+#define TRACE(name)                                                                            \
+  _syscalls[__NR_##name] =                                                                     \
+      SyscallEntry(#name, [](Thread& __thr, const user_regs_struct& __regs, ssize_t channel) { \
+        stats::syscalls++;                                                                     \
+        invoke_handler(&Thread::_##name, __thr, __regs, channel);                              \
       });
 
 /// The maximum number of system calls

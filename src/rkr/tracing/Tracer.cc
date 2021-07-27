@@ -88,7 +88,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
     // Check the shared memory channel
     if (_channel != nullptr) {
       for (int loop = 0; loop < 10; loop++) {
-        for (int i = 0; i < TRACING_CHANNEL_COUNT; i++) {
+        for (ssize_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
           tracing_channel_t* c = &_channel[i];
 
           // Get the state of the channel
@@ -99,9 +99,9 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
             auto iter = _threads.find(c->tid);
             if (iter != _threads.end()) {
               if (c->syscall_entry) {
-                iter->second.syscallEntryChannel(c);
+                iter->second.syscallEntryChannel(i);
               } else {
-                iter->second.syscallExitChannel(c);
+                iter->second.syscallExitChannel(i);
               }
             }
           }
@@ -669,4 +669,46 @@ void Tracer::printSyscallStats() noexcept {
   size_t percent_fast = (100 * Tracer::fast_syscall_count) / total_syscalls;
   std::cout << Tracer::fast_syscall_count << "/" << total_syscalls << " (" << percent_fast
             << "%) syscalls handed by fast tracing" << std::endl;
+}
+
+// Get the system call being traced through the specified shared memory channel
+long Tracer::getSyscallNumber(ssize_t i) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  return _channel[i].regs.SYSCALL_NUMBER;
+}
+
+// Get the register state for a specified shared memory channel
+const user_regs_struct& Tracer::getRegisters(ssize_t i) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  return _channel[i].regs;
+}
+
+// Get the result of the system call being traced through a shared memory channel
+long Tracer::getSyscallResult(ssize_t i) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  return _channel[i].return_value;
+}
+
+// Allow a tracee blocked on a shared memory channel to proceed
+void Tracer::channelProceed(ssize_t i, bool stop_on_exit) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_channel[i].syscall_entry || !stop_on_exit)
+      << "Cannot request stop on exit after a syscall is finished";
+  _channel[i].stop_on_exit = stop_on_exit;
+  __atomic_store_n(&_channel[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+}
+
+void Tracer::channelForceExit(ssize_t i, int exit_status) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  ASSERT(_channel[i].syscall_entry) << "Channel is not blocked on syscall entry";
+  ASSERT(getSyscallNumber(i) == __NR_execve)
+      << "Attempted to force exit with syscall " << getSyscallNumber(i);
+
+  _channel[i].exit_instead = true;
+  _channel[i].regs.SYSCALL_ARG1 = exit_status;
+}
+
+void* Tracer::channelGetBuffer(ssize_t i) noexcept {
+  ASSERT(_channel[i].state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
+  return _channel[i].buffer;
 }

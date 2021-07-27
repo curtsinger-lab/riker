@@ -11,11 +11,11 @@
 class Thread;
 
 /// The type of a system call handler
-typedef void (*handler_t)(Thread& __thr, user_regs_struct& __regs, tracing_channel_t* channel);
+typedef void (*handler_t)(Thread& __thr, const user_regs_struct& __regs, ssize_t channel);
 
 /// The default handler
-constexpr handler_t default_handler =
-    [](Thread& t, user_regs_struct& regs, tracing_channel_t* channel) {};
+constexpr handler_t default_handler = [](Thread& t, const user_regs_struct& regs, ssize_t channel) {
+};
 
 /**
  * A system call entry records the name of a system call, whether or not it should be traced, and
@@ -41,7 +41,7 @@ class SyscallEntry {
   bool isTraced() const { return _traced; }
 
   /// Run the handler for this system call
-  void runHandler(Thread& t, user_regs_struct& regs, tracing_channel_t* channel = nullptr) const {
+  void runHandler(Thread& t, const user_regs_struct& regs, ssize_t channel = -1) const {
     _handler(t, regs, channel);
   }
 

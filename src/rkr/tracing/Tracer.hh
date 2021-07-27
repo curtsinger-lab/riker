@@ -64,6 +64,24 @@ class Tracer {
 
   static void printSyscallStats() noexcept;
 
+  /// Get the system call being traced through the specified shared memory channel
+  static long getSyscallNumber(ssize_t channel) noexcept;
+
+  /// Get the register state for a specified shared memory channel
+  static const user_regs_struct& getRegisters(ssize_t channel) noexcept;
+
+  /// Get the result of the system call being traced through a shared memory channel
+  static long getSyscallResult(ssize_t channel) noexcept;
+
+  /// Allow a tracee blocked on a shared memory channel to proceed
+  static void channelProceed(ssize_t channel, bool stop_on_exit) noexcept;
+
+  /// Force a tracee to exit instead of running a system call
+  static void channelForceExit(ssize_t channel, int exit_status) noexcept;
+
+  /// Get the data buffer associated with a shared memory channel
+  static void* channelGetBuffer(ssize_t channel) noexcept;
+
  private:
   /// This tracer is executing commands on behalf of this build
   Build& _build;
