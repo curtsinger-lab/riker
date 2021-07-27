@@ -11,7 +11,7 @@
 #define TRACING_CHANNEL_FD 77
 
 // The number of tracing channel entries
-#define TRACING_CHANNEL_COUNT 10
+#define TRACING_CHANNEL_COUNT 32
 
 // The size of a data buffer available in each tracing channel
 #define TRACING_CHANNEL_BUFFER_SIZE 512

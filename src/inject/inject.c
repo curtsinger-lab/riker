@@ -173,30 +173,47 @@ void rkr_inject_init() {
   rkr_detour("__lxstat", fast_lxstat);
   rkr_detour("__fxstat", fast_fxstat);
   rkr_detour("__fxstatat", fast_fxstatat);
-
   rkr_detour("execve", fast_execve);
 }
 
 size_t channel_acquire() {
-  // Spin on the tracing channel state until we can acquire it
-  static __thread size_t index = 0;
-  while (true) {
-    uint8_t expected = CHANNEL_STATE_AVAILABLE;
-    if (__atomic_compare_exchange_n(&shmem->channels[index].state, &expected,
-                                    CHANNEL_STATE_ACQUIRED, false, __ATOMIC_ACQUIRE,
-                                    __ATOMIC_RELAXED)) {
-      shmem->channels[index].tid = gettid();
-      return index;
-    }
+  // The shmem->in_use value is a bit set, where each bit with a 1 indicates a channel that is in
+  // use. To claim a channel, a tracee must change a bit from zero to one. Instead of trying one at
+  // a time, we'll try to set ALL the bits. We can then use some bit-twiddling tricks to identify
+  // one of the bits that changed---that will be the channel we keep---and then turn the rest of the
+  // changed bits off.
 
-    index++;
-    if (index >= TRACING_CHANNEL_COUNT) index = 0;
+  // Create a value with all the bits from 0 up to TRACING_CHANNEL_COUNT-1 set
+  uint64_t all_bits = (1LLU << TRACING_CHANNEL_COUNT) - 1;
+
+  while (true) {
+    // Try to claim all channels at once
+    uint64_t old_state = __atomic_fetch_or(&shmem->in_use, all_bits, __ATOMIC_ACQUIRE);
+
+    // Did we get any?
+    uint64_t changed_bits = old_state ^ all_bits;
+    if (changed_bits > 0) {
+      // Yes. Find the index of the lowest-order bit we changed. This is the channel we're keeping.
+      size_t claimed = __builtin_ctzl(changed_bits);
+
+      // Turn off the claimed bit in changed_bits
+      changed_bits &= ~(1LLU << claimed);
+
+      // Release the extra channels claimed by turning off the extra bits
+      __atomic_fetch_and(&shmem->in_use, ~changed_bits, __ATOMIC_RELEASE);
+
+      // Set the thread ID in the claimed channel and return its index
+      shmem->channels[claimed].tid = gettid();
+      return claimed;
+    }
   }
 }
 
 void channel_release(size_t c) {
   // Reset the channel to available
-  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+  //__atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+  uint64_t mask = ~(1LLU << c);
+  __atomic_fetch_and(&shmem->in_use, mask, __ATOMIC_RELEASE);
 }
 
 /// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
