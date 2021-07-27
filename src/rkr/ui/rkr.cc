@@ -138,8 +138,9 @@ int main(int argc, char* argv[]) noexcept {
       // Hide the --lazy flag if lazy builds are enabled by default
       ->group(options::lazy_builds ? "" : "Options");
 
-  build->add_flag("--inject", options::inject_tracing_lib,
-                  "Inject a shared library for shared memory tracing");
+  build->add_flag_callback(
+      "--no-inject", []() { options::inject_tracing_lib = false; },
+      "Do not inject faster the shared memory tracing library");
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
