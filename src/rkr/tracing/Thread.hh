@@ -62,6 +62,10 @@ class Thread {
   /// syscall finishes
   void finishSyscall(std::function<void(long)> handler) noexcept;
 
+  /// Force the tracee to exit with a given exit code. This currently only works on entry to an
+  /// execve call (which is where we need it to implement skipping)
+  void forceExit(int status) noexcept;
+
   /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
   unsigned long getEventMessage() noexcept;
 

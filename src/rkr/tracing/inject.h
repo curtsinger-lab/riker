@@ -43,6 +43,7 @@ typedef struct tracing_channel {
   uint8_t state;
   bool syscall_entry;
   bool stop_on_exit;
+  bool exit_instead;
   int tid;
   struct user_regs_struct regs;
   long return_value;

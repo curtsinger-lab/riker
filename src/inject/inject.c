@@ -174,7 +174,7 @@ void rkr_inject_init() {
   rkr_detour("__fxstat", fast_fxstat);
   rkr_detour("__fxstatat", fast_fxstatat);
 
-  // rkr_detour("execve", fast_execve);
+  rkr_detour("execve", fast_execve);
 }
 
 tracing_channel_t* channel_acquire() {
@@ -193,7 +193,9 @@ tracing_channel_t* channel_acquire() {
   }
 }
 
-void channel_enter(tracing_channel_t* c,
+/// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
+/// wait again after the syscall completes.
+bool channel_enter(tracing_channel_t* c,
                    long syscall_nr,
                    uint64_t arg1,
                    uint64_t arg2,
@@ -202,7 +204,6 @@ void channel_enter(tracing_channel_t* c,
                    uint64_t arg5,
                    uint64_t arg6) {
   // Fill in the "registers" to be used for tracing
-  memset(&c->regs, 0, sizeof(c->regs));
   c->regs.SYSCALL_NUMBER = syscall_nr;
   c->regs.SYSCALL_ARG1 = arg1;
   c->regs.SYSCALL_ARG2 = arg2;
@@ -217,12 +218,17 @@ void channel_enter(tracing_channel_t* c,
   // The channel is in syscall entry mode
   c->syscall_entry = true;
 
+  // Clear the exit_instead flag in case it was left set by a previous use of this channel
+  c->exit_instead = false;
+
   // Begin waiting on the channel
   __atomic_store_n(&c->state, CHANNEL_STATE_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
   while (__atomic_load_n(&c->state, __ATOMIC_ACQUIRE) != CHANNEL_STATE_PROCEED) {
   }
+
+  return c->stop_on_exit;
 }
 
 void channel_exit(tracing_channel_t* c, long syscall_nr, long rc) {
@@ -257,16 +263,22 @@ int fast_open(const char* pathname, int flags, mode_t mode) {
   }
 
   // Inform the tracer that this command is entering a syscall
-  channel_enter(c, __NR_open, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0, 0);
+  bool stop_on_exit =
+      channel_enter(c, __NR_open, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0, 0);
+
+  // If we don't have to stop on exist, release the channel
+  if (!stop_on_exit) channel_release(c);
 
   // Issue the syscall
   int rc = safe_syscall(__NR_open, pathname, flags, mode);
 
-  // Inform the tracer that this command is exiting a syscall
-  if (c->stop_on_exit) channel_exit(c, __NR_open, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, __NR_open, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -289,16 +301,21 @@ int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
   }
 
   // Inform the tracer that this command is entering a syscall
-  channel_enter(c, __NR_openat, dfd, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0);
+  bool stop_on_exit =
+      channel_enter(c, __NR_openat, dfd, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   // Issue the syscall
   int rc = safe_syscall(__NR_openat, dfd, pathname, flags, mode);
 
-  // Inform the tracer that this command is exiting a syscall
-  if (c->stop_on_exit) channel_exit(c, __NR_openat, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, __NR_openat, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -313,16 +330,20 @@ int fast_close(int fd) {
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a syscall
-  channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   // Issue the syscall
   int rc = safe_syscall(__NR_close, fd);
 
-  // Inform the tracer that this command is exiting a syscall
-  if (c->stop_on_exit) channel_exit(c, __NR_close, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a syscall
+    channel_exit(c, __NR_close, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -337,15 +358,19 @@ void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t of
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
+  bool stop_on_exit = channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
+
+  if (!stop_on_exit) channel_release(c);
 
   long rc = safe_syscall(__NR_mmap, addr, length, prot, flags, fd, offset);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_mmap, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_mmap, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -368,15 +393,19 @@ int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_stat, pathname, statbuf);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_stat, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_stat, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -399,15 +428,19 @@ int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_lstat, pathname, statbuf);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_lstat, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_lstat, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -422,15 +455,19 @@ int fast_fxstat(int ver, int fd, struct stat* statbuf) {
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_fstat, fd, statbuf);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_fstat, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_fstat, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -453,15 +490,20 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_newfstatat, dfd, pathname_arg, (uint64_t)statbuf, flags, 0, 0);
+  bool stop_on_exit =
+      channel_enter(c, __NR_newfstatat, dfd, pathname_arg, (uint64_t)statbuf, flags, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_newfstatat, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_newfstatat, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -484,15 +526,19 @@ ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_readlink, pathname, buf, bufsiz);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_readlink, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_readlink, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -515,15 +561,19 @@ int fast_access(const char* pathname, int mode) {
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
+
+  if (!stop_on_exit) channel_release(c);
 
   int rc = safe_syscall(__NR_access, pathname, mode);
 
-  // Inform the tracer that this command is exiting a library call
-  if (c->stop_on_exit) channel_exit(c, __NR_access, rc);
+  if (stop_on_exit) {
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_access, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -538,19 +588,21 @@ long fast_read(int fd, void* data, size_t count) {
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
   channel_release(c);
 
   long rc = safe_syscall(__NR_read, fd, data, count);
 
-  c = channel_acquire();
+  if (stop_on_exit) {
+    c = channel_acquire();
 
-  // Inform the tracer that this command is exiting a library call
-  channel_exit(c, __NR_read, rc);
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_read, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -565,7 +617,7 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
 
   channel_release(c);
 
@@ -574,7 +626,7 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
-  channel_exit(c, __NR_pread64, rc);
+  if (stop_on_exit) channel_exit(c, __NR_pread64, rc);
 
   // Release the channel for use by another library call
   channel_release(c);
@@ -592,7 +644,7 @@ long fast_write(int fd, const void* data, size_t count) {
   tracing_channel_t* c = channel_acquire();
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
+  bool stop_on_exit = channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
 
   channel_release(c);
 
@@ -601,7 +653,7 @@ long fast_write(int fd, const void* data, size_t count) {
   c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
-  channel_exit(c, __NR_write, rc);
+  if (stop_on_exit) channel_exit(c, __NR_write, rc);
 
   // Release the channel for use by another library call
   channel_release(c);
@@ -630,16 +682,24 @@ int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   }
 
   // Inform the tracer that this command is entering a library call
-  channel_enter(c, __NR_execve, (uint64_t)pathname, argv_arg, (uint64_t)envp, 0, 0, 0);
+  bool stop_on_exit =
+      channel_enter(c, __NR_execve, (uint64_t)pathname, argv_arg, (uint64_t)envp, 0, 0, 0);
+
+  bool exit_instead = c->exit_instead;
+  int exit_status = c->regs.SYSCALL_ARG1;
 
   channel_release(c);
+
+  if (exit_instead) {
+    safe_syscall(__NR_exit, exit_status);
+  }
 
   long rc = safe_syscall(__NR_execve, pathname, argv, envp);
 
   c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
-  channel_exit(c, __NR_execve, rc);
+  if (stop_on_exit) channel_exit(c, __NR_execve, rc);
 
   // Release the channel for use by another library call
   channel_release(c);

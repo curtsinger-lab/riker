@@ -138,12 +138,7 @@ user_regs_struct Thread::getRegisters() noexcept {
 }
 
 void Thread::setRegisters(user_regs_struct& regs) noexcept {
-  if (_channel) {
-    WARN << "Setting registers through the shared memory channel is not supported yet";
-    _channel->regs = regs;
-    return;
-  }
-
+  ASSERT(!_channel) << "Cannot set registers when tracing through the shared memory channel";
   FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
 }
 
@@ -176,6 +171,26 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
     int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
   }
+}
+
+void Thread::forceExit(int exit_status) noexcept {
+  // Is the thread blocked on a shared memory channel?
+  if (_channel) {
+    auto syscall_nr = _channel->regs.SYSCALL_NUMBER;
+    ASSERT(syscall_nr == __NR_execve) << "Attempted to force exit with syscall " << syscall_nr;
+
+    _channel->exit_instead = true;
+    _channel->regs.SYSCALL_ARG1 = exit_status;
+
+  } else {
+    auto regs = getRegisters();
+    regs.SYSCALL_NUMBER = __NR_exit;
+    regs.SYSCALL_ARG1 = exit_status;
+    setRegisters(regs);
+  }
+
+  // Resume the thread so it can actually perform the exit
+  resume();
 }
 
 unsigned long Thread::getEventMessage() noexcept {
@@ -1477,14 +1492,7 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
     } else {
       // No, the child does not need to run the exec syscall.
       // Leave the process in a stalled state so it can be exited later
-      getProcess()->waitForExit([=](int exit_code) {
-        auto regs = getRegisters();
-        regs.SYSCALL_NUMBER = __NR_exit;
-        regs.SYSCALL_ARG1 = exit_code;
-        setRegisters(regs);
-
-        resume();
-      });
+      getProcess()->waitForExit([=](int exit_code) { forceExit(exit_code); });
 
       // Ask the build to process any deferred steps now that the child command is launched
       _build.runDeferredSteps();
@@ -1492,14 +1500,15 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
 
   } else {
     // The reference does not resolve successfully, so exec will fail
-    finishSyscall([=](long rc) {
-      resume();
+    // finishSyscall([=](long rc) {
+    resume();
 
-      ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
-          << "Outcome of exec call did not match expected behavior.";
+    //  ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
+    //      << "Outcome of exec call did not match expected behavior.";
 
-      _build.traceExpectResult(getCommand(), exe_ref_id, -rc);
-    });
+    _build.traceExpectResult(getCommand(), exe_ref_id,
+                             getCommand()->getRef(exe_ref_id)->getResultCode());
+    //});
   }
 }
 
