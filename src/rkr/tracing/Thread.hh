@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <ostream>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,9 @@ class Thread {
   /// Traced exit from a system call through the provided shared memory channel
   void syscallExitChannel(tracing_channel_t* channel) noexcept;
 
+  /// Traced exit from a system call using ptrace
+  void syscallExitPtrace() noexcept;
+
   /// Check if a ptrace stop can be skipped because a shared memory channel is in use
   bool canSkipTrace(user_regs_struct& regs) const noexcept;
 
@@ -57,9 +61,6 @@ class Thread {
   /// Resume a thread that has stopped before a syscall, and run the provided handler when the
   /// syscall finishes
   void finishSyscall(std::function<void(long)> handler) noexcept;
-
-  /// Run the registered post-syscall handler
-  void syscallFinished() noexcept;
 
   /// Get the special event message attached to some ptrace stops (clone, fork, etc.)
   unsigned long getEventMessage() noexcept;
@@ -310,9 +311,10 @@ class Thread {
   /// The thread's tid
   pid_t _tid;
 
-  /// The handler function that should run when the next system call is finished
-  std::function<void(long)> _post_syscall_handler;
+  /// The stack of post-syscall handlers to invoke. System calls can nest when a signal is delivered
+  /// during a blocked system call (e.g. SIGCHLD is sent to bash while it is reading)
+  std::stack<std::function<void(long)>> _post_syscall_handlers;
 
-  /// The shared memory channel being used to trace this thread
+  /// The shared memory tracing channel currently in use by this thread
   tracing_channel_t* _channel = nullptr;
 };

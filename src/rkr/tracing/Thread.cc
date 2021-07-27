@@ -57,47 +57,42 @@ void Thread::syscallEntryChannel(tracing_channel_t* channel) noexcept {
 
   entry.runHandler(*this, _channel->regs, channel);
 
-  //_channel = nullptr;
+  _channel = nullptr;
 }
 
 // Traced exit from a system call through the provided shared memory channel
 void Thread::syscallExitChannel(tracing_channel_t* channel) noexcept {
-  // ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
+  ASSERT(_channel == nullptr) << this << " is already using a shared memory channel";
   _channel = channel;
 
-  // If there's a post-syscall handler, grab it and run it now
-  function<void(long)> handler;
-  _post_syscall_handler.swap(handler);
+  ASSERT(!_post_syscall_handlers.empty())
+      << "Stopped on syscall exit with no available post-syscall handlers";
 
-  auto& entry = SyscallTable::get(_channel->regs.SYSCALL_NUMBER);
-  LOG(trace) << this << " handling " << entry.getName() << " exit via shared memory channel";
+  LOG(trace) << this << " handling " << SyscallTable::get(_channel->regs.SYSCALL_NUMBER).getName()
+             << " exit via shared memory channel";
 
-  // If there's a post-syscall handler, run it. Otherwise just resume the thread.
-  if (handler) {
-    handler(channel->return_value);
-  } else {
-    resume();
-  }
+  // Run the post-syscall handler
+  _post_syscall_handlers.top()(_channel->return_value);
+
+  // Remove the used post-syscall handler
+  _post_syscall_handlers.pop();
 
   _channel = nullptr;
 }
 
-/// Check if a ptrace stop can be skipped because a shared memory channel is in use
-bool Thread::canSkipTrace(user_regs_struct& regs) const noexcept {
-  // If there's no shared memory channel, we definitely cannot skip
-  if (_channel == nullptr) return false;
+void Thread::syscallExitPtrace() noexcept {
+  ASSERT(!_post_syscall_handlers.empty()) << "Thread does not have a post-syscall handler";
 
-  // Does the channel have a matching syscall? If not, issue a warning and do not skip
-  if (_channel->regs.SYSCALL_NUMBER != regs.SYSCALL_NUMBER) {
-    WARN << this << " Nested syscall " << regs.SYSCALL_NUMBER
-         << " while using shared memory channel for syscall " << _channel->regs.SYSCALL_NUMBER;
-    return false;
-  }
+  // Clear errno so we can check for errors
+  errno = 0;
 
-  // NOTE: We can save the address of a traced syscall and pass it back to the injected library
-  // if necessary. That hasn't been required so far, but it may be useful at some point.
+  // Now extract the return code from the syscall.
+  long result = ptrace(PTRACE_PEEKUSER, _tid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
+  FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
 
-  return true;
+  // Run the handler and remove it from the stack
+  _post_syscall_handlers.top()(result);
+  _post_syscall_handlers.pop();
 }
 
 fs::path Thread::getPath(at_fd fd) const noexcept {
@@ -158,7 +153,6 @@ void Thread::resume() noexcept {
     ASSERT(_channel->state == CHANNEL_STATE_WAITING) << "Channel is not blocked";
     _channel->stop_on_exit = false;
     __atomic_store_n(&_channel->state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
-    _channel = nullptr;
   } else {
     int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
@@ -166,10 +160,7 @@ void Thread::resume() noexcept {
 }
 
 void Thread::finishSyscall(function<void(long)> handler) noexcept {
-  ASSERT(!_post_syscall_handler) << "Process already has an unexecuted post-syscall handler";
-
-  // Set the post-syscall handler
-  _post_syscall_handler = handler;
+  _post_syscall_handlers.push(handler);
 
   // Is this thread blocked on the shared memory channel?
   if (_channel) {
@@ -185,29 +176,6 @@ void Thread::finishSyscall(function<void(long)> handler) noexcept {
     int rc = ptrace(PTRACE_SYSCALL, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
   }
-}
-
-void Thread::syscallFinished() noexcept {
-  // If the shared memory channel is in use, just return immediately
-  if (_channel) return;
-
-  ASSERT(_post_syscall_handler) << "Thread does not have a post-syscall handler";
-
-  // Set up an empty handler
-  function<void(long)> handler;
-
-  // Swap it with the registered handler (to clear the registered one)
-  _post_syscall_handler.swap(handler);
-
-  // Now extract the return code from the syscall
-
-  // Clear errno so we can check for errors
-  errno = 0;
-  long result = ptrace(PTRACE_PEEKUSER, _tid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
-  FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
-
-  // Run the handler
-  handler(result);
 }
 
 unsigned long Thread::getEventMessage() noexcept {

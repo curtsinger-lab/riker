@@ -182,12 +182,12 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
-        thread.syscallFinished();
+        thread.syscallExitPtrace();
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes. The process that called exec must have set a
         // post-syscall handler
-        thread.syscallFinished();
+        thread.syscallExitPtrace();
 
       } else if (WSTOPSIG(wait_status) == SIGSTOP || WSTOPSIG(wait_status) == SIGTSTP ||
                  WSTOPSIG(wait_status) == SIGTTIN || WSTOPSIG(wait_status) == SIGTTOU) {
@@ -197,15 +197,26 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         siginfo_t info;
         int rc = ptrace(PTRACE_GETSIGINFO, child, nullptr, &info);
         if (rc == -1 && errno == EINVAL) {
-          LOG(trace) << thread << " in group-stop";
+          WARN << thread << " in group-stop with signal " << getSignalName(WSTOPSIG(wait_status));
           if (thread.getID() == thread.getProcess()->getID()) {
             ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
           }
 
         } else {
-          LOG(trace) << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))
-                     << " (status=" << status << ")";
-          ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+          /*WARN << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))
+               << " (status=" << status << ")";
+          WARN << "  si_signo: " << getSignalName(info.si_signo);
+          WARN << "  si_errno: " << info.si_errno;
+          WARN << "  si_code: " << info.si_code;
+          WARN << "  si_pid: " << info.si_pid;
+          WARN << "  si_uid: " << info.si_uid;
+          WARN << "  si_status: " << info.si_status;
+          WARN << "  si_value: " << info.si_value.sival_int << " / " << info.si_value.sival_ptr;
+          WARN << "  si_addr: " << info.si_addr;
+          WARN << "  si_fd: " << info.si_fd;
+          WARN << "  si_syscall: " << info.si_syscall;*/
+          // ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
+          ptrace(PTRACE_CONT, child, nullptr, 0);
         }
 
       } else {
@@ -394,18 +405,9 @@ void Tracer::handleSyscall(Thread& t) noexcept {
       Tracer::ptrace_syscall_count++;
     }
 
-    // Can we skip handling this traced syscall? This happens if we're already handling an
-    // equivalent syscall through the shared memory channel
-    if (t.canSkipTrace(regs)) {
-      // WARN << "Could skip tracing syscall " << entry.getName() << " at "
-      //     << (void*)regs.INSTRUCTION_POINTER;
-      // t.resume();
-      int rc = ptrace(PTRACE_CONT, t.getID(), nullptr, 0);
-      FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
+    // Run the system call handler
+    entry.runHandler(t, regs);
 
-    } else {
-      entry.runHandler(t, regs);
-    }
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
   }
@@ -657,7 +659,6 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   options |= PTRACE_O_TRACEEXEC;     // Handle execs more reliably
   options |= PTRACE_O_TRACESYSGOOD;  // When stepping through syscalls, be clear
   options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
-  options |= PTRACE_O_TRACEEXIT;     // Trace exits
   options |= PTRACE_O_EXITKILL;      // Kill tracees on exit
 
   FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
