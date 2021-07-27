@@ -189,34 +189,19 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
         // post-syscall handler
         thread.syscallExitPtrace();
 
-      } else if (WSTOPSIG(wait_status) == SIGSTOP || WSTOPSIG(wait_status) == SIGTSTP ||
-                 WSTOPSIG(wait_status) == SIGTTIN || WSTOPSIG(wait_status) == SIGTTOU) {
-        // The tracee was stopped by a stopping signal (one of the four above).
-        // This is either a signal delivery, or a group stop. We can find out by trying to get the
-        // signal information. That call will fail for group-stop signals.
-        siginfo_t info;
-        int rc = ptrace(PTRACE_GETSIGINFO, child, nullptr, &info);
-        if (rc == -1 && errno == EINVAL) {
+      } else if (status == (PTRACE_EVENT_STOP << 8)) {
+        // Is this delivering a stopping signal?
+        if (WSTOPSIG(wait_status) == SIGSTOP || WSTOPSIG(wait_status) == SIGTSTP ||
+            WSTOPSIG(wait_status) == SIGTTIN || WSTOPSIG(wait_status) == SIGTTOU) {
+          // Yes. The tracee is in group-stop state
           WARN << thread << " in group-stop with signal " << getSignalName(WSTOPSIG(wait_status));
-          if (thread.getID() == thread.getProcess()->getID()) {
-            ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
-          }
+          FAIL_IF(ptrace(PTRACE_LISTEN, child, nullptr, 0))
+              << "Failed to put tracee in listen state after group-stop: " << ERR;
 
         } else {
-          /*WARN << thread << ": injecting signal " << getSignalName(WSTOPSIG(wait_status))
-               << " (status=" << status << ")";
-          WARN << "  si_signo: " << getSignalName(info.si_signo);
-          WARN << "  si_errno: " << info.si_errno;
-          WARN << "  si_code: " << info.si_code;
-          WARN << "  si_pid: " << info.si_pid;
-          WARN << "  si_uid: " << info.si_uid;
-          WARN << "  si_status: " << info.si_status;
-          WARN << "  si_value: " << info.si_value.sival_int << " / " << info.si_value.sival_ptr;
-          WARN << "  si_addr: " << info.si_addr;
-          WARN << "  si_fd: " << info.si_fd;
-          WARN << "  si_syscall: " << info.si_syscall;*/
-          // ptrace(PTRACE_CONT, child, nullptr, WSTOPSIG(wait_status));
-          ptrace(PTRACE_CONT, child, nullptr, 0);
+          // No. Just resume the child without delivering a signal
+          FAIL_IF(ptrace(PTRACE_CONT, child, nullptr, 0))
+              << "Failed to resume child after PTRACE_EVENT_STOP: " << ERR;
         }
 
       } else {
@@ -589,9 +574,6 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
 
     // TODO: Change to the appropriate root directory
 
-    // Allow ourselves to be traced by our parent
-    FAIL_IF(ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) != 0) << "Failed to start tracing: " << ERR;
-
     // Lock down the process so that we are allowed to
     // use seccomp without special permissions
     FAIL_IF(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) << "Failed to allow seccomp: " << ERR;
@@ -604,17 +586,8 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     FAIL_IF(seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_SPEC_ALLOW, &bpf_program) != 0)
         << "Error enabling seccomp: " << ERR;
 
-    // We need to stop here to give our parent a consistent time to add all the
-    // options and correctly configure ptrace. Otherwise it will get a very confusing
-    // response upon exec:
-    // - Because PTRACE_O_TRACEEXEC has not been set (or worse, is racing with the call
-    //   to exec), the parent may receive a SIGTRAP-stop on the exec.
-    // - Because our seccomp program traps execve, the it will attempt to send our parent
-    //   a seccomp stop when the parent is not configured to receive one.
-    // Therefore, to ensure reliable behavior, we wait here, let the parent configure ptrace,
-    // then continue to exec, which will raise two stops that the parent is (now) expecting
-    // to handle.
-    raise(SIGSTOP);
+    // Raise SIGSTOP so the parent can resume this process once ptrace is all set up
+    // raise(SIGSTOP);
 
     vector<const char*> args;
     for (const auto& s : cmd->getArguments()) {
@@ -644,14 +617,6 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     FAIL << "Failed to start traced program: " << ERR;
   }
 
-  // In the parent. Wait for the child to reach its exec so that we
-  // have a consistent point to play in. Here we haven't yet set
-  // PTRACE_O_TRACEEXEC, so we will receive the legacy behavior of
-  // a SIGTRAP.
-  int wstatus;
-  waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
-  FAIL_IF(!WIFSTOPPED(wstatus) || WSTOPSIG(wstatus) != SIGSTOP) << "Unexpected stop from child";
-
   // Set up options to handle everything reliably. We do this before continuing
   // so that the actual running program has everything properly configured.
   int options = 0;
@@ -661,19 +626,22 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
   options |= PTRACE_O_TRACESECCOMP;  // Actually receive the syscall stops we requested
   options |= PTRACE_O_EXITKILL;      // Kill tracees on exit
 
-  FAIL_IF(ptrace(PTRACE_SETOPTIONS, child_pid, nullptr, options))
-      << "Failed to set ptrace options: " << ERR;
+  FAIL_IF(ptrace(PTRACE_SEIZE, child_pid, nullptr, options))
+      << "Failed to seize child pid: " << ERR;
 
-  // Resume and handle some number of seccomp stops
-  do {
+  // The tracee will stop a few times as it issues system calls captured via seccomp. Ignore these.
+  int wstatus;
+  waitpid(child_pid, &wstatus, 0);  // Should correspond to raise(SIGSTOP)
+  while (WIFSTOPPED(wstatus) && (wstatus >> 8) == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
     FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
     waitpid(child_pid, &wstatus, 0);
-  } while (WIFSTOPPED(wstatus) && (wstatus >> 8) == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8)));
+  }
 
   // Make sure we left the loop on an exec event
   FAIL_IF(!WIFSTOPPED(wstatus) || (wstatus >> 8) != (SIGTRAP | (PTRACE_EVENT_EXEC << 8)))
       << "Unexpected stop from child. Expected EXEC";
 
+  // Now the tracee can run the launched command
   FAIL_IF(ptrace(PTRACE_CONT, child_pid, nullptr, 0)) << "Failed to resume child: " << ERR;
 
   map<int, Process::FileDescriptor> fds;
