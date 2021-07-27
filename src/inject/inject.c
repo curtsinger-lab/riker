@@ -90,13 +90,18 @@ void rkr_detour(const char* name, void* dest) {
   void* fn = dlsym(RTLD_NEXT, name);
   if (fn != NULL) {
     uintptr_t base = (uintptr_t)fn;
+    uintptr_t end = base + sizeof(jump_t);
     base -= base % 0x1000;
-    safe_syscall(__NR_mprotect, base, 0x1000, PROT_WRITE);
+    size_t size = 0x1000;
+    if (end > base + size) {
+      size = 0x2000;
+    }
+    safe_syscall(__NR_mprotect, base, size, PROT_WRITE);
     jump_t* j = (jump_t*)fn;
     j->farjmp = 0x25ff;
     j->offset = 0;
     j->addr = (uint64_t)dest;
-    safe_syscall(__NR_mprotect, base, 0x1000, PROT_READ | PROT_EXEC);
+    safe_syscall(__NR_mprotect, base, size, PROT_READ | PROT_EXEC);
   } /* else {
      char buf[256];
      snprintf(buf, 256, "Symbol %s not found\n", name);
@@ -136,7 +141,7 @@ void rkr_inject_init() {
 
   // Map the tracing channel shared page
   rc = safe_syscall(__NR_mmap, NULL, TRACING_CHANNEL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
-                    TRACING_CHANNEL_FD, 0);
+                    TRACING_CHANNEL_FD, 0LLU);
 
   // Make sure the mmap succeeded
   if (rc < 0) {
@@ -168,6 +173,7 @@ void rkr_inject_init() {
   rkr_detour("__lxstat", fast_lxstat);
   rkr_detour("__fxstat", fast_fxstat);
   rkr_detour("__fxstatat", fast_fxstatat);
+
   // rkr_detour("execve", fast_execve);
 }
 
@@ -534,15 +540,11 @@ long fast_read(int fd, void* data, size_t count) {
   // Inform the tracer that this command is entering a library call
   channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
-  // channel_release(c);
-
-  // char buffer[512];
-  // snprintf(buffer, 512, "%d: issuing untraced read(%d, %p, %lu)\n", gettid(), fd, data, count);
-  // safe_syscall(__NR_write, 2, buffer, strlen(buffer));
+  channel_release(c);
 
   long rc = safe_syscall(__NR_read, fd, data, count);
 
-  // c = channel_acquire();
+  c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
   channel_exit(c, __NR_read, rc);
@@ -565,11 +567,11 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   // Inform the tracer that this command is entering a library call
   channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
 
-  // channel_release(c);
+  channel_release(c);
 
   long rc = safe_syscall(__NR_pread64, fd, buf, count, offset);
 
-  // c = channel_acquire();
+  c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
   channel_exit(c, __NR_pread64, rc);
@@ -592,11 +594,11 @@ long fast_write(int fd, const void* data, size_t count) {
   // Inform the tracer that this command is entering a library call
   channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
 
-  // channel_release(c);
+  channel_release(c);
 
   long rc = safe_syscall(__NR_write, fd, data, count);
 
-  // c = channel_acquire();
+  c = channel_acquire();
 
   // Inform the tracer that this command is exiting a library call
   channel_exit(c, __NR_write, rc);
