@@ -192,6 +192,12 @@ int main(int argc, char* argv[]) noexcept {
   //     "create-container",
   //     "Generate a Dockerfile in the .devcontainer folder that is compatible with vscode");
 
+  /*********** Clean subcommand ****************/
+  bool clean_all = false;
+  auto clean =
+      app.add_subcommand("clean", "Remove cached information to do a fresh build of the program");
+  clean->add_flag("-a,--all", clean_all, "Remove all the files generated during a build");
+
   /************* Rikerfile Arguments ***********/
   vector<string> args;
   app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
@@ -219,6 +225,8 @@ int main(int argc, char* argv[]) noexcept {
   install_deps->final_callback([&] { do_install_deps(args); });
   check_deps->final_callback([&] { do_check_deps(args); });
   // gen_container->final_callback([&] { do_gen_container(args); });
+  // cleaning subcommand
+  clean->final_callback([&] { do_clean(args, clean_all); });
 
   /************* Argument Parsing *************/
 
