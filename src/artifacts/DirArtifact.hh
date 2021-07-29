@@ -198,6 +198,8 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   /// Is this entry created during the build?
   bool getNewlyCreated() const noexcept { return created_during_build; }
 
+  void setNewlyCreated(bool newly_created) noexcept { created_during_build = newly_created; }
+
   // VersionState<DirEntryVersion> getState() const noexcept { return _state; }
 
  private:

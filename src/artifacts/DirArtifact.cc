@@ -460,8 +460,18 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
     // If the result was an error, return it
     if (res.getResultCode() != SUCCESS) return res;
 
+    auto ret = res.getArtifact();
+    if (ret->getTypeName() == "File" && (flags.create)) {
+      auto iter = _entries.find(entry);
+      iter->second->setNewlyCreated(true);
+    }
+
     // Otherwise continue with resolution, which may follow symlinks
-    return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
+    return ret->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
+
+    // CC: If the above line succeeds, res.getArtifact() is a File (not a symlink), and flags.create
+    // is true, then the entry in this directory that brought us to the end of the path *would* be
+    // created during the build and can be removed during clean.
 
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
@@ -597,7 +607,7 @@ void DirEntry::rollback() noexcept {
 void DirEntry::updateEntry(shared_ptr<Command> c,
                            shared_ptr<DirEntryVersion> version,
                            bool newly_created) noexcept {
-  created_during_build = newly_created;
+  setNewlyCreated(newly_created);
   // If there is uncommitted state and command c is running, commit first
   if (_state.isUncommitted() && c->mustRun()) commit();
 
