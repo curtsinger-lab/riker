@@ -94,6 +94,9 @@ class DirArtifact final : public Artifact {
                             Scenario scenario,
                             std::shared_ptr<ContentVersion> expected) noexcept override;
 
+  /// Get this artifact's current list of entries
+  std::map<std::string, std::shared_ptr<DirEntry>> peekEntries() const noexcept;
+
   /************ Directory Operations ************/
 
   /// Initialize this directory as an empty dir created by command c
@@ -103,6 +106,12 @@ class DirArtifact final : public Artifact {
   virtual void addEntry(const std::shared_ptr<Command>& c,
                         std::string name,
                         std::shared_ptr<Artifact> target) noexcept override;
+
+  /// Add a directory entry to this artifact
+  void addEntry(const std::shared_ptr<Command>& c,
+                std::string name,
+                std::shared_ptr<Artifact> target,
+                bool newly_created) noexcept;
 
   /// Remove a directory entry from this artifact
   virtual void removeEntry(const std::shared_ptr<Command>& c,
@@ -165,7 +174,9 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * \param c       The command updating this entry
    * \param version The latest version to apply to this entry
    */
-  void updateEntry(std::shared_ptr<Command> c, std::shared_ptr<DirEntryVersion> version) noexcept;
+  void updateEntry(std::shared_ptr<Command> c,
+                   std::shared_ptr<DirEntryVersion> version,
+                   bool newly_created) noexcept;
 
   /// Peek at the target of this entry without creating a dependency
   std::shared_ptr<Artifact> peekTarget() const noexcept;
@@ -184,6 +195,11 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   /// Get the name of this entry in its containing directory
   std::string getName() const noexcept { return _name; }
 
+  /// Is this entry created during the build?
+  bool getNewlyCreated() const noexcept { return created_during_build; }
+
+  // VersionState<DirEntryVersion> getState() const noexcept { return _state; }
+
  private:
   /// The directory that contains this entry
   std::weak_ptr<DirArtifact> _dir;
@@ -193,4 +209,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
 
   /// The committed and uncommitted state of this entry
   VersionState<DirEntryVersion> _state;
+
+  /// Is this entry created during the build?
+  bool created_during_build;
 };

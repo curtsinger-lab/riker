@@ -20,6 +20,7 @@
 #include "versions/MetadataVersion.hh"
 
 using std::make_shared;
+using std::map;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -328,6 +329,11 @@ void DirArtifact::matchContent(const shared_ptr<Command>& c,
   }
 }
 
+/// Get this artifact's current list of entries
+map<string, shared_ptr<DirEntry>> DirArtifact::peekEntries() const noexcept {
+  return _entries;
+}
+
 Ref DirArtifact::resolve(const shared_ptr<Command>& c,
                          shared_ptr<Artifact> prev,
                          fs::path::iterator current,
@@ -445,7 +451,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       const auto& newfile = env::createFile(c, flags.mode);
 
       // Link the new file into this directory
-      addEntry(c, entry, newfile);
+      addEntry(c, entry, newfile, true);
 
       // return the artifact we just created and stop resolution
       return Ref(flags, newfile);
@@ -484,7 +490,27 @@ void DirArtifact::addEntry(const shared_ptr<Command>& c,
   appendVersion(version);
 
   // Update the entry
-  iter->second->updateEntry(c, version);
+  iter->second->updateEntry(c, version, false);
+}
+
+// Add a directory entry to this artifact
+void DirArtifact::addEntry(const shared_ptr<Command>& c,
+                           string name,
+                           shared_ptr<Artifact> target,
+                           bool newly_created) noexcept {
+  // Make sure we have a record of this entry
+  auto iter = _entries.find(name);
+  if (iter == _entries.end()) {
+    auto entry = make_shared<DirEntry>(this->as<DirArtifact>(), name);
+    iter = _entries.emplace_hint(iter, name, entry);
+  }
+
+  // Create a version to represent this update
+  auto version = make_shared<DirEntryVersion>(name, target);
+  appendVersion(version);
+
+  // Update the entry
+  iter->second->updateEntry(c, version, newly_created);
 }
 
 // Remove a directory entry from this artifact
@@ -503,10 +529,12 @@ void DirArtifact::removeEntry(const shared_ptr<Command>& c,
   appendVersion(version);
 
   // Update the entry
-  iter->second->updateEntry(c, version);
+  iter->second->updateEntry(c, version, false);
 }
 
-DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir), _name(name) {}
+DirEntry::DirEntry(shared_ptr<DirArtifact> dir, string name) noexcept : _dir(dir), _name(name) {
+  created_during_build = false;
+}
 
 // Set the committed state for this entry. Only used for initial state
 void DirEntry::setCommittedState(std::shared_ptr<DirEntryVersion> version) noexcept {
@@ -566,7 +594,10 @@ void DirEntry::rollback() noexcept {
 }
 
 // Update this entry with a new version
-void DirEntry::updateEntry(shared_ptr<Command> c, shared_ptr<DirEntryVersion> version) noexcept {
+void DirEntry::updateEntry(shared_ptr<Command> c,
+                           shared_ptr<DirEntryVersion> version,
+                           bool newly_created) noexcept {
+  created_during_build = newly_created;
   // If there is uncommitted state and command c is running, commit first
   if (_state.isUncommitted() && c->mustRun()) commit();
 
