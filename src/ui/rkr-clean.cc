@@ -65,9 +65,9 @@ void do_clean(vector<string> args, bool clean_all) noexcept {
         }
       }
     }
+  } else {
+    cmd = "rm -rf .rkr";
+    system(cmd.c_str());
+    cout << ".rkr removed" << endl;
   }
-
-  cmd = "rm -rf .rkr";
-  system(cmd.c_str());
-  cout << "Cached information removed" << endl;
 }
