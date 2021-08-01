@@ -765,67 +765,81 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 }
 
 // This command launches a child command
-void Build::launch(const shared_ptr<Command>& c,
+void Build::launch(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) {
-    // If the child command doesn't have to run, add it to the deferred command set
-    if (!child->mustRun()) _deferred_commands.insert(child);
+  // Is this step from a traced command?
+  if (parent->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::LaunchPrinter{parent, child, refs};
 
-    // We're not going to emulate this command because it has to run
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{parent, child, refs};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!parent->isLaunched()) {
+      _deferred_commands.emplace(parent);
+      _deferred_steps->launch(parent, child, refs);
+      return;
+    }
   }
-
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-
-    // Record the launch step in the trace of deferred steps
-    _deferred_steps->launch(c, child, refs);
-    return;
-  }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{c, child, refs};
 
   // Assign references in the child command
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    child->setRef(child_ref_id, c->getRef(parent_ref_id));
-
-    // The child will have access to the artifact's content, so create a dependency if needed
-    auto a = c->getRef(parent_ref_id)->getArtifact();
-    if (a) a->getContent(child);
+    child->setRef(child_ref_id, parent->getRef(parent_ref_id));
   }
 
-  // Add the child to the parent command's set of children
-  c->addChild(child);
+  // Add the child to the parent's list of children
+  parent->addChild(child);
 
-  // Are we going to re-execute the child?
-  bool run_command = false;
-
-  // Should we print the child command?
-  bool print_command = false;
-
-  // Is this command marked for rerun?
+  // Is the child going to run?
   if (child->mustRun()) {
-    // Print the command if requested, or if this is a dry run
-    if (options::print_on_run || options::dry_run) print_command = true;
+    // Yes. The child is going to run
 
-    // Launch the command if this is not a dry run
-    if (!options::dry_run) run_command = true;
+    // Mark it as executed
+    child->setExecuted();
 
-  } else if (!child->hasExecuted()) {
-    // The command is not running now, and has never run before. Ensure it is marked.
-    LOGF(rebuild, "{} changed: never run", child);
-    child->observeChange(Scenario::Both);
+    // Create launch dependencies for the child
+    child->createLaunchDependencies();
+
+    // Update stats
+    stats::traced_commands++;
+    LOG(exec) << parent << " is launching " << child << " as a traced command";
+
+  } else {
+    // No. Update stats
+    stats::emulated_commands++;
+    LOG(exec) << parent << " is launching " << child << " as an emulated command";
+
+    // If the child hasn't executed yet, report a change so it runs in the next phase
+    if (!child->hasExecuted()) {
+      // The command is not running now, and has never run before. Ensure it is marked.
+      LOGF(rebuild, "{} changed: never run", child);
+      child->observeChange(Scenario::Both);
+    }
+  }
+
+  // Create an IR step and add it to the output trace
+  _output.launch(parent, child, refs);
+
+  // Is the parent command being emulated?
+  if (parent->canEmulate()) {
+    // Yes. We need to launch the child if it is supposed to run
+    if (child->mustRun()) {
+      // Start the child command in the tracer and record it as launched
+      child->setLaunched(_tracer.start(child));
+
+    } else {
+      // The child command is launched, and has no associated process
+      child->setLaunched();
+    }
   }
 
   // Print the command if requested
-  if (print_command) {
+  if (child->mustRun() && options::print_on_run) {
     if (options::print_full) {
       if (_print_to) {
         (*_print_to) << child->getFullName() << endl;
@@ -839,37 +853,6 @@ void Build::launch(const shared_ptr<Command>& c,
         cout << child->getShortName(options::command_length) << endl;
       }
     }
-  }
-
-  // If we're going to actually run the command, mark it as executed now
-  if (run_command) child->setExecuted();
-
-  // Now emit the launch IR step. This has to happen after updating the executed state of the
-  // command (above) and before actually launching the command.
-  _output.launch(c, child, refs);
-
-  // Launch the command if requested
-  if (run_command) {
-    // Count the traced command
-    stats::traced_commands++;
-
-    // Prepare the child command to execute by committing the necessary state from its references
-    child->createLaunchDependencies();
-
-    LOG(exec) << c << " is launching " << child << " as a traced command";
-
-    // Start the child command in the tracer and record it as launched
-    const auto& process = _tracer.start(child);
-    child->setLaunched(process);
-
-  } else {
-    // Count the emulated command
-    stats::emulated_commands++;
-
-    LOG(exec) << c << " is launching " << child << " as an emulated command";
-
-    // The child command has launched with no containing process
-    child->setLaunched();
   }
 }
 
@@ -1012,59 +995,4 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
   }
 
   return child;
-}
-
-// This command launches a child command
-void Build::traceLaunch(const shared_ptr<Command>& parent,
-                        const shared_ptr<Command>& child,
-                        list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Assign references in the child command
-  for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    child->setRef(child_ref_id, parent->getRef(parent_ref_id));
-  }
-
-  // Add the child to the parent's list of children
-  parent->addChild(child);
-
-  // Prepare the child command to execute by committing the necessary state from its references
-  child->createLaunchDependencies();
-
-  // The command will be executed
-  if (child->mustRun()) child->setExecuted();
-
-  // The child command is now launched in the provided process
-  // child->setLaunched(process);
-
-  // Create an IR step and add it to the output trace
-  _output.launch(parent, child, refs);
-
-  // Does the command have to run? Update the appropriate stats counter
-  if (child->mustRun()) {
-    stats::traced_commands++;
-  } else {
-    stats::emulated_commands++;
-  }
-
-  // Print the command if required
-  if (child->mustRun() && options::print_on_run) {
-    if (options::print_full) {
-      if (_print_to) {
-        (*_print_to) << child->getFullName() << endl;
-      } else {
-        cout << child->getFullName() << endl;
-      }
-    } else {
-      if (_print_to) {
-        (*_print_to) << child->getShortName(options::command_length) << endl;
-      } else {
-        cout << child->getShortName(options::command_length) << endl;
-      }
-    }
-  }
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::LaunchPrinter{parent, child, refs};
 }

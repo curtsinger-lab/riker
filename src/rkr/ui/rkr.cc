@@ -123,8 +123,6 @@ int main(int argc, char* argv[]) noexcept {
       },
       "Show complete command lines for all commands as they run");
 
-  build->add_flag("-n,--dry-run", options::dry_run, "Do not run any build commands");
-
   build
       ->add_flag_callback(
           "--eager", []() { options::lazy_builds = false; },

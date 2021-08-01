@@ -13,9 +13,6 @@ namespace options {
   /// Should full commands be printed instead of abbreviations?
   inline bool print_full = false;
 
-  /// Print commands instead of running them
-  inline bool dry_run = false;
-
   /// Which files, if any, should be fingerprinted?
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 

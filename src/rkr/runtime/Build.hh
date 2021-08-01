@@ -178,17 +178,6 @@ class Build : public IRSink {
                                        std::vector<std::string> args,
                                        const std::map<int, Ref::ID>& fds) noexcept;
 
-  /**
-   * A traced command is launching a child command.
-   *
-   * \param parent  The parent command
-   * \param child   The child command
-   * \param refs    References inherited by the child command
-   */
-  void traceLaunch(const std::shared_ptr<Command>& parent,
-                   const std::shared_ptr<Command>& child,
-                   std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept;
-
  private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;

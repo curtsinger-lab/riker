@@ -170,7 +170,7 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   }
 
   // Inform the build of the launch
-  _build.traceLaunch(_command, child, refs);
+  _build.launch(_command, child, refs);
 
   // The child is now launched in this process
   child->setLaunched(shared_from_this());
