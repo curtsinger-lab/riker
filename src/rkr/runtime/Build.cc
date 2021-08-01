@@ -213,21 +213,24 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
 
 // A command references a new anonymous symlink
 void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID output) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->symlinkRef(c, target, output);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->symlinkRef(c, target, output);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   // Create an IR step and add it to the output trace
   _output.symlinkRef(c, target, output);
@@ -239,21 +242,24 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 
 // A command references a new anonymous directory
 void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->dirRef(c, mode, output);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->dirRef(c, mode, output);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
   _output.dirRef(c, mode, output);
@@ -834,46 +840,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// A command references a new anonymous symlink
-Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create a symlink artifact
-  auto symlink = env::getSymlink(c, target);
-
-  // Create a reference to the new symlink
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, symlink));
-
-  // Create an IR step and add it to the output trace
-  _output.symlinkRef(c, target, output);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
-
-  return output;
-}
-
-// A command references a new anonymous directory
-Ref::ID Build::traceDirRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create a directory artifact
-  auto dir = env::getDir(c, mode);
-
-  // Create a reference to the new directory
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, dir));
-
-  // Create an IR step and add it to the output trace
-  _output.dirRef(c, mode, output);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
-
-  return output;
-}
 
 // A command makes a reference with a path
 Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,

@@ -163,12 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A traced command referenced a new anonymous symlink
-  Ref::ID traceSymlinkRef(const std::shared_ptr<Command>& c, fs::path target) noexcept;
-
-  /// A traced command referenced a new anonymous directory
-  Ref::ID traceDirRef(const std::shared_ptr<Command>& c, mode_t mode) noexcept;
-
   /// A traced command referenced a path
   Ref::ID tracePathRef(const std::shared_ptr<Command>& c,
                        Ref::ID base,

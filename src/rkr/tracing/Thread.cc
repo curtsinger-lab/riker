@@ -1007,7 +1007,8 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
 
       // Make a directory reference to get a new artifact
       auto mask = getProcess()->getUmask();
-      auto dir_ref = _build.traceDirRef(getCommand(), mode.getMode() & ~mask);
+      auto dir_ref = getCommand()->nextRef();
+      _build.dirRef(getCommand(), mode.getMode() & ~mask, dir_ref);
 
       // Link the directory into the parent dir
       _build.traceAddEntry(getCommand(), parent_ref, entry, dir_ref);
@@ -1223,7 +1224,8 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
       _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
 
       // Make a symlink reference to get a new artifact
-      auto symlink_ref = _build.traceSymlinkRef(getCommand(), target);
+      auto symlink_ref = getCommand()->nextRef();
+      _build.symlinkRef(getCommand(), target, symlink_ref);
 
       // Link the symlink into the directory
       _build.traceAddEntry(getCommand(), dir_ref, entry, symlink_ref);
