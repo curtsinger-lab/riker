@@ -957,9 +957,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 // Look for a known command that matches one being launched
 shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
                                        vector<string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
                                        const map<int, Ref::ID>& fds) noexcept {
   // Keep track of the best matching command so far
   shared_ptr<Command> child = nullptr;

@@ -176,9 +176,6 @@ class Build : public IRSink {
    */
   std::shared_ptr<Command> findCommand(const std::shared_ptr<Command>& parent,
                                        std::vector<std::string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
                                        const std::map<int, Ref::ID>& fds) noexcept;
 
   /**

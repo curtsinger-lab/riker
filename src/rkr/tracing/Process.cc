@@ -153,7 +153,7 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   }
 
   // Find (or create) a command for the child
-  auto child = _build.findCommand(_command, args, exe_ref, _cwd, _root, inherited_fds);
+  auto child = _build.findCommand(_command, args, inherited_fds);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
   list<tuple<Ref::ID, Ref::ID>> refs;
