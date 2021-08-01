@@ -669,33 +669,49 @@ void Build::addEntry(const shared_ptr<Command>& c,
                      Ref::ID dir_id,
                      string name,
                      Ref::ID target_id) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->addEntry(c, dir_id, name, target_id);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->addEntry(c, dir_id, name, target_id);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
 
   // Create an IR step and add it to the output trace
   _output.addEntry(c, dir_id, name, target_id);
 
+  // Get the directory and target references
   auto dir = c->getRef(dir_id);
   auto target = c->getRef(target_id);
 
-  // We can't do anything with unresolved references. A change should already have been reported.
-  if (!dir->isResolved() || !target->isResolved()) return;
+  // Did both references resolve?
+  if (dir->isResolved() && target->isResolved()) {
+    // Yes. Add the entry to the directory
+    dir->getArtifact()->addEntry(c, name, target->getArtifact());
 
-  // Add the entry to the directory
-  dir->getArtifact()->addEntry(c, name, target->getArtifact());
+  } else {
+    // No. Are we emulating or tracing?
+    if (c->mustRun()) {
+      // Tracing. Something bad has happened
+      WARN << "Tried to add entry to directory with an invalid reference. dir=" << dir
+           << ", target=" << target;
+
+    } else {
+      // Emulating. Report a change
+      c->observeChange(Scenario::Build);
+    }
+  }
 }
 
 /// Handle a RemoveEntry IR step
@@ -703,33 +719,49 @@ void Build::removeEntry(const shared_ptr<Command>& c,
                         Ref::ID dir_id,
                         string name,
                         Ref::ID target_id) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->removeEntry(c, dir_id, name, target_id);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->removeEntry(c, dir_id, name, target_id);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
 
   // Create an IR step and add it to the output trace
   _output.removeEntry(c, dir_id, name, target_id);
 
+  // Get the directory and target references
   auto dir = c->getRef(dir_id);
   auto target = c->getRef(target_id);
 
-  // We can't do anything with unresolved references. A change should already have been reported.
-  if (!dir->isResolved() || !target->isResolved()) return;
+  // Did both references resolve?
+  if (dir->isResolved() && target->isResolved()) {
+    // Yes. Remove the entry from the directory
+    dir->getArtifact()->removeEntry(c, name, target->getArtifact());
 
-  // Remove the entry from the directory
-  dir->getArtifact()->removeEntry(c, name, target->getArtifact());
+  } else {
+    // No. Are we emulating or tracing?
+    if (c->mustRun()) {
+      // Tracing. Something bad has happened
+      WARN << "Tried to remove entry from directory with an invalid reference. dir=" << dir
+           << ", target=" << target;
+
+    } else {
+      // Emulating. Report a change
+      c->observeChange(Scenario::Build);
+    }
+  }
 }
 
 // This command launches a child command
@@ -909,64 +941,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// A traced command is adding an entry to a directory
-void Build::traceAddEntry(const shared_ptr<Command>& c,
-                          Ref::ID dir_id,
-                          string name,
-                          Ref::ID target_id) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
-
-  // Get the directory artifact that is being added to
-  auto dir_artifact = dir->getArtifact();
-  ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
-
-  // Make sure the reference to the artifact being linked is resolved
-  ASSERT(target->isResolved()) << "Cannot add entry " << name << " to " << dir_artifact
-                               << " using unresolved reference " << target;
-
-  // Create an IR step and add it to the output trace
-  _output.addEntry(c, dir_id, name, target_id);
-
-  // Add the entry to the directory
-  dir_artifact->addEntry(c, name, target->getArtifact());
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
-}
-
-// A traced command is removing an entry from a directory
-void Build::traceRemoveEntry(const shared_ptr<Command>& c,
-                             Ref::ID dir_id,
-                             string name,
-                             Ref::ID target_id) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto dir = c->getRef(dir_id);
-  auto target = c->getRef(target_id);
-
-  // Get the directory artifact that is being removed from
-  auto dir_artifact = dir->getArtifact();
-  ASSERT(dir_artifact) << "Tried to add an entry to an unresolved reference";
-
-  // Make sure the reference to the artifact being linked is resolved
-  ASSERT(target->isResolved()) << "Cannot remove entry " << name << " from " << dir_artifact
-                               << " using unresolved reference " << target;
-
-  // Create an IR step and add it to the output trace
-  _output.removeEntry(c, dir_id, name, target_id);
-
-  // Remove the entry from the directory
-  dir_artifact->removeEntry(c, name, target->getArtifact());
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
-}
 
 // This command launches a child command
 shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,

@@ -163,18 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// Handle an AddEntry IR step
-  void traceAddEntry(const std::shared_ptr<Command>& command,
-                     Ref::ID dir,
-                     std::string name,
-                     Ref::ID target) noexcept;
-
-  /// Handle a RemoveEntry IR step
-  void traceRemoveEntry(const std::shared_ptr<Command>& command,
-                        Ref::ID dir,
-                        std::string name,
-                        Ref::ID target) noexcept;
-
   /**
    * A traced command is launching a child command.
    *

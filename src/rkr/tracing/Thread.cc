@@ -406,7 +406,7 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
         _build.pipeRef(getCommand(), read_end, write_end);
 
         // Link the pipe into the directory
-        _build.traceAddEntry(getCommand(), dir_ref, entry, read_end);
+        _build.addEntry(getCommand(), dir_ref, entry, read_end);
 
       } else {
         // The syscall failed. Record the outcome of both references
@@ -1034,7 +1034,7 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
       _build.dirRef(getCommand(), mode.getMode() & ~mask, dir_ref);
 
       // Link the directory into the parent dir
-      _build.traceAddEntry(getCommand(), parent_ref, entry, dir_ref);
+      _build.addEntry(getCommand(), parent_ref, entry, dir_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -1104,7 +1104,7 @@ void Thread::_renameat2(at_fd old_dfd,
       _build.expectResult(getCommand(), Scenario::Build, old_entry_ref, SUCCESS);
 
       // Unlink the old entry
-      _build.traceRemoveEntry(getCommand(), old_dir_ref, old_entry, old_entry_ref);
+      _build.removeEntry(getCommand(), old_dir_ref, old_entry, old_entry_ref);
 
       // The access to the new directory must also have succeeded
       _build.expectResult(getCommand(), Scenario::Build, new_dir_ref, SUCCESS);
@@ -1115,7 +1115,7 @@ void Thread::_renameat2(at_fd old_dfd,
         _build.expectResult(getCommand(), Scenario::Build, new_entry_ref, SUCCESS);
 
         // Unlink the new entry
-        _build.traceRemoveEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
+        _build.removeEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
 
       } else if (flags.noreplace()) {
         // This is a noreplace rename, so new_entry_ref must not exist
@@ -1123,11 +1123,11 @@ void Thread::_renameat2(at_fd old_dfd,
       }
 
       // Link into the new entry
-      _build.traceAddEntry(getCommand(), new_dir_ref, new_entry, old_entry_ref);
+      _build.addEntry(getCommand(), new_dir_ref, new_entry, old_entry_ref);
 
       // If this is an exchange, we also have to perform the swapped link
       if (flags.exchange()) {
-        _build.traceAddEntry(getCommand(), old_dir_ref, old_entry, new_entry_ref);
+        _build.addEntry(getCommand(), old_dir_ref, old_entry, new_entry_ref);
       }
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
@@ -1212,7 +1212,7 @@ void Thread::_linkat(at_fd old_dfd,
       _build.expectResult(getCommand(), Scenario::Build, target_ref, SUCCESS);
 
       // Record the link operation
-      _build.traceAddEntry(getCommand(), dir_ref, entry, target_ref);
+      _build.addEntry(getCommand(), dir_ref, entry, target_ref);
 
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
@@ -1259,7 +1259,7 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
       _build.symlinkRef(getCommand(), target, symlink_ref);
 
       // Link the symlink into the directory
-      _build.traceAddEntry(getCommand(), dir_ref, entry, symlink_ref);
+      _build.addEntry(getCommand(), dir_ref, entry, symlink_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
@@ -1345,7 +1345,7 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
       _build.expectResult(getCommand(), Scenario::Build, entry_ref_id, SUCCESS);
 
       // Perform the unlink
-      _build.traceRemoveEntry(getCommand(), dir_ref_id, entry, entry_ref_id);
+      _build.removeEntry(getCommand(), dir_ref_id, entry, entry_ref_id);
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
