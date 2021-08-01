@@ -911,21 +911,24 @@ void Build::join(const shared_ptr<Command>& c,
 }
 
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->exit(c, exit_status);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->exit(c, exit_status);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
@@ -935,9 +938,12 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Is this emulated command running in a process? If so, we need to let it exit
   const auto& process = c->getProcess();
-  if (process) {
+  if (c->canEmulate() && process) {
     process->forceExit(exit_status);
   }
+
+  // Cache and fingerprint everything in the environment at the end of this command's run
+  if (c->mustRun()) env::cacheAll();
 }
 
 /************************ Trace IR Steps ************************/
@@ -1102,21 +1108,4 @@ void Build::traceJoin(const shared_ptr<Command>& c,
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
-}
-
-void Build::traceExit(const shared_ptr<Command>& c, int exit_status) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create an IR step and add it to the output trace
-  _output.exit(c, exit_status);
-
-  // Save the exit status for this command
-  c->setExitStatus(exit_status);
-
-  // Cache and fingerprint everything in the environment at the end of this command's run
-  env::cacheAll();
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 }

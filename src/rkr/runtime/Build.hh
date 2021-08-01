@@ -187,9 +187,6 @@ class Build : public IRSink {
                  const std::shared_ptr<Command>& child,
                  int exit_status) noexcept;
 
-  /// A command has exited with an exit code
-  void traceExit(const std::shared_ptr<Command>& c, int exit_status) noexcept;
-
  private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;

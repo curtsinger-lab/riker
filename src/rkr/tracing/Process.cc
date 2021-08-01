@@ -204,7 +204,7 @@ void Process::exit(int exit_status) noexcept {
     }
 
     // If this process was the primary for its command, trace the exit
-    if (_primary) _build.traceExit(_command, exit_status);
+    if (_primary) _build.exit(_command, exit_status);
   }
 }
 
