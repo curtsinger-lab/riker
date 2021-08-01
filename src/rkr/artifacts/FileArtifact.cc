@@ -255,7 +255,7 @@ void FileArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref::I
   auto writing = make_shared<FileVersion>();
 
   // The command wrote to this file
-  build.traceUpdateContent(c, ref, writing);
+  build.updateContent(c, ref, writing);
 }
 
 /// A traced command is about to truncate this artifact to length 0
@@ -271,7 +271,7 @@ void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref
   auto written = make_shared<FileVersion>();
   written->makeEmptyFingerprint();
 
-  build.traceUpdateContent(c, ref, written);
+  build.updateContent(c, ref, written);
 }
 
 // Get this artifact's content version

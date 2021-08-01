@@ -574,66 +574,94 @@ void Build::matchContent(const shared_ptr<Command>& c,
 void Build::updateMetadata(const shared_ptr<Command>& c,
                            Ref::ID ref_id,
                            MetadataVersion written) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->updateMetadata(c, ref_id, written);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->updateMetadata(c, ref_id, written);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
 
   // Create an IR step and add it to the output trace
   _output.updateMetadata(c, ref_id, written);
 
+  // Get the reference
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been
-  // reported.
-  if (!ref->isResolved()) return;
+  // Is the reference resolved?
+  if (ref->isResolved()) {
+    // Yes. Apply the write
+    ref->getArtifact()->updateMetadata(c, written);
 
-  // Apply the write
-  ref->getArtifact()->updateMetadata(c, written);
+  } else {
+    // No. Are we tracing or emulating?
+    if (c->mustRun()) {
+      // Tracing. Something bad has happened
+      WARN << "Tried to write metadata through an unresolved reference " << ref;
+
+    } else {
+      // Emulating. Detect a change
+      c->observeChange(Scenario::Build);
+    }
+  }
 }
 
 // Command c modifies an artifact
 void Build::updateContent(const shared_ptr<Command>& c,
                           Ref::ID ref_id,
                           shared_ptr<ContentVersion> written) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->updateContent(c, ref_id, written);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->updateContent(c, ref_id, written);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
 
   // Create an IR step and add it to the output trace
   _output.updateContent(c, ref_id, written);
 
+  // Get the reference being written through
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been
-  // reported.
-  if (!ref->isResolved()) return;
+  // Is the reference resolved?
+  if (ref->isResolved()) {
+    // Yes. Apply the write
+    ref->getArtifact()->updateContent(c, written);
 
-  // Apply the write
-  ref->getArtifact()->updateContent(c, written);
+  } else {
+    // No. Are we tracing or emulating?
+    if (c->mustRun()) {
+      // Tracing. Something bad has happened
+      WARN << "Tried to write content through an unresolved reference " << ref;
+
+    } else {
+      // Emulating. Detect a change
+      c->observeChange(Scenario::Build);
+    }
+  }
 }
 
 /// Handle an AddEntry IR step
@@ -881,55 +909,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// Command c modifies an artifact
-void Build::traceUpdateMetadata(const shared_ptr<Command>& c,
-                                Ref::ID ref_id,
-                                MetadataVersion written) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto ref = c->getRef(ref_id);
-
-  // Get the artifact whose metadata is being written
-  auto artifact = ref->getArtifact();
-  ASSERT(artifact) << "Tried to write metadata through an unresolved reference " << ref;
-
-  // Record the update in the artifact
-  artifact->updateMetadata(c, written);
-
-  // Create an IR step and add it to the output trace
-  _output.updateMetadata(c, ref_id, written);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
-}
-
-// Command c modifies an artifact
-void Build::traceUpdateContent(const shared_ptr<Command>& c,
-                               Ref::ID ref_id,
-                               shared_ptr<ContentVersion> written) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto ref = c->getRef(ref_id);
-
-  // Get the artifact whose content is being written
-  auto artifact = ref->getArtifact();
-  ASSERT(artifact) << "Tried to write content through an unresolved reference " << ref;
-
-  // Make sure we were given a version to write
-  ASSERT(written) << "Attempted to write null version to " << artifact;
-
-  // Create an IR step and add it to the output trace
-  _output.updateContent(c, ref_id, written);
-
-  // Update the artifact's content
-  artifact->updateContent(c, written);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
-}
 
 // A traced command is adding an entry to a directory
 void Build::traceAddEntry(const shared_ptr<Command>& c,

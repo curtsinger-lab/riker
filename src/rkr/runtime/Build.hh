@@ -163,16 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A command modifies the metadata for an artifact
-  void traceUpdateMetadata(const std::shared_ptr<Command>& c,
-                           Ref::ID ref,
-                           MetadataVersion written) noexcept;
-
-  /// A command writes a new version to an artifact
-  void traceUpdateContent(const std::shared_ptr<Command>& c,
-                          Ref::ID ref,
-                          std::shared_ptr<ContentVersion> written) noexcept;
-
   /// Handle an AddEntry IR step
   void traceAddEntry(const std::shared_ptr<Command>& command,
                      Ref::ID dir,

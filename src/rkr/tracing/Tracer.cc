@@ -301,7 +301,7 @@ void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
           auto cv = make_shared<FileVersion>(statbuf);
 
           // Trace a write to the core file from the command that's exiting
-          _build.traceUpdateContent(t.getCommand(), core_ref, cv);
+          _build.updateContent(t.getCommand(), core_ref, cv);
 
         } else {
           WARN << "Model did not allow for creation of a core file at " << core_path;

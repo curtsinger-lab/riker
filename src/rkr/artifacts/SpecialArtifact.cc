@@ -126,7 +126,7 @@ void SpecialArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref
   auto writing = make_shared<SpecialVersion>(!_always_changed);
 
   // The command wrote to this special artifact
-  build.traceUpdateContent(c, ref, writing);
+  build.updateContent(c, ref, writing);
 }
 
 /// A traced command is about to truncate this artifact to length 0
@@ -143,7 +143,7 @@ void SpecialArtifact::afterTruncate(Build& build,
   // The command wrote an empty content version to this artifact
   auto written = make_shared<SpecialVersion>(!_always_changed);
 
-  build.traceUpdateContent(c, ref, written);
+  build.updateContent(c, ref, written);
 }
 
 // Get this artifact's content version

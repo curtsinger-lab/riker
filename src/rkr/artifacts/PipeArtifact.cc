@@ -89,7 +89,7 @@ void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
   LOG(artifact) << "Creating pipe read version " << read_version;
 
   // The reader updates this pipe with the read version
-  build.traceUpdateContent(c, ref, read_version);
+  build.updateContent(c, ref, read_version);
 
   // The command should expect to read an equivalent version on future builds
   build.matchContent(c, Scenario::Build, ref, read_version);
@@ -101,7 +101,7 @@ void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::
   auto writing = make_shared<PipeWriteVersion>();
 
   // The command writes this version to the pipe
-  build.traceUpdateContent(c, ref, writing);
+  build.updateContent(c, ref, writing);
 }
 
 // Get this artifact's current content
