@@ -1067,9 +1067,4 @@ void Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Log the traced step
   LOG(ir) << "traced " << TracePrinter::LaunchPrinter{parent, child, refs};
-
-  // Now that the child has been launched, record that it is using all of its inherited refs
-  for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    usingRef(child, child_ref_id);
-  }
 }

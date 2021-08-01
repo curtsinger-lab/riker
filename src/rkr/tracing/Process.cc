@@ -172,6 +172,11 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   // Inform the build of the launch
   _build.traceLaunch(_command, child, refs);
 
+  // Now that the child has been launched, record that it is using all of its inherited refs
+  for (const auto& [parent_ref_id, child_ref_id] : refs) {
+    _build.usingRef(child, child_ref_id);
+  }
+
   // The child is now launched in this process
   child->setLaunched(shared_from_this());
 
