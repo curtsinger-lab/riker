@@ -109,7 +109,7 @@ void SpecialArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref
 /// A traced command just read from this artifact
 void SpecialArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this special artifact
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
@@ -117,7 +117,7 @@ void SpecialArtifact::beforeWrite(Build& build,
                                   const shared_ptr<Command>& c,
                                   Ref::ID ref) noexcept {
   // The command now depends on the content of this special artifact
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command just wrote to this artifact

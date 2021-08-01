@@ -163,11 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A command accesses content for an artifact and expects to find a particular version
-  void traceMatchContent(const std::shared_ptr<Command>& c,
-                         Ref::ID ref,
-                         std::shared_ptr<ContentVersion> expected) noexcept;
-
   /// A command modifies the metadata for an artifact
   void traceUpdateMetadata(const std::shared_ptr<Command>& c,
                            Ref::ID ref,

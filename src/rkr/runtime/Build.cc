@@ -536,33 +536,38 @@ void Build::matchContent(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          shared_ptr<ContentVersion> expected) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->matchContent(c, scenario, ref_id, expected);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->matchContent(c, scenario, ref_id, expected);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
   // Create an IR step and add it to the output trace
   _output.matchContent(c, scenario, ref_id, expected);
 
-  auto ref = c->getRef(ref_id);
-
-  // We can't do anything with an unresolved reference. A change should already have been
-  // reported.
-  if (!ref->isResolved()) return;
-
-  // Perform the comparison
-  ref->getArtifact()->matchContent(c, scenario, expected);
+  // If this command is being emulated, check the predicate
+  if (c->canEmulate()) {
+    auto ref = c->getRef(ref_id);
+    if (ref->isResolved()) {
+      // Perform the comparison
+      ref->getArtifact()->matchContent(c, scenario, expected);
+    } else {
+      c->observeChange(scenario);
+    }
+  }
 }
 
 // Command c modifies an artifact
@@ -876,28 +881,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// Command c accesses an artifact's content
-void Build::traceMatchContent(const shared_ptr<Command>& c,
-                              Ref::ID ref_id,
-                              shared_ptr<ContentVersion> expected) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto ref = c->getRef(ref_id);
-
-  // Get the artifact whose content is being accessed
-  auto artifact = ref->getArtifact();
-  ASSERT(artifact) << "Tried to access content through an unresolved reference " << ref;
-
-  ASSERT(expected) << "Attempted to match content of " << artifact << " against a null version";
-
-  // Create an IR step and add it to the output trace
-  _output.matchContent(c, Scenario::Build, ref_id, expected);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, Scenario::Build, ref_id, expected};
-}
 
 // Command c modifies an artifact
 void Build::traceUpdateMetadata(const shared_ptr<Command>& c,

@@ -41,7 +41,7 @@ void SymlinkArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref
 /// A traced command just read from this artifact
 void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 // Get this artifact's current content

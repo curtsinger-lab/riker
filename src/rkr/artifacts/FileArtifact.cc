@@ -240,13 +240,13 @@ void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::I
 /// A traced command just read from this artifact
 void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
 void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command just wrote to this artifact

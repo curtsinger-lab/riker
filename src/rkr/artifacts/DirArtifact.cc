@@ -263,7 +263,7 @@ void DirArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID
 /// A traced command just read from this artifact
 void DirArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // The command now depends on the content of this directory
-  build.traceMatchContent(c, ref, getContent(c));
+  build.matchContent(c, Scenario::Build, ref, getContent(c));
 }
 
 // Get a version that lists all the entries in this directory

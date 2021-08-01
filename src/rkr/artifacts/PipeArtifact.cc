@@ -92,7 +92,7 @@ void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
   build.traceUpdateContent(c, ref, read_version);
 
   // The command should expect to read an equivalent version on future builds
-  build.traceMatchContent(c, ref, read_version);
+  build.matchContent(c, Scenario::Build, ref, read_version);
 }
 
 // A trace command just wrote to this artifact
