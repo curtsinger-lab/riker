@@ -20,13 +20,12 @@
 
 namespace fs = std::filesystem;
 
-using std::make_shared;
 using std::make_unique;
 using std::ofstream;
 using std::optional;
 using std::ostream;
-using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 /**
@@ -42,9 +41,9 @@ void do_build(vector<string> args,
   fs::create_directory(constants::CacheDir);
 
   // Set up an ostream to print to if necessary
-  shared_ptr<ostream> print_to;
+  unique_ptr<ostream> print_to;
   if (command_output != "-") {
-    print_to = make_shared<ofstream>(command_output);
+    print_to = make_unique<ofstream>(command_output);
   }
 
   // Build stats
@@ -72,9 +71,9 @@ void do_build(vector<string> args,
 
     // Run the trace and send the new trace to output
     if (iteration == 0) {
-      input->sendTo(Build(print_to));
+      input->sendTo(Build(print_to ? *print_to : std::cout));
     } else {
-      Build build(*output, print_to);
+      Build build(*output, print_to ? *print_to : std::cout);
       EmulateOnly filter(build);
       input->sendTo(filter);
     }
@@ -117,7 +116,7 @@ void do_build(vector<string> args,
     env::rollback();
 
     // Run the build
-    Build build(output, print_to);
+    Build build(output, print_to ? *print_to : std::cout);
     input->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";

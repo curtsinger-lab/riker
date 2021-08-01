@@ -33,11 +33,10 @@ class Process;
 class Build : public IRSink {
  public:
   /// Create a build runner
-  Build(IRSink& output, std::shared_ptr<std::ostream> print_to = nullptr) noexcept;
+  Build(IRSink& output, std::ostream& print_to = std::cout) noexcept;
 
   /// Create a build runner that uses the default output IRSink
-  Build(std::shared_ptr<std::ostream> print_to = nullptr) noexcept :
-      Build(_default_output, print_to) {}
+  Build(std::ostream& print_to = std::cout) noexcept : Build(_default_output, print_to) {}
 
   // Disallow Copy
   Build(const Build&) = delete;
@@ -179,5 +178,5 @@ class Build : public IRSink {
   inline static IRSink _default_output;
 
   /// The stream where commands should be printed, if at all
-  std::shared_ptr<std::ostream> _print_to;
+  std::ostream& _print_to;
 };

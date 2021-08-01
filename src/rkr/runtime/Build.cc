@@ -46,7 +46,7 @@ using std::vector;
 namespace fs = std::filesystem;
 
 // Create a build runner
-Build::Build(IRSink& output, std::shared_ptr<std::ostream> print_to) noexcept :
+Build::Build(IRSink& output, std::ostream& print_to) noexcept :
     _output(output), _tracer(*this), _print_to(print_to) {
   _deferred_steps = make_unique<IRBuffer>();
 }
@@ -839,17 +839,9 @@ void Build::launch(const shared_ptr<Command>& parent,
   // Print the command if requested
   if (child->mustRun() && options::print_on_run) {
     if (options::print_full) {
-      if (_print_to) {
-        (*_print_to) << child->getFullName() << endl;
-      } else {
-        cout << child->getFullName() << endl;
-      }
+      _print_to << child->getFullName() << endl;
     } else {
-      if (_print_to) {
-        (*_print_to) << child->getShortName(options::command_length) << endl;
-      } else {
-        cout << child->getShortName(options::command_length) << endl;
-      }
+      _print_to << child->getShortName(options::command_length) << endl;
     }
   }
 }

@@ -18,11 +18,11 @@
 
 namespace fs = std::filesystem;
 
-using std::make_shared;
+using std::make_unique;
 using std::ofstream;
 using std::ostream;
-using std::shared_ptr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 /**
@@ -34,9 +34,9 @@ void do_audit(vector<string> args, string command_output) noexcept {
   options::print_full = true;
 
   // Set up an ostream to print to if necessary
-  shared_ptr<ostream> print_to;
+  unique_ptr<ostream> print_to;
   if (command_output != "-") {
-    print_to = make_shared<ofstream>(command_output);
+    print_to = make_unique<ofstream>(command_output);
   }
 
   // Set up a default trace
@@ -47,13 +47,13 @@ void do_audit(vector<string> args, string command_output) noexcept {
   IRBuffer output;
 
   // Run the trace and send the new trace to output
-  Build phase1(output, print_to);
+  Build phase1(output, (print_to ? *print_to : std::cout));
   input.sendTo(phase1);
 
   // Plan a rebuild so the build actually executes
   root_cmd->planBuild();
 
   // Now run the actual build. The run depends on whether we're printing to cout or a file
-  Build phase2(print_to);
+  Build phase2(print_to ? *print_to : std::cout);
   output.sendTo(phase2);
 }
