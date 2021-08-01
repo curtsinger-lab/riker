@@ -611,7 +611,12 @@ void Thread::_fstatat(at_fd dirfd,
       }
     });*/
     resume();
-    _build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()));
+
+    auto dir_ref_id = _process->getFD(dirfd.getFD());
+    auto dir_ref = getCommand()->getRef(dir_ref_id);
+    ASSERT(dir_ref->isResolved()) << "Cannot match metadata for unresolved reference";
+    _build.matchMetadata(getCommand(), Scenario::Build, dir_ref_id,
+                         dir_ref->getArtifact()->getMetadata(getCommand()));
 
   } else if (pathname.empty()) {
     // fstatat does not allow empty paths if AT_EMPTY_PATH is not passed. No need to trace the
@@ -654,7 +659,8 @@ void Thread::_fstatat(at_fd dirfd,
       }
     });*/
     if (ref->isResolved()) {
-      _build.traceMatchMetadata(getCommand(), ref_id);
+      _build.matchMetadata(getCommand(), Scenario::Build, ref_id,
+                           ref->getArtifact()->getMetadata(getCommand()));
     }
   }
 }
@@ -663,10 +669,13 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
   LOGF(trace, "{}: fchown({}, {}, {})", this, fd, user, group);
 
   // Get the reference for the given file descriptor
-  const auto& ref = _process->getFD(fd);
+  auto ref_id = _process->getFD(fd);
+  auto ref = getCommand()->getRef(ref_id);
+  ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
 
   // The command depends on the old metadata
-  auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
+  auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
+  _build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -676,7 +685,7 @@ void Thread::_fchown(int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chown(user, group));
+    _build.traceUpdateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
   });
 }
 
@@ -706,7 +715,8 @@ void Thread::_fchownat(at_fd dfd,
     // Did the call succeed?
     if (rc >= 0) {
       // Match the old metadata
-      auto old_metadata = _build.traceMatchMetadata(getCommand(), ref_id);
+      auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
+      _build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
       // Yes. Record the successful reference
       _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
@@ -726,7 +736,7 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
   LOGF(trace, "{}: fchmod({}, {})", this, fd, mode);
 
   // Get the file descriptor entry
-  const auto& ref = _process->getFD(fd);
+  auto ref_id = _process->getFD(fd);
 
   // Finish the sycall and resume the process
   finishSyscall([=](long rc) {
@@ -735,10 +745,13 @@ void Thread::_fchmod(int fd, mode_flags mode) noexcept {
     // If the syscall failed, there's nothing to do
     if (rc) return;
 
-    auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
+    auto ref = getCommand()->getRef(ref_id);
+    ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
+    auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
+    _build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
     // The command updates the metadata
-    _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chmod(mode.getMode()));
+    _build.traceUpdateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
   });
 }
 
@@ -753,7 +766,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
   }
 
   // Get a reference to the artifact being chmoded
-  auto ref = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
+  auto ref_id = makePathRef(filename, AccessFlags::fromAtFlags(flags), dfd);
 
   // Finish the syscall and then resume the process
   finishSyscall([=](long rc) {
@@ -762,18 +775,20 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      _build.expectResult(getCommand(), Scenario::Build, ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
-      ASSERT(getCommand()->getRef(ref)->isResolved()) << "Failed to get artifact";
+      auto ref = getCommand()->getRef(ref_id);
+      ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
 
-      auto old_metadata = _build.traceMatchMetadata(getCommand(), ref);
+      auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
+      _build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
       // We've now set the artifact's metadata
-      _build.traceUpdateMetadata(getCommand(), ref, old_metadata.chmod(mode.getMode()));
+      _build.traceUpdateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
 
     } else {
       // No. Record the failure
-      _build.expectResult(getCommand(), Scenario::Build, ref, -rc);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
     }
   });
 }

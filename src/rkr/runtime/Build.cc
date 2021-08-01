@@ -491,33 +491,44 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
                           Ref::ID ref_id,
                           MetadataVersion expected) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->matchMetadata(c, scenario, ref_id, expected);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->matchMetadata(c, scenario, ref_id, expected);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
 
   // Create an IR step and add it to the output trace
   _output.matchMetadata(c, scenario, ref_id, expected);
 
+  // Get the reference we're matching against
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been
-  // reported.
-  if (!ref->isResolved()) return;
+  // Are we tracing this command?
+  if (c->mustRun()) {
+    // Yes. Just make sure the reference is valid
+    ASSERT(ref->isResolved()) << "Tried to access metadata through unresolved reference " << ref;
 
-  // Perform the comparison
-  ref->getArtifact()->matchMetadata(c, scenario, expected);
+  } else {
+    // No. Make sure the reference is resolved, and if it is, check the predicate
+    if (ref->isResolved()) {
+      ref->getArtifact()->matchMetadata(c, scenario, expected);
+    } else {
+      c->observeChange(scenario);
+    }
+  }
 }
 
 // Command c accesses an artifact's content
@@ -865,29 +876,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// Command c accesses an artifact's metadata
-MetadataVersion Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto ref = c->getRef(ref_id);
-
-  // Get the artifact whose metadata is being accessed
-  auto artifact = ref->getArtifact();
-  ASSERT(artifact) << "Tried to access metadata through unresolved reference " << ref;
-
-  // Get the current metadata from the artifact
-  auto expected = artifact->getMetadata(c);
-
-  // Create an IR step and add it to the output trace
-  _output.matchMetadata(c, Scenario::Build, ref_id, expected);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, Scenario::Build, ref_id, expected};
-
-  return expected;
-}
 
 // Command c accesses an artifact's content
 void Build::traceMatchContent(const shared_ptr<Command>& c,
