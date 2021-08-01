@@ -1018,37 +1018,15 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
 }
 
 // This command launches a child command
-shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
-                                       vector<string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
-                                       const map<int, Ref::ID>& fds,
-                                       shared_ptr<Process> process) noexcept {
+void Build::traceLaunch(const shared_ptr<Command>& parent,
+                        const shared_ptr<Command>& child,
+                        list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   // Count a traced step
   stats::traced_steps++;
 
-  // Get a matching command, or create a new one if there is no matching deferred command
-  shared_ptr<Command> child = findCommand(parent, args, exe_ref, cwd_ref, root_ref, fds);
-
-  // Build a mapping from parent refs to child refs to emit to the IR layer
-  list<tuple<Ref::ID, Ref::ID>> refs;
-
-  // Set standard references in the child
-  child->setRef(Ref::Root, parent->getRef(root_ref));
-  refs.emplace_back(root_ref, Ref::Root);
-
-  child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
-  refs.emplace_back(cwd_ref, Ref::Cwd);
-
-  child->setRef(Ref::Exe, parent->getRef(exe_ref));
-  refs.emplace_back(exe_ref, Ref::Exe);
-
-  // Set references for initial file descriptors
-  for (const auto& [fd, child_ref] : child->getInitialFDs()) {
-    auto parent_ref = fds.at(fd);
-    child->setRef(child_ref, parent->getRef(parent_ref));
-    refs.emplace_back(parent_ref, child_ref);
+  // Assign references in the child command
+  for (const auto& [parent_ref_id, child_ref_id] : refs) {
+    child->setRef(child_ref_id, parent->getRef(parent_ref_id));
   }
 
   // Add the child to the parent's list of children
@@ -1061,7 +1039,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   if (child->mustRun()) child->setExecuted();
 
   // The child command is now launched in the provided process
-  child->setLaunched(process);
+  // child->setLaunched(process);
 
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
@@ -1097,7 +1075,4 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
     usingRef(child, child_ref_id);
   }
-
-  // Return the child command to the caller
-  return child;
 }

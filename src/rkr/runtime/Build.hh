@@ -184,21 +184,13 @@ class Build : public IRSink {
   /**
    * A traced command is launching a child command.
    *
-   * \param c         The parent command
-   * \param args      The command line arguments passed to the child command
-   * \param exe_ref   The parent command's reference to the launched executable
-   * \param cwd_ref   The parent command's reference to the working directory
-   * \param root_ref  The parent command's reference to the root directory
-   * \param fds       A mapping from child file descriptor numbers to the parent's reference IDs
-   * \returns The child command that has been launched
+   * \param parent  The parent command
+   * \param child   The child command
+   * \param refs    References inherited by the child command
    */
-  std::shared_ptr<Command> traceLaunch(const std::shared_ptr<Command>& c,
-                                       std::vector<std::string> args,
-                                       Ref::ID exe_ref,
-                                       Ref::ID cwd_ref,
-                                       Ref::ID root_ref,
-                                       const std::map<int, Ref::ID>& fds,
-                                       std::shared_ptr<Process> process) noexcept;
+  void traceLaunch(const std::shared_ptr<Command>& parent,
+                   const std::shared_ptr<Command>& child,
+                   std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept;
 
  private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace

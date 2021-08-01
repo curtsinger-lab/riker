@@ -1,10 +1,12 @@
 #include "Process.hh"
 
 #include <functional>
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -18,11 +20,13 @@
 #include "util/log.hh"
 
 using std::function;
+using std::list;
 using std::make_shared;
 using std::map;
 using std::optional;
 using std::shared_ptr;
 using std::string;
+using std::tuple;
 using std::vector;
 
 Process::Process(Build& build,
@@ -148,9 +152,28 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
     if (!cloexec) inherited_fds.emplace(fd, ref);
   }
 
-  // Inform the build of the launch action
-  auto child =
-      _build.traceLaunch(_command, args, exe_ref, _cwd, _root, inherited_fds, shared_from_this());
+  // Find (or create) a command for the child
+  auto child = _build.findCommand(_command, args, exe_ref, _cwd, _root, inherited_fds);
+
+  // Build a mapping from parent refs to child refs to emit to the IR layer
+  list<tuple<Ref::ID, Ref::ID>> refs;
+
+  // The child inherits standard references
+  refs.emplace_back(_root, Ref::Root);
+  refs.emplace_back(_cwd, Ref::Cwd);
+  refs.emplace_back(exe_ref, Ref::Exe);
+
+  // The child also inherits references for initial file descriptors
+  for (const auto& [fd, child_ref] : child->getInitialFDs()) {
+    auto parent_ref = inherited_fds.at(fd);
+    refs.emplace_back(parent_ref, child_ref);
+  }
+
+  // Inform the build of the launch
+  _build.traceLaunch(_command, child, refs);
+
+  // The child is now launched in this process
+  child->setLaunched(shared_from_this());
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);
