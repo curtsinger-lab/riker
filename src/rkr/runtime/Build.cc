@@ -877,31 +877,37 @@ void Build::launch(const shared_ptr<Command>& c,
 void Build::join(const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->join(c, child, exit_status);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->join(c, child, exit_status);
+      return;
+    }
   }
 
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // If the child command is running in the tracer, wait for it
-  const auto& process = child->getProcess();
-  if (process) _tracer.wait(process);
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
+  // If we're emulating the parent command but the child is running, wait for it now
+  if (c->canEmulate() && child->mustRun()) {
+    // If the child command is running in the tracer, wait for it
+    const auto& process = child->getProcess();
+    if (process) _tracer.wait(process);
+  }
 
   // Create an IR step and add it to the output trace
   _output.join(c, child, exit_status);
 
-  // Did the child command's exit status match the expected result?
-  if (child->getExitStatus() != exit_status) {
+  // If the parent is emulated, check for the expected exit status
+  if (c->canEmulate() && child->getExitStatus() != exit_status) {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
          child, exit_status, child->getExitStatus());
 
@@ -1094,18 +1100,4 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Return the child command to the caller
   return child;
-}
-
-// This command joined with a child command
-void Build::traceJoin(const shared_ptr<Command>& c,
-                      const shared_ptr<Command>& child,
-                      int exit_status) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create an IR step and add it to the output trace
-  _output.join(c, child, exit_status);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 }

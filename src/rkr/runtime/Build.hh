@@ -182,11 +182,6 @@ class Build : public IRSink {
                                        const std::map<int, Ref::ID>& fds,
                                        std::shared_ptr<Process> process) noexcept;
 
-  /// A command is joining with a child command
-  void traceJoin(const std::shared_ptr<Command>& c,
-                 const std::shared_ptr<Command>& child,
-                 int exit_status) noexcept;
-
  private:
   /// Trace steps are sent to this trace handler, typically an OutputTrace
   IRSink& _output;
