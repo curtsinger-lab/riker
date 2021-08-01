@@ -185,21 +185,24 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 
 // A command references a new anonymous file
 void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->fileRef(c, mode, output);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->fileRef(c, mode, output);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
 
   // Create an IR step and add it to the output trace
   _output.fileRef(c, mode, output);
@@ -445,7 +448,8 @@ void Build::expectResult(const shared_ptr<Command>& c,
   auto ref = c->getRef(ref_id);
   if (ref->getResultCode() != expected) {
     LOGF(rebuild,
-         "{} changed in scenario {}: r{}={} did not resolve as expected (expected {}, observed {})",
+         "{} changed in scenario {}: r{}={} did not resolve as expected (expected {}, observed "
+         "{})",
          c, scenario, ref_id, ref, expected, ref->getResultCode());
     c->observeChange(scenario);
   }
@@ -477,7 +481,8 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been reported.
+  // We can't do anything with an unresolved reference. A change should already have been
+  // reported.
   if (!ref->isResolved()) return;
 
   // Perform the comparison
@@ -510,7 +515,8 @@ void Build::matchContent(const shared_ptr<Command>& c,
 
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been reported.
+  // We can't do anything with an unresolved reference. A change should already have been
+  // reported.
   if (!ref->isResolved()) return;
 
   // Perform the comparison
@@ -542,7 +548,8 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been reported.
+  // We can't do anything with an unresolved reference. A change should already have been
+  // reported.
   if (!ref->isResolved()) return;
 
   // Apply the write
@@ -574,7 +581,8 @@ void Build::updateContent(const shared_ptr<Command>& c,
 
   auto ref = c->getRef(ref_id);
 
-  // We can't do anything with an unresolved reference. A change should already have been reported.
+  // We can't do anything with an unresolved reference. A change should already have been
+  // reported.
   if (!ref->isResolved()) return;
 
   // Apply the write
@@ -826,26 +834,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// A command references a new anonymous file
-Ref::ID Build::traceFileRef(const shared_ptr<Command>& c, mode_t mode) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create an anonymous file
-  auto file = env::createFile(c, mode);
-
-  // Create a reference for the new file
-  auto output = c->setRef(make_shared<Ref>(ReadAccess + WriteAccess, file));
-
-  // Create an IR step and add it to the output trace
-  _output.fileRef(c, mode, output);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
-
-  return output;
-}
 
 // A command references a new anonymous symlink
 Ref::ID Build::traceSymlinkRef(const shared_ptr<Command>& c, fs::path target) noexcept {
