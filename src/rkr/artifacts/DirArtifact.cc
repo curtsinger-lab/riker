@@ -614,6 +614,7 @@ void DirEntry::updateEntry(shared_ptr<Command> c, shared_ptr<DirEntryVersion> ve
 // Peek at the target of this entry without creating a dependency
 shared_ptr<Artifact> DirEntry::peekTarget() const noexcept {
   auto [v, _] = _state.getLatest();
+  if (!v) return nullptr;
   return v->getTarget();
 }
 
@@ -622,6 +623,8 @@ shared_ptr<Artifact> DirEntry::getTarget(shared_ptr<Command> c) const noexcept {
   // Record the input to c, which may commit this entry
   auto [version, writer] = _state.getLatest();
   if (c) c->addDirectoryInput(_dir.lock(), version, writer.lock());
+
+  if (!version) return nullptr;
 
   return version->getTarget();
 }
